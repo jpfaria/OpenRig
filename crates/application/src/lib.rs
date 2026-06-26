@@ -8,11 +8,11 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod app_config_persist;
 pub mod block_factory;
 pub mod di_loader;
 pub mod bridge;
 pub mod chain_factory;
-pub mod chain_validation;
 pub mod command;
 pub mod command_schema;
 pub mod dispatcher;
@@ -27,6 +27,7 @@ pub mod snapshot;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
+mod local_dispatcher_io_binding;
 mod local_dispatcher_ir_reseed;
 mod local_dispatcher_chain_crud;
 mod local_dispatcher_di_loop;

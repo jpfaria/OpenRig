@@ -52,16 +52,10 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainReloaded { chain }])
             }
             // ── Insert block ──────────────────────────────────────────────────
-            Command::SaveInsertBlock {
-                chain,
-                block,
-                send,
-                return_,
-            } => {
+            Command::SaveInsertBlock { chain, block, io } => {
                 self.with_block(&chain, &block, |b| match &mut b.kind {
                     project::block::AudioBlockKind::Insert(ref mut ib) => {
-                        ib.send = send;
-                        ib.return_ = return_;
+                        ib.io = io;
                         Ok(())
                     }
                     _ => Err(anyhow::anyhow!("block {:?} is not an InsertBlock", block)),

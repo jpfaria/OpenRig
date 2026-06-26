@@ -1,0 +1,84 @@
+// One existing-endpoint row in the I/O bindings editor (#716): device label,
+// mode + channel summary, and a remove (trash) action. Pure presentation —
+// the remove event fires upward; Rust owns the mutation.
+
+import { IoEndpointModel } from "../../models.slint";
+
+export component IoEndpointRow inherits Rectangle {
+    in property <IoEndpointModel> endpoint;
+    callback remove-requested();
+
+    height: 40px;
+    background: #181b20;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: #262b33;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 6px;
+        spacing: 10px;
+        alignment: center;
+
+        // Endpoint name (full width, no truncation up to the controls).
+        Text {
+            horizontal-stretch: 1;
+            text: root.endpoint.name;
+            color: #dde3ec;
+            font-size: 13px;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        // Device + channels + mode summary (separate Text nodes so no raw
+        // string literal lives in a `text:` binding).
+        Text {
+            text: root.endpoint.device_label;
+            color: #8a92a3;
+            font-size: 12px;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        Text {
+            text: @tr("label-channels-prefix");
+            color: #5a6472;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.endpoint.channels_label;
+            color: #8a92a3;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.endpoint.mode;
+            color: #5a6472;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+
+        // Remove (trash) action — ≥44px touch target via padding.
+        Rectangle {
+            width: 32px;
+            height: 32px;
+            background: rm-ta.has-hover ? #3a1a1a : transparent;
+            border-radius: 6px;
+            animate background { duration: 120ms; }
+
+            Image {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 13px;
+                height: 13px;
+                source: @image-url("../../assets/trash.svg");
+                colorize: rm-ta.has-hover ? #e07070 : #6b7786;
+            }
+
+            rm-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.remove-requested(); }
+            }
+        }
+    }
+}

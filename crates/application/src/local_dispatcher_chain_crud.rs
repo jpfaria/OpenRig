@@ -3,7 +3,6 @@
 
 use anyhow::Result;
 
-use crate::chain_validation;
 use crate::command::Command;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -14,11 +13,10 @@ impl LocalDispatcher {
         match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
             Command::AddChain { mut chain } => {
-                if chain.enabled {
-                    let proj = self.project.borrow();
-                    chain_validation::validate_no_channel_conflict(&proj, &chain, None)
-                        .map_err(|e| anyhow::anyhow!("{}", e))?;
-                }
+                // #716 (model A): the per-block cross-chain channel-conflict
+                // check is gone — device endpoints no longer live on the chain,
+                // they are resolved from the per-machine binding registry at
+                // activation time, where the conflict check now belongs.
                 // Mirror the new chain into the attached rig (if any),
                 // and re-tag the chain's id to `rig:<input>` so the
                 // chains-screen rig nav can locate it. Without the
@@ -78,6 +76,30 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![
                     Event::ChainVolumeChanged { chain, value },
+                    Event::ProjectMutated,
+                ])
+            }
+            // ── Chain I/O binding selection (issue #716) ──────────────────────
+            Command::SetChainIoBindings { chain, binding_ids } => {
+                self.with_chain(&chain, |c| {
+                    c.io_binding_ids = binding_ids.clone();
+                    Ok(())
+                })?;
+                // #716: propagate the selection into the rig so it survives
+                // reopen (the rig is the persistence model; rig→legacy
+                // reprojects from it). Without this the checklist reopens
+                // unchecked and the chain reopens unbound (no runtime).
+                if let Some(input_name) = chain.0.strip_prefix("rig:") {
+                    if let Some(rig) = self.rig.borrow().clone() {
+                        if let Some(rig_input) =
+                            rig.borrow_mut().inputs.get_mut(input_name)
+                        {
+                            rig_input.io_binding_ids = binding_ids.clone();
+                        }
+                    }
+                }
+                Ok(vec![
+                    Event::ChainIoBindingsChanged { chain, binding_ids },
                     Event::ProjectMutated,
                 ])
             }

@@ -154,6 +154,14 @@ pub(crate) fn synthesize_parameters_from_manifest(
             let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
             let mut specs: Vec<block_core::param::ParameterSpec> =
                 axes.iter().map(grid_parameter_to_spec).collect();
+            // Issue #733: a `type: reverb` IR blends dry/wet rather than
+            // playing 100% wet at a calibrated level, so it exposes the
+            // reverb controls (mix / pre-delay / wet level) in place of the
+            // cab-style absolute Output knob.
+            if package.manifest.block_type == plugin_loader::manifest::BlockType::Reverb {
+                specs.extend(block_reverb::ir_reverb_parameter_specs());
+                return specs;
+            }
             // Issue #655: user-adjustable Output Level knob (mirrors NAM).
             // The default mirrors the engine baseline — the first capture's
             // audit (manifest-level fallback, 0 dB if neither) — so the knob

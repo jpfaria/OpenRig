@@ -36,9 +36,13 @@ struct AppConfigYaml {
 
 /// Build the runtime graph + streams for the current project state.
 fn build_streams(project: &Project) -> Result<Vec<cpal::Stream>> {
-    let rates = resolve_project_chain_sample_rates(project)?;
-    let graph = build_runtime_graph(project, &rates, &HashMap::new())?;
-    let streams = build_streams_for_project(project, &graph)?;
+    // Model A (#716): device I/O comes from the per-machine binding registry.
+    let registry = infra_filesystem::FilesystemStorage::load_app_config()
+        .map(|c| c.io_bindings)
+        .unwrap_or_default();
+    let rates = resolve_project_chain_sample_rates(project, &registry)?;
+    let graph = build_runtime_graph(project, &rates, &HashMap::new(), &registry)?;
+    let streams = build_streams_for_project(project, &graph, &registry)?;
     for stream in &streams {
         stream.play()?;
     }

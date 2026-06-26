@@ -111,7 +111,7 @@ pub enum Event {
     },
 
     // ── Insert block events ───────────────────────────────────────────────────
-    /// An insert block's send/return endpoints were saved.
+    /// An insert block's I/O binding selection was saved (#716, model A).
     InsertBlockSaved {
         chain: ChainId,
         block: BlockId,
@@ -128,6 +128,14 @@ pub enum Event {
     ChainVolumeChanged {
         chain: ChainId,
         value: f32,
+    },
+
+    // ── Chain I/O binding selection (issue #716) ──────────────────────────────
+    /// A chain's selected I/O bindings changed; its input/output is rediscovered
+    /// from the new selection and its runtime re-synced.
+    ChainIoBindingsChanged {
+        chain: ChainId,
+        binding_ids: Vec<String>,
     },
 
     // ── Audio settings events ─────────────────────────────────────────────────
@@ -337,6 +345,13 @@ pub enum Event {
         chain: ChainId,
         enabled: bool,
     },
+
+    // ── I/O binding registry (#716) ───────────────────────────────────────────
+
+    /// #716: the per-machine I/O binding registry in `config.yaml` was
+    /// mutated (create, update, or delete). MCP/gRPC adapters that cache
+    /// the registry invalidate their cache on receipt.
+    IoBindingRegistryChanged,
 }
 
 impl Event {
@@ -364,6 +379,7 @@ impl Event {
             | Event::InsertBlockSaved { chain, .. }
             | Event::ChainPresetLoaded { chain }
             | Event::ChainVolumeChanged { chain, .. }
+            | Event::ChainIoBindingsChanged { chain, .. }
             | Event::BlockSelectionChanged { chain, .. }
             | Event::ChainDiLoopSourceChanged { chain }
             | Event::ChainDiLoopEnabledChanged { chain, .. } => Some(chain),
@@ -403,7 +419,9 @@ impl Event {
             | Event::PluginLoadFailed { .. }
             // #576: offline render does not touch any chain in the live project.
             | Event::RenderCompleted { .. }
-            | Event::Error { .. } => None,
+            | Event::Error { .. }
+            // #716: I/O binding registry is a system-level concern, not tied to any chain.
+            | Event::IoBindingRegistryChanged => None,
         }
     }
 }

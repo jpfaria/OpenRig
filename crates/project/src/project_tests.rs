@@ -1,11 +1,11 @@
 use super::*;
 use crate::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    OutputBlock, OutputEntry, SelectBlock,
+    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock,
+    SelectBlock,
 };
-use crate::chain::{Chain, ChainInputMode, ChainOutputMode};
+use crate::chain::Chain;
 use crate::param::ParameterSet;
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{BlockId, ChainId};
 
 fn make_input_block(id: &str) -> AudioBlock {
     AudioBlock {
@@ -13,11 +13,8 @@ fn make_input_block(id: &str) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -28,11 +25,8 @@ fn make_output_block(id: &str) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -74,6 +68,7 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks,
     }
 }
@@ -280,6 +275,7 @@ fn chain_with_id(id: &str) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     }
 }

@@ -19,13 +19,11 @@ use slint::{SharedString, Timer, VecModel};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::state::{
-    BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft, IoBlockInsertDraft, ProjectSession,
-    SelectedBlock,
+    BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
 };
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
-    ChainInputGroupsWindow, ChainInputWindow, ChainInsertWindow, ChainOutputGroupsWindow,
-    ChainOutputWindow, ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint,
+    ChainInsertWindow, ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint,
     MultiSliderPoint, PluginInfoWindow, ProjectChainItem,
 };
 
@@ -33,17 +31,11 @@ use crate::{
 pub(crate) struct BlockWiringDeps<'a> {
     pub window: &'a AppWindow,
     pub block_editor_window: &'a BlockEditorWindow,
-    pub chain_input_window: &'a ChainInputWindow,
-    pub chain_output_window: &'a ChainOutputWindow,
-    pub chain_input_groups_window: &'a ChainInputGroupsWindow,
-    pub chain_output_groups_window: &'a ChainOutputGroupsWindow,
     pub chain_insert_window: &'a ChainInsertWindow,
 
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
-    pub chain_draft: Rc<RefCell<Option<ChainDraft>>>,
     pub insert_draft: Rc<RefCell<Option<InsertDraft>>>,
-    pub io_block_insert_draft: Rc<RefCell<Option<IoBlockInsertDraft>>>,
 
     pub block_type_options: Rc<VecModel<BlockTypePickerItem>>,
     pub block_model_options: Rc<VecModel<BlockModelPickerItem>>,
@@ -64,8 +56,6 @@ pub(crate) struct BlockWiringDeps<'a> {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub chain_input_device_options: Rc<VecModel<SharedString>>,
     pub chain_output_device_options: Rc<VecModel<SharedString>>,
-    pub chain_input_channels: Rc<VecModel<ChannelOptionItem>>,
-    pub chain_output_channels: Rc<VecModel<ChannelOptionItem>>,
 
     pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
     pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
@@ -88,13 +78,10 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     // --- on_select_chain_block (extracted to select_chain_block_callback + block_editor_window_*) ---
     crate::select_chain_block_callback::wire(
         &deps.window,
-        &deps.chain_input_groups_window,
-        &deps.chain_output_groups_window,
         &deps.chain_insert_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
-            chain_draft: deps.chain_draft.clone(),
             insert_draft: deps.insert_draft.clone(),
             block_type_options: deps.block_type_options.clone(),
             block_model_options: deps.block_model_options.clone(),
@@ -187,13 +174,9 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::block_choose_type_callback::wire(
         &deps.window,
         &deps.block_editor_window,
-        &deps.chain_input_window,
-        &deps.chain_output_window,
         &deps.chain_insert_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
-            chain_draft: deps.chain_draft.clone(),
-            io_block_insert_draft: deps.io_block_insert_draft.clone(),
             insert_draft: deps.insert_draft.clone(),
             block_model_options: deps.block_model_options.clone(),
             filtered_block_model_options: deps.filtered_block_model_options.clone(),
@@ -211,8 +194,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             output_chain_devices: deps.output_chain_devices.clone(),
             chain_input_device_options: deps.chain_input_device_options.clone(),
             chain_output_device_options: deps.chain_output_device_options.clone(),
-            chain_input_channels: deps.chain_input_channels.clone(),
-            chain_output_channels: deps.chain_output_channels.clone(),
             insert_send_channels: deps.insert_send_channels.clone(),
             insert_return_channels: deps.insert_return_channels.clone(),
             auto_save: deps.auto_save,

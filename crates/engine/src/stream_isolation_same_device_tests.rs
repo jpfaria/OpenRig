@@ -16,48 +16,71 @@
 //! dual SUMS before the limiter) keep their exact math.
 
 use super::*;
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::chain::Chain;
 use project::project::Project;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-fn input_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(device.into()),
-                mode: ChainInputMode::Mono,
-                channels,
-            }],
-        }),
-    }
-}
-
-fn output_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(device.into()),
-                mode: ChainOutputMode::Stereo,
-                channels,
-            }],
-        }),
-    }
-}
+/// Registry id every chain in this file references via
+/// `io_binding_ids: vec!["io".into()]`.
+const IO_BINDING_ID: &str = "io";
 
 /// Two RAW input entries on the SAME physical device (channel 0 and
-/// channel 1 of one interface), both feeding one stereo OutputBlock.
-/// The user-visible "two guitars on one interface" scenario.
+/// channel 1 of one interface) — two separate endpoints, preserved in
+/// order — both feeding one stereo output endpoint. The user-visible
+/// "two guitars on one interface" scenario.
+fn same_device_dual_entry_registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: IO_BINDING_ID.into(),
+        name: "IO".into(),
+        inputs: vec![
+            IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId("shared_iface".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            },
+            IoEndpoint {
+                name: "in1".into(),
+                device_id: DeviceId("shared_iface".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![1],
+            },
+        ],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("main_out".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0],
+        }],
+    }]
+}
+
+/// ONE raw entry split by the engine into two mono streams. These are
+/// split-mono SIBLINGS, not independent entries — they must stay in the
+/// same runtime (pinned volume invariants g02/g03 sum them before the
+/// per-runtime limiter).
+fn split_mono_registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: IO_BINDING_ID.into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("shared_iface".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("main_out".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0],
+        }],
+    }]
+}
+
 fn same_device_dual_entry_chain() -> Chain {
     Chain {
         id: ChainId("same_dev".into()),
@@ -65,18 +88,11 @@ fn same_device_dual_entry_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            input_block("same_dev:in:0", "shared_iface", vec![0]),
-            input_block("same_dev:in:1", "shared_iface", vec![1]),
-            output_block("same_dev:out:0", "main_out", vec![0]),
-        ],
+        io_binding_ids: vec![IO_BINDING_ID.into()],
+        blocks: vec![],
     }
 }
 
-/// ONE raw entry split by the engine into two mono streams. These are
-/// split-mono SIBLINGS, not independent entries — they must stay in the
-/// same runtime (pinned volume invariants g02/g03 sum them before the
-/// per-runtime limiter).
 fn split_mono_chain() -> Chain {
     Chain {
         id: ChainId("split_mono".into()),
@@ -84,14 +100,12 @@ fn split_mono_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            input_block("split_mono:in:0", "shared_iface", vec![0, 1]),
-            output_block("split_mono:out:0", "main_out", vec![0]),
-        ],
+        io_binding_ids: vec![IO_BINDING_ID.into()],
+        blocks: vec![],
     }
 }
 
-fn build_graph(chain: &Chain) -> RuntimeGraph {
+fn build_graph(chain: &Chain, registry: &[IoBinding]) -> RuntimeGraph {
     let project = Project {
         name: Some("same_device_isolation_test".into()),
         chains: vec![chain.clone()],
@@ -101,7 +115,7 @@ fn build_graph(chain: &Chain) -> RuntimeGraph {
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);
     let elastic_targets: HashMap<ChainId, Vec<usize>> = HashMap::new();
-    build_runtime_graph(&project, &sample_rates, &elastic_targets)
+    build_runtime_graph(&project, &sample_rates, &elastic_targets, registry)
         .expect("same-device chain must build")
 }
 
@@ -112,7 +126,7 @@ fn build_graph(chain: &Chain) -> RuntimeGraph {
 #[test]
 fn two_entries_on_same_device_produce_two_independent_runtimes() {
     let chain = same_device_dual_entry_chain();
-    let graph = build_graph(&chain);
+    let graph = build_graph(&chain, &same_device_dual_entry_registry());
 
     let runtimes = graph.runtimes_with_groups_for(&chain.id);
     assert_eq!(
@@ -131,7 +145,7 @@ fn two_entries_on_same_device_produce_two_independent_runtimes() {
 #[test]
 fn same_device_runtimes_must_not_share_output_routes_arc() {
     let chain = same_device_dual_entry_chain();
-    let graph = build_graph(&chain);
+    let graph = build_graph(&chain, &same_device_dual_entry_registry());
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
     assert!(
         runtimes.len() >= 2,
@@ -159,7 +173,7 @@ fn same_device_runtimes_must_not_share_output_routes_arc() {
 #[test]
 fn same_device_runtimes_must_not_share_processing_state() {
     let chain = same_device_dual_entry_chain();
-    let graph = build_graph(&chain);
+    let graph = build_graph(&chain, &same_device_dual_entry_registry());
     let runtimes: Vec<&Arc<ChainRuntimeState>> = graph.chains.values().collect();
     assert!(
         runtimes.len() >= 2,
@@ -186,7 +200,8 @@ fn same_device_runtimes_must_not_share_processing_state() {
 #[test]
 fn split_mono_siblings_stay_in_one_runtime() {
     let chain = split_mono_chain();
-    let graph = build_graph(&chain);
+    let registry = split_mono_registry();
+    let graph = build_graph(&chain, &registry);
 
     assert_eq!(
         graph.chains.len(),
@@ -209,12 +224,13 @@ fn split_mono_siblings_stay_in_one_runtime() {
 #[test]
 fn in_place_upsert_keeps_same_device_runtimes_entry_local() {
     let chain = same_device_dual_entry_chain();
-    let mut graph = build_graph(&chain);
+    let registry = same_device_dual_entry_registry();
+    let mut graph = build_graph(&chain, &registry);
 
     let mut edited = chain.clone();
     edited.volume = 80.0;
     graph
-        .upsert_chain(&edited, 48_000.0, false, &[])
+        .upsert_chain(&edited, 48_000.0, false, &[], &registry)
         .expect("in-place upsert must succeed");
 
     let runtimes = graph.runtimes_with_groups_for(&chain.id);

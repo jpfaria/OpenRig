@@ -60,13 +60,16 @@ fn inserting_the_pitch_shifter_live_does_not_saturate() {
     // The owner's project runs 3+ chains → 3+ DSP workers competing plus the
     // GUI. One isolated chain never reproduced the #670 spiral; keep the
     // multi-chain shape here too.
-    let (mut project, chain_id) = rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
+    let (mut project, chain_id, registry) =
+        rig_project("beat_it_michael_jackson_rhythm.yaml", input, output);
     for i in 1..3 {
         let mut extra = project.chains[0].clone();
         extra.id = ChainId(format!("issue-698-extra-{i}"));
         project.chains.push(extra);
     }
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
+    controller.set_io_bindings(registry);
+    controller.sync_project(&project).expect("resync with bindings");
     let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 

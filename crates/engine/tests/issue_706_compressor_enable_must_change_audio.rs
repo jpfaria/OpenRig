@@ -22,11 +22,8 @@ use engine::runtime_audio_frame::DEFAULT_ELASTIC_TARGET;
 use engine::runtime_block_toggle::set_block_enabled;
 use engine::runtime_graph::{build_chain_runtime_state, update_chain_runtime_state};
 use engine::runtime_state::ChainRuntimeState;
-use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 
 const SR: f32 = 48_000.0;
@@ -54,6 +51,25 @@ fn user_compressor_params() -> ParameterSet {
         .expect("user's rig params must normalize")
 }
 
+fn registry() -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
+
 fn chain_with_disabled_compressor() -> Chain {
     Chain {
         id: ChainId("issue706-chain".into()),
@@ -61,41 +77,16 @@ fn chain_with_disabled_compressor() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("test:in".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId(BLOCK_ID.into()),
-                enabled: false, // user starts with the block off
-                kind: AudioBlockKind::Core(CoreBlock {
-                    effect_type: "dynamics".into(),
-                    model: "compressor_studio_clean".into(),
-                    params: user_compressor_params(),
-                }),
-            },
-            AudioBlock {
-                id: BlockId("test:out".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId(BLOCK_ID.into()),
+            enabled: false, // user starts with the block off
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "dynamics".into(),
+                model: "compressor_studio_clean".into(),
+                params: user_compressor_params(),
+            }),
+        }],
     }
 }
 
@@ -131,8 +122,13 @@ fn drive_and_measure(runtime: &Arc<ChainRuntimeState>, amp: f32, seconds: f32) -
 fn issue_706_enabling_compressor_live_must_compress_the_audio() {
     init_registry();
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain_with_disabled_compressor(), SR, &[DEFAULT_ELASTIC_TARGET])
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain_with_disabled_compressor(),
+            SR,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry(),
+        )
+        .expect("runtime should build"),
     );
 
     // Bypass profile: block disabled.
@@ -152,8 +148,15 @@ fn issue_706_enabling_compressor_live_must_compress_the_audio() {
                 block.enabled = true;
             }
         }
-        update_chain_runtime_state(&runtime, &chain, SR, false, &[DEFAULT_ELASTIC_TARGET])
-            .expect("fallback runtime update must succeed");
+        update_chain_runtime_state(
+            &runtime,
+            &chain,
+            SR,
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry(),
+        )
+        .expect("fallback runtime update must succeed");
     }
 
     // Let the click-safe fade fully settle before measuring.

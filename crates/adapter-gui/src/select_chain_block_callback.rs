@@ -37,32 +37,29 @@ use crate::block_editor::{
     block_editor_data, block_parameter_items_for_editor, build_knob_overlays,
 };
 use crate::block_editor_window_setup;
-use crate::chain_editor::{chain_draft_from_chain, insert_mode_to_index};
+use crate::chain_editor::insert_mode_to_index;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
 use crate::helpers::{set_status_error, show_child_window, use_inline_block_editor};
-use crate::io_groups::build_io_group_items;
 use crate::project_view::{
     block_model_index, block_model_picker_items, block_model_picker_labels, block_type_index,
     block_type_picker_items, set_selected_block,
 };
 use crate::runtime_lifecycle::ui_index_to_real_block_index;
 use crate::state::{
-    BlockEditorDraft, BlockWindow, ChainDraft, InputGroupDraft, InsertDraft, OutputGroupDraft,
-    ProjectSession, SelectedBlock,
+    BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
 };
 use crate::ui_state::block_drawer_state;
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, BlockStreamData, BlockStreamEntry,
-    BlockTypePickerItem, ChainInputGroupsWindow, ChainInsertWindow, ChainOutputGroupsWindow,
-    ChannelOptionItem, CurveEditorPoint, MultiSliderPoint, PluginInfoWindow, ProjectChainItem,
+    BlockTypePickerItem, ChainInsertWindow, ChannelOptionItem, CurveEditorPoint, MultiSliderPoint,
+    PluginInfoWindow, ProjectChainItem,
 };
 
 pub(crate) struct SelectChainBlockCallbackCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
-    pub chain_draft: Rc<RefCell<Option<ChainDraft>>>,
     pub insert_draft: Rc<RefCell<Option<InsertDraft>>>,
     pub block_type_options: Rc<VecModel<BlockTypePickerItem>>,
     pub block_model_options: Rc<VecModel<BlockModelPickerItem>>,
@@ -94,15 +91,12 @@ pub(crate) struct SelectChainBlockCallbackCtx {
 
 pub(crate) fn wire(
     window: &AppWindow,
-    chain_input_groups_window: &ChainInputGroupsWindow,
-    chain_output_groups_window: &ChainOutputGroupsWindow,
     chain_insert_window: &ChainInsertWindow,
     ctx: SelectChainBlockCallbackCtx,
 ) {
     let SelectChainBlockCallbackCtx {
         selected_block,
         block_editor_draft,
-        chain_draft,
         insert_draft,
         block_type_options,
         block_model_options,
@@ -133,8 +127,6 @@ pub(crate) fn wire(
     } = ctx;
 
     let weak_main_window = window.as_weak();
-    let weak_input_groups = chain_input_groups_window.as_weak();
-    let weak_output_groups = chain_output_groups_window.as_weak();
     let weak_insert_window = chain_insert_window.as_weak();
 
     window.on_select_chain_block(move |chain_index, ui_block_index| {
@@ -174,67 +166,28 @@ pub(crate) fn wire(
                 chain: chain.id.clone(),
                 block_index: block_index as usize,
             });
-        // Handle I/O blocks — open I/O groups window with entries of THIS specific block
+        // Handle Insert blocks — open the insert configuration window. I/O
+        // blocks are no longer editable here (#716: a chain's I/O comes from
+        // its selected bindings); they fall through to the not-editable path.
         match &block.kind {
-            AudioBlockKind::Input(ib) => {
-                let fresh_input = refresh_input_devices(&chain_input_device_options);
-                let fresh_output = refresh_output_devices(&chain_output_device_options);
-                let inputs: Vec<InputGroupDraft> = ib.entries.iter().map(|e| InputGroupDraft {
-                    device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
-                    channels: e.channels.clone(),
-                    mode: e.mode,
-                }).collect();
-                let mut draft = chain_draft_from_chain(chain_index as usize, &chain);
-                draft.inputs = inputs;
-                draft.editing_io_block_index = Some(block_index as usize);
-                let (input_items, _) = build_io_group_items(&draft, &fresh_input, &fresh_output);
-                if let Some(gw) = weak_input_groups.upgrade() {
-                    gw.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
-                    gw.set_status_message("".into());
-                    gw.set_show_block_controls(true);
-                    gw.set_block_enabled(block.enabled);
-                    *chain_draft.borrow_mut() = Some(draft);
-                    drop(session_borrow);
-                    show_child_window(window.window(), gw.window());
-                }
-                return;
-            }
-            AudioBlockKind::Output(ob) => {
-                let fresh_input = refresh_input_devices(&chain_input_device_options);
-                let fresh_output = refresh_output_devices(&chain_output_device_options);
-                let outputs: Vec<OutputGroupDraft> = ob.entries.iter().map(|e| OutputGroupDraft {
-                    device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
-                    channels: e.channels.clone(),
-                    mode: e.mode,
-                }).collect();
-                let mut draft = chain_draft_from_chain(chain_index as usize, &chain);
-                draft.outputs = outputs;
-                draft.editing_io_block_index = Some(block_index as usize);
-                let (_, output_items) = build_io_group_items(&draft, &fresh_input, &fresh_output);
-                if let Some(gw) = weak_output_groups.upgrade() {
-                    gw.set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
-                    gw.set_status_message("".into());
-                    gw.set_show_block_controls(true);
-                    gw.set_block_enabled(block.enabled);
-                    *chain_draft.borrow_mut() = Some(draft);
-                    drop(session_borrow);
-                    show_child_window(window.window(), gw.window());
-                }
-                return;
-            }
             AudioBlockKind::Insert(ib) => {
                 let fresh_input = refresh_input_devices(&chain_input_device_options);
                 let fresh_output = refresh_output_devices(&chain_output_device_options);
                 log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
+                // TODO(#716): insert editor UI should pick a binding (`io`)
+                // instead of raw send/return device endpoints. The device-picker
+                // fields below are placeholder no-ops until the Slint window is
+                // reworked; the persisted value is the binding id (`ib.io`).
                 let draft = InsertDraft {
                     chain_index: chain_index as usize,
                     block_index: block_index as usize,
-                    send_device_id: if ib.send.device_id.0.is_empty() { None } else { Some(ib.send.device_id.0.clone()) },
-                    send_channels: ib.send.channels.clone(),
-                    send_mode: ib.send.mode,
-                    return_device_id: if ib.return_.device_id.0.is_empty() { None } else { Some(ib.return_.device_id.0.clone()) },
-                    return_channels: ib.return_.channels.clone(),
-                    return_mode: ib.return_.mode,
+                    io: ib.io.clone(),
+                    send_device_id: None,
+                    send_channels: Vec::new(),
+                    send_mode: project::chain::ChainInputMode::Mono,
+                    return_device_id: None,
+                    return_channels: Vec::new(),
+                    return_mode: project::chain::ChainInputMode::Mono,
                 };
                 let is_middle = block_index > 0 && (block_index as usize) < chain.blocks.len() - 1;
                 if let Some(iw) = weak_insert_window.upgrade() {

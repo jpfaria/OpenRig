@@ -94,6 +94,12 @@ pub struct ProjectRuntimeController {
     /// value plays them at the wrong speed (#669). Defaults to 48000 until the
     /// first chain is built.
     pub(crate) sample_rate: u32,
+    /// Model A (#716): the per-machine I/O binding registry. Device endpoints
+    /// for every chain resolve from this (via
+    /// [`engine::runtime_endpoints::resolve_chain_io`]), never from block
+    /// `entries`. Set by the owner via [`Self::set_io_bindings`] before
+    /// syncing/activating; defaults to empty until then.
+    pub(crate) io_bindings: Vec<domain::io_binding::IoBinding>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -127,6 +133,7 @@ impl ProjectRuntimeController {
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
             sample_rate,
+            io_bindings: Vec::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -135,6 +142,19 @@ impl ProjectRuntimeController {
     }
 
     pub fn start(project: &Project) -> Result<Self> {
+        Self::start_with_io_bindings(project, Vec::new())
+    }
+
+    /// Like [`Self::start`] but installs the per-machine I/O binding registry
+    /// BEFORE the initial `sync_project` schedules its cold-start activations.
+    /// #716 (AUDIO-CRITICAL): `schedule_chain_activation` snapshots
+    /// `self.io_bindings` into its worker job, so a binding-bound chain whose
+    /// registry is installed only AFTER `start()` resolves zero inputs and
+    /// bails "no input blocks". The owner must hand the registry here.
+    pub fn start_with_io_bindings(
+        project: &Project,
+        io_bindings: Vec<domain::io_binding::IoBinding>,
+    ) -> Result<Self> {
         log::info!("starting project runtime controller");
         let mut controller = Self {
             runtime_graph: RuntimeGraph {
@@ -148,6 +168,7 @@ impl ProjectRuntimeController {
             // Updated to the real device rate by `upsert_chain_with_resolved`
             // as each chain is built below (#669).
             sample_rate: 48_000,
+            io_bindings,
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -155,6 +176,14 @@ impl ProjectRuntimeController {
         };
         controller.sync_project(project)?;
         Ok(controller)
+    }
+
+    /// Model A (#716): install the per-machine I/O binding registry. Every
+    /// chain's device endpoints resolve from this; the owner must set it
+    /// before `sync_project`/`upsert_chain` so the resolved endpoints are
+    /// non-empty.
+    pub fn set_io_bindings(&mut self, io_bindings: Vec<domain::io_binding::IoBinding>) {
+        self.io_bindings = io_bindings;
     }
 
     /// Issue #672 — read a chain's current live runtime (group 0), reflecting
@@ -207,6 +236,7 @@ impl ProjectRuntimeController {
             chain: chain.clone(),
             sample_rate,
             buffer_sizes,
+            io_bindings: self.io_bindings.clone(),
         };
         let rx = self.worker.submit(move || build_chain_runtime(&request));
         self.pending_rebuilds.push((chain.id.clone(), rx));
@@ -284,7 +314,13 @@ impl ProjectRuntimeController {
                     // mirror it like the synchronous upsert path does, so DI
                     // loops resample to the live rate.
                     self.sample_rate = resolved.sample_rate as u32;
-                    match crate::build_active_chain_runtime(&chain_id, &chain, resolved, slots) {
+                    match crate::build_active_chain_runtime(
+                        &chain_id,
+                        &chain,
+                        resolved,
+                        slots,
+                        &self.io_bindings,
+                    ) {
                         Ok(active) => {
                             self.active_chains.insert(chain_id, active);
                             applied += 1;
@@ -497,8 +533,8 @@ impl ProjectRuntimeController {
             let mut resolved_chains = if cold_start {
                 HashMap::new()
             } else {
-                validate_channels_against_devices(project, host)?;
-                resolve_enabled_chain_audio_configs(host, project)?
+                validate_channels_against_devices(project, host, &self.io_bindings)?;
+                resolve_enabled_chain_audio_configs(host, project, &self.io_bindings)?
             };
 
             let removed_chain_ids = self
@@ -517,8 +553,22 @@ impl ProjectRuntimeController {
                 self.runtime_graph.remove_chain(&chain_id);
             }
 
+            // #716 (invariant #4): two or more ACTIVE inputs may not share the
+            // same device+channel. Refuse to bring up a chain whose input tap
+            // is already claimed by an earlier enabled chain (first wins);
+            // within-chain duplicates are caught too. Output may be shared.
+            let input_conflicts =
+                engine::runtime_endpoints::input_conflicting_chains(project.chains.iter(), &self.io_bindings);
+
             for chain in &project.chains {
                 if !chain.enabled {
+                    continue;
+                }
+                if input_conflicts.contains(&chain.id) {
+                    log::warn!(
+                        "chain '{}' not activated: one of its input device+channel taps is already in use by another active chain (#716)",
+                        chain.id.0
+                    );
                     continue;
                 }
 
@@ -536,8 +586,8 @@ impl ProjectRuntimeController {
                     None => {
                         // Cold start skipped the upfront resolve; this is the
                         // rare synchronous fallback (multi-input chain).
-                        validate_chain_channels_against_devices(host, chain)?;
-                        resolve_chain_audio_config(host, project, chain)?
+                        validate_chain_channels_against_devices(host, chain, &self.io_bindings)?;
+                        resolve_chain_audio_config(host, project, chain, &self.io_bindings)?
                     }
                 };
                 self.upsert_chain_with_resolved(chain, resolved, false)?;
@@ -575,7 +625,8 @@ impl ProjectRuntimeController {
             if !chain.enabled {
                 continue;
             }
-            let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
+            let resolved =
+                crate::jack_resolve_chain_config(chain, &self.supervisor, &self.io_bindings)?;
             self.upsert_chain_with_resolved(chain, resolved, false)?;
         }
 
@@ -640,15 +691,16 @@ impl ProjectRuntimeController {
             // ensure_jack_servers handles would_restart + self.stop() + the
             // ensure_server retry loop.
             self.ensure_jack_servers(project)?;
-            let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
+            let resolved =
+                crate::jack_resolve_chain_config(chain, &self.supervisor, &self.io_bindings)?;
             return self.upsert_chain_with_resolved(chain, resolved, spillover);
         }
 
         #[cfg(not(all(target_os = "linux", feature = "jack")))]
         {
             let host = get_host();
-            validate_chain_channels_against_devices(host, chain)?;
-            let resolved = resolve_chain_audio_config(host, project, chain)?;
+            validate_chain_channels_against_devices(host, chain, &self.io_bindings)?;
+            let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
             self.upsert_chain_with_resolved(chain, resolved, spillover)
         }
     }
@@ -670,7 +722,7 @@ impl ProjectRuntimeController {
             return Ok(false); // cold activation — caller does the synchronous build
         }
         let host = get_host();
-        let resolved = resolve_chain_audio_config(host, project, chain)?;
+        let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
         let io_unchanged = self
             .active_chains
             .get(&chain.id)
@@ -679,7 +731,8 @@ impl ProjectRuntimeController {
         if !io_unchanged {
             return Ok(false); // IO topology changed — needs a synchronous stream rebuild
         }
-        let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
+        let elastic_targets =
+            compute_elastic_targets_for_chain(chain, &resolved, &self.io_bindings);
         self.schedule_chain_rebuild(chain, resolved.sample_rate, elastic_targets);
         Ok(true)
     }
@@ -693,6 +746,27 @@ impl ProjectRuntimeController {
         _project: &Project,
         _chain: &Chain,
     ) -> Result<bool> {
+        Ok(false)
+    }
+
+    /// #716: `true` when `chain` is already streaming AND its resolved I/O
+    /// topology (the devices/channels its bindings point at) differs from what
+    /// is live — i.e. the user re-bound its E/S. A param/block `upsert` keeps the
+    /// existing streams, so an E/S swap would NOT take effect until a project
+    /// reopen; the caller must REBUILD the chain's streams when this is true.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn chain_io_changed(&self, project: &Project, chain: &Chain) -> Result<bool> {
+        let Some(active) = self.active_chains.get(&chain.id) else {
+            return Ok(false); // not streaming — nothing to compare
+        };
+        let host = get_host();
+        let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
+        Ok(active.stream_signature != resolved.stream_signature)
+    }
+
+    /// JACK build: stream-topology live-swap is not wired yet (cpal path first).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn chain_io_changed(&self, _project: &Project, _chain: &Chain) -> Result<bool> {
         Ok(false)
     }
 
@@ -712,10 +786,12 @@ impl ProjectRuntimeController {
         // entry and the one device stream feeds them all). Multi-device
         // chains need one stream per device wired through the synchronous
         // build, so defer them.
-        let input_devices: std::collections::HashSet<&str> = chain
-            .input_blocks()
+        // Model A (#716): the chain's input device endpoints come from the
+        // binding registry, not from block `entries`.
+        let resolved_inputs =
+            engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings).0;
+        let input_devices: std::collections::HashSet<&str> = resolved_inputs
             .iter()
-            .flat_map(|(_, block)| block.entries.iter())
             .map(|entry| entry.device_id.0.as_str())
             .collect();
         if input_devices.len() != 1 {
@@ -727,15 +803,26 @@ impl ProjectRuntimeController {
         // together with the heavy build, never on the calling thread.
         let project_for_build = project.clone();
         let chain_for_build = chain.clone();
+        let registry_for_build = self.io_bindings.clone();
         let rx = self.worker.submit(move || {
             let host = get_host();
-            validate_chain_channels_against_devices(host, &chain_for_build)?;
-            let resolved = resolve_chain_audio_config(host, &project_for_build, &chain_for_build)?;
-            let elastic_targets = compute_elastic_targets_for_chain(&chain_for_build, &resolved);
+            validate_chain_channels_against_devices(host, &chain_for_build, &registry_for_build)?;
+            let resolved = resolve_chain_audio_config(
+                host,
+                &project_for_build,
+                &chain_for_build,
+                &registry_for_build,
+            )?;
+            let elastic_targets = compute_elastic_targets_for_chain(
+                &chain_for_build,
+                &resolved,
+                &registry_for_build,
+            );
             let request = BuildRequest {
                 chain: chain_for_build,
                 sample_rate: resolved.sample_rate,
                 buffer_sizes: elastic_targets,
+                io_bindings: registry_for_build,
             };
             Ok((build_chain_runtime(&request)?, resolved))
         });
@@ -912,7 +999,8 @@ impl ProjectRuntimeController {
             self.teardown_active_chain_for_rebuild(&chain.id);
         }
 
-        let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
+        let elastic_targets =
+            compute_elastic_targets_for_chain(chain, &resolved, &self.io_bindings);
         // upsert_chain (re)builds every per-input runtime for this chain and
         // returns the first; fetch the full ordered (group, runtime) list
         // from the graph so the cpal layer can wire each physical input
@@ -924,6 +1012,7 @@ impl ProjectRuntimeController {
                 resolved.sample_rate,
                 needs_stream_rebuild,
                 &elastic_targets,
+                &self.io_bindings,
             )?;
         } else {
             self.runtime_graph.upsert_chain(
@@ -931,6 +1020,7 @@ impl ProjectRuntimeController {
                 resolved.sample_rate,
                 needs_stream_rebuild,
                 &elastic_targets,
+                &self.io_bindings,
             )?;
         }
 
@@ -944,7 +1034,13 @@ impl ProjectRuntimeController {
                 self.chain_slots
                     .insert((chain.id.clone(), *group), slot.handle());
             }
-            let active = crate::build_active_chain_runtime(&chain.id, chain, resolved, slots)?;
+            let active = crate::build_active_chain_runtime(
+                &chain.id,
+                chain,
+                resolved,
+                slots,
+                &self.io_bindings,
+            )?;
             self.active_chains.insert(chain.id.clone(), active);
         }
 

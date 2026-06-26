@@ -516,23 +516,31 @@ fn is_asio_host_returns_false_on_non_windows() {
 fn insert_return_as_input_entry_copies_return_fields() {
     use super::chain_resolve::insert_return_as_input_entry;
     use domain::ids::DeviceId;
-    use project::block::{InsertBlock, InsertEndpoint};
-    use project::chain::ChainInputMode;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::InsertBlock;
 
+    // Model A (#716): the return resolves from the insert binding's INPUT.
+    let registry = vec![IoBinding {
+        id: "fx".into(),
+        name: "FX".into(),
+        inputs: vec![IoEndpoint {
+            name: "ret".into(),
+            device_id: DeviceId("return".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![2, 3],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "snd".into(),
+            device_id: DeviceId("send".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+    }];
     let insert = InsertBlock {
         model: "external_loop".into(),
-        send: InsertEndpoint {
-            device_id: DeviceId("send".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("return".into()),
-            mode: ChainInputMode::Stereo,
-            channels: vec![2, 3],
-        },
+        io: "fx".into(),
     };
-    let entry = insert_return_as_input_entry(&insert);
+    let entry = insert_return_as_input_entry(&insert, &registry).expect("return resolves");
     assert_eq!(entry.device_id.0, "return");
     assert_eq!(entry.channels, vec![2, 3]);
 }
@@ -543,23 +551,32 @@ fn insert_return_as_input_entry_copies_return_fields() {
 fn insert_send_as_output_entry_mono_becomes_mono() {
     use super::chain_resolve::insert_send_as_output_entry;
     use domain::ids::DeviceId;
-    use project::block::{InsertBlock, InsertEndpoint};
-    use project::chain::{ChainInputMode, ChainOutputMode};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::InsertBlock;
+    use project::chain::ChainOutputMode;
 
+    // Model A (#716): the send resolves from the insert binding's OUTPUT.
+    let registry = vec![IoBinding {
+        id: "fx".into(),
+        name: "FX".into(),
+        inputs: vec![IoEndpoint {
+            name: "ret".into(),
+            device_id: DeviceId("return".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "snd".into(),
+            device_id: DeviceId("send".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+    }];
     let insert = InsertBlock {
         model: "external_loop".into(),
-        send: InsertEndpoint {
-            device_id: DeviceId("send".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("return".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
+        io: "fx".into(),
     };
-    let entry = insert_send_as_output_entry(&insert);
+    let entry = insert_send_as_output_entry(&insert, &registry).expect("send resolves");
     assert_eq!(entry.device_id.0, "send");
     assert!(matches!(entry.mode, ChainOutputMode::Mono));
 }
@@ -568,22 +585,31 @@ fn insert_send_as_output_entry_mono_becomes_mono() {
 fn insert_send_as_output_entry_stereo_becomes_stereo() {
     use super::chain_resolve::insert_send_as_output_entry;
     use domain::ids::DeviceId;
-    use project::block::{InsertBlock, InsertEndpoint};
-    use project::chain::{ChainInputMode, ChainOutputMode};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::InsertBlock;
+    use project::chain::ChainOutputMode;
 
+    // Model A (#716): the send resolves from the insert binding's OUTPUT.
+    let registry = vec![IoBinding {
+        id: "fx".into(),
+        name: "FX".into(),
+        inputs: vec![IoEndpoint {
+            name: "ret".into(),
+            device_id: DeviceId("return".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "snd".into(),
+            device_id: DeviceId("send".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
     let insert = InsertBlock {
         model: "external_loop".into(),
-        send: InsertEndpoint {
-            device_id: DeviceId("send".into()),
-            mode: ChainInputMode::Stereo,
-            channels: vec![0, 1],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("return".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
+        io: "fx".into(),
     };
-    let entry = insert_send_as_output_entry(&insert);
+    let entry = insert_send_as_output_entry(&insert, &registry).expect("send resolves");
     assert!(matches!(entry.mode, ChainOutputMode::Stereo));
 }

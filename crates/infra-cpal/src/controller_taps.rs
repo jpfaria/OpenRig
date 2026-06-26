@@ -346,17 +346,15 @@ pub(crate) fn arm_di_loop_on_first(runtimes: &[Arc<ChainRuntimeState>], di: Opti
 mod di_loop_doubling_tests {
     use super::arm_di_loop_on_first;
     use crate::{build_chain_runtime, BuildRequest};
-    use domain::ids::{BlockId, ChainId, DeviceId};
+    use domain::ids::{ChainId, DeviceId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
     use engine::DiLoop;
-    use project::block::{
-        AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-    };
-    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+    use project::chain::Chain;
     use std::sync::Arc;
 
-    /// A chain whose input block has TWO entries on the same device (ch0 + ch1)
-    /// — the "two inputs, one interface" shape. #703 builds one runtime per
-    /// entry.
+    /// A chain whose input binding has TWO mono entries on the same device
+    /// (ch0 + ch1) — the "two inputs, one interface" shape. #703 builds one
+    /// runtime per entry. Model A (#716): the endpoints live in the registry.
     fn two_entry_chain() -> Chain {
         Chain {
             id: ChainId("dbl".into()),
@@ -364,40 +362,38 @@ mod di_loop_doubling_tests {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 100.0,
-            blocks: vec![
-                AudioBlock {
-                    id: BlockId("in".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Input(InputBlock {
-                        model: "standard".into(),
-                        entries: vec![
-                            InputEntry {
-                                device_id: DeviceId("dev".into()),
-                                mode: ChainInputMode::Mono,
-                                channels: vec![0],
-                            },
-                            InputEntry {
-                                device_id: DeviceId("dev".into()),
-                                mode: ChainInputMode::Mono,
-                                channels: vec![1],
-                            },
-                        ],
-                    }),
+            io_binding_ids: vec!["io".into()],
+            blocks: vec![],
+        }
+    }
+
+    /// Registry mirroring `two_entry_chain`: two same-device mono inputs +
+    /// one stereo output.
+    fn two_entry_registry() -> Vec<IoBinding> {
+        vec![IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![
+                IoEndpoint {
+                    name: "in0".into(),
+                    device_id: DeviceId("dev".into()),
+                    mode: ChannelMode::Mono,
+                    channels: vec![0],
                 },
-                AudioBlock {
-                    id: BlockId("out".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Output(OutputBlock {
-                        model: "standard".into(),
-                        entries: vec![OutputEntry {
-                            device_id: DeviceId("dev".into()),
-                            mode: ChainOutputMode::Stereo,
-                            channels: vec![0, 1],
-                        }],
-                    }),
+                IoEndpoint {
+                    name: "in1".into(),
+                    device_id: DeviceId("dev".into()),
+                    mode: ChannelMode::Mono,
+                    channels: vec![1],
                 },
             ],
-        }
+            outputs: vec![IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        }]
     }
 
     #[test]
@@ -407,6 +403,7 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
+            io_bindings: two_entry_registry(),
         };
         let runtimes = build_chain_runtime(&req).expect("build 2-entry chain");
         assert_eq!(runtimes.len(), 2, "#703: one runtime per input entry");
@@ -418,6 +415,7 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
+            io_bindings: two_entry_registry(),
         };
         let built = build_chain_runtime(&req).expect("build 2-entry chain");
         let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
@@ -440,6 +438,7 @@ mod di_loop_doubling_tests {
             chain: two_entry_chain(),
             sample_rate: 48_000.0,
             buffer_sizes: vec![64],
+            io_bindings: two_entry_registry(),
         };
         let built = build_chain_runtime(&req).expect("build");
         let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();

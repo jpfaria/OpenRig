@@ -4,12 +4,11 @@
 //! Lifted out of `block.rs` (Phase 7 of issue #194). Single responsibility:
 //! the on-disk / in-memory shape of an `AudioBlock` and its variants.
 
-use domain::ids::{BlockId, DeviceId};
+use domain::ids::BlockId;
 use serde::{Deserialize, Serialize};
 
 use block_core::ModelAudioMode;
 
-use crate::chain::{ChainInputMode, ChainOutputMode};
 use crate::param::ParameterSet;
 
 /// Maximum number of options a single `SelectBlock` may carry.
@@ -24,20 +23,13 @@ pub(crate) fn default_io_model() -> String {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct InsertEndpoint {
-    pub device_id: DeviceId,
-    #[serde(default)]
-    pub mode: ChainInputMode,
-    pub channels: Vec<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InsertBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
-    pub send: InsertEndpoint,
-    #[serde(rename = "return")]
-    pub return_: InsertEndpoint,
+    /// Registry binding id for the external send/return loop (#716, model A):
+    /// the SEND goes to this binding's output, the RETURN comes from its input.
+    /// One E/S per insert; device endpoints are resolved from the registry.
+    pub io: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -101,33 +93,27 @@ impl AudioBlockKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct InputEntry {
-    pub device_id: DeviceId,
-    #[serde(default)]
-    pub mode: ChainInputMode,
-    pub channels: Vec<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct OutputEntry {
-    pub device_id: DeviceId,
-    #[serde(default)]
-    pub mode: ChainOutputMode,
-    pub channels: Vec<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InputBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
-    pub entries: Vec<InputEntry>,
+    /// Registry binding id this block reads from. The chain's input device(s)
+    /// are resolved from this binding in the per-machine registry — the chain
+    /// itself never embeds device endpoints.
+    pub io: String,
+    /// Endpoint name within the referenced binding.
+    pub endpoint: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct OutputBlock {
     #[serde(default = "default_io_model")]
     pub model: String,
-    pub entries: Vec<OutputEntry>,
+    /// Registry binding id this block writes to. The chain's output device(s)
+    /// are resolved from this binding in the per-machine registry — the chain
+    /// itself never embeds device endpoints.
+    pub io: String,
+    /// Endpoint name within the referenced binding.
+    pub endpoint: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]

@@ -10,47 +10,17 @@
 
 use std::sync::Arc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::build_chain_runtime_state;
 use infra_cpal::{process_input_buffer, process_output_buffer, LiveRuntimeSlot};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::chain::Chain;
 
 const SR: f32 = 48_000.0;
 const FRAMES: usize = 256;
 
-fn input_mono() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output_stereo() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    }
-}
-
+/// Model A (#716): a mono-in/stereo-out passthrough whose endpoints live in
+/// the "io" binding (`io_registry`), not block `entries`.
 fn passthrough_chain(id: &str) -> Chain {
     Chain {
         id: ChainId(id.into()),
@@ -58,8 +28,28 @@ fn passthrough_chain(id: &str) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![input_mono(), output_stereo()],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
+}
+
+fn io_registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 /// Drive one buffer through the seam: feed `sig` via the live input runtime,
@@ -86,7 +76,8 @@ fn drive(
 #[test]
 fn seam_follows_published_runtime() {
     let chain = passthrough_chain("seam");
-    let rt_a = Arc::new(build_chain_runtime_state(&chain, SR, &[FRAMES]).unwrap());
+    let registry = io_registry();
+    let rt_a = Arc::new(build_chain_runtime_state(&chain, SR, &[FRAMES], &registry).unwrap());
     let slot = LiveRuntimeSlot::new(Arc::clone(&rt_a));
     let mut loaded = Vec::with_capacity(2);
 
@@ -106,7 +97,7 @@ fn seam_follows_published_runtime() {
 
     // Publish a draining runtime B. The live seam must now read B: input is
     // dropped and process_output_f32 fills silence.
-    let rt_b = Arc::new(build_chain_runtime_state(&chain, SR, &[FRAMES]).unwrap());
+    let rt_b = Arc::new(build_chain_runtime_state(&chain, SR, &[FRAMES], &registry).unwrap());
     assert!(!Arc::ptr_eq(&rt_a, &rt_b));
     rt_b.set_draining();
     let _old = slot.publish(rt_b);

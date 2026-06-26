@@ -15,13 +15,14 @@
 //   - Accent #188cff (focus/active). Focus ring 2px #45a7ff @ 150ms.
 
 import { Button, ScrollView } from "std-widgets.slint";
-import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow } from "../models.slint";
+import { DeviceSelectionItem, MidiDeviceRow, MidiBindingRow, IoBindingModel, ChannelOptionItem } from "../models.slint";
 import { SectionSystemAudio } from "settings/section_system_audio.slint";
 import { SectionSystemLanguage } from "settings/section_system_language.slint";
 import { SectionSystemMidiDevices } from "settings/section_system_midi_devices.slint";
 import { SectionSystemIntegrations } from "settings/section_system_integrations.slint";
 import { SectionSystemPaths } from "settings/section_system_paths.slint";
 import { SectionProjectMeta } from "settings/section_project_meta.slint";
+import { SectionSystemIoBindings } from "settings/section_io_bindings.slint";
 
 // Sidebar nav row — selectable item with hover bg, active-state bg,
 // 2px brand-blue left accent when selected. Used inside the sidebar
@@ -126,6 +127,25 @@ export component SettingsPage inherits Rectangle {
     in property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+    // #716: System / I/O bindings section.
+    in property <[IoBindingModel]> io-bindings;
+    in property <[string]> input-device-ids;
+    in property <[string]> input-device-names;
+    in property <[string]> output-device-ids;
+    in property <[string]> output-device-names;
+    in property <[ChannelOptionItem]> io-binding-channel-options;
+    in-out property <string> io-binding-error: "";
+    in property <int> io-edit-prefill-device-index: -1;
+    in property <int> io-edit-prefill-mode-index: 0;
+    callback create-io-binding(string) -> string;
+    callback delete-io-binding(string) -> string;
+    callback rename-io-binding(string, string);
+    callback endpoint-device-changed(string, bool, string);
+    callback toggle-endpoint-channel(int, bool, string);
+    callback add-input-endpoint(string, string, string, string);
+    callback add-output-endpoint(string, string, string, string);
+    callback remove-endpoint(string, string, bool);
+    callback edit-endpoint(string, string, bool);
     callback add-midi-binding();
     callback delete-midi-binding(int);
     callback pick-midi-binding-command(int, string);
@@ -202,6 +222,11 @@ export component SettingsPage inherits Rectangle {
                     selected: root.selected-section == 5;
                     clicked => { root.selected-section = 5; }
                 }
+                NavRow {
+                    label: @tr("title-section-io-bindings");
+                    selected: root.selected-section == 6;
+                    clicked => { root.selected-section = 6; }
+                }
 
                 // Visual gap between groups (24px between unrelated
                 // groups per the spacing tokens).
@@ -256,6 +281,7 @@ export component SettingsPage inherits Rectangle {
                         : root.selected-section == 2 ? @tr("title-section-midi-devices")
                         : root.selected-section == 3 ? @tr("title-section-paths")
                         : root.selected-section == 5 ? @tr("title-section-integrations")
+                        : root.selected-section == 6 ? @tr("title-section-io-bindings")
                         : @tr("title-section-project-meta");
                     color: #dde3ec;
                     font-size: 18px;
@@ -274,6 +300,17 @@ export component SettingsPage inherits Rectangle {
                     horizontal-stretch: 1;
                     vertical-stretch: 1;
 
+                    // A ScrollView only auto-sizes its viewport (and thus
+                    // scrolls) when its DIRECT child is a single layout. The
+                    // section conditionals must live inside one VerticalLayout —
+                    // as bare children the viewport stayed pinned to the panel
+                    // height and overflowing content (e.g. 2+ I/O bindings) was
+                    // unreachable. `alignment: start` makes the layout report its
+                    // children's preferred height (so the viewport grows to the
+                    // full content) instead of stretching them to the visible
+                    // height — without it the content compresses and won't scroll.
+                    VerticalLayout {
+                        alignment: start;
                     if root.selected-section == 0 : SectionSystemAudio {
                         project-devices: root.project-devices;
                         sample-rate-options: root.sample-rate-options;
@@ -317,11 +354,32 @@ export component SettingsPage inherits Rectangle {
                         set-midi-enabled(on) => { root.set-midi-enabled(on); }
                         set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
                     }
+                    if root.selected-section == 6 : SectionSystemIoBindings {
+                        io-bindings: root.io-bindings;
+                        input-device-ids: root.input-device-ids;
+                        input-device-names: root.input-device-names;
+                        output-device-ids: root.output-device-ids;
+                        output-device-names: root.output-device-names;
+                        channel-options: root.io-binding-channel-options;
+                        io-binding-error <=> root.io-binding-error;
+                        edit-prefill-device-index: root.io-edit-prefill-device-index;
+                        edit-prefill-mode-index: root.io-edit-prefill-mode-index;
+                        create-io-binding(name) => { return root.create-io-binding(name); }
+                        delete-io-binding(id) => { return root.delete-io-binding(id); }
+                        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+                        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
+                        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
+                        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
+                        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
+                        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
+                        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
+                    }
                     if root.selected-section == 4 : SectionProjectMeta {
                         project-name: root.project-name;
                         project-path-display: root.project-path-display;
                         edit-project-name(t) => { root.edit-project-name(t); }
                         save-project => { root.save-project(); }
+                    }
                     }
                 }
 

@@ -32,13 +32,16 @@ fn test_chain(id: &str) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: Vec::<AudioBlock>::new(),
     }
 }
 
 fn build_rt(chain: &Chain) -> Arc<engine::runtime::ChainRuntimeState> {
     Arc::new(
-        build_chain_runtime_state(chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+        // #716: build_chain_runtime_state takes a trailing binding registry;
+        // this chain is unbound (empty io_binding_ids), so pass an empty one.
+        build_chain_runtime_state(chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
             .expect("build_chain_runtime_state"),
     )
 }

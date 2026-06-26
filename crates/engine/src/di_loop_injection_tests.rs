@@ -9,11 +9,8 @@ use super::{
     build_chain_runtime_state, process_input_f32, process_output_f32, DEFAULT_ELASTIC_TARGET,
 };
 use crate::di_loop::DiLoop;
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use project::chain::Chain;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
@@ -26,41 +23,33 @@ const SR: u32 = 48_000;
 /// Build a minimal stereo passthrough chain runtime — same pattern as
 /// `audio_signal_integrity_tests::build_runtime`.
 fn passthrough_runtime() -> Arc<super::ChainRuntimeState> {
+    let registry = vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
     let chain = Chain {
         id: ChainId("di-test".into()),
         description: Some("DI injection test".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     };
     Arc::new(
-        build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET], &registry)
             .expect("passthrough runtime should build"),
     )
 }
@@ -146,48 +135,41 @@ fn cursor_advances_by_num_frames_and_wraps() {
 /// same device (ch0 + ch1) — the "two guitars, one chain" rig from issue
 /// #699. Both entries become parallel segments inside one runtime.
 fn two_source_runtime() -> Arc<super::ChainRuntimeState> {
+    let registry = vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![
+            domain::io_binding::IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId("dev".into()),
+                mode: domain::io_binding::ChannelMode::Mono,
+                channels: vec![0],
+            },
+            domain::io_binding::IoEndpoint {
+                name: "in1".into(),
+                device_id: DeviceId("dev".into()),
+                mode: domain::io_binding::ChannelMode::Mono,
+                channels: vec![1],
+            },
+        ],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
     let chain = Chain {
         id: ChainId("di-test-multi".into()),
         description: Some("DI multi-source test".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![
-                        InputEntry {
-                            device_id: DeviceId("dev".into()),
-                            mode: ChainInputMode::Mono,
-                            channels: vec![0],
-                        },
-                        InputEntry {
-                            device_id: DeviceId("dev".into()),
-                            mode: ChainInputMode::Mono,
-                            channels: vec![1],
-                        },
-                    ],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     };
     Arc::new(
-        build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET], &registry)
             .expect("two-source runtime should build"),
     )
 }

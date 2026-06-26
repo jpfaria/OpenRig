@@ -49,16 +49,14 @@ use std::time::Instant;
 
 use block_core::param::ParameterSet;
 use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use domain::value_objects::ParameterValue;
 use engine::offline::render_chain;
 use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_graph::build_chain_runtime_state;
 use engine::runtime_state::ChainRuntimeState;
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, NamBlock, OutputBlock,
-    OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, NamBlock};
+use project::chain::Chain;
 
 const SR: f32 = 48_000.0;
 const BUFFER: usize = 64;
@@ -95,34 +93,26 @@ fn init_registry() {
     });
 }
 
-fn input_mono() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output_stereo() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    }
+/// The system binding the bound chains resolve their I/O from: a mono input
+/// (dev "dev", ch [0]) and a stereo output (dev "dev", ch [0,1]) — the same
+/// device/mode/channels the old head Input / tail Output blocks carried.
+fn registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 fn core(id: &str, effect_type: &str, model: &str, params: ParameterSet) -> AudioBlock {
@@ -175,8 +165,8 @@ fn heavy_chain(suffix: &str) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec!["io".into()],
         blocks: vec![
-            input_mono(),
             comp_block(),
             eq_block(),
             gate_block(),
@@ -190,7 +180,6 @@ fn heavy_chain(suffix: &str) -> Chain {
                 floats(&[("damping", 50.0), ("mix", 25.0), ("room_size", 40.0)]),
             ),
             limiter_block(),
-            output_stereo(),
         ],
     }
 }
@@ -274,13 +263,12 @@ fn natives_only_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec!["io".into()],
         blocks: vec![
-            input_mono(),
             comp_block(),
             eq_block(),
             gate_block(),
             limiter_block(),
-            output_stereo(),
         ],
     }
 }
@@ -346,7 +334,10 @@ fn print_stats(label: &str, s: &Stats) {
 }
 
 fn build(chain: &Chain) -> Arc<ChainRuntimeState> {
-    Arc::new(build_chain_runtime_state(chain, SR, &[BUFFER]).expect("heavy runtime must build"))
+    Arc::new(
+        build_chain_runtime_state(chain, SR, &[BUFFER], &registry())
+            .expect("heavy runtime must build"),
+    )
 }
 
 /// Drive N runtimes once per buffer and time the WHOLE batch — the
@@ -386,7 +377,8 @@ fn isolated_chain(label: &str, block: AudioBlock) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![input_mono(), block, output_stereo()],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![block],
     }
 }
 

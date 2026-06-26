@@ -366,35 +366,49 @@ msgctxt "ChainEditorPage"
 msgid "btn-save-chain"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
-msgctxt "ChannelRow"
-msgid "✓"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:140
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:105
 msgctxt "ChainEndpointEditorPage"
-msgid "label-device"
+msgid "label-io-binding"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:170
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:135
 msgctxt "ChainEndpointEditorPage"
-msgid "label-mode"
+msgid "label-input-endpoint"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:229
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:135
+msgctxt "ChainEndpointEditorPage"
+msgid "label-output-endpoint"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:166
+msgctxt "ChainEndpointEditorPage"
+msgid "label-resolved-info"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:196
 msgctxt "ChainEndpointEditorPage"
 msgid "label-channels"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:268
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:207
+msgctxt "ChainEndpointEditorPage"
+msgid "placeholder-select-endpoint"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:234
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-cancel"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:275
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:241
 msgctxt "ChainEndpointEditorPage"
 msgid "btn-ok"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:65
+msgctxt "ChannelRow"
+msgid "✓"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:99
@@ -626,60 +640,98 @@ msgctxt "ProjectSetupPage"
 msgid "btn-create-project"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:170
+#: crates/adapter-gui/ui/pages/settings.slint:181
 msgctxt "SettingsPage"
 msgid "nav-group-system"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:181
-#: crates/adapter-gui/ui/pages/settings.slint:181
+#: crates/adapter-gui/ui/pages/settings.slint:192
+#: crates/adapter-gui/ui/pages/settings.slint:192
 msgctxt "SettingsPage"
 msgid "title-section-audio-interface"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:186
-#: crates/adapter-gui/ui/pages/settings.slint:186
+#: crates/adapter-gui/ui/pages/settings.slint:197
+#: crates/adapter-gui/ui/pages/settings.slint:197
 msgctxt "SettingsPage"
 msgid "title-section-language"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:191
-#: crates/adapter-gui/ui/pages/settings.slint:191
+#: crates/adapter-gui/ui/pages/settings.slint:202
+#: crates/adapter-gui/ui/pages/settings.slint:202
 msgctxt "SettingsPage"
 msgid "title-section-midi-devices"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:196
-#: crates/adapter-gui/ui/pages/settings.slint:196
+#: crates/adapter-gui/ui/pages/settings.slint:207
+#: crates/adapter-gui/ui/pages/settings.slint:207
 msgctxt "SettingsPage"
 msgid "title-section-paths"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:201
-#: crates/adapter-gui/ui/pages/settings.slint:201
+#: crates/adapter-gui/ui/pages/settings.slint:212
+#: crates/adapter-gui/ui/pages/settings.slint:212
 msgctxt "SettingsPage"
 msgid "title-section-integrations"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:216
+#: crates/adapter-gui/ui/pages/settings.slint:217
+#: crates/adapter-gui/ui/pages/settings.slint:217
+msgctxt "SettingsPage"
+msgid "title-section-io-bindings"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint:232
 msgctxt "SettingsPage"
 msgid "nav-group-project"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:227
-#: crates/adapter-gui/ui/pages/settings.slint:227
+#: crates/adapter-gui/ui/pages/settings.slint:243
+#: crates/adapter-gui/ui/pages/settings.slint:243
 msgctxt "SettingsPage"
 msgid "title-section-project-meta"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:335
+#: crates/adapter-gui/ui/pages/settings.slint:363
 msgctxt "SettingsPage"
 msgid "btn-save-audio-settings"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings.slint:339
+#: crates/adapter-gui/ui/pages/settings.slint:367
 msgctxt "SettingsPage"
 msgid "btn-close"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:269
+msgctxt "SectionSystemIoBindings"
+msgid "label-binding-name"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:323
+msgctxt "SectionSystemIoBindings"
+msgid "label-endpoint-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:344
+msgctxt "SectionSystemIoBindings"
+msgid "label-endpoint-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:376
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:376
+msgctxt "SectionSystemIoBindings"
+msgid "mode-mono"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:376
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:376
+msgctxt "SectionSystemIoBindings"
+msgid "mode-stereo"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:376
+msgctxt "SectionSystemIoBindings"
+msgid "mode-dual-mono"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:27
@@ -883,87 +935,137 @@ msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:60
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:70
 msgctxt "ProjectSettingsWindow"
 msgid "title-window-project-settings"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:159
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:192
 msgctxt "ChainEditorWindow"
 msgid "title-window-chain-editor"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:192
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:225
 msgctxt "ChainEditorWindow"
 msgid "title-section-input"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:210
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:240
 msgctxt "ChainEditorWindow"
 msgid "title-section-output"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:240
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:267
 msgctxt "ChainInputWindow"
 msgid "title-window-chain-input"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:250
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:277
 msgctxt "ChainInputWindow"
 msgid "title-section-input"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:280
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:300
 msgctxt "ChainOutputWindow"
 msgid "title-window-chain-output"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:290
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:310
 msgctxt "ChainOutputWindow"
 msgid "title-section-output"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:321
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:334
 msgctxt "ChainInputGroupsWindow"
 msgid "title-window-chain-inputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:331
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:344
 msgctxt "ChainInputGroupsWindow"
 msgid "title-section-inputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:332
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:345
 msgctxt "ChainInputGroupsWindow"
 msgid "btn-add-input-row"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:362
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:375
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-window-chain-outputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:372
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:385
 msgctxt "ChainOutputGroupsWindow"
 msgid "title-section-outputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:373
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:386
 msgctxt "ChainOutputGroupsWindow"
 msgid "btn-add-output-row"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:418
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:431
 msgctxt "ChainInsertWindow"
 msgid "title-window-chain-insert"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:428
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:441
 msgctxt "ChainInsertWindow"
 msgid "title-section-configure-insert"
 msgstr ""
 
-#: crates/adapter-gui/ui/touch_main.slint:667
+#: crates/adapter-gui/ui/touch_main.slint:690
 msgctxt "TouchMain"
 msgid "⌨"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "placeholder-binding-name"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_row.slint
+msgctxt "IoEndpointRow"
+msgid "label-channels-prefix"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "label-endpoint-device"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "label-endpoint-mode"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "label-endpoint-channels"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint
+msgctxt "IoEndpointAddRow"
+msgid "btn-add-endpoint"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "label-group-inputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "label-group-outputs"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "empty-no-input-endpoints"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgctxt "SectionSystemIoBindings"
+msgid "empty-no-output-endpoints"
 msgstr ""

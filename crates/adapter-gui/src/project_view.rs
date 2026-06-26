@@ -4,7 +4,8 @@ use crate::block_editor::{
 };
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::state::SelectedBlock;
-use crate::ui_state::chain_routing_summary;
+use crate::ui_state::{chain_io_chip_label_from_bindings, chain_routing_summary};
+use infra_filesystem::IoBinding;
 use crate::AppWindow;
 use crate::{BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem, ProjectChainItem};
 use infra_cpal::AudioDeviceDescriptor;
@@ -416,6 +417,7 @@ pub(crate) fn replace_project_chains(
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
+    io_bindings: &[IoBinding],
 ) {
     let items = project
         .chains
@@ -435,7 +437,7 @@ pub(crate) fn replace_project_chains(
                         rust_i18n::t!("default-chain-name", n = index + 1).to_string()
                     })
                     .into(),
-                subtitle: chain_routing_summary(chain).into(),
+                subtitle: chain_routing_summary(chain, io_bindings).into(),
                 enabled: chain.enabled,
                 block_count_label: {
                     let effect_block_count = chain
@@ -455,27 +457,43 @@ pub(crate) fn replace_project_chains(
                     }
                 },
                 input_label: {
-                    let input_chs: Vec<usize> = chain
-                        .input_blocks()
-                        .into_iter()
-                        .flat_map(|(_, ib)| {
-                            ib.entries.iter().flat_map(|e| e.channels.iter().copied())
-                        })
-                        .collect();
-                    chain_endpoint_label("In", &input_chs).into()
+                    let binding_name =
+                        chain_io_chip_label_from_bindings(chain, io_bindings, true);
+                    if binding_name.is_empty() {
+                        // #716: device endpoints resolve from the binding
+                        // registry (never from block `entries`).
+                        let (resolved_inputs, _) =
+                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                        let input_chs: Vec<usize> = resolved_inputs
+                            .iter()
+                            .flat_map(|e| e.channels.iter().copied())
+                            .collect();
+                        chain_endpoint_label("In", &input_chs).into()
+                    } else {
+                        binding_name.into()
+                    }
                 },
-                input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
+                input_tooltip: chain_inputs_tooltip(chain, project, input_devices, io_bindings)
+                    .into(),
                 output_label: {
-                    let output_chs: Vec<usize> = chain
-                        .output_blocks()
-                        .into_iter()
-                        .flat_map(|(_, ob)| {
-                            ob.entries.iter().flat_map(|e| e.channels.iter().copied())
-                        })
-                        .collect();
-                    chain_endpoint_label("Out", &output_chs).into()
+                    let binding_name =
+                        chain_io_chip_label_from_bindings(chain, io_bindings, false);
+                    if binding_name.is_empty() {
+                        // #716: device endpoints resolve from the binding
+                        // registry (never from block `entries`).
+                        let (_, resolved_outputs) =
+                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                        let output_chs: Vec<usize> = resolved_outputs
+                            .iter()
+                            .flat_map(|e| e.channels.iter().copied())
+                            .collect();
+                        chain_endpoint_label("Out", &output_chs).into()
+                    } else {
+                        binding_name.into()
+                    }
                 },
-                output_tooltip: chain_outputs_tooltip(chain, project, output_devices).into(),
+                output_tooltip: chain_outputs_tooltip(chain, project, output_devices, io_bindings)
+                    .into(),
                 latency_ms,
                 volume: chain.volume.round() as i32,
                 // Issue #496: meters default to SILENT until the GUI
@@ -491,15 +509,13 @@ pub(crate) fn replace_project_chains(
                 // values; defaults to SILENT here so the UI renders the
                 // right number of (silent) bars on first paint.
                 stream_meters: {
-                    let stream_count: usize = chain
-                        .blocks
-                        .iter()
-                        .filter_map(|b| match &b.kind {
-                            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-                            _ => None,
-                        })
-                        .sum::<usize>()
-                        .max(1);
+                    // #716: one stream per resolved input endpoint (from the
+                    // binding registry), not per block `entries`.
+                    let stream_count: usize =
+                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
+                            .0
+                            .len()
+                            .max(1);
                     let model: Rc<VecModel<crate::StreamMeter>> = Rc::new(VecModel::default());
                     for _ in 0..stream_count {
                         model.push(crate::StreamMeter {

@@ -8,17 +8,19 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod binding_discovery;
 pub mod block;
 pub mod catalog;
 mod catalog_label;
 pub mod chain;
+pub mod channel_mode_conv;
 pub mod device;
+pub mod io_binding;
 pub mod midi;
 pub mod migrate;
 pub mod param;
 pub mod project;
 pub mod project_disable_unavailable;
-pub mod project_ensure_io;
 pub mod rig;
 pub mod rig_command;
 pub mod rig_methods;

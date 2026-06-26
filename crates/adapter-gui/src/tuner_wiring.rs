@@ -371,9 +371,11 @@ fn build_session(
     let pj = project_session.borrow();
     let rt = project_runtime.borrow();
     match (pj.as_ref(), rt.as_ref()) {
-        (Some(session), Some(runtime)) => {
-            Some(TunerSession::build(&*session.project.borrow(), runtime))
-        }
+        (Some(session), Some(runtime)) => Some(TunerSession::build(
+            &*session.project.borrow(),
+            runtime,
+            &session.io_bindings.borrow(),
+        )),
         _ => None,
     }
 }
@@ -418,7 +420,9 @@ fn start_polling_timer(
             let pj = project_session.borrow();
             let session = tuner_session.borrow();
             match (pj.as_ref(), session.as_ref()) {
-                (Some(s), Some(sess)) => sess.needs_rebuild(&*s.project.borrow()),
+                (Some(s), Some(sess)) => {
+                    sess.needs_rebuild(&*s.project.borrow(), &s.io_bindings.borrow())
+                }
                 (Some(_), None) => true,
                 _ => false,
             }
@@ -427,7 +431,8 @@ fn start_polling_timer(
             let pj = project_session.borrow();
             let rt = project_runtime.borrow();
             if let (Some(s), Some(rt)) = (pj.as_ref(), rt.as_ref()) {
-                let new_session = TunerSession::build(&*s.project.borrow(), rt);
+                let new_session =
+                    TunerSession::build(&*s.project.borrow(), rt, &s.io_bindings.borrow());
                 let rows = new_session.rows_model_rc();
                 if let Some(tw) = tuner_window_weak.upgrade() {
                     tw.set_tuner_rows(rows.clone());

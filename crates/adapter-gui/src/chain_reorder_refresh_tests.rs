@@ -39,10 +39,14 @@ fn add_chain(session: &ProjectSession, desc: &str, dev: &str, preset_name: &str)
         input: EndpointSpec {
             device_id: Some(dev),
             channels: vec![0],
+            io: String::new(),
+            endpoint: String::new(),
         },
         output: EndpointSpec {
             device_id: Some("test-out"),
             channels: vec![0, 1],
+            io: String::new(),
+            endpoint: String::new(),
         },
     });
     session

@@ -1,6 +1,9 @@
 //! Reverb implementations.
+mod ir_reverb;
 pub mod model_visual;
 mod registry;
+
+pub use ir_reverb::ir_reverb_parameter_specs;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
@@ -78,6 +81,15 @@ pub fn build_reverb_processor_for_layout(
         return (definition.build)(params, sample_rate, layout);
     }
     if let Some(package) = plugin_loader::registry::find(model) {
+        // IR-backed reverb packages convolve a reverb impulse response and
+        // blend it with the dry signal (issue #733) — distinct from a cab
+        // block (100% wet). Everything else uses the package's own builder.
+        if matches!(
+            package.manifest.backend,
+            plugin_loader::manifest::Backend::Ir { .. }
+        ) {
+            return ir_reverb::build_ir_reverb_from_package(package, params, sample_rate, layout);
+        }
         return package.build_processor(params, sample_rate, layout);
     }
     anyhow::bail!("unsupported reverb model '{}'", model)

@@ -4,8 +4,6 @@
 
 use super::preset_slot_at;
 use engine::rig_runtime::{rig_to_legacy_project, switch_and_project_input};
-use project::block::InputEntry;
-use project::chain::ChainInputMode;
 use project::rig::{RigInput, RigPreset, RigProject};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -19,11 +17,9 @@ fn rig() -> RigProject {
         "input-1".to_string(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: domain::ids::DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            // #716: the input's device is discovered from the binding registry
+            // (`io_binding_ids`), not embedded as `sources`. These tests assert
+            // block structure only, so a bare binding id is enough.
             bank: BTreeMap::from([
                 (1, "clean".to_string()),
                 (2, "drive".to_string()),
@@ -33,6 +29,9 @@ fn rig() -> RigProject {
             active_scene: 4,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
+            io_binding_ids: vec!["io1".to_string()],
         },
     );
     RigProject {

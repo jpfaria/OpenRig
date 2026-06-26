@@ -11,12 +11,10 @@
 
 use anyhow::{anyhow, Result};
 
-use domain::ids::{BlockId, DeviceId};
+use domain::ids::BlockId;
 use project::block::{
     build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind, InsertBlock,
-    InsertEndpoint,
 };
-use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 
 /// Build a default [`AudioBlock`] for the given (effect_type, model_id) pair.
@@ -25,8 +23,8 @@ use project::param::ParameterSet;
 /// `enabled = true`. The caller supplies the `block_id` to use.
 ///
 /// Special case: `effect_type == "insert"` produces a default `InsertBlock`
-/// with empty send/return endpoints (the user configures them in the insert
-/// window afterwards). `model_id` is ignored for insert blocks (always
+/// that is unbound (`io` empty) — the user picks its I/O binding afterwards
+/// (#716, model A). `model_id` is ignored for insert blocks (always
 /// "standard").
 ///
 /// # Errors
@@ -39,18 +37,15 @@ pub fn build_default_block(
     model_id: &str,
 ) -> Result<AudioBlock> {
     if effect_type == "insert" {
-        let empty_endpoint = InsertEndpoint {
-            device_id: DeviceId(String::new()),
-            mode: ChainInputMode::Mono,
-            channels: Vec::new(),
-        };
+        // Model A (#716): a fresh insert is unbound — the user picks its I/O
+        // binding (`io`) later; the send/return device endpoints are then
+        // resolved from the per-machine registry.
         return Ok(AudioBlock {
             id: block_id,
             enabled: true,
             kind: AudioBlockKind::Insert(InsertBlock {
                 model: "standard".to_string(),
-                send: empty_endpoint.clone(),
-                return_: empty_endpoint,
+                io: String::new(),
             }),
         });
     }

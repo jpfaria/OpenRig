@@ -30,7 +30,8 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 - **Preamp/Amp nativos**: input, gain, bass, middle, treble, presence, depth, sag, master, bright
 - **NAM preamp**: volume (50–70%), gain (10–100%) em steps
 - **Delay**: time_ms (1–2000), feedback (0–100%), mix (0–100%)
-- **Reverb**: room_size, damping, mix (0–100%)
+- **Reverb (native)**: room_size, damping, mix (0–100%)
+- **Reverb (IR convolution, `backend: ir` — #733)**: mix (0–100%, default 30%), pre_delay_ms (0–200), level (wet trim, −24..+24 dB). Convolves a reverb impulse response (same FFT engine as the IR cab) and blends it with the dry signal — distinct from a cab block (100% wet). True-stereo for 2-channel IRs; a mono IR is dual-mono wrapped in a stereo chain.
 - **Compressor**: threshold, ratio, attack_ms, release_ms, makeup_gain, mix
 - **Gate** (`gate_basic`): threshold (-96 a 0 dB), attack_ms (0.1–100), release_ms (1–500), **hold_ms** (0–2000, default 150 — evita cortar decay), **hysteresis_db** (0–20, default 6 — evita chattering)
 - **Three Band EQ** (`eq_three_band_basic`): `low_gain`/`mid_gain`/`high_gain` (-12/+12 dB), `low_freq`/`mid_freq`/`high_freq` (Hz), `mid_q` (0.1–6)
@@ -60,7 +61,7 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   and show a plain **NAM** badge (blue, same as A1). `NAM/A2` packages also
   expose a `slim` size knob in the block editor (#657) — see the NAM block
   plugin params above; A1 never does.
-- **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617). Exposes a user-adjustable **Output** knob (dB, −24..+24) mirroring NAM (#655): it is the absolute applied output level and defaults to the selected capture's `output_gain_db` audit baseline, re-seeding to the new capture's baseline when the user switches mic/position. Presets saved before the knob keep their audit loudness (the audio path resolves the per-capture baseline from the raw params; volume invariant #10).
+- **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617). For `type: cab`/`body` it is 100% wet and exposes a user-adjustable **Output** knob (dB, −24..+24) mirroring NAM (#655): the absolute applied output level, defaulting to the selected capture's `output_gain_db` audit baseline and re-seeding to the new capture's baseline when the user switches mic/position. Presets saved before the knob keep their audit loudness (the audio path resolves the per-capture baseline from the raw params; volume invariant #10). For `type: reverb` (#733) the **same convolution engine** drives the wet path but the block stays gain-passive and blends dry/wet via **mix** (+ **pre_delay_ms**, wet **level**) instead of normalising to a calibrated level — long diffuse reverb tails would be wrong under cab-style peak normalisation. Dispatch branches on the backend in `block_reverb::build_reverb_processor_for_layout`; the wet builder is shared via `ir::from_package::build_convolution_from_package`.
 - **LV2** — Plugins externos open-source
 
 ### Native cab voicing (#620)

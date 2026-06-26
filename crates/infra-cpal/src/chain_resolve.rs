@@ -28,10 +28,12 @@ use anyhow::{bail, Context};
 use std::collections::HashMap;
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use project::project::Project;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
+use engine::runtime_endpoints::{resolve_chain_io, InputEntry, OutputEntry};
+use project::block::{AudioBlockKind, InsertBlock};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;
 
@@ -58,10 +60,14 @@ use anyhow::anyhow;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::get_host;
 
-pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
+pub fn resolve_project_chain_sample_rates(
+    project: &Project,
+    registry: &[IoBinding],
+) -> Result<HashMap<ChainId, f32>> {
     // On Linux+JACK, get sample rate from JACK server directly — zero ALSA access.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
+        let _ = registry; // device endpoints come from libjack meta on this path
         // Probe the first running named server via the libjack helper — no
         // cache involved; this is a one-off read for UI/display purposes.
         let cards = detect_all_usb_audio_cards();
@@ -90,8 +96,8 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
             if !chain.enabled {
                 continue;
             }
-            let inputs = resolve_chain_inputs(&host, project, chain)?;
-            let outputs = resolve_chain_outputs(&host, project, chain)?;
+            let inputs = resolve_chain_inputs(&host, project, chain, registry)?;
+            let outputs = resolve_chain_outputs(&host, project, chain, registry)?;
             let sample_rate = crate::resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
             sample_rates.insert(chain.id.clone(), sample_rate);
         }
@@ -235,25 +241,21 @@ pub(crate) fn resolve_chain_inputs(
     host: &cpal::Host,
     project: &Project,
     chain: &Chain,
+    registry: &[IoBinding],
 ) -> Result<Vec<ResolvedInputDevice>> {
     let is_asio = is_asio_host(host);
-    let mut input_entries: Vec<&InputEntry> = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib),
-            _ => None,
-        })
-        .flat_map(|ib| ib.entries.iter())
-        .collect();
+    // Model A (#716): device endpoints come from the binding registry, not from
+    // block `entries`. `resolve_chain_io` yields head (io_binding_ids) + mid
+    // Input blocks in order; Insert returns are appended below as before.
+    let resolved_inputs = resolve_chain_io(chain, registry).0;
+    let mut input_entries: Vec<&InputEntry> = resolved_inputs.iter().collect();
     // Include Insert block return endpoints as input streams
     let insert_return_entries: Vec<InputEntry> = chain
         .blocks
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
+            AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
             _ => None,
         })
         .collect();
@@ -273,25 +275,20 @@ pub(crate) fn resolve_chain_outputs(
     host: &cpal::Host,
     project: &Project,
     chain: &Chain,
+    registry: &[IoBinding],
 ) -> Result<Vec<ResolvedOutputDevice>> {
     let is_asio = is_asio_host(host);
-    let mut output_entries: Vec<&OutputEntry> = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob),
-            _ => None,
-        })
-        .flat_map(|ob| ob.entries.iter())
-        .collect();
+    // Model A (#716): output endpoints come from the binding registry (tail +
+    // mid Output blocks), not from block `entries`. Insert sends appended below.
+    let resolved_outputs = resolve_chain_io(chain, registry).1;
+    let mut output_entries: Vec<&OutputEntry> = resolved_outputs.iter().collect();
     // Include Insert block send endpoints as output streams
     let insert_send_entries: Vec<OutputEntry> = chain
         .blocks
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
+            AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
             _ => None,
         })
         .collect();
@@ -306,34 +303,46 @@ pub(crate) fn resolve_chain_outputs(
         .collect()
 }
 
-/// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
+/// Resolve an InsertBlock's RETURN to an InputEntry — model A (#716): the return
+/// comes from the insert binding's INPUT endpoint in the registry. `None` when
+/// the binding is absent or has no input endpoint.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
-    InputEntry {
-        device_id: insert.return_.device_id.clone(),
-        mode: insert.return_.mode,
-        channels: insert.return_.channels.clone(),
-    }
+pub(crate) fn insert_return_as_input_entry(
+    insert: &InsertBlock,
+    registry: &[IoBinding],
+) -> Option<InputEntry> {
+    let binding = registry.iter().find(|b| b.id == insert.io)?;
+    let ep = binding.inputs.first()?;
+    Some(InputEntry {
+        device_id: ep.device_id.clone(),
+        mode: project::chain::ChainInputMode::from(ep.mode),
+        channels: ep.channels.clone(),
+    })
 }
 
-/// Convert an InsertBlock's send endpoint to an OutputEntry for stream resolution.
+/// Resolve an InsertBlock's SEND to an OutputEntry — model A (#716): the send
+/// goes to the insert binding's OUTPUT endpoint in the registry. `None` when the
+/// binding is absent or has no output endpoint.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
+pub(crate) fn insert_send_as_output_entry(
+    insert: &InsertBlock,
+    registry: &[IoBinding],
+) -> Option<OutputEntry> {
     use project::chain::ChainOutputMode;
-    OutputEntry {
-        device_id: insert.send.device_id.clone(),
-        mode: match insert.send.mode {
-            project::chain::ChainInputMode::Mono => ChainOutputMode::Mono,
-            _ => ChainOutputMode::Stereo,
-        },
-        channels: insert.send.channels.clone(),
-    }
+    let binding = registry.iter().find(|b| b.id == insert.io)?;
+    let ep = binding.outputs.first()?;
+    Some(OutputEntry {
+        device_id: ep.device_id.clone(),
+        mode: ChainOutputMode::try_from(ep.mode).unwrap_or(ChainOutputMode::Stereo),
+        channels: ep.channels.clone(),
+    })
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_enabled_chain_audio_configs(
     host: &cpal::Host,
     project: &Project,
+    registry: &[IoBinding],
 ) -> Result<HashMap<ChainId, ResolvedChainAudioConfig>> {
     let mut resolved = HashMap::new();
 
@@ -342,7 +351,7 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
             continue;
         }
 
-        let config = resolve_chain_audio_config(host, project, chain)?;
+        let config = resolve_chain_audio_config(host, project, chain, registry)?;
         resolved.insert(chain.id.clone(), config);
     }
 
@@ -354,15 +363,16 @@ pub(crate) fn resolve_chain_audio_config(
     host: &cpal::Host,
     project: &Project,
     chain: &Chain,
+    registry: &[IoBinding],
 ) -> Result<ResolvedChainAudioConfig> {
-    let inputs = resolve_chain_inputs(host, project, chain)?;
-    let outputs = resolve_chain_outputs(host, project, chain)?;
+    let inputs = resolve_chain_inputs(host, project, chain, registry)?;
+    let outputs = resolve_chain_outputs(host, project, chain, registry)?;
 
     // Validate sample rates: all inputs and outputs must agree
     let sample_rate = crate::resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
 
     let stream_signature: ChainStreamSignature =
-        crate::build_chain_stream_signature_multi(chain, &inputs, &outputs);
+        crate::build_chain_stream_signature_multi(chain, &inputs, &outputs, registry);
 
     Ok(ResolvedChainAudioConfig {
         inputs,

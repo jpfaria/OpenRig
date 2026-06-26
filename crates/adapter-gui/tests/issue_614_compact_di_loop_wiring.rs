@@ -51,6 +51,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,
@@ -64,10 +65,11 @@ fn make_controller(chain_id: &ChainId) -> ProjectRuntimeController {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     };
     let runtime_arc = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
             .expect("build_chain_runtime_state"),
     );
     let mut chains = HashMap::new();

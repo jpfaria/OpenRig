@@ -455,6 +455,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     &*session.project.borrow(),
                     &input_chain_devices.borrow(),
                     &output_chain_devices.borrow(),
+            &[]
                 );
                 crate::project_ops::sync_project_dirty(
                     &main_win,

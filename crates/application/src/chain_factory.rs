@@ -6,22 +6,32 @@
 //!
 //! **Spec reference:** `docs/superpowers/specs/2026-04-23-command-dispatch-architecture-design.md`
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
 use project::project::Project;
 
 /// I/O endpoint configuration for [`build_default_chain`].
 ///
-/// Groups the device id + channel list for one side (input or output) so the
-/// factory takes one cohesive value per side instead of two loose arguments.
+/// `io` and `endpoint` carry the I/O binding reference (#716, model A). Both
+/// default to empty string (unbound). When set, the block's `io`/`endpoint`
+/// fields are stamped accordingly so the chain immediately references the
+/// binding. The chain itself never embeds device endpoints — the device /
+/// channels are resolved from the per-machine binding registry.
+///
+/// `device_id`/`channels` are retained for caller ergonomics (legacy call
+/// sites still pass them) but are no longer written into the block: the device
+/// data lives only in the binding registry now.
 pub struct EndpointSpec<'a> {
-    /// Optional device id string. `None` => empty entries on this side.
+    /// Optional device id string. Retained for caller compatibility; not stored
+    /// in the block (device data comes from the binding registry, #716).
     pub device_id: Option<&'a str>,
-    /// Channel indices for this side. Empty => empty entries on this side.
+    /// Channel indices. Retained for caller compatibility; not stored in the
+    /// block (channel data comes from the binding registry, #716).
     pub channels: Vec<usize>,
+    /// I/O binding id for this block (e.g. `"default"`). Empty = unbound.
+    pub io: String,
+    /// Endpoint name within the binding (e.g. `"In1"`, `"Out1"`). Empty = unbound.
+    pub endpoint: String,
 }
 
 /// Parameters for [`build_default_chain`], grouped to keep the call site and
@@ -49,10 +59,13 @@ pub struct DefaultChainParams<'a> {
 /// - `enabled = false` (the user toggles it on explicitly after creation).
 /// - `description = None` (callers may set a name from the UI draft or CLI arg
 ///   before dispatching).
-/// - One `InputBlock` with the provided device + channels (or empty entries if
-///   no device is specified).
-/// - One `OutputBlock` with the provided device + channels (or empty entries).
+/// - One `InputBlock` referencing the provided `io`/`endpoint` binding.
+/// - One `OutputBlock` referencing the provided `io`/`endpoint` binding.
 /// - An empty effects list.
+///
+/// Device/channel data is NOT stored on the chain (#716, model A): it is
+/// resolved from the per-machine binding registry via
+/// `engine::runtime_endpoints::resolve_chain_io`.
 pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Chain {
     let DefaultChainParams {
         project,
@@ -61,58 +74,35 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         input,
         output,
     } = params;
-    let input_device_id = input.device_id;
-    let input_channels = input.channels;
-    let output_device_id = output.device_id;
-    let output_channels = output.channels;
+    let input_io = input.io;
+    let input_endpoint = input.endpoint;
+    let output_io = output.io;
+    let output_endpoint = output.endpoint;
     let chain_idx = project.chains.len();
     let chain_id = ChainId::generate();
 
     let mut blocks = Vec::new();
 
-    // InputBlock — always present; entries may be empty if no device resolved.
-    let input_entries = if let Some(dev_id) = input_device_id {
-        if !input_channels.is_empty() {
-            vec![InputEntry {
-                device_id: DeviceId(dev_id.to_string()),
-                mode: ChainInputMode::Mono,
-                channels: input_channels,
-            }]
-        } else {
-            Vec::new()
-        }
-    } else {
-        Vec::new()
-    };
+    // InputBlock — always present; references the binding (device resolved from
+    // the registry, never embedded in the chain).
     blocks.push(AudioBlock {
         id: BlockId(format!("{}:input:0", chain_idx)),
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
-            entries: input_entries,
+            io: input_io,
+            endpoint: input_endpoint,
         }),
     });
 
     // OutputBlock — always present.
-    let output_entries = if let Some(dev_id) = output_device_id {
-        if !output_channels.is_empty() {
-            vec![OutputEntry {
-                device_id: DeviceId(dev_id.to_string()),
-                mode: ChainOutputMode::Stereo,
-                channels: output_channels,
-            }]
-        } else {
-            Vec::new()
-        }
-    } else {
-        Vec::new()
-    };
     blocks.push(AudioBlock {
         id: BlockId(format!("{}:output:0", chain_idx)),
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
-            entries: output_entries,
+            io: output_io,
+            endpoint: output_endpoint,
         }),
     });
 
@@ -122,6 +112,7 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         instrument: instrument.to_string(),
         enabled: false,
         volume: 100.0,
+        io_binding_ids: Vec::new(),
         blocks,
     }
 }

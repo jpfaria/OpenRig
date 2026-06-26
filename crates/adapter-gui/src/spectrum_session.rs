@@ -26,7 +26,7 @@ use std::sync::Arc;
 use engine::spsc::SpscRing;
 use feature_dsp::spectrum_fft::{SpectrumAnalyzer, SpectrumSnapshot, FFT_SIZE, N_BANDS};
 use infra_cpal::ProjectRuntimeController;
-use project::block::AudioBlockKind;
+use domain::io_binding::IoBinding;
 use project::project::Project;
 use slint::{Model, ModelRc, VecModel};
 
@@ -92,7 +92,7 @@ fn reset_band_model(model: &Rc<VecModel<f32>>) {
 /// user enables/disables chains or edits an InputBlock without forcing a
 /// window close. Streams come from the chain's enabled InputBlocks (one
 /// stream per InputEntry).
-fn project_stream_fingerprint(project: &Project) -> String {
+fn project_stream_fingerprint(project: &Project, registry: &[IoBinding]) -> String {
     let mut s = String::new();
     for chain in &project.chains {
         if !chain.enabled {
@@ -100,17 +100,15 @@ fn project_stream_fingerprint(project: &Project) -> String {
         }
         s.push_str(&chain.id.0);
         s.push('@');
-        let mut stream_index = 0_usize;
-        for block in &chain.blocks {
-            if let AudioBlockKind::Input(input) = &block.kind {
-                for entry in &input.entries {
-                    s.push_str(&format!(
-                        "[{}/{}/{:?}]",
-                        stream_index, entry.device_id.0, entry.mode
-                    ));
-                    stream_index += 1;
-                }
-            }
+        // #716: device endpoints resolve from the binding registry, not from
+        // block `entries`.
+        let (resolved_inputs, _) =
+            engine::runtime_endpoints::resolve_chain_io(chain, registry);
+        for (stream_index, entry) in resolved_inputs.iter().enumerate() {
+            s.push_str(&format!(
+                "[{}/{}/{:?}]",
+                stream_index, entry.device_id.0, entry.mode
+            ));
         }
         s.push(';');
     }
@@ -136,7 +134,11 @@ impl SpectrumSession {
     /// Build a spectrum session for the given project: subscribe one
     /// stereo stream tap per InputEntry of every enabled chain, and
     /// create two rows (L, R) for each tap.
-    pub fn build(project: &Project, controller: &ProjectRuntimeController) -> Self {
+    pub fn build(
+        project: &Project,
+        controller: &ProjectRuntimeController,
+        registry: &[IoBinding],
+    ) -> Self {
         let rows_model: Rc<VecModel<SpectrumRow>> =
             Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
@@ -168,42 +170,39 @@ impl SpectrumSession {
                 stream_count
             );
 
-            // Best-effort device label for each stream — picks the input
-            // entries in declaration order, falling back to the chain id
-            // if there are more streams than entries (e.g. mono splits).
+            // #716: the chain's input endpoints resolve from the binding
+            // registry, not from block `entries`.
+            let (resolved_inputs, _) =
+                engine::runtime_endpoints::resolve_chain_io(chain, registry);
+
+            // Best-effort device label for each stream — picks the resolved
+            // input entries in order, falling back to the chain id if there are
+            // more streams than entries (e.g. mono splits).
             let mut entry_labels: Vec<String> = Vec::new();
-            for block in &chain.blocks {
-                if let AudioBlockKind::Input(input) = &block.kind {
-                    for entry in &input.entries {
-                        let label = short_device_label(&entry.device_id.0);
-                        if matches!(entry.mode, project::chain::ChainInputMode::Mono)
-                            && entry.channels.len() > 1
-                        {
-                            // The engine splits this mono entry into one
-                            // stream per channel — produce a per-channel
-                            // label so the spectrum rows stay readable.
-                            for &ch in &entry.channels {
-                                entry_labels.push(format!("{label} CH {}", ch + 1));
-                            }
-                        } else {
-                            entry_labels.push(label);
-                        }
+            for entry in &resolved_inputs {
+                let label = short_device_label(&entry.device_id.0);
+                if matches!(entry.mode, project::chain::ChainInputMode::Mono)
+                    && entry.channels.len() > 1
+                {
+                    // The engine splits this mono entry into one stream per
+                    // channel — produce a per-channel label so the spectrum
+                    // rows stay readable.
+                    for &ch in &entry.channels {
+                        entry_labels.push(format!("{label} CH {}", ch + 1));
                     }
+                } else {
+                    entry_labels.push(label);
                 }
             }
 
-            let sample_rate = chain
-                .blocks
-                .iter()
-                .find_map(|b| match &b.kind {
-                    AudioBlockKind::Input(input) => input.entries.first().map(|entry| {
-                        crate::sample_rate::resolve_input_sample_rate(
-                            project,
-                            &entry.device_id,
-                            live_sample_rate,
-                        )
-                    }),
-                    _ => None,
+            let sample_rate = resolved_inputs
+                .first()
+                .map(|entry| {
+                    crate::sample_rate::resolve_input_sample_rate(
+                        project,
+                        &entry.device_id,
+                        live_sample_rate,
+                    )
                 })
                 .unwrap_or(live_sample_rate as usize);
 
@@ -260,7 +259,7 @@ impl SpectrumSession {
         Self {
             rows_model,
             row_states,
-            fingerprint: project_stream_fingerprint(project),
+            fingerprint: project_stream_fingerprint(project, registry),
         }
     }
 
@@ -268,8 +267,8 @@ impl SpectrumSession {
         ModelRc::from(self.rows_model.clone())
     }
 
-    pub fn needs_rebuild(&self, project: &Project) -> bool {
-        self.fingerprint != project_stream_fingerprint(project)
+    pub fn needs_rebuild(&self, project: &Project, registry: &[IoBinding]) -> bool {
+        self.fingerprint != project_stream_fingerprint(project, registry)
     }
 
     /// Drain rings, feed the analyzer's sliding window, update the row

@@ -34,9 +34,10 @@ use cpal::SampleFormat;
 use cpal::Stream;
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::runtime::ChainRuntimeState;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use project::block::{InputEntry, OutputEntry};
+use engine::runtime_endpoints::{resolve_chain_io, InputEntry, OutputEntry};
 use project::chain::Chain;
 
 use crate::active_runtime::ActiveChainRuntime;
@@ -66,6 +67,7 @@ use crate::jack_direct::build_jack_direct_chain;
 pub fn build_streams_for_project(
     project: &project::project::Project,
     runtime_graph: &engine::runtime::RuntimeGraph,
+    registry: &[IoBinding],
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
 
@@ -77,15 +79,16 @@ pub fn build_streams_for_project(
     {
         let _ = project; // not needed on Linux/JACK
         let _ = runtime_graph; // not needed on Linux/JACK: all streaming handled by jack crate
+        let _ = registry; // not needed on Linux/JACK: device endpoints come from libjack meta
         return Ok(Vec::new());
     }
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
         let host = crate::host::get_host();
-        crate::validation::validate_channels_against_devices(project, host)?;
+        crate::validation::validate_channels_against_devices(project, host, registry)?;
         let mut resolved_chains =
-            crate::chain_resolve::resolve_enabled_chain_audio_configs(host, project)?;
+            crate::chain_resolve::resolve_enabled_chain_audio_configs(host, project, registry)?;
         let mut streams = Vec::new();
         for chain in &project.chains {
             if !chain.enabled {
@@ -601,6 +604,7 @@ pub(crate) fn build_active_chain_runtime(
     #[allow(unused_variables)] chain: &Chain,
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
+    #[allow(unused_variables)] registry: &[IoBinding],
 ) -> Result<ActiveChainRuntime> {
     log::info!(
         "building active chain runtime for '{}', sample_rate={}",
@@ -626,7 +630,8 @@ pub(crate) fn build_active_chain_runtime(
                 .next()
                 .map(|(_, slot)| slot.load())
                 .ok_or_else(|| anyhow::anyhow!("chain '{}' has no runtime state", chain_id.0))?;
-            let (jack_client, dsp_worker) = build_jack_direct_chain(chain_id, chain, runtime)?;
+            let (jack_client, dsp_worker) =
+                build_jack_direct_chain(chain_id, chain, runtime, registry)?;
             return Ok(ActiveChainRuntime {
                 stream_signature,
                 _input_streams: Vec::new(),
@@ -679,12 +684,13 @@ pub(crate) fn build_chain_stream_signature_multi(
     chain: &Chain,
     inputs: &[ResolvedInputDevice],
     outputs: &[ResolvedOutputDevice],
+    registry: &[IoBinding],
 ) -> ChainStreamSignature {
-    let chain_input_entries: Vec<&InputEntry> = chain
-        .input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter())
-        .collect();
+    // Model A (#716): the chain's input/output endpoints come from the binding
+    // registry, not from block `entries`. The resolved order matches the
+    // `inputs`/`outputs` device vectors (both built from `resolve_chain_io`).
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let chain_input_entries: Vec<&InputEntry> = resolved_inputs.iter().collect();
     let input_sigs: Vec<InputStreamSignature> = if !chain_input_entries.is_empty() {
         chain_input_entries
             .iter()
@@ -710,11 +716,7 @@ pub(crate) fn build_chain_stream_signature_multi(
             .collect()
     };
 
-    let chain_output_entries: Vec<&OutputEntry> = chain
-        .output_blocks()
-        .into_iter()
-        .flat_map(|(_, ob)| ob.entries.iter())
-        .collect();
+    let chain_output_entries: Vec<&OutputEntry> = resolved_outputs.iter().collect();
     let output_sigs: Vec<OutputStreamSignature> = if !chain_output_entries.is_empty() {
         chain_output_entries
             .iter()

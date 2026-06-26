@@ -88,8 +88,18 @@ pub fn load_project_any(path: &Path) -> Result<RigProject> {
     if serde_yaml::from_str::<RigProjectFile>(&raw).is_ok() {
         return parse_rig_project(&raw);
     }
-    let out_path = path.with_extension("openrig");
-    migrate_legacy_project_file(path, &out_path)
+    // #716: a legacy project migrates to a rig IN MEMORY only — loading writes
+    // NOTHING to disk: no `.openrig` sibling and no `.yaml.bak`. The file is
+    // only ever rewritten (as a rig, in the same `.yaml`) when the user saves.
+    let legacy = YamlProjectRepository {
+        path: path.to_path_buf(),
+    }
+    .load_current_project()
+    .with_context(|| format!("failed to load legacy project {}", path.display()))?;
+    let rig = migrate_legacy_project(&legacy);
+    rig.validate()
+        .map_err(|e| anyhow!("migration produced invalid project: {e}"))?;
+    Ok(rig)
 }
 
 /// Migrate a legacy chain-based project file (`*.yaml`) into a

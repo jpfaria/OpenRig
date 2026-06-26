@@ -5,16 +5,24 @@
 //! instance) and rebuild the project devices list. They run in the UI thread
 //! and are rate-limited by user clicks — no periodic polling, since that
 //! triggered scarlett2_notify freezes on the Orange Pi USB-C OTG port.
+//!
+//! ## Hot-swap binding resolution (#716, Task 13)
+//!
+//! After re-enumerating, `check_bindings_after_refresh` is called to mark any
+//! I/O binding that references a now-absent device as unresolved. Bindings are
+//! NEVER silently dropped — they stay in the registry with `unresolved = true`
+//! so the UI can surface a warning to the user.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor};
+use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
-use infra_cpal::invalidate_device_cache;
-
 use crate::audio_devices::{
-    build_project_device_rows, refresh_input_devices, refresh_output_devices,
+    build_project_device_rows, check_bindings_after_refresh, refresh_input_devices,
+    refresh_output_devices,
 };
 use crate::helpers::set_status_info;
 use crate::state::ProjectSession;
@@ -26,6 +34,13 @@ pub(crate) struct DeviceRefreshCtx {
     pub chain_input_device_options: Rc<VecModel<SharedString>>,
     pub chain_output_device_options: Rc<VecModel<SharedString>>,
     pub toast_timer: Rc<Timer>,
+    /// Shared in-memory app config — inspected (not mutated) to detect
+    /// bindings that become unresolved after a hot-swap refresh.
+    pub app_config: Rc<RefCell<AppConfig>>,
+    /// #716: shared descriptor caches updated on refresh so the I/O bindings
+    /// editor's device pickers and channel derivation see the live hardware.
+    pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
 }
 
 pub(crate) fn wire(
@@ -39,19 +54,37 @@ pub(crate) fn wire(
         chain_input_device_options,
         chain_output_device_options,
         toast_timer,
+        app_config,
+        input_chain_devices,
+        output_chain_devices,
     } = ctx;
 
     {
         let weak_window = window.as_weak();
+        let weak_psw = project_settings_window.as_weak();
         let project_session = project_session.clone();
         let project_devices = project_devices.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         let toast_timer = toast_timer.clone();
+        let app_config = app_config.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_refresh_devices(move || {
             invalidate_device_cache();
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
+            // #716: keep the shared descriptor caches + I/O binding pickers live.
+            *input_chain_devices.borrow_mut() = fresh_input.clone();
+            *output_chain_devices.borrow_mut() = fresh_output.clone();
+            if let (Some(w), Some(p)) = (weak_window.upgrade(), weak_psw.upgrade()) {
+                crate::settings::io_bindings::reseed_device_models(
+                    &w,
+                    &p,
+                    &fresh_input,
+                    &fresh_output,
+                );
+            }
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -64,6 +97,21 @@ pub(crate) fn wire(
                 &fresh_output,
                 &session.project.borrow().device_settings,
             ));
+            // #716 Task 13: log any bindings that became unresolved after the
+            // hot-swap. Bindings are never dropped — they stay in the registry
+            // with `unresolved = true` so the UI can surface a warning.
+            for status in check_bindings_after_refresh(
+                &app_config.borrow().io_bindings,
+                &fresh_input,
+                &fresh_output,
+            ) {
+                if status.unresolved {
+                    log::warn!(
+                        "device refresh: binding '{}' references an absent device",
+                        status.binding.id
+                    );
+                }
+            }
             set_status_info(
                 &window,
                 &toast_timer,
@@ -78,6 +126,20 @@ pub(crate) fn wire(
             invalidate_device_cache();
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
+            // #716: keep the shared descriptor caches + I/O binding pickers live.
+            *input_chain_devices.borrow_mut() = fresh_input.clone();
+            *output_chain_devices.borrow_mut() = fresh_output.clone();
+            if let (Some(w), Some(p)) = (
+                main_window_weak.upgrade(),
+                project_settings_window_weak.upgrade(),
+            ) {
+                crate::settings::io_bindings::reseed_device_models(
+                    &w,
+                    &p,
+                    &fresh_input,
+                    &fresh_output,
+                );
+            }
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
                 return;
@@ -87,6 +149,20 @@ pub(crate) fn wire(
                 &fresh_output,
                 &session.project.borrow().device_settings,
             ));
+            // #716 Task 13: same unresolved-binding detection on the standalone
+            // settings window refresh path.
+            for status in check_bindings_after_refresh(
+                &app_config.borrow().io_bindings,
+                &fresh_input,
+                &fresh_output,
+            ) {
+                if status.unresolved {
+                    log::warn!(
+                        "device refresh (settings): binding '{}' references an absent device",
+                        status.binding.id
+                    );
+                }
+            }
             if let Some(window) = main_window_weak.upgrade() {
                 set_status_info(
                     &window,

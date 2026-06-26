@@ -604,3 +604,103 @@ fn app_config_deserializes_yaml_without_audio_fields() {
     assert!(cfg.output_devices.is_empty());
     assert!(cfg.language.is_none());
 }
+
+// ── io_bindings in AppConfig (#716) ────────────────────────────────────
+
+#[test]
+fn app_config_io_bindings_round_trip() {
+    use domain::ids::DeviceId;
+    let binding = IoBinding {
+        id: "main".into(),
+        name: "Scarlett 2i2".into(),
+        inputs: vec![IoEndpoint {
+            name: "Guitar In 1".into(),
+            device_id: DeviceId("dev-001".into()),
+            mode: Default::default(),
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "Monitor Out".into(),
+            device_id: DeviceId("dev-001".into()),
+            mode: Default::default(),
+            channels: vec![0, 1],
+        }],
+    };
+    let config = AppConfig {
+        io_bindings: vec![binding.clone()],
+        ..Default::default()
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(back.io_bindings, vec![binding]);
+}
+
+#[test]
+fn legacy_app_config_without_io_bindings_loads_with_empty_vec() {
+    // A minimal legacy config.yaml that predates the io_bindings field.
+    let yaml = "recent_projects: []\npaths: {}\ninput_devices: []\noutput_devices: []\n";
+    let config: AppConfig = serde_yaml::from_str(yaml).unwrap();
+    assert!(
+        config.io_bindings.is_empty(),
+        "expected empty io_bindings on legacy config, got {:?}",
+        config.io_bindings
+    );
+}
+
+// ── ChannelMode wire-token round-trips (#716) ──────────────────────────────
+
+#[test]
+fn channel_mode_stereo_wire_token_round_trips_in_config() {
+    use domain::ids::DeviceId;
+    let binding = IoBinding {
+        id: "stereo-test".into(),
+        name: "Stereo Interface".into(),
+        inputs: vec![IoEndpoint {
+            name: "Stereo In".into(),
+            device_id: DeviceId("dev-stereo".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![],
+    };
+    let config = AppConfig {
+        io_bindings: vec![binding.clone()],
+        ..Default::default()
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    // Wire token must be the exact snake_case string.
+    assert!(
+        yaml.contains("mode: stereo"),
+        "expected 'mode: stereo' in YAML, got:\n{yaml}"
+    );
+    let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(back.io_bindings[0].inputs[0].mode, ChannelMode::Stereo);
+}
+
+#[test]
+fn channel_mode_dual_mono_wire_token_round_trips_in_config() {
+    use domain::ids::DeviceId;
+    let binding = IoBinding {
+        id: "dual-mono-test".into(),
+        name: "Dual Guitar Interface".into(),
+        inputs: vec![IoEndpoint {
+            name: "Guitar Pair".into(),
+            device_id: DeviceId("dev-dual".into()),
+            mode: ChannelMode::DualMono,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![],
+    };
+    let config = AppConfig {
+        io_bindings: vec![binding.clone()],
+        ..Default::default()
+    };
+    let yaml = serde_yaml::to_string(&config).unwrap();
+    // Wire token must be the exact snake_case string.
+    assert!(
+        yaml.contains("mode: dual_mono"),
+        "expected 'mode: dual_mono' in YAML, got:\n{yaml}"
+    );
+    let back: AppConfig = serde_yaml::from_str(&yaml).unwrap();
+    assert_eq!(back.io_bindings[0].inputs[0].mode, ChannelMode::DualMono);
+}

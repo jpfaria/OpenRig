@@ -73,7 +73,17 @@ pub(crate) fn sync_live_chain_runtime(
     if chain_enabled {
         let mut borrow = project_runtime.borrow_mut();
         if borrow.is_none() {
-            *borrow = Some(ProjectRuntimeController::start(&*proj)?);
+            // #716 (AUDIO-CRITICAL): hand the per-machine I/O binding registry
+            // to the controller BEFORE `start()` runs its initial sync — the
+            // cold-start activation snapshots the registry into its worker job,
+            // so installing it AFTER start is too late and the binding-bound
+            // chain bails "no input blocks". Sourced from the session's mirror
+            // of `AppConfig.io_bindings`.
+            let controller = ProjectRuntimeController::start_with_io_bindings(
+                &*proj,
+                session.io_bindings.borrow().clone(),
+            )?;
+            *borrow = Some(controller);
             drop(borrow);
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).
@@ -89,6 +99,13 @@ pub(crate) fn sync_live_chain_runtime(
     {
         let mut borrow = project_runtime.borrow_mut();
         if let Some(runtime) = borrow.as_mut() {
+            // #716 (AUDIO-CRITICAL): a controller created earlier (before the
+            // user added/related an I/O binding) holds a STALE registry, so a
+            // newly-bound chain resolves to zero inputs ("chain '...' has no
+            // input blocks configured"). Refresh the controller's registry from
+            // the session's live mirror of `AppConfig.io_bindings` on EVERY
+            // sync, not just at start, so a just-created binding takes effect.
+            runtime.set_io_bindings(session.io_bindings.borrow().clone());
             validate_project(&*proj)?;
             if let Some(chain) = chain {
                 // Issue #672: cold activation of a single-input chain builds the
@@ -98,6 +115,15 @@ pub(crate) fn sync_live_chain_runtime(
                 // runtime discards the SPSC ring continuity and runtime-only
                 // state (DI loop, #614) — it stops the sound. Live edits keep the
                 // engine's in-place lock-free update via upsert_chain.
+                // #716: re-binding a chain's E/S changes its stream topology
+                // (different devices/channels). An in-place `upsert` keeps the
+                // old streams, so the swap wouldn't apply until a project reopen.
+                // Detect the I/O change and REBUILD (drop the chain's streams so
+                // it re-activates fresh on the new devices); a param/block edit
+                // (I/O unchanged) keeps the lock-free in-place upsert.
+                if runtime.chain_io_changed(&*proj, chain)? {
+                    runtime.remove_chain(&chain.id);
+                }
                 if !runtime.schedule_chain_activation(&*proj, chain)? {
                     runtime.upsert_chain(&*proj, chain)?;
                 }

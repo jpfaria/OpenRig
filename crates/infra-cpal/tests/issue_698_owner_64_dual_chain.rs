@@ -47,9 +47,9 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
     };
 
     // Owner settings: 44.1 kHz / 64 frames — the 1451 us period in his log.
-    let (mut project, chain1_id) =
+    let (mut project, chain1_id, registry) =
         rig_project_with("issue_698_owner_chain1.yaml", input, output, 44_100, 64);
-    let (chain2_project, _) =
+    let (chain2_project, _, _) =
         rig_project_with("issue_698_owner_chain2.yaml", input, output, 44_100, 64);
     let chain2_id = ChainId("issue-698-chain2".into());
     {
@@ -58,7 +58,9 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
         project.chains.push(chain2);
     }
 
-    let controller = ProjectRuntimeController::start(&project).expect("start streams");
+    let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
+    controller.set_io_bindings(registry.clone());
+    controller.sync_project(&project).expect("resync with bindings");
     let di1 = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
 
     // ── Phase 1: SOLO — only chain 1 plays.
@@ -101,7 +103,9 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
         extra.id = ChainId(format!("issue-698-five-{i}"));
         five.chains.push(extra);
     }
-    let controller = ProjectRuntimeController::start(&five).expect("start 5-chain streams");
+    let mut controller = ProjectRuntimeController::start(&five).expect("start 5-chain streams");
+    controller.set_io_bindings(registry);
+    controller.sync_project(&five).expect("resync with bindings");
     let all_ids: Vec<ChainId> = five.chains.iter().map(|c| c.id.clone()).collect();
     for id in &all_ids {
         let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());

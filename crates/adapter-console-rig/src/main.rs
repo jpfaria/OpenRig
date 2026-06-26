@@ -32,6 +32,11 @@ fn main() -> Result<()> {
     // Transparent: new `.openrig` as-is, or legacy `*.yaml` auto-migrated
     // (writes a sibling `.openrig` + one-time `.bak`).
     let rig = infra_yaml::load_project_any(&project_path)?;
+    // Model A (#716): device I/O comes from the per-machine binding registry
+    // (system config), never from the project. Load it; empty if unconfigured.
+    let registry = infra_filesystem::FilesystemStorage::load_app_config()
+        .map(|c| c.io_bindings)
+        .unwrap_or_default();
     println!("=== Rig ===");
     println!(
         "name={:?} inputs={} presets={} outputs={}",
@@ -43,7 +48,7 @@ fn main() -> Result<()> {
 
     // Validates the project and auto-enables every input whose
     // (device, channel) tap is free (invariant #4).
-    let runtime = RigRuntime::build(rig, DEFAULT_SAMPLE_RATE)?;
+    let runtime = RigRuntime::build(rig, DEFAULT_SAMPLE_RATE, registry.clone())?;
     let proj = runtime.project();
     let enabled: BTreeSet<String> = proj
         .inputs
@@ -66,9 +71,9 @@ fn main() -> Result<()> {
         println!("{line}");
     }
 
-    let chain_sample_rates = resolve_project_chain_sample_rates(&legacy)?;
-    let runtime_graph = build_runtime_graph(&legacy, &chain_sample_rates, &HashMap::new())?;
-    let streams = build_streams_for_project(&legacy, &runtime_graph)?;
+    let chain_sample_rates = resolve_project_chain_sample_rates(&legacy, &registry)?;
+    let runtime_graph = build_runtime_graph(&legacy, &chain_sample_rates, &HashMap::new(), &registry)?;
+    let streams = build_streams_for_project(&legacy, &runtime_graph, &registry)?;
     for stream in &streams {
         stream.play()?;
     }

@@ -44,7 +44,9 @@ NUNCA atribuir ao milestone de release final puro durante ciclo dev.
 
 ## Workspace isolado (.solvers/)
 
-NUNCA editar código no workspace principal. Cada agent trabalha numa cópia.
+NUNCA editar código no workspace principal. Cada agent trabalha numa **cópia** (`.solvers/issue-N`).
+
+**`git worktree` é PROIBIDO** — qualquer tipo, qualquer lugar. Worktree compartilha o `.git` da pasta principal e trava a branch, abortando o `git checkout` do usuário na pasta dele. Isolamento é sempre via cópia/clone com `.git` próprio em `.solvers/issue-N`, nunca worktree.
 
 **Duas pastas, isolamento simétrico:**
 

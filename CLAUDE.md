@@ -2,6 +2,16 @@
 
 Pedalboard/rig virtual para guitarra em Rust + Slint. Cross-platform: macOS, Windows, Linux.
 
+## LEI ZERO — A PASTA PRINCIPAL É INTOCÁVEL PELO AGENTE
+
+**Nenhum agent JAMAIS toca a pasta principal do repo.** Sem `git`, sem `Edit`/`Write`, sem stage, sem worktree, sem `.openrig` — NADA. A pasta principal é exclusiva do usuário.
+
+**O agente trabalha SOMENTE em `.solvers/issue-N/`** — um clone isolado da branch. Edita ali, commita ali, dá push dali. A entrega termina no push; o usuário puxa a branch na pasta dele por conta própria.
+
+**Why:** o usuário roda vários agents em paralelo, cada um na sua branch, e usa a pasta principal pra rodar/testar o app. Um agent mexendo lá sobrescreve trabalho não-commitado do usuário e de outros agents, corrompe o estado de git da pasta e quebra a confiança — já aconteceu repetidas vezes. Regra escrita não basta: depende do agent lembrar.
+
+**How to apply:** se a tua sessão não está enraizada em `.solvers/issue-N/`, você está no lugar errado — clone a branch pra lá e trabalhe lá. Guard determinístico: o hook `main-folder-guard.sh` (PreToolUse) BLOQUEIA `Edit`/`Write`/`git` de qualquer sessão cuja raiz não esteja sob `.solvers/`. O bloqueio não depende do agent obedecer — a harness força.
+
 ## LEI ZERO — RESPOSTA CURTA, SEMPRE
 
 **Default = 1–2 frases.** Sem tabelas, sem headers, sem bullets aninhados, sem recap do que o usuário disse, sem "resumo final", sem "next step", sem checklist no chat. Diagnóstico longo, inventário, série de commits → vai pra issue (`gh issue comment`), nunca pro chat.
@@ -9,6 +19,12 @@ Pedalboard/rig virtual para guitarra em Rust + Slint. Cross-platform: macOS, Win
 Só estende a resposta quando o usuário pedir explicitamente ("explica em detalhe", "lista as opções", "me dá o resumo"). Cobrou pra ser curto = curto pelo resto da sessão, sem precisar repetir.
 
 Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
+
+## LEI — PROIBIDO supor quando não está claro
+
+**EU SOU PROIBIDO DE SUPOR QUANDO AS COISAS NÃO ESTÃO CLARAS. EU PRECISO PERGUNTAR DE FORMA SIMPLES ATÉ TUDO FICAR CLARO.**
+
+Escopo, modelo de dados, comportamento esperado, camada certa, qual arquivo, A vs B — se QUALQUER coisa não está 100% clara, **PARO e pergunto** (uma pergunta curta de cada vez, até não restar dúvida). PROIBIDO "vou de cabeça e depois conserto", PROIBIDO inventar caminho, PROIBIDO escolher entre alternativas que o usuário não escolheu. Supor inverteu o pedido e queimou dias (I/O dentro da chain vs. fora; teste-depois vs. teste-antes) — na dúvida entre perguntar e supor, **perguntar**.
 
 ## Invariantes que NUNCA podem piorar
 
@@ -80,7 +96,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 
 **Git / gitflow** (detalhe em `docs/development/gitflow.md`). PR e merge só com pedido explícito — o trabalho termina no push. Branch `{tipo}/issue-N` (zero sufixo) a partir de develop atualizado + merge develop antes. `.solvers/issue-N/` é exclusivo do agente; pasta principal é exclusiva do usuário (agente nunca faz git lá). Stage paths explícitos — NUNCA `git add -A` no `.solvers`. Push direto após cada commit. **Quality gate compartilhado roda só na criação do PR (o CI roda no PR); NUNCA rodar o gate por push.** Após CADA push: `gh issue comment` (hash + arquivos + build/teste) e incluir o bloco `git checkout feature/issue-N && git pull` na resposta. Antes de fechar issue, atribuir milestone (close not-planned/duplicate/superseded NÃO leva milestone). Checar `docs/superpowers/specs/` + `gh issue list` antes de planejar. Não proliferar issues (cada uma vira branch+workspace de GBs). `@claude` no GitHub: seguir o template de premissas obrigatórias. **Limpeza de `.solvers/issue-N/` só com a issue FECHADA (#568)** — `rm -rf` é destrutivo: leva qualquer WIP não-commitado junto, e o WIP não volta do remote. Confirmar com `gh issue view N --json state` antes de apagar; issue OPEN = off-limits mesmo com pedido genérico tipo "limpa o solver / limpa o lixo / lima o solver".
 
-**UI/Slint.** Nunca glifo como ícone (vira tofu no Orange Pi) — sempre SVG via `@image-url` + colorize. Bebas Neue é a fonte default por escolha — não propor trocar. Manter consistência visual cross-screen.
+**UI/Slint.** **OBRIGATÓRIO antes de qualquer trabalho de tela/layout (`.slint`, posicionamento, espaçamento, hierarquia, componente visual): invocar `ui-ux-pro-max` (design/UX) + `slint:slint` + `slint-best-practices`. PROIBIDO supor/inventar layout — RENDERIZE com `tools/slint-render` (PNG headless via slint-interpreter; ver LEI do `openrig-code-quality`) e confira o PNG ANTES de dizer "pronto"; depois feche o visual em loop curto com o usuário.** Nunca glifo como ícone (vira tofu no Orange Pi) — sempre SVG via `@image-url` + colorize. Bebas Neue é a fonte default por escolha — não propor trocar. Manter consistência visual cross-screen.
 
 **Docs.** README sempre nas 3 línguas juntas: `README.md` (en) + `README.pt-BR.md` + `README.es-ES.md`.
 

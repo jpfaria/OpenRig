@@ -337,21 +337,20 @@ pub fn rebuild_stream_meters_row(
         .collect()
 }
 
-/// Sum of `InputBlock.entries.len()` across a chain's blocks — the
-/// number of independent per-input runtimes the engine owns for the
-/// chain (issue #350). This is the GUI's source of truth for how many
-/// meter rows to render. Mirrors the count `replace_project_chains`
-/// uses when it first builds the row model.
-pub fn project_input_count(chain: &project::chain::Chain) -> usize {
-    use project::block::AudioBlockKind;
-    chain
-        .blocks
-        .iter()
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-            _ => None,
-        })
-        .sum()
+/// Count of resolved input endpoints for a chain — the number of independent
+/// per-input runtimes the engine owns for the chain (issue #350). This is the
+/// GUI's source of truth for how many meter rows to render. Mirrors the count
+/// `replace_project_chains` uses when it first builds the row model.
+///
+/// #716: device endpoints resolve from the binding registry, not from block
+/// `entries` (which no longer exist on the model).
+pub fn project_input_count(
+    chain: &project::chain::Chain,
+    io_bindings: &[domain::io_binding::IoBinding],
+) -> usize {
+    engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
+        .0
+        .len()
 }
 
 /// Drain the per-stream rings and return one `StreamMeterReading`
@@ -517,7 +516,8 @@ pub fn start_meter_polling(
                 .find(|(c, _)| c == &cid)
                 .map(|(_, streams)| streams.clone())
                 .unwrap_or_default();
-            let project_streams = project_input_count(&project.chains[idx]);
+            let project_streams =
+                project_input_count(&project.chains[idx], &session.io_bindings.borrow());
             let per_stream_rows: Vec<crate::StreamMeter> =
                 rebuild_stream_meters_row(&engine_streams, project_streams, chain_volume);
             let stream_meters_changed = {

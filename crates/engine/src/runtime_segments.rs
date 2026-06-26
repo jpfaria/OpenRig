@@ -19,8 +19,12 @@
 //! descriptions into the runtime state structures and live with the rest
 //! of the graph assembly in `runtime_graph.rs`.
 
-use project::block::{AudioBlockKind, InputEntry, OutputEntry};
+use project::block::AudioBlockKind;
 use project::chain::Chain;
+
+use domain::io_binding::IoBinding;
+
+use crate::runtime_endpoints::{resolve_chain_io_by_binding, BindingIo, InputEntry, OutputEntry};
 
 /// Describes a chain segment: an input source, its effect blocks, and its
 /// output targets.
@@ -59,26 +63,21 @@ pub(crate) fn split_chain_into_segments(
     split_positions: &[Option<usize>],
     entry_groups: &[usize],
     _effective_outs: &[OutputEntry],
+    registry: &[IoBinding],
 ) -> Vec<ChainSegment> {
-    // Count regular InputBlock entries and OutputBlock entries.
+    // Model A: each Input/Output block is ONE binding endpoint (no `entries`).
+    // Count the in-chain (mid) I/O blocks — head/tail endpoints come from the
+    // bindings (`effective_ins`/`effective_outs`), not from chain blocks.
     let regular_input_count: usize = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-            _ => None,
-        })
-        .sum();
+        .filter(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Input(_)))
+        .count();
     let regular_output_count: usize = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob.entries.len()),
-            _ => None,
-        })
-        .sum();
+        .filter(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Output(_)))
+        .count();
 
     // Find positions of enabled Insert blocks in chain.blocks.
     let insert_positions: Vec<usize> = chain
@@ -96,6 +95,8 @@ pub(crate) fn split_chain_into_segments(
             cpal_indices,
             split_positions,
             entry_groups,
+            _effective_outs,
+            registry,
         );
     }
 
@@ -111,49 +112,74 @@ pub(crate) fn split_chain_into_segments(
 }
 
 /// One segment per `(input × output)` pair when no enabled Insert blocks
-/// exist. Each output block defines a cut point — only effect blocks that
-/// appear BEFORE that output position are included in the segment.
+/// exist. Model A: the chain's outputs come from the bindings (`effective_outs`)
+/// and sit at the chain TAIL, so every effect block feeds every output — one
+/// segment per (input, output) covering all enabled effect blocks. (Mid output
+/// blocks at an offset — a partial cut — are a follow-up; for the head/tail
+/// case this is bit-exact to the legacy single-tail-output path.)
+fn binding_of_input<'a>(by: &'a [BindingIo], e: &InputEntry) -> Option<&'a str> {
+    by.iter()
+        .find(|b| {
+            b.inputs
+                .iter()
+                .any(|i| i.device_id == e.device_id && i.channels == e.channels)
+        })
+        .map(|b| b.binding_id.as_str())
+}
+
+fn binding_of_output<'a>(by: &'a [BindingIo], e: &OutputEntry) -> Option<&'a str> {
+    by.iter()
+        .find(|b| {
+            b.outputs
+                .iter()
+                .any(|o| o.device_id == e.device_id && o.channels == e.channels)
+        })
+        .map(|b| b.binding_id.as_str())
+}
+
 fn segments_without_inserts(
     chain: &Chain,
     effective_ins: &[InputEntry],
     cpal_indices: &[usize],
     split_positions: &[Option<usize>],
     entry_groups: &[usize],
+    effective_outs: &[OutputEntry],
+    registry: &[IoBinding],
 ) -> Vec<ChainSegment> {
-    let mut output_positions: Vec<(usize, usize)> = Vec::new();
-    let mut out_entry_idx = 0;
-    for (pos, block) in chain.blocks.iter().enumerate() {
-        if block.enabled {
-            if let AudioBlockKind::Output(ob) = &block.kind {
-                for _ in 0..ob.entries.len() {
-                    output_positions.push((pos, out_entry_idx));
-                    out_entry_idx += 1;
-                }
-            }
-        }
-    }
+    // Every effect block (NOT an I/O / Insert port). Disabled effect blocks
+    // are KEPT — they become Bypass nodes so a live enable/disable is a
+    // lock-free toggle, never a rebuild (#580/#706). Do not filter on enabled.
+    let block_indices: Vec<usize> = chain
+        .blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| {
+            !matches!(
+                &b.kind,
+                AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+            )
+        })
+        .map(|(i, _)| i)
+        .collect();
 
     let input_count = effective_ins.len();
     let mut segments = Vec::new();
 
-    for &(out_pos, out_entry_idx) in &output_positions {
-        let block_indices: Vec<usize> = chain
-            .blocks
-            .iter()
-            .enumerate()
-            .filter(|(i, b)| {
-                *i < out_pos
-                    && !matches!(
-                        &b.kind,
-                        AudioBlockKind::Input(_)
-                            | AudioBlockKind::Output(_)
-                            | AudioBlockKind::Insert(_)
-                    )
-            })
-            .map(|(i, _)| i)
-            .collect();
+    // #716: pair an input only with its OWN binding's output — never cross to
+    // another binding (TEYUN in must not exit the SCARLET out). When both
+    // bindings are known and differ, skip the pair. Unknown bindings (single
+    // binding, or mid I/O blocks) keep the legacy all-pairs behavior, so a
+    // single-binding chain is bit-identical (golden).
+    let by_binding = resolve_chain_io_by_binding(chain, registry);
 
+    for out_entry_idx in 0..effective_outs.len() {
+        let out_binding = binding_of_output(&by_binding, &effective_outs[out_entry_idx]);
         for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
+            if let (Some(a), Some(b)) = (binding_of_input(&by_binding, input), out_binding) {
+                if a != b {
+                    continue;
+                }
+            }
             segments.push(ChainSegment {
                 input: input.clone(),
                 cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
@@ -206,11 +232,10 @@ fn segments_with_inserts(
         let mut regular_out_idx = 0;
         for b in &chain.blocks[..insert_pos] {
             if b.enabled {
-                if let AudioBlockKind::Output(ob) = &b.kind {
-                    for _ in 0..ob.entries.len() {
-                        output_indices.push(regular_out_idx);
-                        regular_out_idx += 1;
-                    }
+                if let AudioBlockKind::Output(_ob) = &b.kind {
+                    // Model A: one endpoint per output block.
+                    output_indices.push(regular_out_idx);
+                    regular_out_idx += 1;
                 }
             }
         }
@@ -271,14 +296,13 @@ fn segments_with_inserts(
     let mut regular_out_idx = 0;
     for (bi, b) in chain.blocks.iter().enumerate() {
         if b.enabled {
-            if let AudioBlockKind::Output(ob) = &b.kind {
+            if let AudioBlockKind::Output(_ob) = &b.kind {
+                // Model A: one endpoint per output block.
                 if bi > last_insert_pos {
-                    for _ in 0..ob.entries.len() {
-                        output_indices.push(regular_out_idx);
-                        regular_out_idx += 1;
-                    }
+                    output_indices.push(regular_out_idx);
+                    regular_out_idx += 1;
                 } else {
-                    regular_out_idx += ob.entries.len();
+                    regular_out_idx += 1;
                 }
             }
         }

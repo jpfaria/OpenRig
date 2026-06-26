@@ -1,50 +1,42 @@
 //! Issue #670 — tests for the audio-callback deadline timing seam.
 
 use super::{callback_period_ns, record_callback_deadline};
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::{build_chain_runtime_state, ChainRuntimeState};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::chain::Chain;
 use std::sync::Arc;
 use std::time::Duration;
 
 fn pipe_runtime() -> Arc<ChainRuntimeState> {
+    // Model A (#716): a mono-in/stereo-out passthrough; the endpoints come from
+    // the "io" binding, not from block `entries`.
     let chain = Chain {
         id: ChainId("t".into()),
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("in".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("d".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("out".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("d".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     };
-    Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256]).unwrap())
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("d".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("d".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
+    Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &registry).unwrap())
 }
 
 #[test]

@@ -12,12 +12,14 @@ fn rig_with_input(input_name: &str, bank: Vec<(usize, &str)>, active_preset: usi
     let mut presets = BTreeMap::new();
     let mut input = RigInput {
         label: None,
-        sources: Vec::new(),
         bank: BTreeMap::new(),
         active_preset,
         active_scene: 1,
         routing: Vec::new(),
         instrument: "electric_guitar".to_string(),
+        io: String::new(),
+        endpoint: String::new(),
+        io_binding_ids: Vec::new(),
     };
     for (idx, name) in bank {
         input.bank.insert(idx, name.to_string());

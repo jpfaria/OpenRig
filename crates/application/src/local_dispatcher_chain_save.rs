@@ -22,12 +22,24 @@ impl LocalDispatcher {
                     .any(|c| c.id == chain.id);
                 if is_create {
                     if let Some(rig) = self.rig.borrow().clone() {
-                        if let Some(input_name) =
+                        // Capture into a separate statement so the scrutinee's
+                        // `borrow_mut()` is released before the body re-borrows.
+                        let created = {
+                            let mut rig_mut = rig.borrow_mut();
                             crate::local_dispatcher_chain_crud::add_chain_to_rig(
-                                &mut rig.borrow_mut(),
+                                &mut rig_mut,
                                 &chain,
                             )
-                        {
+                        };
+                        if let Some(input_name) = created {
+                            // #716: carry the editor's I/O binding selection
+                            // onto the freshly-created rig input so it survives
+                            // reopen.
+                            if let Some(input) =
+                                rig.borrow_mut().inputs.get_mut(&input_name)
+                            {
+                                input.io_binding_ids = chain.io_binding_ids.clone();
+                            }
                             // Re-tag the chain id so the chains-screen
                             // preset/scene combobox can find this chain
                             // in the rig — `rig_nav_rows` only recognises
@@ -46,6 +58,10 @@ impl LocalDispatcher {
                         let mut rig_mut = rig.borrow_mut();
                         if let Some(input) = rig_mut.inputs.get_mut(input_name) {
                             input.label = chain.description.clone();
+                            // #716: persist the editor's I/O binding selection
+                            // into the rig so it survives reopen (the GUI saves
+                            // via SaveChain, not SetChainIoBindings).
+                            input.io_binding_ids = chain.io_binding_ids.clone();
                         }
                     }
                 }
@@ -67,18 +83,44 @@ impl LocalDispatcher {
             // ── Chain I/O endpoints ───────────────────────────────────────────
             Command::SaveChainInputEndpoints {
                 chain,
-                input_blocks,
+                block_index,
+                io,
+                endpoint,
             } => {
                 self.with_chain(&chain, |c| {
-                    // Remove all existing Input blocks, retaining non-input blocks.
-                    c.blocks
-                        .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
-                    // Insert the new input blocks at the head (inputs-first convention).
-                    for (i, blk) in input_blocks.into_iter().enumerate() {
-                        c.blocks.insert(i, blk);
+                    let blk = c.blocks.get_mut(block_index).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "SaveChainInputEndpoints: chain {:?} has no block at index {}",
+                            chain,
+                            block_index
+                        )
+                    })?;
+                    match &mut blk.kind {
+                        project::block::AudioBlockKind::Input(ib) => {
+                            ib.io = io.clone();
+                            ib.endpoint = endpoint.clone();
+                            Ok(())
+                        }
+                        _ => Err(anyhow::anyhow!(
+                            "SaveChainInputEndpoints: block at index {} in chain {:?} \
+                             is not an InputBlock",
+                            block_index,
+                            chain
+                        )),
                     }
-                    Ok(())
                 })?;
+                // Propagate the binding reference into the rig so the next
+                // rig→legacy projection keeps the user's io/endpoint.
+                if let Some(input_name) = chain.0.strip_prefix("rig:") {
+                    if let Some(rig) = self.rig.borrow().clone() {
+                        if let Some(rig_input) =
+                            rig.borrow_mut().inputs.get_mut(input_name)
+                        {
+                            rig_input.io = io;
+                            rig_input.endpoint = endpoint;
+                        }
+                    }
+                }
                 Ok(vec![
                     Event::ChainInputEndpointsSaved {
                         chain: chain.clone(),
@@ -89,28 +131,42 @@ impl LocalDispatcher {
 
             Command::SaveChainOutputEndpoints {
                 chain,
-                output_blocks,
+                block_index,
+                io,
+                endpoint,
             } => {
-                let cloned_outputs = output_blocks.clone();
                 self.with_chain(&chain, |c| {
-                    // Remove all existing Output blocks, retaining non-output blocks.
-                    c.blocks
-                        .retain(|b| !matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
-                    // Append the new output blocks at the tail (outputs-last convention).
-                    c.blocks.extend(output_blocks);
-                    Ok(())
+                    let blk = c.blocks.get_mut(block_index).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "SaveChainOutputEndpoints: chain {:?} has no block at index {}",
+                            chain,
+                            block_index
+                        )
+                    })?;
+                    match &mut blk.kind {
+                        project::block::AudioBlockKind::Output(ob) => {
+                            ob.io = io.clone();
+                            ob.endpoint = endpoint.clone();
+                            Ok(())
+                        }
+                        _ => Err(anyhow::anyhow!(
+                            "SaveChainOutputEndpoints: block at index {} in chain {:?} \
+                             is not an OutputBlock",
+                            block_index,
+                            chain
+                        )),
+                    }
                 })?;
-                // Persist the edit into the rig so the next rig→legacy
-                // projection (reload, scene/preset switch, runtime resync)
-                // sees the same output. Without this the user's edit lives
-                // only in the in-memory legacy chain and disappears on the
-                // next projection — "I fix the output and it never persists".
+                // Propagate the binding reference into the rig so the next
+                // rig→legacy projection sees the updated output block.
                 if let Some(input_name) = chain.0.strip_prefix("rig:") {
                     if let Some(rig) = self.rig.borrow().clone() {
-                        propagate_outputs_to_rig(
+                        propagate_output_ref_to_rig(
                             &mut rig.borrow_mut(),
                             input_name,
-                            &cloned_outputs,
+                            block_index,
+                            &io,
+                            &endpoint,
                         );
                     }
                 }
@@ -126,39 +182,39 @@ impl LocalDispatcher {
     }
 }
 
-/// Write the chain's user-edited outputs into the rig under stable per-input
-/// keys, and point `input.routing` at them so `rig_to_chains` re-emits the
-/// same Output block on every projection. Replaces every previous output
-/// owned by this input (key prefix `<input_name>:`) — the user's latest
-/// `SaveChainOutputEndpoints` is the new truth. No-op if the rig has no
-/// such input.
-pub(crate) fn propagate_outputs_to_rig(
+/// Store the binding reference set by `SaveChainOutputEndpoints` /
+/// `SaveChainIo` into the rig's output at a stable per-block key so the next
+/// `rig_to_legacy_project` projection re-emits a block with the same
+/// `io`/`endpoint` values.
+///
+/// The key is `"{input_name}:{block_index}"`. `block_index` is the position
+/// of the output block inside the chain's `blocks` vec — stable across
+/// projections as long as blocks are not reordered.
+///
+/// No-op when the rig has no input named `input_name`.
+pub(crate) fn propagate_output_ref_to_rig(
     rig: &mut project::rig::RigProject,
     input_name: &str,
-    output_blocks: &[project::block::AudioBlock],
+    block_index: usize,
+    io: &str,
+    endpoint: &str,
 ) {
-    let owned_prefix = format!("{input_name}:");
-    rig.outputs.retain(|k, _| !k.starts_with(&owned_prefix));
+    let key = format!("{input_name}:{block_index}");
     let Some(input) = rig.inputs.get_mut(input_name) else {
         return;
     };
-    input.routing.clear();
-    let mut idx = 0usize;
-    for block in output_blocks {
-        let project::block::AudioBlockKind::Output(ob) = &block.kind else {
-            continue;
-        };
-        for entry in &ob.entries {
-            let key = format!("{input_name}:{idx}");
-            rig.outputs.insert(
-                key.clone(),
-                project::rig::RigOutput {
-                    label: None,
-                    entry: entry.clone(),
-                },
-            );
-            input.routing.push(key);
-            idx += 1;
-        }
+    // Ensure the key is in the routing list (idempotent).
+    if !input.routing.contains(&key) {
+        input.routing.push(key.clone());
     }
+    // Store or update the binding reference in rig.outputs under the stable key.
+    // The `RigOutput.io` and `.endpoint` fields are propagated to the output block
+    // by `rig_to_chains` during projection (#716).
+    let entry = rig.outputs.entry(key).or_insert_with(|| project::rig::RigOutput {
+        label: None,
+        io: String::new(),
+        endpoint: String::new(),
+    });
+    entry.io = io.to_string();
+    entry.endpoint = endpoint.to_string();
 }

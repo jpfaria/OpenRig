@@ -16,11 +16,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -31,7 +29,6 @@ use application::validate::validate_project;
 
 const CHAIN_ID: &str = "rig:input-4";
 const BLOCK_ID: &str = "rig:input-4:amp:4";
-const DEVICE: &str = "test:device";
 
 fn slider_param_block() -> AudioBlock {
     // The original repro used the user's `nam_vox_ac30` block, but
@@ -59,11 +56,8 @@ fn user_input() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -74,11 +68,8 @@ fn user_output() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -93,6 +84,7 @@ fn project_with_amp_chain() -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![user_input(), slider_param_block(), user_output()],
         }],
         midi: None,

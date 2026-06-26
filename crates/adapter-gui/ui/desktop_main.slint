@@ -1,8 +1,8 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ProjectLauncherPage, ProjectSetupPage, SettingsPage, ProjectChainsPage, ChainEditorPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { PluginInfoPanel } from "pages/plugin_info_window.slint";
 
 export component DesktopMain inherits Rectangle {
@@ -98,8 +98,7 @@ export component DesktopMain inherits Rectangle {
     callback reset-evaluations-path();
     callback reload-plugin-catalog();
     // Fullscreen inline chain editor
-    in property <[IoGroupItem]> chain-editor-input-groups;
-    in property <[IoGroupItem]> chain-editor-output-groups;
+    in property <[ChainBindingChoice]> chain-editor-bindings;
     in property <bool> chain-editor-is-create-mode: true;
     in-out property <int> chain-editor-selected-instrument-index: 0;
     callback toggle-input-device(int, bool);
@@ -205,49 +204,36 @@ export component DesktopMain inherits Rectangle {
     in property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+    // #716: System / I/O bindings section.
+    // `io-binding-names` stays for the chain-level endpoint picker
+    // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
+    in property <[string]> io-binding-names;
+    in property <[IoBindingModel]> io-bindings;
+    in property <[string]> input-device-ids;
+    in property <[string]> input-device-names;
+    in property <[string]> output-device-ids;
+    in property <[string]> output-device-names;
+    in property <[ChannelOptionItem]> io-binding-channel-options;
+    in-out property <string> io-binding-error: "";
+    in property <int> io-edit-prefill-device-index: -1;
+    in property <int> io-edit-prefill-mode-index: 0;
+    callback create-io-binding(string) -> string;
+    callback delete-io-binding(string) -> string;
+    callback rename-io-binding(string, string);
+    callback endpoint-device-changed(string, bool, string);
+    callback toggle-endpoint-channel(int, bool, string);
+    callback add-input-endpoint(string, string, string, string);
+    callback add-output-endpoint(string, string, string, string);
+    callback remove-endpoint(string, string, bool);
+    callback edit-endpoint(string, string, bool);
     // Project / MIDI mapping editor callbacks (#513, #493)
     callback add-midi-binding();
     callback delete-midi-binding(int);
     callback pick-midi-binding-command(int, string);
     callback cancel-midi-binding-draft(int);
     // Fullscreen inline chain editor callbacks
-    callback edit-chain-input(int);
-    callback remove-chain-input(int);
-    callback add-chain-input();
-    callback edit-chain-output(int);
-    callback remove-chain-output(int);
-    callback add-chain-output();
     callback select-chain-instrument(int);
-    // Fullscreen inline I/O endpoint editor
-    in property <bool> show-chain-io-editor: false;
-    in property <string> chain-io-editor-title;
-    in property <[string]> chain-io-device-options;
-    in-out property <int> chain-io-selected-device-index: -1;
-    in property <[ChannelOptionItem]> chain-io-channels;
-    in-out property <string> chain-io-editor-status: "";
-    in property <bool> chain-io-show-mode-selector: false;
-    in property <[string]> chain-io-mode-labels;
-    in-out property <int> chain-io-selected-mode-index: 0;
-    callback chain-io-select-device(int);
-    callback chain-io-toggle-channel(int, bool);
-    callback chain-io-select-mode(int);
-    callback chain-io-save();
-    callback chain-io-cancel();
-    // Fullscreen inline I/O groups editor (list of input/output entries)
-    in property <bool> show-chain-io-groups: false;
-    in property <string> chain-io-groups-title;
-    in property <string> chain-io-groups-add-label;
-    in property <[IoGroupItem]> chain-io-groups-items;
-    in-out property <string> chain-io-groups-status: "";
-    in property <bool> chain-io-groups-show-block-controls: false;
-    in property <bool> chain-io-groups-block-enabled: true;
-    callback chain-io-groups-edit(int);
-    callback chain-io-groups-remove(int);
-    callback chain-io-groups-add();
-    callback chain-io-groups-save();
-    callback chain-io-groups-cancel();
-    callback chain-io-groups-toggle-enabled();
-    callback chain-io-groups-delete-block();
+    callback toggle-binding(int, bool);
     // Fullscreen inline plugin info overlay (windowed mode opens PluginInfoWindow instead).
     // Wired in fullscreen because secondary windows do not surface reliably on Orange Pi.
     in property <bool> plugin-info-visible: false;
@@ -415,6 +401,24 @@ export component DesktopMain inherits Rectangle {
             edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
             set-midi-enabled(on) => { root.set-midi-enabled(on); }
             set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
+            io-bindings: root.io-bindings;
+            input-device-ids: root.input-device-ids;
+            input-device-names: root.input-device-names;
+            output-device-ids: root.output-device-ids;
+            output-device-names: root.output-device-names;
+            io-binding-channel-options: root.io-binding-channel-options;
+            io-binding-error <=> root.io-binding-error;
+            io-edit-prefill-device-index: root.io-edit-prefill-device-index;
+            io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
+            create-io-binding(name) => { return root.create-io-binding(name); }
+            delete-io-binding(id) => { return root.delete-io-binding(id); }
+            rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+            endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
+            toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
+            add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
+            add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
+            remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
+            edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
             add-midi-binding => { root.add-midi-binding(); }
             delete-midi-binding(i) => { root.delete-midi-binding(i); }
             pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
@@ -457,65 +461,21 @@ export component DesktopMain inherits Rectangle {
         }
 
         // Fullscreen inline chain editor
-        if root.fullscreen && root.show-chain-editor && !root.show-chain-io-editor && !root.show-chain-io-groups : ChainEditorPage {
+        if root.fullscreen && root.show-chain-editor : ChainEditorPage {
             width: parent.width;
             height: parent.height;
             title: root.chain-editor-title;
             save-label: root.chain-editor-save-label;
             chain-name: root.chain-draft-name;
-            input-groups: root.chain-editor-input-groups;
-            output-groups: root.chain-editor-output-groups;
+            bindings: root.chain-editor-bindings;
             status-message: root.status-message;
             is-create-mode: root.chain-editor-is-create-mode;
             selected-instrument-index <=> root.chain-editor-selected-instrument-index;
             update-chain-name(value) => { root.update-chain-name(value); }
-            edit-input(index) => { root.edit-chain-input(index); }
-            remove-input(index) => { root.remove-chain-input(index); }
-            add-input => { root.add-chain-input(); }
-            edit-output(index) => { root.edit-chain-output(index); }
-            remove-output(index) => { root.remove-chain-output(index); }
-            add-output => { root.add-chain-output(); }
+            toggle-binding(index, on) => { root.toggle-binding(index, on); }
             save-chain => { root.save-chain(); }
             cancel-chain => { root.cancel-chain(); }
             select-instrument(index) => { root.select-chain-instrument(index); }
-        }
-
-        // Fullscreen inline I/O groups editor (list of input/output entries)
-        if root.fullscreen && root.show-chain-io-groups && !root.show-chain-io-editor : ChainIoGroupsPage {
-            width: parent.width;
-            height: parent.height;
-            title: root.chain-io-groups-title;
-            add-label: root.chain-io-groups-add-label;
-            groups: root.chain-io-groups-items;
-            status-message <=> root.chain-io-groups-status;
-            show-block-controls: root.chain-io-groups-show-block-controls;
-            block-enabled: root.chain-io-groups-block-enabled;
-            edit-group(index) => { root.chain-io-groups-edit(index); }
-            remove-group(index) => { root.chain-io-groups-remove(index); }
-            add-group => { root.chain-io-groups-add(); }
-            save => { root.chain-io-groups-save(); }
-            cancel => { root.chain-io-groups-cancel(); }
-            toggle-enabled => { root.chain-io-groups-toggle-enabled(); }
-            delete-block => { root.chain-io-groups-delete-block(); }
-        }
-
-        // Fullscreen inline I/O endpoint editor (input or output device selection)
-        if root.fullscreen && root.show-chain-io-editor : ChainEndpointEditorPage {
-            width: parent.width;
-            height: parent.height;
-            title: root.chain-io-editor-title;
-            device-options: root.chain-io-device-options;
-            selected-device-index <=> root.chain-io-selected-device-index;
-            channels: root.chain-io-channels;
-            status-message <=> root.chain-io-editor-status;
-            show-mode-selector: root.chain-io-show-mode-selector;
-            mode-labels: root.chain-io-mode-labels;
-            selected-mode-index <=> root.chain-io-selected-mode-index;
-            select-device(index) => { root.chain-io-select-device(index); }
-            toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
-            select-mode(index) => { root.chain-io-select-mode(index); }
-            save => { root.chain-io-save(); }
-            cancel => { root.chain-io-cancel(); }
         }
 
         if !root.show-project-chains : Rectangle {
@@ -596,6 +556,24 @@ export component DesktopMain inherits Rectangle {
         edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
         set-midi-enabled(on) => { root.set-midi-enabled(on); }
         set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
+        io-bindings: root.io-bindings;
+        input-device-ids: root.input-device-ids;
+        input-device-names: root.input-device-names;
+        output-device-ids: root.output-device-ids;
+        output-device-names: root.output-device-names;
+        io-binding-channel-options: root.io-binding-channel-options;
+        io-binding-error <=> root.io-binding-error;
+        io-edit-prefill-device-index: root.io-edit-prefill-device-index;
+        io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
+        create-io-binding(name) => { return root.create-io-binding(name); }
+        delete-io-binding(id) => { return root.delete-io-binding(id); }
+        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
+        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
+        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
+        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
+        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
+        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
+        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
         add-midi-binding => { root.add-midi-binding(); }
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }

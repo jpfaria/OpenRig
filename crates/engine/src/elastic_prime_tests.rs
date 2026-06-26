@@ -5,12 +5,9 @@ use super::{
     IR_COLD_START_CUSHION_FRAMES,
 };
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, NamBlock, OutputBlock,
-    OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, NamBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 
 fn io_chain(mid: AudioBlock) -> Chain {
@@ -20,33 +17,8 @@ fn io_chain(mid: AudioBlock) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("in".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("d".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            mid,
-            AudioBlock {
-                id: BlockId("out".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("d".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![mid],
     }
 }
 
@@ -83,7 +55,7 @@ fn plain_gain_chain_is_not_convolution() {
 #[test]
 fn disabled_cab_does_not_count() {
     let mut c = io_chain(core(block_core::EFFECT_TYPE_CAB, "ir_x"));
-    c.blocks[1].enabled = false;
+    c.blocks[0].enabled = false;
     assert!(!chain_has_convolution(&c));
 }
 

@@ -524,13 +524,16 @@ export component ChainRow inherits Rectangle {
             }
         }
 
+        // #716: IN/OUT are illustrative only — the chain's audio I/O comes from
+        // the I/O binding referenced by its input/output blocks, not from
+        // editing these chips. No click handler (non-interactive).
         in-chip := ChainEndpointChip {
             x: 24px;
             y: 24px;
             is-input: true;
             label: root.chain.input_label;
             tooltip: root.chain.input_tooltip;
-            clicked => { root.configure-chain-input(root.chain-index); }
+            interactive: false;
         }
 
         out-chip := ChainEndpointChip {
@@ -539,7 +542,7 @@ export component ChainRow inherits Rectangle {
             is-input: false;
             label: root.chain.output_label;
             tooltip: root.chain.output_tooltip;
-            clicked => { root.configure-chain-output(root.chain-index); }
+            interactive: false;
         }
 
         if root.chain.latency_ms > 0 : Rectangle {

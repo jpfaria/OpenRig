@@ -16,64 +16,83 @@
 //! markers are dropped and the tests must pass.
 
 use super::*;
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::block::AudioBlock;
+use project::chain::Chain;
 use project::project::Project;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-fn input_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(device.into()),
-                mode: ChainInputMode::Mono,
-                channels,
-            }],
-        }),
+/// Build a registry input endpoint mirroring an old single-entry `InputBlock`.
+/// `device`/`channels` carry through unchanged; mode follows the old
+/// `ChainInputMode` → `ChannelMode` mapping.
+fn in_ep(name: &str, device: &str, mode: ChannelMode, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(device.into()),
+        mode,
+        channels,
     }
 }
 
-fn output_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(device.into()),
-                mode: ChainOutputMode::Mono,
-                channels,
-            }],
-        }),
+/// Build a registry output endpoint mirroring an old single-entry `OutputBlock`.
+fn out_ep(name: &str, device: &str, mode: ChannelMode, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(device.into()),
+        mode,
+        channels,
     }
+}
+
+/// One binding (`id: "io"`) holding the given input + output endpoints. The
+/// chain selects it via `io_binding_ids: ["io"]`; head inputs and tail outputs
+/// resolve from here — byte-identical device/mode/channels to the old entries.
+fn binding(inputs: Vec<IoEndpoint>, outputs: Vec<IoEndpoint>) -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs,
+        outputs,
+    }]
+}
+
+/// A model-A chain that selects the `"io"` binding and carries only effect
+/// blocks (none for these passthrough isolation fixtures).
+fn bound_chain(id: &str, description: Option<String>, blocks: Vec<AudioBlock>) -> Chain {
+    Chain {
+        id: ChainId(id.into()),
+        description,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks,
+    }
+}
+
+/// Registry for the "two guitars, one chain" scenario: two mono inputs on
+/// DIFFERENT physical devices (guitar_a / guitar_b), one mono output.
+fn dual_input_registry() -> Vec<IoBinding> {
+    binding(
+        vec![
+            in_ep("in0", "guitar_a", ChannelMode::Mono, vec![0]),
+            in_ep("in1", "guitar_b", ChannelMode::Mono, vec![0]),
+        ],
+        vec![out_ep("out0", "main_out", ChannelMode::Mono, vec![0])],
+    )
 }
 
 /// Chain with N InputBlocks all routed to one OutputBlock. The user-
 /// visible "two guitars in the same chain" scenario that triggered #350.
 fn dual_input_chain() -> Chain {
-    Chain {
-        id: ChainId("dual_input".into()),
-        description: Some("two guitars, one chain".into()),
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            input_block("dual_input:input:0", "guitar_a", vec![0]),
-            input_block("dual_input:input:1", "guitar_b", vec![0]),
-            output_block("dual_input:output:0", "main_out", vec![0]),
-        ],
-    }
+    bound_chain("dual_input", Some("two guitars, one chain".into()), vec![])
 }
 
 fn build_dual_input_graph() -> RuntimeGraph {
     let chain = dual_input_chain();
+    let registry = dual_input_registry();
     let project = Project {
         name: Some("stream_isolation_test".into()),
         chains: vec![chain.clone()],
@@ -83,7 +102,7 @@ fn build_dual_input_graph() -> RuntimeGraph {
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48000.0_f32);
     let elastic_targets: HashMap<ChainId, Vec<usize>> = HashMap::new();
-    build_runtime_graph(&project, &sample_rates, &elastic_targets)
+    build_runtime_graph(&project, &sample_rates, &elastic_targets, &registry)
         .expect("dual_input chain must build")
 }
 
@@ -236,30 +255,13 @@ fn each_output_route_buffer_has_exactly_one_producer() {
 /// silent — exactly the regression the previous broken iteration shipped.
 #[test]
 fn every_effective_input_index_has_at_least_one_segment() {
-    let chain = Chain {
-        id: ChainId("regression:every-input-has-segment".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            // 1 InputBlock, 2 channels, mono mode — the user's "duas
-            // guitarras na mesma chain" config.
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("scarlett".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            output_block("output:0", "main_out", vec![0]),
-        ],
-    };
+    // 1 InputBlock, 2 channels, mono mode — the user's "duas guitarras na
+    // mesma chain" config.
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::Mono, vec![0, 1])],
+        vec![out_ep("out0", "main_out", ChannelMode::Mono, vec![0])],
+    );
+    let chain = bound_chain("regression:every-input-has-segment", None, vec![]);
 
     let project = Project {
         name: Some("regression".into()),
@@ -270,7 +272,7 @@ fn every_effective_input_index_has_at_least_one_segment() {
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);
     let elastic_targets: HashMap<ChainId, Vec<usize>> = HashMap::new();
-    let graph = build_runtime_graph(&project, &sample_rates, &elastic_targets)
+    let graph = build_runtime_graph(&project, &sample_rates, &elastic_targets, &registry)
         .expect("regression chain must build");
 
     let runtime = graph.chains.values().next().expect("expected 1 runtime");
@@ -278,7 +280,8 @@ fn every_effective_input_index_has_at_least_one_segment() {
 
     // Engine's effective_inputs splits mono multi-channel into one entry
     // per channel — so the user's chain produces ≥2 effective inputs.
-    let (eff_inputs, cpal_indices, _, _) = effective_inputs(&chain);
+    let (resolved_inputs, _) = crate::runtime_endpoints::resolve_chain_io(&chain, &registry);
+    let (eff_inputs, cpal_indices, _, _) = effective_inputs(&chain, &resolved_inputs, &registry);
     assert!(
         eff_inputs.len() >= 2,
         "fixture invariant: 1-InputBlock mono multi-channel must split into ≥2 effective inputs, got {}",
@@ -314,28 +317,11 @@ fn every_effective_input_index_has_at_least_one_segment() {
 /// is orphaned (no callback dispatches to it), it never processes audio.
 #[test]
 fn no_segment_is_orphaned_from_input_dispatch() {
-    let chain = Chain {
-        id: ChainId("regression:no-orphan-segment".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("scarlett".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0, 1, 2],
-                    }],
-                }),
-            },
-            output_block("output:0", "main_out", vec![0]),
-        ],
-    };
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::Mono, vec![0, 1, 2])],
+        vec![out_ep("out0", "main_out", ChannelMode::Mono, vec![0])],
+    );
+    let chain = bound_chain("regression:no-orphan-segment", None, vec![]);
     let project = Project {
         name: Some("regression".into()),
         chains: vec![chain.clone()],
@@ -345,7 +331,7 @@ fn no_segment_is_orphaned_from_input_dispatch() {
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);
     let elastic_targets: HashMap<ChainId, Vec<usize>> = HashMap::new();
-    let graph = build_runtime_graph(&project, &sample_rates, &elastic_targets)
+    let graph = build_runtime_graph(&project, &sample_rates, &elastic_targets, &registry)
         .expect("regression chain must build");
 
     let runtime = graph.chains.values().next().expect("expected 1 runtime");
@@ -378,17 +364,11 @@ fn no_segment_is_orphaned_from_input_dispatch() {
 /// is silent forever.
 #[test]
 fn every_output_route_has_at_least_one_producer_segment() {
-    let chain = Chain {
-        id: ChainId("regression:every-output-has-producer".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            input_block("input:0", "scarlett", vec![0]),
-            output_block("output:0", "main_out", vec![0]),
-        ],
-    };
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::Mono, vec![0])],
+        vec![out_ep("out0", "main_out", ChannelMode::Mono, vec![0])],
+    );
+    let chain = bound_chain("regression:every-output-has-producer", None, vec![]);
     let project = Project {
         name: Some("regression".into()),
         chains: vec![chain.clone()],
@@ -398,7 +378,7 @@ fn every_output_route_has_at_least_one_producer_segment() {
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);
     let elastic_targets: HashMap<ChainId, Vec<usize>> = HashMap::new();
-    let graph = build_runtime_graph(&project, &sample_rates, &elastic_targets)
+    let graph = build_runtime_graph(&project, &sample_rates, &elastic_targets, &registry)
         .expect("regression chain must build");
 
     let runtime = graph.chains.values().next().expect("expected 1 runtime");
@@ -451,42 +431,15 @@ fn every_output_route_has_at_least_one_producer_segment() {
 fn two_channel_mono_input_must_not_cancel_in_output() {
     use crate::runtime::{process_input_f32, process_output_f32};
 
-    let chain = Chain {
-        id: ChainId("isolation:no-cancel".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("scarlett".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("monitor".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
-    };
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::Mono, vec![0, 1])],
+        vec![out_ep("out0", "monitor", ChannelMode::Stereo, vec![0, 1])],
+    );
+    let chain = bound_chain("isolation:no-cancel", None, vec![]);
 
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("passthrough chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256], &registry)
+            .expect("passthrough chain must build"),
     );
 
     let frames = 64usize;
@@ -527,42 +480,15 @@ fn two_channel_mono_input_must_not_cancel_in_output() {
 fn two_channel_mono_input_must_not_saturate_when_both_loud() {
     use crate::runtime::{process_input_f32, process_output_f32};
 
-    let chain = Chain {
-        id: ChainId("isolation:no-sat".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("scarlett".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("monitor".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
-    };
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::Mono, vec![0, 1])],
+        vec![out_ep("out0", "monitor", ChannelMode::Stereo, vec![0, 1])],
+    );
+    let chain = bound_chain("isolation:no-sat", None, vec![]);
 
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("passthrough chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256], &registry)
+            .expect("passthrough chain must build"),
     );
 
     let frames = 64usize;
@@ -612,46 +538,17 @@ fn two_channel_mono_input_must_not_saturate_when_both_loud() {
 /// ear (auto-pan effect via partial broadcast).
 #[test]
 fn split_mono_segments_keep_stereo_processing_when_output_is_stereo() {
-    let chain = Chain {
-        id: ChainId("isolation:always-stereo".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            // 1 InputBlock, 2 channels, mono mode → 2 effective entries
-            // (one per channel) — the user's "duas guitarras na mesma
-            // input" config.
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("scarlett".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            // Stereo output → bus must stay stereo for every stream.
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("monitor".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
-    };
+    // 1 InputBlock, 2 channels, mono mode → 2 effective entries (one per
+    // channel) — the user's "duas guitarras na mesma input" config.
+    // Stereo output → bus must stay stereo for every stream.
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::Mono, vec![0, 1])],
+        vec![out_ep("out0", "monitor", ChannelMode::Stereo, vec![0, 1])],
+    );
+    let chain = bound_chain("isolation:always-stereo", None, vec![]);
 
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256])
+        build_chain_runtime_state(&chain, 48_000.0, &[256], &registry)
             .expect("split-mono / stereo-output chain must build"),
     );
     let processing = runtime.processing.lock().expect("lock poisoned");
@@ -680,42 +577,15 @@ fn split_mono_segments_keep_stereo_processing_when_output_is_stereo() {
 /// is preserved internally by `AudioProcessor::DualMono`).
 #[test]
 fn dual_mono_segment_keeps_stereo_processing() {
-    let chain = Chain {
-        id: ChainId("isolation:dualmono-stereo".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("scarlett".into()),
-                        mode: ChainInputMode::DualMono,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("monitor".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
-    };
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::DualMono, vec![0, 1])],
+        vec![out_ep("out0", "monitor", ChannelMode::Stereo, vec![0, 1])],
+    );
+    let chain = bound_chain("isolation:dualmono-stereo", None, vec![]);
 
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("dualmono chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256], &registry)
+            .expect("dualmono chain must build"),
     );
     let processing = runtime.processing.lock().expect("lock poisoned");
 
@@ -736,19 +606,14 @@ fn dual_mono_segment_keeps_stereo_processing() {
 /// a mono output, we don't force a useless upmix.
 #[test]
 fn mono_input_with_mono_output_stays_mono() {
-    let chain = Chain {
-        id: ChainId("isolation:mono-mono".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        blocks: vec![
-            input_block("input:0", "scarlett", vec![0]),
-            output_block("output:0", "monitor", vec![0]),
-        ],
-    };
+    let registry = binding(
+        vec![in_ep("in0", "scarlett", ChannelMode::Mono, vec![0])],
+        vec![out_ep("out0", "monitor", ChannelMode::Mono, vec![0])],
+    );
+    let chain = bound_chain("isolation:mono-mono", None, vec![]);
     let runtime = std::sync::Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[256]).expect("mono-only chain must build"),
+        build_chain_runtime_state(&chain, 48_000.0, &[256], &registry)
+            .expect("mono-only chain must build"),
     );
     let processing = runtime.processing.lock().expect("lock poisoned");
 

@@ -1,4 +1,11 @@
 //! `validate_project` integration tests. Helpers via sibling `helpers` mod.
+//!
+//! #716 (model A): tests that asserted per-block `entries` device/channel
+//! validation or the cross-chain channel-conflict check were removed — device
+//! endpoints no longer live on the chain; they are resolved from the I/O
+//! binding registry at the activation layer, which `validate_project` does not
+//! see. Only the registry-independent structural / device-settings / layout
+//! checks remain.
 
 use super::helpers::*;
 
@@ -20,6 +27,54 @@ fn validate_project_mono_input_mono_output_succeeds() {
         ],
     )]);
     assert!(validate_project(&project).is_ok());
+}
+
+// #716: a binding-bound chain resolves its I/O from the registry at runtime —
+// its Input/Output blocks carry `io`/`endpoint` only. The structural validation
+// must NOT reject it (that was the no-sound bug: "input 'standard' has no
+// entries").
+#[test]
+fn validate_project_binding_bound_chain_succeeds() {
+    use domain::ids::{BlockId, ChainId};
+    use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
+    use project::chain::Chain;
+    use project::project::Project;
+
+    let bound_input = AudioBlock {
+        id: BlockId("in".into()),
+        enabled: true,
+        kind: AudioBlockKind::Input(InputBlock {
+            model: "standard".into(),
+            io: "scarlet".into(),
+            endpoint: "in1".into(),
+        }),
+    };
+    let bound_output = AudioBlock {
+        id: BlockId("out".into()),
+        enabled: true,
+        kind: AudioBlockKind::Output(OutputBlock {
+            model: "standard".into(),
+            io: "scarlet".into(),
+            endpoint: "out1".into(),
+        }),
+    };
+    let chain = Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["scarlet".into()],
+        blocks: vec![bound_input, bound_output],
+    };
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    };
+    validate_project(&project)
+        .expect("binding-bound chain must validate — its I/O comes from the registry");
 }
 
 #[test]
@@ -91,122 +146,6 @@ fn validate_project_no_output_block_fails() {
 }
 
 // -----------------------------------------------------------------------
-// validate_project — empty device_id in entries
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_project_empty_input_device_id_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("missing device_id"));
-}
-
-#[test]
-fn validate_project_whitespace_input_device_id_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("  ", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    // Fix up the device settings since whitespace device_id won't auto-generate settings
-    let project = Project {
-        name: Some("test".to_string()),
-        device_settings: vec![test_device_settings("dev-out")],
-        chains: vec![chain],
-        midi: None,
-    };
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("missing device_id"));
-}
-
-#[test]
-fn validate_project_empty_output_device_id_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("", vec![0, 1]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("missing device_id"));
-}
-
-// -----------------------------------------------------------------------
-// validate_project — empty channels
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_project_empty_input_channels_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("has no channels"));
-}
-
-#[test]
-fn validate_project_empty_output_channels_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("has no channels"));
-}
-
-// -----------------------------------------------------------------------
-// validate_project — duplicate channels
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_project_duplicate_input_channels_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0, 0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("duplicated channel"));
-}
-
-#[test]
-fn validate_project_duplicate_output_channels_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![1, 1]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("duplicated channel"));
-}
-
-// -----------------------------------------------------------------------
 // validate_project — device settings validation
 // -----------------------------------------------------------------------
 
@@ -252,190 +191,6 @@ fn validate_project_duplicate_device_settings_fails() {
     project.device_settings.push(dup);
     let err = validate_project(&project).unwrap_err();
     assert!(err.to_string().contains("duplicated device_settings"));
-}
-
-// -----------------------------------------------------------------------
-// validate_project — channel conflicts between active chains
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_project_active_chains_same_input_channel_fails() {
-    let chain0 = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out-a", vec![0, 1]),
-        ],
-    );
-    let chain1 = test_chain(
-        "chain:1",
-        vec![
-            test_input_block("dev-in", vec![0]), // same device+channel
-            test_output_block("dev-out-b", vec![0, 1]),
-        ],
-    );
-    let project = test_project(vec![chain0, chain1]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("both use input device"));
-}
-
-#[test]
-fn validate_project_active_chains_different_channels_succeeds() {
-    let chain0 = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let chain1 = test_chain(
-        "chain:1",
-        vec![
-            test_input_block("dev-in", vec![1]), // different channel, same device
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let project = test_project(vec![chain0, chain1]);
-    assert!(validate_project(&project).is_ok());
-}
-
-#[test]
-fn validate_project_disabled_chain_skips_conflict_check() {
-    let chain0 = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let mut chain1 = test_chain(
-        "chain:1",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    chain1.enabled = false; // disabled chain should be ignored for conflict
-    let project = test_project(vec![chain0, chain1]);
-    assert!(validate_project(&project).is_ok());
-}
-
-// -----------------------------------------------------------------------
-// validate_project — input entry with empty name uses model as label
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_project_input_entry_empty_name_uses_model_in_error() {
-    let input = AudioBlock {
-        id: BlockId("block:input".to_string()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".to_string(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    };
-    let chain = test_chain(
-        "chain:0",
-        vec![input, test_output_block("dev-out", vec![0, 1])],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("standard"));
-}
-
-#[test]
-fn validate_project_output_entry_empty_name_uses_model_in_error() {
-    let output = AudioBlock {
-        id: BlockId("block:output".to_string()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".to_string(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("".to_string()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    };
-    let chain = test_chain("chain:0", vec![test_input_block("dev-in", vec![0]), output]);
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("standard"));
-}
-
-// -----------------------------------------------------------------------
-// validate_project — input with no entries
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_project_input_no_entries_fails() {
-    let input = AudioBlock {
-        id: BlockId("block:input".to_string()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".to_string(),
-            entries: vec![],
-        }),
-    };
-    let chain = test_chain(
-        "chain:0",
-        vec![input, test_output_block("dev-out", vec![0, 1])],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("has no entries"));
-}
-
-#[test]
-fn validate_project_output_no_entries_fails() {
-    let output = AudioBlock {
-        id: BlockId("block:output".to_string()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".to_string(),
-            entries: vec![],
-        }),
-    };
-    let chain = test_chain("chain:0", vec![test_input_block("dev-in", vec![0]), output]);
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("has no entries"));
-}
-
-// -----------------------------------------------------------------------
-// validate_project — unsupported channel count (e.g. 3 channels)
-// -----------------------------------------------------------------------
-
-#[test]
-fn validate_project_three_input_channels_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0, 1, 2]),
-            test_output_block("dev-out", vec![0, 1]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("3 channels"));
-}
-
-#[test]
-fn validate_project_three_output_channels_fails() {
-    let chain = test_chain(
-        "chain:0",
-        vec![
-            test_input_block("dev-in", vec![0]),
-            test_output_block("dev-out", vec![0, 1, 2]),
-        ],
-    );
-    let project = test_project(vec![chain]);
-    let err = validate_project(&project).unwrap_err();
-    assert!(err.to_string().contains("3 channels"));
 }
 
 // -----------------------------------------------------------------------
@@ -501,9 +256,21 @@ fn validate_project_disabled_block_skipped_in_layout_propagation() {
 
 #[test]
 fn validate_project_with_delay_block_succeeds() {
+    // The processing bus is stereo (invariant #5), so pick a delay model that
+    // accepts a stereo input bus.
     let delay_model = block_delay::supported_models()
-        .first()
-        .expect("block-delay must expose at least one model");
+        .iter()
+        .copied()
+        .find(|model| {
+            project::block::schema_for_block_model("delay", model)
+                .map(|s| {
+                    s.audio_mode
+                        .output_layout(block_core::AudioChannelLayout::Stereo)
+                        .is_some()
+                })
+                .unwrap_or(false)
+        })
+        .expect("block-delay must expose at least one stereo-capable model");
     let schema = project::block::schema_for_block_model("delay", delay_model)
         .expect("delay schema should exist");
     let params = ParameterSet::default()
@@ -533,20 +300,21 @@ fn validate_project_with_delay_block_succeeds() {
 
 #[test]
 fn validate_project_with_reverb_block_succeeds() {
-    // Pick a reverb that fits the mono-in / stereo-out chain below. New
-    // entries (cathedral, dattorro, fdn-jot, freeverb, etc.) declare
-    // ModelAudioMode::TrueStereo, which validate_project rejects with a
-    // mono-only InputBlock — so we filter for the first non-TrueStereo
-    // model rather than relying on alphabetical ordering.
+    // The processing bus is stereo (invariant #5), so pick a reverb model that
+    // accepts a stereo input bus.
     let reverb_model = block_reverb::supported_models()
         .iter()
         .copied()
         .find(|model| {
             project::block::schema_for_block_model("reverb", model)
-                .map(|s| s.audio_mode != block_core::ModelAudioMode::TrueStereo)
+                .map(|s| {
+                    s.audio_mode
+                        .output_layout(block_core::AudioChannelLayout::Stereo)
+                        .is_some()
+                })
                 .unwrap_or(false)
         })
-        .expect("block-reverb must expose at least one non-TrueStereo model");
+        .expect("block-reverb must expose at least one stereo-capable model");
     let schema = project::block::schema_for_block_model("reverb", reverb_model)
         .expect("reverb schema should exist");
     let params = ParameterSet::default()
@@ -585,16 +353,7 @@ fn validate_project_with_insert_block_succeeds() {
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "external_loop".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("send-dev".to_string()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("return-dev".to_string()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
+            io: "fx".to_string(),
         }),
     };
     let chain = test_chain(

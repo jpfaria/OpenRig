@@ -12,9 +12,7 @@ use slint::{ComponentHandle, Model, VecModel};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
-use domain::ids::DeviceId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::block::InsertEndpoint;
 
 use crate::audio_devices::{
     build_insert_return_channel_items, build_insert_send_channel_items, replace_channel_options,
@@ -247,6 +245,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &window,
@@ -313,6 +312,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &window,
@@ -346,30 +346,15 @@ pub(crate) fn wire(
             let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            if draft.send_device_id.is_none() || draft.send_channels.is_empty() {
-                iw.set_status_message(rust_i18n::t!("insert-error-select-send").to_string().into());
-                return;
-            }
-            if draft.return_device_id.is_none() || draft.return_channels.is_empty() {
-                iw.set_status_message(
-                    rust_i18n::t!("insert-error-select-return")
-                        .to_string()
-                        .into(),
-                );
-                return;
-            }
+            // TODO(#716): the insert editor Slint UI still exposes send/return
+            // device + channel pickers, but model A persists a single I/O binding
+            // id (`io`) — the send resolves to the binding's output and the
+            // return to its input via the per-machine registry. The picker
+            // widgets are placeholder no-ops; this saves the draft's `io`. The
+            // Slint window should be reworked to pick a binding directly.
             let chain_idx = draft.chain_index;
             let block_idx = draft.block_index;
-            let send_endpoint = InsertEndpoint {
-                device_id: DeviceId(draft.send_device_id.clone().unwrap_or_default()),
-                mode: draft.send_mode,
-                channels: draft.send_channels.clone(),
-            };
-            let return_endpoint = InsertEndpoint {
-                device_id: DeviceId(draft.return_device_id.clone().unwrap_or_default()),
-                mode: draft.return_mode,
-                channels: draft.return_channels.clone(),
-            };
+            let io = draft.io.clone();
             drop(draft_borrow);
             *insert_draft.borrow_mut() = None;
             let mut session_borrow = project_session.borrow_mut();
@@ -393,8 +378,7 @@ pub(crate) fn wire(
             if let Err(e) = session.dispatcher.dispatch(Command::SaveInsertBlock {
                 chain: chain_id.clone(),
                 block: block_id,
-                send: send_endpoint,
-                return_: return_endpoint,
+                io,
             }) {
                 log::error!("insert save error: {e}");
                 let _ = iw.hide();
@@ -408,6 +392,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &window,

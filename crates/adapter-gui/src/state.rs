@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::BlockEditorWindow;
 use application::local_dispatcher::LocalDispatcher;
-use project::chain::{ChainInputMode, ChainOutputMode};
+use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 use project::project::Project;
 use project::rig::RigProject;
@@ -36,6 +36,11 @@ pub(crate) struct ProjectSession {
     /// the legacy chains screen can switch preset/scene per input. `None`
     /// for sessions not loaded through the rig path (e.g. brand-new).
     pub(crate) rig: Option<Rc<RefCell<RigProject>>>,
+    /// Issue #716 — the per-machine I/O binding registry (`AppConfig.io_bindings`)
+    /// the runtime controller resolves bound chains against. Mirrored from
+    /// `AppConfig` when the session is created and refreshed on config edits;
+    /// the sync helpers push it into the controller before each (re)build.
+    pub(crate) io_bindings: Rc<RefCell<Vec<infra_filesystem::IoBinding>>>,
 }
 
 impl ProjectSession {
@@ -68,6 +73,7 @@ impl ProjectSession {
             config_path,
             presets_path,
             rig: None,
+            io_bindings: Rc::new(RefCell::new(Vec::new())),
         }
     }
 }
@@ -84,38 +90,14 @@ impl std::fmt::Debug for ProjectSession {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct InputGroupDraft {
-    pub(crate) device_id: Option<String>,
-    pub(crate) channels: Vec<usize>,
-    pub(crate) mode: ChainInputMode,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct OutputGroupDraft {
-    pub(crate) device_id: Option<String>,
-    pub(crate) channels: Vec<usize>,
-    pub(crate) mode: ChainOutputMode,
-}
-
-#[derive(Debug, Clone)]
 pub(crate) struct ChainDraft {
     pub(crate) editing_index: Option<usize>,
     pub(crate) name: String,
     pub(crate) instrument: String,
-    pub(crate) inputs: Vec<InputGroupDraft>,
-    pub(crate) outputs: Vec<OutputGroupDraft>,
-    pub(crate) editing_input_index: Option<usize>,
-    pub(crate) editing_output_index: Option<usize>,
-    /// Which block in chain.blocks is being edited by the I/O groups window.
-    /// None = editing the fixed chip (first input / last output).
-    /// Some(idx) = editing a specific I/O block at chain.blocks[idx].
-    pub(crate) editing_io_block_index: Option<usize>,
-    /// True when a new input entry was added as placeholder and the input config
-    /// window is open. If the user cancels, the placeholder should be removed.
-    pub(crate) adding_new_input: bool,
-    /// True when a new output entry was added as placeholder and the output config
-    /// window is open. If the user cancels, the placeholder should be removed.
-    pub(crate) adding_new_output: bool,
+    /// #716: the I/O bindings this chain selects (checklist). The chain's
+    /// input/output is discovered from these; the legacy per-endpoint I/O
+    /// editor was removed.
+    pub(crate) io_binding_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,19 +118,20 @@ pub(crate) struct BlockEditorDraft {
     pub(crate) is_select: bool,
 }
 
-/// Transient state for inserting an I/O block via the block type picker.
-#[derive(Debug, Clone)]
-pub(crate) struct IoBlockInsertDraft {
-    pub(crate) chain_index: usize,
-    pub(crate) before_index: usize,
-    pub(crate) kind: String, // "input" or "output"
-}
-
-/// Transient state for editing an Insert block's send/return endpoints.
+/// Transient state for editing an Insert block.
+///
+/// #716 (model A): an insert references ONE I/O binding (`io`); the send goes to
+/// that binding's output and the return comes from its input, both resolved from
+/// the per-machine registry. The legacy `send_*`/`return_*` device-picker fields
+/// are kept ONLY to back the existing Slint device/channel widgets until the
+/// insert editor is reworked to pick a binding (see TODO(#716) in
+/// `insert_wiring.rs`). They are no longer persisted onto the block.
 #[derive(Debug, Clone)]
 pub(crate) struct InsertDraft {
     pub(crate) chain_index: usize,
     pub(crate) block_index: usize,
+    /// Registry binding id for the insert's external send/return loop (model A).
+    pub(crate) io: String,
     pub(crate) send_device_id: Option<String>,
     pub(crate) send_channels: Vec<usize>,
     pub(crate) send_mode: ChainInputMode,

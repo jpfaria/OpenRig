@@ -2,17 +2,8 @@
 
 use super::*;
 use crate::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock};
-use crate::chain::ChainInputMode;
 use crate::param::ParameterSet;
-use domain::ids::{BlockId, DeviceId};
-
-fn source(device: &str, channels: Vec<usize>) -> InputEntry {
-    InputEntry {
-        device_id: DeviceId(device.into()),
-        mode: ChainInputMode::Mono,
-        channels,
-    }
-}
+use domain::ids::BlockId;
 
 fn processing_block() -> AudioBlock {
     AudioBlock {
@@ -32,7 +23,8 @@ fn io_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
-            entries: vec![source("dev", vec![0])],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -40,12 +32,14 @@ fn io_block() -> AudioBlock {
 fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
     RigInput {
         label: None,
-        sources: vec![source("scarlett", vec![0])],
         bank: bank.iter().map(|(i, n)| (*i, n.to_string())).collect(),
         active_preset: active,
         active_scene: 1,
         routing: vec![],
         instrument: "electric_guitar".to_string(),
+        io: String::new(),
+        endpoint: String::new(),
+        io_binding_ids: Vec::new(),
     }
 }
 
@@ -113,18 +107,6 @@ fn validate_preset_with_io_block_err() {
     p.presets.get_mut("clean").unwrap().blocks.push(io_block());
     let err = p.validate().unwrap_err();
     assert!(err.contains("I/O"), "got: {err}");
-}
-
-#[test]
-fn validate_source_channel_conflict_err() {
-    let mut inp = input(&[(1, "clean")], 1);
-    inp.sources = vec![source("scarlett", vec![0]), source("scarlett", vec![0])];
-    let p = project_with(vec![("input-1", inp)], &["clean"]);
-    let err = p.validate().unwrap_err();
-    assert!(
-        err.contains("Channel 0") && err.contains("scarlett"),
-        "got: {err}"
-    );
 }
 
 #[test]
@@ -337,21 +319,6 @@ fn validate_scene_param_marked_ok() {
             volume: None,
         },
     )]);
-    assert!(p.validate().is_ok(), "{:?}", p.validate());
-}
-
-#[test]
-fn validate_allows_inputs_sharing_a_tap_at_rest() {
-    // Cross-input tap exclusivity is a RUNTIME concern, not a static one:
-    // a project may hold many inputs sharing a (device, channel) as a
-    // library of alternative configs. The engine refuses to *activate*
-    // two conflicting inputs together — validate() does not reject them.
-    let mut a = input(&[(1, "clean")], 1);
-    a.sources = vec![source("scarlett", vec![0])];
-    let mut b = input(&[(1, "clean")], 1);
-    b.sources = vec![source("scarlett", vec![0])]; // same tap, on purpose
-    let p = project_with(vec![("input-1", a), ("input-2", b)], &["clean"]);
-
     assert!(p.validate().is_ok(), "{:?}", p.validate());
 }
 
@@ -673,7 +640,6 @@ fn rig_input_missing_instrument_defaults_to_electric_guitar() {
     let yaml = r#"
 inputs:
   guitar:
-    sources: []
     active-preset: 1
 presets: {}
 "#;

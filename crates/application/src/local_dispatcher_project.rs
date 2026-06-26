@@ -11,7 +11,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
-use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings};
+use infra_filesystem::GuiAudioDeviceSettings;
 
 use crate::command::Command;
 use crate::dispatcher::CommandDispatcher;
@@ -120,15 +120,13 @@ impl LocalDispatcher {
                 // worker — the dispatching (GUI/MCP) thread never waits on
                 // disk. Single worker ⇒ ordered with every other config
                 // write. Errors surface via the non-blocking logger.
+                // #731: the destination path is bound HERE (dispatch time);
+                // the worker must not re-resolve `$HOME` at write time.
                 let gui_inputs = to_gui(&input_devices);
                 let gui_outputs = to_gui(&output_devices);
-                crate::persist_worker::run(move || {
-                    let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+                crate::app_config_persist::persist_app_config(move |config| {
                     config.input_devices = gui_inputs;
                     config.output_devices = gui_outputs;
-                    if let Err(e) = FilesystemStorage::save_app_config(&config) {
-                        log::error!("failed to persist audio settings: {e}");
-                    }
                 });
 
                 Ok(vec![Event::AudioSettingsSaved])
@@ -193,28 +191,15 @@ impl LocalDispatcher {
         drop(current_rig);
         drop(rig_borrow);
 
-        let openrig_path = if project_path.extension().and_then(|e| e.to_str()) == Some("openrig") {
-            project_path.clone()
-        } else {
-            project_path.with_extension("openrig")
-        };
-        let openrig_yaml = infra_yaml::serialize_rig_project(&rig_to_save)
-            .map_err(|e| anyhow!("failed to serialize {openrig_path:?}: {e}"))?;
+        // #716: persist the rig to the project path itself (always `.yaml`).
+        // Never generate a separate `.openrig` sibling, and no legacy `.yaml`
+        // sidecar — the project file IS the rig, serialized as YAML.
+        let rig_yaml = infra_yaml::serialize_rig_project(&rig_to_save)
+            .map_err(|e| anyhow!("failed to serialize {project_path:?}: {e}"))?;
         crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
-            openrig_path.clone(),
-            openrig_yaml.into_bytes(),
+            project_path.clone(),
+            rig_yaml.into_bytes(),
         ));
-
-        // Legacy `.yaml` sidecar — only when the user-visible path
-        // isn't already the `.openrig` itself.
-        if openrig_path != *project_path {
-            let legacy = infra_yaml::serialize_project(&project_snapshot)
-                .map_err(|e| anyhow!("failed to serialize legacy snapshot: {e}"))?;
-            crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
-                project_path.clone(),
-                legacy.into_bytes(),
-            ));
-        }
 
         // Sidecar config.yaml (the in-project pointer to the preset
         // library). Uses the GUI-attached override when present;

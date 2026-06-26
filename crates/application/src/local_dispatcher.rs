@@ -283,7 +283,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::AddChain { .. }
             | Command::ConfigureChain { .. }
             | Command::RemoveChain { .. }
-            | Command::SetChainVolume { .. } => self.handle_chain_crud(cmd),
+            | Command::SetChainVolume { .. }
+            | Command::SetChainIoBindings { .. } => self.handle_chain_crud(cmd),
 
             Command::MoveChainUp { .. }
             | Command::MoveChainDown { .. }
@@ -456,6 +457,25 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetChainDiLoopSource { .. } | Command::SetChainDiLoopEnabled { .. } => {
                 self.handle_di_loop(cmd)
             }
+
+            // #716: per-machine I/O binding registry (persisted to config.yaml).
+            Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {
+                self.handle_create_or_update_io_binding(binding)
+            }
+            Command::DeleteIoBinding { id } => self.handle_delete_io_binding(id),
+            Command::RenameIoBinding { id, name } => self.handle_rename_io_binding(id, name),
+            Command::AddIoEndpoint {
+                binding_id,
+                is_input,
+                device_id,
+                channels,
+                mode,
+            } => self.handle_add_io_endpoint(binding_id, is_input, device_id, channels, mode),
+            Command::RemoveIoEndpoint {
+                binding_id,
+                is_input,
+                endpoint_name,
+            } => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
         }
     }
 
@@ -581,32 +601,27 @@ impl LocalDispatcher {
     /// survived only in memory and reset to default on the next launch
     /// (issue #540).
     pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
-        use infra_filesystem::FilesystemStorage;
         match cmd {
             // #693: path persistence runs on the persist worker — the
             // dispatching thread never waits on disk; errors go to the
             // non-blocking logger.
+            // #731: bind the config path at dispatch time (see app_config_persist);
+            // the worker must not re-resolve `$HOME` at write time.
             Command::SetPresetsPath { path } => {
-                crate::persist_worker::run(move || {
-                    if let Err(e) = FilesystemStorage::save_presets_path(path) {
-                        log::error!("save_presets_path failed: {e}");
-                    }
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.presets_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetPluginsPath { path } => {
-                crate::persist_worker::run(move || {
-                    if let Err(e) = FilesystemStorage::save_plugins_path(path) {
-                        log::error!("save_plugins_path failed: {e}");
-                    }
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.plugins_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetEvaluationsPath { path } => {
-                crate::persist_worker::run(move || {
-                    if let Err(e) = FilesystemStorage::save_evaluations_path(path) {
-                        log::error!("save_evaluations_path failed: {e}");
-                    }
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.evaluations_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }

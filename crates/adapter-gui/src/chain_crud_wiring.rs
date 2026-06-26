@@ -12,69 +12,50 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_filesystem::AppConfig;
 
-use crate::audio_devices::{
-    build_input_channel_items, build_output_channel_items, ensure_devices_loaded,
-    replace_channel_options, selected_device_index,
-};
+use crate::audio_devices::ensure_devices_loaded;
 use crate::chain_editor::{
     apply_chain_editor_labels, chain_draft_from_chain, create_chain_draft,
     instrument_string_to_index,
 };
 use crate::helpers::{clear_status, set_status_error, show_child_window};
-use crate::io_groups::apply_chain_io_groups;
 use crate::setup_chain_editor_callbacks;
-use crate::state::{ChainDraft, IoBlockInsertDraft, ProjectSession};
-use crate::{
-    AppWindow, ChainEditorWindow, ChainInputWindow, ChainOutputWindow, ChannelOptionItem,
-    ProjectChainItem,
-};
+use crate::state::{ChainDraft, ProjectSession};
+use crate::{AppWindow, ChainEditorWindow, ProjectChainItem};
 
 pub(crate) struct ChainCrudCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub chain_draft: Rc<RefCell<Option<ChainDraft>>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub chain_input_channels: Rc<VecModel<ChannelOptionItem>>,
-    pub chain_output_channels: Rc<VecModel<ChannelOptionItem>>,
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
-    pub chain_input_device_options: Rc<VecModel<SharedString>>,
-    pub chain_output_device_options: Rc<VecModel<SharedString>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
-    pub io_block_insert_draft: Rc<RefCell<Option<IoBlockInsertDraft>>>,
     pub toast_timer: Rc<Timer>,
+    pub app_config: Rc<RefCell<AppConfig>>,
     pub auto_save: bool,
     pub fullscreen: bool,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    chain_input_window: &ChainInputWindow,
-    chain_output_window: &ChainOutputWindow,
-    ctx: ChainCrudCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
     let ChainCrudCtx {
         project_session,
         chain_draft,
         input_chain_devices,
         output_chain_devices,
-        chain_input_channels,
-        chain_output_channels,
         chain_editor_window,
-        chain_input_device_options,
-        chain_output_device_options,
         project_chains,
         project_runtime,
         saved_project_snapshot,
         project_dirty,
-        io_block_insert_draft,
         toast_timer,
+        app_config,
         auto_save,
         fullscreen,
     } = ctx;
@@ -85,19 +66,13 @@ pub(crate) fn wire(
         let chain_draft = chain_draft.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let chain_input_channels = chain_input_channels.clone();
-        let chain_output_channels = chain_output_channels.clone();
         let chain_editor_window = chain_editor_window.clone();
-        let chain_input_device_options = chain_input_device_options.clone();
-        let chain_output_device_options = chain_output_device_options.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let weak_input_window = chain_input_window.as_weak();
-        let weak_output_window = chain_output_window.as_weak();
-        let io_block_insert_draft = io_block_insert_draft.clone();
         let toast_timer = toast_timer.clone();
+        let app_config = app_config.clone();
         window.on_add_chain(move || {
             log::info!("on_add_chain triggered");
             let Some(window) = weak_window.upgrade() else {
@@ -127,13 +102,6 @@ pub(crate) fn wire(
                 project_dirty.clone(),
                 input_chain_devices.clone(),
                 output_chain_devices.clone(),
-                chain_input_device_options.clone(),
-                chain_output_device_options.clone(),
-                chain_input_channels.clone(),
-                chain_output_channels.clone(),
-                weak_input_window.clone(),
-                weak_output_window.clone(),
-                io_block_insert_draft.clone(),
                 toast_timer.clone(),
                 auto_save,
             );
@@ -154,19 +122,13 @@ pub(crate) fn wire(
             let draft = create_chain_draft(&*session.project.borrow(), &devs_in, &devs_out);
             *chain_draft.borrow_mut() = Some(draft.clone());
             apply_chain_editor_labels(&window, &draft);
-            apply_chain_io_groups(&window, editor_window, &draft, &devs_in, &devs_out);
-            if let Some(input_group) = draft.inputs.first() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(input_group, &devs_in),
-                );
-            }
-            if let Some(output_group) = draft.outputs.first() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(output_group, &devs_out),
-                );
-            }
+            // #716: feed the binding checklist (none selected for a new chain).
+            editor_window.set_bindings(slint::ModelRc::new(VecModel::from(
+                crate::chain_binding_choices::binding_choices(
+                    &app_config.borrow().io_bindings,
+                    &draft.io_binding_ids,
+                ),
+            )));
             window.set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
             editor_window.set_editor_title(window.get_chain_editor_title());
@@ -174,20 +136,11 @@ pub(crate) fn wire(
             editor_window.set_is_create_mode(true);
             editor_window
                 .set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
-            window.set_selected_chain_input_device_index(selected_device_index(
-                &devs_in,
-                draft.inputs.first().and_then(|i| i.device_id.as_deref()),
-            ));
-            window.set_selected_chain_output_device_index(selected_device_index(
-                &devs_out,
-                draft.outputs.first().and_then(|o| o.device_id.as_deref()),
-            ));
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
             if fullscreen {
-                window.set_chain_editor_input_groups(editor_window.get_input_groups());
-                window.set_chain_editor_output_groups(editor_window.get_output_groups());
+                window.set_chain_editor_bindings(editor_window.get_bindings());
                 window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
                 window.set_chain_editor_selected_instrument_index(
                     editor_window.get_selected_instrument_index(),
@@ -203,19 +156,13 @@ pub(crate) fn wire(
         let chain_draft = chain_draft.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let chain_input_channels = chain_input_channels.clone();
-        let chain_output_channels = chain_output_channels.clone();
         let chain_editor_window = chain_editor_window.clone();
-        let chain_input_device_options = chain_input_device_options.clone();
-        let chain_output_device_options = chain_output_device_options.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let weak_input_window = chain_input_window.as_weak();
-        let weak_output_window = chain_output_window.as_weak();
-        let io_block_insert_draft = io_block_insert_draft.clone();
         let toast_timer = toast_timer.clone();
+        let app_config = app_config.clone();
         window.on_configure_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -244,13 +191,6 @@ pub(crate) fn wire(
                 project_dirty.clone(),
                 input_chain_devices.clone(),
                 output_chain_devices.clone(),
-                chain_input_device_options.clone(),
-                chain_output_device_options.clone(),
-                chain_input_channels.clone(),
-                chain_output_channels.clone(),
-                weak_input_window.clone(),
-                weak_output_window.clone(),
-                io_block_insert_draft.clone(),
                 toast_timer.clone(),
                 auto_save,
             );
@@ -274,34 +214,19 @@ pub(crate) fn wire(
                 };
                 chain_draft_from_chain(index as usize, chain)
             };
-            let devs_in = input_chain_devices.borrow();
-            let devs_out = output_chain_devices.borrow();
-            if let Some(input_group) = draft.inputs.first() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(input_group, &devs_in),
-                );
-            }
-            if let Some(output_group) = draft.outputs.first() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(output_group, &devs_out),
-                );
-            }
             window.set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
-            window.set_selected_chain_input_device_index(selected_device_index(
-                &devs_in,
-                draft.inputs.first().and_then(|i| i.device_id.as_deref()),
-            ));
-            window.set_selected_chain_output_device_index(selected_device_index(
-                &devs_out,
-                draft.outputs.first().and_then(|o| o.device_id.as_deref()),
-            ));
             *chain_draft.borrow_mut() = Some(draft);
             if let Some(draft) = chain_draft.borrow().as_ref() {
                 apply_chain_editor_labels(&window, draft);
-                apply_chain_io_groups(&window, editor_window, draft, &devs_in, &devs_out);
+                // #716: feed the binding checklist, pre-checking the chain's
+                // currently-selected bindings.
+                editor_window.set_bindings(slint::ModelRc::new(VecModel::from(
+                    crate::chain_binding_choices::binding_choices(
+                        &app_config.borrow().io_bindings,
+                        &draft.io_binding_ids,
+                    ),
+                )));
                 editor_window.set_editor_title(window.get_chain_editor_title());
                 editor_window.set_editor_save_label(window.get_chain_editor_save_label());
                 editor_window.set_is_create_mode(false);
@@ -312,8 +237,7 @@ pub(crate) fn wire(
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
             if fullscreen {
-                window.set_chain_editor_input_groups(editor_window.get_input_groups());
-                window.set_chain_editor_output_groups(editor_window.get_output_groups());
+                window.set_chain_editor_bindings(editor_window.get_bindings());
                 window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
                 window.set_chain_editor_selected_instrument_index(
                     editor_window.get_selected_instrument_index(),

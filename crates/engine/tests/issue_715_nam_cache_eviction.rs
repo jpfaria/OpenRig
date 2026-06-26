@@ -32,10 +32,8 @@ use domain::value_objects::ParameterValue;
 use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_graph::build_chain_runtime_state;
 use engine::runtime_state::ChainRuntimeState;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, NamBlock, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, NamBlock};
+use project::chain::Chain;
 
 const SR: f32 = 48_000.0;
 const BUFFER: usize = 64;
@@ -58,34 +56,23 @@ fn init_registry() {
     });
 }
 
-fn input_mono() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output_stereo() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    }
+fn registry() -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 fn nam_amp() -> AudioBlock {
@@ -108,9 +95,12 @@ fn build() -> Arc<ChainRuntimeState> {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![input_mono(), nam_amp(), output_stereo()],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![nam_amp()],
     };
-    Arc::new(build_chain_runtime_state(&chain, SR, &[BUFFER]).expect("build NAM chain"))
+    Arc::new(
+        build_chain_runtime_state(&chain, SR, &[BUFFER], &registry()).expect("build NAM chain"),
+    )
 }
 
 /// Drive the real NAM chain for `ITERS` buffers and return (late_count,

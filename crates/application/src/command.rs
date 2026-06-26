@@ -15,7 +15,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use domain::ids::{BlockId, ChainId};
-use project::block::{AudioBlock, InsertEndpoint};
+pub use domain::io_binding::{ChannelMode, IoBinding};
+use project::block::AudioBlock;
 use project::chain::Chain;
 pub use crate::di_loader::DiLoopSource;
 
@@ -129,15 +130,16 @@ pub enum Command {
     },
 
     // ── Insert block ──────────────────────────────────────────────────────────
-    /// Commit an Insert block's send/return endpoint configuration.
+    /// Commit an Insert block's I/O binding selection (#716, model A).
     ///
-    /// The caller supplies the fully-resolved `send` and `return_` endpoints.
-    /// The dispatcher locates the block and replaces its `InsertBlock` data.
+    /// The caller supplies the registry binding id (`io`) for the external
+    /// send/return loop: the send goes to that binding's output, the return
+    /// comes from its input — both resolved from the per-machine registry. The
+    /// dispatcher locates the block and replaces its `InsertBlock.io`.
     SaveInsertBlock {
         chain: ChainId,
         block: BlockId,
-        send: InsertEndpoint,
-        return_: InsertEndpoint,
+        io: String,
     },
 
     // ── Chain CRUD ────────────────────────────────────────────────────────────
@@ -176,37 +178,44 @@ pub enum Command {
     ToggleChainEnabled { chain: ChainId },
 
     // ── Chain I/O endpoints ───────────────────────────────────────────────────
-    /// Commit the input endpoint configuration for a chain.
+    /// Bind the input block at `block_index` in the named chain to an I/O
+    /// binding reference.
     ///
-    /// The caller supplies the fully-constructed list of `InputBlock`s to
-    /// replace the existing ones. The dispatcher locates the chain, removes
-    /// all existing `InputBlock` entries, inserts the provided blocks at the
-    /// head of the chain (inputs-first convention), and emits
-    /// `ChainInputEndpointsSaved`. An empty `input_blocks` vec clears all
-    /// inputs.
+    /// The dispatcher locates the chain, finds the input block at
+    /// `block_index`, and sets `block.io = io` and `block.endpoint = endpoint`.
+    /// Emits `ChainInputEndpointsSaved`. Returns `Err` when the chain or the
+    /// block index is not found, or when the target block is not an
+    /// `InputBlock`.
     SaveChainInputEndpoints {
         chain: ChainId,
-        input_blocks: Vec<AudioBlock>,
+        block_index: usize,
+        io: String,
+        endpoint: String,
     },
 
-    /// Commit the output endpoint configuration for a chain.
+    /// Bind the output block at `block_index` in the named chain to an I/O
+    /// binding reference.
     ///
-    /// Same pattern as `SaveChainInputEndpoints` but for the output side.
-    /// The dispatcher removes all existing `OutputBlock` entries and appends
-    /// the provided blocks at the tail of the chain.
+    /// Same semantics as `SaveChainInputEndpoints` but for output blocks.
+    /// Emits `ChainOutputEndpointsSaved`.
     SaveChainOutputEndpoints {
         chain: ChainId,
-        output_blocks: Vec<AudioBlock>,
+        block_index: usize,
+        io: String,
+        endpoint: String,
     },
 
-    /// Commit both input and output I/O configuration for a chain
-    /// (used in fullscreen I/O editor flow).
+    /// Bind both the input block at `input_block_index` and the output block
+    /// at `output_block_index` in the named chain to the same I/O binding
+    /// reference (used in the fullscreen I/O editor flow).
     ///
-    /// The caller supplies both the updated `InputBlock` and `OutputBlock`.
+    /// Emits both `ChainInputEndpointsSaved` and `ChainOutputEndpointsSaved`.
     SaveChainIo {
         chain: ChainId,
-        input_block: AudioBlock,
-        output_block: AudioBlock,
+        input_block_index: usize,
+        output_block_index: usize,
+        io: String,
+        endpoint: String,
     },
 
     // ── Chain presets ─────────────────────────────────────────────────────────
@@ -260,6 +269,14 @@ pub enum Command {
     /// within a sane range. The engine multiplies the master output by
     /// `value / 100` on every audio callback.
     SetChainVolume { chain: ChainId, value: f32 },
+
+    /// Set the I/O bindings a chain uses (issue #716). `binding_ids` is the full
+    /// selection (the checklist sends its entire set); the chain's input/output
+    /// is discovered from these bindings. Replaces any previous selection.
+    SetChainIoBindings {
+        chain: ChainId,
+        binding_ids: Vec<String>,
+    },
 
     // ── Project settings ──────────────────────────────────────────────────────
     /// Update the project's display name.
@@ -547,6 +564,54 @@ pub enum Command {
     SetChainDiLoopEnabled {
         chain: ChainId,
         enabled: bool,
+    },
+
+    // ── I/O binding registry (#716) ───────────────────────────────────────────
+
+    /// #716: add a new I/O binding to the per-machine registry in
+    /// `config.yaml`. The binding is identified by `binding.id`.
+    /// When an entry with the same `id` already exists it is replaced
+    /// (upsert semantics) so callers may treat create and update as one
+    /// operation. Persists via the async persist worker (no blocking).
+    CreateIoBinding { binding: IoBinding },
+
+    /// #716: update an existing I/O binding in the per-machine registry.
+    /// Locates the entry whose `id` matches `binding.id` and replaces it
+    /// in-place; if no entry with that `id` exists the binding is appended
+    /// (same upsert semantics as `CreateIoBinding`). Persists via the
+    /// async persist worker.
+    UpdateIoBinding { binding: IoBinding },
+
+    /// #716: remove an I/O binding from the per-machine registry.
+    ///
+    /// Note: reference-checking (reject when a chain block references `id`)
+    /// is deferred to Task 5. The handler below has a clear single point
+    /// marked `TODO(#716-task5)` where the guard can be inserted when chain
+    /// blocks reference bindings.
+    DeleteIoBinding { id: String },
+
+    /// #716: rename an existing I/O binding. The handler renames the entry
+    /// whose `id` matches and persists; the GUI only forwards id + new name.
+    RenameIoBinding { id: String, name: String },
+
+    /// #716: add an endpoint to an I/O binding. The handler builds the
+    /// `IoEndpoint` (auto-assigned "In N" / "Out N" name), appends it to the
+    /// binding's inputs (or outputs) and persists. The GUI forwards only the
+    /// structured picker values — it does NOT construct the domain endpoint.
+    AddIoEndpoint {
+        binding_id: String,
+        is_input: bool,
+        device_id: String,
+        channels: Vec<usize>,
+        mode: ChannelMode,
+    },
+
+    /// #716: remove the named endpoint from a binding's inputs (or outputs)
+    /// and persist. The GUI forwards only the identifiers.
+    RemoveIoEndpoint {
+        binding_id: String,
+        is_input: bool,
+        endpoint_name: String,
     },
 }
 

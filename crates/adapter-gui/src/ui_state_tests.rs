@@ -1,9 +1,137 @@
-use super::{block_drawer_state, chain_routing_summary, insertion_slot_indices, BlockDrawerMode};
-use domain::ids::{ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+use super::{
+    block_drawer_state, chain_routing_summary, insertion_slot_indices, resolve_block_io_endpoint,
+    ui_bindings, BlockDrawerMode,
 };
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use infra_filesystem::{AppConfig, ChannelMode, IoBinding, IoEndpoint};
+use project::chain::Chain;
+
+// ── ui_bindings projector tests (#716) ───────────────────────────────────────
+
+#[test]
+fn ui_bindings_projects_registry_two_bindings() {
+    let config = AppConfig {
+        io_bindings: vec![
+            IoBinding {
+                id: "main".into(),
+                name: "Scarlett 2i2".into(),
+                inputs: vec![IoEndpoint {
+                    name: "Guitar In 1".into(),
+                    device_id: DeviceId("dev-001".into()),
+                    mode: ChannelMode::Mono,
+                    channels: vec![0],
+                }],
+                outputs: vec![IoEndpoint {
+                    name: "Monitor Out".into(),
+                    device_id: DeviceId("dev-001".into()),
+                    mode: ChannelMode::Stereo,
+                    channels: vec![0, 1],
+                }],
+            },
+            IoBinding {
+                id: "loop".into(),
+                name: "Effects Loop".into(),
+                inputs: vec![],
+                outputs: vec![IoEndpoint {
+                    name: "Send".into(),
+                    device_id: DeviceId("dev-002".into()),
+                    mode: ChannelMode::Mono,
+                    channels: vec![2],
+                }],
+            },
+        ],
+        ..Default::default()
+    };
+
+    let models = ui_bindings(&config);
+
+    assert_eq!(models.len(), 2);
+
+    // First binding
+    assert_eq!(models[0].id, "main");
+    assert_eq!(models[0].name, "Scarlett 2i2");
+    assert_eq!(models[0].inputs.len(), 1);
+    assert_eq!(models[0].inputs[0].name, "Guitar In 1");
+    assert_eq!(models[0].inputs[0].device_label, "dev-001");
+    assert_eq!(models[0].inputs[0].mode, "mono");
+    assert_eq!(models[0].inputs[0].channels_label, "1");
+    assert_eq!(models[0].outputs.len(), 1);
+    assert_eq!(models[0].outputs[0].name, "Monitor Out");
+    assert_eq!(models[0].outputs[0].channels_label, "1, 2");
+
+    // Second binding
+    assert_eq!(models[1].id, "loop");
+    assert_eq!(models[1].name, "Effects Loop");
+    assert_eq!(models[1].inputs.len(), 0);
+    assert_eq!(models[1].outputs.len(), 1);
+    assert_eq!(models[1].outputs[0].name, "Send");
+    assert_eq!(models[1].outputs[0].channels_label, "3");
+}
+
+#[test]
+fn ui_bindings_empty_config_returns_empty_vec() {
+    let config = AppConfig {
+        io_bindings: vec![],
+        ..Default::default()
+    };
+    assert!(ui_bindings(&config).is_empty());
+}
+
+// ── resolve_block_io_endpoint tests (#716) ────────────────────────────────────
+
+#[test]
+fn block_ref_resolves_to_endpoint_model() {
+    let config = AppConfig {
+        io_bindings: vec![IoBinding {
+            id: "main".into(),
+            name: "Scarlett 2i2".into(),
+            inputs: vec![IoEndpoint {
+                name: "In1".into(),
+                device_id: DeviceId("dev-001".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            }],
+            outputs: vec![],
+        }],
+        ..Default::default()
+    };
+
+    let result = resolve_block_io_endpoint(&config, "main", "In1");
+    assert!(result.is_some(), "expected Some for known binding/endpoint");
+    let ep = result.unwrap();
+    assert_eq!(ep.name, "In1");
+    assert_eq!(ep.device_label, "dev-001");
+}
+
+#[test]
+fn unbound_block_resolves_to_none() {
+    let config = AppConfig {
+        io_bindings: vec![],
+        ..Default::default()
+    };
+    // Empty io string means no binding selected.
+    assert!(resolve_block_io_endpoint(&config, "", "").is_none());
+}
+
+#[test]
+fn missing_endpoint_name_resolves_to_none() {
+    let config = AppConfig {
+        io_bindings: vec![IoBinding {
+            id: "main".into(),
+            name: "Scarlett 2i2".into(),
+            inputs: vec![IoEndpoint {
+                name: "In1".into(),
+                device_id: DeviceId("dev-001".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            }],
+            outputs: vec![],
+        }],
+        ..Default::default()
+    };
+    // Binding found but endpoint name doesn't match anything.
+    assert!(resolve_block_io_endpoint(&config, "main", "NonExistent").is_none());
+}
 
 #[test]
 fn insertion_slots_cover_edges_and_between_positions() {
@@ -173,43 +301,37 @@ fn block_drawer_state_edit_mode_preserves_model_id() {
 
 #[test]
 fn routing_summary_uses_human_friendly_channel_numbers() {
-    use domain::ids::BlockId;
+    // #716: the chain's I/O channels resolve from the binding registry, not
+    // from block `entries`. The chain references `io1`; the registry binding
+    // carries a mono input on ch 0 and a stereo output on ch 0,1.
     let chain = Chain {
         id: ChainId("chain:1".to_string()),
         description: Some("Guitarra".to_string()),
         instrument: block_core::INST_ELECTRIC_GUITAR.to_string(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("chain:1:input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".to_string(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("in".to_string()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("chain:1:output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".to_string(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("out".to_string()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io1".to_string()],
+        blocks: vec![],
     };
+    let registry = vec![IoBinding {
+        id: "io1".into(),
+        name: "IO1".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("in".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("out".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }];
 
     assert_eq!(
-        chain_routing_summary(&chain),
+        chain_routing_summary(&chain, &registry),
         "Entrada 1 -> Saida 1, 2".to_string()
     );
 }
