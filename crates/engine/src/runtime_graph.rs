@@ -701,7 +701,7 @@ pub fn update_chain_runtime_state_spillover(
 fn update_chain_runtime_state_impl(
     runtime: &Arc<ChainRuntimeState>,
     chain: &Chain,
-    sample_rate: f32,
+    _sample_rate: f32, // #736: kept for API compat; each runtime reads its own rate via runtime.sample_rate()
     reset_output_queue: bool,
     elastic_targets: &[usize],
     spillover: bool,
@@ -777,11 +777,12 @@ fn update_chain_runtime_state_impl(
             .filter_map(|&idx| effective_outs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
+        // #736: rebuild at the runtime's OWN built rate, not the chain scalar
         let input_state = match build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
-            sample_rate,
+            runtime.sample_rate(),
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
@@ -992,6 +993,7 @@ impl RuntimeGraph {
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_rates: &HashMap<DeviceId, f32>,
         reset_output_queue: bool,
         elastic_targets: &[usize],
         registry: &[IoBinding],
@@ -999,6 +1001,7 @@ impl RuntimeGraph {
         self.upsert_chain_impl(
             chain,
             sample_rate,
+            device_rates,
             reset_output_queue,
             elastic_targets,
             false,
@@ -1012,6 +1015,7 @@ impl RuntimeGraph {
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_rates: &HashMap<DeviceId, f32>,
         reset_output_queue: bool,
         elastic_targets: &[usize],
         registry: &[IoBinding],
@@ -1019,6 +1023,7 @@ impl RuntimeGraph {
         self.upsert_chain_impl(
             chain,
             sample_rate,
+            device_rates,
             reset_output_queue,
             elastic_targets,
             true,
@@ -1031,6 +1036,7 @@ impl RuntimeGraph {
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_rates: &HashMap<DeviceId, f32>,
         reset_output_queue: bool,
         elastic_targets: &[usize],
         spillover: bool,
@@ -1107,10 +1113,7 @@ impl RuntimeGraph {
             self.chains.remove(&(chain.id.clone(), *g));
         }
         let mut first: Option<Arc<ChainRuntimeState>> = None;
-        // STOPGAP (Task 4 will replace with the real per-device map): pass an empty
-        // map so the full-rebuild path compiles; every group falls back to the
-        // chain-scalar sample_rate (bit-identical to pre-#736 behaviour).
-        for (group, state) in build_per_input_runtimes(chain, sample_rate, &HashMap::new(), elastic_targets, registry)? {
+        for (group, state) in build_per_input_runtimes(chain, sample_rate, device_rates, elastic_targets, registry)? {
             state.set_volume_pct(chain.volume);
             let arc = Arc::new(state);
             if first.is_none() {
@@ -1178,6 +1181,29 @@ mod issue_736_per_binding_rate_tests {
             io_binding_ids: vec!["a".into(), "b".into()],
             blocks: Vec::new(),
         }
+    }
+
+    use super::RuntimeGraph;
+
+    #[test]
+    fn upsert_full_rebuild_preserves_per_device_rates() {
+        let chain = two_binding_chain();
+        let registry = two_binding_registry();
+        let mut rates = HashMap::new();
+        rates.insert(DeviceId("devA".into()), 44_100.0_f32);
+        rates.insert(DeviceId("devB".into()), 48_000.0_f32);
+
+        let mut graph = RuntimeGraph { chains: std::collections::HashMap::new() };
+        graph
+            .upsert_chain(&chain, 48_000.0, &rates, false, &[], &registry)
+            .expect("initial upsert");
+        let mut seen: Vec<f32> = graph
+            .runtimes_for(&chain.id)
+            .iter()
+            .map(|r| r.sample_rate())
+            .collect();
+        seen.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        assert_eq!(seen, vec![44_100.0, 48_000.0]);
     }
 
     #[test]

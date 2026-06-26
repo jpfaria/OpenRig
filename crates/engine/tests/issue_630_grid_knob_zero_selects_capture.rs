@@ -190,7 +190,7 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // bug.
     let lo = grid_chain(0.0, true);
     graph
-        .upsert_chain(&lo, SR, false, &[BUFFER_FRAMES], &registry())
+        .upsert_chain(&lo, SR, &HashMap::new(), false, &[BUFFER_FRAMES], &registry())
         .expect("live drive->0 edit must succeed");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
@@ -216,7 +216,7 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // energy is restored.
     let hi_again = grid_chain(5.0, true);
     graph
-        .upsert_chain(&hi_again, SR, false, &[BUFFER_FRAMES], &registry())
+        .upsert_chain(&hi_again, SR, &HashMap::new(), false, &[BUFFER_FRAMES], &registry())
         .expect("live drive->5 edit must succeed");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
