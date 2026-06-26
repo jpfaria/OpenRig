@@ -49,6 +49,7 @@ fn build_chain_runtime_produces_a_runnable_runtime() {
     let req = BuildRequest {
         chain: bound_chain("c"),
         sample_rate: 48_000.0,
+        device_sample_rates: std::collections::HashMap::new(),
         buffer_sizes: vec![1024],
         io_bindings: io_registry(),
     };

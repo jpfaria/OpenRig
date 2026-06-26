@@ -235,6 +235,7 @@ impl ProjectRuntimeController {
         let request = BuildRequest {
             chain: chain.clone(),
             sample_rate,
+            device_sample_rates: std::collections::HashMap::new(),
             buffer_sizes,
             io_bindings: self.io_bindings.clone(),
         };
@@ -821,6 +822,7 @@ impl ProjectRuntimeController {
             let request = BuildRequest {
                 chain: chain_for_build,
                 sample_rate: resolved.sample_rate,
+                device_sample_rates: resolved.by_device.clone(),
                 buffer_sizes: elastic_targets,
                 io_bindings: registry_for_build,
             };
@@ -1010,6 +1012,7 @@ impl ProjectRuntimeController {
             self.runtime_graph.upsert_chain_spillover(
                 chain,
                 resolved.sample_rate,
+                &resolved.by_device,
                 needs_stream_rebuild,
                 &elastic_targets,
                 &self.io_bindings,
@@ -1018,6 +1021,7 @@ impl ProjectRuntimeController {
             self.runtime_graph.upsert_chain(
                 chain,
                 resolved.sample_rate,
+                &resolved.by_device,
                 needs_stream_rebuild,
                 &elastic_targets,
                 &self.io_bindings,
