@@ -113,7 +113,8 @@ pub(crate) use stream_config::resolved_output_buffer_size_frames;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use stream_config::{
     build_stream_config, max_supported_input_channels, max_supported_output_channels,
-    required_channel_count, resolve_multi_io_sample_rate, select_supported_stream_config,
+    required_channel_count, resolve_binding_sample_rates, resolve_multi_io_sample_rate,
+    resolved_input_sample_rate, resolved_output_sample_rate, select_supported_stream_config,
 };
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use validation::{

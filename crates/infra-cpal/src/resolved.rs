@@ -122,5 +122,10 @@ pub(crate) struct ResolvedChainAudioConfig {
     pub(crate) inputs: Vec<ResolvedInputDevice>,
     pub(crate) outputs: Vec<ResolvedOutputDevice>,
     pub(crate) sample_rate: f32,
+    /// Per-input-device resolved rate (#736). One isolated runtime per input
+    /// device is clocked at its own rate from this map; the scalar
+    /// `sample_rate` above is only the representative (first binding) rate for
+    /// legacy single-rate consumers.
+    pub(crate) by_device: std::collections::HashMap<domain::ids::DeviceId, f32>,
     pub(crate) stream_signature: ChainStreamSignature,
 }
