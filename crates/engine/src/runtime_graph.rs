@@ -191,6 +191,7 @@ pub(crate) fn build_per_input_runtimes(
         &eff_split_positions,
         &eff_entry_groups,
         &eff_outputs,
+        registry,
     );
     let groups = group_segments_by_input(chain, all_segments);
     let mut out = Vec::with_capacity(groups.len());
@@ -256,6 +257,7 @@ fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
         &eff_split_positions,
         &eff_entry_groups,
         &eff_outputs,
+        registry,
     );
     group_segments_by_input(chain, all_segments)
         .into_iter()
@@ -311,6 +313,7 @@ pub fn build_chain_runtime_state(
         &eff_split_positions,
         &eff_entry_groups,
         &eff_outputs,
+        registry,
     );
     log::info!("  segments: {}", segments.len());
     for (i, seg) in segments.iter().enumerate() {
@@ -701,6 +704,7 @@ fn update_chain_runtime_state_impl(
         &effective_split_positions,
         &eff_entry_groups,
         &effective_outs,
+        registry,
     );
     // Issue #703: a per-entry isolated runtime is refilled with ONLY its
     // own entry's segments. Both entries of a shared device dispatch on

@@ -1903,6 +1903,7 @@ fn split_chain_with_insert_produces_two_segments() {
         &split_positions,
         &entry_groups,
         &eff_outputs,
+        &insert_registry(),
     );
 
     // Should have 2 segments: before insert and after insert
@@ -1944,6 +1945,7 @@ fn split_chain_with_disabled_insert_produces_one_segment() {
         &split_positions,
         &entry_groups,
         &eff_outputs,
+        &insert_registry(),
     );
 
     // Disabled insert should not split the chain
@@ -1951,6 +1953,57 @@ fn split_chain_with_disabled_insert_produces_one_segment() {
         segments.len(),
         1,
         "disabled insert should not split the chain"
+    );
+}
+
+// ── #716: per-binding routing (no cross-binding) ──────────────────────────
+
+#[test]
+fn split_two_bindings_pairs_each_input_with_its_own_binding_output() {
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    fn b(id: &str, dev: &str) -> IoBinding {
+        IoBinding {
+            id: id.into(),
+            name: id.into(),
+            inputs: vec![IoEndpoint {
+                name: "In".into(),
+                device_id: DeviceId(format!("{dev}-in")),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            }],
+            outputs: vec![IoEndpoint {
+                name: "Out".into(),
+                device_id: DeviceId(format!("{dev}-out")),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        }
+    }
+    let reg = vec![b("scarlet", "scarlett"), b("teyun", "teyun")];
+    let mut chain = empty_chain("rig:input-1");
+    chain.io_binding_ids = vec!["scarlet".into(), "teyun".into()];
+
+    let (rin, rout) = crate::runtime_endpoints::resolve_chain_io(&chain, &reg);
+    let (eff_in, cpal, splits, groups) = effective_inputs(&chain, &rin, &reg);
+    let eff_out = effective_outputs(&chain, &rout, &reg);
+    let segments =
+        split_chain_into_segments(&chain, &eff_in, &cpal, &splits, &groups, &eff_out, &reg);
+
+    let scarlet_out = eff_out
+        .iter()
+        .position(|o| o.device_id.0 == "scarlett-out")
+        .unwrap();
+
+    // No cross-routing: the TEYUN input must never reach the SCARLET output.
+    assert!(
+        !segments.iter().any(|s| s.input.device_id.0 == "teyun-in"
+            && s.output_route_indices.contains(&scarlet_out)),
+        "cross-binding routing: TEYUN input reached the SCARLET output"
+    );
+    // Sanity: the TEYUN input still routes somewhere (to its own output).
+    assert!(
+        segments.iter().any(|s| s.input.device_id.0 == "teyun-in"),
+        "the TEYUN input must still produce a segment"
     );
 }
 
