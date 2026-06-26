@@ -223,6 +223,10 @@ export component SectionSystemIoBindings inherits Rectangle {
     // Live draft of the name being edited (so the confirm button, in a separate
     // conditional branch, can read it — Slint can't reach an id across branches).
     private property <string> rename-draft: "";
+    // Accordion (#716): id of the expanded binding ("" = all collapsed). Each
+    // E/S shows only its name + In/Out counts until opened — progressive
+    // disclosure to keep the list readable when several bindings exist.
+    private property <string> expanded-binding-id: "";
 
     background: transparent;
 
@@ -239,7 +243,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                 color: #a1a1aa; font-size: 14px; vertical-alignment: center; wrap: word-wrap;
             }
             Rectangle { width: 138px; VerticalLayout { alignment: center;
-                new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.create-io-binding(""); } } } }
+                new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.expanded-binding-id = root.create-io-binding(""); } } } }
         }
 
         if root.io-binding-error != "" : Rectangle {
@@ -263,9 +267,33 @@ export component SectionSystemIoBindings inherits Rectangle {
 
                 // Binding header — display name, or inline editor while renaming.
                 HorizontalLayout { spacing: 8px;
-                    if root.renaming-binding-id != binding.id : Text {
-                        horizontal-stretch: 1; text: binding.name; color: #fafafa; font-size: 16px;
-                        font-weight: 600; vertical-alignment: center; overflow: elide;
+                    // Chevron — points down when expanded, right when collapsed. Toggles.
+                    if root.renaming-binding-id != binding.id : Rectangle {
+                        width: 22px; height: 30px;
+                        Image {
+                            x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                            width: 12px; height: 12px;
+                            source: @image-url("../../assets/arrow-down.svg");
+                            colorize: chev-ta.has-hover ? #e4e4e7 : #a1a1aa;
+                            transform-rotation: root.expanded-binding-id == binding.id ? 0deg : -90deg;
+                            animate transform-rotation { duration: 150ms; easing: ease-in-out; }
+                        }
+                        chev-ta := TouchArea { mouse-cursor: pointer; clicked => {
+                            root.expanded-binding-id = root.expanded-binding-id == binding.id ? "" : binding.id; } }
+                    }
+                    // Name + (collapsed) In/Out counts. Clicking the row toggles expand.
+                    if root.renaming-binding-id != binding.id : Rectangle {
+                        horizontal-stretch: 1; height: 30px;
+                        HorizontalLayout { spacing: 8px;
+                            Text { horizontal-stretch: 1; text: binding.name; color: #fafafa; font-size: 16px;
+                                font-weight: 600; vertical-alignment: center; overflow: elide; }
+                            if root.expanded-binding-id != binding.id : Rectangle { VerticalLayout { alignment: center;
+                                Badge { text: "\{binding.inputs.length}"; fg: #4ade80; bg: #0e2a1d; } } }
+                            if root.expanded-binding-id != binding.id : Rectangle { VerticalLayout { alignment: center;
+                                Badge { text: "\{binding.outputs.length}"; fg: #fb923c; bg: #2c1f0c; } } }
+                        }
+                        name-ta := TouchArea { mouse-cursor: pointer; clicked => {
+                            root.expanded-binding-id = root.expanded-binding-id == binding.id ? "" : binding.id; } }
                     }
                     if root.renaming-binding-id == binding.id : Rectangle {
                         horizontal-stretch: 1; height: 36px;
@@ -321,6 +349,10 @@ export component SectionSystemIoBindings inherits Rectangle {
                         root.renaming-binding-id = "";
                     } }
                 }
+
+                // Endpoints — shown only when this binding is expanded (accordion #716).
+                if root.expanded-binding-id == binding.id : VerticalLayout {
+                    spacing: 18px;
 
                 // ── Entradas ──
                 SectionHeader { text: @tr("label-group-inputs"); tint: #4ade80; }
@@ -418,6 +450,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 root.add-output-endpoint(binding.id, root.add-device-index >= 0 ? root.output-device-ids[root.add-device-index] : "",
                                     root.add-mode-index == 0 ? "mono" : "stereo", root.editing-endpoint); } } }
                     }
+                }
                 }
             }
         }
