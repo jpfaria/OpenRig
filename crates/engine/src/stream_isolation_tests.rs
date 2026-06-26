@@ -281,7 +281,7 @@ fn every_effective_input_index_has_at_least_one_segment() {
     // Engine's effective_inputs splits mono multi-channel into one entry
     // per channel — so the user's chain produces ≥2 effective inputs.
     let (resolved_inputs, _) = crate::runtime_endpoints::resolve_chain_io(&chain, &registry);
-    let (eff_inputs, cpal_indices, _, _) = effective_inputs(&chain, &resolved_inputs);
+    let (eff_inputs, cpal_indices, _, _) = effective_inputs(&chain, &resolved_inputs, &registry);
     assert!(
         eff_inputs.len() >= 2,
         "fixture invariant: 1-InputBlock mono multi-channel must split into ≥2 effective inputs, got {}",

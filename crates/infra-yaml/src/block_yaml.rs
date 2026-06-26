@@ -4,12 +4,11 @@
 //! stays under the size cap.
 
 use anyhow::{anyhow, Context, Result};
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{BlockId, ChainId};
 use project::block::{
     normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock,
-    InsertEndpoint, NamBlock, OutputBlock, SelectBlock,
+    NamBlock, OutputBlock, SelectBlock,
 };
-use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -204,20 +203,11 @@ pub(crate) enum AudioBlockYaml {
         enabled: bool,
         #[serde(default = "default_io_yaml_model")]
         model: String,
-        send: InsertEndpointYaml,
-        #[serde(rename = "return")]
-        return_: InsertEndpointYaml,
+        /// Registry binding id for the external send/return loop (model A, #716):
+        /// the send goes to this binding's output, the return comes from its input.
+        #[serde(default)]
+        io: String,
     },
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct InsertEndpointYaml {
-    #[serde(default)]
-    device_id: String,
-    #[serde(default)]
-    mode: ChainInputMode,
-    #[serde(default)]
-    channels: Vec<usize>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -301,24 +291,11 @@ impl AudioBlockYaml {
             AudioBlockYaml::Insert {
                 enabled,
                 model,
-                send,
-                return_,
+                io,
             } => Ok(AudioBlock {
                 id: generated_id,
                 enabled,
-                kind: AudioBlockKind::Insert(InsertBlock {
-                    model,
-                    send: InsertEndpoint {
-                        device_id: DeviceId(send.device_id),
-                        mode: send.mode,
-                        channels: send.channels,
-                    },
-                    return_: InsertEndpoint {
-                        device_id: DeviceId(return_.device_id),
-                        mode: return_.mode,
-                        channels: return_.channels,
-                    },
-                }),
+                kind: AudioBlockKind::Insert(InsertBlock { model, io }),
             }),
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
@@ -516,16 +493,7 @@ impl AudioBlockYaml {
             AudioBlockKind::Insert(insert) => Ok(Self::Insert {
                 enabled: block.enabled,
                 model: insert.model.clone(),
-                send: InsertEndpointYaml {
-                    device_id: insert.send.device_id.0.clone(),
-                    mode: insert.send.mode,
-                    channels: insert.send.channels.clone(),
-                },
-                return_: InsertEndpointYaml {
-                    device_id: insert.return_.device_id.0.clone(),
-                    mode: insert.return_.mode,
-                    channels: insert.return_.channels.clone(),
-                },
+                io: insert.io.clone(),
             }),
         }
     }

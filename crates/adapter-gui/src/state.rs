@@ -118,11 +118,20 @@ pub(crate) struct BlockEditorDraft {
     pub(crate) is_select: bool,
 }
 
-/// Transient state for editing an Insert block's send/return endpoints.
+/// Transient state for editing an Insert block.
+///
+/// #716 (model A): an insert references ONE I/O binding (`io`); the send goes to
+/// that binding's output and the return comes from its input, both resolved from
+/// the per-machine registry. The legacy `send_*`/`return_*` device-picker fields
+/// are kept ONLY to back the existing Slint device/channel widgets until the
+/// insert editor is reworked to pick a binding (see TODO(#716) in
+/// `insert_wiring.rs`). They are no longer persisted onto the block.
 #[derive(Debug, Clone)]
 pub(crate) struct InsertDraft {
     pub(crate) chain_index: usize,
     pub(crate) block_index: usize,
+    /// Registry binding id for the insert's external send/return loop (model A).
+    pub(crate) io: String,
     pub(crate) send_device_id: Option<String>,
     pub(crate) send_channels: Vec<usize>,
     pub(crate) send_mode: ChainInputMode,

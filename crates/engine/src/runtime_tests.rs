@@ -25,8 +25,7 @@ use crate::runtime_endpoints::{InputEntry, OutputEntry};
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
 use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InsertBlock, InsertEndpoint,
-    SelectBlock,
+    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InsertBlock, SelectBlock,
 };
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
@@ -1766,24 +1765,44 @@ fn poll_stream_returns_none_for_unknown_block() {
 /// Registry for `insert_chain`: mono input `in0` (dev_in) + stereo output
 /// `out0` (dev_out). The chain references these by endpoint name from
 /// in-position Input/Output blocks so the Insert-segmentation block indices
-/// stay identical to the legacy layout.
+/// stay identical to the legacy layout. The `"fx"` binding mirrors the legacy
+/// inline insert send/return (#716, model A): send = the binding's stereo
+/// OUTPUT (send_dev), return = its stereo INPUT (return_dev).
 fn insert_registry() -> Vec<domain::io_binding::IoBinding> {
-    vec![domain::io_binding::IoBinding {
-        id: IO_BINDING_ID.into(),
-        name: "IO".into(),
-        inputs: vec![domain::io_binding::IoEndpoint {
-            name: "in0".into(),
-            device_id: DeviceId("dev_in".into()),
-            mode: domain::io_binding::ChannelMode::Mono,
-            channels: vec![0],
-        }],
-        outputs: vec![domain::io_binding::IoEndpoint {
-            name: "out0".into(),
-            device_id: DeviceId("dev_out".into()),
-            mode: domain::io_binding::ChannelMode::Stereo,
-            channels: vec![0, 1],
-        }],
-    }]
+    vec![
+        domain::io_binding::IoBinding {
+            id: IO_BINDING_ID.into(),
+            name: "IO".into(),
+            inputs: vec![domain::io_binding::IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId("dev_in".into()),
+                mode: domain::io_binding::ChannelMode::Mono,
+                channels: vec![0],
+            }],
+            outputs: vec![domain::io_binding::IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId("dev_out".into()),
+                mode: domain::io_binding::ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        },
+        domain::io_binding::IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![domain::io_binding::IoEndpoint {
+                name: "ret".into(),
+                device_id: DeviceId("return_dev".into()),
+                mode: domain::io_binding::ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+            outputs: vec![domain::io_binding::IoEndpoint {
+                name: "snd".into(),
+                device_id: DeviceId("send_dev".into()),
+                mode: domain::io_binding::ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        },
+    ]
 }
 
 fn insert_chain() -> Chain {
@@ -1821,16 +1840,7 @@ fn insert_chain() -> Chain {
                 enabled: true,
                 kind: AudioBlockKind::Insert(InsertBlock {
                     model: "external_loop".into(),
-                    send: InsertEndpoint {
-                        device_id: DeviceId("send_dev".into()),
-                        mode: ChainInputMode::Stereo,
-                        channels: vec![0, 1],
-                    },
-                    return_: InsertEndpoint {
-                        device_id: DeviceId("return_dev".into()),
-                        mode: ChainInputMode::Stereo,
-                        channels: vec![0, 1],
-                    },
+                    io: "fx".into(),
                 }),
             },
             AudioBlock {
@@ -1861,7 +1871,7 @@ fn effective_inputs_includes_insert_return() {
     let (resolved_in, _resolved_out) =
         crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
     let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved_in);
+        effective_inputs(&chain, &resolved_in, &insert_registry());
     // Should have: 1 regular input + 1 insert return = 2
     assert_eq!(eff_inputs.len(), 2);
     assert_eq!(cpal_indices.len(), 2);
@@ -1872,7 +1882,7 @@ fn effective_outputs_includes_insert_send() {
     let chain = insert_chain();
     let (_resolved_in, resolved_out) =
         crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
-    let eff_outputs = effective_outputs(&chain, &resolved_out);
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
     // Should have: 1 regular output + 1 insert send = 2
     assert_eq!(eff_outputs.len(), 2);
     assert_eq!(eff_outputs.len(), 2);
@@ -1884,8 +1894,8 @@ fn split_chain_with_insert_produces_two_segments() {
     let (resolved_in, resolved_out) =
         crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
     let (eff_inputs, cpal_indices, split_positions, entry_groups) =
-        effective_inputs(&chain, &resolved_in);
-    let eff_outputs = effective_outputs(&chain, &resolved_out);
+        effective_inputs(&chain, &resolved_in, &insert_registry());
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
     let segments = split_chain_into_segments(
         &chain,
         &eff_inputs,
@@ -1925,8 +1935,8 @@ fn split_chain_with_disabled_insert_produces_one_segment() {
     let (resolved_in, resolved_out) =
         crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
     let (eff_inputs, cpal_indices, split_positions, entry_groups) =
-        effective_inputs(&chain, &resolved_in);
-    let eff_outputs = effective_outputs(&chain, &resolved_out);
+        effective_inputs(&chain, &resolved_in, &insert_registry());
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
     let segments = split_chain_into_segments(
         &chain,
         &eff_inputs,
@@ -1956,7 +1966,7 @@ fn effective_inputs_splits_mono_multichannel_entry() {
         channels: vec![0, 1, 2],
     }];
     let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved);
+        effective_inputs(&chain, &resolved, &[]);
     assert_eq!(
         eff_inputs.len(),
         3,
@@ -1977,7 +1987,7 @@ fn effective_inputs_fallback_when_no_input_blocks() {
     let chain = empty_chain("chain:fallback");
     // No resolved inputs (no binding selected) → fallback.
     let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &[]);
+        effective_inputs(&chain, &[], &[]);
     assert_eq!(
         eff_inputs.len(),
         1,
@@ -1990,7 +2000,7 @@ fn effective_inputs_fallback_when_no_input_blocks() {
 fn effective_outputs_fallback_when_no_output_blocks() {
     let chain = empty_chain("chain:fallback");
     // No resolved outputs (no binding selected) → fallback.
-    let eff_outputs = effective_outputs(&chain, &[]);
+    let eff_outputs = effective_outputs(&chain, &[], &[]);
     assert_eq!(
         eff_outputs.len(),
         1,
@@ -2111,23 +2121,47 @@ fn layout_label_returns_correct_strings() {
 
 // ── insert_return_as_input_entry tests ──────────────────────────────────
 
+/// Build a one-binding `fx` registry mirroring the legacy inline insert
+/// send/return — model A (#716): send = the binding's OUTPUT, return = its
+/// INPUT. `(send_mode, send_channels)` and `(ret_mode, ret_channels)` map to
+/// the corresponding endpoint.
+fn fx_registry(
+    send_mode: domain::io_binding::ChannelMode,
+    send_channels: Vec<usize>,
+    ret_mode: domain::io_binding::ChannelMode,
+    ret_channels: Vec<usize>,
+) -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "fx".into(),
+        name: "FX".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "ret".into(),
+            device_id: DeviceId("return_dev".into()),
+            mode: ret_mode,
+            channels: ret_channels,
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "snd".into(),
+            device_id: DeviceId("send_dev".into()),
+            mode: send_mode,
+            channels: send_channels,
+        }],
+    }]
+}
+
+fn fx_insert() -> InsertBlock {
+    InsertBlock {
+        model: "external_loop".into(),
+        io: "fx".into(),
+    }
+}
+
 #[test]
 fn insert_return_as_input_entry_copies_return_endpoint() {
     use super::insert_return_as_input_entry;
-    let insert = InsertBlock {
-        model: "external_loop".into(),
-        send: InsertEndpoint {
-            device_id: DeviceId("send_dev".into()),
-            mode: ChainInputMode::Stereo,
-            channels: vec![0, 1],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("return_dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![2],
-        },
-    };
-    let entry = insert_return_as_input_entry(&insert);
+    use domain::io_binding::ChannelMode;
+    let reg = fx_registry(ChannelMode::Stereo, vec![0, 1], ChannelMode::Mono, vec![2]);
+    let entry = insert_return_as_input_entry(&fx_insert(), &reg).expect("return resolves");
     assert_eq!(entry.device_id.0, "return_dev");
     assert_eq!(entry.channels, vec![2]);
     assert!(matches!(entry.mode, ChainInputMode::Mono));
@@ -2138,20 +2172,9 @@ fn insert_return_as_input_entry_copies_return_endpoint() {
 #[test]
 fn insert_send_as_output_entry_mono_mode() {
     use super::insert_send_as_output_entry;
-    let insert = InsertBlock {
-        model: "external_loop".into(),
-        send: InsertEndpoint {
-            device_id: DeviceId("send_dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("return_dev".into()),
-            mode: ChainInputMode::Stereo,
-            channels: vec![0, 1],
-        },
-    };
-    let entry = insert_send_as_output_entry(&insert);
+    use domain::io_binding::ChannelMode;
+    let reg = fx_registry(ChannelMode::Mono, vec![0], ChannelMode::Stereo, vec![0, 1]);
+    let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
     assert_eq!(entry.device_id.0, "send_dev");
     assert_eq!(entry.channels, vec![0]);
     assert!(matches!(entry.mode, ChainOutputMode::Mono));
@@ -2160,40 +2183,18 @@ fn insert_send_as_output_entry_mono_mode() {
 #[test]
 fn insert_send_as_output_entry_stereo_mode() {
     use super::insert_send_as_output_entry;
-    let insert = InsertBlock {
-        model: "external_loop".into(),
-        send: InsertEndpoint {
-            device_id: DeviceId("send_dev".into()),
-            mode: ChainInputMode::Stereo,
-            channels: vec![0, 1],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("return_dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-    };
-    let entry = insert_send_as_output_entry(&insert);
+    use domain::io_binding::ChannelMode;
+    let reg = fx_registry(ChannelMode::Stereo, vec![0, 1], ChannelMode::Mono, vec![0]);
+    let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
     assert!(matches!(entry.mode, ChainOutputMode::Stereo));
 }
 
 #[test]
 fn insert_send_as_output_entry_dual_mono_becomes_stereo() {
     use super::insert_send_as_output_entry;
-    let insert = InsertBlock {
-        model: "external_loop".into(),
-        send: InsertEndpoint {
-            device_id: DeviceId("send_dev".into()),
-            mode: ChainInputMode::DualMono,
-            channels: vec![0, 1],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("return_dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-    };
-    let entry = insert_send_as_output_entry(&insert);
+    use domain::io_binding::ChannelMode;
+    let reg = fx_registry(ChannelMode::DualMono, vec![0, 1], ChannelMode::Mono, vec![0]);
+    let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
     assert!(matches!(entry.mode, ChainOutputMode::Stereo));
 }
 
@@ -2584,7 +2585,7 @@ fn effective_inputs_stereo_entry_not_split() {
         mode: ChainInputMode::Stereo,
         channels: vec![0, 1],
     }];
-    let (eff_inputs, _, _, _) = effective_inputs(&chain, &resolved);
+    let (eff_inputs, _, _, _) = effective_inputs(&chain, &resolved, &[]);
     assert_eq!(eff_inputs.len(), 1, "stereo entry should not be split");
     assert_eq!(eff_inputs[0].channels, vec![0, 1]);
 }
@@ -2608,7 +2609,7 @@ fn effective_inputs_multiple_input_blocks() {
         },
     ];
     let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved);
+        effective_inputs(&chain, &resolved, &[]);
     assert_eq!(eff_inputs.len(), 2);
     assert_eq!(eff_inputs[0].device_id.0, "dev1");
     assert_eq!(eff_inputs[1].device_id.0, "dev2");
@@ -2635,7 +2636,7 @@ fn effective_inputs_same_device_shares_cpal_index() {
         },
     ];
     let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved);
+        effective_inputs(&chain, &resolved, &[]);
     assert_eq!(eff_inputs.len(), 2);
     assert_eq!(
         cpal_indices[0], cpal_indices[1],

@@ -5,11 +5,10 @@
 
 use super::{
     normalize_block_params, schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock,
-    InputBlock, InsertBlock, InsertEndpoint, OutputBlock, SelectBlock,
+    InputBlock, InsertBlock, OutputBlock, SelectBlock,
 };
-use crate::chain::ChainInputMode;
 use crate::param::ParameterSet;
-use domain::ids::{BlockId, DeviceId};
+use domain::ids::BlockId;
 
 #[test]
 fn project_contract_exposes_family_schemas() {
@@ -202,16 +201,7 @@ fn reverb_block(id: impl Into<String>, model: &str) -> AudioBlock {
 fn insert_block_clone_equality() {
     let insert = InsertBlock {
         model: "standard".to_string(),
-        send: InsertEndpoint {
-            device_id: DeviceId("mk300-out".into()),
-            mode: ChainInputMode::Stereo,
-            channels: vec![0, 1],
-        },
-        return_: InsertEndpoint {
-            device_id: DeviceId("mk300-in".into()),
-            mode: ChainInputMode::Stereo,
-            channels: vec![0, 1],
-        },
+        io: "mk300".to_string(),
     };
     let block = AudioBlock {
         id: BlockId("chain:0:insert:0".into()),
@@ -220,12 +210,7 @@ fn insert_block_clone_equality() {
     };
     let cloned = block.clone();
     assert_eq!(block, cloned);
-    assert!(
-        matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out")
-    );
-    assert!(
-        matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in")
-    );
+    assert!(matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.io == "mk300"));
 }
 
 #[test]
@@ -252,16 +237,7 @@ fn insert_block_in_chain_structure() {
                 enabled: true,
                 kind: AudioBlockKind::Insert(InsertBlock {
                     model: "standard".to_string(),
-                    send: InsertEndpoint {
-                        device_id: DeviceId("mk300-out".into()),
-                        mode: ChainInputMode::Stereo,
-                        channels: vec![0, 1],
-                    },
-                    return_: InsertEndpoint {
-                        device_id: DeviceId("mk300-in".into()),
-                        mode: ChainInputMode::Stereo,
-                        channels: vec![0, 1],
-                    },
+                    io: "mk300".to_string(),
                 }),
             },
             AudioBlock {
@@ -278,7 +254,7 @@ fn insert_block_in_chain_structure() {
     let inserts = chain.insert_blocks();
     assert_eq!(inserts.len(), 1);
     assert_eq!(inserts[0].0, 1); // index 1
-    assert_eq!(inserts[0].1.send.device_id.0, "mk300-out");
+    assert_eq!(inserts[0].1.io, "mk300");
 }
 
 #[test]
@@ -288,16 +264,7 @@ fn disabled_insert_block_validates_ok() {
         enabled: false,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: Vec::new(),
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: Vec::new(),
-            },
+            io: String::new(),
         }),
     };
     assert!(block.validate_params().is_ok());
@@ -343,16 +310,7 @@ fn validate_params_enabled_insert_block_always_ok() {
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("out-dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("in-dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
+            io: "fx".to_string(),
         }),
     };
     assert!(block.validate_params().is_ok());
@@ -461,16 +419,7 @@ fn audio_descriptors_insert_returns_empty() {
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
+            io: "fx".to_string(),
         }),
     };
     assert!(block.audio_descriptors().unwrap().is_empty());
@@ -618,16 +567,7 @@ fn model_ref_insert_returns_none() {
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
+            io: "fx".to_string(),
         }),
     };
     assert!(block.model_ref().is_none());
@@ -790,16 +730,7 @@ fn select_block_rejects_insert_option() {
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
+            io: "fx".to_string(),
         }),
     };
     let block = AudioBlock {

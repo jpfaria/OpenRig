@@ -174,15 +174,20 @@ pub(crate) fn wire(
                 let fresh_input = refresh_input_devices(&chain_input_device_options);
                 let fresh_output = refresh_output_devices(&chain_output_device_options);
                 log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
+                // TODO(#716): insert editor UI should pick a binding (`io`)
+                // instead of raw send/return device endpoints. The device-picker
+                // fields below are placeholder no-ops until the Slint window is
+                // reworked; the persisted value is the binding id (`ib.io`).
                 let draft = InsertDraft {
                     chain_index: chain_index as usize,
                     block_index: block_index as usize,
-                    send_device_id: if ib.send.device_id.0.is_empty() { None } else { Some(ib.send.device_id.0.clone()) },
-                    send_channels: ib.send.channels.clone(),
-                    send_mode: ib.send.mode,
-                    return_device_id: if ib.return_.device_id.0.is_empty() { None } else { Some(ib.return_.device_id.0.clone()) },
-                    return_channels: ib.return_.channels.clone(),
-                    return_mode: ib.return_.mode,
+                    io: ib.io.clone(),
+                    send_device_id: None,
+                    send_channels: Vec::new(),
+                    send_mode: project::chain::ChainInputMode::Mono,
+                    return_device_id: None,
+                    return_channels: Vec::new(),
+                    return_mode: project::chain::ChainInputMode::Mono,
                 };
                 let is_middle = block_index > 0 && (block_index as usize) < chain.blocks.len() - 1;
                 if let Some(iw) = weak_insert_window.upgrade() {

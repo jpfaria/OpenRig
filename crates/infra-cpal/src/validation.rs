@@ -103,23 +103,32 @@ pub(crate) fn validate_chain_channels_against_devices(
         )?;
     }
 
-    // Validate Insert block endpoints
+    // Validate Insert block endpoints. Model A (#716): an insert references one
+    // I/O binding (`io`) — the send is that binding's OUTPUT, the return its
+    // INPUT, both resolved from the registry. Unbound/unknown inserts validate ok.
     for (_, insert) in chain.insert_blocks() {
-        if !insert.send.device_id.0.is_empty() {
-            validate_output_channels_against_device(
-                host,
-                &chain.id.0,
-                &insert.send.device_id.0,
-                &insert.send.channels,
-            )?;
+        let Some(binding) = registry.iter().find(|b| b.id == insert.io) else {
+            continue;
+        };
+        if let Some(send) = binding.outputs.first() {
+            if !send.device_id.0.is_empty() {
+                validate_output_channels_against_device(
+                    host,
+                    &chain.id.0,
+                    &send.device_id.0,
+                    &send.channels,
+                )?;
+            }
         }
-        if !insert.return_.device_id.0.is_empty() {
-            validate_input_channels_against_device(
-                host,
-                &chain.id.0,
-                &insert.return_.device_id.0,
-                &insert.return_.channels,
-            )?;
+        if let Some(ret) = binding.inputs.first() {
+            if !ret.device_id.0.is_empty() {
+                validate_input_channels_against_device(
+                    host,
+                    &chain.id.0,
+                    &ret.device_id.0,
+                    &ret.channels,
+                )?;
+            }
         }
     }
 

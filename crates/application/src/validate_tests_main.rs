@@ -353,16 +353,7 @@ fn validate_project_with_insert_block_succeeds() {
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "external_loop".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("send-dev".to_string()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("return-dev".to_string()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
+            io: "fx".to_string(),
         }),
     };
     let chain = test_chain(

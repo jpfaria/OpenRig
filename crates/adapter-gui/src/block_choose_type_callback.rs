@@ -178,6 +178,9 @@ pub(crate) fn wire(
             let draft = InsertDraft {
                 chain_index,
                 block_index: before_index,
+                // #716 (model A): a fresh insert is unbound; the user picks its
+                // binding later. See TODO(#716) in insert_wiring.rs.
+                io: String::new(),
                 send_device_id: None,
                 send_channels: Vec::new(),
                 send_mode: ChainInputMode::Mono,

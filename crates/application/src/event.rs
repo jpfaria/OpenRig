@@ -111,7 +111,7 @@ pub enum Event {
     },
 
     // ── Insert block events ───────────────────────────────────────────────────
-    /// An insert block's send/return endpoints were saved.
+    /// An insert block's I/O binding selection was saved (#716, model A).
     InsertBlockSaved {
         chain: ChainId,
         block: BlockId,

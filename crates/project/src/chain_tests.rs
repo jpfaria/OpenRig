@@ -5,10 +5,10 @@
 use super::*;
 use crate::block::{
     schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock,
-    InsertEndpoint, OutputBlock,
+    OutputBlock,
 };
 use crate::param::ParameterSet;
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{BlockId, ChainId};
 
 /// A binding-bound Input block (model A, #716): no device endpoints, only a
 /// binding reference. Pass empty `io` for an unbound block.
@@ -43,16 +43,7 @@ fn make_insert_block(id: &str) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("send-dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("return-dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
+            io: "fx".to_string(),
         }),
     }
 }

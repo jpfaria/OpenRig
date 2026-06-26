@@ -16,7 +16,7 @@ use std::rc::Rc;
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
-use project::chain::{Chain, ChainInputMode};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -2309,16 +2309,7 @@ fn make_insert_block(id: &str) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Insert(project::block::InsertBlock {
             model: "standard".to_string(),
-            send: project::block::InsertEndpoint {
-                device_id: DeviceId("send_dev".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
-            return_: project::block::InsertEndpoint {
-                device_id: DeviceId("return_dev".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![1],
-            },
+            io: "fx".to_string(),
         }),
     }
 }
@@ -2345,26 +2336,14 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
 }
 
 #[test]
-fn save_insert_block_updates_endpoints_and_emits_event() {
+fn save_insert_block_updates_binding_and_emits_event() {
     let (project, chain_id, block_id) = make_project_with_insert();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let new_send = project::block::InsertEndpoint {
-        device_id: DeviceId("new_send_dev".to_string()),
-        mode: ChainInputMode::Mono,
-        channels: vec![2],
-    };
-    let new_return = project::block::InsertEndpoint {
-        device_id: DeviceId("new_return_dev".to_string()),
-        mode: ChainInputMode::Mono,
-        channels: vec![3],
-    };
 
     let result = dispatcher.dispatch(Command::SaveInsertBlock {
         chain: chain_id.clone(),
         block: block_id.clone(),
-        send: new_send,
-        return_: new_return,
+        io: "mk300".to_string(),
     });
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -2382,10 +2361,7 @@ fn save_insert_block_updates_endpoints_and_emits_event() {
     let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
     let block = chain.blocks.iter().find(|b| b.id == block_id).unwrap();
     if let AudioBlockKind::Insert(ib) = &block.kind {
-        assert_eq!(ib.send.device_id.0, "new_send_dev");
-        assert_eq!(ib.send.channels, vec![2]);
-        assert_eq!(ib.return_.device_id.0, "new_return_dev");
-        assert_eq!(ib.return_.channels, vec![3]);
+        assert_eq!(ib.io, "mk300");
     } else {
         panic!("expected InsertBlock kind");
     }
@@ -2399,16 +2375,7 @@ fn save_insert_block_non_existent_block_returns_err() {
     let result = dispatcher.dispatch(Command::SaveInsertBlock {
         chain: chain_id,
         block: BlockId("blk_MISSING".to_string()),
-        send: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        return_: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![1],
-        },
+        io: "fx".to_string(),
     });
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
@@ -2423,16 +2390,7 @@ fn save_insert_block_non_insert_kind_returns_err() {
     let result = dispatcher.dispatch(Command::SaveInsertBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
-        send: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        return_: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![1],
-        },
+        io: "fx".to_string(),
     });
 
     assert!(result.is_err(), "expected Err for non-Insert block kind");

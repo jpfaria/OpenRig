@@ -10,7 +10,7 @@ use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
     AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock, SelectBlock,
 };
-use project::chain::{Chain, ChainInputMode};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 use std::fs;
@@ -313,22 +313,13 @@ fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
 
 #[test]
 fn insert_block_yaml_roundtrip() {
-    use project::block::{InsertBlock, InsertEndpoint};
+    use project::block::InsertBlock;
     let block = AudioBlock {
         id: BlockId("chain:0:block:1".into()),
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("mk300-out".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("mk300-in".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
+            io: "mk300".to_string(),
         }),
     };
     let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
@@ -336,39 +327,19 @@ fn insert_block_yaml_roundtrip() {
     let parsed: super::AudioBlockYaml = serde_yaml::from_value(value).expect("deserialize");
     let chain_id = ChainId("chain:0".to_string());
     let restored = parsed.into_audio_block(&chain_id, 1).expect("into block");
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out")
-    );
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in")
-    );
-    assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.channels == vec![0, 1]));
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.channels == vec![0, 1])
-    );
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.mode == ChainInputMode::Stereo)
-    );
+    assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.io == "mk300"));
+    assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.model == "standard"));
 }
 
 #[test]
 fn disabled_insert_block_yaml_roundtrip() {
-    use project::block::{InsertBlock, InsertEndpoint};
+    use project::block::InsertBlock;
     let block = AudioBlock {
         id: BlockId("chain:0:block:2".into()),
         enabled: false,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: Vec::new(),
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: Vec::new(),
-            },
+            io: String::new(),
         }),
     };
     let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
@@ -380,66 +351,46 @@ fn disabled_insert_block_yaml_roundtrip() {
     assert!(matches!(&restored.kind, AudioBlockKind::Insert(_)));
 }
 
-// ─── Guard: Insert block YAML must NOT contain io/endpoint fields (Task 5 leak guard) ───
+// ─── Guard: Insert block YAML carries the `io` binding, not raw send/return (#716 model A) ───
 
-/// Regression guard for issue #716 Task 17.
+/// Regression guard for issue #716 (model A).
 ///
-/// Input/Output blocks gained `io` and `endpoint` fields in Task 5.
-/// Insert blocks must NOT be affected: their send/return endpoint model
-/// is raw (single-runtime send/return pipeline), and the io/endpoint
-/// registry concept must NOT leak into Insert serialization.
+/// An insert now references ONE I/O binding (`io`) instead of embedding raw
+/// send/return device endpoints. The send resolves to that binding's output
+/// and the return to its input via the per-machine registry. The serialized
+/// YAML must therefore carry `io` and must NOT carry the deleted
+/// `send:`/`return:` device blocks.
 ///
-/// If this test fails after a schema change, it means io/endpoint leaked
-/// into Insert — restore the Insert serializer to the raw send/return model.
+/// If this test fails, the legacy embedded-endpoint model leaked back into
+/// Insert serialization — restore the `{ model, io }` shape.
 #[test]
-fn insert_block_yaml_has_no_io_or_endpoint_fields() {
-    use project::block::{InsertBlock, InsertEndpoint};
+fn insert_block_yaml_carries_io_binding_not_raw_endpoints() {
+    use project::block::InsertBlock;
     let block = AudioBlock {
         id: BlockId("chain:0:block:1".into()),
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("fx-loop-out".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("fx-loop-in".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
+            io: "fx-loop".to_string(),
         }),
     };
     let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
     let value = serde_yaml::to_value(&yaml).expect("serialize to value");
     let yaml_str = serde_yaml::to_string(&value).expect("serialize to string");
 
-    // Guard: insert YAML must use raw send/return — no io/endpoint leak from Task 5
+    // Guard: model A — the insert references its binding via `io`.
     assert!(
-        !yaml_str.contains("\nio:") && !yaml_str.contains("io: "),
-        "Insert block YAML must NOT contain an 'io' field (Task 5 io/endpoint leaked into insert): {yaml_str}"
+        yaml_str.contains("io: fx-loop"),
+        "Insert block YAML must carry the 'io' binding id (#716 model A): {yaml_str}"
+    );
+    // Guard: the deleted raw send/return device model must NOT come back.
+    assert!(
+        !yaml_str.contains("send:"),
+        "Insert block YAML must NOT contain a raw 'send:' endpoint (#716 model A): {yaml_str}"
     );
     assert!(
-        !yaml_str.contains("endpoint:"),
-        "Insert block YAML must NOT contain an 'endpoint' field (Task 5 io/endpoint leaked into insert): {yaml_str}"
-    );
-    // Guard: the raw send/return model must still be present
-    assert!(
-        yaml_str.contains("send:"),
-        "Insert block YAML must still contain 'send:' endpoint: {yaml_str}"
-    );
-    assert!(
-        yaml_str.contains("return:"),
-        "Insert block YAML must still contain 'return:' endpoint: {yaml_str}"
-    );
-    assert!(
-        yaml_str.contains("fx-loop-out"),
-        "Insert send device_id must survive serialization: {yaml_str}"
-    );
-    assert!(
-        yaml_str.contains("fx-loop-in"),
-        "Insert return device_id must survive serialization: {yaml_str}"
+        !yaml_str.contains("return:"),
+        "Insert block YAML must NOT contain a raw 'return:' endpoint (#716 model A): {yaml_str}"
     );
 }
 

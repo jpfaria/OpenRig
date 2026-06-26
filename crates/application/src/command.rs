@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 pub use domain::ids::{BlockId, ChainId};
 pub use domain::io_binding::{ChannelMode, IoBinding};
-use project::block::{AudioBlock, InsertEndpoint};
+use project::block::AudioBlock;
 use project::chain::Chain;
 pub use crate::di_loader::DiLoopSource;
 
@@ -130,15 +130,16 @@ pub enum Command {
     },
 
     // ── Insert block ──────────────────────────────────────────────────────────
-    /// Commit an Insert block's send/return endpoint configuration.
+    /// Commit an Insert block's I/O binding selection (#716, model A).
     ///
-    /// The caller supplies the fully-resolved `send` and `return_` endpoints.
-    /// The dispatcher locates the block and replaces its `InsertBlock` data.
+    /// The caller supplies the registry binding id (`io`) for the external
+    /// send/return loop: the send goes to that binding's output, the return
+    /// comes from its input — both resolved from the per-machine registry. The
+    /// dispatcher locates the block and replaces its `InsertBlock.io`.
     SaveInsertBlock {
         chain: ChainId,
         block: BlockId,
-        send: InsertEndpoint,
-        return_: InsertEndpoint,
+        io: String,
     },
 
     // ── Chain CRUD ────────────────────────────────────────────────────────────

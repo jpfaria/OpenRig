@@ -99,6 +99,13 @@ pub(crate) fn sync_live_chain_runtime(
     {
         let mut borrow = project_runtime.borrow_mut();
         if let Some(runtime) = borrow.as_mut() {
+            // #716 (AUDIO-CRITICAL): a controller created earlier (before the
+            // user added/related an I/O binding) holds a STALE registry, so a
+            // newly-bound chain resolves to zero inputs ("chain '...' has no
+            // input blocks configured"). Refresh the controller's registry from
+            // the session's live mirror of `AppConfig.io_bindings` on EVERY
+            // sync, not just at start, so a just-created binding takes effect.
+            runtime.set_io_bindings(session.io_bindings.borrow().clone());
             validate_project(&*proj)?;
             if let Some(chain) = chain {
                 // Issue #672: cold activation of a single-input chain builds the

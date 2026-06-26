@@ -255,7 +255,7 @@ pub(crate) fn resolve_chain_inputs(
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
+            AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
             _ => None,
         })
         .collect();
@@ -288,7 +288,7 @@ pub(crate) fn resolve_chain_outputs(
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
+            AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
             _ => None,
         })
         .collect();
@@ -303,28 +303,39 @@ pub(crate) fn resolve_chain_outputs(
         .collect()
 }
 
-/// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
+/// Resolve an InsertBlock's RETURN to an InputEntry — model A (#716): the return
+/// comes from the insert binding's INPUT endpoint in the registry. `None` when
+/// the binding is absent or has no input endpoint.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
-    InputEntry {
-        device_id: insert.return_.device_id.clone(),
-        mode: insert.return_.mode,
-        channels: insert.return_.channels.clone(),
-    }
+pub(crate) fn insert_return_as_input_entry(
+    insert: &InsertBlock,
+    registry: &[IoBinding],
+) -> Option<InputEntry> {
+    let binding = registry.iter().find(|b| b.id == insert.io)?;
+    let ep = binding.inputs.first()?;
+    Some(InputEntry {
+        device_id: ep.device_id.clone(),
+        mode: project::chain::ChainInputMode::from(ep.mode),
+        channels: ep.channels.clone(),
+    })
 }
 
-/// Convert an InsertBlock's send endpoint to an OutputEntry for stream resolution.
+/// Resolve an InsertBlock's SEND to an OutputEntry — model A (#716): the send
+/// goes to the insert binding's OUTPUT endpoint in the registry. `None` when the
+/// binding is absent or has no output endpoint.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
+pub(crate) fn insert_send_as_output_entry(
+    insert: &InsertBlock,
+    registry: &[IoBinding],
+) -> Option<OutputEntry> {
     use project::chain::ChainOutputMode;
-    OutputEntry {
-        device_id: insert.send.device_id.clone(),
-        mode: match insert.send.mode {
-            project::chain::ChainInputMode::Mono => ChainOutputMode::Mono,
-            _ => ChainOutputMode::Stereo,
-        },
-        channels: insert.send.channels.clone(),
-    }
+    let binding = registry.iter().find(|b| b.id == insert.io)?;
+    let ep = binding.outputs.first()?;
+    Some(OutputEntry {
+        device_id: ep.device_id.clone(),
+        mode: ChainOutputMode::try_from(ep.mode).unwrap_or(ChainOutputMode::Stereo),
+        channels: ep.channels.clone(),
+    })
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]

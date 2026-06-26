@@ -182,8 +182,8 @@ pub(crate) fn build_per_input_runtimes(
 ) -> Result<Vec<(usize, ChainRuntimeState)>> {
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
-        effective_inputs(chain, &resolved_inputs);
-    let eff_outputs = effective_outputs(chain, &resolved_outputs);
+        effective_inputs(chain, &resolved_inputs, registry);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs, registry);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
@@ -247,8 +247,8 @@ pub fn build_per_input_runtime_states(
 fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
-        effective_inputs(chain, &resolved_inputs);
-    let eff_outputs = effective_outputs(chain, &resolved_outputs);
+        effective_inputs(chain, &resolved_inputs, registry);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs, registry);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
@@ -280,8 +280,8 @@ pub fn build_chain_runtime_state(
 ) -> Result<ChainRuntimeState> {
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
-        effective_inputs(chain, &resolved_inputs);
-    let eff_outputs = effective_outputs(chain, &resolved_outputs);
+        effective_inputs(chain, &resolved_inputs, registry);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs, registry);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
@@ -692,8 +692,8 @@ fn update_chain_runtime_state_impl(
 ) -> Result<()> {
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (effective_ins, eff_input_cpal_indices, effective_split_positions, eff_entry_groups) =
-        effective_inputs(chain, &resolved_inputs);
-    let effective_outs = effective_outputs(chain, &resolved_outputs);
+        effective_inputs(chain, &resolved_inputs, registry);
+    let effective_outs = effective_outputs(chain, &resolved_outputs, registry);
     let all_segments = split_chain_into_segments(
         chain,
         &effective_ins,

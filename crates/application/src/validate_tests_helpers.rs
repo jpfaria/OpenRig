@@ -13,9 +13,9 @@
 pub(super) use super::super::*;
 pub(super) use domain::ids::{BlockId, ChainId, DeviceId};
 pub(super) use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock, InsertEndpoint, OutputBlock,
+    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock, OutputBlock,
 };
-pub(super) use project::chain::{Chain, ChainInputMode};
+pub(super) use project::chain::Chain;
 pub(super) use project::device::DeviceSettings;
 pub(super) use project::param::ParameterSet;
 pub(super) use project::project::Project;

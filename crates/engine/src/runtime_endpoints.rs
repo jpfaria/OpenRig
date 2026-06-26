@@ -137,6 +137,7 @@ pub fn input_conflicting_chains<'a>(
 pub(crate) fn effective_inputs(
     chain: &Chain,
     resolved: &[InputEntry],
+    registry: &[IoBinding],
 ) -> (Vec<InputEntry>, Vec<usize>, Vec<Option<usize>>, Vec<usize>) {
     let raw_entries: Vec<InputEntry> = resolved.to_vec();
 
@@ -182,7 +183,7 @@ pub(crate) fn effective_inputs(
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
+            AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
             _ => None,
         })
         .collect();
@@ -212,7 +213,11 @@ pub(crate) fn effective_inputs(
 /// Build effective output entries from the resolved outputs, plus Insert send
 /// entries. Order: resolved outputs first, then Insert sends (matches CPAL
 /// stream order). Falls back to a single mono output on channel 0 if neither.
-pub(crate) fn effective_outputs(chain: &Chain, resolved: &[OutputEntry]) -> Vec<OutputEntry> {
+pub(crate) fn effective_outputs(
+    chain: &Chain,
+    resolved: &[OutputEntry],
+    registry: &[IoBinding],
+) -> Vec<OutputEntry> {
     let mut entries: Vec<OutputEntry> = resolved.to_vec();
 
     // Append Insert send entries (as outputs for segments before each Insert).
@@ -221,7 +226,7 @@ pub(crate) fn effective_outputs(chain: &Chain, resolved: &[OutputEntry]) -> Vec<
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
+            AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
             _ => None,
         })
         .collect();
@@ -238,23 +243,87 @@ pub(crate) fn effective_outputs(chain: &Chain, resolved: &[OutputEntry]) -> Vec<
     }]
 }
 
-/// Convert an `InsertBlock`'s return endpoint to an `InputEntry`.
-pub(crate) fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
-    InputEntry {
-        device_id: insert.return_.device_id.clone(),
-        mode: insert.return_.mode,
-        channels: insert.return_.channels.clone(),
-    }
+/// Resolve an `InsertBlock`'s RETURN (the signal coming back from the external
+/// gear) to an input endpoint — model A (#716): an insert references one E/S
+/// (`io`), and its return comes from that binding's INPUT. `None` if the
+/// binding is absent or has no input endpoint.
+pub(crate) fn insert_return_as_input_entry(
+    insert: &InsertBlock,
+    registry: &[IoBinding],
+) -> Option<InputEntry> {
+    let binding = registry.iter().find(|b| b.id == insert.io)?;
+    let ep = binding.inputs.first()?;
+    Some(InputEntry {
+        device_id: ep.device_id.clone(),
+        mode: ChainInputMode::from(ep.mode),
+        channels: ep.channels.clone(),
+    })
 }
 
-/// Convert an `InsertBlock`'s send endpoint to an `OutputEntry`.
-pub(crate) fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
-    OutputEntry {
-        device_id: insert.send.device_id.clone(),
-        mode: match insert.send.mode {
-            ChainInputMode::Mono => ChainOutputMode::Mono,
-            _ => ChainOutputMode::Stereo,
-        },
-        channels: insert.send.channels.clone(),
+/// Resolve an `InsertBlock`'s SEND (the signal going out to the external gear)
+/// to an output endpoint — it comes from the insert binding's OUTPUT. `None` if
+/// the binding is absent or has no output endpoint.
+pub(crate) fn insert_send_as_output_entry(
+    insert: &InsertBlock,
+    registry: &[IoBinding],
+) -> Option<OutputEntry> {
+    let binding = registry.iter().find(|b| b.id == insert.io)?;
+    let ep = binding.outputs.first()?;
+    Some(OutputEntry {
+        device_id: ep.device_id.clone(),
+        mode: ChainOutputMode::try_from(ep.mode).unwrap_or(ChainOutputMode::Stereo),
+        channels: ep.channels.clone(),
+    })
+}
+
+#[cfg(test)]
+mod insert_binding_tests {
+    use super::*;
+    use domain::ids::DeviceId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::InsertBlock;
+
+    fn fx_binding() -> Vec<IoBinding> {
+        vec![IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![IoEndpoint {
+                name: "ret".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![2],
+            }],
+            outputs: vec![IoEndpoint {
+                name: "snd".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        }]
+    }
+
+    #[test]
+    fn insert_send_and_return_resolve_from_its_binding() {
+        let insert = InsertBlock {
+            model: "external_loop".into(),
+            io: "fx".into(),
+        };
+        let reg = fx_binding();
+        let snd = insert_send_as_output_entry(&insert, &reg).expect("send resolves");
+        assert_eq!(snd.device_id.0, "dev");
+        assert_eq!(snd.channels, vec![0, 1]);
+        let ret = insert_return_as_input_entry(&insert, &reg).expect("return resolves");
+        assert_eq!(ret.device_id.0, "dev");
+        assert_eq!(ret.channels, vec![2]);
+    }
+
+    #[test]
+    fn insert_with_unknown_binding_resolves_to_nothing() {
+        let insert = InsertBlock {
+            model: "external_loop".into(),
+            io: "ghost".into(),
+        };
+        assert!(insert_send_as_output_entry(&insert, &fx_binding()).is_none());
+        assert!(insert_return_as_input_entry(&insert, &fx_binding()).is_none());
     }
 }
