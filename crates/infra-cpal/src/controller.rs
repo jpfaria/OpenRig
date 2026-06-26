@@ -142,6 +142,19 @@ impl ProjectRuntimeController {
     }
 
     pub fn start(project: &Project) -> Result<Self> {
+        Self::start_with_io_bindings(project, Vec::new())
+    }
+
+    /// Like [`Self::start`] but installs the per-machine I/O binding registry
+    /// BEFORE the initial `sync_project` schedules its cold-start activations.
+    /// #716 (AUDIO-CRITICAL): `schedule_chain_activation` snapshots
+    /// `self.io_bindings` into its worker job, so a binding-bound chain whose
+    /// registry is installed only AFTER `start()` resolves zero inputs and
+    /// bails "no input blocks". The owner must hand the registry here.
+    pub fn start_with_io_bindings(
+        project: &Project,
+        io_bindings: Vec<domain::io_binding::IoBinding>,
+    ) -> Result<Self> {
         log::info!("starting project runtime controller");
         let mut controller = Self {
             runtime_graph: RuntimeGraph {
@@ -155,7 +168,7 @@ impl ProjectRuntimeController {
             // Updated to the real device rate by `upsert_chain_with_resolved`
             // as each chain is built below (#669).
             sample_rate: 48_000,
-            io_bindings: Vec::new(),
+            io_bindings,
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
