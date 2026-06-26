@@ -67,6 +67,51 @@ pub fn resolve_chain_io(chain: &Chain, registry: &[IoBinding]) -> (Vec<InputEntr
     (inputs, outputs)
 }
 
+/// A chain's I/O resolved and GROUPED by the binding it came from. Each group
+/// pairs a binding's input endpoint(s) with that SAME binding's output
+/// endpoint(s), so an input never cross-routes to another binding's output
+/// (#716: "one stream per (input, output) pair WITHIN the same binding").
+#[derive(Debug, Clone, PartialEq)]
+pub struct BindingIo {
+    pub binding_id: String,
+    pub inputs: Vec<InputEntry>,
+    pub outputs: Vec<OutputEntry>,
+}
+
+/// Resolve a chain's I/O grouped per referenced binding (in `io_binding_ids`
+/// order). With a single binding this is one group whose flattened inputs and
+/// outputs equal [`resolve_chain_io`] — so single-binding routing is unchanged.
+pub fn resolve_chain_io_by_binding(chain: &Chain, registry: &[IoBinding]) -> Vec<BindingIo> {
+    let mut groups: Vec<BindingIo> = Vec::new();
+    for port in resolve_chain_ports(chain, registry) {
+        let idx = match groups.iter().position(|g| g.binding_id == port.binding_id) {
+            Some(i) => i,
+            None => {
+                groups.push(BindingIo {
+                    binding_id: port.binding_id.clone(),
+                    inputs: Vec::new(),
+                    outputs: Vec::new(),
+                });
+                groups.len() - 1
+            }
+        };
+        match port.direction {
+            PortDirection::Input => groups[idx].inputs.push(InputEntry {
+                device_id: port.endpoint.device_id,
+                mode: ChainInputMode::from(port.endpoint.mode),
+                channels: port.endpoint.channels,
+            }),
+            PortDirection::Output => groups[idx].outputs.push(OutputEntry {
+                device_id: port.endpoint.device_id,
+                mode: ChainOutputMode::try_from(port.endpoint.mode)
+                    .unwrap_or(ChainOutputMode::Stereo),
+                channels: port.endpoint.channels,
+            }),
+        }
+    }
+    groups
+}
+
 /// #716: the first `(device_id, channel)` claimed by two different input
 /// endpoints in `inputs`, or `None` when every input tap is unique.
 ///
