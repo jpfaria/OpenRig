@@ -42,7 +42,7 @@ use arc_swap::ArcSwap;
 use crossbeam_queue::ArrayQueue;
 
 use block_core::{AudioChannelLayout, StreamHandle};
-use domain::ids::{BlockId, ChainId};
+use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::IoBinding;
 use project::block::AudioBlockKind;
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
@@ -162,7 +162,10 @@ pub fn build_runtime_graph(
         let elastic_targets = chain_elastic_targets
             .get(&chain.id)
             .unwrap_or(&default_targets);
-        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets, registry)? {
+        let no_device_rates: HashMap<DeviceId, f32> = HashMap::new();
+        for (group, state) in
+            build_per_input_runtimes(chain, sample_rate, &no_device_rates, elastic_targets, registry)?
+        {
             state.set_volume_pct(chain.volume);
             chains.insert((chain.id.clone(), group), Arc::new(state));
         }
@@ -177,6 +180,7 @@ pub fn build_runtime_graph(
 pub(crate) fn build_per_input_runtimes(
     chain: &Chain,
     sample_rate: f32,
+    device_rates: &HashMap<DeviceId, f32>,
     elastic_targets: &[usize],
     registry: &[IoBinding],
 ) -> Result<Vec<(usize, ChainRuntimeState)>> {
@@ -200,11 +204,20 @@ pub(crate) fn build_per_input_runtimes(
         // cpal stream — record it so infra-cpal can fan a shared device
         // callback out to every per-entry runtime it feeds (issue #703).
         let cpal_input_index = segments.first().map(|s| s.cpal_input_index).unwrap_or(0);
+        // #736: this group is one isolated input → one device → its OWN rate.
+        // Empty/absent override falls back to the chain scalar (bit-identical
+        // single-binding behaviour). Within a binding, input rate == output
+        // rate is validated at resolve time, so the input device's rate is the
+        // whole stream's rate.
+        let group_rate = segments
+            .first()
+            .and_then(|s| device_rates.get(&s.input.device_id).copied())
+            .unwrap_or(sample_rate);
         let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
             &eff_outputs,
-            sample_rate,
+            group_rate,
             elastic_targets,
             None,
         )?;
@@ -227,11 +240,12 @@ pub(crate) fn build_per_input_runtimes(
 pub fn build_per_input_runtime_states(
     chain: &Chain,
     sample_rate: f32,
+    device_rates: &HashMap<DeviceId, f32>,
     elastic_targets: &[usize],
     registry: &[IoBinding],
 ) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
     Ok(
-        build_per_input_runtimes(chain, sample_rate, elastic_targets, registry)?
+        build_per_input_runtimes(chain, sample_rate, device_rates, elastic_targets, registry)?
             .into_iter()
             .map(|(group, state)| (group, Arc::new(state)))
             .collect(),
@@ -1093,7 +1107,10 @@ impl RuntimeGraph {
             self.chains.remove(&(chain.id.clone(), *g));
         }
         let mut first: Option<Arc<ChainRuntimeState>> = None;
-        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets, registry)? {
+        // STOPGAP (Task 4 will replace with the real per-device map): pass an empty
+        // map so the full-rebuild path compiles; every group falls back to the
+        // chain-scalar sample_rate (bit-identical to pre-#736 behaviour).
+        for (group, state) in build_per_input_runtimes(chain, sample_rate, &HashMap::new(), elastic_targets, registry)? {
             state.set_volume_pct(chain.volume);
             let arc = Arc::new(state);
             if first.is_none() {
@@ -1121,6 +1138,76 @@ impl RuntimeGraph {
 // Slice 4 of Phase 2: block-level builders moved to runtime_block_builders.rs.
 // `runtime_graph.rs` only needs `build_runtime_block_nodes` for chain assembly.
 pub(crate) use crate::runtime_block_builders::build_runtime_block_nodes;
+
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+mod issue_736_per_binding_rate_tests {
+    use super::build_per_input_runtimes;
+    use std::collections::HashMap;
+    use domain::ids::{ChainId, DeviceId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::chain::Chain;
+
+    // Two mono inputs on two devices, paired with two outputs on the same two
+    // devices — two bindings, the #736 "Scarlett + TEYUN" shape.
+    fn two_binding_registry() -> Vec<IoBinding> {
+        vec![
+            IoBinding {
+                id: "a".into(),
+                name: "A".into(),
+                inputs: vec![IoEndpoint { name: "in".into(), device_id: DeviceId("devA".into()), mode: ChannelMode::Mono, channels: vec![0] }],
+                outputs: vec![IoEndpoint { name: "out".into(), device_id: DeviceId("devA".into()), mode: ChannelMode::Stereo, channels: vec![0, 1] }],
+            },
+            IoBinding {
+                id: "b".into(),
+                name: "B".into(),
+                inputs: vec![IoEndpoint { name: "in".into(), device_id: DeviceId("devB".into()), mode: ChannelMode::Mono, channels: vec![0] }],
+                outputs: vec![IoEndpoint { name: "out".into(), device_id: DeviceId("devB".into()), mode: ChannelMode::Stereo, channels: vec![0, 1] }],
+            },
+        ]
+    }
+
+    // Mirrored from crates/engine/tests/issue_716_per_binding_routing.rs —
+    // use direct struct construction since Chain has no new_for_test helper.
+    fn two_binding_chain() -> Chain {
+        Chain {
+            id: ChainId("rig:input-1".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["a".into(), "b".into()],
+            blocks: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn each_runtime_built_at_its_own_device_rate() {
+        let chain = two_binding_chain();
+        let registry = two_binding_registry();
+        let mut rates = HashMap::new();
+        rates.insert(DeviceId("devA".into()), 44_100.0_f32);
+        rates.insert(DeviceId("devB".into()), 48_000.0_f32);
+
+        let runtimes = build_per_input_runtimes(&chain, 48_000.0, &rates, &[], &registry)
+            .expect("two-binding build must succeed");
+        assert_eq!(runtimes.len(), 2, "two devices → two isolated runtimes");
+
+        let mut seen: Vec<f32> = runtimes.iter().map(|(_, s)| s.sample_rate()).collect();
+        seen.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        assert_eq!(seen, vec![44_100.0, 48_000.0], "each runtime clocked at its own device rate");
+    }
+
+    #[test]
+    fn empty_rate_map_falls_back_to_scalar_bit_exact() {
+        let chain = two_binding_chain();
+        let registry = two_binding_registry();
+        let empty: HashMap<DeviceId, f32> = HashMap::new();
+        let runtimes = build_per_input_runtimes(&chain, 48_000.0, &empty, &[], &registry).unwrap();
+        for (_, state) in &runtimes {
+            assert_eq!(state.sample_rate(), 48_000.0, "no override → scalar rate (legacy)");
+        }
+    }
+}
 
 #[cfg(test)]
 #[path = "issue_592_elastic_prime_tests.rs"]
