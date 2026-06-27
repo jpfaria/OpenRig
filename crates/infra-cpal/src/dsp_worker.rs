@@ -453,7 +453,23 @@ pub(crate) fn spawn(
                 // cost at window boundaries so N concurrent workers fit the
                 // kernel's time-constraint admission together — and a preemption
                 // stall (wall-clock) never churns the policy. Rare, between buffers.
+                let declared_before = budget.declared_ns;
                 if let Some(comp_ns) = budget.observe(compute_ns, rt_period_ns) {
+                    // #743 diagnostic (rare, worker thread): WHY the RT policy
+                    // re-declared. compute≈wall means the CPU-time guard
+                    // collapsed (thread_cpu_time_ns unavailable → preemption
+                    // leaks into the budget = churn); a genuinely high compute
+                    // means the rig is heavy for the buffer. Temporary, reverted
+                    // once the cause is confirmed.
+                    log::info!(
+                        "[#743 promote] re-declare compute={}us wall={}us declared={}us->{}us period={}us cpu_time_ok={}",
+                        compute_ns / 1000,
+                        wall_ns / 1000,
+                        declared_before / 1000,
+                        comp_ns / 1000,
+                        rt_period_ns / 1000,
+                        thread_cpu_time_ns().is_some(),
+                    );
                     promote_to_audio_rt(rt_period_ns, comp_ns);
                 }
                 // #670 diagnostic: name the magnitude of a late buffer so a
