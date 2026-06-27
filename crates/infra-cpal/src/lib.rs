@@ -48,6 +48,9 @@ pub struct AudioDeviceDescriptor {
 
 mod resolved;
 
+mod io_topology;
+pub use io_topology::io_topology_changed;
+
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_direct;
 

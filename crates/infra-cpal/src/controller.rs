@@ -758,13 +758,45 @@ impl ProjectRuntimeController {
     /// existing streams, so an E/S swap would NOT take effect until a project
     /// reopen; the caller must REBUILD the chain's streams when this is true.
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    pub fn chain_io_changed(&self, project: &Project, chain: &Chain) -> Result<bool> {
+    pub fn chain_io_changed(&self, _project: &Project, chain: &Chain) -> Result<bool> {
         let Some(active) = self.active_chains.get(&chain.id) else {
             return Ok(false); // not streaming — nothing to compare
         };
-        let host = get_host();
-        let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
-        Ok(active.stream_signature != resolved.stream_signature)
+        // #743: a re-bind is a device+channel change, which the binding registry
+        // and the live stream signature already carry — compare them directly.
+        // The old `resolve_chain_audio_config` here ran a CoreAudio device query
+        // (hundreds of ms per device, ~750 ms on a four-device rig) on the GUI
+        // thread every toggle-ON, freezing the UI for a check that needs no
+        // hardware. A rate/buffer change arrives via the device-settings sync,
+        // not this per-chain toggle path.
+        let live_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = active
+            .stream_signature
+            .inputs
+            .iter()
+            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .collect();
+        let live_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = active
+            .stream_signature
+            .outputs
+            .iter()
+            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .collect();
+        let (bound_in, bound_out) =
+            engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings);
+        let bound_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_in
+            .into_iter()
+            .map(|e| (e.device_id, e.channels))
+            .collect();
+        let bound_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_out
+            .into_iter()
+            .map(|e| (e.device_id, e.channels))
+            .collect();
+        Ok(crate::io_topology_changed(
+            &live_inputs,
+            &bound_inputs,
+            &live_outputs,
+            &bound_outputs,
+        ))
     }
 
     /// JACK build: stream-topology live-swap is not wired yet (cpal path first).
