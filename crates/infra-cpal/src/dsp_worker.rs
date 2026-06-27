@@ -144,7 +144,7 @@ fn thread_cpu_time_ns() -> Option<u64> {
 /// time-constraint computation from the measured worst case plus
 /// headroom, so N concurrent chains together stay inside what the
 /// kernel's admission will schedule. Plain data, worker-thread only.
-struct BudgetTracker {
+pub(crate) struct BudgetTracker {
     /// Highest and second-highest measured cost in the current window. The
     /// budget is driven by the SECOND highest, so a single transient outlier
     /// (a preemption stall — the worker descheduled mid-DSP, which inflates
@@ -170,7 +170,16 @@ impl BudgetTracker {
     /// the worker that itself perturbs its scheduling → more stalls).
     const SUSTAIN: u32 = 3;
 
-    fn new(declared_ns: u64) -> Self {
+    /// An idle/paused window measures (near) nothing — a drained chain's worker
+    /// only copies the buffer and short-circuits, ~1-2 µs. Below 1% of the period
+    /// the window carries no real cost signal, so the budget is left untouched;
+    /// collapsing it to the floor only forces a fast-up re-declare the instant
+    /// work resumes (#743). The threshold sits FAR under any measurable real
+    /// workload (e.g. the #698 cheap-settle test's 50 µs ≈ 3.4% of the period),
+    /// so genuine cheap chains still settle their budget down.
+    const IDLE_NS_DIVISOR: u64 = 100;
+
+    pub(crate) fn new(declared_ns: u64) -> Self {
         Self {
             window_max_ns: 0,
             window_2nd_ns: 0,
@@ -192,7 +201,7 @@ impl BudgetTracker {
     /// `rebuild_while_playing_keeps_the_cushion` without this). A SINGLE
     /// over-budget buffer is a preemption stall, not a cost change, and is
     /// ignored — otherwise the policy churns (the #698 single-chain crackle).
-    fn observe(&mut self, elapsed_ns: u64, period_ns: u64) -> Option<u64> {
+    pub(crate) fn observe(&mut self, elapsed_ns: u64, period_ns: u64) -> Option<u64> {
         if elapsed_ns > self.declared_ns {
             self.consecutive_over += 1;
         } else {
@@ -219,10 +228,19 @@ impl BudgetTracker {
         // capped at the validated 85%. Using the SECOND highest makes one
         // isolated preemption stall per window invisible to the budget.
         let robust = self.window_2nd_ns;
-        let target = (robust + robust / 4).clamp(period_ns / 10, period_ns * 85 / 100);
         self.window_max_ns = 0;
         self.window_2nd_ns = 0;
         self.window_count = 0;
+        // #743: an idle/paused window (the worker measured ~nothing — a drained
+        // chain) must NOT collapse the budget to the floor. Doing so only forces
+        // the fast-up to re-declare the policy the instant work resumes, so every
+        // pause/resume churns two `thread_policy_set` syscalls and the resulting
+        // scheduling perturbation shows up as 4-6 ms late buffers. Keep the
+        // standing budget across an idle window.
+        if robust < period_ns / Self::IDLE_NS_DIVISOR {
+            return None;
+        }
+        let target = (robust + robust / 4).clamp(period_ns / 10, period_ns * 85 / 100);
         if target.abs_diff(self.declared_ns) > period_ns / 10 {
             self.declared_ns = target;
             return Some(target);
