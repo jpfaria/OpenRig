@@ -217,10 +217,28 @@ echo "==> Verifying signature..."
 codesign --verify --deep --strict --verbose=2 "$APP"
 echo "    signature valid"
 
-# ── 6. Verify binary ──────────────────────────────────────────────────────────
-echo "==> Verifying binary..."
-file "$APP/Contents/MacOS/openrig"
-echo "    binary OK"
+# ── 6. Verify binaries ─────────────────────────────────────────────────────────
+# Every shipped executable must be a universal Mach-O, and the headless
+# binaries (#741) must resolve libnam_wrapper.dylib through the bundled
+# Frameworks rpath — the macOS analog of the Linux ldd gate. The offline
+# renderer is the smoke target: run it with no args (it exits non-zero on the
+# missing --chain), but a broken rpath aborts in dyld with "Library not
+# loaded", which we treat as fatal rather than ship a binary that can't launch.
+echo "==> Verifying binaries..."
+for b in openrig $(console_binaries | awk '{print $2}'); do
+    file "$APP/Contents/MacOS/$b" | grep -q 'Mach-O' \
+        || { echo "FATAL: $b is not a Mach-O binary" >&2; exit 1; }
+done
+SMOKE_ERR="$(mktemp)"
+"$APP/Contents/MacOS/openrig-render" >/dev/null 2>"$SMOKE_ERR" || true
+if grep -q 'Library not loaded' "$SMOKE_ERR"; then
+    echo "FATAL: openrig-render cannot load libnam_wrapper.dylib (rpath broken)" >&2
+    cat "$SMOKE_ERR" >&2
+    rm -f "$SMOKE_ERR"
+    exit 1
+fi
+rm -f "$SMOKE_ERR"
+echo "    binaries OK (universal Mach-O; openrig-render resolves libnam_wrapper)"
 
 # ── 7. Create .dmg with drag-to-Applications ──────────────────────────────────
 echo "==> Creating .dmg..."
