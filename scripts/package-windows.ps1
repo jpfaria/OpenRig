@@ -4,8 +4,10 @@
     Mirrors exactly what GitHub Actions does for the Windows build.
 
 .DESCRIPTION
-    Assumes cargo build --release -p adapter-gui has already run.
-    Stages all required files (binary, NAM DLL, LV2 libs, data, assets, captures),
+    Assumes the release binaries have already been built, i.e.
+    cargo build --release -p adapter-gui -p adapter-console -p adapter-console-rig -p adapter-render
+    (the GUI plus the headless console + offline-render binaries, issue #741).
+    Stages all required files (binaries, NAM DLL, LV2 libs, data, assets, captures),
     then uses WiX Toolset v3 (heat + candle + light) to build the MSI.
 
 .PARAMETER Version
@@ -86,6 +88,27 @@ try {
     New-Item -ItemType Directory -Force $stageDir | Out-Null
 
     Copy-Item "target\release\adapter-gui.exe"              "$stageDir\openrig.exe"
+
+    # ── Console + offline-render binaries (issue #741) ─────────────────────────
+    # The package used to ship the GUI only, so an installed OpenRig could not
+    # run headless or render a chain offline. Stage the headless console and
+    # the offline renderer next to openrig.exe. The list is the single source
+    # of truth scripts\lib\console-binaries.tsv, shared with the macOS/Linux
+    # packagers. They link the same nam_wrapper DLL (staged below into this same
+    # dir) and the MinGW runtime DLLs, so no extra per-binary handling is needed.
+    $consoleTsv = Join-Path $RepoRoot "scripts\lib\console-binaries.tsv"
+    Get-Content $consoleTsv | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -eq "" -or $line.StartsWith("#")) { return }
+        $cols = $line -split '\s+'
+        $built = $cols[1]; $installed = $cols[2]
+        $src = "target\release\$built.exe"
+        if (-not (Test-Path $src)) {
+            throw "console binary $src not found — did cargo build run?"
+        }
+        Copy-Item $src "$stageDir\$installed.exe"
+        Write-Host "    staged $built.exe -> $installed.exe"
+    }
 
     # ── NAM wrapper DLL ───────────────────────────────────────────────────────
     # The nam crate's build.rs cmake-builds cpp\ (NeuralAmpModelerCore) into the

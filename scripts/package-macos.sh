@@ -9,9 +9,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 source scripts/lib/plugins-bundle.sh
+source scripts/lib/console-binaries.sh
 # Resolve (and validate) the plugins source up front — an invalid override
 # must fail here, not after two release builds.
 PLUGINS_SRC="$(plugins_src_dir)"
+# Extra binaries shipped next to the GUI (headless console + offline render).
+CONSOLE_BUILD_FLAGS="$(console_build_flags)"
 
 # ── 1. Rust targets ──────────────────────────────────────────────────────────
 echo "==> Adding Rust targets..."
@@ -19,10 +22,10 @@ rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
 # ── 2. Build (universal: arm64 + x86_64) ─────────────────────────────────────
 echo "==> Building arm64..."
-cargo build --release --target aarch64-apple-darwin -p adapter-gui
+cargo build --release --target aarch64-apple-darwin -p adapter-gui $CONSOLE_BUILD_FLAGS
 
 echo "==> Building x86_64..."
-cargo build --release --target x86_64-apple-darwin -p adapter-gui
+cargo build --release --target x86_64-apple-darwin -p adapter-gui $CONSOLE_BUILD_FLAGS
 
 # ── 3. Generate .icns from OpenRig logo SVG ───────────────────────────────────
 echo "==> Generating icon from openrig-logomark.svg..."
@@ -89,6 +92,23 @@ echo "    bundled universal libnam_wrapper.dylib into Frameworks/"
 install_name_tool \
     -add_rpath "@executable_path/../Frameworks" \
     "$APP/Contents/MacOS/openrig" 2>/dev/null || true
+
+# ── Console + offline-render binaries (issue #741) ───────────────────────────
+# The GUI is not the only shipped interface. Bundle the headless console
+# (adapter-console / adapter-console-rig) and the offline renderer
+# (openrig-render) too — universal-lipo'd and rpath'd exactly like the GUI,
+# since they all link @rpath/libnam_wrapper.dylib via the engine core.
+while read -r built installed; do
+    lipo -create \
+        "target/aarch64-apple-darwin/release/$built" \
+        "target/x86_64-apple-darwin/release/$built" \
+        -output "$APP/Contents/MacOS/$installed"
+    chmod +x "$APP/Contents/MacOS/$installed"
+    install_name_tool \
+        -add_rpath "@executable_path/../Frameworks" \
+        "$APP/Contents/MacOS/$installed" 2>/dev/null || true
+    echo "    bundled universal $installed into MacOS/"
+done < <(console_binaries)
 
 cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
 cp -r assets                   "$APP/Contents/Resources/assets"
@@ -165,15 +185,17 @@ echo "==> Signing app (ad-hoc, inside-out)..."
 # "printf: Broken pipe" and exit 1 once the .app's full plugin tree is
 # present). No per-file `-exec sh -c` subshell either (issue #463,
 # regression of #459 which only tested a tiny bundle).
-# Order matters: codesign of the main executable verifies that every
+# Order matters: codesign of an executable verifies that every
 # subcomponent it links (e.g. Frameworks/libnam_wrapper.dylib) is
 # already signed, else it fails "code object is not signed at all / In
 # subcomponent: ...". `find` order is not inside-out, so sign every
-# nested Mach-O here but SKIP the main executable, then sign it after
-# the loop (deps first), then the bundle last (issue #463).
-MAIN_EXE="$APP/Contents/MacOS/openrig"
+# nested Mach-O here but SKIP everything under Contents/MacOS (the GUI
+# plus the #741 console/render executables, which all link the
+# Frameworks dylib), then sign those after the loop (deps first), then
+# the bundle last (issue #463).
+MACOS_DIR="$APP/Contents/MacOS"
 while IFS= read -r -d '' f; do
-    [ "$f" = "$MAIN_EXE" ] && continue
+    case "$f" in "$MACOS_DIR/"*) continue ;; esac
     case "$(file -b "$f" 2>/dev/null)" in
         *Mach-O*)
             codesign --force --sign - --timestamp=none "$f" \
@@ -181,8 +203,11 @@ while IFS= read -r -d '' f; do
             ;;
     esac
 done < <(find "$APP/Contents" -type f -print0)
-codesign --force --sign - --timestamp=none "$MAIN_EXE" \
-    || { echo "FATAL: codesign failed for $MAIN_EXE" >&2; exit 1; }
+for exe in "$MACOS_DIR"/*; do
+    [ -f "$exe" ] || continue
+    codesign --force --sign - --timestamp=none "$exe" \
+        || { echo "FATAL: codesign failed for $exe" >&2; exit 1; }
+done
 codesign --force --sign - --timestamp=none "$APP" \
     || { echo "FATAL: codesign failed for the .app bundle" >&2; exit 1; }
 
@@ -192,10 +217,28 @@ echo "==> Verifying signature..."
 codesign --verify --deep --strict --verbose=2 "$APP"
 echo "    signature valid"
 
-# ── 6. Verify binary ──────────────────────────────────────────────────────────
-echo "==> Verifying binary..."
-file "$APP/Contents/MacOS/openrig"
-echo "    binary OK"
+# ── 6. Verify binaries ─────────────────────────────────────────────────────────
+# Every shipped executable must be a universal Mach-O, and the headless
+# binaries (#741) must resolve libnam_wrapper.dylib through the bundled
+# Frameworks rpath — the macOS analog of the Linux ldd gate. The offline
+# renderer is the smoke target: run it with no args (it exits non-zero on the
+# missing --chain), but a broken rpath aborts in dyld with "Library not
+# loaded", which we treat as fatal rather than ship a binary that can't launch.
+echo "==> Verifying binaries..."
+for b in openrig $(console_binaries | awk '{print $2}'); do
+    file "$APP/Contents/MacOS/$b" | grep -q 'Mach-O' \
+        || { echo "FATAL: $b is not a Mach-O binary" >&2; exit 1; }
+done
+SMOKE_ERR="$(mktemp)"
+"$APP/Contents/MacOS/openrig-render" >/dev/null 2>"$SMOKE_ERR" || true
+if grep -q 'Library not loaded' "$SMOKE_ERR"; then
+    echo "FATAL: openrig-render cannot load libnam_wrapper.dylib (rpath broken)" >&2
+    cat "$SMOKE_ERR" >&2
+    rm -f "$SMOKE_ERR"
+    exit 1
+fi
+rm -f "$SMOKE_ERR"
+echo "    binaries OK (universal Mach-O; openrig-render resolves libnam_wrapper)"
 
 # ── 7. Create .dmg with drag-to-Applications ──────────────────────────────────
 echo "==> Creating .dmg..."
