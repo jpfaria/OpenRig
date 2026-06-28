@@ -579,18 +579,14 @@ fn build_chain_streams(
             })?;
             bound.push(fallback);
         }
-        let _t743 = std::time::Instant::now();
         let stream = build_input_stream_for_input(chain_id, cpal_index, resolved_input, bound)?;
-        eprintln!("[#743 build] input cpal_index={cpal_index} built in {:?}", _t743.elapsed());
         input_streams.push(stream);
     }
 
     let mut output_streams = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
-        let _t743 = std::time::Instant::now();
         let stream =
             build_output_stream_for_output(chain_id, j, resolved_output, all_slots.clone())?;
-        eprintln!("[#743 build] output index={j} built in {:?}", _t743.elapsed());
         output_streams.push(stream);
     }
 
