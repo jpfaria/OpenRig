@@ -312,3 +312,50 @@ fn subscribe_input_tap_must_honour_endpoint_channel_not_default_to_zero() {
          the screenshot the user posted."
     );
 }
+
+/// Issue #740 — switching a preset rebuilds the chain OFF-THREAD (the #740
+/// live-edit fix). The runtime is swapped in the slot/graph; the spectrum/meter
+/// ("gráfico") subscribed its tap on the OLD runtime, so unless the swap migrates
+/// the tap subscriptions to the rebuilt runtime the graph freezes — no samples
+/// reach it once the new runtime is the one processing audio.
+#[test]
+fn an_offthread_rebuild_keeps_the_graph_tap_alive() {
+    let chain = two_stream_mono_chain("rig:input-1");
+    let registry = two_stream_mono_registry("scarlett", "monitor");
+    let (mut controller, _old) = controller_with_single_runtime(&chain, &registry);
+
+    // The graph subscribes a tap on the live runtime (stream 0).
+    let ring = controller
+        .subscribe_stream_input_tap(&chain.id, 0, 256)
+        .expect("graph tap on stream 0");
+
+    // A preset switch: rebuild the chain off-thread, then apply on the poll tick.
+    let by_device =
+        std::collections::HashMap::from([(DeviceId("scarlett".into()), 48_000.0_f32)]);
+    controller.schedule_chain_rebuild(&chain, 48_000.0, by_device, vec![512]);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while controller.poll_pending_rebuilds() == 0 {
+        assert!(std::time::Instant::now() < deadline, "off-thread rebuild never applied");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+
+    // The rebuilt runtime is now the one processing audio. Drive it and confirm
+    // the SAME tap ring still receives the samples.
+    let new_runtime = controller
+        .chain_runtime(&chain.id)
+        .expect("a live runtime after the rebuild");
+    let frames = 8usize;
+    let samples: Vec<f32> = (0..frames).flat_map(|_| [0.5_f32, 0.0_f32]).collect();
+    process_input_f32(&new_runtime, 0, &samples, 2);
+
+    let mut got = Vec::new();
+    while let Some(s) = ring.pop() {
+        got.push(s);
+    }
+    assert!(
+        !got.is_empty(),
+        "BUG #740: after an off-thread rebuild (preset switch) the graph tap received NO \
+         samples — the tap subscriptions were not migrated to the rebuilt runtime, so the \
+         spectrum/meter freezes."
+    );
+}

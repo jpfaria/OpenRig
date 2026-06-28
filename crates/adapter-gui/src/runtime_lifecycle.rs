@@ -163,17 +163,24 @@ pub(crate) fn sync_live_chain_runtime(
                     runtime.upsert_chain(&*proj, chain)?;
                 }
                 LiveSyncAction::Enable { io_changed } => {
-                    // Issue #672: cold activation of a single-input chain builds
-                    // the runtime off the control worker and installs it on the
-                    // poll tick. A LIVE edit (model swap, param, block) keeps the
-                    // engine's in-place lock-free update via upsert_chain.
-                    // #716: a re-bind changes stream topology, so REBUILD (drop
-                    // the streams) when the resolved I/O differs from what's live.
+                    // Issue #672/#693: a cold activation builds the runtime off the
+                    // control worker and installs it on the poll tick.
+                    // #716: a re-bind changes stream topology, so REBUILD (drop the
+                    // streams) when the resolved I/O differs from what's live.
+                    // #740: a LIVE edit (preset switch, block toggle, param change)
+                    // on an ALREADY-RUNNING chain must NOT go through the
+                    // synchronous `upsert_chain` — that resolves the devices AND
+                    // reloads the NAM/IR models on the GUI thread (measured ~5.7 s
+                    // on the owner's two-interface rig, the freeze on every edit).
+                    // With unchanged I/O it reuses the live stream config and
+                    // rebuilds the DSP off-thread; the GUI returns immediately.
                     let chain = chain.expect("Enable implies the chain is present");
                     if io_changed {
                         runtime.remove_chain(&chain.id);
                     }
-                    if !runtime.schedule_chain_activation(&*proj, chain)? {
+                    if !runtime.schedule_chain_activation(&*proj, chain)?
+                        && !runtime.request_offthread_rebuild_if_live(&*proj, chain)?
+                    {
                         runtime.upsert_chain(&*proj, chain)?;
                     }
                 }
