@@ -538,6 +538,21 @@ impl ChainRuntimeState {
         handles
     }
 
+    /// Issue #740: migrate the live tap subscriptions (meter / spectrum /
+    /// tuner rings) from a SUPERSEDED runtime onto this freshly-rebuilt one.
+    ///
+    /// An off-thread rebuild (preset switch, param/block edit) builds a NEW
+    /// `ChainRuntimeState` and swaps it into the live slot. The UI subscribed
+    /// its taps on the OLD runtime, so without this the rebuilt runtime — now
+    /// the one processing audio — feeds nothing and the graph freezes. The taps
+    /// are `Arc`s shared with the UI consumers, so adopting the same `Arc`s makes
+    /// the new runtime feed the exact rings the UI is already reading. Lock-free
+    /// `ArcSwap` store, same as `subscribe_*`.
+    pub fn adopt_taps_from(&self, superseded: &ChainRuntimeState) {
+        self.input_taps.store(superseded.input_taps.load_full());
+        self.stream_taps.store(superseded.stream_taps.load_full());
+    }
+
     /// Drop stream taps whose consumer handles have all been released.
     /// Mirrors `prune_dead_input_taps`.
     pub fn prune_dead_stream_taps(&self) {

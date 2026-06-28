@@ -265,6 +265,11 @@ impl ProjectRuntimeController {
                     for (group, runtime) in runtimes {
                         let key = (chain_id.clone(), group);
                         if let Some(slot) = self.chain_slots.get(&key) {
+                            // #740: carry the live meter/spectrum/tuner taps over
+                            // to the rebuilt runtime BEFORE it goes live, or the
+                            // graph freezes after a preset switch / live edit (the
+                            // UI's tap rings were subscribed on the old runtime).
+                            runtime.adopt_taps_from(&slot.load());
                             let graph_runtime = Arc::clone(&runtime);
                             let superseded = slot.publish(runtime);
                             self.runtime_graph.chains.insert(key, graph_runtime);
