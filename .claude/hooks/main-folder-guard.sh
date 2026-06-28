@@ -39,6 +39,17 @@ deny() {
 
 REASON="LEI ZERO (OpenRig): the MAIN folder is off-limits to agents. Edit/Write/VCS that land in the main working tree are BLOCKED. Work ONLY inside .solvers/issue-N (isolated clone) — set it up there, edit there, commit there, push there. (CLAUDE.md LEI ZERO)"
 
+# True if $1 references repo_root at a PATH BOUNDARY (followed by /, end, space
+# or quote). Anchored so a sibling repo like "<repo_root>-plugins" is NOT taken
+# for the repo itself (issue #751).
+names_main() {
+  case "$1" in
+    *"$repo_root"/*|*"$repo_root") return 0 ;;
+    *"$repo_root"" "*|*"$repo_root"\"*|*"$repo_root"\'*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 case "$tool" in
   Edit|Write|NotebookEdit)
     f="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')"
@@ -50,6 +61,11 @@ case "$tool" in
     esac ;;
   Bash)
     cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
+    # Working dir already inside an isolated clone → allow (covers bare VCS like
+    # `git commit` run after a cd, which carries no .solvers/ token; issue #751).
+    case "$PWD" in
+      "$solvers"/*|"$solvers") exit 0 ;;
+    esac
     # Commands scoped to an isolated clone (.solvers/…) are allowed — VCS
     # included — as long as they do not ALSO reference the main repo OUTSIDE
     # of .solvers/. Strip every .solvers/ path token, then see what's left.
@@ -57,18 +73,17 @@ case "$tool" in
       stripped="$(printf '%s' "$cmd" \
         | sed "s#${solvers}/[^[:space:]]*##g" \
         | sed "s#\.solvers/[^[:space:]]*##g")"
-      case "$stripped" in
-        *"$repo_root"*) deny "$REASON" ;;  # still names the main repo outside .solvers
-        *)              exit 0 ;;          # only the clone is touched — allow
-      esac
+      if names_main "$stripped"; then
+        deny "$REASON"   # still names the main repo outside .solvers
+      else
+        exit 0           # only the clone is touched — allow
+      fi
     fi
     # No .solvers/ reference → strict: no bare VCS, no main-repo path from the
     # main folder's working tree.
     if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_])git([^[:alnum:]_]|$)'; then
       deny "$REASON"
     fi
-    case "$cmd" in
-      *"$repo_root"*) deny "$REASON" ;;
-    esac ;;
+    names_main "$cmd" && deny "$REASON" ;;
 esac
 exit 0
