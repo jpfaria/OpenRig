@@ -93,3 +93,42 @@ fn pause_resume_cycles_do_not_churn_the_rt_budget() {
          buffers). A paused chain must keep its standing budget."
     );
 }
+
+/// Issue #743 — steady-play window variance must not churn the budget. The
+/// owner's measured compute is steady ~150 µs (~11 %) but spiky: the window's
+/// second-highest cost swings window-to-window (the owner's logs bounced the
+/// declared budget 372 ↔ 592 µs every ~2.7 s). Each swing crossed the old
+/// period/10 hysteresis and re-declared, and the DOWNWARD swings are pure churn —
+/// the budget was already comfortably above the real cost. The budget must be
+/// sticky downward: grow promptly (RT safety) but shrink only on a sustained run
+/// of low windows, so normal variance stops re-declaring.
+#[test]
+fn steady_play_window_variance_does_not_churn_the_budget() {
+    const PERIOD_NS: u64 = 1_333_000; // 64 frames @ 48 kHz
+    const WINDOW: usize = 2048;
+    let mut b = BudgetTracker::new(PERIOD_NS * 85 / 100);
+
+    // Twelve windows of a steady light load (~150 µs) whose per-window worst
+    // case alternates between two levels — both far below the period — so the
+    // second-highest cost (the budget driver) swings band-to-band every window.
+    let mut redeclares = 0;
+    for w in 0..12 {
+        let peak = if w % 2 == 0 { 300_000 } else { 470_000 };
+        for i in 0..WINDOW {
+            // Two spikes per window so the SECOND-highest is the band level
+            // (a single spike per window is invisible by design).
+            let compute = if i < 2 { peak } else { 150_000 };
+            if b.observe(compute, PERIOD_NS).is_some() {
+                redeclares += 1;
+            }
+        }
+    }
+
+    assert!(
+        redeclares <= 3,
+        "BUG #743: a steady light load with window-to-window variance re-declared \
+         the RT budget {redeclares} times — the budget chased the per-window noise \
+         (the owner's 372 ↔ 592 µs bounce). It must settle to the recent high-water \
+         and stop re-declaring; downward swings are needless thread_policy_set churn."
+    );
+}
