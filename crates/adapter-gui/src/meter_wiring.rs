@@ -314,6 +314,11 @@ pub fn build_streams_from_taps<T: MeterTapApi>(
 /// re-spawning after a toggle), the missing slots stay [`SILENT_DBFS`].
 /// Both symptoms reported in #532 collapse to the same fix.
 ///
+/// Issue #750: when `enabled` is false the row is EMPTY — the per-stream graph
+/// is a live surface that must not show on a disabled chain. This overrides the
+/// `.max(1)` clamp, so the timer can't re-grow the footer a tick after the
+/// chain is switched off.
+///
 /// The OUTPUT reading is scaled by `apply_chain_volume_db` because the
 /// stream_tap reads the signal BEFORE the audio callback applies the
 /// chain volume slider (#496). INPUT is untouched.
@@ -321,7 +326,13 @@ pub fn rebuild_stream_meters_row(
     engine_readings: &[StreamMeterReading],
     project_input_count: usize,
     chain_volume: f32,
+    enabled: bool,
 ) -> Vec<crate::StreamMeter> {
+    // #750: the per-stream graph is a LIVE surface — a disabled chain renders
+    // no rows at all, overriding the `.max(1)` clamp below.
+    if !enabled {
+        return Vec::new();
+    }
     let len = project_input_count.max(1);
     (0..len)
         .map(|i| match engine_readings.get(i) {
@@ -518,8 +529,16 @@ pub fn start_meter_polling(
                 .unwrap_or_default();
             let project_streams =
                 project_input_count(&project.chains[idx], &session.io_bindings.borrow());
-            let per_stream_rows: Vec<crate::StreamMeter> =
-                rebuild_stream_meters_row(&engine_streams, project_streams, chain_volume);
+            // #750: a disabled chain renders no per-stream rows. The timer
+            // still visits it (a stale tap may report a tick after toggle-off),
+            // so the `enabled` flag — not just the resolved count — gates the
+            // row out; otherwise the `.max(1)` clamp keeps the graph stuck on.
+            let per_stream_rows: Vec<crate::StreamMeter> = rebuild_stream_meters_row(
+                &engine_streams,
+                project_streams,
+                chain_volume,
+                project.chains[idx].enabled,
+            );
             let stream_meters_changed = {
                 use slint::Model;
                 let current = row.stream_meters.iter().collect::<Vec<_>>();

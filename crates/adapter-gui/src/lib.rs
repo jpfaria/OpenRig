@@ -178,6 +178,9 @@ mod compact_block_search_wiring_tests;
 mod chain_io_chip_label_tests;
 
 #[cfg(test)]
+mod project_view_stream_meters_tests;
+
+#[cfg(test)]
 mod touch_window_io_parity_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow

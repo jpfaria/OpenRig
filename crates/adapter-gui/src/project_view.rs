@@ -503,19 +503,27 @@ pub(crate) fn replace_project_chains(
                 // Issue #670: no overload until the meter timer observes
                 // xruns from the running audio callback.
                 audio_overload: false,
-                // Per-stream meter slots. Length matches the number of
-                // input entries on the chain (one stream per input runtime
-                // in the engine, per invariant #4). Timer fills the live
-                // values; defaults to SILENT here so the UI renders the
-                // right number of (silent) bars on first paint.
+                // Per-stream meter slots. When the chain is enabled the length
+                // matches the number of resolved input endpoints (one stream
+                // per input runtime in the engine, per invariant #4); the
+                // timer fills the live values, defaulting to SILENT here so the
+                // UI renders the right number of (silent) bars on first paint.
+                // When disabled the length is 0 (#750: the live graph hides).
                 stream_meters: {
-                    // #716: one stream per resolved input endpoint (from the
-                    // binding registry), not per block `entries`.
-                    let stream_count: usize =
+                    // #750: the per-stream graph is a LIVE surface — render
+                    // ZERO rows while the chain is disabled so nothing shows
+                    // until it is enabled. When enabled, one stream per
+                    // resolved input endpoint (#716: from the binding registry,
+                    // not per block `entries`), min 1 so an enabled-but-
+                    // unresolved chain still shows a row.
+                    let stream_count: usize = if chain.enabled {
                         engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
                             .0
                             .len()
-                            .max(1);
+                            .max(1)
+                    } else {
+                        0
+                    };
                     let model: Rc<VecModel<crate::StreamMeter>> = Rc::new(VecModel::default());
                     for _ in 0..stream_count {
                         model.push(crate::StreamMeter {
