@@ -76,3 +76,16 @@ pub(crate) fn compute_elastic_targets_for_chain(
         })
         .collect()
 }
+
+/// #740: per-output elastic targets for an I/O-UNCHANGED live rebuild, derived
+/// straight from the live output buffer sizes — no device resolve. Uses the
+/// regular-output multiplier (an Insert send's leaner cushion just resizes
+/// harmlessly on the next full rebuild). Lets a param/block/preset edit reuse
+/// the running stream config and rebuild the DSP off-thread instead of blocking
+/// the GUI on a CoreAudio resolve.
+pub(crate) fn elastic_targets_from_output_buffers(output_buffer_frames: &[u32]) -> Vec<usize> {
+    output_buffer_frames
+        .iter()
+        .map(|&buf| elastic_target_for_buffer(buf, ELASTIC_MULTIPLIER_REGULAR))
+        .collect()
+}

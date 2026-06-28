@@ -724,19 +724,34 @@ impl ProjectRuntimeController {
         if !self.active_chains.contains_key(&chain.id) {
             return Ok(false); // cold activation — caller does the synchronous build
         }
-        let host = get_host();
-        let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
-        let io_unchanged = self
-            .active_chains
-            .get(&chain.id)
-            .map(|active| active.stream_signature == resolved.stream_signature)
-            .unwrap_or(false);
-        if !io_unchanged {
-            return Ok(false); // IO topology changed — needs a synchronous stream rebuild
+        // #740: a re-bind (device/channel change) needs a synchronous stream
+        // rebuild; detect it CHEAPLY (binding vs live signature, no CoreAudio).
+        if self.chain_io_changed(project, chain)? {
+            return Ok(false);
         }
-        let elastic_targets =
-            compute_elastic_targets_for_chain(chain, &resolved, &self.io_bindings);
-        self.schedule_chain_rebuild(chain, resolved.sample_rate, resolved.by_device.clone(), elastic_targets);
+        // I/O unchanged: a param/block/preset edit reuses the running stream
+        // config, so derive the rebuild params from the LIVE signature instead of
+        // a synchronous CoreAudio resolve (the ~hundreds-ms freeze the owner felt
+        // on every edit, on top of the off-thread NAM reload). The heavy DSP
+        // rebuild then runs on the worker; the GUI returns immediately.
+        let (sample_rate, device_sample_rates, out_buffers) = {
+            let sig = &self
+                .active_chains
+                .get(&chain.id)
+                .expect("just checked active")
+                .stream_signature;
+            let sample_rate = sig.inputs.first().map(|i| i.sample_rate as f32).unwrap_or(48_000.0);
+            let device_sample_rates: std::collections::HashMap<domain::ids::DeviceId, f32> = sig
+                .inputs
+                .iter()
+                .map(|i| (domain::ids::DeviceId(i.device_id.clone()), i.sample_rate as f32))
+                .collect();
+            let out_buffers: Vec<u32> =
+                sig.outputs.iter().map(|o| o.buffer_size_frames).collect();
+            (sample_rate, device_sample_rates, out_buffers)
+        };
+        let elastic_targets = crate::elastic::elastic_targets_from_output_buffers(&out_buffers);
+        self.schedule_chain_rebuild(chain, sample_rate, device_sample_rates, elastic_targets);
         Ok(true)
     }
 
