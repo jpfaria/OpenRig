@@ -144,7 +144,7 @@ fn thread_cpu_time_ns() -> Option<u64> {
 /// time-constraint computation from the measured worst case plus
 /// headroom, so N concurrent chains together stay inside what the
 /// kernel's admission will schedule. Plain data, worker-thread only.
-struct BudgetTracker {
+pub(crate) struct BudgetTracker {
     /// Highest and second-highest measured cost in the current window. The
     /// budget is driven by the SECOND highest, so a single transient outlier
     /// (a preemption stall — the worker descheduled mid-DSP, which inflates
@@ -158,6 +158,13 @@ struct BudgetTracker {
     /// Consecutive buffers measured over the declared budget. The fast
     /// up-correction fires only when this is SUSTAINED, never on a lone spike.
     consecutive_over: u32,
+    /// #743: consecutive WINDOWS whose target sits below the declared budget,
+    /// and the highest such target seen across that run. The budget shrinks only
+    /// after a sustained run (never on a single low window), and settles to the
+    /// run's high-water — so a steady but spiky load whose per-window cost
+    /// alternates does not bounce the policy down and back up.
+    low_run: u32,
+    low_run_peak_ns: u64,
 }
 
 impl BudgetTracker {
@@ -170,13 +177,29 @@ impl BudgetTracker {
     /// the worker that itself perturbs its scheduling → more stalls).
     const SUSTAIN: u32 = 3;
 
-    fn new(declared_ns: u64) -> Self {
+    /// An idle/paused window measures (near) nothing — a drained chain's worker
+    /// only copies the buffer and short-circuits, ~1-2 µs. Below 1% of the period
+    /// the window carries no real cost signal, so the budget is left untouched;
+    /// collapsing it to the floor only forces a fast-up re-declare the instant
+    /// work resumes (#743). The threshold sits FAR under any measurable real
+    /// workload (e.g. the #698 cheap-settle test's 50 µs ≈ 3.4% of the period),
+    /// so genuine cheap chains still settle their budget down.
+    const IDLE_NS_DIVISOR: u64 = 100;
+
+    /// Windows of sustained below-budget cost required before the budget shrinks
+    /// (≈11 s at 2048 buffers / 64 frames / 48 kHz). A shorter run is just
+    /// normal window-to-window variance and must not re-declare (#743).
+    const DOWN_SUSTAIN: u32 = 4;
+
+    pub(crate) fn new(declared_ns: u64) -> Self {
         Self {
             window_max_ns: 0,
             window_2nd_ns: 0,
             window_count: 0,
             declared_ns,
             consecutive_over: 0,
+            low_run: 0,
+            low_run_peak_ns: 0,
         }
     }
 
@@ -192,7 +215,7 @@ impl BudgetTracker {
     /// `rebuild_while_playing_keeps_the_cushion` without this). A SINGLE
     /// over-budget buffer is a preemption stall, not a cost change, and is
     /// ignored — otherwise the policy churns (the #698 single-chain crackle).
-    fn observe(&mut self, elapsed_ns: u64, period_ns: u64) -> Option<u64> {
+    pub(crate) fn observe(&mut self, elapsed_ns: u64, period_ns: u64) -> Option<u64> {
         if elapsed_ns > self.declared_ns {
             self.consecutive_over += 1;
         } else {
@@ -219,14 +242,47 @@ impl BudgetTracker {
         // capped at the validated 85%. Using the SECOND highest makes one
         // isolated preemption stall per window invisible to the budget.
         let robust = self.window_2nd_ns;
-        let target = (robust + robust / 4).clamp(period_ns / 10, period_ns * 85 / 100);
         self.window_max_ns = 0;
         self.window_2nd_ns = 0;
         self.window_count = 0;
-        if target.abs_diff(self.declared_ns) > period_ns / 10 {
+        // #743: an idle/paused window (the worker measured ~nothing — a drained
+        // chain) must NOT collapse the budget to the floor. Doing so only forces
+        // the fast-up to re-declare the policy the instant work resumes, so every
+        // pause/resume churns two `thread_policy_set` syscalls and the resulting
+        // scheduling perturbation shows up as 4-6 ms late buffers. Keep the
+        // standing budget across an idle window.
+        if robust < period_ns / Self::IDLE_NS_DIVISOR {
+            return None;
+        }
+        let target = (robust + robust / 4).clamp(period_ns / 10, period_ns * 85 / 100);
+        let hyst = period_ns / 10;
+        // Grow promptly: an under-budget RT thread gets demoted (#698 safety).
+        if target > self.declared_ns + hyst {
             self.declared_ns = target;
+            self.low_run = 0;
+            self.low_run_peak_ns = 0;
             return Some(target);
         }
+        // #743: the target sits meaningfully BELOW the standing budget. A single
+        // low window is just variance — shrinking now only invites a re-grow next
+        // window (the owner's 372 ↔ 592 µs steady-play churn). Shrink only after
+        // a sustained run of low windows, and then to the run's HIGH-WATER so a
+        // spiky-but-steady load settles to its peak instead of bouncing.
+        if self.declared_ns > target + hyst {
+            self.low_run += 1;
+            self.low_run_peak_ns = self.low_run_peak_ns.max(target);
+            if self.low_run >= Self::DOWN_SUSTAIN {
+                let settled = self.low_run_peak_ns;
+                self.declared_ns = settled;
+                self.low_run = 0;
+                self.low_run_peak_ns = 0;
+                return Some(settled);
+            }
+            return None;
+        }
+        // Within hysteresis — the budget already fits the load.
+        self.low_run = 0;
+        self.low_run_peak_ns = 0;
         None
     }
 
@@ -548,7 +604,12 @@ mod budget_tracker_tests {
     #[test]
     fn still_rebudgets_on_a_sustained_real_cost_increase() {
         let mut b = BudgetTracker::new(PERIOD_NS * 85 / 100);
-        let _ = count_redeclares(&mut b, BudgetTracker::WINDOW as usize, |_| CHEAP_NS);
+        // Settle to the real cheap cost first. #743: the budget is sticky
+        // downward, so it shrinks only after DOWN_SUSTAIN low windows — warm up
+        // past that so `declared` actually reaches the cheap cost before the
+        // increase (a 1-window warmup would leave it at the cold 85%).
+        let warmup = BudgetTracker::WINDOW as usize * (BudgetTracker::DOWN_SUSTAIN as usize + 2);
+        let _ = count_redeclares(&mut b, warmup, |_| CHEAP_NS);
 
         // Now the chain genuinely gets heavier and STAYS heavier (sustained,
         // not a one-off spike): ~60% of the period, every buffer.

@@ -60,6 +60,42 @@ pub(crate) fn sync_project_runtime(
     Ok(())
 }
 
+/// #743: the planned action for a one-chain live sync. Modelled as data so the
+/// decision — crucially, WHETHER a device-IO resolve runs — is unit-testable
+/// without audio hardware.
+pub enum LiveSyncAction {
+    /// The chain is gone from the project: drop it from the live graph.
+    Remove,
+    /// The chain is present but disabled: pause it (drain → silence) in O(1).
+    /// No device-IO resolve — that synchronous CoreAudio query (hundreds of ms
+    /// per device) would stall the GUI while the live output starves into a
+    /// feedback howl (#743). A disable never re-binds, so the check is moot.
+    Pause,
+    /// The chain is present and enabled: (re)activate it. `io_changed` is the
+    /// re-bind check — only an enable consults it.
+    Enable { io_changed: bool },
+}
+
+/// Decide the live-sync action for a toggled chain. The `io_changed` closure
+/// (the device-IO resolve) is invoked ONLY for an enable; a disable or a
+/// removal must never touch it — that resolve is the ~750 ms CoreAudio stall
+/// that starves the live output into feedback on a four-device toggle (#743).
+pub fn plan_live_sync(
+    chain_present: bool,
+    chain_enabled: bool,
+    io_changed: impl FnOnce() -> Result<bool>,
+) -> Result<LiveSyncAction> {
+    if !chain_present {
+        return Ok(LiveSyncAction::Remove);
+    }
+    if !chain_enabled {
+        return Ok(LiveSyncAction::Pause);
+    }
+    Ok(LiveSyncAction::Enable {
+        io_changed: io_changed()?,
+    })
+}
+
 pub(crate) fn sync_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
@@ -107,28 +143,40 @@ pub(crate) fn sync_live_chain_runtime(
             // sync, not just at start, so a just-created binding takes effect.
             runtime.set_io_bindings(session.io_bindings.borrow().clone());
             validate_project(&*proj)?;
-            if let Some(chain) = chain {
-                // Issue #672: cold activation of a single-input chain builds the
-                // runtime off the control worker and installs it on the poll tick
-                // (no live state to preserve). A LIVE edit (model swap, param,
-                // block) must NOT be routed off-thread: replacing the whole
-                // runtime discards the SPSC ring continuity and runtime-only
-                // state (DI loop, #614) — it stops the sound. Live edits keep the
-                // engine's in-place lock-free update via upsert_chain.
-                // #716: re-binding a chain's E/S changes its stream topology
-                // (different devices/channels). An in-place `upsert` keeps the
-                // old streams, so the swap wouldn't apply until a project reopen.
-                // Detect the I/O change and REBUILD (drop the chain's streams so
-                // it re-activates fresh on the new devices); a param/block edit
-                // (I/O unchanged) keeps the lock-free in-place upsert.
-                if runtime.chain_io_changed(&*proj, chain)? {
-                    runtime.remove_chain(&chain.id);
-                }
-                if !runtime.schedule_chain_activation(&*proj, chain)? {
+            // #743: plan the action BEFORE resolving anything. A disable must
+            // pause immediately (drain → output silent) and must NOT run
+            // `chain_io_changed` — that synchronous CoreAudio resolve costs
+            // hundreds of ms per device, so on a four-device rig the GUI stalls
+            // ~750 ms while the still-live output starves and emits stale frames
+            // at full level (the owner's "microfonia"/underrun flood on toggle
+            // off). The IO-change re-bind check belongs only to an enable.
+            let action = plan_live_sync(chain.is_some(), chain_enabled, || {
+                let chain = chain.expect("io_changed is only queried for a present, enabled chain");
+                runtime.chain_io_changed(&*proj, chain)
+            })?;
+            match action {
+                LiveSyncAction::Remove => runtime.remove_chain(chain_id),
+                LiveSyncAction::Pause => {
+                    // upsert_chain's !enabled path pauses (keeps streams alive,
+                    // drains to silence) in O(1) — no device queries.
+                    let chain = chain.expect("Pause implies the chain is present");
                     runtime.upsert_chain(&*proj, chain)?;
                 }
-            } else {
-                runtime.remove_chain(chain_id);
+                LiveSyncAction::Enable { io_changed } => {
+                    // Issue #672: cold activation of a single-input chain builds
+                    // the runtime off the control worker and installs it on the
+                    // poll tick. A LIVE edit (model swap, param, block) keeps the
+                    // engine's in-place lock-free update via upsert_chain.
+                    // #716: a re-bind changes stream topology, so REBUILD (drop
+                    // the streams) when the resolved I/O differs from what's live.
+                    let chain = chain.expect("Enable implies the chain is present");
+                    if io_changed {
+                        runtime.remove_chain(&chain.id);
+                    }
+                    if !runtime.schedule_chain_activation(&*proj, chain)? {
+                        runtime.upsert_chain(&*proj, chain)?;
+                    }
+                }
             }
             // If no chains are running (and none are activating), destroy runtime.
             if !runtime.is_running() {

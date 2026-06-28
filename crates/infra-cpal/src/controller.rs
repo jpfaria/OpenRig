@@ -577,9 +577,9 @@ impl ProjectRuntimeController {
                 // #693: a cold bring-up must not hold the caller (the GUI
                 // thread) — reuse the #672 off-thread activation: validate +
                 // resolve + heavy build (NAM/IR, routes) on the control
-                // worker, streams installed by the poll tick.
-                // Already-streaming and multi-input chains keep the
-                // synchronous path.
+                // worker, streams installed by the poll tick. #740: this now
+                // covers multi-device chains too, so only an already-streaming
+                // chain stays on the synchronous (live-rebuild) path.
                 if self.schedule_chain_activation(project, chain)? {
                     continue;
                 }
@@ -587,7 +587,8 @@ impl ProjectRuntimeController {
                     Some(resolved) => resolved,
                     None => {
                         // Cold start skipped the upfront resolve; this is the
-                        // rare synchronous fallback (multi-input chain).
+                        // synchronous fallback for a chain the scheduler
+                        // declined (e.g. already streaming).
                         validate_chain_channels_against_devices(host, chain, &self.io_bindings)?;
                         resolve_chain_audio_config(host, project, chain, &self.io_bindings)?
                     }
@@ -757,13 +758,45 @@ impl ProjectRuntimeController {
     /// existing streams, so an E/S swap would NOT take effect until a project
     /// reopen; the caller must REBUILD the chain's streams when this is true.
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    pub fn chain_io_changed(&self, project: &Project, chain: &Chain) -> Result<bool> {
+    pub fn chain_io_changed(&self, _project: &Project, chain: &Chain) -> Result<bool> {
         let Some(active) = self.active_chains.get(&chain.id) else {
             return Ok(false); // not streaming — nothing to compare
         };
-        let host = get_host();
-        let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
-        Ok(active.stream_signature != resolved.stream_signature)
+        // #743: a re-bind is a device+channel change, which the binding registry
+        // and the live stream signature already carry — compare them directly.
+        // The old `resolve_chain_audio_config` here ran a CoreAudio device query
+        // (hundreds of ms per device, ~750 ms on a four-device rig) on the GUI
+        // thread every toggle-ON, freezing the UI for a check that needs no
+        // hardware. A rate/buffer change arrives via the device-settings sync,
+        // not this per-chain toggle path.
+        let live_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = active
+            .stream_signature
+            .inputs
+            .iter()
+            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .collect();
+        let live_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = active
+            .stream_signature
+            .outputs
+            .iter()
+            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .collect();
+        let (bound_in, bound_out) =
+            engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings);
+        let bound_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_in
+            .into_iter()
+            .map(|e| (e.device_id, e.channels))
+            .collect();
+        let bound_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_out
+            .into_iter()
+            .map(|e| (e.device_id, e.channels))
+            .collect();
+        Ok(crate::io_topology_changed(
+            &live_inputs,
+            &bound_inputs,
+            &live_outputs,
+            &bound_outputs,
+        ))
     }
 
     /// JACK build: stream-topology live-swap is not wired yet (cpal path first).
@@ -772,32 +805,26 @@ impl ProjectRuntimeController {
         Ok(false)
     }
 
-    /// Issue #672 — cold activation. If `chain` is a single-input-group chain
-    /// that is not yet streaming, build its runtime (the heavy NAM/IR load) on
-    /// the control worker and return `true`; the next poll creates the cpal
-    /// streams on the frontend (they are `!Send`) and installs the chain. Returns
-    /// `false` for an already-streaming chain or a multi-input chain, which the
-    /// caller then builds synchronously.
+    /// Issue #672 — cold activation. If `chain` is not yet streaming, build its
+    /// per-input runtimes (the heavy NAM/IR load) on the control worker and
+    /// return `true`; the next poll creates the cpal streams on the frontend
+    /// (they are `!Send`) and installs the chain. Returns `false` only for an
+    /// already-streaming chain, which the caller then rebuilds synchronously.
+    ///
+    /// Issue #740: this used to defer ANY multi-device chain to the synchronous
+    /// build (`input_devices.len() != 1`), so a rig bound to several interfaces
+    /// (the owner's four-binding, two-interface boot) brought every stream up
+    /// serially on the calling thread — the first streams ran their callback,
+    /// counting underruns, while the remaining NAM/IR builds still blocked. The
+    /// off-thread path already builds one runtime per input group
+    /// (`build_per_input_runtime_states`) and installs one stream per device
+    /// (`build_chain_streams`), so multi-device chains take it too: every
+    /// runtime is built off-thread, then ALL streams are created and played
+    /// together in one poll tick — no sibling starves another's bring-up.
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     pub fn schedule_chain_activation(&mut self, project: &Project, chain: &Chain) -> Result<bool> {
         if self.active_chains.contains_key(&chain.id) {
             return Ok(false); // already streaming — not a cold activation
-        }
-        // Single-device chains only (issue #703: the device may still carry
-        // N input entries — build_chain_runtime returns one runtime per
-        // entry and the one device stream feeds them all). Multi-device
-        // chains need one stream per device wired through the synchronous
-        // build, so defer them.
-        // Model A (#716): the chain's input device endpoints come from the
-        // binding registry, not from block `entries`.
-        let resolved_inputs =
-            engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings).0;
-        let input_devices: std::collections::HashSet<&str> = resolved_inputs
-            .iter()
-            .map(|entry| entry.device_id.0.as_str())
-            .collect();
-        if input_devices.len() != 1 {
-            return Ok(false);
         }
 
         // #693: validation + device resolution are CoreAudio property

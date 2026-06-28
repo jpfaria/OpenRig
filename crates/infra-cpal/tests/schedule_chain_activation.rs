@@ -3,10 +3,13 @@
 //! freeze) and returns true; the frontend poll then creates the cpal streams
 //! (which are `!Send`, so they must stay on the frontend) and installs the chain.
 //!
-//! It only handles the single-input-group case (one `ChainRuntimeState`); a
-//! multi-input chain needs N per-device runtimes and returns false so the caller
-//! falls back to the synchronous build. That guard runs before any device probe,
-//! so it is testable without hardware.
+//! Issue #740: a multi-input / multi-device chain is scheduled off-thread TOO.
+//! It used to return false and fall back to the synchronous serial build, which
+//! brought every stream up one at a time on the calling thread and starved the
+//! first streams while the rest loaded (the owner's four-binding boot underrun
+//! flood). The off-thread path already builds one runtime per input group and
+//! one stream per device, so the multi-device case takes it as well. That guard
+//! runs before any device probe, so it is testable without hardware.
 
 use std::collections::HashMap;
 
@@ -27,11 +30,12 @@ fn input_endpoint(name: &str, device: &str) -> IoEndpoint {
 }
 
 #[test]
-fn returns_false_for_a_multi_input_chain() {
-    // Two distinct input devices => two per-device runtimes; the single-runtime
-    // off-thread path does not apply, so it must defer to the synchronous build.
-    // Model A (#716): the two devices come from the binding registry, not block
-    // `entries`.
+fn schedules_a_multi_input_chain_off_thread() {
+    // Two distinct input devices => two per-device runtimes. #740: the off-thread
+    // path builds both runtimes and installs both streams, so a multi-device
+    // chain is scheduled async (true) instead of deferring to the synchronous
+    // serial build. Model A (#716): the two devices come from the binding
+    // registry, not block `entries`.
     let chain = Chain {
         id: ChainId("multi".into()),
         description: None,
@@ -70,7 +74,8 @@ fn returns_false_for_a_multi_input_chain() {
         .schedule_chain_activation(&project, &chain)
         .expect("multi-input query must not error");
     assert!(
-        !scheduled,
-        "a multi-input chain must fall back to the synchronous activation build"
+        scheduled,
+        "#740: a multi-input chain must be scheduled off-thread (async), not \
+         fall back to the synchronous serial build"
     );
 }
