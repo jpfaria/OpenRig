@@ -28,14 +28,11 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 
 ## Fechar issue
 
-Só quando o usuário pedir. Antes do close, atribuir milestone:
+Só quando o usuário pedir. Antes do close, atribuir milestone — **plain semver**:
 
-1. `gh release list --limit 20` → última `vX.Y.Z-dev.N`.
-2. Próximo milestone = `vX.Y.Z-dev.(N+1)`. Criar se não existir: `gh api repos/<owner>/<repo>/milestones -f title=... -f state=open`.
-3. Sem ciclo dev → próximo milestone aberto comum (perguntar se houver dúvida).
-4. `gh issue edit <N> --milestone "..."` → `gh issue close <N>`.
-
-NUNCA atribuir ao milestone de release final puro durante ciclo dev.
+1. O milestone é a **versão semver atual ainda não lançada** (hoje `v0.1.0`); depois que ela for taggeada, o próximo é `v0.2.0`.
+2. **NUNCA criar nem reabrir um milestone `vX.Y.Z-dev.N`.** O esquema `-dev.N` está MORTO (virou histórico fechado). Use o milestone aberto da versão atual.
+3. `gh issue edit <N> --milestone "v0.1.0"` → `gh issue close <N>`.
 
 ## Labels que excluem das release notes
 

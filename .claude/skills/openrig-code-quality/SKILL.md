@@ -92,13 +92,12 @@ Vale para CADA push da sessão, inclusive incrementais (commit 2/3, commit 3/3).
 
 **ANTES de chamar `gh issue close N`:** rodar `gh issue view N --json milestone` e confirmar que tem milestone atribuído. Se não tiver:
 
-1. Identificar a release que vai (ou já) contém o fix: a `vX.Y.Z-dev.M` do ciclo de develop atual.
-2. Se o milestone está `closed` (porque a tag já saiu), reabrir via `gh api -X PATCH /repos/<owner>/<repo>/milestones/<id> -f state=open`, atribuir, e re-fechar — preserva o histórico real do que entrou em qual release.
-3. Só então `gh issue close N`.
+1. O milestone é a **versão semver atual ainda não lançada** (hoje `v0.1.0`) — **plain semver**. O esquema `vX.Y.Z-dev.N` está MORTO: **NUNCA crie nem reabra** um milestone `-dev.N`. Use o milestone aberto da versão atual; depois do release dela, o próximo é `v0.2.0`.
+2. `gh issue edit N --milestone "v0.1.0"` → `gh issue close N`.
 
 Vale igual pra issue criada e fechada na mesma sessão. Sem exceção.
 
-Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do merge. Quando o GitHub copia a PR pro changelog da release, vê o milestone e classifica.
+Plus: **PRs também** — `gh pr edit <N> --milestone "v0.1.0"` antes do merge. Quando o GitHub copia a PR pro changelog da release, vê o milestone e classifica.
 
 **Por que isso importa.** O release notes do GitHub agrupa por milestone. Issue/PR fechada sem milestone vira release notes pobre — usuário lendo o changelog não sabe que aquilo foi entregue na release. Já tivemos 20 issues acumuladas sem milestone (sessão 2026-05-13); ter que abrir/atribuir/fechar milestone retroativamente pra 20 issues é o custo de não cobrar antes.
 
@@ -110,7 +109,7 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 **Padrão correto:**
 ```
-✅ gh issue edit 423 --milestone "v0.1.0-dev.19"
+✅ gh issue edit 423 --milestone "v0.1.0"
 ✅ gh issue close 423
 ```
 
