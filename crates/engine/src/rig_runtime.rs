@@ -11,6 +11,7 @@ use crate::runtime_audio_frame::DEFAULT_ELASTIC_TARGET;
 use crate::runtime_graph::RuntimeGraph;
 use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
+use domain::io_binding::IoBinding;
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
 use project::chain::Chain;
 use project::rig::{RigInput, RigProject};
@@ -20,12 +21,27 @@ use std::collections::{BTreeSet, HashMap};
 /// in conflict iff their tap sets intersect — they would read the same
 /// physical capture point, which two isolated runtimes must never share
 /// (invariant #4).
-fn input_taps(input: &RigInput) -> Vec<(String, usize)> {
+fn input_taps(input: &RigInput, registry: &[IoBinding]) -> Vec<(String, usize)> {
     let mut taps = Vec::new();
-    for entry in &input.sources {
-        for &ch in &entry.channels {
-            taps.push((entry.device_id.0.clone(), ch));
+    let push_binding = |io: &str, ep_name: &str, taps: &mut Vec<(String, usize)>| {
+        let Some(binding) = registry.iter().find(|b| b.id == io) else {
+            return;
+        };
+        for ep in &binding.inputs {
+            if ep_name.is_empty() || ep.name == ep_name {
+                for &ch in &ep.channels {
+                    taps.push((ep.device_id.0.clone(), ch));
+                }
+            }
         }
+    };
+    // Checklist selection: every input endpoint of every selected binding.
+    for binding_id in &input.io_binding_ids {
+        push_binding(binding_id, "", &mut taps);
+    }
+    // Single per-input binding reference (legacy-ish io/endpoint).
+    if !input.io.is_empty() {
+        push_binding(&input.io, &input.endpoint, &mut taps);
     }
     taps
 }
@@ -37,11 +53,12 @@ fn tap_conflict(
     project: &RigProject,
     enabled: &BTreeSet<String>,
     candidate: &RigInput,
+    registry: &[IoBinding],
 ) -> Option<(String, usize, String)> {
-    let want = input_taps(candidate);
+    let want = input_taps(candidate, registry);
     for name in enabled {
         if let Some(other) = project.inputs.get(name) {
-            for (dev, ch) in input_taps(other) {
+            for (dev, ch) in input_taps(other, registry) {
                 if want.iter().any(|(d, c)| *d == dev && *c == ch) {
                     return Some((dev, ch, name.clone()));
                 }
@@ -77,29 +94,57 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
         };
 
         let mut blocks = Vec::with_capacity(preset.blocks.len() + 2);
-        blocks.push(AudioBlock {
-            id: BlockId(format!("rig:{name}:in")),
-            enabled: true,
-            kind: AudioBlockKind::Input(InputBlock {
-                model: "standard".to_string(),
-                entries: input.sources.clone(),
-            }),
-        });
+        // #716: a binding-bound chain (io_binding_ids) discovers its I/O from
+        // the registry at runtime — do NOT synthesize device Input/Output
+        // blocks, or they show in the chain strip (the "monster") and double
+        // routing. Legacy per-block (io/endpoint/entries) chains still
+        // synthesize them.
+        let bound = !input.io_binding_ids.is_empty();
+        if !bound {
+            blocks.push(AudioBlock {
+                id: BlockId(format!("rig:{name}:in")),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".to_string(),
+                    // Propagate the binding reference stored on RigInput (#716).
+                    io: input.io.clone(),
+                    endpoint: input.endpoint.clone(),
+                }),
+            });
+        }
         blocks.extend(preset.apply_scene(input.active_scene));
-        let routed: Vec<_> = input
+        let routed_outputs: Vec<_> = input
             .routing
             .iter()
-            .filter_map(|t| rig.outputs.get(t))
-            .map(|o| o.entry.clone())
+            .filter_map(|t| rig.outputs.get(t).map(|o| (t, o)))
             .collect();
-        if !routed.is_empty() {
+        if !bound && !routed_outputs.is_empty() {
+            // Propagate io/endpoint from the first routed output that carries
+            // a binding reference. Multiple routing entries all share the same
+            // binding reference in the current model (one binding per chain).
+            let (first_io, first_ep) = routed_outputs
+                .first()
+                .map(|(_, o)| (o.io.clone(), o.endpoint.clone()))
+                .unwrap_or_default();
             blocks.push(AudioBlock {
                 id: BlockId(format!("rig:{name}:out")),
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
-                    entries: routed,
+                    io: first_io,
+                    endpoint: first_ep,
                 }),
+            });
+        }
+
+        // #716: a binding-bound chain is the new format — its I/O is the
+        // system binding (io_binding_ids), never chain blocks. Drop any legacy
+        // Input/Output blocks left in the preset; keeping them duplicates the
+        // binding's I/O (e.g. a second output stream on the same device →
+        // absurd latency + underruns).
+        if bound {
+            blocks.retain(|b| {
+                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
             });
         }
 
@@ -125,6 +170,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             // override resolves to `preset.volume` ⇒ audibly unchanged
             // for every pre-#436 project (back-compat).
             volume: preset.scene_volume(input.active_scene),
+            io_binding_ids: input.io_binding_ids.clone(),
             blocks,
         });
     }
@@ -237,6 +283,9 @@ pub struct RigRuntime {
     project: RigProject,
     graph: RuntimeGraph,
     sample_rate: f32,
+    /// Per-machine I/O binding registry — the single source of device I/O.
+    /// Resolved into chain ports at build/upsert time (model A, #716).
+    registry: Vec<IoBinding>,
     /// Inputs currently activated, **in memory only** — never persisted to
     /// `project.openrig`. A tap-sharing input can only be enabled if no
     /// already-enabled input holds the same `(device, channel)`.
@@ -250,7 +299,7 @@ impl RigRuntime {
     /// state lives only here, never in the file; conflicting inputs stay
     /// defined but inactive and can be enabled later via [`Self::enable_input`]
     /// once the tap is freed.
-    pub fn build(project: RigProject, sample_rate: f32) -> Result<Self> {
+    pub fn build(project: RigProject, sample_rate: f32, registry: Vec<IoBinding>) -> Result<Self> {
         project
             .validate()
             .map_err(|e| anyhow!("invalid project.openrig: {e}"))?;
@@ -259,12 +308,12 @@ impl RigRuntime {
         };
         let mut enabled = BTreeSet::new();
         for (name, input) in &project.inputs {
-            if tap_conflict(&project, &enabled, input).is_some() {
+            if tap_conflict(&project, &enabled, input, &registry).is_some() {
                 continue; // tap already in use ⇒ leave this input inactive
             }
             let id = ChainId(format!("rig:{name}"));
             if let Some(chain) = rig_to_chains(&project).into_iter().find(|c| c.id == id) {
-                graph.upsert_chain(&chain, sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+                graph.upsert_chain(&chain, sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &registry)?;
                 enabled.insert(name.clone());
             }
         }
@@ -272,6 +321,7 @@ impl RigRuntime {
             project,
             graph,
             sample_rate,
+            registry,
             enabled,
         })
     }
@@ -293,7 +343,7 @@ impl RigRuntime {
         if self.enabled.contains(input) {
             return Ok(());
         }
-        if let Some((dev, ch, holder)) = tap_conflict(&self.project, &self.enabled, ri) {
+        if let Some((dev, ch, holder)) = tap_conflict(&self.project, &self.enabled, ri, &self.registry) {
             return Err(anyhow!(
                 "cannot enable input '{input}': device '{dev}' channel {ch} \
                  is already in use by active input '{holder}'"
@@ -305,7 +355,7 @@ impl RigRuntime {
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
         self.graph
-            .upsert_chain(&chain, self.sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+            .upsert_chain(&chain, self.sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &self.registry)?;
         self.enabled.insert(input.to_string());
         Ok(())
     }
@@ -358,7 +408,7 @@ impl RigRuntime {
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
         self.graph
-            .upsert_chain(&chain, self.sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+            .upsert_chain(&chain, self.sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &self.registry)?;
         Ok(())
     }
 
@@ -392,7 +442,7 @@ impl RigRuntime {
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
         self.graph
-            .upsert_chain(&chain, self.sample_rate, false, &[DEFAULT_ELASTIC_TARGET])?;
+            .upsert_chain(&chain, self.sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &self.registry)?;
         Ok(())
     }
 }

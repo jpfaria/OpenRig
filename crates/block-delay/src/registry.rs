@@ -33,6 +33,24 @@ where
     }
 }
 
+/// Build path for true-stereo delay models (cross-channel state, e.g.
+/// ping-pong). Stereo layout uses the processor directly; mono layout wraps it
+/// so it still runs (summed to one channel).
+pub(crate) fn build_stereo_delay_processor<F>(
+    layout: AudioChannelLayout,
+    builder: F,
+) -> Result<BlockProcessor>
+where
+    F: Fn() -> Result<Box<dyn block_core::StereoProcessor>>,
+{
+    match layout {
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(builder()?)),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(
+            crate::shared::StereoToMono::new(builder()?),
+        ))),
+    }
+}
+
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));
 
 pub fn find_model_definition(model: &str) -> Result<&'static DelayModelDefinition> {

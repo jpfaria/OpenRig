@@ -87,6 +87,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "Search models..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "No presets found"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "No models found"
@@ -626,3 +630,119 @@ msgstr "Play DI loop"
 #: crates/adapter-gui/ui/components/chain_di_loop_button.slint
 msgid "di-loop-stop-label"
 msgstr "Stop DI loop"
+
+msgid "title-section-integrations"
+msgstr "Integrations"
+
+msgid "label-midi-enabled"
+msgstr "MIDI control surface"
+
+msgid "desc-midi-enabled"
+msgstr "Enable the MIDI/BLE-MIDI adapter so footswitches drive OpenRig"
+
+msgid "label-mcp-enabled"
+msgstr "MCP server"
+
+msgid "desc-mcp-enabled"
+msgstr "Expose the MCP server on 127.0.0.1:4123 for agents"
+
+msgid "hint-restart-to-apply"
+msgstr "Takes effect on the next launch."
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "I/O Binding"
+
+msgid "label-input-endpoint"
+msgstr "Input endpoint"
+
+msgid "label-output-endpoint"
+msgstr "Output endpoint"
+
+msgid "label-resolved-info"
+msgstr "Resolved info"
+
+msgid "placeholder-select-endpoint"
+msgstr "Select an endpoint"
+
+msgid "title-section-io-bindings"
+msgstr "I/O Bindings"
+
+msgid "label-binding-name"
+msgstr "Binding name"
+
+msgid "label-endpoint-input"
+msgstr "Input endpoint"
+
+msgid "label-endpoint-output"
+msgstr "Output endpoint"
+
+msgid "mode-mono"
+msgstr "Mono"
+
+msgid "mode-stereo"
+msgstr "Stereo"
+
+msgid "mode-dual-mono"
+msgstr "Dual mono"
+
+msgid "placeholder-binding-name"
+msgstr "Binding name…"
+
+msgid "label-channels-prefix"
+msgstr "Channels"
+
+msgid "label-endpoint-device"
+msgstr "Device"
+
+msgid "label-endpoint-mode"
+msgstr "Mode"
+
+msgid "label-endpoint-channels"
+msgstr "Channels"
+
+msgid "btn-add-endpoint"
+msgstr "Add endpoint"
+
+msgid "label-group-inputs"
+msgstr "Inputs"
+
+msgid "label-group-outputs"
+msgstr "Outputs"
+
+msgid "empty-no-input-endpoints"
+msgstr "No input endpoints yet"
+
+msgid "empty-no-output-endpoints"
+msgstr "No output endpoints yet"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "Group the input and output of the same interface. Each chain uses a binding."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "New binding"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "No bindings yet"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "Create one to group an interface's input and output."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "Select a device"
+
+
+msgid "label-chain-io-bindings"
+msgstr "I/O bindings"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "No I/O bindings yet — add them in Settings → I/O bindings"
+
+msgid "warn-select-binding"
+msgstr "Select at least one I/O binding for this chain"

@@ -187,7 +187,6 @@ fn registry_process_native_mono_signal_produces_non_nan() {
 // ── non-native models: build requires external assets, skip ──────
 
 #[test]
-#[ignore]
 fn registry_build_non_native_models_ignored() {
     for model in supported_models().iter().filter(|m| !is_native(m)) {
         let params = defaults_for(model);

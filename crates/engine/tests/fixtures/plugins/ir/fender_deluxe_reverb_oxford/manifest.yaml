@@ -1,0 +1,35 @@
+manifest_version: 1
+id: ir_fender_deluxe_reverb_oxford
+display_name: Deluxe Reverb Oxford
+brand: fender
+brand_logo: assets/brand_logo.svg
+type: cab
+backend: ir
+# Captures are a grab-bag of two voicings (big/lean) each in two file encodings
+# (plain = 32-bit, _48_24 = 24-bit, both @ 48 kHz). Bit depth is not a sonic
+# control, so the set is flattened to a single clean 'preset' axis.
+parameters:
+- name: preset
+  display_name: Preset
+  values:
+  - big
+  - lean
+  - big_48_24
+  - lean_48_24
+captures:
+- values:
+    preset: big
+  file: ir/big.wav
+  output_gain_db: -20.2837009
+- values:
+    preset: lean
+  file: ir/lean.wav
+  output_gain_db: -19.7438850
+- values:
+    preset: big_48_24
+  file: ir/big_48_24.wav
+  output_gain_db: -20.2835674
+- values:
+    preset: lean_48_24
+  file: ir/lean_48_24.wav
+  output_gain_db: -19.7437363

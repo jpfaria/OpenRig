@@ -75,43 +75,35 @@
 //! is fine; do not delete the existing one to "save lines").
 
 use crate::runtime::{build_chain_runtime_state, DEFAULT_ELASTIC_TARGET};
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::chain::Chain;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 
-fn input_stereo(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels,
-            }],
-        }),
-    }
-}
+/// Registry id the contention chain references via `io_binding_ids`.
+const IO_BINDING_ID: &str = "io";
 
-fn output_stereo(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels,
-            }],
-        }),
-    }
+/// One stereo input endpoint + one stereo output endpoint, both on device
+/// `dev` (channels [0, 1]) — mirrors the old stereo Input/Output blocks.
+fn io_registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: IO_BINDING_ID.into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 fn chain() -> Chain {
@@ -121,14 +113,15 @@ fn chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![input_stereo(vec![0, 1]), output_stereo(vec![0, 1])],
+        io_binding_ids: vec![IO_BINDING_ID.into()],
+        blocks: vec![],
     }
 }
 
 #[test]
 fn stream_count_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
             .expect("runtime should build"),
     );
 
@@ -173,4 +166,104 @@ fn stream_count_does_not_block_on_processing_lock() {
         count, 1,
         "single-stream stereo chain should report exactly 1 stream"
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Issue #580 generalised — EVERY observability accessor must be lock-free.
+//
+// The pinned test above only covers `stream_count`, but the module
+// docstring is explicit: the rule applies to "every GUI / MCP /
+// observability poll". The overload LED (#670) and the meter timers read
+// `xrun_count()`, `peak_callback_load()` and `underrun_count()` at
+// sustained rate from the GUI thread, exactly like the meter timer reads
+// `stream_count()`. If ANY of them acquires `processing` (even a
+// `try_lock` with a lock-dependent fallback), it reopens the contention
+// window the audio thread's `try_lock` in `process_input_f32` skips on —
+// reintroducing the buffer-32/64 crackle a user hears with a heavy rig on
+// a small buffer (constant from the first note, gone at buffer 256).
+//
+// This is the user-reported regression class (2026-06-16: full rig
+// NAM+IR+EQ+delay on a Scarlett, crackling from the start). The accessor
+// either reads an atomic mirror (lock-free, returns instantly) or it
+// blocks behind the held lock and this test fires RED, naming the culprit.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Spawn a thread that calls `call` while the test holds `processing`,
+/// and assert the call returns within a tight window. A lock-free accessor
+/// (atomic mirror) returns instantly; one that takes `processing` blocks
+/// behind the held guard and the `recv_timeout` fires.
+fn assert_accessor_is_lock_free<F>(label: &str, call: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        call();
+        let _ = tx.send(());
+    });
+    let received = rx.recv_timeout(Duration::from_millis(200));
+    assert!(
+        received.is_ok(),
+        "THE RULE (issue #580): the observability accessor `{label}` blocked \
+         on the `processing` Mutex while the audio thread (simulated here by \
+         the held guard) was mid-callback. Every GUI / MCP / observability \
+         poll on ChainRuntimeState must read a lock-free atomic mirror — the \
+         audio thread takes `processing` via try_lock in process_input_f32 \
+         and emits SILENCE for any buffer where the try_lock fails. Polled at \
+         30 Hz this crackles at buffer 32/64 and hides at 256. Mirror the \
+         value into an AtomicU64 / AtomicUsize updated at the rare write \
+         sites in runtime_graph.rs, like `stream_count` was. See the module \
+         docstring."
+    );
+}
+
+#[test]
+fn xrun_count_does_not_block_on_processing_lock() {
+    let runtime = Arc::new(
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
+            .expect("runtime should build"),
+    );
+    let _guard = runtime
+        .processing
+        .lock()
+        .expect("processing lock should be held cleanly for the test");
+
+    let r = Arc::clone(&runtime);
+    assert_accessor_is_lock_free("xrun_count", move || {
+        let _ = r.xrun_count();
+    });
+}
+
+#[test]
+fn peak_callback_load_does_not_block_on_processing_lock() {
+    let runtime = Arc::new(
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
+            .expect("runtime should build"),
+    );
+    let _guard = runtime
+        .processing
+        .lock()
+        .expect("processing lock should be held cleanly for the test");
+
+    let r = Arc::clone(&runtime);
+    assert_accessor_is_lock_free("peak_callback_load", move || {
+        let _ = r.peak_callback_load();
+    });
+}
+
+#[test]
+fn underrun_count_does_not_block_on_processing_lock() {
+    let runtime = Arc::new(
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
+            .expect("runtime should build"),
+    );
+    let _guard = runtime
+        .processing
+        .lock()
+        .expect("processing lock should be held cleanly for the test");
+
+    let r = Arc::clone(&runtime);
+    assert_accessor_is_lock_free("underrun_count", move || {
+        let _ = r.underrun_count();
+    });
 }

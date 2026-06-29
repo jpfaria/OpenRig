@@ -4,7 +4,7 @@ use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
 use project::chain::Chain;
 use project::device::DeviceSettings;
 use project::project::Project;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub fn validate_project(project: &Project) -> Result<()> {
     if project.chains.is_empty() {
@@ -19,6 +19,14 @@ pub fn validate_project(project: &Project) -> Result<()> {
     validate_device_settings(project, &device_settings_by_id)?;
 
     for chain in &project.chains {
+        // #716 (model A): a binding-bound chain carries only its effect blocks +
+        // the selected `io_binding_ids`; its input/output is resolved from the
+        // per-machine I/O binding registry at runtime, NOT stored on the chain.
+        // The structural block checks below do not apply to it.
+        if !chain.io_binding_ids.is_empty() {
+            continue;
+        }
+
         let input_blocks = chain.input_blocks();
         let output_blocks = chain.output_blocks();
 
@@ -35,91 +43,22 @@ pub fn validate_project(project: &Project) -> Result<()> {
             );
         }
 
-        // Validate each input block's entries
-        for (_, input) in &input_blocks {
-            for (entry_idx, entry) in input.entries.iter().enumerate() {
-                let entry_label = format!("{}[{}]", input.model, entry_idx);
-                if entry.device_id.0.trim().is_empty() {
-                    bail!(
-                        "invalid project: chain '{}' input '{}' missing device_id",
-                        chain.id.0,
-                        entry_label
-                    );
-                }
-                if entry.channels.is_empty() {
-                    bail!(
-                        "invalid project: chain '{}' input '{}' has no channels",
-                        chain.id.0,
-                        entry_label
-                    );
-                }
-                validate_unique_channels(&entry.channels).map_err(|error| {
-                    anyhow!(
-                        "invalid project: chain '{}' input '{}': {}",
-                        chain.id.0,
-                        entry_label,
-                        error
-                    )
-                })?;
-            }
-        }
-
-        // Validate each output block's entries
-        for (_, output) in &output_blocks {
-            for (entry_idx, entry) in output.entries.iter().enumerate() {
-                let entry_label = format!("{}[{}]", output.model, entry_idx);
-                if entry.device_id.0.trim().is_empty() {
-                    bail!(
-                        "invalid project: chain '{}' output '{}' missing device_id",
-                        chain.id.0,
-                        entry_label
-                    );
-                }
-                if entry.channels.is_empty() {
-                    bail!(
-                        "invalid project: chain '{}' output '{}' has no channels",
-                        chain.id.0,
-                        entry_label
-                    );
-                }
-                validate_unique_channels(&entry.channels).map_err(|error| {
-                    anyhow!(
-                        "invalid project: chain '{}' output '{}': {}",
-                        chain.id.0,
-                        entry_label,
-                        error
-                    )
-                })?;
-            }
-        }
-
-        // Use first input entry's channel count for layout determination
-        let first_input = input_blocks.first().expect("validated non-empty");
-        let first_input_entry = first_input.1.entries.first().ok_or_else(|| {
-            anyhow!(
-                "invalid project: chain '{}' input '{}' has no entries",
-                chain.id.0,
-                first_input.1.model
-            )
-        })?;
-        let input_layout = layout_from_channel_count(
-            "chain input",
-            &chain.id.0,
-            first_input_entry.channels.len(),
-        )?;
-        let first_output = output_blocks.first().expect("validated non-empty");
-        let first_output_entry = first_output.1.entries.first().ok_or_else(|| {
-            anyhow!(
-                "invalid project: chain '{}' output '{}' has no entries",
-                chain.id.0,
-                first_output.1.model
-            )
-        })?;
-        layout_from_channel_count(
-            "chain output",
-            &chain.id.0,
-            first_output_entry.channels.len(),
-        )?;
+        // #716 (model A): Input/Output blocks no longer embed device endpoints
+        // (`entries` are gone). The device / channels / mode of every endpoint
+        // are resolved from the per-machine I/O binding registry via
+        // `engine::runtime_endpoints::resolve_chain_io`, which `validate_project`
+        // does not have access to. The per-entry device_id / channel /
+        // unique-channel validation and the cross-chain channel-conflict check
+        // therefore move to the registry / activation layer (a separate task).
+        // Only the registry-independent structural + layout checks remain here.
+        //
+        // The processing-layout bus is seeded as `Stereo`: invariant #5 — every
+        // stream is ALWAYS stereo internally (a mono physical input is broadcast
+        // to `Stereo([s, s])` before the block chain). Without the registry we
+        // cannot know the physical channel count, but the internal bus the block
+        // chain sees is always stereo, so a `true_stereo` model must validate
+        // here regardless of the physical input width (#696).
+        let input_layout = AudioChannelLayout::Stereo;
 
         // Validate only audio blocks (non-I/O, non-Insert)
         let audio_blocks: Vec<&AudioBlock> = chain
@@ -137,26 +76,7 @@ pub fn validate_project(project: &Project) -> Result<()> {
         validate_chain_blocks(chain, &audio_blocks, input_layout)?;
     }
 
-    validate_active_chain_input_channel_conflicts(&project.chains)?;
-
     Ok(())
-}
-
-fn layout_from_channel_count(
-    kind: &str,
-    id: &str,
-    channel_count: usize,
-) -> Result<AudioChannelLayout> {
-    match channel_count {
-        1 => Ok(AudioChannelLayout::Mono),
-        2 => Ok(AudioChannelLayout::Stereo),
-        other => bail!(
-            "{} '{}' exposes {} channels; only mono (1) and stereo (2) are currently supported",
-            kind,
-            id,
-            other
-        ),
-    }
 }
 
 fn validate_chain_blocks(
@@ -176,31 +96,6 @@ fn validate_chain_blocks(
         current_layout = resolve_block_output_layout(chain, block, current_layout)?;
     }
 
-    Ok(())
-}
-
-fn validate_active_chain_input_channel_conflicts(chains: &[Chain]) -> Result<()> {
-    let mut claimed_channels: HashMap<(String, usize), String> = HashMap::new();
-    for chain in chains.iter().filter(|chain| chain.enabled) {
-        for (_, input) in chain.input_blocks() {
-            for entry in &input.entries {
-                for channel in &entry.channels {
-                    let key = (entry.device_id.0.clone(), *channel);
-                    if let Some(existing_chain) =
-                        claimed_channels.insert(key.clone(), chain.id.0.clone())
-                    {
-                        bail!(
-                            "invalid project: active chains '{}' and '{}' both use input device '{}' channel {}",
-                            existing_chain,
-                            chain.id.0,
-                            key.0,
-                            key.1
-                        );
-                    }
-                }
-            }
-        }
-    }
     Ok(())
 }
 
@@ -300,16 +195,6 @@ fn layout_label(layout: AudioChannelLayout) -> &'static str {
         AudioChannelLayout::Mono => "mono",
         AudioChannelLayout::Stereo => "stereo",
     }
-}
-
-fn validate_unique_channels(channels: &[usize]) -> Result<()> {
-    let mut seen = HashSet::new();
-    for channel in channels {
-        if !seen.insert(*channel) {
-            bail!("duplicated channel '{}'", channel);
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]

@@ -5,8 +5,8 @@ use crate::di_loop::DiLoop;
 use domain::ids::ChainId;
 use project::block::AudioBlock;
 use project::chain::Chain;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 fn empty_chain() -> Chain {
     Chain {
@@ -15,6 +15,7 @@ fn empty_chain() -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: Vec::<AudioBlock>::new(),
     }
 }
@@ -23,7 +24,7 @@ fn empty_chain() -> Chain {
 fn set_di_loop_publishes_and_resets_cursor() {
     let chain = empty_chain();
     let runtime: Arc<crate::runtime::ChainRuntimeState> = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
             .expect("runtime state should build"),
     );
 

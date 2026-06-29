@@ -252,6 +252,15 @@ impl MeterTapApi for infra_cpal::ProjectRuntimeController {
     }
 }
 
+/// Issue #670: a chain is "overloading" when its audio callback counted
+/// MORE deadline misses (xruns) than the previous meter poll saw — i.e.
+/// the user is hearing dropouts right now. The timer keeps the previous
+/// per-chain count; a decrease means the counter was reset (e.g. on a
+/// chain rebuild), not a fresh overrun.
+pub(crate) fn chain_overloaded(prev_xruns: u64, cur_xruns: u64) -> bool {
+    cur_xruns > prev_xruns
+}
+
 /// Build the per-stream meter rings for a chain by asking the runtime
 /// how many streams it actually owns and subscribing each one
 /// independently.
@@ -305,6 +314,11 @@ pub fn build_streams_from_taps<T: MeterTapApi>(
 /// re-spawning after a toggle), the missing slots stay [`SILENT_DBFS`].
 /// Both symptoms reported in #532 collapse to the same fix.
 ///
+/// Issue #750: when `enabled` is false the row is EMPTY — the per-stream graph
+/// is a live surface that must not show on a disabled chain. This overrides the
+/// `.max(1)` clamp, so the timer can't re-grow the footer a tick after the
+/// chain is switched off.
+///
 /// The OUTPUT reading is scaled by `apply_chain_volume_db` because the
 /// stream_tap reads the signal BEFORE the audio callback applies the
 /// chain volume slider (#496). INPUT is untouched.
@@ -312,7 +326,13 @@ pub fn rebuild_stream_meters_row(
     engine_readings: &[StreamMeterReading],
     project_input_count: usize,
     chain_volume: f32,
+    enabled: bool,
 ) -> Vec<crate::StreamMeter> {
+    // #750: the per-stream graph is a LIVE surface — a disabled chain renders
+    // no rows at all, overriding the `.max(1)` clamp below.
+    if !enabled {
+        return Vec::new();
+    }
     let len = project_input_count.max(1);
     (0..len)
         .map(|i| match engine_readings.get(i) {
@@ -328,21 +348,20 @@ pub fn rebuild_stream_meters_row(
         .collect()
 }
 
-/// Sum of `InputBlock.entries.len()` across a chain's blocks — the
-/// number of independent per-input runtimes the engine owns for the
-/// chain (issue #350). This is the GUI's source of truth for how many
-/// meter rows to render. Mirrors the count `replace_project_chains`
-/// uses when it first builds the row model.
-pub fn project_input_count(chain: &project::chain::Chain) -> usize {
-    use project::block::AudioBlockKind;
-    chain
-        .blocks
-        .iter()
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-            _ => None,
-        })
-        .sum()
+/// Count of resolved input endpoints for a chain — the number of independent
+/// per-input runtimes the engine owns for the chain (issue #350). This is the
+/// GUI's source of truth for how many meter rows to render. Mirrors the count
+/// `replace_project_chains` uses when it first builds the row model.
+///
+/// #716: device endpoints resolve from the binding registry, not from block
+/// `entries` (which no longer exist on the model).
+pub fn project_input_count(
+    chain: &project::chain::Chain,
+    io_bindings: &[domain::io_binding::IoBinding],
+) -> usize {
+    engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
+        .0
+        .len()
 }
 
 /// Drain the per-stream rings and return one `StreamMeterReading`
@@ -370,8 +389,15 @@ pub fn poll_per_stream(
         .collect()
 }
 
-/// Lifecycle wiring: starts a Slint Timer that, at ~30 Hz, picks up
-/// the current chain list from the project session, ensures every
+/// Meter polling interval in milliseconds. #715: this timer's per-frame work
+/// (draining taps, rebuilding rows, the Slint re-render it triggers) is memory
+/// traffic that competes with the audio worker on the shared cache and evicts
+/// the NAM weights → cold-cache inference → late buffer → crackle. It must NOT
+/// run faster than ~20 Hz (≥ 50 ms); 30 Hz (33 ms) is what caused the crackle.
+pub(crate) const METER_POLL_TICK_MS: u64 = 66; // ~15 Hz
+
+/// Lifecycle wiring: starts a Slint Timer that, at the meter poll rate, picks
+/// up the current chain list from the project session, ensures every
 /// chain has its meter taps subscribed, polls them, and writes the
 /// per-chain peak dBFS into the matching `ProjectChainItem` rows of
 /// the `project_chains` VecModel. Timer is leaked (lives for the
@@ -382,8 +408,15 @@ pub fn start_meter_polling(
     project_session: std::rc::Rc<std::cell::RefCell<Option<crate::state::ProjectSession>>>,
 ) {
     use slint::{Model, TimerMode};
-    const TICK: std::time::Duration = std::time::Duration::from_millis(33); // ~30 Hz
-    const RING_CAPACITY: usize = 4096; // 30 Hz poll @ 48 kHz ⇒ 1600 samples per drain
+    // #715: ~15 Hz, not 30 Hz. The per-frame work of this timer (draining taps,
+    // rebuilding the meter rows, and the Slint re-render it triggers) is memory
+    // traffic that competes with the audio worker on the shared cache and
+    // evicts the NAM weights → cold-cache inference → late buffer → crackle.
+    // Halving the rate halves that contention. 15 Hz is still smooth for level
+    // meters. (RING_CAPACITY 4096 still covers a 15 Hz drain: 48 kHz / 15 ≈
+    // 3200 samples per tick.)
+    const TICK: std::time::Duration = std::time::Duration::from_millis(METER_POLL_TICK_MS);
+    const RING_CAPACITY: usize = 4096; // 15 Hz poll @ 48 kHz ⇒ ~3200 samples per drain
 
     let store = new_meter_store_per_stream();
     // Per-chain "runtime layout" signature snapshot from the previous
@@ -394,6 +427,20 @@ pub fn start_meter_polling(
     let last_signature: std::rc::Rc<
         std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
     > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
+    // Issue #670: previous-tick xrun count per chain, so the overload
+    // indicator lights when the audio callback missed a NEW deadline since
+    // the last poll (and a warning is logged once per transition).
+    let last_xruns: std::rc::Rc<
+        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
+    > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
+    let last_underruns: std::rc::Rc<
+        std::cell::RefCell<std::collections::HashMap<domain::ids::ChainId, u64>>,
+    > = std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()));
+    // #661: bundled DI loop ids are static for the session (the di-loops
+    // directory is scanned once on project load by `replace_project_chains`);
+    // cache them here so the per-tick source-list refresh never hits the
+    // filesystem.
+    let bundled_di_loop_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
     let timer = slint::Timer::default();
     timer.start(TimerMode::Repeated, TICK, move || {
         let session_borrow = project_session.borrow();
@@ -480,9 +527,18 @@ pub fn start_meter_polling(
                 .find(|(c, _)| c == &cid)
                 .map(|(_, streams)| streams.clone())
                 .unwrap_or_default();
-            let project_streams = project_input_count(&project.chains[idx]);
-            let per_stream_rows: Vec<crate::StreamMeter> =
-                rebuild_stream_meters_row(&engine_streams, project_streams, chain_volume);
+            let project_streams =
+                project_input_count(&project.chains[idx], &session.io_bindings.borrow());
+            // #750: a disabled chain renders no per-stream rows. The timer
+            // still visits it (a stale tap may report a tick after toggle-off),
+            // so the `enabled` flag — not just the resolved count — gates the
+            // row out; otherwise the `.max(1)` clamp keeps the graph stuck on.
+            let per_stream_rows: Vec<crate::StreamMeter> = rebuild_stream_meters_row(
+                &engine_streams,
+                project_streams,
+                chain_volume,
+                project.chains[idx].enabled,
+            );
             let stream_meters_changed = {
                 use slint::Model;
                 let current = row.stream_meters.iter().collect::<Vec<_>>();
@@ -498,21 +554,112 @@ pub fn start_meter_polling(
             // reflects the engine's current armed/disarmed state.
             let di_playing_now = controller.chain_has_di_loop(&cid);
             let di_changed = row.di_loop_playing != di_playing_now;
-            if aggregate_changed || stream_meters_changed || di_changed {
+            // #661: re-derive the loaded source from the dispatcher so the
+            // popup ComboBox (a) lists a user-chosen File as a labelled entry
+            // and (b) highlights the active source when reopened (the popup is
+            // re-instantiated on each show).
+            let loaded_source = session.dispatcher.di_loop_source_for_chain(&cid);
+            let bundled_refs: Vec<&str> = bundled_di_loop_ids.iter().map(|s| s.as_str()).collect();
+            let desired_sources = crate::di_loop_ui_sources::build_di_loop_sources_with_loaded(
+                &bundled_refs,
+                loaded_source.as_ref(),
+            );
+            let di_selected_now = loaded_source.as_ref().map_or(-1, |s| {
+                crate::di_loop_ui_sources::di_loop_selected_index(&desired_sources, s)
+            });
+            let di_selected_changed = row.di_loop_selected_index != di_selected_now;
+            let di_sources_changed = {
+                let current: Vec<String> =
+                    row.di_loop_sources.iter().map(|s| s.to_string()).collect();
+                current != desired_sources
+            };
+            // Issue #670: per-chain audio overload. Catch BOTH failure modes
+            // the user hears as crackle — an xrun (the audio callback missed
+            // its deadline) or an underrun (the output elastic buffer ran
+            // empty because the producer didn't deliver in time). Either
+            // lights the row's overload badge. Both counters are plain atomic
+            // reads off the audio thread — no `processing` lock (issue #580).
+            let cur_xruns = controller.chain_xrun_count(&cid);
+            let cur_underruns = controller.chain_underrun_count(&cid);
+            let prev_xruns = last_xruns.borrow().get(&cid).copied().unwrap_or(0);
+            let prev_underruns = last_underruns.borrow().get(&cid).copied().unwrap_or(0);
+            let overloaded = chain_overloaded(prev_xruns, cur_xruns)
+                || chain_overloaded(prev_underruns, cur_underruns);
+            last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
+            last_underruns.borrow_mut().insert(cid.clone(), cur_underruns);
+            // One concise warning only on the transition INTO overload (not
+            // every event) so it never spams the log.
+            if overloaded && !row.audio_overload {
+                log::warn!(
+                    "[#670] audio overload on chain '{}': {} new xrun(s), {} new \
+                     underrun(s) — the rig is heavy for this buffer size",
+                    cid.0,
+                    cur_xruns.saturating_sub(prev_xruns),
+                    cur_underruns.saturating_sub(prev_underruns),
+                );
+            }
+            let overload_changed = row.audio_overload != overloaded;
+            if aggregate_changed
+                || stream_meters_changed
+                || di_changed
+                || di_selected_changed
+                || di_sources_changed
+                || overload_changed
+            {
                 row.meter_in_dbfs = in_db;
                 row.meter_out_dbfs = out_db;
+                if overload_changed {
+                    row.audio_overload = overloaded;
+                }
                 if di_changed {
                     row.di_loop_playing = di_playing_now;
                 }
+                if di_sources_changed {
+                    row.di_loop_sources =
+                        slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+                            desired_sources
+                                .into_iter()
+                                .map(slint::SharedString::from)
+                                .collect::<Vec<_>>(),
+                        )));
+                }
+                if di_selected_changed {
+                    row.di_loop_selected_index = di_selected_now;
+                }
                 if stream_meters_changed {
-                    let model = std::rc::Rc::new(slint::VecModel::default());
-                    for r in &per_stream_rows {
-                        model.push(crate::StreamMeter {
-                            in_dbfs: r.in_dbfs,
-                            out_dbfs: r.out_dbfs,
-                        });
+                    // #715: mutate the existing per-stream model IN PLACE when
+                    // the row COUNT is unchanged (the common case while playing:
+                    // only the dB values move every tick). Allocating a fresh
+                    // VecModel each tick adds allocator memory traffic that helps
+                    // evict the audio worker's NAM weights from the shared cache
+                    // (the crackle). Only allocate when the stream count changes.
+                    let reused = row
+                        .stream_meters
+                        .as_any()
+                        .downcast_ref::<slint::VecModel<crate::StreamMeter>>()
+                        .filter(|vm| vm.row_count() == per_stream_rows.len())
+                        .map(|vm| {
+                            for (i, r) in per_stream_rows.iter().enumerate() {
+                                vm.set_row_data(
+                                    i,
+                                    crate::StreamMeter {
+                                        in_dbfs: r.in_dbfs,
+                                        out_dbfs: r.out_dbfs,
+                                    },
+                                );
+                            }
+                        })
+                        .is_some();
+                    if !reused {
+                        let model = std::rc::Rc::new(slint::VecModel::default());
+                        for r in &per_stream_rows {
+                            model.push(crate::StreamMeter {
+                                in_dbfs: r.in_dbfs,
+                                out_dbfs: r.out_dbfs,
+                            });
+                        }
+                        row.stream_meters = slint::ModelRc::from(model);
                     }
-                    row.stream_meters = slint::ModelRc::from(model);
                 }
                 project_chains.set_row_data(idx, row);
             }

@@ -4,12 +4,12 @@
 //! * `insert`: creates an empty `InsertBlock` immediately (so it shows up in
 //!   the chain), then opens the insert configuration window with a fresh
 //!   `InsertDraft` for the user to fill in send/return endpoints.
-//! * `input` / `output`: stores an `IoBlockInsertDraft` (consumed later by
-//!   the I/O save flow) and opens the dedicated I/O endpoint editor with a
-//!   single empty group seeded into a temporary `ChainDraft`.
 //! * effect type (everything else): prefills the block drawer with the first
 //!   available model, builds parameter items + knob overlays, and shows the
 //!   inline drawer or the detached editor depending on capabilities.
+//!
+//! The `input` / `output` branch was removed in #716 — a chain's I/O is now
+//! selected through the binding checklist, not by inserting I/O blocks.
 //!
 //! Wired once from `run_desktop_app`.
 
@@ -21,37 +21,32 @@ use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::chain::{ChainInputMode, ChainOutputMode};
+use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 
 use crate::audio_devices::{
     refresh_input_devices, refresh_output_devices, replace_channel_options,
 };
 use crate::block_editor::{block_parameter_items_for_model, build_knob_overlays};
-use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
+use crate::eq::{
+    build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
+};
 use crate::helpers::{show_child_window, sync_block_editor_window, use_inline_block_editor};
-use crate::io_groups::{apply_chain_input_window_state, apply_chain_output_window_state};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
     block_model_picker_items, block_model_picker_labels, block_type_picker_items,
     replace_project_chains,
 };
-use crate::state::{
-    BlockEditorDraft, ChainDraft, InputGroupDraft, InsertDraft, IoBlockInsertDraft,
-    OutputGroupDraft, ProjectSession,
-};
+use crate::state::{BlockEditorDraft, InsertDraft, ProjectSession};
 use crate::sync_live_chain_runtime;
 use crate::ui_state::block_drawer_state;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ChainInputWindow,
-    ChainInsertWindow, ChainOutputWindow, ChannelOptionItem, CurveEditorPoint, MultiSliderPoint,
-    ProjectChainItem,
+    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ChainInsertWindow,
+    ChannelOptionItem, CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
 };
 
 pub(crate) struct BlockChooseTypeCallbackCtx {
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
-    pub chain_draft: Rc<RefCell<Option<ChainDraft>>>,
-    pub io_block_insert_draft: Rc<RefCell<Option<IoBlockInsertDraft>>>,
     pub insert_draft: Rc<RefCell<Option<InsertDraft>>>,
     pub block_model_options: Rc<VecModel<BlockModelPickerItem>>,
     pub filtered_block_model_options: Rc<VecModel<BlockModelPickerItem>>,
@@ -69,8 +64,6 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub chain_input_device_options: Rc<VecModel<SharedString>>,
     pub chain_output_device_options: Rc<VecModel<SharedString>>,
-    pub chain_input_channels: Rc<VecModel<ChannelOptionItem>>,
-    pub chain_output_channels: Rc<VecModel<ChannelOptionItem>>,
     pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
     pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
     pub auto_save: bool,
@@ -79,15 +72,11 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
 pub(crate) fn wire(
     window: &AppWindow,
     block_editor_window: &BlockEditorWindow,
-    chain_input_window: &ChainInputWindow,
-    chain_output_window: &ChainOutputWindow,
     chain_insert_window: &ChainInsertWindow,
     ctx: BlockChooseTypeCallbackCtx,
 ) {
     let BlockChooseTypeCallbackCtx {
         block_editor_draft,
-        chain_draft,
-        io_block_insert_draft,
         insert_draft,
         block_model_options,
         filtered_block_model_options,
@@ -105,8 +94,6 @@ pub(crate) fn wire(
         output_chain_devices,
         chain_input_device_options,
         chain_output_device_options,
-        chain_input_channels,
-        chain_output_channels,
         insert_send_channels,
         insert_return_channels,
         auto_save,
@@ -114,8 +101,6 @@ pub(crate) fn wire(
 
     let weak_window = window.as_weak();
     let weak_block_editor_window = block_editor_window.as_weak();
-    let weak_input_window = chain_input_window.as_weak();
-    let weak_output_window = chain_output_window.as_weak();
     let weak_insert_window = chain_insert_window.as_weak();
 
     window.on_choose_block_type(move |index| {
@@ -178,6 +163,7 @@ pub(crate) fn wire(
                 &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
+            &[]
             );
             sync_project_dirty(
                 &window,
@@ -192,6 +178,9 @@ pub(crate) fn wire(
             let draft = InsertDraft {
                 chain_index,
                 block_index: before_index,
+                // #716 (model A): a fresh insert is unbound; the user picks its
+                // binding later. See TODO(#716) in insert_wiring.rs.
+                io: String::new(),
                 send_device_id: None,
                 send_channels: Vec::new(),
                 send_mode: ChainInputMode::Mono,
@@ -216,84 +205,6 @@ pub(crate) fn wire(
             }
             return;
         }
-        if effect_type_str == "input" || effect_type_str == "output" {
-            let (chain_index, before_index) = {
-                let draft_borrow = block_editor_draft.borrow();
-                let Some(draft) = draft_borrow.as_ref() else {
-                    return;
-                };
-                (draft.chain_index, draft.before_index)
-            };
-            // Store the I/O insert draft
-            *io_block_insert_draft.borrow_mut() = Some(IoBlockInsertDraft {
-                chain_index,
-                before_index,
-                kind: effect_type_str.to_string(),
-            });
-            window.set_show_block_type_picker(false);
-
-            if effect_type_str == "input" {
-                // Set up a temporary chain draft for the input window callbacks
-                let input_group = InputGroupDraft {
-                    device_id: None,
-                    channels: Vec::new(),
-                    mode: ChainInputMode::Mono,
-                };
-                *chain_draft.borrow_mut() = Some(ChainDraft {
-                    editing_index: Some(chain_index),
-                    name: String::new(),
-                    instrument: instrument.clone(),
-                    inputs: vec![input_group.clone()],
-                    outputs: Vec::new(),
-                    editing_input_index: Some(0),
-                    editing_output_index: None,
-                    editing_io_block_index: None,
-                    adding_new_input: false,
-                    adding_new_output: false,
-                });
-                if let Some(input_window) = weak_input_window.upgrade() {
-                    let fresh_input = refresh_input_devices(&chain_input_device_options);
-                    apply_chain_input_window_state(
-                        &input_window,
-                        &input_group,
-                        &fresh_input,
-                        &chain_input_channels,
-                    );
-                    show_child_window(window.window(), input_window.window());
-                }
-            } else {
-                // Set up a temporary chain draft for the output window callbacks
-                let output_group = OutputGroupDraft {
-                    device_id: None,
-                    channels: Vec::new(),
-                    mode: ChainOutputMode::Stereo,
-                };
-                *chain_draft.borrow_mut() = Some(ChainDraft {
-                    editing_index: Some(chain_index),
-                    name: String::new(),
-                    instrument: instrument.clone(),
-                    inputs: Vec::new(),
-                    outputs: vec![output_group.clone()],
-                    editing_io_block_index: None,
-                    editing_input_index: None,
-                    editing_output_index: Some(0),
-                    adding_new_input: false,
-                    adding_new_output: false,
-                });
-                if let Some(output_window) = weak_output_window.upgrade() {
-                    let fresh_output = refresh_output_devices(&chain_output_device_options);
-                    apply_chain_output_window_state(
-                        &output_window,
-                        &output_group,
-                        &fresh_output,
-                        &chain_output_channels,
-                    );
-                    show_child_window(window.window(), output_window.window());
-                }
-            }
-            return;
-        }
-
         let models = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
         let Some(model) = models.first() else {
             return;
@@ -306,11 +217,17 @@ pub(crate) fn wire(
         block_model_option_labels.set_vec(block_model_picker_labels(&items));
         block_model_options.set_vec(items.clone());
         filtered_block_model_options.set_vec(items);
-        let new_params = block_parameter_items_for_model(
+        // Seed the new block's knobs from the manifest (output_db #655,
+        // noise_gate #675) via the single source in `block_factory`, so the
+        // editor shows the pre-configured values instead of bare schema
+        // defaults. Falls back to empty params if the model is unknown.
+        let seeded = application::block_factory::default_params_for_model(
             &model.effect_type,
             &model.model_id,
-            &ParameterSet::default(),
-        );
+        )
+        .unwrap_or_default();
+        let new_params =
+            block_parameter_items_for_model(&model.effect_type, &model.model_id, &seeded);
         let overlays = build_knob_overlays(
             project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
             &new_params,
@@ -330,6 +247,7 @@ pub(crate) fn wire(
             &model.effect_type,
             &model.model_id,
             &ParameterSet::default(),
+            eq_viz_sample_rate(&project_runtime),
         );
         eq_band_curves.set_vec(
             eq_bands

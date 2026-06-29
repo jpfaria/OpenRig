@@ -21,6 +21,12 @@ fn is_healthy_returns_true_when_no_chains_active() {
             chains: std::collections::HashMap::new(),
         },
         active_chains: std::collections::HashMap::new(),
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -36,6 +42,12 @@ fn is_running_returns_false_when_no_chains() {
             chains: std::collections::HashMap::new(),
         },
         active_chains: std::collections::HashMap::new(),
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -70,6 +82,12 @@ fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
             chains: std::collections::HashMap::new(),
         },
         active_chains: std::collections::HashMap::new(),
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -109,6 +127,12 @@ fn teardown_active_chain_for_rebuild_is_noop_when_chain_absent() {
             chains: std::collections::HashMap::new(),
         },
         active_chains: std::collections::HashMap::new(),
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -146,10 +170,11 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     };
     let runtime_arc = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
             .expect("empty chain runtime should build"),
     );
 
@@ -180,6 +205,12 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
     let mut controller = ProjectRuntimeController {
         runtime_graph: graph,
         active_chains,
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -292,47 +323,52 @@ fn jack_config_for_card_falls_back_to_realtime_defaults_when_no_match() {
 /// Fixture: a chain with two `InputBlock`s on two distinct physical devices,
 /// both feeding one stereo `OutputBlock`. Mirrors the issue #350 bug shape.
 fn two_device_chain() -> project::chain::Chain {
-    use domain::ids::{BlockId, ChainId, DeviceId};
-    use project::block::{
-        AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-    };
-    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+    use domain::ids::ChainId;
+    use project::chain::Chain;
 
-    let input = |id: &str, dev: &str| AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(dev.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    };
+    // Model A (#716): the chain selects the "io" binding; its two distinct-device
+    // mono inputs + one stereo output live in `two_device_registry`, not in
+    // block `entries`.
     Chain {
         id: ChainId("two_dev".into()),
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            input("two_dev:in:0", "scarlett_2i2"),
-            input("two_dev:in:1", "teyun_q26"),
-            AudioBlock {
-                id: BlockId("two_dev:out:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("scarlett_2i2".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
+    }
+}
+
+/// Registry mirroring `two_device_chain`'s old block entries in order: two
+/// distinct-device mono inputs (Scarlett + TEYUN) + one stereo output.
+fn two_device_registry() -> Vec<domain::io_binding::IoBinding> {
+    use domain::ids::DeviceId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![
+            IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId("scarlett_2i2".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            },
+            IoEndpoint {
+                name: "in1".into(),
+                device_id: DeviceId("teyun_q26".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
             },
         ],
-    }
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("scarlett_2i2".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 #[test]
@@ -351,8 +387,13 @@ fn two_device_inputs_each_wire_their_own_runtime() {
     };
     let mut sample_rates = HashMap::new();
     sample_rates.insert(chain.id.clone(), 48_000.0_f32);
-    let graph = engine::runtime::build_runtime_graph(&project, &sample_rates, &HashMap::new())
-        .expect("two-device chain must build");
+    let graph = engine::runtime::build_runtime_graph(
+        &project,
+        &sample_rates,
+        &HashMap::new(),
+        &two_device_registry(),
+    )
+    .expect("two-device chain must build");
 
     // (a)+(b): exactly two isolated runtimes, one per distinct device,
     // keyed by distinct ascending cpal group ids 0 and 1.
@@ -394,4 +435,152 @@ fn two_device_inputs_each_wire_their_own_runtime() {
         out1.iter().all(|s| s.abs() < 1.0e-6),
         "single-runtime path must behave like the legacy process_output_f32"
     );
+}
+
+// ── Issue #703: same-device input entries each wire their own runtime ──
+//
+// Follow-up of the #350 phase-3 case above: TWO input entries on ONE
+// physical device (Scarlett ch0 + ch1, the "two guitars, one interface"
+// rig). macOS Core Audio cannot open two streams on one device (the
+// reverted 7764333e/68deee75 attempt produced total silence), so the fix
+// keeps ONE cpal stream per device and fans its callback out to every
+// per-entry runtime bound to that cpal index. This test pins the binding
+// helper the production `build_chain_streams` uses: every runtime the
+// engine declares for a cpal index must be fed by that device's stream —
+// a missing binding is a silent guitar.
+/// Fixture: a chain with two `InputBlock`s on the SAME physical device
+/// (channels 0 and 1), both feeding one stereo `OutputBlock`.
+fn same_device_chain() -> project::chain::Chain {
+    use domain::ids::ChainId;
+    use project::chain::Chain;
+
+    // Model A (#716): two raw mono inputs on the SAME device (ch0 + ch1) + one
+    // stereo output, all carried by the "io" binding in `same_device_registry`.
+    Chain {
+        id: ChainId("same_dev".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
+    }
+}
+
+/// Registry mirroring `same_device_chain`: two mono inputs on one device
+/// (channels 0 and 1) — two RAW endpoints, NOT one split-mono endpoint, so the
+/// engine yields two isolated per-entry runtimes — + one stereo output.
+fn same_device_registry() -> Vec<domain::io_binding::IoBinding> {
+    use domain::ids::DeviceId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![
+            IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId("scarlett_2i2".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            },
+            IoEndpoint {
+                name: "in1".into(),
+                device_id: DeviceId("scarlett_2i2".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![1],
+            },
+        ],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("scarlett_2i2".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+#[test]
+fn same_device_entries_both_bind_to_the_one_device_stream() {
+    use project::project::Project;
+    use std::collections::HashMap;
+
+    let chain = same_device_chain();
+    let project = Project {
+        name: Some("same_dev_test".into()),
+        chains: vec![chain.clone()],
+        device_settings: Vec::new(),
+        midi: None,
+    };
+    let mut sample_rates = HashMap::new();
+    sample_rates.insert(chain.id.clone(), 48_000.0_f32);
+    let graph = engine::runtime::build_runtime_graph(
+        &project,
+        &sample_rates,
+        &HashMap::new(),
+        &same_device_registry(),
+    )
+    .expect("same-device chain must build");
+
+    let runtimes = graph.runtimes_with_groups_for(&chain.id);
+    assert_eq!(
+        runtimes.len(),
+        2,
+        "two raw entries on one device => two isolated per-entry runtimes"
+    );
+
+    let slots = crate::build_chain_slots(&runtimes);
+
+    // ONE physical device => the single stream for cpal index 0 must feed
+    // BOTH per-entry runtimes; a runtime left unbound is a silent guitar.
+    let bound = crate::slot_processing::slots_for_input_stream(&slots, 0);
+    assert_eq!(
+        bound.len(),
+        2,
+        "device stream (cpal index 0) must fan out to BOTH per-entry runtimes"
+    );
+
+    // No phantom second stream: nothing binds to cpal index 1.
+    let phantom = crate::slot_processing::slots_for_input_stream(&slots, 1);
+    assert!(
+        phantom.is_empty(),
+        "one physical device => no runtime may bind to a second cpal stream"
+    );
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+#[test]
+fn two_device_entries_still_bind_one_runtime_per_stream() {
+    use project::project::Project;
+    use std::collections::HashMap;
+
+    let chain = two_device_chain();
+    let project = Project {
+        name: Some("two_dev_binding_test".into()),
+        chains: vec![chain.clone()],
+        device_settings: Vec::new(),
+        midi: None,
+    };
+    let mut sample_rates = HashMap::new();
+    sample_rates.insert(chain.id.clone(), 48_000.0_f32);
+    let graph = engine::runtime::build_runtime_graph(
+        &project,
+        &sample_rates,
+        &HashMap::new(),
+        &two_device_registry(),
+    )
+    .expect("two-device chain must build");
+    let runtimes = graph.runtimes_with_groups_for(&chain.id);
+    assert_eq!(runtimes.len(), 2);
+
+    let slots = crate::build_chain_slots(&runtimes);
+    for cpal_idx in [0usize, 1] {
+        let bound = crate::slot_processing::slots_for_input_stream(&slots, cpal_idx);
+        assert_eq!(
+            bound.len(),
+            1,
+            "distinct devices keep exactly one runtime per device stream \
+             (cpal index {cpal_idx})"
+        );
+    }
 }

@@ -21,8 +21,8 @@
 
 use crate::runtime::{
     build_chain_runtime_state, process_input_f32, DEFAULT_ELASTIC_TARGET, PROBE_BEEP_FRAMES,
-    PROBE_BEEP_FREQ,
 };
+use crate::runtime_probe::write_probe_beep;
 use project::chain::Chain;
 use std::sync::Arc;
 
@@ -47,22 +47,16 @@ pub fn measure_chain_dsp_latency_ms(chain: &Chain, sample_rate: f32, buffer_fram
     if buffer_frames == 0 {
         return 0.0;
     }
-    let runtime = match build_chain_runtime_state(chain, sample_rate, &[DEFAULT_ELASTIC_TARGET]) {
+    let runtime = match build_chain_runtime_state(chain, sample_rate, &[DEFAULT_ELASTIC_TARGET], &[])
+    {
         Ok(rt) => Arc::new(rt),
         Err(_) => return 0.0,
     };
 
     let mut data = vec![0.0_f32; buffer_frames * PROBE_BUFFER_CHANNELS];
     let beep_frames = PROBE_BEEP_FRAMES.min(buffer_frames);
-    let nominal_sr = 48_000.0_f32;
-    for f in 0..beep_frames {
-        let t = f as f32 / nominal_sr;
-        let envelope = (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
-        let sample = (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
-        for ch in 0..PROBE_BUFFER_CHANNELS {
-            data[f * PROBE_BUFFER_CHANNELS + ch] = sample;
-        }
-    }
+    // Synthesize at the real measured rate (issue #723), not a hardcoded 48 kHz.
+    write_probe_beep(&mut data, PROBE_BUFFER_CHANNELS, sample_rate, beep_frames);
 
     // Diagnostic: log the chain shape and elapsed time so the user can
     // sanity-check that the probe is exercising every enabled block, not

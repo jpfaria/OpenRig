@@ -88,7 +88,16 @@ mod tests {
     /// #614 bumped to 63 with `SetChainDiLoopSource` and
     /// `SetChainDiLoopEnabled` — per-chain virtual DI loop (ephemeral,
     /// never persisted; distinct from #324 project-level DI config).
-    const COMMAND_VARIANT_COUNT: usize = 63;
+    /// #712 bumped to 65 with `SetMidiEnabled` and `SetMcpEnabled` —
+    /// per-machine master switches for the MIDI adapter / MCP server.
+    /// #716 bumped to 68 with `CreateIoBinding`, `UpdateIoBinding`, and
+    /// `DeleteIoBinding` — per-machine I/O binding registry (Task 3/4).
+    /// #716 bumped to 71 with the intent commands `RenameIoBinding`,
+    /// `AddIoEndpoint`, `RemoveIoEndpoint` — endpoint logic moved out of the
+    /// GUI into handlers (GUI is a pure dispatcher, LAW 1).
+    /// #716 bumped to 72 with `SetChainIoBindings` — a chain selects which I/O
+    /// bindings it uses; the tool auto-derives via `command_schema`.
+    const COMMAND_VARIANT_COUNT: usize = 72;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {
@@ -117,6 +126,14 @@ mod tests {
             assert!(
                 command_variant_names().contains(&v),
                 "{v} missing from schema — JsonSchema not derived on its payload"
+            );
+        }
+        // #716 spot-check: io-binding registry commands must appear as tools
+        // (IoBinding / IoEndpoint derive JsonSchema in domain crate).
+        for v in ["CreateIoBinding", "UpdateIoBinding", "DeleteIoBinding"] {
+            assert!(
+                command_variant_names().contains(&v),
+                "{v} missing from schema — IoBinding payload type must derive JsonSchema"
             );
         }
     }

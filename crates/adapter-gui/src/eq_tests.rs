@@ -1,5 +1,26 @@
 use super::*;
 
+// --- compute_eq_curves: sample-rate dependence (#723) ---
+
+#[test]
+fn compute_eq_curves_reflects_the_device_sample_rate() {
+    use domain::value_objects::ParameterValue;
+    use project::param::ParameterSet;
+    // Boost the high shelf so the near-Nyquist response — where bilinear
+    // warping differs most between rates — is non-flat.
+    let mut params = ParameterSet::default();
+    params.insert("high_gain", ParameterValue::Float(12.0));
+
+    let at_44100 = compute_eq_curves("filter", "eq_three_band_basic", &params, 44_100.0);
+    let at_96000 = compute_eq_curves("filter", "eq_three_band_basic", &params, 96_000.0);
+
+    assert!(!at_44100.1.is_empty(), "model must yield EQ band curves");
+    assert_ne!(
+        at_44100, at_96000,
+        "EQ curve must be drawn at the real device rate (issue #723), not a hardcoded 48k"
+    );
+}
+
 // --- db_to_linear / linear_to_db ---
 
 #[test]

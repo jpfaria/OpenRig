@@ -84,6 +84,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "Rechercher des modèles..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "Aucun preset trouvé"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "Aucun modèle trouvé"
@@ -386,7 +390,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr ""
+msgstr "Activez une chain avec une entrée configurée pour voir ses accordeurs ici."
 "Activez une chaîne avec une entrée configurée pour voir ses accordeurs "
 "ici.Activez une chaîne avec une entrée configurée pour voir les accordeurs "
 "ici."
@@ -481,7 +485,7 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "btn-close"
-msgstr ""
+msgstr "Fermer"
 
 #: crates/adapter-gui/ui/components/settings_section.slint
 msgid "badge-system"
@@ -493,23 +497,23 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
 msgid "title-section-audio-interface"
-msgstr ""
+msgstr "Interface audio"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_language.slint
 msgid "title-section-language"
-msgstr ""
+msgstr "Langue"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
 msgid "title-section-midi-devices"
-msgstr ""
+msgstr "Périphériques MIDI"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "title-section-project-meta"
-msgstr ""
+msgstr "Métadonnées"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "label-file"
-msgstr ""
+msgstr "Fichier"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "title-section-midi-mapping"
@@ -529,11 +533,11 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-system"
-msgstr ""
+msgstr "SYSTÈME"
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-project"
-msgstr ""
+msgstr "PROJET"
 
 #: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
 msgid "preset-search-placeholder"
@@ -560,4 +564,184 @@ msgid "btn-overwrite"
 msgstr "Écraser"
 
 msgid "btn-save-audio-settings"
-msgstr ""
+msgstr "Appliquer"
+
+msgid "title-section-integrations"
+msgstr "Intégrations"
+
+msgid "label-midi-enabled"
+msgstr "Contrôle MIDI"
+
+msgid "desc-midi-enabled"
+msgstr "Active l'adaptateur MIDI/BLE-MIDI pour piloter OpenRig au pied"
+
+msgid "label-mcp-enabled"
+msgstr "Serveur MCP"
+
+msgid "desc-mcp-enabled"
+msgstr "Expose le serveur MCP sur 127.0.0.1:4123 pour les agents"
+
+msgid "hint-restart-to-apply"
+msgstr "Prend effet au prochain démarrage."
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "Liaison E/S"
+
+msgid "label-input-endpoint"
+msgstr "Point d'entrée"
+
+msgid "label-output-endpoint"
+msgstr "Point de sortie"
+
+msgid "label-resolved-info"
+msgstr "Informations résolues"
+
+msgid "placeholder-select-endpoint"
+msgstr "Sélectionner un point de terminaison"
+
+msgid "title-section-io-bindings"
+msgstr "Liaisons E/S"
+
+msgid "label-binding-name"
+msgstr "Nom de la liaison"
+
+msgid "label-endpoint-input"
+msgstr "Point d'entrée"
+
+msgid "label-endpoint-output"
+msgstr "Point de sortie"
+
+msgid "mode-mono"
+msgstr "Mono"
+
+msgid "mode-stereo"
+msgstr "Stéréo"
+
+msgid "mode-dual-mono"
+msgstr "Double mono"
+
+msgid "placeholder-binding-name"
+msgstr "Nom de la liaison…"
+
+msgid "label-channels-prefix"
+msgstr "Canaux"
+
+msgid "label-endpoint-device"
+msgstr "Périphérique"
+
+msgid "label-endpoint-mode"
+msgstr "Mode"
+
+msgid "label-endpoint-channels"
+msgstr "Canaux"
+
+msgid "btn-add-endpoint"
+msgstr "Ajouter un point d'E/S"
+
+msgid "label-group-inputs"
+msgstr "Entrées"
+
+msgid "label-group-outputs"
+msgstr "Sorties"
+
+msgid "empty-no-input-endpoints"
+msgstr "Aucune entrée pour l'instant"
+
+msgid "empty-no-output-endpoints"
+msgstr "Aucune sortie pour l'instant"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise une liaison."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "Nouvelle liaison"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "Aucune liaison pour l'instant"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "Créez-en une pour regrouper l'entrée et la sortie d'une interface."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "Sélectionnez un périphérique"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "Choisir…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "Recharger"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "Réinitialiser"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "Enregistrer le projet"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "Boucle DI"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "Lire la boucle DI"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "Arrêter la boucle DI"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "Dossier des évaluations"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "Langue"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "Catalogue de plugins"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "Dossier des plugins"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "Dossier des presets"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(par défaut)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(non enregistré)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "Pas encore rechargé"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "Chemins"
+
+
+msgid "label-chain-io-bindings"
+msgstr "Liaisons d'E/S"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "Aucune liaison d'E/S — créez-les dans Réglages → Liaisons d'E/S"
+
+msgid "warn-select-binding"
+msgstr "Sélectionnez au moins une liaison d'E/S pour cette chaîne"

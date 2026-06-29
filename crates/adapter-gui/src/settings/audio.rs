@@ -32,6 +32,8 @@ use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::selected_device_settings;
+use crate::default_io_binding::DEFAULT_BINDING_ID;
+use crate::device_settings_wiring::wizard_create_or_update_default_binding;
 use crate::helpers::{clear_status, set_status_error, set_status_warning};
 use crate::project_ops::{
     build_device_settings_from_gui, project_title_for_path, sync_project_dirty,
@@ -209,8 +211,21 @@ pub(crate) fn wire(
                         );
                         return;
                     }
-                    match FilesystemStorage::save_gui_audio_settings(&settings) {
-                        Ok(()) => {
+                    // #693: the settings write runs on the persist worker —
+                    // the GUI thread never waits on disk; errors go to the
+                    // non-blocking logger.
+                    {
+                        let settings_for_write = settings.clone();
+                        application::persist_worker::run(move || {
+                            if let Err(e) =
+                                FilesystemStorage::save_gui_audio_settings(&settings_for_write)
+                            {
+                                log::error!("save_gui_audio_settings failed: {e}");
+                            }
+                        });
+                    }
+                    {
+                        {
                             // #627: mirror the applied device lists into the shared
                             // in-memory AppConfig so a subsequent whole-config re-save
                             // (project-open / register-recent) does not clobber them.
@@ -244,6 +259,25 @@ pub(crate) fn wire(
                                         settings.output_devices.clone(),
                                     ),
                                 });
+                                // #716 Task 13: create/update the "default" I/O
+                                // binding when the audio wizard finishes.
+                                if let (Some(input), Some(output)) = (
+                                    settings.input_devices.first(),
+                                    settings.output_devices.first(),
+                                ) {
+                                    let existing = app_config
+                                        .borrow()
+                                        .io_bindings
+                                        .iter()
+                                        .find(|b| b.id == DEFAULT_BINDING_ID)
+                                        .cloned();
+                                    let cmd = wizard_create_or_update_default_binding(
+                                        &input.device_id,
+                                        &output.device_id,
+                                        existing.as_ref(),
+                                    );
+                                    let _ = session.dispatcher.dispatch(cmd);
+                                }
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {
                                     set_status_error(&window, &toast_timer, &e.to_string());
                                     return;
@@ -252,7 +286,6 @@ pub(crate) fn wire(
                             clear_status(&window, &toast_timer);
                             window.set_show_audio_settings(false);
                         }
-                        Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
                     }
                 }
                 AudioSettingsMode::Project => {
@@ -326,6 +359,7 @@ pub(crate) fn wire(
                         &*session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
+            &[]
                     );
                     window.set_project_title(
                         project_title_for_path(
@@ -396,21 +430,27 @@ pub(crate) fn wire(
                         );
                         return;
                     }
-                    match FilesystemStorage::save_gui_audio_settings(&settings) {
-                        Ok(()) => {
-                            // #627: mirror into the shared in-memory AppConfig.
-                            apply_audio_override(
-                                &mut app_config.borrow_mut(),
-                                &settings.input_devices,
-                                &settings.output_devices,
-                            );
-                            // #513: Apply restarts the audio runtime but keeps
-                            // the Settings window open. User dismisses via FECHAR.
-                            settings_window.set_status_message("".into());
-                            clear_status(&window, &toast_timer);
-                        }
-                        Err(error) => settings_window.set_status_message(error.to_string().into()),
+                    // #693: write on the persist worker; errors to the log.
+                    {
+                        let settings_for_write = settings.clone();
+                        application::persist_worker::run(move || {
+                            if let Err(e) =
+                                FilesystemStorage::save_gui_audio_settings(&settings_for_write)
+                            {
+                                log::error!("save_gui_audio_settings failed: {e}");
+                            }
+                        });
                     }
+                    // #627: mirror into the shared in-memory AppConfig.
+                    apply_audio_override(
+                        &mut app_config.borrow_mut(),
+                        &settings.input_devices,
+                        &settings.output_devices,
+                    );
+                    // #513: Apply restarts the audio runtime but keeps
+                    // the Settings window open. User dismisses via FECHAR.
+                    settings_window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                 }
                 AudioSettingsMode::Project => {
                     // config.yaml persistence is owned by the dispatcher's
@@ -470,6 +510,7 @@ pub(crate) fn wire(
                         &*session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
+            &[]
                     );
                     window.set_project_title(
                         project_title_for_path(

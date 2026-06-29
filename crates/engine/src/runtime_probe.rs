@@ -42,6 +42,33 @@ pub(crate) const PROBE_BEEP_FREQ: f32 = 1000.0;
 /// floor so background hum does not false-trigger detection.
 pub(crate) const PROBE_DETECT_THRESHOLD: f32 = 0.05;
 
+/// Synthesize the latency-probe beep into `buf` (interleaved, `channels`
+/// wide) for the first `beep_frames` frames: a `PROBE_BEEP_FREQ` sine with a
+/// raised-cosine envelope, copied to every channel.
+///
+/// `sample_rate` MUST be the rate the stream actually runs at — the sine step
+/// is `f / sample_rate`. Issue #723: this used to be hardcoded to 48000 in
+/// both call sites (`process_input_f32` and `probe.rs`), so on a 44.1 kHz
+/// device the beep played at the wrong pitch. Shared here so neither caller
+/// can drift back to a fixed rate. Pure math, no allocation — safe to call
+/// from the audio thread.
+pub(crate) fn write_probe_beep(
+    buf: &mut [f32],
+    channels: usize,
+    sample_rate: f32,
+    beep_frames: usize,
+) {
+    use std::f32::consts::PI;
+    for f in 0..beep_frames {
+        let t = f as f32 / sample_rate;
+        let envelope = (PI * f as f32 / beep_frames as f32).sin();
+        let sample = (2.0 * PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
+        for ch in 0..channels {
+            buf[f * channels + ch] = sample;
+        }
+    }
+}
+
 impl ChainRuntimeState {
     /// Arm the latency probe. The next input callback will inject a short
     /// beep into the signal path, and the first output callback to see it

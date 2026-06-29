@@ -21,6 +21,8 @@
 use std::sync::Arc;
 
 use domain::ids::ChainId;
+use engine::runtime::ChainRuntimeState;
+use engine::DiLoop;
 
 use crate::controller::ProjectRuntimeController;
 
@@ -244,6 +246,43 @@ impl ProjectRuntimeController {
             .sum()
     }
 
+    /// Total audio-thread deadline overruns (xruns) counted across this
+    /// chain's per-input runtimes (issue #670). Read by the GUI meter timer
+    /// (~30 Hz) to drive the per-chain overload indicator, and exposed via
+    /// `QueryKind` for MCP / gRPC parity. Unknown / runtime-less chains
+    /// return 0.
+    pub fn chain_xrun_count(&self, chain_id: &ChainId) -> u64 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.xrun_count())
+            .sum()
+    }
+
+    /// Total output-side elastic-buffer underruns across this chain's
+    /// per-input runtimes (issue #670 instrumentation). An underrun is a
+    /// silent gap emitted because the input/DSP producer didn't deliver a
+    /// frame in time — the dropout the user hears as crackle even when the
+    /// callback itself is fast (no xrun). Read off the audio thread.
+    pub fn chain_underrun_count(&self, chain_id: &ChainId) -> u64 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.underrun_count())
+            .sum()
+    }
+
+    /// Worst per-callback load (elapsed/period) across this chain's runtimes
+    /// since the last reset (issue #670). 1.0 == exactly at the deadline,
+    /// > 1.0 == the callback overran. Read off the audio thread.
+    pub fn chain_peak_load(&self, chain_id: &ChainId) -> f32 {
+        self.runtime_graph
+            .runtimes_for(chain_id)
+            .iter()
+            .map(|runtime| runtime.peak_callback_load())
+            .fold(0.0_f32, f32::max)
+    }
+
     /// Drop stream taps with no surviving consumer handles across all chains.
     pub fn prune_dead_stream_taps(&self) {
         for runtime in self.runtime_graph.chains.values() {
@@ -269,14 +308,8 @@ impl ProjectRuntimeController {
     /// Called from the adapter-gui wiring after
     /// `Event::ChainDiLoopEnabledChanged` is received; the `Arc<DiLoop>` is
     /// retrieved from the dispatcher's ephemeral store (not persisted).
-    pub fn set_chain_di_loop(
-        &self,
-        chain_id: &ChainId,
-        di: Option<Arc<engine::DiLoop>>,
-    ) {
-        for runtime in self.runtime_graph.runtimes_for(chain_id) {
-            runtime.set_di_loop(di.clone());
-        }
+    pub fn set_chain_di_loop(&self, chain_id: &ChainId, di: Option<Arc<engine::DiLoop>>) {
+        arm_di_loop_on_first(&self.runtime_graph.runtimes_for(chain_id), di);
     }
 
     /// Returns `true` when at least one `ChainRuntimeState` for `chain_id`
@@ -290,5 +323,131 @@ impl ProjectRuntimeController {
             .runtimes_for(chain_id)
             .iter()
             .any(|rt| rt.has_di_loop())
+    }
+}
+
+/// Arm a chain's DI loop on its FIRST per-input-entry runtime only.
+///
+/// #715: since #703 a chain has one isolated runtime PER input entry, each
+/// writing to the same output device — where the backend SUMS them (CLAUDE.md
+/// invariant: mixing happens in the backend, not our code). Arming the same
+/// loop on EVERY runtime plays the signal once per entry, so the device sums N
+/// copies and the loop is heard at N× level (the user-reported "som dobrando"
+/// on a 2-input-entry chain). A DI loop is a single test source: arm it on the
+/// first runtime and CLEAR it on the rest (so a stale loop cannot linger on
+/// entry 2+). A single-entry chain (the common case) is unchanged.
+pub(crate) fn arm_di_loop_on_first(runtimes: &[Arc<ChainRuntimeState>], di: Option<Arc<DiLoop>>) {
+    for (i, runtime) in runtimes.iter().enumerate() {
+        runtime.set_di_loop(if i == 0 { di.clone() } else { None });
+    }
+}
+
+#[cfg(test)]
+mod di_loop_doubling_tests {
+    use super::arm_di_loop_on_first;
+    use crate::{build_chain_runtime, BuildRequest};
+    use domain::ids::{ChainId, DeviceId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use engine::DiLoop;
+    use project::chain::Chain;
+    use std::sync::Arc;
+
+    /// A chain whose input binding has TWO mono entries on the same device
+    /// (ch0 + ch1) — the "two inputs, one interface" shape. #703 builds one
+    /// runtime per entry. Model A (#716): the endpoints live in the registry.
+    fn two_entry_chain() -> Chain {
+        Chain {
+            id: ChainId("dbl".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["io".into()],
+            blocks: vec![],
+        }
+    }
+
+    /// Registry mirroring `two_entry_chain`: two same-device mono inputs +
+    /// one stereo output.
+    fn two_entry_registry() -> Vec<IoBinding> {
+        vec![IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![
+                IoEndpoint {
+                    name: "in0".into(),
+                    device_id: DeviceId("dev".into()),
+                    mode: ChannelMode::Mono,
+                    channels: vec![0],
+                },
+                IoEndpoint {
+                    name: "in1".into(),
+                    device_id: DeviceId("dev".into()),
+                    mode: ChannelMode::Mono,
+                    channels: vec![1],
+                },
+            ],
+            outputs: vec![IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        }]
+    }
+
+    #[test]
+    fn two_entry_chain_builds_two_runtimes() {
+        // Pins the doubling PREMISE: a 2-entry chain is two isolated runtimes.
+        let req = BuildRequest {
+            chain: two_entry_chain(),
+            sample_rate: 48_000.0,
+            device_sample_rates: std::collections::HashMap::new(),
+            buffer_sizes: vec![64],
+            io_bindings: two_entry_registry(),
+        };
+        let runtimes = build_chain_runtime(&req).expect("build 2-entry chain");
+        assert_eq!(runtimes.len(), 2, "#703: one runtime per input entry");
+    }
+
+    #[test]
+    fn di_loop_is_armed_on_the_first_runtime_only() {
+        let req = BuildRequest {
+            chain: two_entry_chain(),
+            sample_rate: 48_000.0,
+            device_sample_rates: std::collections::HashMap::new(),
+            buffer_sizes: vec![64],
+            io_bindings: two_entry_registry(),
+        };
+        let built = build_chain_runtime(&req).expect("build 2-entry chain");
+        let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
+        assert_eq!(runtimes.len(), 2);
+
+        let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2, 0.3, 0.4], 48_000, 1, 48_000, 0));
+        arm_di_loop_on_first(&runtimes, Some(di));
+
+        assert!(runtimes[0].has_di_loop(), "the loop plays on the first runtime");
+        assert!(
+            !runtimes[1].has_di_loop(),
+            "the loop must NOT also play on the second entry's runtime — that is \
+             the doubling: two runtimes sum at the output device (#715)"
+        );
+    }
+
+    #[test]
+    fn clearing_disarms_every_runtime() {
+        let req = BuildRequest {
+            chain: two_entry_chain(),
+            sample_rate: 48_000.0,
+            device_sample_rates: std::collections::HashMap::new(),
+            buffer_sizes: vec![64],
+            io_bindings: two_entry_registry(),
+        };
+        let built = build_chain_runtime(&req).expect("build");
+        let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
+        let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2], 48_000, 1, 48_000, 0));
+        arm_di_loop_on_first(&runtimes, Some(di));
+        arm_di_loop_on_first(&runtimes, None);
+        assert!(!runtimes[0].has_di_loop() && !runtimes[1].has_di_loop());
     }
 }

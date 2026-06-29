@@ -1,0 +1,261 @@
+// TEMP mockup — "Ligações de E/S" (#716) in the shadcn/Radix dark style.
+// Real tokens (shadcn default .dark, zinc): bg #09090b, card #18181b,
+// border #27272a, muted-fg #a1a1aa, fg #fafafa, secondary #27272a, radius 10px.
+// Accent kept as OpenRig blue #2f80ff. Body font = system (Helvetica Neue),
+// hierarchy by WEIGHT. No nested panels.
+// App font: preview uses Bebas Neue (project asset, pt-BR). Real screen
+// inherits Locale.font-family (no hardcode) — system fallback for CJK.
+import "../../fonts/BebasNeue.ttf";
+
+component Hairline inherits Rectangle { height: 1px; background: #27272a; }
+
+component Badge inherits Rectangle {
+    in property <string> text;
+    in property <color> fg: #d4d4d8;
+    in property <color> bg: #27272a;
+    height: 26px;
+    background: root.bg;
+    border-radius: 7px;
+    HorizontalLayout {
+        padding-left: 11px; padding-right: 11px;
+        Text { text: root.text; color: root.fg; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+    }
+}
+
+component EndpointRow inherits Rectangle {
+    in property <string> device;
+    in property <string> channels;
+    in property <string> mode;
+    // mode → semantic color (mono / estéreo / dual mono)
+    property <color> mode-fg: root.mode == "Mono" ? #4ade80 : root.mode == "Estéreo" ? #a78bfa : #fbbf24;
+    property <color> mode-bg: root.mode == "Mono" ? #0e2a1d : root.mode == "Estéreo" ? #221b3c : #2c1f0c;
+    height: 44px;
+    HorizontalLayout {
+        spacing: 8px;
+        Text { horizontal-stretch: 1; text: root.device; color: #fafafa; font-size: 14px; font-weight: 500; vertical-alignment: center; }
+        Rectangle { VerticalLayout { alignment: center; Badge { text: root.channels; fg: #60a5fa; bg: #112540; } } }
+        Rectangle { VerticalLayout { alignment: center; Badge { text: root.mode; fg: root.mode-fg; bg: root.mode-bg; } } }
+        Rectangle { width: 8px; }
+        Rectangle { width: 30px; height: 30px; y: (parent.height - self.height) / 2; border-radius: 6px;
+            Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                width: 14px; height: 14px; source: @image-url("../../assets/pencil.svg"); colorize: #71717a; } }
+        Rectangle { width: 30px; height: 30px; y: (parent.height - self.height) / 2; border-radius: 6px;
+            Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                width: 14px; height: 14px; source: @image-url("../../assets/trash.svg"); colorize: #71717a; } }
+    }
+}
+
+component DropDown inherits Rectangle {
+    in property <string> text;
+    height: 40px;
+    background: #18181b;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #27272a;
+    HorizontalLayout {
+        padding-left: 12px; padding-right: 12px; spacing: 8px;
+        Text { horizontal-stretch: 1; text: root.text; color: #e4e4e7; font-size: 14px; vertical-alignment: center; }
+        Image { width: 11px; height: 11px; y: (parent.height - self.height) / 2;
+            source: @image-url("../../assets/arrow-down.svg"); colorize: #71717a; }
+    }
+}
+
+// Segmented control for a small fixed option set (mode).
+component Segmented inherits Rectangle {
+    in property <[string]> options;
+    in property <int> current: 0;
+    height: 40px;
+    background: #131316;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #27272a;
+    HorizontalLayout {
+        padding: 3px; spacing: 3px;
+        for opt[i] in root.options : Rectangle {
+            horizontal-stretch: 1;
+            background: i == root.current ? #2f80ff : transparent;
+            border-radius: 6px;
+            Text { text: opt; color: i == root.current ? #ffffff : #a1a1aa; font-size: 13px;
+                font-weight: i == root.current ? 600 : 500; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+}
+
+component ChannelCheck inherits HorizontalLayout {
+    in property <string> n;
+    in property <bool> on: false;
+    in property <bool> disabled: false;
+    spacing: 8px;
+    opacity: root.disabled ? 0.35 : 1.0;
+    Rectangle {
+        width: 18px; height: 18px; y: (parent.height - self.height) / 2; border-radius: 4px;
+        background: root.on ? #2f80ff : #18181b;
+        border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
+        if root.on : Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+            width: 10px; height: 10px; source: @image-url("../../assets/check.svg"); colorize: #ffffff; }
+    }
+    Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
+}
+
+// Channel RADIO (single-select) — used when mode = Mono (1 channel).
+component ChannelRadio inherits HorizontalLayout {
+    in property <string> n;
+    in property <bool> on: false;
+    spacing: 8px;
+    Rectangle {
+        width: 18px; height: 18px; y: (parent.height - self.height) / 2; border-radius: 9px;
+        background: #18181b;
+        border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
+        if root.on : Rectangle { width: 8px; height: 8px; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+            border-radius: 4px; background: #2f80ff; }
+    }
+    Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
+}
+
+component PrimaryButton inherits Rectangle {
+    in property <string> text;
+    height: 38px;
+    background: #2f80ff;
+    border-radius: 8px;
+    HorizontalLayout { padding-left: 16px; padding-right: 16px;
+        Text { text: root.text; color: #ffffff; font-size: 14px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } }
+}
+
+component GhostButton inherits Rectangle {
+    in property <string> text;
+    height: 38px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #27272a;
+    HorizontalLayout { padding-left: 16px; padding-right: 16px;
+        Text { text: root.text; color: #d4d4d8; font-size: 14px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; } }
+}
+
+component IconBtn inherits Rectangle {
+    in property <image> icon;
+    width: 32px; height: 32px; border-radius: 7px;
+    Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+        width: 15px; height: 15px; source: root.icon; colorize: #a1a1aa; }
+}
+
+// Clear add button (bordered, full-width).
+component AddButton inherits Rectangle {
+    in property <string> text;
+    height: 42px;
+    background: #1c1c20;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #2f2f36;
+    HorizontalLayout {
+        alignment: center; spacing: 8px;
+        Image { width: 13px; height: 13px; y: (parent.height - self.height) / 2;
+            source: @image-url("../../assets/plus.svg"); colorize: #d4d4d8; }
+        Text { text: root.text; color: #d4d4d8; font-size: 14px; font-weight: 500; vertical-alignment: center; }
+    }
+}
+
+// Prominent section header: colored dot + bold title + muted count.
+component SectionHeader inherits HorizontalLayout {
+    in property <string> text;
+    in property <color> tint;
+    spacing: 9px;
+    Rectangle { width: 8px; height: 8px; y: (parent.height - self.height) / 2; border-radius: 4px; background: root.tint; }
+    Text { text: root.text; color: #fafafa; font-size: 15px; font-weight: 600; vertical-alignment: center; }
+}
+
+component FieldRow inherits HorizontalLayout {
+    in property <string> label;
+    spacing: 16px;
+    Text { text: root.label; color: #a1a1aa; font-size: 14px; vertical-alignment: center; width: 92px; }
+    @children
+}
+
+export component Mockup inherits Window {
+    title: "Ligações de E/S — shadcn";
+    default-font-family: "Bebas Neue";
+    default-font-size: 14px;
+    preferred-width: 840px;
+    preferred-height: 760px;
+    background: #09090b;
+
+    VerticalLayout {
+        padding: 32px;
+        spacing: 28px;
+
+        HorizontalLayout {
+            spacing: 16px;
+            VerticalLayout {
+                horizontal-stretch: 1; alignment: center; spacing: 6px;
+                Text { text: "Ligações de E/S"; color: #fafafa; font-size: 22px; font-weight: 600; }
+                Text { text: "Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."; color: #a1a1aa; font-size: 14px; }
+            }
+            Rectangle { width: 138px; VerticalLayout { alignment: center; PrimaryButton { text: "Nova ligação"; } } }
+        }
+
+        Rectangle {
+            background: #18181b;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #27272a;
+            VerticalLayout {
+                padding: 24px;
+                spacing: 18px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: "Guitarra"; color: #fafafa; font-size: 16px; font-weight: 600; horizontal-stretch: 1; vertical-alignment: center; }
+                    IconBtn { icon: @image-url("../../assets/pencil.svg"); }
+                    IconBtn { icon: @image-url("../../assets/trash.svg"); }
+                }
+
+                SectionHeader { text: "Entradas"; tint: #4ade80; }
+                EndpointRow { device: "Scarlett 2i2 USB"; channels: "Canal 1"; mode: "Mono"; }
+
+                // Adding an entrada — form open. Mode = Mono → channel is a
+                // RADIO (pick 1). Estéreo/Dual would show checkboxes (pick 2).
+                Hairline {}
+                FieldRow { label: "Dispositivo"; DropDown { text: "Scarlett 2i2 USB"; } }
+                FieldRow { label: "Modo"; Segmented { options: ["Mono", "Estéreo", "Dual mono"]; current: 0; } }
+                FieldRow {
+                    label: "Canais";
+                    HorizontalLayout {
+                        alignment: start; spacing: 22px;
+                        ChannelRadio { n: "1"; on: true; }
+                        ChannelRadio { n: "2"; }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle { horizontal-stretch: 1; }
+                    Rectangle { width: 104px; VerticalLayout { GhostButton { text: "Cancelar"; } } }
+                    Rectangle { width: 116px; VerticalLayout { PrimaryButton { text: "Adicionar"; } } }
+                }
+                Hairline {}
+                Rectangle { height: 6px; }
+
+                SectionHeader { text: "Saídas"; tint: #fb923c; }
+                EndpointRow { device: "Scarlett 2i2 USB"; channels: "Canais 1, 2"; mode: "Estéreo"; }
+                AddButton { text: "Adicionar saída"; }
+            }
+        }
+
+        Rectangle {
+            background: #18181b; border-radius: 10px; border-width: 1px; border-color: #27272a;
+            VerticalLayout {
+                padding: 24px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1; alignment: center; spacing: 4px;
+                        Text { text: "Voz"; color: #fafafa; font-size: 16px; font-weight: 600; }
+                        Text { text: "1 entrada · 1 saída"; color: #a1a1aa; font-size: 13px; }
+                    }
+                    IconBtn { icon: @image-url("../../assets/pencil.svg"); }
+                    IconBtn { icon: @image-url("../../assets/trash.svg"); }
+                }
+            }
+        }
+
+        Rectangle { vertical-stretch: 1; }
+    }
+}

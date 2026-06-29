@@ -1,4 +1,5 @@
 use crate::block::{build_audio_block_kind, schema_for_block_model, AudioBlockKind};
+use crate::catalog_label::package_type_label;
 use crate::param::ParameterSet;
 use block_core::{ModelColorOverride, ModelColorScheme, ModelVisualData};
 
@@ -376,7 +377,7 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
             let type_label = visual
                 .as_ref()
                 .map(|v| v.type_label.to_string())
-                .unwrap_or_else(|| backend_label_for(&package.manifest.backend).to_string());
+                .unwrap_or_else(|| package_type_label(&package.manifest));
             result.push(BlockModelCatalogEntry {
                 effect_type: effect_type.to_string(),
                 model_id: package.manifest.id.clone(),
@@ -432,17 +433,6 @@ fn default_instruments_for_effect_type(effect_type: &str) -> &'static [&'static 
         EFFECT_TYPE_PREAMP => GUITAR_ACOUSTIC_BASS,
         EFFECT_TYPE_BODY => &[INST_ACOUSTIC_GUITAR, INST_BASS],
         _ => ALL_INSTRUMENTS,
-    }
-}
-
-fn backend_label_for(backend: &plugin_loader::manifest::Backend) -> &'static str {
-    use plugin_loader::manifest::Backend;
-    match backend {
-        Backend::Native { .. } => "NATIVE",
-        Backend::Nam { .. } => "NAM",
-        Backend::Ir { .. } => "IR",
-        Backend::Lv2 { .. } => "LV2",
-        Backend::Vst3 { .. } => "VST3",
     }
 }
 
@@ -542,8 +532,9 @@ pub fn model_brand(effect_type: &str, model_id: &str) -> String {
 /// Returns the type label for a model (e.g. "NATIVE", "NAM", "LV2", "IR"),
 /// or empty string if not found.
 ///
-/// Native first, then `backend_label_for` on the disk-package's backend variant.
-/// Issue #414.
+/// Native first, then [`package_type_label`] on the disk-package — so a NAM
+/// package shows the same NAM/A1 vs NAM/A2 badge here (tooltip, plugin-info,
+/// block-editor header) as in the picker. Issues #414, #650.
 pub fn model_type_label(effect_type: &str, model_id: &str) -> String {
     use block_core::*;
     let native: &'static str = match effect_type {
@@ -571,7 +562,7 @@ pub fn model_type_label(effect_type: &str, model_id: &str) -> String {
         return native.to_string();
     }
     disk_package_for(effect_type, model_id)
-        .map(|p| backend_label_for(&p.manifest.backend).to_string())
+        .map(|p| package_type_label(&p.manifest))
         .unwrap_or_default()
 }
 

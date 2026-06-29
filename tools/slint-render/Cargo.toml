@@ -1,0 +1,21 @@
+# Standalone dev tool: its own workspace so it never joins the OpenRig
+# workspace build (keeps slint-interpreter out of the app's dependency graph).
+[workspace]
+
+[package]
+name = "slint-render"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "slint-render"
+path = "src/main.rs"
+
+[dependencies]
+slint = { version = "=1.16.1", default-features = false, features = ["compat-1-2", "std", "software-renderer-systemfonts"] }
+slint-interpreter = { version = "=1.16.1", default-features = false, features = ["compat-1-2", "std", "display-diagnostics"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+spin_on = "0.1"
+
+[profile.release]
+opt-level = 1

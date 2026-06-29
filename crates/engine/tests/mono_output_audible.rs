@@ -15,88 +15,91 @@
 
 use std::sync::Arc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::{process_input_f32, process_output_f32, process_output_f32_mixed};
 use engine::runtime_audio_frame::DEFAULT_ELASTIC_TARGET;
 use engine::runtime_graph::{build_chain_runtime_state, update_chain_runtime_state};
 use engine::runtime_state::ChainRuntimeState;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 
 const SR: f32 = 48_000.0;
 const BUFFER_FRAMES: usize = 64;
 
-fn input_block(mode: ChainInputMode, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode,
-                channels,
-            }],
-        }),
+fn input_mode(mode: ChainInputMode) -> ChannelMode {
+    match mode {
+        ChainInputMode::Mono => ChannelMode::Mono,
+        ChainInputMode::Stereo => ChannelMode::Stereo,
+        ChainInputMode::DualMono => ChannelMode::DualMono,
     }
 }
 
-/// Mirrors the user's real chain: a single `InputBlock` containing
-/// multiple `InputEntry` items, each one a mono entry on its own device
-/// (Scarlett ch 0, Scarlett ch 1, TEYUN ch 0 in the live project).
-/// Each entry becomes its own isolated `ChainRuntimeState` (per CLAUDE.md
+fn output_mode(mode: ChainOutputMode) -> ChannelMode {
+    match mode {
+        ChainOutputMode::Mono => ChannelMode::Mono,
+        ChainOutputMode::Stereo => ChannelMode::Stereo,
+    }
+}
+
+/// One input endpoint on device `dev`, mirroring the old head `InputEntry`.
+fn input_endpoint(mode: ChainInputMode, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in".into(),
+        device_id: DeviceId("dev".into()),
+        mode: input_mode(mode),
+        channels,
+    }
+}
+
+/// A single mono input endpoint on its own device, mirroring the old
+/// `mono_entry` (Scarlett ch 0, Scarlett ch 1, TEYUN ch 0 in the live project).
+/// Each endpoint becomes its own isolated `ChainRuntimeState` (per CLAUDE.md
 /// invariant #4 + issue #350), and the output is summed by
 /// `process_output_f32_mixed`.
-fn multi_input_block(entries: Vec<InputEntry>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries,
-        }),
-    }
-}
-
-fn mono_entry(device: &str, ch: usize) -> InputEntry {
-    InputEntry {
+fn mono_endpoint(name: &str, device: &str, ch: usize) -> IoEndpoint {
+    IoEndpoint {
+        name: name.into(),
         device_id: DeviceId(device.into()),
-        mode: ChainInputMode::Mono,
+        mode: ChannelMode::Mono,
         channels: vec![ch],
     }
 }
 
-fn output_block(mode: ChainOutputMode, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode,
-                channels,
-            }],
-        }),
+/// One output endpoint on device `dev`, mirroring the old tail `OutputEntry`.
+fn output_endpoint(mode: ChainOutputMode, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "out".into(),
+        device_id: DeviceId("dev".into()),
+        mode: output_mode(mode),
+        channels,
     }
 }
 
-fn chain_named(id: &str, blocks: Vec<AudioBlock>) -> Chain {
+fn registry(inputs: Vec<IoEndpoint>, outputs: Vec<IoEndpoint>) -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs,
+        outputs,
+    }]
+}
+
+/// Effect-only chain bound to the `"io"` registry binding (model A, #716).
+fn chain_named(id: &str) -> Chain {
     Chain {
         id: ChainId(id.into()),
         description: Some("issue #516 mono-output audibility".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
 }
 
-fn build_runtime(chain: &Chain) -> Arc<ChainRuntimeState> {
+fn build_runtime(chain: &Chain, registry: &[IoBinding]) -> Arc<ChainRuntimeState> {
     Arc::new(
-        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], registry)
             .expect("runtime state must build for test chain"),
     )
 }
@@ -161,14 +164,12 @@ fn channel_peak(captured: &[f32], device_channels: usize, channel: usize) -> f32
 /// of a stereo audio device must produce audible samples on channel 0.
 #[test]
 fn mono_output_on_stereo_device_writes_audio() {
-    let chain = chain_named(
-        "issue-516-mono-on-stereo-device",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let chain = chain_named("issue-516-mono-on-stereo-device");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 1, 2);
 
     let peak_ch0 = channel_peak(&captured, 2, 0);
@@ -182,14 +183,12 @@ fn mono_output_on_stereo_device_writes_audio() {
 /// channel 0 of a stereo device must still produce audible samples there.
 #[test]
 fn stereo_input_mono_output_on_stereo_device_writes_audio() {
-    let chain = chain_named(
-        "issue-516-stereo-in-mono-out",
-        vec![
-            input_block(ChainInputMode::Stereo, vec![0, 1]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let chain = chain_named("issue-516-stereo-in-mono-out");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Stereo, vec![0, 1])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 2, 2);
 
     let peak_ch0 = channel_peak(&captured, 2, 0);
@@ -205,14 +204,12 @@ fn stereo_input_mono_output_on_stereo_device_writes_audio() {
 /// channel must receive audio.
 #[test]
 fn mono_output_on_multichannel_interface_writes_audio() {
-    let chain = chain_named(
-        "issue-516-mono-on-multichannel",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let chain = chain_named("issue-516-mono-on-multichannel");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 1, 8);
 
     let peak_ch0 = channel_peak(&captured, 8, 0);
@@ -226,14 +223,12 @@ fn mono_output_on_multichannel_interface_writes_audio() {
 /// (right monitor only). Must produce audible samples on channel 1.
 #[test]
 fn mono_output_routed_to_right_channel_writes_audio() {
-    let chain = chain_named(
-        "issue-516-mono-right-only",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Mono, vec![1]),
-        ],
+    let chain = chain_named("issue-516-mono-right-only");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![1])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 1, 2);
 
     let peak_ch1 = channel_peak(&captured, 2, 1);
@@ -249,14 +244,12 @@ fn mono_output_routed_to_right_channel_writes_audio() {
 /// AND channels=[0,1]. The engine must still emit audio.
 #[test]
 fn mono_output_with_two_channels_still_selected_writes_audio() {
-    let chain = chain_named(
-        "issue-516-mono-with-stereo-channels-selected",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Mono, vec![0, 1]),
-        ],
+    let chain = chain_named("issue-516-mono-with-stereo-channels-selected");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0, 1])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 1, 2);
 
     let peak_ch0 = channel_peak(&captured, 2, 0);
@@ -271,14 +264,12 @@ fn mono_output_with_two_channels_still_selected_writes_audio() {
 /// regression in the broader test file is immediately localized.
 #[test]
 fn mono_input_mono_output_on_mono_device_writes_audio() {
-    let chain = chain_named(
-        "issue-516-pure-mono",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let chain = chain_named("issue-516-pure-mono");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 1, 1);
 
     let peak_ch0 = channel_peak(&captured, 1, 0);
@@ -293,14 +284,12 @@ fn mono_input_mono_output_on_mono_device_writes_audio() {
 /// device channel.
 #[test]
 fn stereo_input_mono_output_on_mono_device_writes_audio() {
-    let chain = chain_named(
-        "issue-516-stereo-in-mono-device",
-        vec![
-            input_block(ChainInputMode::Stereo, vec![0, 1]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let chain = chain_named("issue-516-stereo-in-mono-device");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Stereo, vec![0, 1])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 2, 1);
 
     let peak_ch0 = channel_peak(&captured, 1, 0);
@@ -317,14 +306,12 @@ fn stereo_input_mono_output_on_mono_device_writes_audio() {
 /// the real UI flow that triggered issue #516.
 #[test]
 fn toggle_stereo_to_mono_via_update_keeps_audio_audible() {
-    let stereo_chain = chain_named(
-        "issue-516-toggle-stereo-mono",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+    let stereo_chain = chain_named("issue-516-toggle-stereo-mono");
+    let stereo_registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Stereo, vec![0, 1])],
     );
-    let runtime = build_runtime(&stereo_chain);
+    let runtime = build_runtime(&stereo_chain, &stereo_registry);
 
     // Sanity: stereo baseline emits audio on the chosen channel.
     let baseline = drive_capture(&runtime, 1, 2);
@@ -338,15 +325,20 @@ fn toggle_stereo_to_mono_via_update_keeps_audio_audible() {
     // (matches `on_select_output_mode` callback: only `mode` is changed,
     // channels are left untouched — here we explicitly drop down to a
     // single channel as the user did).
-    let mono_chain = chain_named(
-        "issue-516-toggle-stereo-mono",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let mono_chain = chain_named("issue-516-toggle-stereo-mono");
+    let mono_registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    update_chain_runtime_state(&runtime, &mono_chain, SR, false, &[DEFAULT_ELASTIC_TARGET])
-        .expect("runtime must accept Stereo→Mono toggle");
+    update_chain_runtime_state(
+        &runtime,
+        &mono_chain,
+        SR,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &mono_registry,
+    )
+    .expect("runtime must accept Stereo→Mono toggle");
 
     let captured = drive_capture(&runtime, 1, 2);
     let peak_ch0 = channel_peak(&captured, 2, 0);
@@ -366,21 +358,20 @@ fn toggle_stereo_to_mono_via_update_keeps_audio_audible() {
 /// must contain audible samples on channel 0.
 #[test]
 fn multi_input_mono_output_via_mixed_path_writes_audio() {
-    let chain = chain_named(
-        "issue-516-multi-input-mono-out",
+    let chain = chain_named("issue-516-multi-input-mono-out");
+    let registry = registry(
         vec![
-            multi_input_block(vec![
-                mono_entry("scarlett", 0),
-                mono_entry("scarlett", 1),
-                mono_entry("teyun", 0),
-            ]),
-            output_block(ChainOutputMode::Mono, vec![0]),
+            mono_endpoint("in0", "scarlett", 0),
+            mono_endpoint("in1", "scarlett", 1),
+            mono_endpoint("in2", "teyun", 0),
         ],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
 
     // Build one runtime per input entry — that's exactly what infra-cpal
     // does in `chain_resolve` for multi-input chains (#350 phase 3).
-    let runtimes: Vec<Arc<ChainRuntimeState>> = (0..3).map(|_| build_runtime(&chain)).collect();
+    let runtimes: Vec<Arc<ChainRuntimeState>> =
+        (0..3).map(|_| build_runtime(&chain, &registry)).collect();
 
     const DEVICE_CHANNELS: usize = 2;
     const CALLBACKS: usize = 32;
@@ -416,14 +407,12 @@ fn multi_input_mono_output_via_mixed_path_writes_audio() {
 /// `process_output_f32_mixed` and must still produce audio.
 #[test]
 fn single_input_mono_output_via_mixed_path_writes_audio() {
-    let chain = chain_named(
-        "issue-516-single-input-mono-out-mixed",
-        vec![
-            input_block(ChainInputMode::Mono, vec![0]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let chain = chain_named("issue-516-single-input-mono-out-mixed");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::Mono, vec![0])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    let runtimes = vec![build_runtime(&chain)];
+    let runtimes = vec![build_runtime(&chain, &registry)];
 
     const DEVICE_CHANNELS: usize = 2;
     const CALLBACKS: usize = 32;
@@ -455,14 +444,12 @@ fn single_input_mono_output_via_mixed_path_writes_audio() {
 /// channel. The mixdown should still produce audio.
 #[test]
 fn dual_mono_input_mono_output_writes_audio() {
-    let chain = chain_named(
-        "issue-516-dual-mono-in-mono-out",
-        vec![
-            input_block(ChainInputMode::DualMono, vec![0, 1]),
-            output_block(ChainOutputMode::Mono, vec![0]),
-        ],
+    let chain = chain_named("issue-516-dual-mono-in-mono-out");
+    let registry = registry(
+        vec![input_endpoint(ChainInputMode::DualMono, vec![0, 1])],
+        vec![output_endpoint(ChainOutputMode::Mono, vec![0])],
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture(&runtime, 2, 2);
 
     let peak_ch0 = channel_peak(&captured, 2, 0);

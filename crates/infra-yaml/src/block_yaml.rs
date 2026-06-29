@@ -4,17 +4,16 @@
 //! stays under the size cap.
 
 use anyhow::{anyhow, Context, Result};
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{BlockId, ChainId};
 use project::block::{
-    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    InsertBlock, InsertEndpoint, NamBlock, OutputBlock, OutputEntry, SelectBlock,
+    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock,
+    NamBlock, OutputBlock, SelectBlock,
 };
-use project::chain::{ChainInputMode, ChainOutputMode};
 use project::param::ParameterSet;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
-use crate::chain_yaml::{default_io_yaml_model, ChainInputEntryYaml, ChainOutputEntryYaml};
+use crate::chain_yaml::default_io_yaml_model;
 use crate::{
     default_amp_model, default_body_model, default_cab_model, default_delay_model,
     default_drive_model, default_dynamics_model, default_enabled, default_filter_model,
@@ -178,18 +177,12 @@ pub(crate) enum AudioBlockYaml {
         enabled: bool,
         #[serde(default = "default_io_yaml_model")]
         model: String,
-        // Legacy: name field migrated to entry-level
-        #[serde(default, skip_serializing)]
-        name: String,
+        /// Registry binding id this block reads from (model A, #716).
         #[serde(default)]
-        entries: Vec<ChainInputEntryYaml>,
-        // Legacy single-entry fields for backward compat
-        #[serde(default, skip_serializing)]
-        device_id: Option<String>,
-        #[serde(default, skip_serializing)]
-        mode: Option<ChainInputMode>,
-        #[serde(default, skip_serializing)]
-        channels: Option<Vec<usize>>,
+        io: String,
+        /// Endpoint name within the referenced binding (model A, #716).
+        #[serde(default)]
+        endpoint: String,
     },
     #[serde(rename = "output")]
     Output {
@@ -197,18 +190,12 @@ pub(crate) enum AudioBlockYaml {
         enabled: bool,
         #[serde(default = "default_io_yaml_model")]
         model: String,
-        // Legacy: name field migrated to entry-level
-        #[serde(default, skip_serializing)]
-        name: String,
+        /// Registry binding id this block writes to (model A, #716).
         #[serde(default)]
-        entries: Vec<ChainOutputEntryYaml>,
-        // Legacy single-entry fields for backward compat
-        #[serde(default, skip_serializing)]
-        device_id: Option<String>,
-        #[serde(default, skip_serializing)]
-        mode: Option<ChainOutputMode>,
-        #[serde(default, skip_serializing)]
-        channels: Option<Vec<usize>>,
+        io: String,
+        /// Endpoint name within the referenced binding (model A, #716).
+        #[serde(default)]
+        endpoint: String,
     },
     #[serde(rename = "insert")]
     Insert {
@@ -216,20 +203,11 @@ pub(crate) enum AudioBlockYaml {
         enabled: bool,
         #[serde(default = "default_io_yaml_model")]
         model: String,
-        send: InsertEndpointYaml,
-        #[serde(rename = "return")]
-        return_: InsertEndpointYaml,
+        /// Registry binding id for the external send/return loop (model A, #716):
+        /// the send goes to this binding's output, the return comes from its input.
+        #[serde(default)]
+        io: String,
     },
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub(crate) struct InsertEndpointYaml {
-    #[serde(default)]
-    device_id: String,
-    #[serde(default)]
-    mode: ChainInputMode,
-    #[serde(default)]
-    channels: Vec<usize>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -285,90 +263,39 @@ impl AudioBlockYaml {
             AudioBlockYaml::Input {
                 enabled,
                 model,
-                name: _,
-                entries,
-                device_id,
-                mode,
-                channels,
-            } => {
-                let entries = if !entries.is_empty() {
-                    entries
-                        .into_iter()
-                        .map(|e| InputEntry {
-                            device_id: DeviceId(e.device_id),
-                            mode: e.mode,
-                            channels: e.channels,
-                        })
-                        .collect()
-                } else if let Some(device_id) = device_id {
-                    vec![InputEntry {
-                        device_id: DeviceId(device_id),
-                        mode: mode.unwrap_or_default(),
-                        channels: channels.unwrap_or_default(),
-                    }]
-                } else {
-                    Vec::new()
-                };
-                Ok(AudioBlock {
-                    id: generated_id,
-                    enabled,
-                    kind: AudioBlockKind::Input(InputBlock { model, entries }),
-                })
-            }
-            AudioBlockYaml::Output {
-                enabled,
-                model,
-                name: _,
-                entries,
-                device_id,
-                mode,
-                channels,
-            } => {
-                let entries = if !entries.is_empty() {
-                    entries
-                        .into_iter()
-                        .map(|e| OutputEntry {
-                            device_id: DeviceId(e.device_id),
-                            mode: e.mode,
-                            channels: e.channels,
-                        })
-                        .collect()
-                } else if let Some(device_id) = device_id {
-                    vec![OutputEntry {
-                        device_id: DeviceId(device_id),
-                        mode: mode.unwrap_or_default(),
-                        channels: channels.unwrap_or_default(),
-                    }]
-                } else {
-                    Vec::new()
-                };
-                Ok(AudioBlock {
-                    id: generated_id,
-                    enabled,
-                    kind: AudioBlockKind::Output(OutputBlock { model, entries }),
-                })
-            }
-            AudioBlockYaml::Insert {
-                enabled,
-                model,
-                send,
-                return_,
+                io,
+                endpoint,
             } => Ok(AudioBlock {
                 id: generated_id,
                 enabled,
-                kind: AudioBlockKind::Insert(InsertBlock {
+                kind: AudioBlockKind::Input(InputBlock {
                     model,
-                    send: InsertEndpoint {
-                        device_id: DeviceId(send.device_id),
-                        mode: send.mode,
-                        channels: send.channels,
-                    },
-                    return_: InsertEndpoint {
-                        device_id: DeviceId(return_.device_id),
-                        mode: return_.mode,
-                        channels: return_.channels,
-                    },
+                    io,
+                    endpoint,
                 }),
+            }),
+            AudioBlockYaml::Output {
+                enabled,
+                model,
+                io,
+                endpoint,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model,
+                    io,
+                    endpoint,
+                }),
+            }),
+            AudioBlockYaml::Insert {
+                enabled,
+                model,
+                io,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Insert(InsertBlock { model, io }),
             }),
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
@@ -554,52 +481,19 @@ impl AudioBlockYaml {
             AudioBlockKind::Input(input) => Ok(Self::Input {
                 enabled: block.enabled,
                 model: input.model.clone(),
-                name: String::new(),
-                entries: input
-                    .entries
-                    .iter()
-                    .map(|e| ChainInputEntryYaml {
-                        name: String::new(),
-                        device_id: e.device_id.0.clone(),
-                        mode: e.mode,
-                        channels: e.channels.clone(),
-                    })
-                    .collect(),
-                device_id: None,
-                mode: None,
-                channels: None,
+                io: input.io.clone(),
+                endpoint: input.endpoint.clone(),
             }),
             AudioBlockKind::Output(output) => Ok(Self::Output {
                 enabled: block.enabled,
                 model: output.model.clone(),
-                name: String::new(),
-                entries: output
-                    .entries
-                    .iter()
-                    .map(|e| ChainOutputEntryYaml {
-                        name: String::new(),
-                        device_id: e.device_id.0.clone(),
-                        mode: e.mode,
-                        channels: e.channels.clone(),
-                    })
-                    .collect(),
-                device_id: None,
-                mode: None,
-                channels: None,
+                io: output.io.clone(),
+                endpoint: output.endpoint.clone(),
             }),
             AudioBlockKind::Insert(insert) => Ok(Self::Insert {
                 enabled: block.enabled,
                 model: insert.model.clone(),
-                send: InsertEndpointYaml {
-                    device_id: insert.send.device_id.0.clone(),
-                    mode: insert.send.mode,
-                    channels: insert.send.channels.clone(),
-                },
-                return_: InsertEndpointYaml {
-                    device_id: insert.return_.device_id.0.clone(),
-                    mode: insert.return_.mode,
-                    channels: insert.return_.channels.clone(),
-                },
+                io: insert.io.clone(),
             }),
         }
     }

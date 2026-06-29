@@ -5,21 +5,23 @@
 
 use std::collections::BTreeMap;
 
+use block_core;
 use project::block::AudioBlock;
 use project::rig::{RigInput, RigPreset, RigProject};
-use block_core;
 
 use super::rig_to_chains;
 
 fn input_with_preset(preset_key: &str) -> RigInput {
     RigInput {
         label: None,
-        sources: Vec::new(),
         bank: BTreeMap::from([(1, preset_key.to_string())]),
         active_preset: 1,
         active_scene: 1,
         routing: Vec::new(),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
+        io: String::new(),
+        endpoint: String::new(),
+        io_binding_ids: Vec::new(),
     }
 }
 

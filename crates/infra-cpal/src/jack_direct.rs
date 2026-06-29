@@ -31,8 +31,9 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::runtime::{process_input_f32, ChainRuntimeState};
-use project::block::{AudioBlockKind, InputEntry, OutputEntry};
+use engine::runtime_endpoints::{resolve_chain_io, InputEntry, OutputEntry};
 use project::chain::Chain;
 
 use crate::active_runtime::DspWorkerHandle;
@@ -46,16 +47,18 @@ pub(crate) fn build_jack_direct_chain(
     chain_id: &ChainId,
     chain: &Chain,
     runtime: Arc<ChainRuntimeState>,
+    registry: &[IoBinding],
 ) -> Result<(
     jack::AsyncClient<JackShutdownHandler, JackProcessHandler>,
     DspWorkerHandle,
 )> {
+    // Model A (#716): the chain's device endpoints come from the binding
+    // registry, not from block `entries`.
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     // Determine which named JACK server this chain should connect to.
     let cards = detect_all_usb_audio_cards();
-    let server_name = chain
-        .input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter())
+    let server_name = resolved_inputs
+        .iter()
         .find_map(|entry| {
             if let Some(name) = entry.device_id.0.strip_prefix("jack:") {
                 return Some(name.to_string());
@@ -131,16 +134,7 @@ pub(crate) fn build_jack_direct_chain(
 
     // Collect chain's configured input/output entries — used only to size the
     // interleave scratch for the `max_in_ch / max_out_ch` picked below.
-    let input_entries: Vec<&InputEntry> = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Input(ib) => Some(ib),
-            _ => None,
-        })
-        .flat_map(|ib| ib.entries.iter())
-        .collect();
+    let input_entries: Vec<&InputEntry> = resolved_inputs.iter().collect();
 
     // Register every port the physical device exposes, not just the channels
     // the chain currently consumes. This keeps the AsyncClient stable across
@@ -167,16 +161,7 @@ pub(crate) fn build_jack_direct_chain(
     let max_in_ch = device_in_ch.max(chain_max_in);
 
     // Collect output channel requirements from chain
-    let output_entries: Vec<&OutputEntry> = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob),
-            _ => None,
-        })
-        .flat_map(|ob| ob.entries.iter())
-        .collect();
+    let output_entries: Vec<&OutputEntry> = resolved_outputs.iter().collect();
 
     let device_out_ch = cards
         .iter()
@@ -246,6 +231,9 @@ pub(crate) fn build_jack_direct_chain(
     let worker_channels = max_in_ch;
     let worker_chain_id = chain_id.0.clone();
     let worker_current_frames = Arc::clone(&current_n_frames);
+    // Issue #670: the JACK DSP worker runs the heavy block processing, so
+    // its per-buffer cost is timed here against the buffer deadline.
+    let worker_sample_rate = sample_rate as u32;
     let thread = std::thread::Builder::new()
         .name(format!("dsp-worker-{}", chain_id.0))
         .spawn(move || {
@@ -294,9 +282,16 @@ pub(crate) fn build_jack_direct_chain(
                         .max(1);
                     let needed = (n_frames * worker_channels).min(read_buf.len());
                     let real = &read_buf[..needed];
+                    let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_input_f32(&worker_runtime, 0, real, worker_channels);
                     }));
+                    crate::callback_load_timing::record_callback_deadline(
+                        &worker_runtime,
+                        callback_start.elapsed(),
+                        n_frames,
+                        worker_sample_rate,
+                    );
                     processed_any = true;
                 }
 

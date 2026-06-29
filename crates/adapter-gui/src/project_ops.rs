@@ -39,7 +39,9 @@ pub(crate) fn load_and_sync_app_config() -> Result<AppConfig> {
     let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
     let changed = sync_recent_projects(&mut config);
     if changed {
-        let _ = FilesystemStorage::save_app_config(&config);
+        // #693: boot-time migration write goes to the persist worker.
+        // #731: bind the config path at dispatch time.
+        application::app_config_persist::persist_app_config_snapshot(config.clone());
     }
     Ok(config)
 }
@@ -205,6 +207,12 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
             presets_path: Some(default_presets_path()),
         }
     };
+
+    // #716 Task 20 (O4): auto-create the "default" I/O binding from the
+    // system default input/output devices when opening a brand-new project.
+    // This is idempotent — if a "default" binding already exists it is reused.
+    ensure_default_io_binding(default_config_path);
+
     let project = Project {
         name: None,
         device_settings: Vec::new(),
@@ -232,6 +240,11 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
     }));
     session.dispatcher.attach_rig(std::rc::Rc::clone(&rig));
     session.rig = Some(rig);
+    // #716: hand the (possibly just-created) io_bindings registry to the
+    // session so a new project's bound chains route per binding from the start.
+    if let Ok(app_config) = FilesystemStorage::load_app_config() {
+        *session.io_bindings.borrow_mut() = app_config.io_bindings;
+    }
     session
 }
 
@@ -328,15 +341,8 @@ pub(crate) fn load_project_session(
     // writing into `rig.outputs` reopens with no Output blocks on its
     // chains. `validate_project` would then refuse to start the runtime
     // and the user would have no sound AND no way to enable the chain.
-    // Synthesize a default Output routed to the first configured output
-    // device so old projects self-heal forward; the user can later
-    // customise via the I/O editor.
-    let default_output_device = gui_settings
-        .output_devices
-        .first()
-        .map(|d| domain::ids::DeviceId(d.device_id.clone()))
-        .unwrap_or_else(|| domain::ids::DeviceId(String::new()));
-    project::project_ensure_io::ensure_chains_have_output(&mut project, &default_output_device);
+    // Model A (#716): a chain's output comes from the per-machine I/O binding
+    // registry, not a synthesized device block — nothing to "ensure" here.
 
     // #606: the plugin catalog is loaded at startup, so by now we can tell
     // which block models resolve. Disable any whose pack is not installed
@@ -351,6 +357,16 @@ pub(crate) fn load_project_session(
         );
     }
 
+    // #716: clean break from the old project format. Routing is binding-only —
+    // the per-machine io_bindings registry (config.yaml) is the single source
+    // of truth for I/O. There is NO legacy-entries migration: a legacy project
+    // (Input/Output blocks with `entries` but empty `io`) opens UNBOUND and
+    // must be reconfigured via the registry. Hand the existing registry to the
+    // session so the live runtime resolves bound chains per binding.
+    let registry_bindings: Vec<infra_filesystem::IoBinding> = FilesystemStorage::load_app_config()
+        .map(|cfg| cfg.io_bindings)
+        .unwrap_or_default();
+
     let mut session = ProjectSession::new(
         project,
         Some(project_path.to_path_buf()),
@@ -361,6 +377,7 @@ pub(crate) fn load_project_session(
             .unwrap_or_else(|| PathBuf::from("."))
             .join(presets_path),
     );
+    *session.io_bindings.borrow_mut() = registry_bindings;
     let rig = std::rc::Rc::new(std::cell::RefCell::new(rig));
     // #436: the dispatcher owns the rig so rig-nav goes through Command
     // (GUI/MIDI/MCP share one path). Same Rc the GUI renders from.
@@ -473,10 +490,14 @@ pub(crate) fn save_project_session(
     session
         .dispatcher
         .attach_config_path(session.config_path.clone());
-    session
+    let result = session
         .dispatcher
         .dispatch(Command::SaveProject)
-        .map(|_| ())
+        .map(|_| ());
+    // #693: writes are queued to the persist worker; the round-trip
+    // suites reload right after saving, so wait for durability here.
+    application::persist_worker::flush();
+    result
 }
 
 // `save_chain_blocks_to_preset` was moved to
@@ -491,6 +512,50 @@ pub(crate) fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
 // `preset_id_from_path` lives inside `local_dispatcher_preset` now —
 // the file id is derived at write time from the path the dispatcher
 // resolves, not from a GUI helper.
+
+/// #716 Task 20: ensure the `"default"` I/O binding exists in the AppConfig at
+/// `config_path`. If the binding is already present this is a no-op (idempotent).
+/// If the config carries at least one input and one output device, a binding is
+/// built from the first of each and persisted synchronously (new-project creation
+/// is not on the audio thread, so a direct write is fine here).
+fn ensure_default_io_binding(config_path: &Path) {
+    use crate::default_io_binding::{build_default_io_binding, DEFAULT_BINDING_ID};
+
+    // Load the full AppConfig from the given path (not the OS global path).
+    let raw = match fs::read_to_string(config_path) {
+        Ok(r) => r,
+        Err(_) => return, // Config does not exist yet — no devices to bind.
+    };
+    let mut app_config: AppConfig = match serde_yaml::from_str(&raw) {
+        Ok(c) => c,
+        Err(_) => return, // Malformed config — leave it alone.
+    };
+
+    // Idempotent: do not add a second "default" binding.
+    if app_config
+        .io_bindings
+        .iter()
+        .any(|b| b.id == DEFAULT_BINDING_ID)
+    {
+        return;
+    }
+
+    let input_id = match app_config.input_devices.first() {
+        Some(d) => d.device_id.clone(),
+        None => return, // No input device configured — cannot build binding.
+    };
+    let output_id = match app_config.output_devices.first() {
+        Some(d) => d.device_id.clone(),
+        None => return, // No output device configured — cannot build binding.
+    };
+
+    let binding = build_default_io_binding(&input_id, &output_id);
+    app_config.io_bindings.push(binding);
+
+    if let Ok(serialized) = serde_yaml::to_string(&app_config) {
+        let _ = fs::write(config_path, serialized);
+    }
+}
 
 pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
     if let Some(name) = project
@@ -541,6 +606,10 @@ mod chain_rename_persistence_tests;
 #[cfg(test)]
 #[path = "scene_param_persistence_tests.rs"]
 mod scene_param_persistence_tests;
+
+#[cfg(test)]
+#[path = "issue_690_nam_gate_persistence_tests.rs"]
+mod issue_690_nam_gate_persistence_tests;
 
 #[cfg(test)]
 #[path = "chain_reorder_refresh_tests.rs"]

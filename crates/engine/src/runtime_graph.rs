@@ -42,8 +42,9 @@ use arc_swap::ArcSwap;
 use crossbeam_queue::ArrayQueue;
 
 use block_core::{AudioChannelLayout, StreamHandle};
-use domain::ids::{BlockId, ChainId};
-use project::block::{AudioBlockKind, InputEntry, OutputEntry};
+use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::io_binding::IoBinding;
+use project::block::AudioBlockKind;
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 use project::project::Project;
 
@@ -51,7 +52,7 @@ use crate::runtime::{
     layout_label, ChainRuntimeState, DEFAULT_ELASTIC_TARGET, FADE_IN_FRAMES, PROBE_IDLE,
 };
 use crate::runtime_audio_frame::ElasticBuffer;
-use crate::runtime_endpoints::{effective_inputs, effective_outputs};
+use crate::runtime_endpoints::{effective_inputs, effective_outputs, resolve_chain_io, InputEntry, OutputEntry};
 use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
     lock_recover, BlockRuntimeNode, ChainProcessingState, InputCallbackScratch,
@@ -90,18 +91,25 @@ pub struct RuntimeGraph {
 /// keeps Insert chains as a single runtime (byte-identical to pre-#350);
 /// the structural per-input isolation targets the no-Insert multi-input
 /// case (the user-visible "two guitars, one chain" scenario).
-fn chain_has_enabled_insert(chain: &Chain) -> bool {
+pub(crate) fn chain_has_enabled_insert(chain: &Chain) -> bool {
     chain
         .blocks
         .iter()
         .any(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
 }
 
-/// Partition a chain's segments into per-effective-input groups. Each
-/// group becomes one isolated `ChainRuntimeState`. The group id is the
-/// CPAL stream index shared by the segments of one effective input
-/// (segments split from the same effective input — e.g. one OutputBlock
-/// per output entry — keep the same cpal index, so they stay together).
+/// Partition a chain's segments into per-RAW-input-entry groups (issue
+/// #703). Each group becomes one isolated `ChainRuntimeState`. The group
+/// id is the raw `InputEntry` index the segments came from: two entries
+/// reading the SAME physical device are still two isolated runtimes (the
+/// device's single cpal stream fans out to all of them), while split-mono
+/// siblings (one raw entry, `mode: mono, channels: [a, b]`) share a group
+/// — separating them would double-limit the pinned g02/g03 sum.
+///
+/// Linux/JACK keeps the per-device (cpal index) grouping behind a cfg
+/// guard: the JACK-direct client binds ONE runtime, so a per-entry split
+/// would silence every entry but the first there. Cross-platform law —
+/// the cpal platforms' isolation gain must not change JACK behaviour.
 ///
 /// Insert chains are NOT partitioned (single group `0`) — see
 /// `chain_has_enabled_insert`.
@@ -112,12 +120,16 @@ fn group_segments_by_input(
     if chain_has_enabled_insert(chain) || segments.is_empty() {
         return vec![(0, segments)];
     }
-    // Preserve first-seen order of cpal indices so runtime 0 is the first
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    let key_of = |seg: &ChainSegment| seg.cpal_input_index;
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    let key_of = |seg: &ChainSegment| seg.entry_group;
+    // Preserve first-seen order of group keys so runtime 0 is the first
     // input, runtime 1 the second, etc. (stable across rebuilds).
     let mut order: Vec<usize> = Vec::new();
     let mut groups: HashMap<usize, Vec<ChainSegment>> = HashMap::new();
     for seg in segments {
-        let key = seg.cpal_input_index;
+        let key = key_of(&seg);
         if !groups.contains_key(&key) {
             order.push(key);
         }
@@ -136,6 +148,7 @@ pub fn build_runtime_graph(
     project: &Project,
     chain_sample_rates: &HashMap<ChainId, f32>,
     chain_elastic_targets: &HashMap<ChainId, Vec<usize>>,
+    registry: &[IoBinding],
 ) -> Result<RuntimeGraph> {
     let mut chains = HashMap::new();
     for chain in &project.chains {
@@ -149,7 +162,10 @@ pub fn build_runtime_graph(
         let elastic_targets = chain_elastic_targets
             .get(&chain.id)
             .unwrap_or(&default_targets);
-        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets)? {
+        let no_device_rates: HashMap<DeviceId, f32> = HashMap::new();
+        for (group, state) in
+            build_per_input_runtimes(chain, sample_rate, &no_device_rates, elastic_targets, registry)?
+        {
             state.set_volume_pct(chain.volume);
             chains.insert((chain.id.clone(), group), Arc::new(state));
         }
@@ -161,34 +177,79 @@ pub fn build_runtime_graph(
 /// Returns `(group_id, state)` pairs. For single-input / Insert chains
 /// this is exactly one pair whose state equals the legacy
 /// `build_chain_runtime_state` output (byte-identical audio path).
-fn build_per_input_runtimes(
+pub(crate) fn build_per_input_runtimes(
     chain: &Chain,
     sample_rate: f32,
+    device_rates: &HashMap<DeviceId, f32>,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<Vec<(usize, ChainRuntimeState)>> {
-    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
-    let eff_outputs = effective_outputs(chain);
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
+        effective_inputs(chain, &resolved_inputs, registry);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs, registry);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
         &eff_input_cpal_indices,
         &eff_split_positions,
+        &eff_entry_groups,
         &eff_outputs,
+        registry,
     );
     let groups = group_segments_by_input(chain, all_segments);
     let mut out = Vec::with_capacity(groups.len());
     for (group, segments) in groups {
-        let state = assemble_chain_runtime_state(
+        // All segments of a group share one effective input, hence one
+        // cpal stream — record it so infra-cpal can fan a shared device
+        // callback out to every per-entry runtime it feeds (issue #703).
+        let cpal_input_index = segments.first().map(|s| s.cpal_input_index).unwrap_or(0);
+        // #736: this group is one isolated input → one device → its OWN rate.
+        // Empty/absent override falls back to the chain scalar (bit-identical
+        // single-binding behaviour). Within a binding, input rate == output
+        // rate is validated at resolve time, so the input device's rate is the
+        // whole stream's rate.
+        let group_rate = segments
+            .first()
+            .and_then(|s| device_rates.get(&s.input.device_id).copied())
+            .unwrap_or(sample_rate);
+        let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
             &eff_outputs,
-            sample_rate,
+            group_rate,
             elastic_targets,
             None,
         )?;
+        state.owned_entry = Some((group, cpal_input_index));
         out.push((group, state));
     }
     Ok(out)
+}
+
+/// Issue #703: public seam for infra layers that build a chain's runtimes
+/// off-thread (cold activation, live rebuild). One isolated
+/// `ChainRuntimeState` per input-entry group — the same shape
+/// `RuntimeGraph` holds, so the caller can publish each runtime into its
+/// `(chain, group)` slot. Single-entry chains return exactly one
+/// `(0, state)` pair (the legacy whole-chain shape, byte-identical).
+///
+/// # Errors
+/// Propagates any failure from chain-runtime assembly (e.g. a model that
+/// fails to load).
+pub fn build_per_input_runtime_states(
+    chain: &Chain,
+    sample_rate: f32,
+    device_rates: &HashMap<DeviceId, f32>,
+    elastic_targets: &[usize],
+    registry: &[IoBinding],
+) -> Result<Vec<(usize, Arc<ChainRuntimeState>)>> {
+    Ok(
+        build_per_input_runtimes(chain, sample_rate, device_rates, elastic_targets, registry)?
+            .into_iter()
+            .map(|(group, state)| (group, Arc::new(state)))
+            .collect(),
+    )
 }
 
 /// The per-input group ids a chain would produce, WITHOUT instantiating any
@@ -198,15 +259,19 @@ fn build_per_input_runtimes(
 /// each edit, only to throw the runtime away. The grouping depends solely on
 /// the chain's input/output endpoints and segment split, never on the built
 /// processors, so it can be derived directly.
-fn input_group_ids(chain: &Chain) -> Vec<usize> {
-    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
-    let eff_outputs = effective_outputs(chain);
+fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
+        effective_inputs(chain, &resolved_inputs, registry);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs, registry);
     let all_segments = split_chain_into_segments(
         chain,
         &eff_inputs,
         &eff_input_cpal_indices,
         &eff_split_positions,
+        &eff_entry_groups,
         &eff_outputs,
+        registry,
     );
     group_segments_by_input(chain, all_segments)
         .into_iter()
@@ -227,9 +292,12 @@ pub fn build_chain_runtime_state(
     chain: &Chain,
     sample_rate: f32,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<ChainRuntimeState> {
-    let (eff_inputs, eff_input_cpal_indices, eff_split_positions) = effective_inputs(chain);
-    let eff_outputs = effective_outputs(chain);
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
+        effective_inputs(chain, &resolved_inputs, registry);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs, registry);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
@@ -237,7 +305,7 @@ pub fn build_chain_runtime_state(
             "    input[{}]: 'input #{}' dev='{}' ch={:?} cpal_stream={}",
             i,
             i,
-            inp.device_id.0.split(':').last().unwrap_or("?"),
+            inp.device_id.0.split(':').next_back().unwrap_or("?"),
             inp.channels,
             eff_input_cpal_indices[i]
         );
@@ -248,7 +316,7 @@ pub fn build_chain_runtime_state(
             "    output[{}]: 'output #{}' dev='{}' ch={:?}",
             i,
             i,
-            out.device_id.0.split(':').last().unwrap_or("?"),
+            out.device_id.0.split(':').next_back().unwrap_or("?"),
             out.channels
         );
     }
@@ -257,7 +325,9 @@ pub fn build_chain_runtime_state(
         &eff_inputs,
         &eff_input_cpal_indices,
         &eff_split_positions,
+        &eff_entry_groups,
         &eff_outputs,
+        registry,
     );
     log::info!("  segments: {}", segments.len());
     for (i, seg) in segments.iter().enumerate() {
@@ -314,7 +384,7 @@ pub fn build_chain_runtime_state(
 /// `existing_blocks` (when `Some`) carries per-segment processor nodes to
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
 /// is indexed by segment position within `segments`.
-fn assemble_chain_runtime_state(
+pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
     eff_outputs: &[OutputEntry],
@@ -409,6 +479,9 @@ fn assemble_chain_runtime_state(
     let initial_bypass_block_ids = collect_bypass_block_ids(&input_states);
 
     Ok(ChainRuntimeState {
+        // Whole-chain by default; `build_per_input_runtimes` stamps the
+        // per-entry identity right after assembly (issue #703).
+        owned_entry: None,
         processing: Mutex::new(ChainProcessingState {
             input_states,
             input_to_segments,
@@ -438,6 +511,12 @@ fn assemble_chain_runtime_state(
         bypass_block_ids: ArcSwap::from_pointee(initial_bypass_block_ids),
         di_loop: arc_swap::ArcSwapOption::empty(),
         di_loop_pos: std::sync::atomic::AtomicUsize::new(0),
+        // Issue #670 — audio-thread deadline accounting, zeroed at build.
+        xrun_count: AtomicU64::new(0),
+        peak_load_ppm: AtomicU64::new(0),
+        // Issue #723 — remember the real build rate so the live probe beep
+        // is synthesized at the device rate, never a hardcoded 48000.
+        sample_rate,
     })
 }
 
@@ -540,19 +619,25 @@ fn build_input_processing_state(
     })
 }
 
-pub(crate) fn build_output_routing_state(
-    output: &OutputEntry,
-    elastic_target: usize,
-    prime_frames: usize,
-) -> OutputRoutingState {
-    let output_layout = if output.channels.len() >= 2 {
+/// Channel layout an output entry produces — shared by the route builder and
+/// the rebuild route-reuse check (#670).
+pub(crate) fn output_entry_layout(output: &OutputEntry) -> AudioChannelLayout {
+    if output.channels.len() >= 2 {
         match output.mode {
             ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
             ChainOutputMode::Mono => AudioChannelLayout::Mono,
         }
     } else {
         AudioChannelLayout::Mono
-    };
+    }
+}
+
+pub(crate) fn build_output_routing_state(
+    output: &OutputEntry,
+    elastic_target: usize,
+    prime_frames: usize,
+) -> OutputRoutingState {
+    let output_layout = output_entry_layout(output);
     let buffer = ElasticBuffer::new(elastic_target, output_layout);
     // Issue #592: prime the cushion (silence) only when the caller asks —
     // a cold-start IR chain at a small device buffer would otherwise
@@ -575,6 +660,7 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<()> {
     update_chain_runtime_state_impl(
         runtime,
@@ -583,6 +669,7 @@ pub fn update_chain_runtime_state(
         reset_output_queue,
         elastic_targets,
         false,
+        registry,
     )
 }
 
@@ -597,6 +684,7 @@ pub fn update_chain_runtime_state_spillover(
     sample_rate: f32,
     reset_output_queue: bool,
     elastic_targets: &[usize],
+    registry: &[IoBinding],
 ) -> Result<()> {
     update_chain_runtime_state_impl(
         runtime,
@@ -605,27 +693,55 @@ pub fn update_chain_runtime_state_spillover(
         reset_output_queue,
         elastic_targets,
         true,
+        registry,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_chain_runtime_state_impl(
     runtime: &Arc<ChainRuntimeState>,
     chain: &Chain,
-    sample_rate: f32,
+    _sample_rate: f32, // #736: kept for API compat; each runtime reads its own rate via runtime.sample_rate()
     reset_output_queue: bool,
     elastic_targets: &[usize],
     spillover: bool,
+    registry: &[IoBinding],
 ) -> Result<()> {
-    let (effective_ins, eff_input_cpal_indices, effective_split_positions) =
-        effective_inputs(chain);
-    let effective_outs = effective_outputs(chain);
-    let segments = split_chain_into_segments(
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let (effective_ins, eff_input_cpal_indices, effective_split_positions, eff_entry_groups) =
+        effective_inputs(chain, &resolved_inputs, registry);
+    let effective_outs = effective_outputs(chain, &resolved_outputs, registry);
+    let all_segments = split_chain_into_segments(
         chain,
         &effective_ins,
         &eff_input_cpal_indices,
         &effective_split_positions,
+        &eff_entry_groups,
         &effective_outs,
+        registry,
     );
+    // Issue #703: a per-entry isolated runtime is refilled with ONLY its
+    // own entry's segments. Both entries of a shared device dispatch on
+    // the same cpal index, so refilling every runtime with ALL segments
+    // would make the one device callback process the same guitar in every
+    // sibling runtime — summed at the backend mix (audible double volume).
+    // A whole-chain runtime (`owned_entry == None`: probe, offline, JACK)
+    // keeps every segment, exactly as before.
+    let segments: Vec<ChainSegment> = match runtime.owned_entry {
+        Some((group, _)) => group_segments_by_input(chain, all_segments)
+            .into_iter()
+            .find(|(g, _)| *g == group)
+            .map(|(_, segs)| segs)
+            .ok_or_else(|| {
+                anyhow!(
+                    "chain '{}' in-place update: entry group {} no longer exists \
+                     (topology change must take the full-rebuild path)",
+                    chain.id.0,
+                    group
+                )
+            })?,
+        None => all_segments,
+    };
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -661,11 +777,12 @@ fn update_chain_runtime_state_impl(
             .filter_map(|&idx| effective_outs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
+        // #736: rebuild at the runtime's OWN built rate, not the chain scalar
         let input_state = match build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
-            sample_rate,
+            runtime.sample_rate(),
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
@@ -702,11 +819,17 @@ fn update_chain_runtime_state_impl(
         new_input_states.push(input_state);
     }
 
-    // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
-    // Keep the IR capacity floor consistent with the initial build, but do
-    // NOT prime on a rebuild — the producer is already warm, so it refills
-    // naturally (issue #592).
+    // Output routes (#670): REUSE the existing route when its endpoint shape
+    // is unchanged (the param-edit / block-toggle case). A fresh empty buffer
+    // here used to (a) discard the in-flight audio — the audible gap on every
+    // edit — and (b) restart the standing cushion at zero, which never
+    // refills in producer/consumer lockstep, leaving the chain permanently
+    // fragile after the first edit (owner-reported underruns while playing,
+    // reproduced by rebuild_while_playing_keeps_the_cushion). Reusing the
+    // Arc keeps both the buffered audio and the cushion. A genuinely changed
+    // endpoint (or an explicit queue reset) still gets a fresh route.
     let rebuild_has_convolution = crate::elastic_prime::chain_has_convolution(chain);
+    let old_output_routes = runtime.output_routes.load();
     let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
         .enumerate()
@@ -714,7 +837,29 @@ fn update_chain_runtime_state_impl(
             let base = target_for_route(elastic_targets, route_idx);
             let target =
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
-            Arc::new(build_output_routing_state(o, target, 0))
+            if !reset_output_queue {
+                if let Some(old) = old_output_routes.get(route_idx) {
+                    if old.output_channels == o.channels
+                        && old.buffer.layout() == output_entry_layout(o)
+                        && old.buffer.target_level() == target
+                    {
+                        return Arc::clone(old);
+                    }
+                }
+            }
+            // Fresh route on a rebuild. A convolution chain gets the SAME
+            // cushion the initial build would give it (#670): the reuse
+            // check above rejects exactly when the cushion posture changed —
+            // e.g. the chain GAINED its first cab/IR live — and an unprimed
+            // route here left the chain permanently fragile (fill ~0, every
+            // scheduling wobble on a real USB interface popped the output
+            // empty: the owner's random clicks after adding/swapping a cab).
+            let prime = if rebuild_has_convolution { target } else { 0 };
+            let fresh = build_output_routing_state(o, target, prime);
+            if let Some(old) = old_output_routes.get(route_idx) {
+                fresh.buffer.seed_last_frame_from(&old.buffer);
+            }
+            Arc::new(fresh)
         })
         .collect();
 
@@ -732,10 +877,18 @@ fn update_chain_runtime_state_impl(
         }
     }
 
-    // Step 3: Swap in new state (brief lock)
+    // Step 3: Swap in new state (brief lock). The OLD nodes are NOT dropped
+    // inside the critical section: dropping them runs the NAM C++ destructor
+    // (frees the model) and the IR FFT state — multi-ms work. The audio
+    // worker only try_locks `processing`; holding the lock through those
+    // destructors made it emit silence for 3-6 buffers on every cab/model
+    // swap (issue #670, owner's click when switching the CAB/IR — reproduced
+    // on the real interface, 64-384 underruns per swap). The old Vec is moved
+    // out and dropped AFTER the lock is released.
+    let old_input_states;
     {
         let mut processing = lock_recover(&runtime.processing, "chain runtime");
-        processing.input_states = new_input_states;
+        old_input_states = std::mem::replace(&mut processing.input_states, new_input_states);
         // Issue #580: keep the lock-free `stream_count` mirror in sync
         // with the new Vec length. Updated INSIDE the same critical
         // section that swaps the Vec so any concurrent reader sees a
@@ -780,6 +933,9 @@ fn update_chain_runtime_state_impl(
             .input_scratches
             .resize_with(new_len, InputCallbackScratch::default);
     }
+    // Lock released — NOW the old nodes (NAM models, IR FFT states) may run
+    // their multi-ms destructors without starving the audio worker (#670).
+    drop(old_input_states);
 
     // Seed each new buffer with the previous buffer's last pushed frame so a
     // brief underrun during the transition repeats the tail of the old audio
@@ -837,15 +993,19 @@ impl RuntimeGraph {
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_rates: &HashMap<DeviceId, f32>,
         reset_output_queue: bool,
         elastic_targets: &[usize],
+        registry: &[IoBinding],
     ) -> Result<Arc<ChainRuntimeState>> {
         self.upsert_chain_impl(
             chain,
             sample_rate,
+            device_rates,
             reset_output_queue,
             elastic_targets,
             false,
+            registry,
         )
     }
 
@@ -855,25 +1015,32 @@ impl RuntimeGraph {
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_rates: &HashMap<DeviceId, f32>,
         reset_output_queue: bool,
         elastic_targets: &[usize],
+        registry: &[IoBinding],
     ) -> Result<Arc<ChainRuntimeState>> {
         self.upsert_chain_impl(
             chain,
             sample_rate,
+            device_rates,
             reset_output_queue,
             elastic_targets,
             true,
+            registry,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn upsert_chain_impl(
         &mut self,
         chain: &Chain,
         sample_rate: f32,
+        device_rates: &HashMap<DeviceId, f32>,
         reset_output_queue: bool,
         elastic_targets: &[usize],
         spillover: bool,
+        registry: &[IoBinding],
     ) -> Result<Arc<ChainRuntimeState>> {
         let existing_groups: Vec<usize> = self
             .chains
@@ -899,7 +1066,7 @@ impl RuntimeGraph {
             // building here reloaded every NAM/IR model in the chain from disk
             // on each edit (volume, knob, toggle), only to discard them and
             // update the existing runtime in place.
-            let mut new_groups: Vec<usize> = input_group_ids(chain);
+            let mut new_groups: Vec<usize> = input_group_ids(chain, registry);
             let mut existing_sorted = existing_groups.clone();
             new_groups.sort_unstable();
             existing_sorted.sort_unstable();
@@ -915,6 +1082,7 @@ impl RuntimeGraph {
                                 sample_rate,
                                 reset_output_queue,
                                 elastic_targets,
+                                registry,
                             )?;
                         } else {
                             update_chain_runtime_state(
@@ -923,6 +1091,7 @@ impl RuntimeGraph {
                                 sample_rate,
                                 reset_output_queue,
                                 elastic_targets,
+                                registry,
                             )?;
                         }
                     }
@@ -944,7 +1113,7 @@ impl RuntimeGraph {
             self.chains.remove(&(chain.id.clone(), *g));
         }
         let mut first: Option<Arc<ChainRuntimeState>> = None;
-        for (group, state) in build_per_input_runtimes(chain, sample_rate, elastic_targets)? {
+        for (group, state) in build_per_input_runtimes(chain, sample_rate, device_rates, elastic_targets, registry)? {
             state.set_volume_pct(chain.volume);
             let arc = Arc::new(state);
             if first.is_none() {
@@ -972,6 +1141,99 @@ impl RuntimeGraph {
 // Slice 4 of Phase 2: block-level builders moved to runtime_block_builders.rs.
 // `runtime_graph.rs` only needs `build_runtime_block_nodes` for chain assembly.
 pub(crate) use crate::runtime_block_builders::build_runtime_block_nodes;
+
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+mod issue_736_per_binding_rate_tests {
+    use super::build_per_input_runtimes;
+    use std::collections::HashMap;
+    use domain::ids::{ChainId, DeviceId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::chain::Chain;
+
+    // Two mono inputs on two devices, paired with two outputs on the same two
+    // devices — two bindings, the #736 "Scarlett + TEYUN" shape.
+    fn two_binding_registry() -> Vec<IoBinding> {
+        vec![
+            IoBinding {
+                id: "a".into(),
+                name: "A".into(),
+                inputs: vec![IoEndpoint { name: "in".into(), device_id: DeviceId("devA".into()), mode: ChannelMode::Mono, channels: vec![0] }],
+                outputs: vec![IoEndpoint { name: "out".into(), device_id: DeviceId("devA".into()), mode: ChannelMode::Stereo, channels: vec![0, 1] }],
+            },
+            IoBinding {
+                id: "b".into(),
+                name: "B".into(),
+                inputs: vec![IoEndpoint { name: "in".into(), device_id: DeviceId("devB".into()), mode: ChannelMode::Mono, channels: vec![0] }],
+                outputs: vec![IoEndpoint { name: "out".into(), device_id: DeviceId("devB".into()), mode: ChannelMode::Stereo, channels: vec![0, 1] }],
+            },
+        ]
+    }
+
+    // Mirrored from crates/engine/tests/issue_716_per_binding_routing.rs —
+    // use direct struct construction since Chain has no new_for_test helper.
+    fn two_binding_chain() -> Chain {
+        Chain {
+            id: ChainId("rig:input-1".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["a".into(), "b".into()],
+            blocks: Vec::new(),
+        }
+    }
+
+    use super::RuntimeGraph;
+
+    #[test]
+    fn upsert_full_rebuild_preserves_per_device_rates() {
+        let chain = two_binding_chain();
+        let registry = two_binding_registry();
+        let mut rates = HashMap::new();
+        rates.insert(DeviceId("devA".into()), 44_100.0_f32);
+        rates.insert(DeviceId("devB".into()), 48_000.0_f32);
+
+        let mut graph = RuntimeGraph { chains: std::collections::HashMap::new() };
+        graph
+            .upsert_chain(&chain, 48_000.0, &rates, false, &[], &registry)
+            .expect("initial upsert");
+        let mut seen: Vec<f32> = graph
+            .runtimes_for(&chain.id)
+            .iter()
+            .map(|r| r.sample_rate())
+            .collect();
+        seen.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        assert_eq!(seen, vec![44_100.0, 48_000.0]);
+    }
+
+    #[test]
+    fn each_runtime_built_at_its_own_device_rate() {
+        let chain = two_binding_chain();
+        let registry = two_binding_registry();
+        let mut rates = HashMap::new();
+        rates.insert(DeviceId("devA".into()), 44_100.0_f32);
+        rates.insert(DeviceId("devB".into()), 48_000.0_f32);
+
+        let runtimes = build_per_input_runtimes(&chain, 48_000.0, &rates, &[], &registry)
+            .expect("two-binding build must succeed");
+        assert_eq!(runtimes.len(), 2, "two devices → two isolated runtimes");
+
+        let mut seen: Vec<f32> = runtimes.iter().map(|(_, s)| s.sample_rate()).collect();
+        seen.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        assert_eq!(seen, vec![44_100.0, 48_000.0], "each runtime clocked at its own device rate");
+    }
+
+    #[test]
+    fn empty_rate_map_falls_back_to_scalar_bit_exact() {
+        let chain = two_binding_chain();
+        let registry = two_binding_registry();
+        let empty: HashMap<DeviceId, f32> = HashMap::new();
+        let runtimes = build_per_input_runtimes(&chain, 48_000.0, &empty, &[], &registry).unwrap();
+        for (_, state) in &runtimes {
+            assert_eq!(state.sample_rate(), 48_000.0, "no override → scalar rate (legacy)");
+        }
+    }
+}
 
 #[cfg(test)]
 #[path = "issue_592_elastic_prime_tests.rs"]

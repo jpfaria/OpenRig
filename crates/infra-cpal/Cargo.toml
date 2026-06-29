@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-jack = ["cpal/jack", "dep:jack"]
+jack = ["cpal/jack", "dep:jack", "engine/jack"]
 
 [dependencies]
 log.workspace = true
@@ -18,6 +18,26 @@ engine = { path = "../engine" }
 block-util = { path = "../block-util" }
 block-core = { path = "../block-core" }
 project = { path = "../project" }
+
+[dev-dependencies]
+env_logger = "0.11"
+application = { path = "../application" }
+hound = "3.5"
+infra-yaml = { path = "../infra-yaml" }
+nam = { path = "../nam" }
+ir = { path = "../ir" }
+lv2 = { path = "../lv2" }
+block-dyn = { path = "../block-dyn" }
+block-filter = { path = "../block-filter" }
+block-reverb = { path = "../block-reverb" }
+block-gain = { path = "../block-gain" }
+block-amp = { path = "../block-amp" }
+block-preamp = { path = "../block-preamp" }
+block-cab = { path = "../block-cab" }
+block-delay = { path = "../block-delay" }
+block-mod = { path = "../block-mod" }
+block-pitch = { path = "../block-pitch" }
+plugin-loader = { path = "../plugin-loader" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"

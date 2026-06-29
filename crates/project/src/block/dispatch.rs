@@ -110,7 +110,10 @@ pub(crate) fn synthesize_parameters_from_manifest(
 ) -> Vec<block_core::param::ParameterSpec> {
     use plugin_loader::manifest::Backend;
     match &package.manifest.backend {
-        Backend::Nam { parameters, .. } => {
+        Backend::Nam {
+            parameters,
+            captures,
+        } => {
             // Pre-#287 (when NAM amps lived in `block-preamp/src/nam_*.rs`),
             // every NAM model exposed two layers of knobs: the per-capture
             // grid (e.g. `mode`, `character` for nam_boss_ds_2) AND the 8
@@ -120,8 +123,12 @@ pub(crate) fn synthesize_parameters_from_manifest(
             // every NAM in the GUI lost its standard knobs (~96 packages —
             // 21 with empty grids ended up with zero knobs at all). Merge
             // the standard set back in. Issue #401.
+            //
+            // `effective_grid_axes` first drops dead capture-selector axes
+            // (single-value or over-declared dropdowns) — issue #649.
+            let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
             let mut specs: Vec<block_core::param::ParameterSpec> =
-                parameters.iter().map(grid_parameter_to_spec).collect();
+                axes.iter().map(grid_parameter_to_spec).collect();
             // Issue #496 reverses #402's "drop output_db". With the
             // audit-side `output_gain_db` cleared in the manifests,
             // there was no automatic compensation AND no user-facing
@@ -130,9 +137,56 @@ pub(crate) fn synthesize_parameters_from_manifest(
             // can add makeup gain; the manifest `output_gain_db` is
             // still summed on top when present.
             specs.extend(nam::processor::plugin_parameter_specs());
+            // Issue #657: NAM/A2 (SlimmableContainer) models expose a
+            // runtime size lever (SetSlimmableSize). A1 models are not
+            // slimmable, so the knob is appended only for A2 — driven by
+            // the manifest's declared architecture (issue #650).
+            if package.manifest.architecture == Some(plugin_loader::manifest::NamArchitecture::A2) {
+                specs.push(nam::processor::slim_parameter_spec());
+            }
             specs
         }
-        Backend::Ir { parameters, .. } => parameters.iter().map(grid_parameter_to_spec).collect(),
+        Backend::Ir {
+            parameters,
+            captures,
+        } => {
+            // Same dead-axis filter as NAM (issue #649).
+            let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
+            let mut specs: Vec<block_core::param::ParameterSpec> =
+                axes.iter().map(grid_parameter_to_spec).collect();
+            // Issue #733: a `type: reverb` IR blends dry/wet rather than
+            // playing 100% wet at a calibrated level, so it exposes the
+            // reverb controls (mix / pre-delay / wet level) in place of the
+            // cab-style absolute Output knob.
+            if package.manifest.block_type == plugin_loader::manifest::BlockType::Reverb {
+                specs.extend(block_reverb::ir_reverb_parameter_specs());
+                return specs;
+            }
+            // Issue #655: user-adjustable Output Level knob (mirrors NAM).
+            // The default mirrors the engine baseline — the first capture's
+            // audit (manifest-level fallback, 0 dB if neither) — so the knob
+            // shows the real applied offset and a fresh block born at the
+            // first capture stays unchanged (volume invariant #10). The
+            // audio path resolves the offset per-capture from the raw saved
+            // params (see `ir::from_package::resolve_output_db`); this
+            // default only drives the UI and the new-block seed.
+            let default_db = captures
+                .first()
+                .and_then(|c| c.output_gain_db)
+                .or(package.manifest.output_gain_db)
+                .unwrap_or(0.0);
+            specs.push(block_core::param::float_parameter(
+                "output_db",
+                "Output",
+                None,
+                Some(default_db),
+                -24.0,
+                24.0,
+                0.1,
+                block_core::param::ParameterUnit::Decibels,
+            ));
+            specs
+        }
         Backend::Lv2 {
             plugin_uri,
             binaries,
@@ -492,18 +546,23 @@ pub(super) fn describe_block_audio(
 mod tests {
     use super::*;
     use plugin_loader::manifest::{
-        Backend, BlockType, GridParameter, ParameterValue, PluginManifest,
+        Backend, BlockType, GridCapture, GridParameter, ParameterValue, PluginManifest,
     };
     use plugin_loader::LoadedPackage;
     use std::path::PathBuf;
 
-    fn nam_package_with_axes() -> LoadedPackage {
+    fn nam_amp_package(
+        id: &str,
+        display_name: &str,
+        axes: Vec<GridParameter>,
+        captures: Vec<GridCapture>,
+    ) -> LoadedPackage {
         LoadedPackage {
             root: PathBuf::from("/fake"),
             manifest: PluginManifest {
                 manifest_version: 1,
-                id: "nam_test_amp".into(),
-                display_name: "Test NAM Amp".into(),
+                id: id.into(),
+                display_name: display_name.into(),
                 author: None,
                 description: None,
                 inspired_by: None,
@@ -516,20 +575,31 @@ mod tests {
                 homepage: None,
                 sources: None,
                 output_gain_db: None,
+                noise_gate: None,
+                architecture: None,
                 block_type: BlockType::Amp,
                 backend: Backend::Nam {
-                    parameters: vec![GridParameter {
-                        name: "channel".into(),
-                        display_name: None,
-                        values: vec![
-                            ParameterValue::Text("a".into()),
-                            ParameterValue::Text("b".into()),
-                        ],
-                    }],
-                    captures: vec![],
+                    parameters: axes,
+                    captures,
                 },
             },
         }
+    }
+
+    fn nam_package_with_axes() -> LoadedPackage {
+        nam_amp_package(
+            "nam_test_amp",
+            "Test NAM Amp",
+            vec![GridParameter {
+                name: "channel".into(),
+                display_name: None,
+                values: vec![
+                    ParameterValue::Text("a".into()),
+                    ParameterValue::Text("b".into()),
+                ],
+            }],
+            vec![],
+        )
     }
 
     #[test]
@@ -555,16 +625,50 @@ mod tests {
         );
     }
 
-    fn nam_package_with_emoji_labels() -> LoadedPackage {
-        // Real-world Bogner Ecstasy capture grid — `display_name` and
-        // every `Text` value carry a leading emoji. Reproduces the
-        // tofu/black-square symptom from issue #424.
+    #[test]
+    fn nam_a2_synthesized_schema_exposes_slim_knob() {
+        // Issue #657: A2 (SlimmableContainer) models expose a runtime
+        // `slim` size knob wired to SetSlimmableSize.
+        use plugin_loader::manifest::NamArchitecture;
+        let mut pkg = nam_package_with_axes();
+        pkg.manifest.architecture = Some(NamArchitecture::A2);
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        assert!(
+            specs.iter().any(|s| s.path == "slim"),
+            "NAM/A2 schema must expose the `slim` knob; got: {:?}",
+            specs.iter().map(|s| &s.path).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn nam_a1_and_legacy_synthesized_schema_have_no_slim_knob() {
+        // A1 models are not slimmable, and pre-#650 manifests have no
+        // architecture at all — neither exposes the slim knob (issue #657).
+        use plugin_loader::manifest::NamArchitecture;
+        let mut a1 = nam_package_with_axes();
+        a1.manifest.architecture = Some(NamArchitecture::A1);
+        assert!(
+            !synthesize_parameters_from_manifest(&a1)
+                .iter()
+                .any(|s| s.path == "slim"),
+            "A1 NAM must NOT expose the slim knob (not slimmable)"
+        );
+        let legacy = nam_package_with_axes(); // architecture: None
+        assert!(
+            !synthesize_parameters_from_manifest(&legacy)
+                .iter()
+                .any(|s| s.path == "slim"),
+            "legacy NAM (no architecture) must NOT expose the slim knob"
+        );
+    }
+
+    fn ir_package_with_capture_audit(first_audit_db: Option<f32>) -> LoadedPackage {
         LoadedPackage {
             root: PathBuf::from("/fake"),
             manifest: PluginManifest {
                 manifest_version: 1,
-                id: "nam_bogner_ecstasy".into(),
-                display_name: "Bogner Ecstasy".into(),
+                id: "ir_test_body".into(),
+                display_name: "Test IR".into(),
                 author: None,
                 description: None,
                 inspired_by: None,
@@ -577,20 +681,117 @@ mod tests {
                 homepage: None,
                 sources: None,
                 output_gain_db: None,
-                block_type: BlockType::Amp,
-                backend: Backend::Nam {
+                noise_gate: None,
+                architecture: None,
+                block_type: BlockType::Cab,
+                backend: Backend::Ir {
                     parameters: vec![GridParameter {
-                        name: "cabinet".into(),
-                        display_name: Some("📦 Cabinet".into()),
+                        name: "position".into(),
+                        display_name: None,
                         values: vec![
-                            ParameterValue::Text("✋ 4X12".into()),
-                            ParameterValue::Text("🔥 2X12".into()),
+                            ParameterValue::Text("a".into()),
+                            ParameterValue::Text("b".into()),
                         ],
                     }],
-                    captures: vec![],
+                    captures: vec![
+                        GridCapture {
+                            values: [("position".to_string(), ParameterValue::Text("a".into()))]
+                                .into_iter()
+                                .collect(),
+                            file: "a.wav".into(),
+                            output_gain_db: first_audit_db,
+                            noise_gate: None,
+                        },
+                        GridCapture {
+                            values: [("position".to_string(), ParameterValue::Text("b".into()))]
+                                .into_iter()
+                                .collect(),
+                            file: "b.wav".into(),
+                            output_gain_db: Some(-10.0),
+                            noise_gate: None,
+                        },
+                    ],
                 },
             },
         }
+    }
+
+    #[test]
+    fn ir_synthesized_schema_exposes_output_db_knob_in_decibels() {
+        // Issue #655: IR blocks need a user-adjustable Output Level knob
+        // (mirroring NAM) so resonant body IRs whose audit baseline cut
+        // them far down can be brought back up. It must be a dB control.
+        let pkg = ir_package_with_capture_audit(Some(-22.9));
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        let output_db = specs
+            .iter()
+            .find(|s| s.path == "output_db")
+            .expect("IR schema must include `output_db` so the user can adjust output level");
+        assert_eq!(
+            output_db.unit,
+            block_core::param::ParameterUnit::Decibels,
+            "output_db must be a decibel control"
+        );
+    }
+
+    #[test]
+    fn ir_output_db_default_seeds_from_first_capture_audit() {
+        // The knob's default mirrors the engine's actual baseline so a
+        // freshly created IR block (born at the first capture) shows the
+        // real applied offset, not 0 dB. Volume invariant #10.
+        let pkg = ir_package_with_capture_audit(Some(-22.9));
+        let specs = synthesize_parameters_from_manifest(&pkg);
+        let output_db = specs.iter().find(|s| s.path == "output_db").unwrap();
+        assert_eq!(
+            output_db.default_value,
+            Some(domain::value_objects::ParameterValue::Float(-22.9)),
+            "output_db default must be the first capture's audit baseline"
+        );
+    }
+
+    fn nam_package_with_emoji_labels() -> LoadedPackage {
+        // Real-world Bogner Ecstasy capture grid — `display_name` and
+        // every `Text` value carry a leading emoji. Reproduces the
+        // tofu/black-square symptom from issue #424.
+        // Both cabinet values are capture-backed so the axis survives the
+        // #649 dead-axis filter and the emoji stripping is exercised on a
+        // rendered control.
+        nam_amp_package(
+            "nam_bogner_ecstasy",
+            "Bogner Ecstasy",
+            vec![GridParameter {
+                name: "cabinet".into(),
+                display_name: Some("📦 Cabinet".into()),
+                values: vec![
+                    ParameterValue::Text("✋ 4X12".into()),
+                    ParameterValue::Text("🔥 2X12".into()),
+                ],
+            }],
+            vec![
+                GridCapture {
+                    values: [(
+                        "cabinet".to_string(),
+                        ParameterValue::Text("✋ 4X12".into()),
+                    )]
+                    .into_iter()
+                    .collect(),
+                    file: "4x12.nam".into(),
+                    output_gain_db: None,
+                    noise_gate: None,
+                },
+                GridCapture {
+                    values: [(
+                        "cabinet".to_string(),
+                        ParameterValue::Text("🔥 2X12".into()),
+                    )]
+                    .into_iter()
+                    .collect(),
+                    file: "2x12.nam".into(),
+                    output_gain_db: None,
+                    noise_gate: None,
+                },
+            ],
+        )
     }
 
     #[test]

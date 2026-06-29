@@ -3,28 +3,19 @@
 //! test file under the 600-line Rust cap (one concern per file).
 
 use super::*;
-use crate::block::InputEntry;
-use crate::chain::ChainInputMode;
-use domain::ids::DeviceId;
 use std::collections::BTreeMap;
-
-fn source(device: &str, channels: Vec<usize>) -> InputEntry {
-    InputEntry {
-        device_id: DeviceId(device.into()),
-        mode: ChainInputMode::Mono,
-        channels,
-    }
-}
 
 fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
     RigInput {
         label: None,
-        sources: vec![source("scarlett", vec![0])],
         bank: bank.iter().map(|(i, n)| (*i, n.to_string())).collect(),
         active_preset: active,
         active_scene: 1,
         routing: vec![],
         instrument: "electric_guitar".to_string(),
+        io: String::new(),
+        endpoint: String::new(),
+        io_binding_ids: Vec::new(),
     }
 }
 
@@ -320,6 +311,59 @@ fn scene_params_remain_independent_across_scenes() {
         .and_then(|s| s.params.get(&key).copied());
     assert_eq!(s1_val, Some(70.0), "scene 1 keeps its own override");
     assert_eq!(s2_val, Some(95.0), "scene 2 keeps its own override");
+}
+
+/// Issue #690 — red-first: the user enables the noise gate on a NAM
+/// block (a **Bool** param), saves, reopens, and it reverts. The f32
+/// scene-diff cannot carry a bool, so the capture path silently dropped
+/// every non-float param edit. The toggle must survive the
+/// `write_back_processing_blocks` → `apply_scene` round-trip.
+#[test]
+fn write_back_persists_bool_param_edit_issue_690() {
+    use crate::block::{AudioBlock, AudioBlockKind, NamBlock};
+    use crate::param::ParameterSet;
+    use domain::ids::BlockId;
+    use domain::value_objects::ParameterValue;
+
+    let block_id = "nam:1".to_string();
+    let mut base_params = ParameterSet::default();
+    base_params.insert("noise_gate.enabled", ParameterValue::Bool(false));
+    base_params.insert("noise_gate.threshold_db", ParameterValue::Float(-50.0));
+    let base_block = AudioBlock {
+        id: BlockId(block_id.clone()),
+        enabled: true,
+        kind: AudioBlockKind::Nam(NamBlock {
+            model: "nam_ts9".into(),
+            params: base_params,
+        }),
+    };
+    let mut p = project_with(vec![("input-1", input(&[(1, "p")], 1))], &["p"]);
+    p.presets.get_mut("p").unwrap().blocks = vec![base_block.clone()];
+
+    // The user flips the gate ON; the projected chain feeds the edit back.
+    let mut edited = base_block.clone();
+    if let AudioBlockKind::Nam(ref mut nam) = edited.kind {
+        nam.params
+            .insert("noise_gate.enabled", ParameterValue::Bool(true));
+    }
+    p.write_back_processing_blocks("input-1", vec![edited]);
+
+    let preset = p.presets.get("p").expect("preset present");
+    let projected = preset.apply_scene(1);
+    let gate = projected
+        .iter()
+        .find(|b| b.id.0 == block_id)
+        .and_then(|b| match &b.kind {
+            AudioBlockKind::Nam(nam) => nam.params.get_bool("noise_gate.enabled"),
+            _ => None,
+        });
+    assert_eq!(
+        gate,
+        Some(true),
+        "BUG #690: a Bool param edit must survive capture + re-projection \
+         (preset blocks={:?})",
+        preset.blocks
+    );
 }
 
 #[test]

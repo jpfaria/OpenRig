@@ -94,6 +94,22 @@ pub struct LocalDispatcher {
     /// Defaults to 48 000 Hz; the adapter sets the real value via
     /// `attach_engine_sr` once the audio stream is running.
     pub(crate) engine_sr: RefCell<u32>,
+
+    /// #693: completion channel for command work running on its own
+    /// task (DI decode, catalog rescan, ...). Handlers spawn a task
+    /// with a clone of the sender; `poll_async_results` (frontend
+    /// tick) drains the receiver, applies state and emits the events.
+    pub(crate) async_done_tx: std::sync::mpsc::Sender<AsyncDone>,
+    pub(crate) async_done_rx: std::sync::mpsc::Receiver<AsyncDone>,
+}
+
+/// Completed off-thread command work (#693).
+pub(crate) enum AsyncDone {
+    /// DI-loop decode: install into `di_loop_state` + emit the event.
+    DiLoad(ChainId, DiLoopSource, Result<Arc<DiLoop>, String>),
+    /// Work whose state lives elsewhere (e.g. the global plugin
+    /// registry): just surface the completion events.
+    Events(Vec<Event>),
 }
 
 impl LocalDispatcher {
@@ -103,6 +119,7 @@ impl LocalDispatcher {
     /// its own project handle and pass it here so both sides share the same
     /// allocation.
     pub fn new(project: Rc<RefCell<Project>>) -> Self {
+        let (async_done_tx, async_done_rx) = std::sync::mpsc::channel();
         Self {
             project,
             rig: RefCell::new(None),
@@ -113,6 +130,8 @@ impl LocalDispatcher {
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(48_000),
+            async_done_tx,
+            async_done_rx,
         }
     }
 
@@ -137,6 +156,17 @@ impl LocalDispatcher {
         *self.rig.borrow_mut() = Some(rig);
     }
 
+    /// #693: clone the current state into an immutable snapshot for
+    /// API-style reads (`crate::snapshot`). Called by
+    /// `PublishingDispatcher` after every dispatch — the cost is one
+    /// deep clone per command, paid on the writer thread, so readers
+    /// never borrow the live `Rc` state.
+    pub fn publish_state_snapshot(&self) {
+        let project = self.project.borrow().clone();
+        let rig = self.rig.borrow().as_ref().map(|rig| rig.borrow().clone());
+        crate::snapshot::publish(crate::snapshot::StateSnapshot { project, rig });
+    }
+
     /// #555: configure the preset library directory. Called by the
     /// session bootstrap once the resolved `presets_path` is known.
     /// Idempotent — calling this again replaces the path.
@@ -159,11 +189,44 @@ impl LocalDispatcher {
         *self.config_path.borrow_mut() = path;
     }
 
-    /// #614: inform the dispatcher of the engine sample rate so DI loop
+    /// #614/#669: inform the dispatcher of the engine sample rate so DI loop
     /// decoding resamples to the correct target. Call this once the audio
-    /// stream is running (or when the device changes). Defaults to 48 000 Hz.
-    pub fn attach_engine_sr(&self, sr: u32) {
+    /// stream is running and whenever the device rate changes. Defaults to
+    /// 48 000 Hz.
+    ///
+    /// #669: when the rate actually changes, every already-loaded DI loop is
+    /// re-resampled to the new rate in place — a stale 48 kHz buffer plays in
+    /// slow motion on a 44.1 kHz stream. Returns the chains whose loop arc was
+    /// rebuilt so the caller can re-apply the fresh arc to any armed runtime.
+    /// No-op (empty result) when the rate is unchanged.
+    pub fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
+        if *self.engine_sr.borrow() == sr {
+            return Vec::new();
+        }
         *self.engine_sr.borrow_mut() = sr;
+        let mut rebuilt = Vec::new();
+        let mut state = self.di_loop_state.borrow_mut();
+        for (chain, (source, arc)) in state.iter_mut() {
+            match crate::di_loader::load_di_loop(source, sr) {
+                Ok(new_arc) => {
+                    *arc = new_arc;
+                    rebuilt.push(chain.clone());
+                }
+                Err(e) => {
+                    // Off-thread; never silently swallow — a loop that fails to
+                    // rebuild keeps its old (wrong-rate) buffer, so surface it.
+                    eprintln!("[di-loop #669] rebuild for {chain:?} at {sr} Hz failed: {e}");
+                }
+            }
+        }
+        rebuilt
+    }
+
+    /// The sample rate the live engine is currently running at, as last
+    /// synced via [`Self::attach_engine_sr`]. Authoritative fallback for any
+    /// consumer that would otherwise assume a fixed rate (issue #723).
+    pub fn engine_sr(&self) -> u32 {
+        *self.engine_sr.borrow()
     }
 
     /// #614: retrieve the pre-loaded DI loop arc for `chain`, if any.
@@ -177,6 +240,20 @@ impl LocalDispatcher {
             .borrow()
             .get(chain)
             .map(|(_, arc)| Arc::clone(arc))
+    }
+
+    /// #661: retrieve WHICH source is currently loaded for `chain`, if any.
+    ///
+    /// Parity twin of [`Self::di_loop_for_chain`]: the GUI reads this back so
+    /// the DI loop popup's ComboBox can highlight the active source when it is
+    /// reopened (the popup is re-instantiated on each show, so the selection
+    /// must be re-derived from dispatcher state rather than held in the view).
+    /// Returns `None` when no source has been loaded for this chain yet.
+    pub fn di_loop_source_for_chain(&self, chain: &ChainId) -> Option<DiLoopSource> {
+        self.di_loop_state
+            .borrow()
+            .get(chain)
+            .map(|(source, _)| source.clone())
     }
 }
 
@@ -206,7 +283,8 @@ impl CommandDispatcher for LocalDispatcher {
             Command::AddChain { .. }
             | Command::ConfigureChain { .. }
             | Command::RemoveChain { .. }
-            | Command::SetChainVolume { .. } => self.handle_chain_crud(cmd),
+            | Command::SetChainVolume { .. }
+            | Command::SetChainIoBindings { .. } => self.handle_chain_crud(cmd),
 
             Command::MoveChainUp { .. }
             | Command::MoveChainDown { .. }
@@ -252,18 +330,39 @@ impl CommandDispatcher for LocalDispatcher {
                 block_size,
                 bit_depth,
                 tail_ms,
-            } => crate::render_handler::run(
-                chain_path,
-                input_path,
-                output_path,
-                start_s,
-                end_s,
-                sample_rate_hz,
-                block_size,
-                bit_depth,
-                tail_ms,
-            )
-            .map(|ev| vec![ev]),
+            } => {
+                // #693: bad args / missing input still error immediately
+                // (cheap checks); only the render itself is deferred.
+                crate::render_handler::precheck(bit_depth, &input_path)?;
+                // #693: the offline render (file reads + full engine pass +
+                // WAV write) runs on its own task. Completion — success or
+                // failure — surfaces via poll_async_results as
+                // RenderCompleted / Event::Error.
+                let tx = self.async_done_tx.clone();
+                std::thread::Builder::new()
+                    .name("render-chain".into())
+                    .spawn(move || {
+                        let done = match crate::render_handler::run(
+                            chain_path,
+                            input_path,
+                            output_path,
+                            start_s,
+                            end_s,
+                            sample_rate_hz,
+                            block_size,
+                            bit_depth,
+                            tail_ms,
+                        ) {
+                            Ok(ev) => ev,
+                            Err(e) => Event::Error {
+                                message: format!("RenderChain failed: {e}"),
+                            },
+                        };
+                        let _ = tx.send(AsyncDone::Events(vec![done]));
+                    })
+                    .map_err(|e| anyhow::anyhow!("failed to spawn render-chain task: {e}"))?;
+                Ok(vec![])
+            }
 
             Command::CaptureRigEdits => self.handle_capture_rig_edits(),
 
@@ -350,15 +449,60 @@ impl CommandDispatcher for LocalDispatcher {
                 self.handle_toggle_active_block_neighbor_enabled()
             }
 
+            // #712: per-machine MIDI/MCP master switches → config.yaml.
+            Command::SetMidiEnabled { enabled } => self.handle_set_midi_enabled(enabled),
+            Command::SetMcpEnabled { enabled } => self.handle_set_mcp_enabled(enabled),
+
             // #614: per-chain virtual DI loop (ephemeral, never persisted).
             Command::SetChainDiLoopSource { .. } | Command::SetChainDiLoopEnabled { .. } => {
                 self.handle_di_loop(cmd)
             }
+
+            // #716: per-machine I/O binding registry (persisted to config.yaml).
+            Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {
+                self.handle_create_or_update_io_binding(binding)
+            }
+            Command::DeleteIoBinding { id } => self.handle_delete_io_binding(id),
+            Command::RenameIoBinding { id, name } => self.handle_rename_io_binding(id, name),
+            Command::AddIoEndpoint {
+                binding_id,
+                is_input,
+                device_id,
+                channels,
+                mode,
+            } => self.handle_add_io_endpoint(binding_id, is_input, device_id, channels, mode),
+            Command::RemoveIoEndpoint {
+                binding_id,
+                is_input,
+                endpoint_name,
+            } => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
         }
     }
 
     fn subscribe(&self) -> EventStream {
         // Phase 2 will return a real event stream. For now this is a no-op.
+    }
+
+    /// #693: install completed off-thread DI decodes and emit their
+    /// events. Failures are logged (non-blocking logger) — same policy
+    /// as every other async side-effect.
+    fn poll_async_results(&self) -> Vec<Event> {
+        let mut events = Vec::new();
+        while let Ok(done) = self.async_done_rx.try_recv() {
+            match done {
+                AsyncDone::DiLoad(chain, source, result) => match result {
+                    Ok(arc) => {
+                        self.di_loop_state
+                            .borrow_mut()
+                            .insert(chain.clone(), (source, arc));
+                        events.push(Event::ChainDiLoopSourceChanged { chain });
+                    }
+                    Err(e) => log::error!("DI loop load failed for chain '{}': {e}", chain.0),
+                },
+                AsyncDone::Events(completed) => events.extend(completed),
+            }
+        }
+        events
     }
 }
 
@@ -457,21 +601,28 @@ impl LocalDispatcher {
     /// survived only in memory and reset to default on the next launch
     /// (issue #540).
     pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
-        use infra_filesystem::FilesystemStorage;
         match cmd {
+            // #693: path persistence runs on the persist worker — the
+            // dispatching thread never waits on disk; errors go to the
+            // non-blocking logger.
+            // #731: bind the config path at dispatch time (see app_config_persist);
+            // the worker must not re-resolve `$HOME` at write time.
             Command::SetPresetsPath { path } => {
-                FilesystemStorage::save_presets_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_presets_path failed: {e}"))?;
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.presets_path = path;
+                });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetPluginsPath { path } => {
-                FilesystemStorage::save_plugins_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_plugins_path failed: {e}"))?;
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.plugins_path = path;
+                });
                 Ok(vec![Event::PathsSaved])
             }
             Command::SetEvaluationsPath { path } => {
-                FilesystemStorage::save_evaluations_path(path)
-                    .map_err(|e| anyhow::anyhow!("save_evaluations_path failed: {e}"))?;
+                crate::app_config_persist::persist_app_config(move |config| {
+                    config.paths.evaluations_path = path;
+                });
                 Ok(vec![Event::PathsSaved])
             }
             other => {

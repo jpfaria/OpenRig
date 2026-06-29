@@ -28,7 +28,7 @@
 //! file first (against an API that does not exist yet) is the RED that
 //! gates the implementation, per CLAUDE.md / docs/testing.md.
 
-use super::meter_wiring::{rebuild_stream_meters_row, StreamMeterReading};
+use super::meter_wiring::{rebuild_stream_meters_row, StreamMeterReading, METER_POLL_TICK_MS};
 use crate::StreamMeter;
 use engine::output_meter::SILENT_DBFS;
 
@@ -36,12 +36,26 @@ fn reading(in_dbfs: f32, out_dbfs: f32) -> StreamMeterReading {
     StreamMeterReading { in_dbfs, out_dbfs }
 }
 
+/// #715: the meter poll must not run faster than ~20 Hz. Its per-frame memory
+/// traffic competes with the audio worker on the shared cache and evicts the
+/// NAM weights → cold-cache inference → late buffer → crackle (reproduced in
+/// engine/tests/issue_715_nam_cache_eviction). 30 Hz (33 ms) caused it; this
+/// guards against regressing back to a fast meter refresh.
+#[test]
+fn meter_poll_is_not_faster_than_20hz() {
+    assert!(
+        METER_POLL_TICK_MS >= 50,
+        "meter poll tick {METER_POLL_TICK_MS}ms is faster than 20 Hz — its memory \
+         traffic evicts the audio worker's NAM weights (issue #715 crackle)"
+    );
+}
+
 #[test]
 fn row_length_equals_project_input_count_when_engine_matches() {
     // Steady state: project says 2 input entries, engine reports 2
     // streams. Row is 2 entries with the engine values.
     let readings = vec![reading(-6.0, -12.0), reading(-3.0, -9.0)];
-    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 2, 100.0);
+    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 2, 100.0, true);
     assert_eq!(row.len(), 2);
     assert!((row[0].in_dbfs - (-6.0)).abs() < 0.05);
     assert!((row[0].out_dbfs - (-12.0)).abs() < 0.05);
@@ -64,7 +78,7 @@ fn row_length_stays_at_project_count_when_engine_reports_more_streams() {
         reading(-6.0, -12.0),
         reading(-6.0, -12.0),
     ];
-    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 1, 100.0);
+    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 1, 100.0, true);
     assert_eq!(
         row.len(),
         1,
@@ -80,7 +94,7 @@ fn row_length_stays_at_project_count_when_engine_reports_zero_streams() {
     // reports zero streams for the sibling while the controller is
     // rebuilt; the UI must NOT collapse the row — it must keep
     // project-derived slots showing SILENT.
-    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&[], 1, 100.0);
+    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&[], 1, 100.0, true);
     assert_eq!(
         row.len(),
         1,
@@ -104,7 +118,7 @@ fn row_pads_missing_slots_with_silent_when_engine_reports_fewer_streams() {
     // shows its reading; the remaining slots stay SILENT so the row
     // stays at the project-derived 3 entries.
     let readings = vec![reading(-6.0, -12.0)];
-    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 3, 100.0);
+    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 3, 100.0, true);
     assert_eq!(row.len(), 3, "row length follows project input count");
     assert!((row[0].in_dbfs - (-6.0)).abs() < 0.05);
     assert_eq!(row[1].in_dbfs, SILENT_DBFS);
@@ -119,7 +133,7 @@ fn row_min_length_is_one_when_project_input_count_is_zero() {
     // SILENT slot so the UI never shows "no meter" for a chain card
     // that's mid-construction. Mirrors the `.max(1)` clamp in
     // `replace_project_chains`.
-    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&[], 0, 100.0);
+    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&[], 0, 100.0, true);
     assert_eq!(
         row.len(),
         1,
@@ -130,6 +144,22 @@ fn row_min_length_is_one_when_project_input_count_is_zero() {
 }
 
 #[test]
+fn disabled_chain_yields_no_meter_rows() {
+    // #750: the per-stream graph is a LIVE surface — a disabled chain must
+    // render ZERO rows even while a stale tap still reports readings and the
+    // project resolves several inputs. Otherwise the timer re-grows the footer
+    // a tick after the chain is switched off (the `.max(1)` clamp would keep a
+    // phantom row), so the graph "sticks" on a disabled chain.
+    let readings = vec![reading(-6.0, -12.0), reading(-3.0, -9.0)];
+    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 4, 100.0, false);
+    assert!(
+        row.is_empty(),
+        "disabled chain must produce no meter rows, got {}",
+        row.len()
+    );
+}
+
+#[test]
 fn row_applies_chain_volume_to_output_only() {
     // Same volume-compensation rule the timer already enforces: the
     // OUTPUT reading is scaled by `20·log10(volume_pct/100)` because
@@ -137,7 +167,7 @@ fn row_applies_chain_volume_to_output_only() {
     // chain volume slider. The INPUT reading is untouched. Issue #496
     // — must be preserved here.
     let readings = vec![reading(-6.0, -12.0)];
-    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 1, 200.0);
+    let row: Vec<StreamMeter> = rebuild_stream_meters_row(&readings, 1, 200.0, true);
     assert!(
         (row[0].in_dbfs - (-6.0)).abs() < 0.05,
         "input is not scaled"

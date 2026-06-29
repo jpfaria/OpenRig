@@ -152,6 +152,31 @@ export component ChainRow inherits Rectangle {
             colorize: #6a7483;
         }
 
+        // Issue #670: audio-overload (xrun) red LED. Lit while the chain's
+        // audio callback is missing its deadline — the rig is too heavy for
+        // the buffer size and the user is hearing dropouts ("crackle").
+        // Placed BEFORE the PowerSwitch (x:0–10, flush against the switch at
+        // x:10) as a status LED, using the same led-red sprite as the block
+        // chips. (Feedback: the triangle on top of the power button looked
+        // like the button itself blinking.)
+        Rectangle {
+            x: 0px;
+            y: (58px - 10px) / 2;
+            width: 10px;
+            height: 10px;
+            clip: true;
+            visible: root.chain.audio_overload;
+            Image {
+                source: @image-url("../assets/sprites/led-red.png");
+                x: -10px;
+                y: 0;
+                width: 20px;
+                height: 10px;
+                image-fit: fill;
+                image-rendering: smooth;
+            }
+        }
+
         ChainTitlePreset {
             x: 72px;
             y: 9px;
@@ -199,6 +224,7 @@ export component ChainRow inherits Rectangle {
             y: 12px;
             playing: root.chain.di_loop_playing;
             sources: root.chain.di_loop_sources;
+            selected-index: root.chain.di_loop_selected_index;
             di-loop-source-selected(src) => {
                 root.di-loop-source-selected(root.chain-index, src);
             }
@@ -498,13 +524,16 @@ export component ChainRow inherits Rectangle {
             }
         }
 
+        // #716: IN/OUT are illustrative only — the chain's audio I/O comes from
+        // the I/O binding referenced by its input/output blocks, not from
+        // editing these chips. No click handler (non-interactive).
         in-chip := ChainEndpointChip {
             x: 24px;
             y: 24px;
             is-input: true;
             label: root.chain.input_label;
             tooltip: root.chain.input_tooltip;
-            clicked => { root.configure-chain-input(root.chain-index); }
+            interactive: false;
         }
 
         out-chip := ChainEndpointChip {
@@ -513,7 +542,7 @@ export component ChainRow inherits Rectangle {
             is-input: false;
             label: root.chain.output_label;
             tooltip: root.chain.output_tooltip;
-            clicked => { root.configure-chain-output(root.chain-index); }
+            interactive: false;
         }
 
         if root.chain.latency_ms > 0 : Rectangle {

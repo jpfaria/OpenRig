@@ -85,6 +85,26 @@ where
     Ok(Box::new(DualMonoProcessor::new(left, right)))
 }
 
+/// Runs a stereo processor on a mono host bus: broadcasts the sample to both
+/// channels and sums the result. Lets a true-stereo model (e.g. ping-pong)
+/// degrade gracefully when the layout is mono.
+pub struct StereoToMono {
+    inner: Box<dyn StereoProcessor>,
+}
+
+impl StereoToMono {
+    pub fn new(inner: Box<dyn StereoProcessor>) -> Self {
+        Self { inner }
+    }
+}
+
+impl MonoProcessor for StereoToMono {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        let [l, r] = self.inner.process_frame([input, input]);
+        (l + r) * 0.5
+    }
+}
+
 pub fn process_simple_delay(line: &mut DelayLine, input: f32, feedback: f32, mix: f32) -> f32 {
     let delayed = line.read();
     line.write(input + delayed * clamp_feedback(feedback));
@@ -113,6 +133,13 @@ pub fn clamp_time_ms(time_ms: f32) -> f32 {
 
 pub fn mix_dry_wet(dry: f32, wet: f32, mix: f32) -> f32 {
     (1.0 - clamp_mix(mix)).mul_add(dry, clamp_mix(mix) * wet)
+}
+
+/// `tanh` soft saturation with unity small-signal gain. `drive` sets the knee:
+/// higher = earlier compression and more odd harmonics. Branch-free, RT-safe.
+pub fn soft_saturate(input: f32, drive: f32) -> f32 {
+    let drive = drive.max(1e-6);
+    (input * drive).tanh() / drive
 }
 
 pub fn lowpass_step(state: &mut f32, input: f32, cutoff_hz: f32, sample_rate: f32) -> f32 {

@@ -96,6 +96,7 @@ fn plugin_parameter_specs_with_defaults_uses_custom_defaults() {
         bass: 3.0,
         middle: 7.0,
         treble: 9.0,
+        slim_size: 1.0,
         audit_overrides_baked_output: false,
     };
     let specs = plugin_parameter_specs_with_defaults(custom);
@@ -136,6 +137,7 @@ fn nam_plugin_params_clone_preserves_values() {
         bass: 2.0,
         middle: 8.0,
         treble: 4.0,
+        slim_size: 1.0,
         audit_overrides_baked_output: false,
     };
     let cloned = params;
@@ -184,6 +186,7 @@ fn plugin_params_from_set_with_defaults_uses_custom_defaults() {
         bass: 2.0,
         middle: 2.0,
         treble: 2.0,
+        slim_size: 1.0,
         audit_overrides_baked_output: false,
     };
     let ps = ParameterSet::default();
@@ -241,7 +244,6 @@ fn params_from_set_null_ir_path_returns_none() {
 // ── build_processor (requires NAM lib) ──────────────────────────
 
 #[test]
-#[ignore]
 fn build_processor_nonexistent_model_returns_error() {
     let mut ps = ParameterSet::default();
     ps.insert(
@@ -255,7 +257,6 @@ fn build_processor_nonexistent_model_returns_error() {
 // ── build_processor_for_layout stereo rejection ─────────────────
 
 #[test]
-#[ignore]
 fn build_processor_for_layout_stereo_returns_error() {
     let mut ps = ParameterSet::default();
     ps.insert(

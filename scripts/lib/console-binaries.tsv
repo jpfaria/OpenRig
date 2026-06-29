@@ -1,0 +1,15 @@
+# Single source of truth for the console-style binaries that EVERY platform
+# packager must build and ship alongside the GUI (issue #741). Without this,
+# an installed OpenRig is GUI-only: no headless run, no offline render.
+#
+# Columns (whitespace-separated): cargo_pkg  built_basename  installed_basename
+#   cargo_pkg          -> `cargo build -p <cargo_pkg>`
+#   built_basename     -> file cargo emits under target/<...>/release/
+#   installed_basename -> name shipped in the package (openrig- prefix, mirrors
+#                         the GUI binary which installs as `openrig`)
+#
+# Read by scripts/lib/console-binaries.sh (bash) and parsed directly by
+# scripts/package-windows.ps1 (PowerShell) so the list never diverges.
+adapter-console      adapter-console      openrig-console
+adapter-console-rig  adapter-console-rig  openrig-console-rig
+adapter-render       openrig-render       openrig-render

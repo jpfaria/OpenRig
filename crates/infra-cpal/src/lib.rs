@@ -48,8 +48,23 @@ pub struct AudioDeviceDescriptor {
 
 mod resolved;
 
+mod io_topology;
+pub use io_topology::io_topology_changed;
+
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_direct;
+
+mod control_worker;
+pub use control_worker::ControlWorker;
+
+mod live_runtime;
+pub use live_runtime::LiveRuntimeSlot;
+
+mod build_request;
+pub use build_request::{build_chain_runtime, BuildRequest};
+
+mod slot_processing;
+pub use slot_processing::{build_chain_slots, process_input_buffer, process_output_buffer};
 
 mod controller;
 pub use controller::ProjectRuntimeController;
@@ -76,6 +91,12 @@ mod jack_chain_resolve;
 
 mod validation;
 
+mod audio_workgroup;
+mod callback_load_timing;
+mod dsp_worker;
+#[cfg(test)]
+#[path = "dsp_worker_recovery_tests.rs"]
+mod dsp_worker_recovery_tests;
 mod stream_builder;
 mod stream_config;
 pub use stream_builder::build_streams_for_project;
@@ -95,7 +116,8 @@ pub(crate) use stream_config::resolved_output_buffer_size_frames;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use stream_config::{
     build_stream_config, max_supported_input_channels, max_supported_output_channels,
-    required_channel_count, resolve_multi_io_sample_rate, select_supported_stream_config,
+    required_channel_count, resolve_binding_sample_rates, resolved_input_sample_rate,
+    resolved_output_sample_rate, select_supported_stream_config,
 };
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use validation::{

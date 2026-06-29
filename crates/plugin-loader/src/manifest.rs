@@ -110,6 +110,30 @@ pub struct PluginManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_gain_db: Option<f32>,
 
+    /// Manifest-level noise-gate defaults (issue #675).
+    ///
+    /// High-gain NAM captures amplify the input noise floor (~+32 dB) into
+    /// audible idle hiss; the gate (already in the chain before the model)
+    /// cuts it but defaults OFF (#612). This lets a capture ship the gate
+    /// pre-regulated. Applies to every capture; a `GridCapture.noise_gate`
+    /// overrides it per capture. Absent (the common case, and all IR
+    /// plugins) → engine `DEFAULT_PLUGIN_PARAMS` (gate off).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noise_gate: Option<ManifestNoiseGate>,
+
+    /// NAM model architecture summary for the whole plugin (issue #650).
+    ///
+    /// Every NAM plugin is uniform — all its captures share one architecture
+    /// — so a single per-plugin value is enough for the catalog to label and
+    /// filter NAM/A1 vs NAM/A2 **without opening any `.nam`**. The `.nam`
+    /// itself still carries the ground-truth architecture; this is a cached
+    /// summary written by OpenRig-plugins.
+    ///
+    /// Absent for IR plugins and any pre-#650 (legacy) NAM manifest, both of
+    /// which deserialize to `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub architecture: Option<NamArchitecture>,
+
     /// Which block category this plugin belongs to.
     #[serde(rename = "type")]
     pub block_type: BlockType,
@@ -118,6 +142,32 @@ pub struct PluginManifest {
     /// discriminated by the `backend` tag.
     #[serde(flatten)]
     pub backend: Backend,
+}
+
+/// NAM model architecture family (issue #650).
+///
+/// - [`A1`](NamArchitecture::A1) — NAM "v1": WaveNet / LSTM / ConvNet
+///   (any `.nam` whose architecture is *not* `SlimmableContainer`).
+/// - [`A2`](NamArchitecture::A2) — NAM "v2": `SlimmableContainer`
+///   (`.nam` version `0.7.0`).
+///
+/// Serialized UPPERCASE (`A1` / `A2`) to match the manifest wire format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NamArchitecture {
+    A1,
+    A2,
+}
+
+impl NamArchitecture {
+    /// Short uppercase tag (`"A1"` / `"A2"`), matching the manifest wire
+    /// format. Single source for the catalog badge and any mismatch warning.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::A1 => "A1",
+            Self::A2 => "A2",
+        }
+    }
 }
 
 /// Block category. Mirrors the `block-*` crates in the workspace.
@@ -272,6 +322,42 @@ pub struct GridParameter {
     pub values: Vec<ParameterValue>,
 }
 
+/// Noise-gate defaults a NAM plugin can ship in its manifest (issue #675).
+///
+/// Both fields are optional so a manifest can set only what it needs
+/// (e.g. just `threshold_db`); an absent field falls back to the next
+/// layer (per-capture → manifest-level → engine `DEFAULT_PLUGIN_PARAMS`).
+/// `threshold_db` uses the same input-referred dB convention the engine
+/// already uses for `noise_gate.threshold_db`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ManifestNoiseGate {
+    /// Whether the gate is engaged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    /// Gate threshold in input-referred dB.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub threshold_db: Option<f32>,
+}
+
+/// Resolve the effective noise-gate fields for a capture (issue #675): a
+/// per-capture override wins per field over the manifest-level default.
+/// Returns `(enabled, threshold_db)`, each `None` when neither layer sets
+/// it — the caller then leaves the schema default in place. Used to SEED
+/// the user-visible knobs at block creation (mirrors the `output_gain_db`
+/// seeding), never applied as a hidden load-time default.
+pub fn resolve_noise_gate(
+    capture: Option<&ManifestNoiseGate>,
+    manifest: Option<&ManifestNoiseGate>,
+) -> (Option<bool>, Option<f32>) {
+    let enabled = capture
+        .and_then(|g| g.enabled)
+        .or(manifest.and_then(|g| g.enabled));
+    let threshold_db = capture
+        .and_then(|g| g.threshold_db)
+        .or(manifest.and_then(|g| g.threshold_db));
+    (enabled, threshold_db)
+}
+
 /// One cell of the NAM/IR capture grid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GridCapture {
@@ -289,6 +375,13 @@ pub struct GridCapture {
     /// `-6.0` = −6 dB).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_gain_db: Option<f32>,
+
+    /// Per-capture noise-gate override (issue #675). Overrides
+    /// [`PluginManifest::noise_gate`] for this capture; an absent field
+    /// inherits the manifest-level value. Lets a single plugin ship the
+    /// gate ON only for its high-gain captures and OFF for clean ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noise_gate: Option<ManifestNoiseGate>,
 }
 
 /// Build target slot for an LV2 binary.

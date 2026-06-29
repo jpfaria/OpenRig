@@ -17,8 +17,9 @@
 //! (`upsert_chain_with_resolved`) feeds them straight into
 //! `RuntimeGraph::upsert_chain`.
 
+use domain::io_binding::IoBinding;
 use engine::runtime::elastic_target_for_buffer;
-use project::block::AudioBlockKind;
+use engine::runtime_endpoints::resolve_chain_io;
 use project::chain::Chain;
 
 use crate::resolved::ResolvedChainAudioConfig;
@@ -53,16 +54,13 @@ const ELASTIC_MULTIPLIER_INSERT_SEND: u8 = 1;
 pub(crate) fn compute_elastic_targets_for_chain(
     chain: &Chain,
     resolved: &ResolvedChainAudioConfig,
+    registry: &[IoBinding],
 ) -> Vec<usize> {
-    let regular_output_count: usize = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Output(ob) => Some(ob.entries.len()),
-            _ => None,
-        })
-        .sum();
+    // Model A (#716): the regular (non-Insert) outputs come from the resolved
+    // binding endpoints, not from block `entries`. Insert sends are appended
+    // after them in `resolved.outputs`, so the count still splits the two.
+    let (_resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let regular_output_count: usize = resolved_outputs.len();
     resolved
         .outputs
         .iter()
@@ -76,5 +74,18 @@ pub(crate) fn compute_elastic_targets_for_chain(
             };
             elastic_target_for_buffer(buf, multiplier)
         })
+        .collect()
+}
+
+/// #740: per-output elastic targets for an I/O-UNCHANGED live rebuild, derived
+/// straight from the live output buffer sizes — no device resolve. Uses the
+/// regular-output multiplier (an Insert send's leaner cushion just resizes
+/// harmlessly on the next full rebuild). Lets a param/block/preset edit reuse
+/// the running stream config and rebuild the DSP off-thread instead of blocking
+/// the GUI on a CoreAudio resolve.
+pub(crate) fn elastic_targets_from_output_buffers(output_buffer_frames: &[u32]) -> Vec<usize> {
+    output_buffer_frames
+        .iter()
+        .map(|&buf| elastic_target_for_buffer(buf, ELASTIC_MULTIPLIER_REGULAR))
         .collect()
 }

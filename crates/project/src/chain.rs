@@ -1,7 +1,7 @@
 use domain::ids::ChainId;
 use serde::{Deserialize, Serialize};
 
-use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, InsertBlock, OutputBlock};
+use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InsertBlock, OutputBlock};
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,
@@ -74,16 +74,6 @@ pub fn processing_layout(
     }
 }
 
-/// Determines the processing layout from an InputEntry.
-pub fn processing_layout_for_input_entry(entry: &InputEntry) -> ProcessingLayout {
-    let ch_count = entry.channels.len();
-    match entry.mode {
-        ChainInputMode::DualMono if ch_count >= 2 => ProcessingLayout::DualMono,
-        ChainInputMode::Stereo if ch_count >= 2 => ProcessingLayout::Stereo,
-        _ => ProcessingLayout::Mono,
-    }
-}
-
 fn default_chain_volume() -> f32 {
     100.0
 }
@@ -103,6 +93,12 @@ pub struct Chain {
     /// que não têm o campo.
     #[serde(default = "default_chain_volume")]
     pub volume: f32,
+    /// #716: ids of the per-machine I/O bindings this chain uses. The chain's
+    /// input/output endpoints are discovered from these bindings (the engine
+    /// itself is unchanged — only where the I/O comes from). Empty for legacy
+    /// projects that predate the binding registry.
+    #[serde(default)]
+    pub io_binding_ids: Vec<String>,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
 }
@@ -160,99 +156,20 @@ impl Chain {
         })
     }
 
-    /// Validate that no two input entries share the same device+channel,
-    /// and no two output entries share the same device+channel.
-    pub fn validate_channel_conflicts(&self) -> Result<(), String> {
-        let mut used: Vec<(String, usize)> = Vec::new();
-        for (_, input) in self.input_blocks() {
-            for entry in &input.entries {
-                for &ch in &entry.channels {
-                    let key = (entry.device_id.0.clone(), ch);
-                    if used.contains(&key) {
-                        return Err(format!(
-                            "Channel {} on device '{}' is used by multiple inputs",
-                            ch, entry.device_id.0
-                        ));
-                    }
-                    used.push(key);
-                }
-            }
-        }
-        let mut used: Vec<(String, usize)> = Vec::new();
-        for (_, output) in self.output_blocks() {
-            for entry in &output.entries {
-                for &ch in &entry.channels {
-                    let key = (entry.device_id.0.clone(), ch);
-                    if used.contains(&key) {
-                        return Err(format!(
-                            "Channel {} on device '{}' is used by multiple outputs",
-                            ch, entry.device_id.0
-                        ));
-                    }
-                    used.push(key);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Migration for projects saved while issue #377 was open: collapse a run of
-    /// consecutive `InputBlock`s at the chain head into a single block, and a
-    /// run of consecutive `OutputBlock`s at the chain tail into a single block.
-    /// All entries are preserved in source order, so the runtime keeps spawning
-    /// the same number of streams. Non-consecutive I/O blocks (e.g. an Input
-    /// flanked by effects) are intentionally left alone — only the boundary
-    /// runs that the bug produced are merged.
-    pub fn coalesce_endpoint_blocks(&mut self) {
-        let head_run = self
-            .blocks
-            .iter()
-            .take_while(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
-            .count();
-        if head_run > 1 {
-            let mut merged_entries: Vec<InputEntry> = Vec::new();
-            for block in self.blocks.iter().take(head_run) {
-                if let AudioBlockKind::Input(ib) = &block.kind {
-                    merged_entries.extend(ib.entries.iter().cloned());
-                }
-            }
-            // Keep the first block's id and model so any externally-held reference
-            // (e.g. selection state) keeps working.
-            if let AudioBlockKind::Input(ib) = &mut self.blocks[0].kind {
-                ib.entries = merged_entries;
-            }
-            self.blocks.drain(1..head_run);
-        }
-
-        let tail_run = self
-            .blocks
-            .iter()
-            .rev()
-            .take_while(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
-            .count();
-        if tail_run > 1 {
-            let len = self.blocks.len();
-            let tail_start = len - tail_run;
-            let mut merged_entries: Vec<crate::block::OutputEntry> = Vec::new();
-            for block in self.blocks.iter().skip(tail_start) {
-                if let AudioBlockKind::Output(ob) = &block.kind {
-                    merged_entries.extend(ob.entries.iter().cloned());
-                }
-            }
-            // Keep the last block as the survivor (preserves rposition-based id).
-            let last_idx = len - 1;
-            if let AudioBlockKind::Output(ob) = &mut self.blocks[last_idx].kind {
-                ob.entries = merged_entries;
-            }
-            self.blocks.drain(tail_start..last_idx);
-        }
+    /// #716 domain rule: whether the chain has any audio I/O. True when it
+    /// references at least one I/O binding (`io_binding_ids`), or carries an
+    /// I/O block bound to a binding (`io` set). A chain with no I/O routes
+    /// nothing — the dispatcher refuses to enable it.
+    pub fn has_io(&self) -> bool {
+        !self.io_binding_ids.is_empty()
+            || self.blocks.iter().any(|b| match &b.kind {
+                AudioBlockKind::Input(ib) => !ib.io.is_empty(),
+                AudioBlockKind::Output(ob) => !ob.io.is_empty(),
+                _ => false,
+            })
     }
 }
 
 #[cfg(test)]
 #[path = "chain_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "chain_coalesce_tests.rs"]
-mod coalesce_tests;

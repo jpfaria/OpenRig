@@ -4,7 +4,8 @@ use crate::block_editor::{
 };
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::state::SelectedBlock;
-use crate::ui_state::chain_routing_summary;
+use crate::ui_state::{chain_io_chip_label_from_bindings, chain_routing_summary};
+use infra_filesystem::IoBinding;
 use crate::AppWindow;
 use crate::{BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem, ProjectChainItem};
 use infra_cpal::AudioDeviceDescriptor;
@@ -18,7 +19,7 @@ use std::rc::Rc;
 pub(crate) use crate::project_view_assets::{load_screenshot_image, load_thumbnail_image};
 pub(crate) use crate::project_view_tooltips::{chain_inputs_tooltip, chain_outputs_tooltip};
 
-pub(crate) fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
+pub fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
     let mut items: Vec<BlockTypePickerItem> = supported_block_types()
         .into_iter()
@@ -416,6 +417,7 @@ pub(crate) fn replace_project_chains(
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
+    io_bindings: &[IoBinding],
 ) {
     let items = project
         .chains
@@ -435,7 +437,7 @@ pub(crate) fn replace_project_chains(
                         rust_i18n::t!("default-chain-name", n = index + 1).to_string()
                     })
                     .into(),
-                subtitle: chain_routing_summary(chain).into(),
+                subtitle: chain_routing_summary(chain, io_bindings).into(),
                 enabled: chain.enabled,
                 block_count_label: {
                     let effect_block_count = chain
@@ -455,48 +457,73 @@ pub(crate) fn replace_project_chains(
                     }
                 },
                 input_label: {
-                    let input_chs: Vec<usize> = chain
-                        .input_blocks()
-                        .into_iter()
-                        .flat_map(|(_, ib)| {
-                            ib.entries.iter().flat_map(|e| e.channels.iter().copied())
-                        })
-                        .collect();
-                    chain_endpoint_label("In", &input_chs).into()
+                    let binding_name =
+                        chain_io_chip_label_from_bindings(chain, io_bindings, true);
+                    if binding_name.is_empty() {
+                        // #716: device endpoints resolve from the binding
+                        // registry (never from block `entries`).
+                        let (resolved_inputs, _) =
+                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                        let input_chs: Vec<usize> = resolved_inputs
+                            .iter()
+                            .flat_map(|e| e.channels.iter().copied())
+                            .collect();
+                        chain_endpoint_label("In", &input_chs).into()
+                    } else {
+                        binding_name.into()
+                    }
                 },
-                input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
+                input_tooltip: chain_inputs_tooltip(chain, project, input_devices, io_bindings)
+                    .into(),
                 output_label: {
-                    let output_chs: Vec<usize> = chain
-                        .output_blocks()
-                        .into_iter()
-                        .flat_map(|(_, ob)| {
-                            ob.entries.iter().flat_map(|e| e.channels.iter().copied())
-                        })
-                        .collect();
-                    chain_endpoint_label("Out", &output_chs).into()
+                    let binding_name =
+                        chain_io_chip_label_from_bindings(chain, io_bindings, false);
+                    if binding_name.is_empty() {
+                        // #716: device endpoints resolve from the binding
+                        // registry (never from block `entries`).
+                        let (_, resolved_outputs) =
+                            engine::runtime_endpoints::resolve_chain_io(chain, io_bindings);
+                        let output_chs: Vec<usize> = resolved_outputs
+                            .iter()
+                            .flat_map(|e| e.channels.iter().copied())
+                            .collect();
+                        chain_endpoint_label("Out", &output_chs).into()
+                    } else {
+                        binding_name.into()
+                    }
                 },
-                output_tooltip: chain_outputs_tooltip(chain, project, output_devices).into(),
+                output_tooltip: chain_outputs_tooltip(chain, project, output_devices, io_bindings)
+                    .into(),
                 latency_ms,
                 volume: chain.volume.round() as i32,
                 // Issue #496: meters default to SILENT until the GUI
                 // timer subscribes & polls (engine::output_meter).
                 meter_in_dbfs: engine::output_meter::SILENT_DBFS,
                 meter_out_dbfs: engine::output_meter::SILENT_DBFS,
-                // Per-stream meter slots. Length matches the number of
-                // input entries on the chain (one stream per input runtime
-                // in the engine, per invariant #4). Timer fills the live
-                // values; defaults to SILENT here so the UI renders the
-                // right number of (silent) bars on first paint.
+                // Issue #670: no overload until the meter timer observes
+                // xruns from the running audio callback.
+                audio_overload: false,
+                // Per-stream meter slots. When the chain is enabled the length
+                // matches the number of resolved input endpoints (one stream
+                // per input runtime in the engine, per invariant #4); the
+                // timer fills the live values, defaulting to SILENT here so the
+                // UI renders the right number of (silent) bars on first paint.
+                // When disabled the length is 0 (#750: the live graph hides).
                 stream_meters: {
-                    let stream_count: usize = chain
-                        .blocks
-                        .iter()
-                        .filter_map(|b| match &b.kind {
-                            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
-                            _ => None,
-                        })
-                        .sum::<usize>()
-                        .max(1);
+                    // #750: the per-stream graph is a LIVE surface — render
+                    // ZERO rows while the chain is disabled so nothing shows
+                    // until it is enabled. When enabled, one stream per
+                    // resolved input endpoint (#716: from the binding registry,
+                    // not per block `entries`), min 1 so an enabled-but-
+                    // unresolved chain still shows a row.
+                    let stream_count: usize = if chain.enabled {
+                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
+                            .0
+                            .len()
+                            .max(1)
+                    } else {
+                        0
+                    };
                     let model: Rc<VecModel<crate::StreamMeter>> = Rc::new(VecModel::default());
                     for _ in 0..stream_count {
                         model.push(crate::StreamMeter {
@@ -569,6 +596,7 @@ pub(crate) fn replace_project_chains(
                             .collect::<Vec<_>>(),
                     )))
                 },
+                di_loop_selected_index: -1, // #661: refreshed by meter timer
             }
         })
         .collect::<Vec<_>>();

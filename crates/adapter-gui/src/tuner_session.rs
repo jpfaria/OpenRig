@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use engine::spsc::SpscRing;
 use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE};
+use domain::io_binding::IoBinding;
 use infra_cpal::ProjectRuntimeController;
-use project::block::AudioBlockKind;
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
@@ -70,7 +70,7 @@ fn freq_to_octave(freq: f32, reference_hz: f32) -> i32 {
 /// Compared at every tick to detect when the user enables/disables chains
 /// or edits an InputBlock so we can tear down and rebuild the session
 /// without forcing the user to close and reopen the window.
-fn project_input_fingerprint(project: &Project) -> String {
+fn project_input_fingerprint(project: &Project, registry: &[IoBinding]) -> String {
     let mut s = String::new();
     for chain in &project.chains {
         if !chain.enabled {
@@ -78,18 +78,16 @@ fn project_input_fingerprint(project: &Project) -> String {
         }
         s.push_str(&chain.id.0);
         s.push('@');
-        let mut input_index = 0_usize;
-        for block in &chain.blocks {
-            if let AudioBlockKind::Input(input) = &block.kind {
-                for entry in &input.entries {
-                    s.push_str(&format!("[{}/{}/", input_index, entry.device_id.0));
-                    for ch in &entry.channels {
-                        s.push_str(&format!("{},", ch));
-                    }
-                    s.push_str(&format!("/{:?}]", entry.mode));
-                    input_index += 1;
-                }
+        // #716: device endpoints resolve from the binding registry, not from
+        // block `entries`.
+        let (resolved_inputs, _) =
+            engine::runtime_endpoints::resolve_chain_io(chain, registry);
+        for (input_index, entry) in resolved_inputs.iter().enumerate() {
+            s.push_str(&format!("[{}/{}/", input_index, entry.device_id.0));
+            for ch in &entry.channels {
+                s.push_str(&format!("{},", ch));
             }
+            s.push_str(&format!("/{:?}]", entry.mode));
         }
         s.push(';');
     }
@@ -105,79 +103,81 @@ pub struct TunerSession {
 impl TunerSession {
     /// Build a tuner session for the given project: subscribe taps for every
     /// active input channel of every enabled chain.
-    pub fn build(project: &Project, controller: &ProjectRuntimeController) -> Self {
+    pub fn build(
+        project: &Project,
+        controller: &ProjectRuntimeController,
+        registry: &[IoBinding],
+    ) -> Self {
         let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::<TunerRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
+
+        // The rate the live streams actually run at — authoritative fallback
+        // for inputs without a saved per-device setting (issue #723).
+        let live_sample_rate = controller.sample_rate();
 
         for chain in &project.chains {
             if !chain.enabled {
                 continue;
             }
 
-            let sample_rate = chain
-                .blocks
-                .iter()
-                .find_map(|b| match &b.kind {
-                    AudioBlockKind::Input(input) => input.entries.first().and_then(|entry| {
-                        project
-                            .device_settings
-                            .iter()
-                            .find(|d| d.device_id == entry.device_id)
-                            .map(|d| d.sample_rate)
-                    }),
-                    _ => None,
+            // #716: the chain's input endpoints resolve from the binding
+            // registry, not from block `entries`. The enumeration index is the
+            // engine's per-input runtime index (`subscribe_input_tap`).
+            let (resolved_inputs, _) =
+                engine::runtime_endpoints::resolve_chain_io(chain, registry);
+
+            let sample_rate = resolved_inputs
+                .first()
+                .map(|entry| {
+                    crate::sample_rate::resolve_input_sample_rate(
+                        project,
+                        &entry.device_id,
+                        live_sample_rate,
+                    )
                 })
-                .unwrap_or(48_000) as usize;
+                .unwrap_or(live_sample_rate as usize);
 
-            let mut input_index = 0_usize;
-            for block in &chain.blocks {
-                if let AudioBlockKind::Input(input) = &block.kind {
-                    for entry in &input.entries {
-                        if entry.channels.is_empty() {
-                            input_index += 1;
-                            continue;
-                        }
-                        let max_channel = *entry.channels.iter().max().unwrap_or(&0);
-                        let total_channels = max_channel + 1;
+            for (input_index, entry) in resolved_inputs.iter().enumerate() {
+                if entry.channels.is_empty() {
+                    continue;
+                }
+                let max_channel = *entry.channels.iter().max().unwrap_or(&0);
+                let total_channels = max_channel + 1;
 
-                        let rings = controller.subscribe_input_tap(
-                            &chain.id,
-                            input_index,
-                            total_channels,
-                            &entry.channels,
-                            RING_CAPACITY,
-                        );
+                let rings = controller.subscribe_input_tap(
+                    &chain.id,
+                    input_index,
+                    total_channels,
+                    &entry.channels,
+                    RING_CAPACITY,
+                );
 
-                        let chain_label = chain
-                            .description
-                            .clone()
-                            .unwrap_or_else(|| chain.id.0.clone());
+                let chain_label = chain
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| chain.id.0.clone());
 
-                        for (ch_pos, (channel, ring)) in
-                            entry.channels.iter().zip(rings.into_iter()).enumerate()
-                        {
-                            let ch_label = if entry.channels.len() == 1 {
-                                String::new()
-                            } else if ch_pos == 0 {
-                                " · L".to_string()
-                            } else if ch_pos == 1 {
-                                " · R".to_string()
-                            } else {
-                                format!(" · ch{}", ch_pos + 1)
-                            };
-                            let label = format!(
-                                "{}  ·  IN {}  ·  CH {}{}",
-                                chain_label.to_uppercase(),
-                                input_index + 1,
-                                channel + 1,
-                                ch_label
-                            );
-                            rows_model.push(placeholder_row(label));
-                            row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
-                        }
-
-                        input_index += 1;
-                    }
+                for (ch_pos, (channel, ring)) in
+                    entry.channels.iter().zip(rings.into_iter()).enumerate()
+                {
+                    let ch_label = if entry.channels.len() == 1 {
+                        String::new()
+                    } else if ch_pos == 0 {
+                        " · L".to_string()
+                    } else if ch_pos == 1 {
+                        " · R".to_string()
+                    } else {
+                        format!(" · ch{}", ch_pos + 1)
+                    };
+                    let label = format!(
+                        "{}  ·  IN {}  ·  CH {}{}",
+                        chain_label.to_uppercase(),
+                        input_index + 1,
+                        channel + 1,
+                        ch_label
+                    );
+                    rows_model.push(placeholder_row(label));
+                    row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
                 }
             }
         }
@@ -185,7 +185,7 @@ impl TunerSession {
         Self {
             rows_model,
             row_states,
-            fingerprint: project_input_fingerprint(project),
+            fingerprint: project_input_fingerprint(project, registry),
         }
     }
 
@@ -196,8 +196,8 @@ impl TunerSession {
     /// Cheap re-fingerprint check. Returns `true` when the input topology
     /// changed (chain enable/disable, input edit, channel change) since
     /// this session was built — the caller should rebuild.
-    pub fn needs_rebuild(&self, project: &Project) -> bool {
-        self.fingerprint != project_input_fingerprint(project)
+    pub fn needs_rebuild(&self, project: &Project, registry: &[IoBinding]) -> bool {
+        self.fingerprint != project_input_fingerprint(project, registry)
     }
 
     /// Drain rings, run the detector when enough samples accumulated, and

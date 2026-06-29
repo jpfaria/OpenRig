@@ -105,7 +105,15 @@ The recommended way to create project bindings is the **Settings screen**:
 5. Repeat for each binding. Bindings are saved to `midi.bindings` inside
    your `.openrig` project file.
 
-Start OpenRig with MIDI enabled:
+Enable MIDI. Two ways (#712):
+
+- **Persistent (recommended):** **Settings → System / Integrations →
+  MIDI control surface**. This flips `midi_enabled` in `config.yaml` (a
+  per-machine setting, default off) and survives restarts — packaged
+  builds, which launch with no arguments, rely on this. Takes effect on
+  the next launch.
+- **One run (dev override):** start with the flag, which forces it on
+  regardless of config:
 
 ```
 openrig --midi

@@ -74,6 +74,26 @@ pub fn plugin_parameter_specs() -> Vec<ParameterSpec> {
     plugin_parameter_specs_with_defaults(DEFAULT_PLUGIN_PARAMS)
 }
 
+/// User-facing `slim` knob for A2 SlimmableContainer models (issue #657):
+/// a 0..100 % size, where 100 % is the full model and lower values pick a
+/// smaller submodel via `SetSlimmableSize` (trading fidelity for CPU).
+///
+/// Exposed ONLY for NAM/A2 packages — A1 models are not slimmable, so the
+/// knob would be inert. The caller (`synthesize_parameters_from_manifest`)
+/// appends it based on the manifest's declared architecture.
+pub fn slim_parameter_spec() -> ParameterSpec {
+    float_parameter(
+        "slim",
+        "Slim",
+        None,
+        Some(SLIM_PERCENT_FULL),
+        0.0,
+        SLIM_PERCENT_FULL,
+        1.0,
+        ParameterUnit::Percent,
+    )
+}
+
 pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<ParameterSpec> {
     vec![
         float_parameter(
@@ -156,6 +176,12 @@ pub struct NamPluginParams {
     pub bass: f32,
     pub middle: f32,
     pub treble: f32,
+    /// A2 SlimmableContainer size, 0.0 (smallest submodel) .. 1.0 (full),
+    /// forwarded to `SetSlimmableSize` through the FFI (issue #657). The
+    /// user-facing `slim` knob is a 0..100 % percentage; this is its 0..1
+    /// ratio. Inert for A1 models (not slimmable). 1.0 = historical
+    /// full-size behavior.
+    pub slim_size: f32,
     /// True quando o `output_gain_db` do manifest (audit-populated)
     /// já está empilhado no `input_level_db`. Sinal pro NamProcessor
     /// SKIPPAR o `recommended_output_db` baked pelo trainer — senão
@@ -183,7 +209,18 @@ pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     bass: 5.0,
     middle: 5.0,
     treble: 5.0,
+    // Issue #657: full size by default — A2 models keep their historical
+    // full-fidelity behavior and A1 models ignore it. `SLIM_PERCENT_FULL`
+    // / 100.
+    slim_size: 1.0,
 };
+
+/// Full-size value of the user-facing `slim` knob, as a percentage. The
+/// knob is 0..100 % (0 = smallest submodel, 100 = full); the FFI /
+/// `SetSlimmableSize` want a 0.0..1.0 ratio, so the param value is divided
+/// by this. Single source of truth for the percent ⇄ ratio mapping
+/// (issue #657).
+pub const SLIM_PERCENT_FULL: f32 = 100.0;
 
 pub fn params_from_set(params: &ParameterSet) -> Result<(String, Option<String>, NamPluginParams)> {
     Ok((
@@ -218,6 +255,19 @@ pub fn plugin_params_from_set_with_defaults(
         bass: float_or_default(params, "eq.bass", defaults.bass)?,
         middle: float_or_default(params, "eq.middle", defaults.middle)?,
         treble: float_or_default(params, "eq.treble", defaults.treble)?,
+        // Issue #657: the `slim` knob is a 0..100 % percentage; the FFI
+        // wants a 0..1 ratio. Read it as percent and convert, clamping to
+        // the valid range. Absent → the caller's ratio default (already
+        // 0..1), so this never double-divides.
+        slim_size: match params.get("slim") {
+            Some(value) => {
+                let percent = value
+                    .as_f32()
+                    .ok_or_else(|| anyhow::anyhow!("invalid float parameter 'slim'"))?;
+                (percent / SLIM_PERCENT_FULL).clamp(0.0, 1.0)
+            }
+            None => defaults.slim_size,
+        },
         // Não vem de `params` — é setado pelo `from_package` quando
         // o manifest tem `output_gain_db`. Defaults inherit do caller.
         audit_overrides_baked_output: defaults.audit_overrides_baked_output,
@@ -247,6 +297,7 @@ struct NamPluginConfig {
     bass: f32,
     middle: f32,
     treble: f32,
+    slim_size: f32,
     noise_gate_enabled: u8,
     eq_enabled: u8,
     ir_enabled: u8,
@@ -268,15 +319,95 @@ struct NamPluginConfig {
 /// and loudness are untouched), then smoothly asymptotic to ±1.0 —
 /// musical saturation instead of a ±1.0 brickwall. Memoryless: zero
 /// latency, zero state, deterministic, safe on the audio thread.
+/// Knee above which the peak safety starts to saturate. Single source of
+/// truth shared by [`soft_clip`] and its antiderivative [`soft_clip_int`].
+const SOFT_CLIP_THRESHOLD: f32 = 0.8;
+
 #[inline]
 fn soft_clip(x: f32) -> f32 {
-    const THRESHOLD: f32 = 0.8;
+    const T: f32 = SOFT_CLIP_THRESHOLD;
     let a = x.abs();
-    if a <= THRESHOLD {
+    if a <= T {
         x
     } else {
-        let over = a - THRESHOLD;
-        x.signum() * (THRESHOLD + (1.0 - THRESHOLD) * (over / ((1.0 - THRESHOLD) + over)))
+        let over = a - T;
+        x.signum() * (T + (1.0 - T) * (over / ((1.0 - T) + over)))
+    }
+}
+
+/// Antiderivative `F` of [`soft_clip`] (`F'(x) == soft_clip(x)`), used for
+/// first-order ADAA. `soft_clip` is odd, so `F` is even and continuous at
+/// the knee (both branches meet at `T²/2`). Below the knee `soft_clip` is
+/// the identity, so `F(x) = x²/2`; above it the closed form integrates
+/// `1 - b²/(|x| - 2T + 1)` with `b = 1 - T`, offset by `K` for continuity.
+#[inline]
+fn soft_clip_int(x: f32) -> f32 {
+    const T: f32 = SOFT_CLIP_THRESHOLD;
+    let a = x.abs();
+    if a <= T {
+        0.5 * x * x
+    } else {
+        let b = 1.0 - T;
+        let k = T - b * b * b.ln() - 0.5 * T * T;
+        a - b * b * (a - 2.0 * T + 1.0).ln() - k
+    }
+}
+
+/// Peak-safety saturation stage (issue #496/#675).
+///
+/// `soft_clip` is a memoryless nonlinearity. Applied per-sample at the base
+/// sample rate it generates harmonics above Nyquist that fold back into the
+/// audible band as inharmonic aliasing — heard as harsh hiss ("xiado"),
+/// continuous whenever a loud-calibrated capture parks its output past the
+/// knee. Invariant #2 (no added aliasing) forbids that.
+///
+/// This stage carries one sample of state so it can anti-alias the
+/// saturation with first-order antiderivative anti-aliasing (ADAA, Parker
+/// et al. 2016) — zero added latency, no oversampling, deterministic, safe
+/// on the audio thread (invariants #1/#7/#8 all untouched).
+pub(crate) struct PeakSafety {
+    prev_in: f32,
+}
+
+impl PeakSafety {
+    pub(crate) fn new() -> Self {
+        Self { prev_in: 0.0 }
+    }
+
+    /// Saturate one sample with first-order ADAA, carrying state forward.
+    ///
+    /// `y = (F(x) - F(x₋₁)) / (x - x₋₁)` is the average of `soft_clip` over
+    /// `[x₋₁, x]` — it band-limits the saturation, collapsing the aliasing
+    /// the per-sample form folds into the audible band. When successive
+    /// inputs are nearly equal the divided difference is ill-conditioned
+    /// (0/0), so fall back to direct evaluation at the midpoint. The half-
+    /// sample group delay (~10 µs at 48 kHz) is far below the latency
+    /// budget (invariant #1).
+    #[inline]
+    pub(crate) fn process_one(&mut self, x: f32) -> f32 {
+        const T: f32 = SOFT_CLIP_THRESHOLD;
+        const ILL_CONDITIONED: f32 = 1.0e-5;
+        let x0 = self.prev_in;
+        self.prev_in = x;
+        // Both samples below the knee: soft_clip is the identity over the
+        // whole span, so there is nothing nonlinear to anti-alias. Stay
+        // byte-exact transparent — averaging here would low-pass clean
+        // signal and dull the tone (#413/#496). Only the saturating span
+        // pays the ADAA divided difference.
+        if x.abs() <= T && x0.abs() <= T {
+            return x;
+        }
+        if (x - x0).abs() < ILL_CONDITIONED {
+            return soft_clip(0.5 * (x + x0));
+        }
+        (soft_clip_int(x) - soft_clip_int(x0)) / (x - x0)
+    }
+
+    /// Saturate a whole buffer in place.
+    pub(crate) fn process_block(&mut self, buffer: &mut [f32]) {
+        for sample in buffer.iter_mut() {
+            *sample = self.process_one(*sample);
+        }
     }
 }
 
@@ -327,6 +458,8 @@ pub fn open_model_diag(model_path: &str) -> Result<*mut c_void> {
         bass: DEFAULT_PLUGIN_PARAMS.bass,
         middle: DEFAULT_PLUGIN_PARAMS.middle,
         treble: DEFAULT_PLUGIN_PARAMS.treble,
+        // Diagnostics measure the raw model at full size (issue #657).
+        slim_size: 1.0,
         noise_gate_enabled: 0,
         eq_enabled: 0,
         ir_enabled: 0,
@@ -375,6 +508,7 @@ pub unsafe fn close_model_diag(handle: *mut c_void) {
 pub struct NamProcessor {
     handle: *mut c_void,
     scratch_output: Vec<f32>,
+    peak_safety: PeakSafety,
 }
 
 unsafe impl Send for NamProcessor {}
@@ -436,6 +570,7 @@ impl NamProcessor {
             bass: params.bass,
             middle: params.middle,
             treble: params.treble,
+            slim_size: params.slim_size,
             noise_gate_enabled: params.noise_gate_enabled as u8,
             eq_enabled: params.eq_enabled as u8,
             ir_enabled: ir_path_c.is_some() as u8,
@@ -470,6 +605,7 @@ impl NamProcessor {
         Ok(Self {
             handle,
             scratch_output: Vec::new(),
+            peak_safety: PeakSafety::new(),
         })
     }
 }
@@ -489,7 +625,7 @@ impl MonoProcessor for NamProcessor {
         unsafe {
             nam_process_ffi(self.handle, input.as_ptr(), output.as_mut_ptr(), 1);
         }
-        soft_clip(output[0])
+        self.peak_safety.process_one(output[0])
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
@@ -515,9 +651,8 @@ impl MonoProcessor for NamProcessor {
         }
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let elapsed = t0.elapsed();
-        for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
-            *dst = soft_clip(*src);
-        }
+        buffer.copy_from_slice(&self.scratch_output);
+        self.peak_safety.process_block(buffer);
 
         // Periodic diagnostic logging on aarch64 to investigate NAM audio quality
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]

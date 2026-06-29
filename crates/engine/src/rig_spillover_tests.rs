@@ -11,44 +11,34 @@ use super::{
 };
 use crate::runtime_state::SPILLOVER_FRAMES;
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use std::sync::Arc;
 
 const SR: f32 = 48_000.0;
 
-fn input_blk() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output_blk() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    }
+/// Per-machine registry mirroring the old head input (mono ch0) and tail
+/// output (stereo ch0/1) device blocks the chain used to embed (#716). The
+/// chain selects it via `io_binding_ids`.
+fn registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 fn core(id: &str, effect_type: &str, model: &str) -> AudioBlock {
@@ -75,12 +65,16 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec!["io".into()],
         blocks,
     }
 }
 
 fn build(c: &Chain) -> Arc<ChainRuntimeState> {
-    Arc::new(build_chain_runtime_state(c, SR, &[DEFAULT_ELASTIC_TARGET]).expect("runtime builds"))
+    Arc::new(
+        build_chain_runtime_state(c, SR, &[DEFAULT_ELASTIC_TARGET], &registry())
+            .expect("runtime builds"),
+    )
 }
 
 fn drive_silence(rt: &Arc<ChainRuntimeState>, frames: usize) -> Vec<f32> {
@@ -107,19 +101,15 @@ fn delay_model() -> &'static str {
 
 #[test]
 fn spillover_retains_previous_pipeline_then_drops_it() {
-    let a = chain(vec![
-        input_blk(),
-        core("d", "delay", delay_model()),
-        output_blk(),
-    ]);
+    let a = chain(vec![core("d", "delay", delay_model())]);
     let rt = build(&a);
     // Warm the chain.
     let warm = vec![0.5_f32; 256];
     process_input_f32(&rt, 0, &warm, 1);
 
     // Switch preset (same I/O, different processing) WITH spillover.
-    let b = chain(vec![input_blk(), output_blk()]);
-    update_chain_runtime_state_spillover(&rt, &b, SR, false, &[DEFAULT_ELASTIC_TARGET])
+    let b = chain(vec![]);
+    update_chain_runtime_state_spillover(&rt, &b, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry())
         .expect("spillover switch");
 
     // The previous pipeline is retained, full window pending.
@@ -158,17 +148,13 @@ fn spillover_retains_previous_pipeline_then_drops_it() {
 
 #[test]
 fn non_spillover_switch_has_no_outgoing_byte_identical() {
-    let a = chain(vec![
-        input_blk(),
-        core("d", "delay", delay_model()),
-        output_blk(),
-    ]);
+    let a = chain(vec![core("d", "delay", delay_model())]);
     let rt = build(&a);
     let warm = vec![0.5_f32; 256];
     process_input_f32(&rt, 0, &warm, 1);
 
-    let b = chain(vec![input_blk(), output_blk()]);
-    update_chain_runtime_state(&rt, &b, SR, false, &[DEFAULT_ELASTIC_TARGET])
+    let b = chain(vec![]);
+    update_chain_runtime_state(&rt, &b, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry())
         .expect("in-place switch");
 
     assert_eq!(

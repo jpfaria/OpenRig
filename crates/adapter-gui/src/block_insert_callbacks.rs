@@ -25,7 +25,9 @@ use project::param::ParameterSet;
 use crate::block_editor::{
     block_parameter_items_for_model, build_knob_overlays, schedule_block_editor_persist,
 };
-use crate::eq::{build_curve_editor_points, build_multi_slider_points, compute_eq_curves};
+use crate::eq::{
+    build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
+};
 use crate::helpers::{sync_block_editor_window, use_inline_block_editor};
 use crate::project_view::{block_model_picker_items, block_type_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
@@ -188,11 +190,15 @@ pub(crate) fn wire(
             );
             draft.model_id = model.model_id.to_string();
             draft.effect_type = model.effect_type.to_string();
-            let new_params = block_parameter_items_for_model(
+            // Seed the new model's knobs from the manifest (output_db #655,
+            // noise_gate #675) via the single source in `block_factory`.
+            let seeded = application::block_factory::default_params_for_model(
                 &model.effect_type,
                 &model.model_id,
-                &ParameterSet::default(),
-            );
+            )
+            .unwrap_or_default();
+            let new_params =
+                block_parameter_items_for_model(&model.effect_type, &model.model_id, &seeded);
             let overlays = build_knob_overlays(
                 project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
                 &new_params,
@@ -212,6 +218,7 @@ pub(crate) fn wire(
                 &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
+                eq_viz_sample_rate(&project_runtime),
             );
             eq_band_curves.set_vec(
                 eq_bands

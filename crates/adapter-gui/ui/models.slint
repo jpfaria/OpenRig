@@ -96,6 +96,13 @@ export struct ProjectChainItem {
     ///   < -18   → grey/orange (low)
     meter_in_dbfs: float,
     meter_out_dbfs: float,
+    /// Issue #670: true while this chain's audio callback is missing its
+    /// deadline (xruns) — the rig is too heavy for the current buffer size
+    /// and the user is hearing dropouts ("crackle"). Refreshed by the meter
+    /// timer from `ProjectRuntimeController::chain_xrun_count`. Drives the
+    /// per-chain overload indicator so the overload is visible instead of an
+    /// unexplained crackle.
+    audio_overload: bool,
     /// Per-stream meter readings. One entry per stream the runtime
     /// exposes for this chain. A multi-input chain (3 entries on its
     /// Input block) gets 3 pairs here so the GUI can draw 3 in/out
@@ -108,6 +115,10 @@ export struct ProjectChainItem {
     /// Issue #614: ordered list of available DI loop source names for the
     /// chain-tile ComboBox. Bundled ids first, then "Choose file…" sentinel.
     di_loop_sources: [string],
+    /// Issue #661: index into `di_loop_sources` of the currently loaded DI
+    /// loop source, or -1 when none. Refreshed by the meter timer from the
+    /// dispatcher so the popup ComboBox highlights the active source on reopen.
+    di_loop_selected_index: int,
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the
@@ -154,6 +165,15 @@ export struct BlockModelPickerItem {
     model_font: string,
     available: bool,
     thumbnail_path: string,
+}
+
+// One row of the chain preset bank dropdown (`PresetSelect`), already
+// filtered by the search field. `slot` is the row's ORIGINAL position in
+// the unfiltered bank — selecting it dispatches `Preset(slot)`, so it must
+// survive filtering (the filtered list reorders/drops rows). Issue #659.
+export struct PresetOption {
+    label: string,
+    slot: int,
 }
 
 export struct BlockKnobOverlay {
@@ -288,6 +308,33 @@ export struct ChannelOptionItem {
 
 export struct IoGroupItem {
     summary: string,
+}
+
+// #716: one selectable I/O binding in the chain editor's binding checklist.
+// `selected` mirrors whether the chain currently references this binding.
+export struct ChainBindingChoice {
+    id: string,
+    name: string,
+    selected: bool,
+}
+
+// I/O binding models for the binding editor UI (#716).
+// `device_label` is the human-readable DeviceId string; `channels_label` is
+// a comma-separated, 1-based channel list (e.g. "1, 2"). The raw `id` and
+// `name` fields are preserved so editor callbacks can round-trip identity
+// without re-querying the registry.
+export struct IoEndpointModel {
+    name: string,
+    device_label: string,
+    mode: string,
+    channels_label: string,
+}
+
+export struct IoBindingModel {
+    id: string,
+    name: string,
+    inputs: [IoEndpointModel],
+    outputs: [IoEndpointModel],
 }
 
 // Inline plugin info overlay payload (issue #307). Carried as a single struct so the

@@ -63,6 +63,10 @@ export component ChainEndpointChip inherits Rectangle {
     in property <string> label;
     in property <string> tooltip;
     in property <bool> is-input: true;
+    // #716: when false the chip is illustrative only — no click, no pointer
+    // cursor, no hover highlight (the chain's I/O comes from its binding, not
+    // from editing this chip).
+    in property <bool> interactive: true;
     callback clicked();
     out property <bool> is-hovered: hover-area.has-hover;
 
@@ -100,9 +104,9 @@ export component ChainEndpointChip inherits Rectangle {
     hover-area := TouchArea {
         width: parent.width;
         height: parent.height;
-        mouse-cursor: pointer;
+        enabled: root.interactive;
+        mouse-cursor: root.interactive ? MouseCursor.pointer : MouseCursor.default;
         clicked => {
-            debug("ChainEndpointChip clicked", root.is-input, root.label);
             root.clicked();
         }
     }

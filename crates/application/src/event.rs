@@ -111,7 +111,7 @@ pub enum Event {
     },
 
     // ── Insert block events ───────────────────────────────────────────────────
-    /// An insert block's send/return endpoints were saved.
+    /// An insert block's I/O binding selection was saved (#716, model A).
     InsertBlockSaved {
         chain: ChainId,
         block: BlockId,
@@ -128,6 +128,14 @@ pub enum Event {
     ChainVolumeChanged {
         chain: ChainId,
         value: f32,
+    },
+
+    // ── Chain I/O binding selection (issue #716) ──────────────────────────────
+    /// A chain's selected I/O bindings changed; its input/output is rediscovered
+    /// from the new selection and its runtime re-synced.
+    ChainIoBindingsChanged {
+        chain: ChainId,
+        binding_ids: Vec<String>,
     },
 
     // ── Audio settings events ─────────────────────────────────────────────────
@@ -209,6 +217,21 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #712: the MIDI/BLE-MIDI adapter master switch (`config.yaml`
+    /// `midi_enabled`) was toggled via `SetMidiEnabled`. Persisted by the
+    /// dispatcher; the adapter applies it on next launch (the subsystem is
+    /// wired at bootstrap), so the GUI uses this to surface a restart hint.
+    MidiEnabledChanged {
+        enabled: bool,
+    },
+
+    /// #712: the MCP server master switch (`config.yaml` `mcp_enabled`)
+    /// was toggled via `SetMcpEnabled`. Same restart-to-apply contract as
+    /// [`Event::MidiEnabledChanged`].
+    McpEnabledChanged {
+        enabled: bool,
+    },
+
     // ── Project-level events ──────────────────────────────────────────────────
     /// A project was loaded from disk.
     ProjectLoaded,
@@ -269,6 +292,14 @@ pub enum Event {
         id: String,
     },
 
+    /// #693: `Command::LoadPlugin` runs its root scan on its own task —
+    /// a failure (unknown id, unreadable root) surfaces as this event
+    /// via the async-completion poll instead of a synchronous `Err`.
+    PluginLoadFailed {
+        id: String,
+        reason: String,
+    },
+
     /// An error occurred while processing a command.
     Error {
         message: String,
@@ -314,6 +345,13 @@ pub enum Event {
         chain: ChainId,
         enabled: bool,
     },
+
+    // ── I/O binding registry (#716) ───────────────────────────────────────────
+
+    /// #716: the per-machine I/O binding registry in `config.yaml` was
+    /// mutated (create, update, or delete). MCP/gRPC adapters that cache
+    /// the registry invalidate their cache on receipt.
+    IoBindingRegistryChanged,
 }
 
 impl Event {
@@ -341,6 +379,7 @@ impl Event {
             | Event::InsertBlockSaved { chain, .. }
             | Event::ChainPresetLoaded { chain }
             | Event::ChainVolumeChanged { chain, .. }
+            | Event::ChainIoBindingsChanged { chain, .. }
             | Event::BlockSelectionChanged { chain, .. }
             | Event::ChainDiLoopSourceChanged { chain }
             | Event::ChainDiLoopEnabledChanged { chain, .. } => Some(chain),
@@ -360,6 +399,8 @@ impl Event {
             | Event::TunerEnabledChanged { .. }
             | Event::SpectrumEnabledChanged { .. }
             | Event::CompactViewEnabledChanged { .. }
+            | Event::MidiEnabledChanged { .. }
+            | Event::McpEnabledChanged { .. }
             | Event::ProjectClosed
             // #513 / #493: MIDI device / mapping / learn events live at the
             // system or project root, not a single chain.
@@ -375,9 +416,12 @@ impl Event {
             // #561 (expanded scope): per-plugin load/unload, also catalog-scope.
             | Event::PluginLoaded { .. }
             | Event::PluginUnloaded { .. }
+            | Event::PluginLoadFailed { .. }
             // #576: offline render does not touch any chain in the live project.
             | Event::RenderCompleted { .. }
-            | Event::Error { .. } => None,
+            | Event::Error { .. }
+            // #716: I/O binding registry is a system-level concern, not tied to any chain.
+            | Event::IoBindingRegistryChanged => None,
         }
     }
 }

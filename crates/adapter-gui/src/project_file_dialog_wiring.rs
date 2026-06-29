@@ -19,7 +19,7 @@ use rfd::FileDialog;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use infra_filesystem::{AppConfig, FilesystemStorage};
+use infra_filesystem::AppConfig;
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -116,6 +116,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         &*session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
+            &[]
                     );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
@@ -135,7 +136,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                             name: display_name.clone(),
                         });
                     }
-                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                    {
+                        // #693: config write runs on the persist worker — the
+                        // GUI thread never waits on disk.
+                        let snapshot = app_config.borrow().clone();
+                        // #731: bind the config path at dispatch time.
+                        application::app_config_persist::persist_app_config_snapshot(snapshot);
+                    }
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
@@ -235,6 +242,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 &*session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
+            &[]
             );
             *project_session.borrow_mut() = Some(session);
             crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
@@ -333,7 +341,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         path: canonical_path.clone(),
                         name: recent_name,
                     });
-                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                    {
+                        // #693: config write runs on the persist worker — the
+                        // GUI thread never waits on disk.
+                        let snapshot = app_config.borrow().clone();
+                        // #731: bind the config path at dispatch time.
+                        application::app_config_persist::persist_app_config_snapshot(snapshot);
+                    }
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),

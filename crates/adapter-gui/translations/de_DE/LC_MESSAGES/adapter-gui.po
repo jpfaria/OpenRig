@@ -84,6 +84,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "Modelle suchen..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "Keine Presets gefunden"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "Keine Modelle gefunden"
@@ -366,7 +370,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:251
 msgid "status-spectrum-empty-help"
-msgstr ""
+msgstr "Schalte das Spektrum ein und aktiviere eine Chain mit konfiguriertem Ausgang."
 "Schalten Sie das Spektrum ein und aktivieren Sie eine Chain mit "
 "konfiguriertem Ausgang.Schalten Sie das Spektrum ein und aktivieren Sie eine "
 "Kette mit konfiguriertem Ausgang."
@@ -389,7 +393,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr ""
+msgstr "Aktiviere eine Chain mit konfiguriertem Eingang, um hier die Stimmgeräte zu sehen."
 "Aktivieren Sie eine Chain mit konfiguriertem Eingang, um die Stimmgeräte "
 "hier zu sehen.Aktivieren Sie eine Kette mit konfiguriertem Eingang, um die "
 "Stimmgeräte hier zu sehen."
@@ -484,7 +488,7 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "btn-close"
-msgstr ""
+msgstr "Schließen"
 
 #: crates/adapter-gui/ui/components/settings_section.slint
 msgid "badge-system"
@@ -496,23 +500,23 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
 msgid "title-section-audio-interface"
-msgstr ""
+msgstr "Audio-Interface"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_language.slint
 msgid "title-section-language"
-msgstr ""
+msgstr "Sprache"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
 msgid "title-section-midi-devices"
-msgstr ""
+msgstr "MIDI-Geräte"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "title-section-project-meta"
-msgstr ""
+msgstr "Metadaten"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "label-file"
-msgstr ""
+msgstr "Datei"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "title-section-midi-mapping"
@@ -532,11 +536,11 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-system"
-msgstr ""
+msgstr "SYSTEM"
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-project"
-msgstr ""
+msgstr "PROJEKT"
 
 #: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
 msgid "preset-search-placeholder"
@@ -563,4 +567,184 @@ msgid "btn-overwrite"
 msgstr "Überschreiben"
 
 msgid "btn-save-audio-settings"
-msgstr ""
+msgstr "Übernehmen"
+
+msgid "title-section-integrations"
+msgstr "Integrationen"
+
+msgid "label-midi-enabled"
+msgstr "MIDI-Steuerung"
+
+msgid "desc-midi-enabled"
+msgstr "Aktiviert den MIDI/BLE-MIDI-Adapter, damit Fußschalter OpenRig steuern"
+
+msgid "label-mcp-enabled"
+msgstr "MCP-Server"
+
+msgid "desc-mcp-enabled"
+msgstr "Stellt den MCP-Server unter 127.0.0.1:4123 für Agenten bereit"
+
+msgid "hint-restart-to-apply"
+msgstr "Wird beim nächsten Start wirksam."
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "E/A-Binding"
+
+msgid "label-input-endpoint"
+msgstr "Eingabe-Endpunkt"
+
+msgid "label-output-endpoint"
+msgstr "Ausgabe-Endpunkt"
+
+msgid "label-resolved-info"
+msgstr "Aufgelöste Info"
+
+msgid "placeholder-select-endpoint"
+msgstr "Endpunkt auswählen"
+
+msgid "title-section-io-bindings"
+msgstr "E/A-Bindungen"
+
+msgid "label-binding-name"
+msgstr "Bindungsname"
+
+msgid "label-endpoint-input"
+msgstr "Eingangs-Endpunkt"
+
+msgid "label-endpoint-output"
+msgstr "Ausgangs-Endpunkt"
+
+msgid "mode-mono"
+msgstr "Mono"
+
+msgid "mode-stereo"
+msgstr "Stereo"
+
+msgid "mode-dual-mono"
+msgstr "Dual mono"
+
+msgid "placeholder-binding-name"
+msgstr "Name der Zuordnung…"
+
+msgid "label-channels-prefix"
+msgstr "Kanäle"
+
+msgid "label-endpoint-device"
+msgstr "Gerät"
+
+msgid "label-endpoint-mode"
+msgstr "Modus"
+
+msgid "label-endpoint-channels"
+msgstr "Kanäle"
+
+msgid "btn-add-endpoint"
+msgstr "Endpunkt hinzufügen"
+
+msgid "label-group-inputs"
+msgstr "Eingänge"
+
+msgid "label-group-outputs"
+msgstr "Ausgänge"
+
+msgid "empty-no-input-endpoints"
+msgstr "Noch keine Eingänge"
+
+msgid "empty-no-output-endpoints"
+msgstr "Noch keine Ausgänge"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "Gruppiere Eingang und Ausgang derselben Schnittstelle. Jede Chain nutzt eine Verknüpfung."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "Neue Verknüpfung"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "Noch keine Verknüpfungen"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "Erstelle eine, um Eingang und Ausgang einer Schnittstelle zu gruppieren."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "Gerät auswählen"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "Wählen…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "Neu laden"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "Zurücksetzen"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "Projekt speichern"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "DI-Loop"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "DI-Loop abspielen"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "DI-Loop stoppen"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "Auswertungsordner"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "Sprache"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "Plugin-Katalog"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "Plugin-Ordner"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "Preset-Ordner"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(Standard)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(ungespeichert)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "Noch nicht neu geladen"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "Pfade"
+
+
+msgid "label-chain-io-bindings"
+msgstr "E/A-Bindungen"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "Noch keine E/A-Bindungen — in Einstellungen → E/A-Bindungen anlegen"
+
+msgid "warn-select-binding"
+msgstr "Wähle mindestens eine E/A-Bindung für diese Chain"

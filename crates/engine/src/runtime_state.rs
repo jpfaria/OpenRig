@@ -28,8 +28,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use arc_swap::{ArcSwap, ArcSwapOption};
 use crate::di_loop::DiLoop;
+use arc_swap::{ArcSwap, ArcSwapOption};
 use block_core::{AudioChannelLayout, StreamHandle};
 use crossbeam_queue::ArrayQueue;
 use domain::ids::BlockId;
@@ -251,6 +251,14 @@ pub(crate) struct OutgoingTail {
 /// the assorted atomics + queues that drive UI ↔ audio-thread communication
 /// (probe state, error queue, drain flag, output mute, observability taps).
 pub struct ChainRuntimeState {
+    /// Issue #703: set when this runtime is one isolated per-entry runtime
+    /// — `(entry_group, cpal_input_index)`. `entry_group` is the raw
+    /// `InputEntry` index this runtime owns (the `RuntimeGraph` key);
+    /// `cpal_input_index` is the device stream that feeds it — SHARED with
+    /// sibling runtimes when two entries read the same physical device.
+    /// `None` for whole-chain runtimes (probe, offline render, JACK).
+    /// Written once at graph assembly, before the state is shared.
+    pub(crate) owned_entry: Option<(usize, usize)>,
     pub(crate) processing: Mutex<ChainProcessingState>,
     /// Per-route output state. Swapped atomically on chain rebuild so the
     /// RT callback sees a fresh snapshot without taking any lock.
@@ -368,9 +376,42 @@ pub struct ChainRuntimeState {
     /// to 0 from the off-thread caller; the audio thread will read the
     /// new value on its next callback.
     pub(crate) di_loop_pos: AtomicUsize,
+    /// Issue #670 — audio-thread deadline accounting. The output callback
+    /// records its own wall-clock cost via `record_callback_load`: every
+    /// buffer whose processing exceeded the device period increments
+    /// `xrun_count`, and `peak_load_ppm` keeps the worst `elapsed/period`
+    /// ratio (in parts-per-million) since the last `reset_load_stats`.
+    /// Both are read off the audio thread by the GUI meter timer and by
+    /// `QueryKind` (MCP / gRPC parity) to surface an overload warning
+    /// instead of letting the dropout crackle unexplained. Relaxed
+    /// ordering: the values are purely informational for the UI, with one
+    /// audio-thread writer and one off-thread reader. See
+    /// [`crate::runtime_load`].
+    pub(crate) xrun_count: AtomicU64,
+    pub(crate) peak_load_ppm: AtomicU64,
+    /// The sample rate (Hz) this runtime was built at — the rate its streams
+    /// actually run at. Set once at construction, never mutated, so a plain
+    /// `f32` read is safe from the audio thread. Issue #723: the live probe
+    /// beep in `process_input_f32` reads this instead of assuming 48000, so
+    /// the 1 kHz tone is synthesized at the true device rate.
+    pub(crate) sample_rate: f32,
 }
 
 impl ChainRuntimeState {
+    /// The sample rate (Hz) this runtime runs at, captured at build time.
+    pub fn sample_rate(&self) -> f32 {
+        self.sample_rate
+    }
+
+    /// Issue #703: the cpal input-stream index that feeds this runtime,
+    /// when it is a per-entry isolated runtime. Two entries reading the
+    /// same physical device are two runtimes with the SAME index — the
+    /// cpal layer fans that device's single callback out to all of them.
+    /// `None` for whole-chain runtimes (probe, offline render, JACK).
+    pub fn input_cpal_index(&self) -> Option<usize> {
+        self.owned_entry.map(|(_, cpal_idx)| cpal_idx)
+    }
+
     /// Signal the audio callback to stop processing blocks.
     /// Must be called before deactivating JACK or dropping block processors.
     pub fn set_draining(&self) {
@@ -495,6 +536,21 @@ impl ChainRuntimeState {
         new_taps.push(Arc::new(tap));
         self.stream_taps.store(Arc::new(new_taps));
         handles
+    }
+
+    /// Issue #740: migrate the live tap subscriptions (meter / spectrum /
+    /// tuner rings) from a SUPERSEDED runtime onto this freshly-rebuilt one.
+    ///
+    /// An off-thread rebuild (preset switch, param/block edit) builds a NEW
+    /// `ChainRuntimeState` and swaps it into the live slot. The UI subscribed
+    /// its taps on the OLD runtime, so without this the rebuilt runtime — now
+    /// the one processing audio — feeds nothing and the graph freezes. The taps
+    /// are `Arc`s shared with the UI consumers, so adopting the same `Arc`s makes
+    /// the new runtime feed the exact rings the UI is already reading. Lock-free
+    /// `ArcSwap` store, same as `subscribe_*`.
+    pub fn adopt_taps_from(&self, superseded: &ChainRuntimeState) {
+        self.input_taps.store(superseded.input_taps.load_full());
+        self.stream_taps.store(superseded.stream_taps.load_full());
     }
 
     /// Drop stream taps whose consumer handles have all been released.

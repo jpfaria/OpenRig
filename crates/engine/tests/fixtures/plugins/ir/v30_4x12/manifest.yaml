@@ -1,0 +1,32 @@
+manifest_version: 1
+id: ir_v30_4x12
+display_name: V30 4x12
+brand: celestion
+brand_logo: assets/brand_logo.svg
+type: cab
+backend: ir
+parameters:
+- name: mic
+  display_name: Mic
+  values:
+  - sm57_balanced
+  - sm57_dark
+  - sm57_fat
+  - lo_gn_all_room_mono
+captures:
+- values:
+    mic: sm57_balanced
+  file: ir/sm57_balanced.wav
+  output_gain_db: -17.8740864
+- values:
+    mic: sm57_dark
+  file: ir/sm57_dark.wav
+  output_gain_db: -19.4621925
+- values:
+    mic: sm57_fat
+  file: ir/sm57_fat.wav
+  output_gain_db: -18.9217091
+- values:
+    mic: lo_gn_all_room_mono
+  file: ir/lo_gn_all_room_mono.wav
+  output_gain_db: -18.1847057

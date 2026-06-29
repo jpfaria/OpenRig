@@ -44,6 +44,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,
@@ -62,12 +63,20 @@ fn set_chain_di_loop_source_valid_file_emits_event() {
     let project = make_project("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let events = dispatcher
+    let mut events = dispatcher
         .dispatch(Command::SetChainDiLoopSource {
             chain: ChainId("chain_0".to_string()),
             source: DiLoopSource::File(wav),
         })
         .expect("SetChainDiLoopSource must succeed for a valid WAV");
+
+    // #693: the decode runs on its own task — the completion event
+    // arrives via poll_async_results (what the frontend tick calls).
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    while events.is_empty() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        events = dispatcher.poll_async_results();
+    }
 
     assert!(
         events.iter().any(|e| matches!(

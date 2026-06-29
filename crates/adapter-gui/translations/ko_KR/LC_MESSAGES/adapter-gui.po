@@ -84,6 +84,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "모델 검색..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "프리셋을 찾을 수 없음"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "모델을 찾을 수 없음"
@@ -478,7 +482,7 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "btn-close"
-msgstr ""
+msgstr "닫기"
 
 #: crates/adapter-gui/ui/components/settings_section.slint
 msgid "badge-system"
@@ -490,23 +494,23 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
 msgid "title-section-audio-interface"
-msgstr ""
+msgstr "오디오 인터페이스"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_language.slint
 msgid "title-section-language"
-msgstr ""
+msgstr "언어"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
 msgid "title-section-midi-devices"
-msgstr ""
+msgstr "MIDI 장치"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "title-section-project-meta"
-msgstr ""
+msgstr "메타데이터"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "label-file"
-msgstr ""
+msgstr "파일"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "title-section-midi-mapping"
@@ -526,11 +530,11 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-system"
-msgstr ""
+msgstr "시스템"
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-project"
-msgstr ""
+msgstr "프로젝트"
 
 #: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
 msgid "preset-search-placeholder"
@@ -557,4 +561,184 @@ msgid "btn-overwrite"
 msgstr "덮어쓰기"
 
 msgid "btn-save-audio-settings"
-msgstr ""
+msgstr "적용"
+
+msgid "title-section-integrations"
+msgstr "통합"
+
+msgid "label-midi-enabled"
+msgstr "MIDI 제어"
+
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDI 어댑터를 켜서 풋스위치로 OpenRig를 제어"
+
+msgid "label-mcp-enabled"
+msgstr "MCP 서버"
+
+msgid "desc-mcp-enabled"
+msgstr "에이전트용 MCP 서버를 127.0.0.1:4123에 노출"
+
+msgid "hint-restart-to-apply"
+msgstr "다음 실행 시 적용됩니다."
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "I/O 바인딩"
+
+msgid "label-input-endpoint"
+msgstr "입력 엔드포인트"
+
+msgid "label-output-endpoint"
+msgstr "출력 엔드포인트"
+
+msgid "label-resolved-info"
+msgstr "확인된 정보"
+
+msgid "placeholder-select-endpoint"
+msgstr "엔드포인트 선택"
+
+msgid "title-section-io-bindings"
+msgstr "I/O 바인딩"
+
+msgid "label-binding-name"
+msgstr "바인딩 이름"
+
+msgid "label-endpoint-input"
+msgstr "입력 엔드포인트"
+
+msgid "label-endpoint-output"
+msgstr "출력 엔드포인트"
+
+msgid "mode-mono"
+msgstr "모노"
+
+msgid "mode-stereo"
+msgstr "스테레오"
+
+msgid "mode-dual-mono"
+msgstr "듀얼 모노"
+
+msgid "placeholder-binding-name"
+msgstr "바인딩 이름…"
+
+msgid "label-channels-prefix"
+msgstr "채널"
+
+msgid "label-endpoint-device"
+msgstr "장치"
+
+msgid "label-endpoint-mode"
+msgstr "모드"
+
+msgid "label-endpoint-channels"
+msgstr "채널"
+
+msgid "btn-add-endpoint"
+msgstr "엔드포인트 추가"
+
+msgid "label-group-inputs"
+msgstr "입력"
+
+msgid "label-group-outputs"
+msgstr "출력"
+
+msgid "empty-no-input-endpoints"
+msgstr "아직 입력이 없습니다"
+
+msgid "empty-no-output-endpoints"
+msgstr "아직 출력이 없습니다"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "같은 인터페이스의 입력과 출력을 묶습니다. 각 체인은 하나의 바인딩을 사용합니다."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "새 바인딩"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "아직 바인딩이 없습니다"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "인터페이스의 입력과 출력을 묶을 바인딩을 만드세요."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "장치 선택"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "선택…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "다시 불러오기"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "초기화"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "프로젝트 저장"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "DI 루프"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "DI 루프 재생"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "DI 루프 정지"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "평가 폴더"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "언어"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "플러그인 카탈로그"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "플러그인 폴더"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "프리셋 폴더"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(기본값)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(저장 안 됨)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "아직 다시 불러오지 않음"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "경로"
+
+
+msgid "label-chain-io-bindings"
+msgstr "I/O 바인딩"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "아직 I/O 바인딩이 없습니다 — 설정 → I/O 바인딩에서 추가하세요"
+
+msgid "warn-select-binding"
+msgstr "이 체인에 최소 하나의 I/O 바인딩을 선택하세요"

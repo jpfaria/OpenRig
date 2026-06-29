@@ -13,6 +13,11 @@ typedef struct NamPluginConfig {
   float bass;
   float middle;
   float treble;
+  // Issue #657: A2 SlimmableContainer size, 0.0 (smallest submodel) ..
+  // 1.0 (full). Forwarded to nam::SlimmableModel::SetSlimmableSize when
+  // the loaded DSP implements that interface; inert for A1 models, which
+  // are not slimmable. 1.0 reproduces the historical full-size behavior.
+  float slim_size;
   unsigned char noise_gate_enabled;
   unsigned char eq_enabled;
   unsigned char ir_enabled;

@@ -87,11 +87,13 @@ export component BlockPanelHeader inherits Rectangle {
         height: 22px;
         border-radius: 4px;
         background: root.type-label == "NATIVE" ? #0d2a0d
-            : root.type-label == "NAM" ? #0d1a2e
+            : root.type-label == "NAM/A2" ? #2e260d
+            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #0d1a2e
             : #2e1a0d;
         border-width: 1px;
         border-color: root.type-label == "NATIVE" ? #1a6b1a
-            : root.type-label == "NAM" ? #1a4488
+            : root.type-label == "NAM/A2" ? #8a6a1a
+            : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #1a4488
             : #883300;
 
         Text {
@@ -100,7 +102,8 @@ export component BlockPanelHeader inherits Rectangle {
             height: parent.height;
             text: root.type-label;
             color: root.type-label == "NATIVE" ? #33bb33
-                : root.type-label == "NAM" ? #4499ff
+                : root.type-label == "NAM/A2" ? #ffcc44
+                : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #4499ff
                 : #ff8833;
             font-size: 9px;
             font-weight: 800;

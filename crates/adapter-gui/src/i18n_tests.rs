@@ -908,3 +908,97 @@ fn settings_screen_tr_keys_are_translated_in_pt_br() {
         }
     }
 }
+
+/// Comprehensive guard (#716): EVERY symbolic `@tr("key")` used anywhere in the
+/// GUI (`ui/**/*.slint`) must have a non-empty, FLAT (no-`msgctxt`) translation
+/// in EVERY shipped locale. Catches the two recurring i18n breaks:
+///   1. A new GUI string not translated in all 9 locales.
+///   2. A context-qualified catalog (`extract-translations.sh` / `msgmerge`
+///      re-add `msgctxt`), where the runtime flat lookup
+///      (`build.rs` `DefaultTranslationContext::None`) fails and the whole UI
+///      renders raw keys (regressions: 4590afeb, and #716 again).
+/// Symbolic keys = lowercase identifiers with a `-` (btn-*, label-*, help-*,
+/// …); English/source-literal msgids (e.g. "Volume", "OpenRig") fall back to
+/// themselves and are intentionally allowed to have an empty msgstr.
+#[test]
+fn every_gui_tr_key_translated_in_every_locale() {
+    use std::collections::BTreeSet;
+    use std::path::{Path, PathBuf};
+
+    let root = env!("CARGO_MANIFEST_DIR");
+
+    fn collect_slint(dir: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(rd) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                collect_slint(&p, out);
+            } else if p.extension().and_then(|x| x.to_str()) == Some("slint") {
+                let temp = p
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.starts_with('_'));
+                if !temp {
+                    out.push(p);
+                }
+            }
+        }
+    }
+
+    let mut files = Vec::new();
+    collect_slint(&Path::new(root).join("ui"), &mut files);
+    assert!(!files.is_empty(), "no .slint files found under ui/");
+
+    let mut keys: BTreeSet<String> = BTreeSet::new();
+    for f in &files {
+        let src = std::fs::read_to_string(f).unwrap();
+        for (i, _) in src.match_indices("@tr(\"") {
+            let rest = &src[i + 5..];
+            if let Some(end) = rest.find('"') {
+                let key = &rest[..end];
+                // symbolic key: a `-`-joined lowercase identifier (btn-add,
+                // label-name). Excludes format/source strings with spaces,
+                // `{}` placeholders, `:` or `->` (those fall back to msgid).
+                let is_symbolic = key.contains('-')
+                    && key
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+                if is_symbolic {
+                    keys.insert(key.to_string());
+                }
+            }
+        }
+    }
+
+    let locales = [
+        "en_US", "pt_BR", "es_ES", "fr_FR", "de_DE", "hi_IN", "ja_JP", "ko_KR", "zh_CN",
+    ];
+    let mut missing: Vec<String> = Vec::new();
+    for loc in locales {
+        let po = std::fs::read_to_string(format!(
+            "{root}/translations/{loc}/LC_MESSAGES/adapter-gui.po"
+        ))
+        .unwrap_or_else(|e| panic!("read {loc} catalog: {e}"));
+        for key in &keys {
+            let resolved = po.split("\n\n").any(|rec| {
+                !rec.contains("msgctxt ")
+                    && rec.contains(&format!("msgid \"{key}\""))
+                    && !rec.contains("msgstr \"\"")
+            });
+            if !resolved {
+                missing.push(format!("{loc}: {key}"));
+            }
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "{} GUI @tr key(s) lack a flat non-empty translation (missing in a \
+         locale, or catalog got context-qualified — do NOT run \
+         extract-translations.sh):\n  {}",
+        missing.len(),
+        missing.join("\n  "),
+    );
+}

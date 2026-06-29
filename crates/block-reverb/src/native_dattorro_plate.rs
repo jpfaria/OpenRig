@@ -161,6 +161,7 @@ impl OnePoleLpf {
 
 struct DattorroPlate {
     params: Params,
+    sr: f32,
     pre_delay: Delay,
     bandwidth_lp: OnePoleLpf,
     in_ap1: Allpass,
@@ -206,6 +207,7 @@ impl DattorroPlate {
 
         Self {
             params,
+            sr,
             pre_delay: Delay::new(pre_delay_samples + PRE_DELAY),
             bandwidth_lp,
             in_ap1: Allpass::new(scale(INPUT_AP1, sr), INPUT_DIFFUSION_1),
@@ -271,33 +273,44 @@ impl StereoProcessor for DattorroPlate {
         self.delay_b2.write(b4);
         self.cross_b = b5;
 
-        // Stereo output taps — paper Table 2 specifies a different set of
-        // tap points for L vs R giving the characteristic plate width.
-        // We use simplified taps (sums of the two loop outputs at different
-        // weights) that retain the anti-correlated character.
-        let wet_l = 0.6 * a5 + 0.6 * self.delay_b1.tap(scale(266, 44_100.0))
-            - 0.6 * self.ap_b.process_tap()
-            + 0.6 * b5
-            - 0.6 * self.ap_a.process_tap();
-        let wet_r = 0.6 * b5 + 0.6 * self.delay_a1.tap(scale(353, 44_100.0))
-            - 0.6 * self.ap_a.process_tap()
-            + 0.6 * a5
-            - 0.6 * self.ap_b.process_tap();
+        // Stereo output — Dattorro's seven-tap accumulator per channel
+        // (paper Figure 6 output node taps). Reading many points spread
+        // across both tank loops' delays and decay-diffusion allpasses is
+        // what produces the dense, smeared early field of a plate; the
+        // previous two-tap simplification left the first ~50 ms sparse.
+        let s = self.sr;
+        let wet_l = self.delay_a1.tap(scale(266, s))
+            + self.delay_a1.tap(scale(2974, s))
+            - self.ap_b.tap(scale(1913, s))
+            + self.delay_b2.tap(scale(1996, s))
+            - self.delay_b1.tap(scale(1990, s))
+            - self.ap_a.tap(scale(187, s))
+            - self.delay_a2.tap(scale(1066, s));
+        let wet_r = self.delay_b1.tap(scale(353, s))
+            + self.delay_b1.tap(scale(3627, s))
+            - self.ap_a.tap(scale(1228, s))
+            + self.delay_a2.tap(scale(2673, s))
+            - self.delay_a1.tap(scale(2111, s))
+            - self.ap_b.tap(scale(335, s))
+            - self.delay_b2.tap(scale(121, s));
 
         let dry = 1.0 - self.params.mix;
+        // Seven summed taps with partial sign cancellation ≈ unity-ish level;
+        // trim to sit comparably to the other native reverbs.
+        let out_gain = 0.5;
         [
-            dry.mul_add(input[0], self.params.mix * wet_l * 0.5),
-            dry.mul_add(input[1], self.params.mix * wet_r * 0.5),
+            dry.mul_add(input[0], self.params.mix * wet_l * out_gain),
+            dry.mul_add(input[1], self.params.mix * wet_r * out_gain),
         ]
     }
 }
 
-// Allpass exposes a "peek the current buffer state" without advancing —
-// used by the wet output taps which need samples from inside the AP
-// without disturbing its state.
+// Allpass exposes a read-only tap into its internal delay line — used by
+// the wet output accumulator, which reads points inside the allpass
+// without advancing or disturbing its state.
 impl Allpass {
-    fn process_tap(&self) -> f32 {
-        self.delay.read()
+    fn tap(&self, samples_back: usize) -> f32 {
+        self.delay.tap(samples_back)
     }
 }
 

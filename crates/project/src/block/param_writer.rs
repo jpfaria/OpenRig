@@ -124,13 +124,10 @@ fn params_mut(block: &mut AudioBlock) -> Result<&mut block_core::param::Paramete
 
 #[cfg(test)]
 mod tests {
-    use domain::ids::{BlockId, DeviceId};
+    use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
 
-    use crate::block::types::{
-        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, NamBlock,
-    };
-    use crate::chain::ChainInputMode;
+    use crate::block::types::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, NamBlock};
     use crate::param::ParameterSet;
 
     use super::{
@@ -198,11 +195,8 @@ mod tests {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
-                entries: vec![InputEntry {
-                    device_id: DeviceId("mic".to_string()),
-                    mode: ChainInputMode::default(),
-                    channels: vec![0],
-                }],
+                io: String::new(),
+                endpoint: String::new(),
             }),
         }
     }

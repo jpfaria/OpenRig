@@ -47,12 +47,53 @@ pub(crate) fn sync_project_runtime(
     session: &ProjectSession,
 ) -> Result<()> {
     let proj = session.project.borrow();
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&*proj)?;
-        runtime.sync_project(&*proj)?;
+    {
+        let mut borrow = project_runtime.borrow_mut();
+        if let Some(runtime) = borrow.as_mut() {
+            validate_project(&*proj)?;
+            runtime.sync_project(&*proj)?;
+        }
     }
+    // #669: keep the dispatcher's engine sample rate in lock-step with the
+    // (possibly rebuilt) runtime so DI loops resample to the live device rate.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
     Ok(())
+}
+
+/// #743: the planned action for a one-chain live sync. Modelled as data so the
+/// decision — crucially, WHETHER a device-IO resolve runs — is unit-testable
+/// without audio hardware.
+pub enum LiveSyncAction {
+    /// The chain is gone from the project: drop it from the live graph.
+    Remove,
+    /// The chain is present but disabled: pause it (drain → silence) in O(1).
+    /// No device-IO resolve — that synchronous CoreAudio query (hundreds of ms
+    /// per device) would stall the GUI while the live output starves into a
+    /// feedback howl (#743). A disable never re-binds, so the check is moot.
+    Pause,
+    /// The chain is present and enabled: (re)activate it. `io_changed` is the
+    /// re-bind check — only an enable consults it.
+    Enable { io_changed: bool },
+}
+
+/// Decide the live-sync action for a toggled chain. The `io_changed` closure
+/// (the device-IO resolve) is invoked ONLY for an enable; a disable or a
+/// removal must never touch it — that resolve is the ~750 ms CoreAudio stall
+/// that starves the live output into feedback on a four-device toggle (#743).
+pub fn plan_live_sync(
+    chain_present: bool,
+    chain_enabled: bool,
+    io_changed: impl FnOnce() -> Result<bool>,
+) -> Result<LiveSyncAction> {
+    if !chain_present {
+        return Ok(LiveSyncAction::Remove);
+    }
+    if !chain_enabled {
+        return Ok(LiveSyncAction::Pause);
+    }
+    Ok(LiveSyncAction::Enable {
+        io_changed: io_changed()?,
+    })
 }
 
 pub(crate) fn sync_live_chain_runtime(
@@ -68,25 +109,91 @@ pub(crate) fn sync_live_chain_runtime(
     if chain_enabled {
         let mut borrow = project_runtime.borrow_mut();
         if borrow.is_none() {
-            *borrow = Some(ProjectRuntimeController::start(&*proj)?);
+            // #716 (AUDIO-CRITICAL): hand the per-machine I/O binding registry
+            // to the controller BEFORE `start()` runs its initial sync — the
+            // cold-start activation snapshots the registry into its worker job,
+            // so installing it AFTER start is too late and the binding-bound
+            // chain bails "no input blocks". Sourced from the session's mirror
+            // of `AppConfig.io_bindings`.
+            let controller = ProjectRuntimeController::start_with_io_bindings(
+                &*proj,
+                session.io_bindings.borrow().clone(),
+            )?;
+            *borrow = Some(controller);
+            drop(borrow);
+            // #669: start() resolved the real device rate — push it to the
+            // dispatcher so DI loops resample correctly (not stuck at 48000).
+            crate::di_loop_wiring::sync_engine_sr_from_runtime(
+                project_runtime,
+                &session.dispatcher,
+            );
             return Ok(()); // start() already processes all enabled chains via sync_project
         }
         drop(borrow);
     }
     // Normal sync
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&*proj)?;
-        if let Some(chain) = chain {
-            runtime.upsert_chain(&*proj, chain)?;
-        } else {
-            runtime.remove_chain(chain_id);
-        }
-        // If no chains are running, destroy runtime
-        if !runtime.is_running() {
-            *borrow = None;
+    {
+        let mut borrow = project_runtime.borrow_mut();
+        if let Some(runtime) = borrow.as_mut() {
+            // #716 (AUDIO-CRITICAL): a controller created earlier (before the
+            // user added/related an I/O binding) holds a STALE registry, so a
+            // newly-bound chain resolves to zero inputs ("chain '...' has no
+            // input blocks configured"). Refresh the controller's registry from
+            // the session's live mirror of `AppConfig.io_bindings` on EVERY
+            // sync, not just at start, so a just-created binding takes effect.
+            runtime.set_io_bindings(session.io_bindings.borrow().clone());
+            validate_project(&*proj)?;
+            // #743: plan the action BEFORE resolving anything. A disable must
+            // pause immediately (drain → output silent) and must NOT run
+            // `chain_io_changed` — that synchronous CoreAudio resolve costs
+            // hundreds of ms per device, so on a four-device rig the GUI stalls
+            // ~750 ms while the still-live output starves and emits stale frames
+            // at full level (the owner's "microfonia"/underrun flood on toggle
+            // off). The IO-change re-bind check belongs only to an enable.
+            let action = plan_live_sync(chain.is_some(), chain_enabled, || {
+                let chain = chain.expect("io_changed is only queried for a present, enabled chain");
+                runtime.chain_io_changed(&*proj, chain)
+            })?;
+            match action {
+                LiveSyncAction::Remove => runtime.remove_chain(chain_id),
+                LiveSyncAction::Pause => {
+                    // upsert_chain's !enabled path pauses (keeps streams alive,
+                    // drains to silence) in O(1) — no device queries.
+                    let chain = chain.expect("Pause implies the chain is present");
+                    runtime.upsert_chain(&*proj, chain)?;
+                }
+                LiveSyncAction::Enable { io_changed } => {
+                    // Issue #672/#693: a cold activation builds the runtime off the
+                    // control worker and installs it on the poll tick.
+                    // #716: a re-bind changes stream topology, so REBUILD (drop the
+                    // streams) when the resolved I/O differs from what's live.
+                    // #740: a LIVE edit (preset switch, block toggle, param change)
+                    // on an ALREADY-RUNNING chain must NOT go through the
+                    // synchronous `upsert_chain` — that resolves the devices AND
+                    // reloads the NAM/IR models on the GUI thread (measured ~5.7 s
+                    // on the owner's two-interface rig, the freeze on every edit).
+                    // With unchanged I/O it reuses the live stream config and
+                    // rebuilds the DSP off-thread; the GUI returns immediately.
+                    let chain = chain.expect("Enable implies the chain is present");
+                    if io_changed {
+                        runtime.remove_chain(&chain.id);
+                    }
+                    if !runtime.schedule_chain_activation(&*proj, chain)?
+                        && !runtime.request_offthread_rebuild_if_live(&*proj, chain)?
+                    {
+                        runtime.upsert_chain(&*proj, chain)?;
+                    }
+                }
+            }
+            // If no chains are running (and none are activating), destroy runtime.
+            if !runtime.is_running() {
+                *borrow = None;
+            }
         }
     }
+    // #669: an upsert may have rebuilt the stream at a new device rate; keep
+    // the dispatcher's engine sample rate in lock-step.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
     Ok(())
 }
 

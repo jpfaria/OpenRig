@@ -14,7 +14,9 @@ use infra_filesystem::FilesystemStorage;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
 fn main() -> anyhow::Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    // #693: non-blocking logger — log calls must never stall the GUI
+    // thread on a slow stderr consumer.
+    adapter_gui::logging::init_logging();
 
     // Load persisted language override (if any) before anything renders.
     // Failures here must not block startup — translations are best-effort.
@@ -40,8 +42,18 @@ fn main() -> anyhow::Result<()> {
     let raw_refs: Vec<&str> = raw_args.iter().map(|s| s.as_str()).collect();
     let (arg_project_path, arg_auto_save, arg_fullscreen) =
         adapter_gui::parse_cli_args_from(&raw_refs);
-    let mcp_addr = adapter_gui::parse_mcp_addr(&raw_refs);
-    let midi_map = adapter_gui::parse_midi_map(&raw_refs);
+    // #712: MIDI/MCP enablement is per-machine config (config.yaml), not a
+    // launch flag — so packaged builds (which start the binary with no args)
+    // can enable them. The CLI `--midi`/`--mcp` flags stay as a dev override
+    // that wins when present. Config-load failure → treat as disabled (the
+    // flags still work), never block startup.
+    let app_config = FilesystemStorage::load_app_config().unwrap_or_default();
+    let mcp_addr =
+        adapter_gui::resolve_mcp_addr(adapter_gui::parse_mcp_addr(&raw_refs), app_config.mcp_enabled);
+    let midi_map = adapter_gui::resolve_midi_map(
+        adapter_gui::parse_midi_map(&raw_refs),
+        app_config.midi_enabled,
+    );
     let cli_project_path = arg_project_path
         .or_else(|| {
             std::env::var("OPENRIG_PROJECT_PATH")
@@ -68,7 +80,7 @@ fn main() -> anyhow::Result<()> {
         || std::env::var("OPENRIG_FULLSCREEN")
             .ok()
             .map_or(false, |v| v == "1" || v.eq_ignore_ascii_case("true"));
-    run_desktop_app(
+    let result = run_desktop_app(
         runtime_mode,
         interaction_mode,
         cli_project_path,
@@ -76,5 +88,9 @@ fn main() -> anyhow::Result<()> {
         fullscreen,
         mcp_addr,
         midi_map,
-    )
+    );
+    // #693: saves are queued to the persist worker — wait for
+    // durability before the process exits.
+    application::persist_worker::flush();
+    result
 }

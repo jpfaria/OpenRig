@@ -9,12 +9,19 @@ a change made by the agent is reflected in the GUI in real time.
 
 ## Enable the server
 
-Opt-in flag (absent = server does not start, zero overhead):
+Two ways (#712). Persistent enablement is the per-machine `mcp_enabled`
+switch in `config.yaml` (default off), toggled from **Settings → System /
+Integrations → MCP server** — packaged builds, launched with no
+arguments, rely on this; it binds the default `127.0.0.1:4123` and takes
+effect on the next launch.
+
+The CLI flag (absent = no config override) **forces** the server on for a
+single run, and is the only way to pick a non-default address:
 
 | Form | Effect |
 |---|---|
-| `openrig --mcp` | Starts MCP at `http://127.0.0.1:4123` (GUI stays open) |
-| `openrig --mcp=ADDR:PORT` | Starts at the given address (e.g. `--mcp=0.0.0.0:9000`) |
+| `openrig --mcp` | Forces MCP up at `http://127.0.0.1:4123` for this run (GUI stays open) |
+| `openrig --mcp=ADDR:PORT` | Forces it up at the given address (e.g. `--mcp=0.0.0.0:9000`) |
 | `openrig --mcp=...` invalid | Logs the error and does **not** start (app runs normally) |
 
 Same flag on the console: `adapter-console --mcp[=ADDR]`.

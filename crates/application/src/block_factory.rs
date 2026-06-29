@@ -11,12 +11,10 @@
 
 use anyhow::{anyhow, Result};
 
-use domain::ids::{BlockId, DeviceId};
+use domain::ids::BlockId;
 use project::block::{
     build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind, InsertBlock,
-    InsertEndpoint,
 };
-use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 
 /// Build a default [`AudioBlock`] for the given (effect_type, model_id) pair.
@@ -25,8 +23,8 @@ use project::param::ParameterSet;
 /// `enabled = true`. The caller supplies the `block_id` to use.
 ///
 /// Special case: `effect_type == "insert"` produces a default `InsertBlock`
-/// with empty send/return endpoints (the user configures them in the insert
-/// window afterwards). `model_id` is ignored for insert blocks (always
+/// that is unbound (`io` empty) — the user picks its I/O binding afterwards
+/// (#716, model A). `model_id` is ignored for insert blocks (always
 /// "standard").
 ///
 /// # Errors
@@ -39,21 +37,37 @@ pub fn build_default_block(
     model_id: &str,
 ) -> Result<AudioBlock> {
     if effect_type == "insert" {
-        let empty_endpoint = InsertEndpoint {
-            device_id: DeviceId(String::new()),
-            mode: ChainInputMode::Mono,
-            channels: Vec::new(),
-        };
+        // Model A (#716): a fresh insert is unbound — the user picks its I/O
+        // binding (`io`) later; the send/return device endpoints are then
+        // resolved from the per-machine registry.
         return Ok(AudioBlock {
             id: block_id,
             enabled: true,
             kind: AudioBlockKind::Insert(InsertBlock {
                 model: "standard".to_string(),
-                send: empty_endpoint.clone(),
-                return_: empty_endpoint,
+                io: String::new(),
             }),
         });
     }
+    let params = default_params_for_model(effect_type, model_id)?;
+    let kind = build_audio_block_kind(effect_type, model_id, params)
+        .map_err(|e| anyhow!("build_audio_block_kind failed for '{}': {}", model_id, e))?;
+    Ok(AudioBlock {
+        id: block_id,
+        enabled: true,
+        kind,
+    })
+}
+
+/// Build the seeded default [`ParameterSet`] for a new `(effect_type,
+/// model_id)` block — the single source of param seeding shared by
+/// [`build_default_block`] (the `AddBlock` path) and the GUI block editor
+/// (which builds the `InsertPrebuiltBlock` it dispatches). Every knob starts
+/// at its schema default; then the grid axes are seeded to the first declared
+/// capture (#630), and the `output_db` (#655) and `noise_gate` (#675) knobs
+/// are seeded from the manifest so the user-visible knobs arrive
+/// pre-configured (editable, persisted) — never a hidden load-time default.
+pub fn default_params_for_model(effect_type: &str, model_id: &str) -> Result<ParameterSet> {
     let schema = schema_for_block_model(effect_type, model_id).map_err(|e| {
         anyhow!(
             "unknown model '{}' for effect type '{}': {}",
@@ -65,11 +79,9 @@ pub fn build_default_block(
     // Issue #630: a grid pedal (NAM/IR capture grid) must be born at a REAL
     // capture, never at the per-axis-minimum combination. `normalized_against`
     // fills each axis independently with its first declared value, which for a
-    // multi-axis grid can yield a cell that does NOT exist (and historically
-    // defaulted drive/level to 0, which the removed #402 rule treated as
-    // "off"). Seed the FIRST declared capture's axis values up front so the
-    // born default is a deterministic, audible grid point; `normalized_against`
-    // then only fills the non-grid knobs (output_db, EQ, gate) with defaults.
+    // multi-axis grid can yield a cell that does NOT exist. Seed the FIRST
+    // declared capture's axis values up front so the born default is a
+    // deterministic, audible grid point.
     let mut seed = ParameterSet::default();
     if let Some(pkg) = plugin_loader::registry::find(model_id) {
         let grid = match &pkg.manifest.backend {
@@ -90,11 +102,10 @@ pub fn build_default_block(
     let mut params = seed
         .normalized_against(&schema)
         .map_err(|e| anyhow!("param normalisation failed for '{}': {}", model_id, e))?;
-    // Seed `output_db` from the plugin manifest's audit baseline so
-    // the user-visible knob mirrors the engine's actual offset from
-    // day one. The previous design added the audit silently at load
-    // time (in `nam::from_package`) — that hid the offset under a
-    // UI knob that read 0 even though the signal was being attenuated.
+    // Seed `output_db` and `noise_gate` from the manifest so the user-visible
+    // knobs mirror the plugin's calibration from day one. Applying these
+    // silently at load time instead would hide them under knobs reading the
+    // schema default (the bug #655 fixed for `output_db`, #675 for the gate).
     if let Some(pkg) = plugin_loader::registry::find(model_id) {
         if let Some(audit_db) = pkg.manifest.output_gain_db {
             params.insert(
@@ -102,14 +113,32 @@ pub fn build_default_block(
                 domain::value_objects::ParameterValue::Float(audit_db),
             );
         }
+        let capture_gate = match &pkg.manifest.backend {
+            plugin_loader::manifest::Backend::Nam {
+                parameters,
+                captures,
+            } => plugin_loader::dispatch::resolve_capture(parameters, captures, &params)
+                .and_then(|c| c.noise_gate.as_ref()),
+            _ => None,
+        };
+        let (gate_enabled, gate_threshold_db) = plugin_loader::manifest::resolve_noise_gate(
+            capture_gate,
+            pkg.manifest.noise_gate.as_ref(),
+        );
+        if let Some(enabled) = gate_enabled {
+            params.insert(
+                "noise_gate.enabled",
+                domain::value_objects::ParameterValue::Bool(enabled),
+            );
+        }
+        if let Some(threshold_db) = gate_threshold_db {
+            params.insert(
+                "noise_gate.threshold_db",
+                domain::value_objects::ParameterValue::Float(threshold_db),
+            );
+        }
     }
-    let kind = build_audio_block_kind(effect_type, model_id, params)
-        .map_err(|e| anyhow!("build_audio_block_kind failed for '{}': {}", model_id, e))?;
-    Ok(AudioBlock {
-        id: block_id,
-        enabled: true,
-        kind,
-    })
+    Ok(params)
 }
 
 /// Convert a manifest grid `ParameterValue` into the block `ParameterValue`

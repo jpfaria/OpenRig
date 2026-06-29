@@ -18,19 +18,21 @@
 //! tap subscriptions). Splitting by method group would force every
 //! caller of an inherent method to pull in a trait.
 
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use anyhow::anyhow;
 use anyhow::Result;
 use std::collections::HashMap;
 
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+
 use domain::ids::ChainId;
-use engine::runtime::RuntimeGraph;
+use engine::runtime::{ChainRuntimeState, RuntimeGraph};
 use project::chain::Chain;
 use project::project::Project;
 
 use crate::active_runtime::ActiveChainRuntime;
 use crate::elastic::compute_elastic_targets_for_chain;
 use crate::resolved::ResolvedChainAudioConfig;
+use crate::{build_chain_runtime, BuildRequest, ControlWorker, LiveRuntimeSlot};
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::host::using_jack_direct;
@@ -55,6 +57,49 @@ use crate::validation::{
 pub struct ProjectRuntimeController {
     pub(crate) runtime_graph: RuntimeGraph,
     pub(crate) active_chains: HashMap<ChainId, ActiveChainRuntime>,
+    /// Issue #672 — per-`(chain, group)` swap point. The control worker
+    /// publishes a rebuilt runtime here; once the stream callbacks read through
+    /// these slots the swap is observed live, with no stream rebuild.
+    pub(crate) chain_slots: HashMap<(ChainId, usize), LiveRuntimeSlot>,
+    /// Issue #672 — dedicated thread that builds chain runtimes off the
+    /// frontend thread so heavy commands never block the UI.
+    pub(crate) worker: ControlWorker,
+    /// Issue #672 — in-flight off-thread rebuilds. The worker only *builds*;
+    /// `poll_pending_rebuilds` (called on the frontend tick) applies a finished
+    /// build by swapping the slots and `runtime_graph` in lock-step so they
+    /// stay consistent, and drops the superseded runtimes back on the worker.
+    /// Issue #703: a build yields one runtime per input-entry group, each
+    /// published into its own `(chain, group)` slot.
+    #[allow(clippy::type_complexity)]
+    pub(crate) pending_rebuilds: Vec<(
+        ChainId,
+        Receiver<Result<Vec<(usize, Arc<ChainRuntimeState>)>>>,
+    )>,
+    /// Issue #672 — in-flight cold activations (single-device chains). The
+    /// worker builds the runtimes off-thread; since #693 it also validates
+    /// and resolves the device config there (CoreAudio property queries cost
+    /// hundreds of ms and must not hold the frontend). The resolved config
+    /// comes back with the runtimes (issue #703: one per input-entry group);
+    /// `poll_pending_rebuilds` then creates the cpal streams on the frontend
+    /// (they are `!Send`) and installs the chain.
+    #[allow(clippy::type_complexity)]
+    pub(crate) pending_activations: Vec<(
+        ChainId,
+        Chain,
+        Receiver<Result<(Vec<(usize, Arc<ChainRuntimeState>)>, ResolvedChainAudioConfig)>>,
+    )>,
+    /// Sample rate (Hz) the live streams were built at, captured from the last
+    /// resolved chain config. The DI-loop loader reads this (via the
+    /// dispatcher's `engine_sr`) to resample loops to the device rate; a stale
+    /// value plays them at the wrong speed (#669). Defaults to 48000 until the
+    /// first chain is built.
+    pub(crate) sample_rate: u32,
+    /// Model A (#716): the per-machine I/O binding registry. Device endpoints
+    /// for every chain resolve from this (via
+    /// [`engine::runtime_endpoints::resolve_chain_io`]), never from block
+    /// `entries`. Set by the owner via [`Self::set_io_bindings`] before
+    /// syncing/activating; defaults to empty until then.
+    pub(crate) io_bindings: Vec<domain::io_binding::IoBinding>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -68,9 +113,27 @@ impl ProjectRuntimeController {
     /// `ProjectRuntimeController` without opening audio devices (e.g. to verify
     /// that `set_chain_di_loop` / `chain_has_di_loop` work without cpal I/O).
     pub fn for_testing(graph: RuntimeGraph) -> Self {
+        Self::for_testing_with_sample_rate(graph, 48_000)
+    }
+
+    /// Like [`Self::for_testing`] but reports `sample_rate` Hz, so tests can
+    /// exercise rate-dependent wiring (e.g. DI-loop resampling, #669) without
+    /// opening audio devices.
+    pub fn for_testing_with_sample_rate(graph: RuntimeGraph, sample_rate: u32) -> Self {
+        let chain_slots = graph
+            .chains
+            .iter()
+            .map(|(key, runtime)| (key.clone(), LiveRuntimeSlot::new(Arc::clone(runtime))))
+            .collect();
         Self {
             runtime_graph: graph,
             active_chains: HashMap::new(),
+            chain_slots,
+            worker: ControlWorker::new(),
+            pending_rebuilds: Vec::new(),
+            pending_activations: Vec::new(),
+            sample_rate,
+            io_bindings: Vec::new(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -79,12 +142,33 @@ impl ProjectRuntimeController {
     }
 
     pub fn start(project: &Project) -> Result<Self> {
+        Self::start_with_io_bindings(project, Vec::new())
+    }
+
+    /// Like [`Self::start`] but installs the per-machine I/O binding registry
+    /// BEFORE the initial `sync_project` schedules its cold-start activations.
+    /// #716 (AUDIO-CRITICAL): `schedule_chain_activation` snapshots
+    /// `self.io_bindings` into its worker job, so a binding-bound chain whose
+    /// registry is installed only AFTER `start()` resolves zero inputs and
+    /// bails "no input blocks". The owner must hand the registry here.
+    pub fn start_with_io_bindings(
+        project: &Project,
+        io_bindings: Vec<domain::io_binding::IoBinding>,
+    ) -> Result<Self> {
         log::info!("starting project runtime controller");
         let mut controller = Self {
             runtime_graph: RuntimeGraph {
                 chains: HashMap::new(),
             },
             active_chains: HashMap::new(),
+            chain_slots: HashMap::new(),
+            worker: ControlWorker::new(),
+            pending_rebuilds: Vec::new(),
+            pending_activations: Vec::new(),
+            // Updated to the real device rate by `upsert_chain_with_resolved`
+            // as each chain is built below (#669).
+            sample_rate: 48_000,
+            io_bindings,
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -92,6 +176,186 @@ impl ProjectRuntimeController {
         };
         controller.sync_project(project)?;
         Ok(controller)
+    }
+
+    /// Model A (#716): install the per-machine I/O binding registry. Every
+    /// chain's device endpoints resolve from this; the owner must set it
+    /// before `sync_project`/`upsert_chain` so the resolved endpoints are
+    /// non-empty.
+    pub fn set_io_bindings(&mut self, io_bindings: Vec<domain::io_binding::IoBinding>) {
+        self.io_bindings = io_bindings;
+    }
+
+    /// Issue #672 — read a chain's current live runtime (group 0), reflecting
+    /// any runtime the control worker has published into the live slot.
+    #[must_use]
+    pub fn chain_runtime(&self, chain_id: &ChainId) -> Option<Arc<ChainRuntimeState>> {
+        if let Some(slot) = self.chain_slots.get(&(chain_id.clone(), 0)) {
+            return Some(slot.load());
+        }
+        self.runtime_graph
+            .chains
+            .get(&(chain_id.clone(), 0))
+            .map(Arc::clone)
+    }
+
+    /// Issue #672 — enqueue an off-thread rebuild of a chain's runtime.
+    ///
+    /// The heavy build (NAM loads, route assembly) runs on the control worker;
+    /// the caller (frontend thread) returns immediately. The finished build is
+    /// applied later by [`ProjectRuntimeController::poll_pending_rebuilds`].
+    /// Applies to chains that already have a runtime (the freeze case — editing
+    /// a live chain whose IO is unchanged); a brand-new chain or an IO-topology
+    /// change is still built synchronously by `upsert_chain`.
+    pub fn schedule_chain_rebuild(
+        &mut self,
+        chain: &Chain,
+        sample_rate: f32,
+        device_sample_rates: std::collections::HashMap<domain::ids::DeviceId, f32>,
+        buffer_sizes: Vec<usize>,
+    ) {
+        // Seed the slots from the current graph runtimes if they have not
+        // been created yet (chain built before its slots were wired). Issue
+        // #703: a chain owns one slot per input-entry group.
+        let groups: Vec<usize> = self
+            .runtime_graph
+            .chains
+            .keys()
+            .filter(|(cid, _)| cid == &chain.id)
+            .map(|(_, g)| *g)
+            .collect();
+        for group in groups {
+            let key = (chain.id.clone(), group);
+            if !self.chain_slots.contains_key(&key) {
+                if let Some(runtime) = self.runtime_graph.chains.get(&key).map(Arc::clone) {
+                    self.chain_slots.insert(key, LiveRuntimeSlot::new(runtime));
+                }
+            }
+        }
+
+        let request = BuildRequest {
+            chain: chain.clone(),
+            sample_rate,
+            device_sample_rates,
+            buffer_sizes,
+            io_bindings: self.io_bindings.clone(),
+        };
+        let rx = self.worker.submit(move || build_chain_runtime(&request));
+        self.pending_rebuilds.push((chain.id.clone(), rx));
+    }
+
+    /// Issue #672 — apply any finished off-thread rebuilds (call on the frontend
+    /// tick). For each completed build, swap the live slot AND the
+    /// `runtime_graph` entry in lock-step so the audio path and every other
+    /// reader stay consistent, and drop the superseded runtime back on the
+    /// worker (its NAM C++ destructors never run on the audio/frontend thread).
+    ///
+    /// Returns the number of rebuilds applied this tick.
+    pub fn poll_pending_rebuilds(&mut self) -> usize {
+        let mut applied = 0;
+        let mut still_pending = Vec::new();
+        for (chain_id, rx) in std::mem::take(&mut self.pending_rebuilds) {
+            match rx.try_recv() {
+                Ok(Ok(runtimes)) => {
+                    // Issue #703: publish each per-entry runtime into ITS
+                    // OWN (chain, group) slot. Publishing a single runtime
+                    // into group 0 (the old shape) would leave sibling
+                    // entries stale — or, on a shared device, double-process
+                    // the buffer (the stream feeds every bound slot).
+                    for (group, runtime) in runtimes {
+                        let key = (chain_id.clone(), group);
+                        if let Some(slot) = self.chain_slots.get(&key) {
+                            // #740: carry the live meter/spectrum/tuner taps over
+                            // to the rebuilt runtime BEFORE it goes live, or the
+                            // graph freezes after a preset switch / live edit (the
+                            // UI's tap rings were subscribed on the old runtime).
+                            runtime.adopt_taps_from(&slot.load());
+                            let graph_runtime = Arc::clone(&runtime);
+                            let superseded = slot.publish(runtime);
+                            self.runtime_graph.chains.insert(key, graph_runtime);
+                            // Drop the old runtime off the audio/frontend thread.
+                            let _ = self.worker.submit(move || drop(superseded));
+                            applied += 1;
+                        } else {
+                            log::error!(
+                                "chain '{}' rebuild produced entry group {} with no live \
+                                 slot — the edit needs a stream rebuild to be heard",
+                                chain_id.0,
+                                group
+                            );
+                        }
+                    }
+                }
+                Ok(Err(e)) => {
+                    log::error!("chain '{}' off-thread rebuild failed: {e}", chain_id.0);
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => still_pending.push((chain_id, rx)),
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    log::error!("chain '{}' rebuild worker disconnected", chain_id.0);
+                }
+            }
+        }
+        self.pending_rebuilds = still_pending;
+
+        // Cold activations: once the runtime is built off-thread, create the
+        // cpal streams on THIS (frontend) thread — cpal `Stream` is `!Send` — and
+        // install the chain.
+        let mut still_activating = Vec::new();
+        for (chain_id, chain, rx) in std::mem::take(&mut self.pending_activations) {
+            match rx.try_recv() {
+                Ok(Ok((runtimes, resolved))) => {
+                    // Issue #703: install every per-entry runtime — a
+                    // single-device chain may own N isolated runtimes (one
+                    // per input entry) all fed by the one device stream.
+                    for (group, runtime) in &runtimes {
+                        self.runtime_graph
+                            .chains
+                            .insert((chain_id.clone(), *group), Arc::clone(runtime));
+                    }
+                    let slots = crate::build_chain_slots(&runtimes);
+                    for (group, slot) in &slots {
+                        self.chain_slots
+                            .insert((chain_id.clone(), *group), slot.handle());
+                    }
+                    // #669/#693: the worker resolved the real device rate —
+                    // mirror it like the synchronous upsert path does, so DI
+                    // loops resample to the live rate.
+                    self.sample_rate = resolved.sample_rate as u32;
+                    match crate::build_active_chain_runtime(
+                        &chain_id,
+                        &chain,
+                        resolved,
+                        slots,
+                        &self.io_bindings,
+                    ) {
+                        Ok(active) => {
+                            self.active_chains.insert(chain_id, active);
+                            applied += 1;
+                        }
+                        Err(e) => {
+                            log::error!("chain '{}' stream build failed: {e}", chain_id.0);
+                            self.runtime_graph.remove_chain(&chain_id);
+                        }
+                    }
+                }
+                Ok(Err(e)) => log::error!("chain '{}' activation build failed: {e}", chain_id.0),
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    still_activating.push((chain_id, chain, rx))
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    log::error!("chain '{}' activation worker disconnected", chain_id.0)
+                }
+            }
+        }
+        self.pending_activations = still_activating;
+        applied
+    }
+
+    /// Sample rate (Hz) the live streams are running at. The DI-loop loader
+    /// resamples to this so loops play at the correct speed on any device rate
+    /// (#669).
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     /// Translate a detected USB audio card + project-level device settings
@@ -264,8 +528,21 @@ impl ProjectRuntimeController {
         #[cfg(not(all(target_os = "linux", feature = "jack")))]
         {
             let host = get_host();
-            validate_channels_against_devices(project, host)?;
-            let mut resolved_chains = resolve_enabled_chain_audio_configs(host, project)?;
+            // #693: on a cold start (nothing active, nothing pending) every
+            // enabled chain goes through the off-thread activation, which
+            // validates + resolves on the control worker — skip the
+            // hundreds-of-ms CoreAudio queries here so the caller (the GUI
+            // thread) returns immediately. Live syncs keep the upfront
+            // validation so errors still surface synchronously.
+            let cold_start = self.active_chains.is_empty()
+                && self.pending_activations.is_empty()
+                && self.pending_rebuilds.is_empty();
+            let mut resolved_chains = if cold_start {
+                HashMap::new()
+            } else {
+                validate_channels_against_devices(project, host, &self.io_bindings)?;
+                resolve_enabled_chain_audio_configs(host, project, &self.io_bindings)?
+            };
 
             let removed_chain_ids = self
                 .active_chains
@@ -283,14 +560,44 @@ impl ProjectRuntimeController {
                 self.runtime_graph.remove_chain(&chain_id);
             }
 
+            // #716 (invariant #4): two or more ACTIVE inputs may not share the
+            // same device+channel. Refuse to bring up a chain whose input tap
+            // is already claimed by an earlier enabled chain (first wins);
+            // within-chain duplicates are caught too. Output may be shared.
+            let input_conflicts =
+                engine::runtime_endpoints::input_conflicting_chains(project.chains.iter(), &self.io_bindings);
+
             for chain in &project.chains {
                 if !chain.enabled {
                     continue;
                 }
+                if input_conflicts.contains(&chain.id) {
+                    log::warn!(
+                        "chain '{}' not activated: one of its input device+channel taps is already in use by another active chain (#716)",
+                        chain.id.0
+                    );
+                    continue;
+                }
 
-                let resolved = resolved_chains.remove(&chain.id).ok_or_else(|| {
-                    anyhow!("chain '{}' missing resolved audio config", chain.id.0)
-                })?;
+                // #693: a cold bring-up must not hold the caller (the GUI
+                // thread) — reuse the #672 off-thread activation: validate +
+                // resolve + heavy build (NAM/IR, routes) on the control
+                // worker, streams installed by the poll tick. #740: this now
+                // covers multi-device chains too, so only an already-streaming
+                // chain stays on the synchronous (live-rebuild) path.
+                if self.schedule_chain_activation(project, chain)? {
+                    continue;
+                }
+                let resolved = match resolved_chains.remove(&chain.id) {
+                    Some(resolved) => resolved,
+                    None => {
+                        // Cold start skipped the upfront resolve; this is the
+                        // synchronous fallback for a chain the scheduler
+                        // declined (e.g. already streaming).
+                        validate_chain_channels_against_devices(host, chain, &self.io_bindings)?;
+                        resolve_chain_audio_config(host, project, chain, &self.io_bindings)?
+                    }
+                };
                 self.upsert_chain_with_resolved(chain, resolved, false)?;
             }
 
@@ -326,7 +633,8 @@ impl ProjectRuntimeController {
             if !chain.enabled {
                 continue;
             }
-            let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
+            let resolved =
+                crate::jack_resolve_chain_config(chain, &self.supervisor, &self.io_bindings)?;
             self.upsert_chain_with_resolved(chain, resolved, false)?;
         }
 
@@ -391,17 +699,196 @@ impl ProjectRuntimeController {
             // ensure_jack_servers handles would_restart + self.stop() + the
             // ensure_server retry loop.
             self.ensure_jack_servers(project)?;
-            let resolved = crate::jack_resolve_chain_config(chain, &self.supervisor)?;
+            let resolved =
+                crate::jack_resolve_chain_config(chain, &self.supervisor, &self.io_bindings)?;
             return self.upsert_chain_with_resolved(chain, resolved, spillover);
         }
 
         #[cfg(not(all(target_os = "linux", feature = "jack")))]
         {
             let host = get_host();
-            validate_chain_channels_against_devices(host, chain)?;
-            let resolved = resolve_chain_audio_config(host, project, chain)?;
+            validate_chain_channels_against_devices(host, chain, &self.io_bindings)?;
+            let resolved = resolve_chain_audio_config(host, project, chain, &self.io_bindings)?;
             self.upsert_chain_with_resolved(chain, resolved, spillover)
         }
+    }
+
+    /// Issue #672 — if `chain` is already streaming with UNCHANGED IO topology,
+    /// rebuild its runtime off the frontend thread (the model-swap freeze) and
+    /// return `true`. Returns `false` when the chain is not live or its IO
+    /// changed, so the caller falls back to the synchronous stream-rebuild path.
+    ///
+    /// Param/knob edits are NOT routed here — they keep the engine's cheap
+    /// in-place lock-free update. Only the model/type-swap callbacks call this.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn request_offthread_rebuild_if_live(
+        &mut self,
+        project: &Project,
+        chain: &Chain,
+    ) -> Result<bool> {
+        if !self.active_chains.contains_key(&chain.id) {
+            return Ok(false); // cold activation — caller does the synchronous build
+        }
+        // #740: a re-bind (device/channel change) needs a synchronous stream
+        // rebuild; detect it CHEAPLY (binding vs live signature, no CoreAudio).
+        if self.chain_io_changed(project, chain)? {
+            return Ok(false);
+        }
+        // I/O unchanged: a param/block/preset edit reuses the running stream
+        // config, so derive the rebuild params from the LIVE signature instead of
+        // a synchronous CoreAudio resolve (the ~hundreds-ms freeze the owner felt
+        // on every edit, on top of the off-thread NAM reload). The heavy DSP
+        // rebuild then runs on the worker; the GUI returns immediately.
+        let (sample_rate, device_sample_rates, out_buffers) = {
+            let sig = &self
+                .active_chains
+                .get(&chain.id)
+                .expect("just checked active")
+                .stream_signature;
+            let sample_rate = sig.inputs.first().map(|i| i.sample_rate as f32).unwrap_or(48_000.0);
+            let device_sample_rates: std::collections::HashMap<domain::ids::DeviceId, f32> = sig
+                .inputs
+                .iter()
+                .map(|i| (domain::ids::DeviceId(i.device_id.clone()), i.sample_rate as f32))
+                .collect();
+            let out_buffers: Vec<u32> =
+                sig.outputs.iter().map(|o| o.buffer_size_frames).collect();
+            (sample_rate, device_sample_rates, out_buffers)
+        };
+        let elastic_targets = crate::elastic::elastic_targets_from_output_buffers(&out_buffers);
+        self.schedule_chain_rebuild(chain, sample_rate, device_sample_rates, elastic_targets);
+        Ok(true)
+    }
+
+    /// JACK build: the live-slot swap is not wired for the JACK backend yet
+    /// (issue #672 does the cpal path first), so always fall back to the
+    /// synchronous path.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn request_offthread_rebuild_if_live(
+        &mut self,
+        _project: &Project,
+        _chain: &Chain,
+    ) -> Result<bool> {
+        Ok(false)
+    }
+
+    /// #716: `true` when `chain` is already streaming AND its resolved I/O
+    /// topology (the devices/channels its bindings point at) differs from what
+    /// is live — i.e. the user re-bound its E/S. A param/block `upsert` keeps the
+    /// existing streams, so an E/S swap would NOT take effect until a project
+    /// reopen; the caller must REBUILD the chain's streams when this is true.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn chain_io_changed(&self, _project: &Project, chain: &Chain) -> Result<bool> {
+        let Some(active) = self.active_chains.get(&chain.id) else {
+            return Ok(false); // not streaming — nothing to compare
+        };
+        // #743: a re-bind is a device+channel change, which the binding registry
+        // and the live stream signature already carry — compare them directly.
+        // The old `resolve_chain_audio_config` here ran a CoreAudio device query
+        // (hundreds of ms per device, ~750 ms on a four-device rig) on the GUI
+        // thread every toggle-ON, freezing the UI for a check that needs no
+        // hardware. A rate/buffer change arrives via the device-settings sync,
+        // not this per-chain toggle path.
+        let live_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = active
+            .stream_signature
+            .inputs
+            .iter()
+            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .collect();
+        let live_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = active
+            .stream_signature
+            .outputs
+            .iter()
+            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .collect();
+        let (bound_in, bound_out) =
+            engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings);
+        let bound_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_in
+            .into_iter()
+            .map(|e| (e.device_id, e.channels))
+            .collect();
+        let bound_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_out
+            .into_iter()
+            .map(|e| (e.device_id, e.channels))
+            .collect();
+        Ok(crate::io_topology_changed(
+            &live_inputs,
+            &bound_inputs,
+            &live_outputs,
+            &bound_outputs,
+        ))
+    }
+
+    /// JACK build: stream-topology live-swap is not wired yet (cpal path first).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn chain_io_changed(&self, _project: &Project, _chain: &Chain) -> Result<bool> {
+        Ok(false)
+    }
+
+    /// Issue #672 — cold activation. If `chain` is not yet streaming, build its
+    /// per-input runtimes (the heavy NAM/IR load) on the control worker and
+    /// return `true`; the next poll creates the cpal streams on the frontend
+    /// (they are `!Send`) and installs the chain. Returns `false` only for an
+    /// already-streaming chain, which the caller then rebuilds synchronously.
+    ///
+    /// Issue #740: this used to defer ANY multi-device chain to the synchronous
+    /// build (`input_devices.len() != 1`), so a rig bound to several interfaces
+    /// (the owner's four-binding, two-interface boot) brought every stream up
+    /// serially on the calling thread — the first streams ran their callback,
+    /// counting underruns, while the remaining NAM/IR builds still blocked. The
+    /// off-thread path already builds one runtime per input group
+    /// (`build_per_input_runtime_states`) and installs one stream per device
+    /// (`build_chain_streams`), so multi-device chains take it too: every
+    /// runtime is built off-thread, then ALL streams are created and played
+    /// together in one poll tick — no sibling starves another's bring-up.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn schedule_chain_activation(&mut self, project: &Project, chain: &Chain) -> Result<bool> {
+        if self.active_chains.contains_key(&chain.id) {
+            return Ok(false); // already streaming — not a cold activation
+        }
+
+        // #693: validation + device resolution are CoreAudio property
+        // queries costing hundreds of ms — they run on the control worker
+        // together with the heavy build, never on the calling thread.
+        let project_for_build = project.clone();
+        let chain_for_build = chain.clone();
+        let registry_for_build = self.io_bindings.clone();
+        let rx = self.worker.submit(move || {
+            let host = get_host();
+            validate_chain_channels_against_devices(host, &chain_for_build, &registry_for_build)?;
+            let resolved = resolve_chain_audio_config(
+                host,
+                &project_for_build,
+                &chain_for_build,
+                &registry_for_build,
+            )?;
+            let elastic_targets = compute_elastic_targets_for_chain(
+                &chain_for_build,
+                &resolved,
+                &registry_for_build,
+            );
+            let request = BuildRequest {
+                chain: chain_for_build,
+                sample_rate: resolved.sample_rate,
+                device_sample_rates: resolved.by_device.clone(),
+                buffer_sizes: elastic_targets,
+                io_bindings: registry_for_build,
+            };
+            Ok((build_chain_runtime(&request)?, resolved))
+        });
+        self.pending_activations
+            .push((chain.id.clone(), chain.clone(), rx));
+        Ok(true)
+    }
+
+    /// JACK build keeps cold activation synchronous (issue #672 wires cpal first).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn schedule_chain_activation(
+        &mut self,
+        _project: &Project,
+        _chain: &Chain,
+    ) -> Result<bool> {
+        Ok(false)
     }
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
@@ -428,7 +915,10 @@ impl ProjectRuntimeController {
     }
 
     pub fn is_running(&self) -> bool {
-        !self.active_chains.is_empty()
+        // Issue #672: a chain whose runtime is still building off-thread (cold
+        // activation) counts as running so the controller is not torn down
+        // before poll_pending_rebuilds installs its streams.
+        !self.active_chains.is_empty() || !self.pending_activations.is_empty()
     }
 
     /// Check whether the audio backend is still healthy.
@@ -497,8 +987,6 @@ impl ProjectRuntimeController {
         }
     }
 
-    /// Returns stream data for a block in any running chain.
-
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,
@@ -546,6 +1034,10 @@ impl ProjectRuntimeController {
             .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
 
+        // #669: track the real device sample rate the runtime is built at, so
+        // the DI-loop loader resamples loops to it instead of a stale 48000.
+        self.sample_rate = resolved.sample_rate as u32;
+
         // Tear down the previous ActiveChainRuntime BEFORE mutating shared
         // runtime state or building the replacement. Otherwise HashMap::insert
         // drops the old runtime only after the new one is fully constructed,
@@ -557,7 +1049,8 @@ impl ProjectRuntimeController {
             self.teardown_active_chain_for_rebuild(&chain.id);
         }
 
-        let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
+        let elastic_targets =
+            compute_elastic_targets_for_chain(chain, &resolved, &self.io_bindings);
         // upsert_chain (re)builds every per-input runtime for this chain and
         // returns the first; fetch the full ordered (group, runtime) list
         // from the graph so the cpal layer can wire each physical input
@@ -567,21 +1060,39 @@ impl ProjectRuntimeController {
             self.runtime_graph.upsert_chain_spillover(
                 chain,
                 resolved.sample_rate,
+                &resolved.by_device,
                 needs_stream_rebuild,
                 &elastic_targets,
+                &self.io_bindings,
             )?;
         } else {
             self.runtime_graph.upsert_chain(
                 chain,
                 resolved.sample_rate,
+                &resolved.by_device,
                 needs_stream_rebuild,
                 &elastic_targets,
+                &self.io_bindings,
             )?;
         }
 
         if needs_stream_rebuild {
             let runtimes = self.runtime_graph.runtimes_with_groups_for(&chain.id);
-            let active = crate::build_active_chain_runtime(&chain.id, chain, resolved, runtimes)?;
+            // Issue #672: wrap each group runtime in a LiveRuntimeSlot, keep a
+            // handle so the control worker can publish a rebuilt runtime into the
+            // exact slot the new streams read, then build the streams from them.
+            let slots = crate::build_chain_slots(&runtimes);
+            for (group, slot) in &slots {
+                self.chain_slots
+                    .insert((chain.id.clone(), *group), slot.handle());
+            }
+            let active = crate::build_active_chain_runtime(
+                &chain.id,
+                chain,
+                resolved,
+                slots,
+                &self.io_bindings,
+            )?;
             self.active_chains.insert(chain.id.clone(), active);
         }
 

@@ -42,4 +42,13 @@ pub trait CommandDispatcher {
     /// Returns an `EventStream`. Phase 2 will refine the type to something
     /// that supports async fan-out to multiple subscribers.
     fn subscribe(&self) -> EventStream;
+
+    /// #693: drain results of commands whose heavy work ran on its own
+    /// task (e.g. the DI-loop WAV decode), apply them to dispatcher
+    /// state, and return the completion events — same shape observers
+    /// get from a synchronous dispatch. Called from the frontend poll
+    /// tick. Default: nothing pending.
+    fn poll_async_results(&self) -> Vec<Event> {
+        Vec::new()
+    }
 }

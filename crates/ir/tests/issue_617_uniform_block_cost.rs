@@ -49,39 +49,48 @@ fn di_signal(frames: usize) -> Vec<f32> {
 
 #[test]
 fn cost_per_callback_is_uniform_at_buffer_64() {
-    let mut ir = MonoIrProcessor::new(cabinet_ir(8192));
     let block = 64usize;
     let signal = di_signal(block * 3000);
 
-    // Warm up state allocation / caches so the measurement reflects steady
-    // state, not the first-build transient.
-    let mut warm = signal[..block].to_vec();
-    for _ in 0..64 {
-        ir.process_block(&mut warm);
-    }
+    // One measurement pass → the p99/median per-block cost ratio.
+    let measure = || {
+        let mut ir = MonoIrProcessor::new(cabinet_ir(8192));
 
-    let mut times_ns: Vec<u64> = Vec::with_capacity(signal.len() / block);
-    let mut buf = vec![0.0f32; block];
-    for chunk in signal.chunks_exact(block) {
-        buf.copy_from_slice(chunk);
-        let t0 = Instant::now();
-        ir.process_block(&mut buf);
-        times_ns.push(t0.elapsed().as_nanos() as u64);
-    }
+        // Warm up state allocation / caches so the measurement reflects steady
+        // state, not the first-build transient.
+        let mut warm = signal[..block].to_vec();
+        for _ in 0..64 {
+            ir.process_block(&mut warm);
+        }
 
-    times_ns.sort_unstable();
-    let median = times_ns[times_ns.len() / 2].max(1) as f64;
-    // 99th percentile filters the rare OS scheduling hiccup but is still well
-    // inside the burst band of the broken convolver (every 8th block at
-    // buffer 64 was a spike ≈ 12.5% of blocks).
-    let p99 = times_ns[times_ns.len() * 99 / 100] as f64;
-    let ratio = p99 / median;
+        let mut times_ns: Vec<u64> = Vec::with_capacity(signal.len() / block);
+        let mut buf = vec![0.0f32; block];
+        for chunk in signal.chunks_exact(block) {
+            buf.copy_from_slice(chunk);
+            let t0 = Instant::now();
+            ir.process_block(&mut buf);
+            times_ns.push(t0.elapsed().as_nanos() as u64);
+        }
+
+        times_ns.sort_unstable();
+        let median = times_ns[times_ns.len() / 2].max(1) as f64;
+        // 99th percentile filters the rare OS scheduling hiccup but is still
+        // well inside the burst band of the broken convolver (every 8th block
+        // at buffer 64 was a spike ≈ 12.5% of blocks).
+        times_ns[times_ns.len() * 99 / 100] as f64 / median
+    };
+
+    // The #617 spike is structural — it lands on every 8th block, so it shows
+    // up in EVERY pass. Transient OS scheduling contention (e.g. a busy CI box)
+    // does not. Taking the best (lowest) ratio over a few passes keeps the real
+    // regression detector intact while removing the wall-clock false positive.
+    let ratio = (0..3).map(|_| measure()).fold(f64::INFINITY, f64::min);
 
     assert!(
         ratio < 4.0,
-        "IR per-callback cost is bursty (issue #617): p99 block = {p99:.0}ns is {ratio:.1}x the \
-         median {median:.0}ns. A periodic per-partition FFT spike (PARTITION_SIZE >> device buffer) \
-         concentrates the convolution into one callback and overruns small buffers."
+        "IR per-callback cost is bursty (issue #617): best-of-3 p99/median = {ratio:.1}x. \
+         A periodic per-partition FFT spike (PARTITION_SIZE >> device buffer) concentrates the \
+         convolution into one callback and overruns small buffers."
     );
 }
 

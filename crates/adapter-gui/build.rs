@@ -1,6 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+// Shared with the crate (and unit-tested there) — see issue #726. Included by
+// path because a build script is its own compilation unit and can't reach the
+// crate's modules.
+#[path = "src/mo_freshness.rs"]
+mod mo_freshness;
+
 fn main() {
     // with_bundled_translations embeds the .po files directly into the
     // compiled binary at compile time. This sidesteps every runtime path
@@ -20,8 +26,14 @@ fn main() {
     // ship, falling back to the raw key in the UI (e.g. "BTN-CLOSE"
     // showing up as Bebas Neue all-caps). See slint_build docs for
     // with_default_translation_context.
-    let base = slint_build::CompilerConfiguration::new()
+    let mut base = slint_build::CompilerConfiguration::new()
         .with_default_translation_context(slint_build::DefaultTranslationContext::None);
+    // #716: the ElementHandle interaction-test API requires element debug info
+    // in the generated code. Emit it in debug builds (where the tests run);
+    // release/embedded builds stay lean.
+    if std::env::var("PROFILE").as_deref() == Ok("debug") {
+        base = base.with_debug_info(true);
+    }
     let config = if translations.exists() {
         base.with_bundled_translations(translations)
     } else {
@@ -119,6 +131,18 @@ fn compile_po(po: &Path, mo_dir: &Path, lang: &str) {
         return;
     }
     let mo = mo_dir.join("adapter-gui.mo");
+    // #726: only (re)compile when the .mo is missing or older than its .po.
+    // Rewriting an up-to-date .mo bumps translations/ (tracked via
+    // rerun-if-changed), which makes Cargo re-run this build script and relink
+    // adapter-gui (~30s) on every build. The freshness rule is unit-tested in
+    // mo_freshness.rs.
+    let po_mtime = std::fs::metadata(po).and_then(|m| m.modified()).ok();
+    let mo_mtime = std::fs::metadata(&mo).and_then(|m| m.modified()).ok();
+    if let Some(po_mtime) = po_mtime {
+        if !mo_freshness::mo_is_stale(po_mtime, mo_mtime) {
+            return;
+        }
+    }
     let status = Command::new("msgfmt").arg("-o").arg(&mo).arg(po).status();
     if let Ok(s) = status {
         if !s.success() {

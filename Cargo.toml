@@ -41,6 +41,9 @@ members = [
   "crates/adapter-render",
   "crates/vst3",
 ]
+# Dev-only headless Slint renderer (PNG screenshots for UI review). Excluded:
+# it pins slint-interpreter at its own version and must not enter the app build.
+exclude = ["tools/slint-render"]
 resolver = "2"
 
 [workspace.package]
@@ -65,10 +68,69 @@ prost = "0.13"
 uuid = { version = "1", features = ["v4", "serde"] }
 arc-swap = "1.7"
 crossbeam-queue = "0.3"
-slint = { version = "1.14", default-features = false, features = ["std", "compat-1-2"] }
-slint-build = "1.14"
+slint = { version = "1.16", default-features = false, features = ["std", "compat-1-2"] }
+slint-build = "1.16"
 log = "0.4"
 env_logger = "0.11"
 rustfft = "6"
 webbrowser = "1.0"
 schemars = "0.8"
+
+# Issue #670 — keep the AUDIO path optimized in dev builds. Unoptimized Rust
+# DSP is 10-40x slower; the live rig's per-buffer cost then blows the 64-frame
+# budget (measured: 2601 late buffers/30 s in dev vs 1/45 s in release on the
+# same rig) — the "picotado" sound when running from the IDE's default run
+# button. Dependencies and the DSP crates compile optimized even in dev; the
+# app-layer crates (adapter-*, application, project, ui) stay unoptimized for
+# fast iteration.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.engine]
+opt-level = 3
+[profile.dev.package.ir]
+opt-level = 3
+[profile.dev.package.nam]
+opt-level = 3
+[profile.dev.package.lv2]
+opt-level = 3
+[profile.dev.package.infra-cpal]
+opt-level = 3
+[profile.dev.package.block-core]
+opt-level = 3
+[profile.dev.package.block-util]
+opt-level = 3
+[profile.dev.package.block-amp]
+opt-level = 3
+[profile.dev.package.block-body]
+opt-level = 3
+[profile.dev.package.block-cab]
+opt-level = 3
+[profile.dev.package.block-delay]
+opt-level = 3
+[profile.dev.package.block-dyn]
+opt-level = 3
+[profile.dev.package.block-filter]
+opt-level = 3
+[profile.dev.package.block-full-rig]
+opt-level = 3
+[profile.dev.package.block-gain]
+opt-level = 3
+[profile.dev.package.block-ir]
+opt-level = 3
+[profile.dev.package.block-mod]
+opt-level = 3
+[profile.dev.package.block-nam]
+opt-level = 3
+[profile.dev.package.block-pitch]
+opt-level = 3
+[profile.dev.package.block-preamp]
+opt-level = 3
+[profile.dev.package.block-reverb]
+opt-level = 3
+[profile.dev.package.block-routing]
+opt-level = 3
+[profile.dev.package.block-wah]
+opt-level = 3
+[profile.dev.package.feature-dsp]
+opt-level = 3

@@ -4,21 +4,18 @@
 //! the original 4-space indent so raw-string YAML literals stay intact.
 
 use super::{
-    load_chain_preset_file, save_chain_preset_file, serialize_project, ChainBlocksPreset,
-    YamlProjectRepository,
+    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
 use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-    SelectBlock,
+    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock, SelectBlock,
 };
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::tempdir;
-use tempfile::TempDir;
 
 #[test]
 fn save_project_creates_yaml_that_roundtrips_basic_project() {
@@ -36,17 +33,15 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
-                        entries: vec![InputEntry {
-                            device_id: DeviceId("input-device".into()),
-                            mode: ChainInputMode::Mono,
-                            channels: vec![0],
-                        }],
+                        io: "main".to_string(),
+                        endpoint: "Guitar In".to_string(),
                     }),
                 },
                 AudioBlock {
@@ -54,11 +49,8 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
-                        entries: vec![OutputEntry {
-                            device_id: DeviceId("output-device".into()),
-                            mode: ChainOutputMode::Stereo,
-                            channels: vec![0, 1],
-                        }],
+                        io: "main".to_string(),
+                        endpoint: "Monitor Out".to_string(),
                     }),
                 },
             ],
@@ -81,59 +73,12 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
     assert_eq!(loaded.chains[0].description, original.chains[0].description);
     let loaded_inputs = loaded.chains[0].input_blocks();
     assert_eq!(loaded_inputs.len(), 1);
-    assert_eq!(
-        loaded_inputs[0].1.entries[0].device_id,
-        DeviceId("input-device".into())
-    );
-    assert_eq!(loaded_inputs[0].1.entries[0].channels, vec![0]);
+    assert_eq!(loaded_inputs[0].1.io, "main");
+    assert_eq!(loaded_inputs[0].1.endpoint, "Guitar In");
     let loaded_outputs = loaded.chains[0].output_blocks();
     assert_eq!(loaded_outputs.len(), 1);
-    assert_eq!(
-        loaded_outputs[0].1.entries[0].device_id,
-        DeviceId("output-device".into())
-    );
-    assert_eq!(loaded_outputs[0].1.entries[0].channels, vec![0, 1]);
-}
-
-#[test]
-fn load_project_migrates_legacy_io_format() {
-    let temp_dir = tempdir().expect("temp dir should be created");
-    let project_path = temp_dir.path().join("project.yaml");
-    fs::write(
-        &project_path,
-        r#"
-chains:
-  - enabled: true
-    input_device_id: legacy-input
-    input_channels: [0]
-    output_device_id: legacy-output
-    output_channels: [0, 1]
-    blocks: []
-"#,
-    )
-    .expect("project yaml should be written");
-
-    let repository = YamlProjectRepository { path: project_path };
-    let project = repository
-        .load_current_project()
-        .expect("legacy project should load with migration");
-
-    assert_eq!(project.chains.len(), 1);
-    let inputs = project.chains[0].input_blocks();
-    assert_eq!(inputs.len(), 1);
-    assert_eq!(
-        inputs[0].1.entries[0].device_id,
-        DeviceId("legacy-input".into())
-    );
-    assert_eq!(inputs[0].1.entries[0].channels, vec![0]);
-    let outputs = project.chains[0].output_blocks();
-    assert_eq!(outputs.len(), 1);
-    assert_eq!(
-        outputs[0].1.entries[0].device_id,
-        DeviceId("legacy-output".into())
-    );
-    assert_eq!(outputs[0].1.entries[0].channels, vec![0, 1]);
-    assert_eq!(outputs[0].1.entries[0].mode, ChainOutputMode::Stereo);
+    assert_eq!(loaded_outputs[0].1.io, "main");
+    assert_eq!(loaded_outputs[0].1.endpoint, "Monitor Out");
 }
 
 #[test]
@@ -149,10 +94,6 @@ fn load_project_ignores_removed_or_invalid_blocks() {
             r#"
 chains:
   - enabled: true
-    input_device_id: input-device
-    input_channels: [0]
-    output_device_id: output-device
-    output_channels: [0]
     blocks:
       - type: core_nam
         enabled: true
@@ -175,7 +116,7 @@ chains:
         .expect("project should load while skipping invalid blocks");
 
     assert_eq!(project.chains.len(), 1);
-    // 1 InputBlock + 1 valid delay block + 1 OutputBlock = 3 total
+    // The invalid core_nam block is dropped; only the valid delay survives.
     let audio_blocks: Vec<_> = project.chains[0]
         .blocks
         .iter()
@@ -372,22 +313,13 @@ fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
 
 #[test]
 fn insert_block_yaml_roundtrip() {
-    use project::block::{InsertBlock, InsertEndpoint};
+    use project::block::InsertBlock;
     let block = AudioBlock {
         id: BlockId("chain:0:block:1".into()),
         enabled: true,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId("mk300-out".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId("mk300-in".into()),
-                mode: ChainInputMode::Stereo,
-                channels: vec![0, 1],
-            },
+            io: "mk300".to_string(),
         }),
     };
     let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
@@ -395,39 +327,19 @@ fn insert_block_yaml_roundtrip() {
     let parsed: super::AudioBlockYaml = serde_yaml::from_value(value).expect("deserialize");
     let chain_id = ChainId("chain:0".to_string());
     let restored = parsed.into_audio_block(&chain_id, 1).expect("into block");
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out")
-    );
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in")
-    );
-    assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.channels == vec![0, 1]));
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.channels == vec![0, 1])
-    );
-    assert!(
-        matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.mode == ChainInputMode::Stereo)
-    );
+    assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.io == "mk300"));
+    assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.model == "standard"));
 }
 
 #[test]
 fn disabled_insert_block_yaml_roundtrip() {
-    use project::block::{InsertBlock, InsertEndpoint};
+    use project::block::InsertBlock;
     let block = AudioBlock {
         id: BlockId("chain:0:block:2".into()),
         enabled: false,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "standard".to_string(),
-            send: InsertEndpoint {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: Vec::new(),
-            },
-            return_: InsertEndpoint {
-                device_id: DeviceId(String::new()),
-                mode: ChainInputMode::Mono,
-                channels: Vec::new(),
-            },
+            io: String::new(),
         }),
     };
     let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
@@ -437,6 +349,49 @@ fn disabled_insert_block_yaml_roundtrip() {
     let restored = parsed.into_audio_block(&chain_id, 2).expect("into block");
     assert!(!restored.enabled);
     assert!(matches!(&restored.kind, AudioBlockKind::Insert(_)));
+}
+
+// ─── Guard: Insert block YAML carries the `io` binding, not raw send/return (#716 model A) ───
+
+/// Regression guard for issue #716 (model A).
+///
+/// An insert now references ONE I/O binding (`io`) instead of embedding raw
+/// send/return device endpoints. The send resolves to that binding's output
+/// and the return to its input via the per-machine registry. The serialized
+/// YAML must therefore carry `io` and must NOT carry the deleted
+/// `send:`/`return:` device blocks.
+///
+/// If this test fails, the legacy embedded-endpoint model leaked back into
+/// Insert serialization — restore the `{ model, io }` shape.
+#[test]
+fn insert_block_yaml_carries_io_binding_not_raw_endpoints() {
+    use project::block::InsertBlock;
+    let block = AudioBlock {
+        id: BlockId("chain:0:block:1".into()),
+        enabled: true,
+        kind: AudioBlockKind::Insert(InsertBlock {
+            model: "standard".to_string(),
+            io: "fx-loop".to_string(),
+        }),
+    };
+    let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
+    let value = serde_yaml::to_value(&yaml).expect("serialize to value");
+    let yaml_str = serde_yaml::to_string(&value).expect("serialize to string");
+
+    // Guard: model A — the insert references its binding via `io`.
+    assert!(
+        yaml_str.contains("io: fx-loop"),
+        "Insert block YAML must carry the 'io' binding id (#716 model A): {yaml_str}"
+    );
+    // Guard: the deleted raw send/return device model must NOT come back.
+    assert!(
+        !yaml_str.contains("send:"),
+        "Insert block YAML must NOT contain a raw 'send:' endpoint (#716 model A): {yaml_str}"
+    );
+    assert!(
+        !yaml_str.contains("return:"),
+        "Insert block YAML must NOT contain a raw 'return:' endpoint (#716 model A): {yaml_str}"
+    );
 }
 
 // ─── Helper: build a CoreBlock AudioBlock for a given effect type + model ───
@@ -568,12 +523,6 @@ fn roundtrip_pitch_block_preserves_type_and_model() {
 }
 
 #[test]
-#[ignore = "block-util crate is empty (utility blocks promoted to top-bar features in #320)"]
-fn roundtrip_utility_block_preserves_type_and_model() {
-    assert_core_roundtrip("utility", first_model(block_util::supported_models()));
-}
-
-#[test]
 fn roundtrip_ir_block_serializes_and_deserializes_yaml() {
     use domain::value_objects::ParameterValue;
     // IR normalization validates the file exists on disk, so we only test
@@ -645,17 +594,15 @@ fn chain_with_only_io_blocks_roundtrips() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
-                        entries: vec![InputEntry {
-                            device_id: DeviceId("dev-in".into()),
-                            mode: ChainInputMode::Mono,
-                            channels: vec![0],
-                        }],
+                        io: "main".to_string(),
+                        endpoint: "In 1".to_string(),
                     }),
                 },
                 AudioBlock {
@@ -663,11 +610,8 @@ fn chain_with_only_io_blocks_roundtrips() {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
-                        entries: vec![OutputEntry {
-                            device_id: DeviceId("dev-out".into()),
-                            mode: ChainOutputMode::Mono,
-                            channels: vec![0],
-                        }],
+                        io: "main".to_string(),
+                        endpoint: "Out 1".to_string(),
                     }),
                 },
             ],
@@ -755,84 +699,6 @@ fn parameter_boundary_max_value_roundtrips() {
     } else {
         panic!("expected Core block");
     }
-}
-
-// ─── Legacy format migration: inputs/outputs sections ───
-
-#[test]
-fn load_project_migrates_legacy_inputs_outputs_sections() {
-    let temp_dir = tempdir().expect("temp dir");
-    let project_path = temp_dir.path().join("legacy_sections.yaml");
-    fs::write(
-        &project_path,
-        r#"
-chains:
-  - description: Legacy chain
-    instrument: electric_guitar
-    inputs:
-      - device_id: legacy-mic
-        mode: mono
-        channels: [0]
-    outputs:
-      - device_id: legacy-speaker
-        mode: stereo
-        channels: [0, 1]
-    blocks: []
-"#,
-    )
-    .expect("write");
-    let repo = YamlProjectRepository { path: project_path };
-    let project = repo.load_current_project().expect("load");
-    assert_eq!(project.chains.len(), 1);
-    let inputs = project.chains[0].input_blocks();
-    assert_eq!(inputs.len(), 1);
-    assert_eq!(
-        inputs[0].1.entries[0].device_id,
-        DeviceId("legacy-mic".into())
-    );
-    let outputs = project.chains[0].output_blocks();
-    assert_eq!(outputs.len(), 1);
-    assert_eq!(
-        outputs[0].1.entries[0].device_id,
-        DeviceId("legacy-speaker".into())
-    );
-    assert_eq!(outputs[0].1.entries[0].mode, ChainOutputMode::Stereo);
-}
-
-#[test]
-fn load_project_migrates_legacy_input_with_entries_format() {
-    let temp_dir = tempdir().expect("temp dir");
-    let project_path = temp_dir.path().join("legacy_entries.yaml");
-    fs::write(
-        &project_path,
-        r#"
-chains:
-  - description: Entries chain
-    instrument: bass
-    inputs:
-      - entries:
-          - name: Bass Input
-            device_id: bass-interface
-            mode: mono
-            channels: [1]
-    outputs:
-      - entries:
-          - name: Bass Output
-            device_id: bass-monitor
-            mode: mono
-            channels: [0]
-    blocks: []
-"#,
-    )
-    .expect("write");
-    let repo = YamlProjectRepository { path: project_path };
-    let project = repo.load_current_project().expect("load");
-    let inputs = project.chains[0].input_blocks();
-    assert_eq!(
-        inputs[0].1.entries[0].device_id,
-        DeviceId("bass-interface".into())
-    );
-    assert_eq!(inputs[0].1.entries[0].channels, vec![1]);
 }
 
 // ─── flatten_parameter_set edge cases ───
@@ -965,13 +831,15 @@ fn serialize_project_produces_valid_yaml_string() {
             instrument: "generic".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 AudioBlock {
                     id: BlockId("chain:0:input:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
-                        entries: Vec::new(),
+                        io: String::new(),
+                        endpoint: String::new(),
                     }),
                 },
                 AudioBlock {
@@ -979,7 +847,8 @@ fn serialize_project_produces_valid_yaml_string() {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
-                        entries: Vec::new(),
+                        io: String::new(),
+                        endpoint: String::new(),
                     }),
                 },
             ],
@@ -1065,11 +934,8 @@ fn preset_roundtrips_with_input_output_blocks() {
                 enabled: true,
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".to_string(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("mic-dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
+                    io: "main".to_string(),
+                    endpoint: "Mic In".to_string(),
                 }),
             },
             AudioBlock {
@@ -1077,11 +943,8 @@ fn preset_roundtrips_with_input_output_blocks() {
                 enabled: true,
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".to_string(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("spk-dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
+                    io: "main".to_string(),
+                    endpoint: "Speaker Out".to_string(),
                 }),
             },
         ],
@@ -1090,10 +953,10 @@ fn preset_roundtrips_with_input_output_blocks() {
     let loaded = load_chain_preset_file(&path).expect("load");
     assert_eq!(loaded.blocks.len(), 2);
     assert!(
-        matches!(&loaded.blocks[0].kind, AudioBlockKind::Input(inp) if inp.entries[0].device_id == DeviceId("mic-dev".into()))
+        matches!(&loaded.blocks[0].kind, AudioBlockKind::Input(inp) if inp.io == "main" && inp.endpoint == "Mic In")
     );
     assert!(
-        matches!(&loaded.blocks[1].kind, AudioBlockKind::Output(out) if out.entries[0].device_id == DeviceId("spk-dev".into()))
+        matches!(&loaded.blocks[1].kind, AudioBlockKind::Output(out) if out.io == "main" && out.endpoint == "Speaker Out")
     );
 }
 
@@ -1213,96 +1076,6 @@ fn legacy_device_settings_still_deserialize() {
     );
 }
 
-// ─── Inline I/O in blocks (new format) takes precedence ───
-
-#[test]
-fn load_project_inline_io_ignores_legacy_sections() {
-    let temp_dir = tempdir().expect("temp dir");
-    let project_path = temp_dir.path().join("inline_io.yaml");
-    let delay_model = first_model(block_delay::supported_models());
-    fs::write(
-        &project_path,
-        format!(
-            r#"
-chains:
-  - description: Inline IO
-    instrument: electric_guitar
-    inputs:
-      - device_id: should-be-ignored
-        channels: [99]
-    outputs:
-      - device_id: should-be-ignored-too
-        channels: [99]
-    blocks:
-      - type: input
-        enabled: true
-        model: standard
-        entries:
-          - name: Real Input
-            device_id: real-input
-            mode: mono
-            channels: [0]
-      - type: delay
-        model: {delay_model}
-        params:
-          time_ms: 100
-          feedback: 20
-          mix: 30
-      - type: output
-        enabled: true
-        model: standard
-        entries:
-          - name: Real Output
-            device_id: real-output
-            mode: stereo
-            channels: [0, 1]
-"#,
-        ),
-    )
-    .expect("write");
-    let repo = YamlProjectRepository { path: project_path };
-    let project = repo.load_current_project().expect("load");
-    let chain = &project.chains[0];
-    // Inline IO wins: should have the real-input device, not the legacy one
-    let inputs = chain.input_blocks();
-    assert_eq!(inputs.len(), 1);
-    assert_eq!(
-        inputs[0].1.entries[0].device_id,
-        DeviceId("real-input".into())
-    );
-    let outputs = chain.output_blocks();
-    assert_eq!(outputs.len(), 1);
-    assert_eq!(
-        outputs[0].1.entries[0].device_id,
-        DeviceId("real-output".into())
-    );
-}
-
-// ─── Legacy single input_device_id output with mono channels ───
-
-#[test]
-fn load_project_legacy_single_device_mono_output() {
-    let temp_dir = tempdir().expect("temp dir");
-    let project_path = temp_dir.path().join("legacy_mono.yaml");
-    fs::write(
-        &project_path,
-        r#"
-chains:
-  - enabled: true
-    input_device_id: mono-input
-    input_channels: [0]
-    output_device_id: mono-output
-    output_channels: [0]
-    blocks: []
-"#,
-    )
-    .expect("write");
-    let repo = YamlProjectRepository { path: project_path };
-    let project = repo.load_current_project().expect("load");
-    let outputs = project.chains[0].output_blocks();
-    assert_eq!(outputs[0].1.entries[0].mode, ChainOutputMode::Mono);
-}
-
 // ─── Default instrument ───
 
 #[test]
@@ -1318,11 +1091,13 @@ chains:
       - type: input
         enabled: true
         model: standard
-        entries: []
+        io: main
+        endpoint: In 1
       - type: output
         enabled: true
         model: standard
-        entries: []
+        io: main
+        endpoint: Out 1
 "#,
     )
     .expect("write");
@@ -1380,13 +1155,15 @@ fn project_with_multiple_chains_roundtrips() {
                 instrument: "electric_guitar".to_string(),
                 enabled: false,
                 volume: 100.0,
+                io_binding_ids: vec![],
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:0:input:0".into()),
                         enabled: true,
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
-                            entries: Vec::new(),
+                            io: String::new(),
+                            endpoint: String::new(),
                         }),
                     },
                     AudioBlock {
@@ -1394,7 +1171,8 @@ fn project_with_multiple_chains_roundtrips() {
                         enabled: true,
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
-                            entries: Vec::new(),
+                            io: String::new(),
+                            endpoint: String::new(),
                         }),
                     },
                 ],
@@ -1405,13 +1183,15 @@ fn project_with_multiple_chains_roundtrips() {
                 instrument: "bass".to_string(),
                 enabled: false,
                 volume: 100.0,
+                io_binding_ids: vec![],
                 blocks: vec![
                     AudioBlock {
                         id: BlockId("chain:1:input:0".into()),
                         enabled: true,
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
-                            entries: Vec::new(),
+                            io: String::new(),
+                            endpoint: String::new(),
                         }),
                     },
                     AudioBlock {
@@ -1419,7 +1199,8 @@ fn project_with_multiple_chains_roundtrips() {
                         enabled: true,
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
-                            entries: Vec::new(),
+                            io: String::new(),
+                            endpoint: String::new(),
                         }),
                     },
                 ],
@@ -1443,42 +1224,6 @@ fn insert_yaml_value_empty_path_is_noop() {
     let mut mapping = serde_yaml::Mapping::new();
     super::insert_yaml_value(&mut mapping, &[], serde_yaml::Value::Bool(true));
     assert!(mapping.is_empty());
-}
-
-// ─── Inline input block with legacy single device_id field ───
-
-#[test]
-fn inline_input_block_legacy_device_id_migrates() {
-    let temp_dir = tempdir().expect("temp dir");
-    let project_path = temp_dir.path().join("inline_legacy_input.yaml");
-    fs::write(
-        &project_path,
-        r#"
-chains:
-  - description: Inline legacy
-    blocks:
-      - type: input
-        enabled: true
-        model: standard
-        device_id: legacy-dev
-        mode: stereo
-        channels: [0, 1]
-      - type: output
-        enabled: true
-        model: standard
-        entries: []
-"#,
-    )
-    .expect("write");
-    let repo = YamlProjectRepository { path: project_path };
-    let project = repo.load_current_project().expect("load");
-    let inputs = project.chains[0].input_blocks();
-    assert_eq!(inputs.len(), 1);
-    assert_eq!(
-        inputs[0].1.entries[0].device_id,
-        DeviceId("legacy-dev".into())
-    );
-    assert_eq!(inputs[0].1.entries[0].channels, vec![0, 1]);
 }
 
 // ─── Disabled block roundtrip ───
@@ -1610,6 +1355,7 @@ fn chain_volume_150_roundtrips_through_yaml() {
             instrument: "electric_guitar".into(),
             enabled: true,
             volume: 150.0,
+            io_binding_ids: vec![],
             blocks: Vec::new(),
         }],
         midi: None,
@@ -1619,6 +1365,55 @@ fn chain_volume_150_roundtrips_through_yaml() {
     assert_eq!(
         loaded.chains[0].volume, 150.0,
         "volume=150 must survive YAML save+load round-trip"
+    );
+}
+
+/// #716: a chain's selected I/O binding ids survive the YAML round-trip.
+#[test]
+fn chain_io_binding_ids_roundtrip_through_yaml() {
+    let temp_dir = tempdir().expect("temp dir");
+    let path = temp_dir.path().join("io_binding_ids_roundtrip.yaml");
+    let repo = YamlProjectRepository { path: path.clone() };
+    let project = Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: vec![Chain {
+            id: ChainId("chain:0".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["main".into(), "fx".into()],
+            blocks: Vec::new(),
+        }],
+        midi: None,
+    };
+    repo.save_project(&project).expect("save should succeed");
+    let loaded = repo.load_current_project().expect("load should succeed");
+    assert_eq!(
+        loaded.chains[0].io_binding_ids,
+        vec!["main".to_string(), "fx".to_string()],
+        "io_binding_ids must survive YAML save+load round-trip"
+    );
+}
+
+/// #716: legacy YAML without `io_binding_ids` defaults to empty (back-compat).
+#[test]
+fn chain_io_binding_ids_missing_defaults_to_empty() {
+    let temp_dir = tempdir().expect("temp dir");
+    let path = temp_dir.path().join("legacy_no_io_bindings.yaml");
+    let yaml = "\
+chains:
+  - instrument: electric_guitar
+    enabled: true
+    blocks: []
+";
+    fs::write(&path, yaml).expect("write legacy yaml");
+    let repo = YamlProjectRepository { path };
+    let loaded = repo.load_current_project().expect("load legacy yaml");
+    assert!(
+        loaded.chains[0].io_binding_ids.is_empty(),
+        "missing io_binding_ids key in legacy YAML must default to empty"
     );
 }
 

@@ -13,43 +13,67 @@ impl LocalDispatcher {
         match cmd {
             Command::SaveChainIo {
                 chain,
-                input_block,
-                output_block,
+                input_block_index,
+                output_block_index,
+                io,
+                endpoint,
             } => {
-                let cloned_output = output_block.clone();
                 self.with_chain(&chain, |c| {
-                    let in_pos = c
-                        .blocks
-                        .iter()
-                        .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Input(_)));
-                    let Some(in_idx) = in_pos else {
-                        return Err(anyhow::anyhow!(
-                            "chain {:?} has no InputBlock to replace",
-                            chain
-                        ));
-                    };
-                    let out_pos = c
-                        .blocks
-                        .iter()
-                        .position(|b| matches!(&b.kind, project::block::AudioBlockKind::Output(_)));
-                    let Some(out_idx) = out_pos else {
-                        return Err(anyhow::anyhow!(
-                            "chain {:?} has no OutputBlock to replace",
-                            chain
-                        ));
-                    };
-                    c.blocks[in_idx] = input_block;
-                    c.blocks[out_idx] = output_block;
+                    // Set io/endpoint on the input block.
+                    let in_blk = c.blocks.get_mut(input_block_index).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "SaveChainIo: chain {:?} has no block at input_block_index {}",
+                            chain,
+                            input_block_index
+                        )
+                    })?;
+                    match &mut in_blk.kind {
+                        project::block::AudioBlockKind::Input(ib) => {
+                            ib.io = io.clone();
+                            ib.endpoint = endpoint.clone();
+                        }
+                        _ => {
+                            return Err(anyhow::anyhow!(
+                                "SaveChainIo: block at input_block_index {} in chain {:?} \
+                                 is not an InputBlock",
+                                input_block_index,
+                                chain
+                            ))
+                        }
+                    }
+                    // Set io/endpoint on the output block.
+                    let out_blk = c.blocks.get_mut(output_block_index).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "SaveChainIo: chain {:?} has no block at output_block_index {}",
+                            chain,
+                            output_block_index
+                        )
+                    })?;
+                    match &mut out_blk.kind {
+                        project::block::AudioBlockKind::Output(ob) => {
+                            ob.io = io.clone();
+                            ob.endpoint = endpoint.clone();
+                        }
+                        _ => {
+                            return Err(anyhow::anyhow!(
+                                "SaveChainIo: block at output_block_index {} in chain {:?} \
+                                 is not an OutputBlock",
+                                output_block_index,
+                                chain
+                            ))
+                        }
+                    }
                     Ok(())
                 })?;
-                // Same rig-persistence sync as SaveChainOutputEndpoints --
-                // the edit must survive a rig→legacy re-projection.
+                // Propagate binding reference into the rig for the output block.
                 if let Some(input_name) = chain.0.strip_prefix("rig:") {
                     if let Some(rig) = self.rig.borrow().clone() {
-                        crate::local_dispatcher_chain_save::propagate_outputs_to_rig(
+                        crate::local_dispatcher_chain_save::propagate_output_ref_to_rig(
                             &mut rig.borrow_mut(),
                             input_name,
-                            std::slice::from_ref(&cloned_output),
+                            output_block_index,
+                            &io,
+                            &endpoint,
                         );
                     }
                 }

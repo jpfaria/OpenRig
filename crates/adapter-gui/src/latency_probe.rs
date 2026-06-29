@@ -48,9 +48,27 @@ pub fn install_handler(
         let Some(chain) = proj.chains.get(index as usize) else {
             return;
         };
-        let device = proj.device_settings.first();
-        let sample_rate = device.map(|d| d.sample_rate as f32).unwrap_or(48_000.0);
-        let buffer_frames = device.map(|d| d.buffer_size_frames as usize).unwrap_or(256);
+        // Issue #723: never assume 48 kHz — a probe at the wrong rate skews
+        // the latency estimate. Prefer the chain input's saved device setting;
+        // otherwise fall back to the live engine rate the dispatcher synced
+        // from the running stream, not a hardcoded constant.
+        // #716: the chain's input device resolves from the binding registry,
+        // not from block `entries`. Take the first resolved input endpoint and
+        // match its saved per-device setting.
+        let (resolved_inputs, _) =
+            engine::runtime_endpoints::resolve_chain_io(chain, &session.io_bindings.borrow());
+        let chain_device = resolved_inputs.first().and_then(|entry| {
+            proj.device_settings
+                .iter()
+                .find(|d| d.device_id == entry.device_id)
+        });
+        let live_sr = session.dispatcher.engine_sr();
+        let sample_rate = chain_device
+            .map(|d| d.sample_rate as f32)
+            .unwrap_or(live_sr as f32);
+        let buffer_frames = chain_device
+            .map(|d| d.buffer_size_frames as usize)
+            .unwrap_or(256);
         let ms = engine::probe::measure_chain_dsp_latency_ms(chain, sample_rate, buffer_frames);
         let expiry = Instant::now() + Duration::from_secs(10);
         probe_windows.borrow_mut().insert(index as usize, expiry);

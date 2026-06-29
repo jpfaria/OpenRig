@@ -7,3 +7,6 @@ edition.workspace = true
 serde.workspace = true
 uuid.workspace = true
 schemars.workspace = true
+
+[dev-dependencies]
+serde_yaml.workspace = true

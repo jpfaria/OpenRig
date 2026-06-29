@@ -6,8 +6,11 @@ edition.workspace = true
 anyhow.workspace = true
 block-core = { path = "../block-core" }
 plugin-loader = { path = "../plugin-loader" }
+ir = { path = "../ir" }
 lv2 = { path = "../lv2" }
 vst3-host = { path = "../vst3" }
 log.workspace = true
 [dev-dependencies]
 domain = { path = "../domain" }
+hound = "3.5"
+serde_yaml = "0.9"

@@ -15,7 +15,6 @@ use std::rc::Rc;
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
-use infra_filesystem::FilesystemStorage;
 use slint::VecModel;
 
 use crate::project_ops::{
@@ -55,6 +54,7 @@ pub(crate) fn try_auto_open(
                 &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
+            &[]
             );
             let snapshot = project_session_snapshot(&session).ok();
             *project_session.borrow_mut() = Some(session);
@@ -68,7 +68,13 @@ pub(crate) fn try_auto_open(
                     name: display_name.clone(),
                 });
             }
-            let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+            {
+                // #693: config write runs on the persist worker — the
+                // GUI thread never waits on disk.
+                let snapshot = app_config.borrow().clone();
+                // #731: bind the config path at dispatch time.
+                application::app_config_persist::persist_app_config_snapshot(snapshot);
+            }
             recent_projects.set_vec(recent_project_items(
                 &app_config.borrow().recent_projects,
                 "",

@@ -454,7 +454,8 @@ mod tests {
             enabled,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "default".to_string(),
-                entries: vec![],
+                io: String::new(),
+                endpoint: String::new(),
             }),
         }
     }
@@ -466,6 +467,7 @@ mod tests {
             instrument: "guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks,
         }
     }

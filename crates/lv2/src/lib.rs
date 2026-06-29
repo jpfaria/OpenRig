@@ -15,6 +15,7 @@ mod stereo_processor;
 
 pub use from_package::{build_from_package, register_builder};
 pub use host::{Lv2Plugin, Lv2PortInfo, Lv2PortKind};
+pub use host::{issue670_schedule_work_thread_check, WorkerThreadCheck};
 pub use processor::Lv2Processor;
 pub use stereo_processor::StereoLv2Processor;
 

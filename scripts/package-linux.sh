@@ -21,6 +21,9 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# Extra binaries shipped next to the GUI (headless console + offline render).
+source scripts/lib/console-binaries.sh
+
 # ── Defaults ──────────────────────────────────────────────────────────────────
 ARCH="$(uname -m)"
 VERSION="0.0.0-dev"
@@ -74,7 +77,7 @@ echo ""
 echo "══════════════════════════════════════════"
 echo "  1/3  cargo build --release"
 echo "══════════════════════════════════════════"
-cargo build --release -p adapter-gui
+cargo build --release -p adapter-gui $(console_build_flags)
 
 # ── 2. Stage install tree ─────────────────────────────────────────────────────
 echo ""
@@ -89,6 +92,10 @@ mkdir -p "$S/usr/lib/openrig/libs/nam"
 mkdir -p "$S/usr/share/openrig"
 
 cp target/release/adapter-gui              "$S/usr/bin/openrig"
+# Headless console + offline-render binaries (issue #741): the package used
+# to ship the GUI only, so an installed OpenRig could not run headless or
+# render a chain offline. Stage them next to /usr/bin/openrig.
+stage_console_binaries target/release "$S/usr/bin" ""
 cp -r assets                               "$S/usr/share/openrig/assets"
 
 # ── NAM wrapper shared object ─────────────────────────────────────────────────
@@ -141,20 +148,26 @@ rsvg-convert -w 256 -h 256 \
 # install_name_tool). Point RUNPATH at the staged lib, relative to the
 # binary. The path resolves identically once installed to /usr (.deb/
 # .rpm), unpacked (.tar.gz), or inside the AppImage's AppDir.
-patchelf --set-rpath "\$ORIGIN/../lib/openrig/libs/nam/linux-${ARCH}" \
-    "$S/usr/bin/openrig"
+# The console/render binaries (#741) live in the same /usr/bin and link the
+# same libnam_wrapper.so, so they need the identical RUNPATH.
+for _bin in openrig $(console_binaries | awk '{print $2}'); do
+    patchelf --set-rpath "\$ORIGIN/../lib/openrig/libs/nam/linux-${ARCH}" \
+        "$S/usr/bin/$_bin"
+done
 
 # Gate: a package no one can open is worse than a failed build. Verify
 # the NAM lib actually resolves through the new RUNPATH before we wrap
-# it in a .deb/.AppImage (lesson from #459).
-if ldd "$S/usr/bin/openrig" 2>/dev/null \
-    | grep -q 'libnam_wrapper\.so .*not found'; then
-    echo "FATAL: libnam_wrapper.so still unresolved after RUNPATH patch" >&2
-    exit 1
-fi
+# it in a .deb/.AppImage (lesson from #459). Check every staged binary.
+for _bin in openrig $(console_binaries | awk '{print $2}'); do
+    if ldd "$S/usr/bin/$_bin" 2>/dev/null \
+        | grep -q 'libnam_wrapper\.so .*not found'; then
+        echo "FATAL: libnam_wrapper.so still unresolved after RUNPATH patch ($_bin)" >&2
+        exit 1
+    fi
+done
 echo "    RUNPATH patched; libnam_wrapper.so resolves"
 
-# Bundled preset library: the 21 default presets under presets/*.yaml ship
+# Bundled preset library: the default presets under presets/*.yaml ship
 # next to plugins/ and assets/ so the app finds them via
 # infra_filesystem::detect_data_root().join("presets"). Without this copy,
 # a fresh install shows an empty preset list.
@@ -216,6 +229,9 @@ if $BUILD_TARBALL; then
     D="openrig-${VERSION}-linux-${ARCH}"
     mkdir -p "$OUTPUT_DIR/${D}"
     cp  "$S/usr/bin/openrig"                    "$OUTPUT_DIR/${D}/openrig"
+    for _bin in $(console_binaries | awk '{print $2}'); do
+        cp "$S/usr/bin/$_bin"                   "$OUTPUT_DIR/${D}/$_bin"
+    done
     cp -r "$S/usr/lib/openrig/libs"             "$OUTPUT_DIR/${D}/libs"
     cp -r "$S/usr/share/openrig/assets"         "$OUTPUT_DIR/${D}/assets"
     cp -r "$S/usr/share/openrig/translations"   "$OUTPUT_DIR/${D}/translations"

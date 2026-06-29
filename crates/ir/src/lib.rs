@@ -271,7 +271,14 @@ impl FftBlockConvolver {
         if ir.is_empty() {
             bail!("IR cannot be empty");
         }
-        Ok(Self { ir, state: None })
+        let mut convolver = Self { ir, state: None };
+        // Issue #670: build the partitioned state (FFT planning + buffer
+        // allocations) EAGERLY, on the thread that constructs the block (the
+        // build/rebuild thread) — not lazily on the audio worker's first
+        // process call, where the one-time multi-hundred-us spike lands right
+        // after a cab/model swap and can starve the output.
+        convolver.ensure_state();
+        Ok(convolver)
     }
 
     fn process_block_in_place(&mut self, buffer: &mut [f32]) {
@@ -315,22 +322,32 @@ impl FftBlockConvolver {
             .process(&mut state.fft_input, &mut state.fft_scratch)
             .expect("forward FFT");
 
-        // Store in frequency delay line (ring buffer)
-        state.fdl_write = (state.fdl_write + 1) % state.num_partitions;
-        let write_offset = state.fdl_write * spectrum_len;
-        state.fdl[write_offset..write_offset + spectrum_len].copy_from_slice(&state.fft_scratch);
+        // Frequency delay line: shift down one partition (newest at the front)
+        // so the multiply-accumulate below walks BOTH `fdl` and `ir_partitions`
+        // strictly SEQUENTIALLY. Issue #670: the old code stored the FDL in a
+        // ring and indexed it with a modular, non-sequential offset; that
+        // working set (~130 KB) is fine while hot, but once the OS
+        // context-switches the audio thread to the UI (Slint render + spectrum
+        // FFT) and back, the cold-cache reload becomes a per-element miss storm
+        // and the convolution balloons ~67x (the live ~270 us/buffer IR spike
+        // the user heard as a "beehive" with ANY IR). A linear shift + linear
+        // MAC reload as a prefetchable stream instead. The shift is a single
+        // contiguous memmove; the convolution result is unchanged.
+        let shift_span = (state.num_partitions - 1) * spectrum_len;
+        state.fdl.copy_within(0..shift_span, spectrum_len);
+        state.fdl[..spectrum_len].copy_from_slice(&state.fft_scratch);
 
-        // Multiply-accumulate across all IR partitions
+        // Multiply-accumulate across all IR partitions — fdl[p] is the input
+        // spectrum from p partitions ago, ir_partitions[p] the p-th IR
+        // partition; both indexed by the same sequential `p`.
         state
             .accum
             .iter_mut()
             .for_each(|c| *c = Complex32::default());
         for p in 0..state.num_partitions {
-            let fdl_idx = (state.fdl_write + state.num_partitions - p) % state.num_partitions;
-            let fdl_off = fdl_idx * spectrum_len;
-            let ir_off = p * spectrum_len;
+            let off = p * spectrum_len;
             for i in 0..spectrum_len {
-                state.accum[i] += state.fdl[fdl_off + i] * state.ir_partitions[ir_off + i];
+                state.accum[i] += state.fdl[off + i] * state.ir_partitions[off + i];
             }
         }
 
@@ -408,7 +425,6 @@ impl FftBlockConvolver {
             inverse,
             ir_partitions,
             fdl: vec![Complex32::default(); num_partitions * spectrum_len],
-            fdl_write: 0,
             input_buf: vec![0.0; ps],
             input_pos: 0,
             output_buf: vec![0.0; output_buf_len],
@@ -429,7 +445,6 @@ struct PartitionedState {
     inverse: Arc<dyn ComplexToReal<f32>>,
     ir_partitions: Vec<Complex32>,
     fdl: Vec<Complex32>,
-    fdl_write: usize,
     input_buf: Vec<f32>,
     input_pos: usize,
     output_buf: Vec<f32>,

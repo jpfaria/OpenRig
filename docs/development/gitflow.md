@@ -28,14 +28,11 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 
 ## Fechar issue
 
-Só quando o usuário pedir. Antes do close, atribuir milestone:
+Só quando o usuário pedir. Antes do close, atribuir milestone — **plain semver**:
 
-1. `gh release list --limit 20` → última `vX.Y.Z-dev.N`.
-2. Próximo milestone = `vX.Y.Z-dev.(N+1)`. Criar se não existir: `gh api repos/<owner>/<repo>/milestones -f title=... -f state=open`.
-3. Sem ciclo dev → próximo milestone aberto comum (perguntar se houver dúvida).
-4. `gh issue edit <N> --milestone "..."` → `gh issue close <N>`.
-
-NUNCA atribuir ao milestone de release final puro durante ciclo dev.
+1. O milestone é a **versão semver atual ainda não lançada** (hoje `v0.1.0`); depois que ela for taggeada, o próximo é `v0.2.0`.
+2. **NUNCA criar nem reabrir um milestone `vX.Y.Z-dev.N`.** O esquema `-dev.N` está MORTO (virou histórico fechado). Use o milestone aberto da versão atual.
+3. `gh issue edit <N> --milestone "v0.1.0"` → `gh issue close <N>`.
 
 ## Labels que excluem das release notes
 
@@ -44,7 +41,9 @@ NUNCA atribuir ao milestone de release final puro durante ciclo dev.
 
 ## Workspace isolado (.solvers/)
 
-NUNCA editar código no workspace principal. Cada agent trabalha numa cópia.
+NUNCA editar código no workspace principal. Cada agent trabalha numa **cópia** (`.solvers/issue-N`).
+
+**`git worktree` é PROIBIDO** — qualquer tipo, qualquer lugar. Worktree compartilha o `.git` da pasta principal e trava a branch, abortando o `git checkout` do usuário na pasta dele. Isolamento é sempre via cópia/clone com `.git` próprio em `.solvers/issue-N`, nunca worktree.
 
 **Duas pastas, isolamento simétrico:**
 
@@ -85,3 +84,9 @@ Identificação: o **corpo** começa com `> **Sibling issues (co-evoluem neste c
 ## Rastreabilidade — comentários na issue
 
 A issue é o log de auditoria. Comentar em: plano antes de começar; cada push (hash + arquivos + build/teste); mudança de plano; cada problema com evidência; análise técnica; merges; validação em hardware; resumo final. Após `git push` ou análise técnica, próximo comando é `gh issue comment <N>`. Opções A/B/C ao usuário vão na issue ANTES da pergunta.
+
+## Release mechanics
+
+- Tag `vX.Y.Z-dev.N` is created on **develop's tip** (not main). `release.yml` triggers on `v*` tag push and derives the version from `GITHUB_REF_NAME` (no `Cargo.toml` bump). `main` is updated by merging develop (API merge, not fast-forward). Re-trigger a failed release by deleting and recreating the tag ref at the new develop tip.
+- **Windows x64 + macOS universal are built ONLY at release-tag time** — PR CI skips them, so cross-platform build/packaging regressions surface one ~25-min failure at a time after the tag (v0.1.0-dev.24 needed five sequential fixes: MSVC flag guards, `/EHsc`, `WINDOWS_EXPORT_ALL_SYMBOLS`, macOS `Resources` mkdir — #639–#647). Treat MSVC + macOS packaging as the main release risk; Linux is already covered by PR CI.
+- The loudness audit (`qa_audit`, ~22 min) does NOT run in the release path (`QA_AUDIT_SKIP=1`, #641) — it belongs to OpenRig-plugins CI. Keep it that way.

@@ -50,76 +50,79 @@ use super::{
     build_chain_runtime_state, process_input_f32, process_output_f32, DEFAULT_ELASTIC_TARGET,
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use domain::value_objects::ParameterValue;
-use project::block::{
-    schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry,
-    OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use std::sync::Arc;
 
 const SR: f32 = 48_000.0;
 const BUFFER_FRAMES: usize = 64;
 
+/// Registry id every chain in this file references via `io_binding_ids`.
+const IO_BINDING_ID: &str = "io";
+
 // ─────────────────────────────────────────────────────────────────────────
-// Chain builders (mirror those in volume_invariants_tests.rs / audio_deadline_tests.rs)
+// I/O endpoint builders (mirror those in volume_invariants_tests.rs).
+// The chain's physical I/O lives in the per-machine registry now (model A);
+// these helpers return the registry endpoint describing one input / output.
+// Device / mode / channels are preserved exactly from the old Input/Output
+// blocks — only the SET-UP form changed.
 // ─────────────────────────────────────────────────────────────────────────
 
-fn input_mono(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels,
-            }],
-        }),
+fn input_mono(channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels,
     }
 }
 
-fn input_stereo(channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("input:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Stereo,
-                channels,
-            }],
-        }),
+fn input_stereo(channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "in0".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Stereo,
+        channels,
     }
 }
 
-fn output(mode: ChainOutputMode, channels: Vec<usize>) -> AudioBlock {
-    AudioBlock {
-        id: BlockId("output:0".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode,
-                channels,
-            }],
-        }),
+fn output(mode: ChannelMode, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: "out0".into(),
+        device_id: DeviceId("dev".into()),
+        mode,
+        channels,
     }
 }
 
-fn chain_with_blocks(id: &str, blocks: Vec<AudioBlock>) -> Chain {
-    Chain {
+/// Build a chain from its resolved I/O endpoints plus the in-chain effect
+/// blocks, returning the chain together with the single-binding registry it
+/// references.
+fn chain_with_blocks(
+    id: &str,
+    input_ep: IoEndpoint,
+    fx: Vec<AudioBlock>,
+    output_ep: IoEndpoint,
+) -> (Chain, Vec<IoBinding>) {
+    let registry = vec![IoBinding {
+        id: IO_BINDING_ID.into(),
+        name: "IO".into(),
+        inputs: vec![input_ep],
+        outputs: vec![output_ep],
+    }];
+    let chain = Chain {
         id: ChainId(id.into()),
         description: Some("signal integrity test".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks,
-    }
+        io_binding_ids: vec![IO_BINDING_ID.into()],
+        blocks: fx,
+    };
+    (chain, registry)
 }
 
 fn neutral_params(effect_type: &str, model: &str) -> ParameterSet {
@@ -262,9 +265,9 @@ fn scan_within_magnitude(label: &str, out: &[f32], max_abs: f32) -> Result<(), S
 // Driver
 // ─────────────────────────────────────────────────────────────────────────
 
-fn build_runtime(chain: &Chain) -> Arc<super::ChainRuntimeState> {
+fn build_runtime(chain: &Chain, registry: &[IoBinding]) -> Arc<super::ChainRuntimeState> {
     Arc::new(
-        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], registry)
             .expect("runtime state should build"),
     )
 }
@@ -327,11 +330,13 @@ fn pipe_only_mono_sine_is_smooth() {
     // 220 Hz sine through a mono → mono pipe. Output should be a clean
     // sine, no clicks. Natural max delta ≈ 0.014; threshold 0.1 catches
     // real clicks (0.3+) without false-failing on DSP rounding.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "pipe-mono-sine",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     // 32 callbacks × 64 frames = 2048 samples ≈ 43 ms of audio
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 4);
@@ -343,14 +348,13 @@ fn pipe_only_mono_sine_is_smooth() {
 
 #[test]
 fn pipe_only_stereo_sine_is_smooth_per_channel() {
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "pipe-stereo-sine",
-        vec![
-            input_stereo(vec![0, 1]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_stereo(vec![0, 1]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 2, 2, 32, 4);
 
@@ -364,14 +368,13 @@ fn pipe_mono_to_stereo_broadcasts_smoothly() {
     // Mono in → stereo out: both channels must carry the same smooth
     // signal. Catches a regression where the broadcast path glitches
     // one channel while leaving the other intact.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "pipe-mono-to-stereo",
-        vec![
-            input_mono(vec![0]),
-            output(ChainOutputMode::Stereo, vec![0, 1]),
-        ],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 2, 32, 4);
 
@@ -395,11 +398,13 @@ fn silent_input_produces_silent_output_no_dc_offset() {
     // Silent input must produce silent output. A non-zero DC offset
     // means a DSP block leaked bias; a slowly-rising ramp means a
     // filter is unstable. Threshold of 1e-3 is generous (≈ -60 dBFS).
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "pipe-silence",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture_silent(&runtime, 1, 1, 32, 4);
 
     scan_finite("silent_finite", &captured).expect("non-finite output for silent input");
@@ -415,11 +420,13 @@ fn extreme_amplitude_input_does_not_produce_nan() {
     // ±1.0 sine through the chain. Output must remain finite even at
     // full scale where the limiter engages. Catches divisions by zero
     // and overflow in DSP blocks.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "pipe-fullscale",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 1.0);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 4);
 
@@ -446,15 +453,13 @@ fn eq_eight_band_at_defaults_is_transparent_no_clipping() {
     // (all bands at 0 dB peak, Q = 1). Output should match the input
     // amplitude ±tolerance, with no clicks and no peaks above input level.
     let eq_params = neutral_params("filter", "eq_eight_band_parametric");
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-defaults",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", eq_params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", eq_params)],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 8);
 
@@ -474,15 +479,13 @@ fn eq_eight_band_at_defaults_is_transparent_no_clipping() {
 #[test]
 fn eq_eight_band_at_defaults_silent_input_silent_output() {
     let eq_params = neutral_params("filter", "eq_eight_band_parametric");
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-silent",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", eq_params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", eq_params)],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let captured = drive_capture_silent(&runtime, 1, 1, 32, 8);
 
     scan_finite("eq8_silent_finite", &captured)
@@ -513,15 +516,13 @@ fn eq_eight_band_one_band_max_boost_does_not_overshoot_input() {
     // If the EQ's filter ringing or numerical error causes overshoot
     // above 1.0 (= the chain limiter engages), we capture it.
     let params = eq_with_one_band_boosted(4, 1_000.0, 24.0);
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-1k-+24",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     // Input at 0.05 → expected boosted peak around 0.8. Run long enough
     // for filter to settle.
     let mut gen = SineGen::new(1_000.0, SR, 0.05);
@@ -544,15 +545,13 @@ fn eq_eight_band_output_trim_attenuates_uniformly() {
     let mut params = neutral_params("filter", "eq_eight_band_parametric");
     params.insert("output_db", ParameterValue::Float(-6.0));
 
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-out-trim",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 8);
     scan_finite("eq8_out_trim_-6dB", &captured).expect("output trim must not produce NaN");
@@ -572,15 +571,13 @@ fn eq_eight_band_default_output_db_is_unity() {
     // identically.
     let params = neutral_params("filter", "eq_eight_band_parametric");
 
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-default-trim",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 32, 8);
     let peak = captured.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
@@ -612,13 +609,11 @@ fn eq_eight_band_smile_curve_typical_user_config() {
     params.insert("band7_gain", ParameterValue::Float(6.0));
     params.insert("band8_gain", ParameterValue::Float(9.0));
 
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-smile",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        output(ChannelMode::Mono, vec![0]),
     );
     // Input at 0.5 (already a hot guitar level). Sweep across the
     // boosted band centers and find the worst-case overshoot.
@@ -627,7 +622,7 @@ fn eq_eight_band_smile_curve_typical_user_config() {
     for &freq in &[
         62.0_f32, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0,
     ] {
-        let runtime = build_runtime(&chain); // fresh runtime per freq, no leftover state
+        let runtime = build_runtime(&chain, &registry); // fresh runtime per freq, no leftover state
         let mut gen = SineGen::new(freq, SR, 0.5);
         let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 64, 16);
         scan_finite(&format!("smile_{freq}Hz_finite"), &captured)
@@ -669,15 +664,13 @@ fn eq_eight_band_full_scale_with_band_boost_clips_through_limiter() {
     // designed) — it's giving the EQ an output trim parameter so they
     // can compensate for boost without re-tuning every band.
     let params = eq_with_one_band_boosted(4, 1_000.0, 24.0);
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-1k-+24-fullscale",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(1_000.0, SR, 1.0);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 64, 16);
 
@@ -701,15 +694,13 @@ fn eq_eight_band_at_defaults_full_scale_no_overshoot() {
     // 1.0, the limiter (tanh > 0.95) engages and the user hears
     // saturation — that's the reported audible "clip".
     let eq_params = neutral_params("filter", "eq_eight_band_parametric");
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "eq8-fullscale",
-        vec![
-            input_mono(vec![0]),
-            core_block("eq8", "filter", "eq_eight_band_parametric", eq_params),
-            output(ChainOutputMode::Mono, vec![0]),
-        ],
+        input_mono(vec![0]),
+        vec![core_block("eq8", "filter", "eq_eight_band_parametric", eq_params)],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 1.0);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 64, 16);
 
@@ -730,11 +721,13 @@ fn long_run_steady_state_no_clicks_8000_samples() {
     // Soak: 125 callbacks × 64 frames = 8000 samples ≈ 167 ms of audio.
     // Catches periodic glitches that only appear after warmup or
     // ring-buffer wrap-around.
-    let chain = chain_with_blocks(
+    let (chain, registry) = chain_with_blocks(
         "pipe-soak",
-        vec![input_mono(vec![0]), output(ChainOutputMode::Mono, vec![0])],
+        input_mono(vec![0]),
+        vec![],
+        output(ChannelMode::Mono, vec![0]),
     );
-    let runtime = build_runtime(&chain);
+    let runtime = build_runtime(&chain, &registry);
     let mut gen = SineGen::new(220.0, SR, 0.5);
     let captured = drive_capture_steady(&runtime, &mut gen, 1, 1, 125, 4);
     assert_eq!(captured.len(), 121 * BUFFER_FRAMES);

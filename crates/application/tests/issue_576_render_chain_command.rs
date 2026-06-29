@@ -110,6 +110,19 @@ fn render_chain_command_writes_output_wav_and_emits_completed_event() {
         })
         .expect("RenderChain dispatch succeeds");
 
+    // #693: the render runs on its own task — the completion event
+    // arrives via poll_async_results (the frontend tick's job).
+    let mut events = events;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !events
+        .iter()
+        .any(|e| matches!(e, Event::RenderCompleted { .. } | Event::Error { .. }))
+        && std::time::Instant::now() < deadline
+    {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        events.extend(dispatcher.poll_async_results());
+    }
+
     assert!(
         output.exists(),
         "Command::RenderChain must write the output WAV"

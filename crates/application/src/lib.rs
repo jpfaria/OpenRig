@@ -8,19 +8,27 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod app_config_persist;
 pub mod block_factory;
 pub mod di_loader;
 pub mod bridge;
 pub mod chain_factory;
-pub mod chain_validation;
 pub mod command;
 pub mod command_schema;
 pub mod dispatcher;
 pub mod event;
 pub mod local_dispatcher;
+/// #693: command side-effect writes run on a dedicated worker thread —
+/// `flush()` is the durability barrier for shutdown and round-trips.
+pub mod persist_worker;
+/// #693: published immutable state snapshot — transports serve reads
+/// concurrently on their own thread (API-style), never via the GUI tick.
+pub mod snapshot;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
+mod local_dispatcher_io_binding;
+mod local_dispatcher_ir_reseed;
 mod local_dispatcher_chain_crud;
 mod local_dispatcher_di_loop;
 mod local_dispatcher_chain_io;
@@ -37,6 +45,7 @@ mod local_dispatcher_recent;
 mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 mod local_dispatcher_selection;
+mod local_dispatcher_subsystems;
 pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;

@@ -3,7 +3,6 @@
 
 use anyhow::Result;
 
-use crate::chain_validation;
 use crate::command::Command;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -59,16 +58,20 @@ impl LocalDispatcher {
                     };
                     (!target.enabled, target.clone())
                 };
-                // Phase 2: if enabling, validate no channel conflict
-                // (skip self so the chain doesn't conflict with its own current state).
+                // Phase 2: if enabling, enforce the domain rule + no conflict.
                 if will_enable {
-                    let proj = self.project.borrow();
-                    chain_validation::validate_no_channel_conflict(
-                        &proj,
-                        &chain_clone,
-                        Some(&chain),
-                    )
-                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                    // #716 domain rule: a chain with no I/O (no binding, no input)
+                    // routes nothing — refuse to enable it.
+                    if !chain_clone.has_io() {
+                        return Err(anyhow::anyhow!(
+                            "chain '{}' has no I/O binding — relate an I/O binding before enabling it",
+                            chain.0
+                        ));
+                    }
+                    // #716 (model A): the per-block cross-chain channel-conflict
+                    // check is gone — device endpoints are resolved from the
+                    // per-machine binding registry at activation, where the
+                    // conflict check now belongs.
                 }
                 // Phase 3: mutate.
                 {

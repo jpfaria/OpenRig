@@ -3,10 +3,7 @@
 //! sentinel int turns into the right command), so neither needs manual QA.
 
 use super::{rig_command_from_scene, rig_command_from_select, RigCommand};
-use crate::block::InputEntry;
-use crate::chain::ChainInputMode;
 use crate::rig::{RigInput, RigPreset, RigProject};
-use domain::ids::DeviceId;
 use std::collections::BTreeMap;
 
 fn rig() -> RigProject {
@@ -19,11 +16,6 @@ fn rig() -> RigProject {
         "in".to_string(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId("d".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             bank: BTreeMap::from([
                 (1, "clean".to_string()),
                 (2, "drive".to_string()),
@@ -33,6 +25,9 @@ fn rig() -> RigProject {
             active_scene: 1,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
+            io_binding_ids: Vec::new(),
         },
     );
     RigProject {

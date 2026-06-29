@@ -29,14 +29,13 @@ use std::sync::Once;
 
 use block_core::param::ParameterSet;
 use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use domain::value_objects::ParameterValue;
 use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_graph::{build_chain_runtime_state, update_chain_runtime_state};
 use engine::runtime_state::ChainRuntimeState;
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, NamBlock, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, NamBlock};
+use project::chain::Chain;
 
 const SR: f32 = 48_000.0;
 const WARMUP: usize = 2048;
@@ -83,34 +82,26 @@ fn nam_block(id: &str, model: &str, params: ParameterSet) -> AudioBlock {
     }
 }
 
-fn input_block() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("in".into()),
-        enabled: true,
-        kind: AudioBlockKind::Input(InputBlock {
-            model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
-        }),
-    }
-}
-
-fn output_block() -> AudioBlock {
-    AudioBlock {
-        id: BlockId("out".into()),
-        enabled: true,
-        kind: AudioBlockKind::Output(OutputBlock {
-            model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }),
-    }
+/// The system binding the chains resolve their I/O from: a mono input
+/// (dev "dev", ch [0]) and a stereo output (dev "dev", ch [0,1]) — the same
+/// device/mode/channels the old head Input / tail Output blocks carried.
+fn registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 /// Common NAM gain-staging params used by every preset block.
@@ -196,16 +187,14 @@ fn crunch_chain() -> Chain {
     )
 }
 
-fn chain(id: &str, mut nam_blocks: Vec<AudioBlock>) -> Chain {
-    let mut blocks = vec![input_block()];
-    blocks.append(&mut nam_blocks);
-    blocks.push(output_block());
+fn chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
     Chain {
         id: ChainId(id.into()),
         description: Some("issue-592 load vs rebuild".into()),
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec!["io".into()],
         blocks,
     }
 }
@@ -272,16 +261,20 @@ fn dbfs(x: f32) -> f32 {
 }
 
 fn build_load(c: &Chain, buffer: usize) -> Arc<ChainRuntimeState> {
-    Arc::new(build_chain_runtime_state(c, SR, &[buffer]).expect("load-path build must succeed"))
+    Arc::new(
+        build_chain_runtime_state(c, SR, &[buffer], &registry())
+            .expect("load-path build must succeed"),
+    )
 }
 
 /// Build, then the user's no-op edit: nudge the amp `output_db` and return
 /// it to the original value, both through the in-place live edit path.
 fn build_then_noop_edit(orig: &Chain, buffer: usize) -> Arc<ChainRuntimeState> {
     let rt = build_load(orig, buffer);
-    update_chain_runtime_state(&rt, &nudged(orig), SR, false, &[buffer])
+    update_chain_runtime_state(&rt, &nudged(orig), SR, false, &[buffer], &registry())
         .expect("nudge edit must apply");
-    update_chain_runtime_state(&rt, orig, SR, false, &[buffer]).expect("restore edit must apply");
+    update_chain_runtime_state(&rt, orig, SR, false, &[buffer], &registry())
+        .expect("restore edit must apply");
     rt
 }
 
@@ -389,9 +382,9 @@ fn assert_full_chain_load_matches_rebuild(name: &str, file: &str) {
         let out_load = drive(&build_load(&chain, buffer), &input, buffer);
 
         let rt = build_load(&chain, buffer);
-        update_chain_runtime_state(&rt, &nudged_full(&chain), SR, false, &[buffer])
+        update_chain_runtime_state(&rt, &nudged_full(&chain), SR, false, &[buffer], &registry())
             .expect("nudge edit must apply");
-        update_chain_runtime_state(&rt, &chain, SR, false, &[buffer])
+        update_chain_runtime_state(&rt, &chain, SR, false, &[buffer], &registry())
             .expect("restore edit must apply");
         let out_edit = drive(&rt, &input, buffer);
 

@@ -16,7 +16,7 @@ use anyhow::{anyhow, Result};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::FilesystemStorage;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -25,12 +25,11 @@ use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use crate::audio_devices::{build_device_selection_items, mark_unselected_devices};
 use crate::project_ops::{load_and_sync_app_config, resolve_project_paths};
 use crate::state::{
-    AudioSettingsMode, BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft, IoBlockInsertDraft,
-    ProjectSession, SelectedBlock,
+    AudioSettingsMode, BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft, ProjectSession,
+    SelectedBlock,
 };
 use crate::{
-    latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInputGroupsWindow,
-    ChainInputWindow, ChainInsertWindow, ChainOutputGroupsWindow, ChainOutputWindow,
+    latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInsertWindow,
     ChannelOptionItem, CompactChainViewWindow, PluginInfoWindow, ProjectSettingsWindow,
     SpectrumWindow, TunerWindow,
 };
@@ -49,6 +48,67 @@ pub fn run_desktop_app(
         runtime_mode,
         interaction_mode
     );
+    // #693 diagnostic: UI event-loop watchdog. A background thread posts a
+    // heartbeat into the Slint event loop every 250 ms; if the loop stops
+    // answering past ~600 ms a `[ui-stall]` warn names the freeze with its
+    // duration — real-session stalls become self-reporting.
+    //
+    // #721: a large gap alone is ambiguous. A genuine freeze leaves the rest
+    // of the process (this thread included) running, so the watchdog keeps
+    // waking on schedule while the UI gap grows. An OS pause (macOS App Nap /
+    // display sleep / timer coalescing on an idle background app) parks the
+    // whole process, so this thread is frozen too and its own wake interval
+    // balloons in lockstep with the gap. `is_genuine_ui_stall` warns only in
+    // the former case, so idle/backgrounded pauses no longer cry wolf.
+    {
+        use crate::ui_stall::is_genuine_ui_stall;
+        use std::sync::atomic::{AtomicU64, Ordering};
+        use std::sync::Arc;
+        use std::time::{Duration, Instant};
+
+        const TICK: Duration = Duration::from_millis(250);
+        const THRESHOLD: Duration = Duration::from_millis(600);
+
+        let beat = Arc::new(AtomicU64::new(0));
+        let beat_bg = Arc::clone(&beat);
+        std::thread::Builder::new()
+            .name("ui-watchdog".into())
+            .spawn(move || {
+                let start = Instant::now();
+                let mut warned_at: u64 = 0;
+                let mut last_wake = Instant::now();
+                loop {
+                    std::thread::sleep(TICK);
+                    // How long this thread was actually away: ~TICK under
+                    // normal scheduling, but it balloons toward the UI gap when
+                    // the OS parked the whole process.
+                    let now = Instant::now();
+                    let wake_interval = now.duration_since(last_wake);
+                    last_wake = now;
+
+                    let now_ms = start.elapsed().as_millis() as u64;
+                    let seen = beat_bg.load(Ordering::Relaxed);
+                    let gap = Duration::from_millis(now_ms.saturating_sub(seen));
+                    if seen > 0
+                        && seen != warned_at
+                        && is_genuine_ui_stall(gap, wake_interval, TICK, THRESHOLD)
+                    {
+                        log::warn!(
+                            "[ui-stall] event loop unresponsive for ~{}ms",
+                            gap.as_millis()
+                        );
+                        warned_at = seen;
+                    }
+                    let beat_ui = Arc::clone(&beat_bg);
+                    let _ = slint::invoke_from_event_loop(move || {
+                        // Runs ON the event loop: the stored instant is the
+                        // moment the loop actually answered.
+                        beat_ui.store(start.elapsed().as_millis() as u64, Ordering::Relaxed);
+                    });
+                }
+            })
+            .ok();
+    }
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings =
@@ -66,6 +126,16 @@ pub fn run_desktop_app(
     //      defaults to <config_dir>/plugins next to the GUI config file.
     // Block-* crates query the merged catalog to surface plugin
     // manifests in the GUI.
+    // #693: warm the device cache off-thread so the first project open /
+    // IO window never pays the ~2s CoreAudio enumeration on the GUI
+    // thread (measured: the [ui-stall] 760ms at boot + the open delay).
+    std::thread::Builder::new()
+        .name("device-cache-warmer".into())
+        .spawn(|| {
+            let _ = infra_cpal::list_input_device_descriptors();
+            let _ = infra_cpal::list_output_device_descriptors();
+        })
+        .ok();
     let bundled_root = infra_filesystem::detect_data_root().join("plugins");
     let user_root = plugin_loader::plugins_root_from_config(&project_paths.default_config_path);
     log::info!(
@@ -102,7 +172,6 @@ pub fn run_desktop_app(
     let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));
-    let io_block_insert_draft = Rc::new(RefCell::new(None::<IoBlockInsertDraft>));
     let insert_draft = Rc::new(RefCell::new(None::<InsertDraft>));
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
     let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
@@ -156,31 +225,6 @@ pub fn run_desktop_app(
     }
     let chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>> = Rc::new(RefCell::new(None));
     let plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>> = Rc::new(RefCell::new(None));
-    let chain_input_window = ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    {
-        use slint::Global;
-        crate::Locale::get(&chain_input_window).set_font_family(boot_font.into());
-    }
-    let chain_output_window =
-        ChainOutputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    {
-        use slint::Global;
-        crate::Locale::get(&chain_output_window).set_font_family(boot_font.into());
-    }
-    let chain_input_groups_window =
-        ChainInputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    {
-        use slint::Global;
-        crate::Locale::get(&chain_input_groups_window).set_font_family(boot_font.into());
-    }
-    let chain_output_groups_window =
-        ChainOutputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    {
-        use slint::Global;
-        crate::Locale::get(&chain_output_groups_window).set_font_family(boot_font.into());
-    }
-    // Tracks whether the inline I/O groups page is showing inputs (true) or outputs (false)
-    let inline_io_groups_is_input: Rc<Cell<bool>> = Rc::new(Cell::new(true));
     let chain_insert_window =
         ChainInsertWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     {
@@ -219,10 +263,6 @@ pub fn run_desktop_app(
         use slint::Global;
         let weak_app = window.as_weak();
         let weak_proj = project_settings_window.as_weak();
-        let weak_chain_in = chain_input_window.as_weak();
-        let weak_chain_out = chain_output_window.as_weak();
-        let weak_chain_in_groups = chain_input_groups_window.as_weak();
-        let weak_chain_out_groups = chain_output_groups_window.as_weak();
         let weak_chain_insert = chain_insert_window.as_weak();
         let weak_block_editor = block_editor_window.as_weak();
         let weak_tuner = tuner_window.as_weak();
@@ -235,18 +275,6 @@ pub fn run_desktop_app(
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = weak_proj.upgrade() {
-                crate::Locale::get(&w).set_font_family(f());
-            }
-            if let Some(w) = weak_chain_in.upgrade() {
-                crate::Locale::get(&w).set_font_family(f());
-            }
-            if let Some(w) = weak_chain_out.upgrade() {
-                crate::Locale::get(&w).set_font_family(f());
-            }
-            if let Some(w) = weak_chain_in_groups.upgrade() {
-                crate::Locale::get(&w).set_font_family(f());
-            }
-            if let Some(w) = weak_chain_out_groups.upgrade() {
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = weak_chain_insert.upgrade() {
@@ -275,6 +303,23 @@ pub fn run_desktop_app(
             apply_font_to_all,
         );
     }
+    // #712: System / Integrations master switches (MIDI adapter / MCP server).
+    crate::settings::integrations::wire(
+        &window,
+        &project_settings_window,
+        project_session.clone(),
+        app_config.clone(),
+    );
+    // #716: System / I/O bindings editor.
+    crate::settings::io_bindings::wire(
+        &window,
+        &project_settings_window,
+        project_session.clone(),
+        app_config.clone(),
+        input_chain_devices.clone(),
+        output_chain_devices.clone(),
+        project_runtime.clone(),
+    );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &*input_chain_devices.borrow(),
         &settings.input_devices,
@@ -294,8 +339,8 @@ pub fn run_desktop_app(
         recent_projects,
         chain_input_device_options,
         chain_output_device_options,
-        chain_input_channels,
-        chain_output_channels,
+        chain_input_channels: _chain_input_channels,
+        chain_output_channels: _chain_output_channels,
     } = crate::desktop_app_init::populate_initial_window_state(
         &window,
         &project_settings_window,
@@ -364,28 +409,11 @@ pub fn run_desktop_app(
             plugin_info_window: plugin_info_window.clone(),
         },
     );
-    // --- ChainInput/ChainOutput picker callbacks (extracted to chain_io_picker_wiring) ---
-    crate::chain_io_picker_wiring::wire(
-        &window,
-        &chain_input_window,
-        &chain_output_window,
-        crate::chain_io_picker_wiring::ChainIoPickerCtx {
-            chain_draft: chain_draft.clone(),
-        },
-    );
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
     project_settings_window.set_bit_depth_options(window.get_bit_depth_options());
-    chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
-    chain_input_window.set_channels(ModelRc::from(chain_input_channels.clone()));
-    chain_input_window.set_selected_device_index(-1);
-    chain_input_window.set_status_message("".into());
-    chain_output_window.set_device_options(ModelRc::from(chain_output_device_options.clone()));
-    chain_output_window.set_channels(ModelRc::from(chain_output_channels.clone()));
-    chain_output_window.set_selected_device_index(-1);
-    chain_output_window.set_status_message("".into());
     chain_insert_window.set_send_device_options(ModelRc::from(chain_output_device_options.clone()));
     chain_insert_window
         .set_return_device_options(ModelRc::from(chain_input_device_options.clone()));
@@ -438,6 +466,9 @@ pub fn run_desktop_app(
             chain_input_device_options: chain_input_device_options.clone(),
             chain_output_device_options: chain_output_device_options.clone(),
             toast_timer: toast_timer.clone(),
+            app_config: app_config.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
         },
     );
     // --- Audio wizard step nav callbacks (extracted to audio_wizard_wiring) ---
@@ -582,6 +613,8 @@ pub fn run_desktop_app(
             project_devices: project_devices.clone(),
             chain_input_device_options: chain_input_device_options.clone(),
             chain_output_device_options: chain_output_device_options.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
             audio_settings_mode: audio_settings_mode.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
@@ -650,14 +683,8 @@ pub fn run_desktop_app(
     // --- Chain-level callback wirings (extracted to desktop_app_chain_wiring) ---
     crate::desktop_app_chain_wiring::wire_all(&crate::desktop_app_chain_wiring::ChainWiringDeps {
         window: &window,
-        chain_input_window: &chain_input_window,
-        chain_output_window: &chain_output_window,
-        chain_input_groups_window: &chain_input_groups_window,
-        chain_output_groups_window: &chain_output_groups_window,
         chain_draft: chain_draft.clone(),
         block_editor_draft: block_editor_draft.clone(),
-        io_block_insert_draft: io_block_insert_draft.clone(),
-        inline_io_groups_is_input: inline_io_groups_is_input.clone(),
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
         project_runtime: project_runtime.clone(),
@@ -667,12 +694,11 @@ pub fn run_desktop_app(
         output_chain_devices: output_chain_devices.clone(),
         chain_input_device_options: chain_input_device_options.clone(),
         chain_output_device_options: chain_output_device_options.clone(),
-        chain_input_channels: chain_input_channels.clone(),
-        chain_output_channels: chain_output_channels.clone(),
         chain_editor_window: chain_editor_window.clone(),
         open_compact_window: open_compact_window.clone(),
         vst3_editor_handles: vst3_editor_handles.clone(),
         toast_timer: toast_timer.clone(),
+        app_config: app_config.clone(),
         vst3_sample_rate,
         fullscreen,
         auto_save,
@@ -681,16 +707,10 @@ pub fn run_desktop_app(
     crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
         window: &window,
         block_editor_window: &block_editor_window,
-        chain_input_window: &chain_input_window,
-        chain_output_window: &chain_output_window,
-        chain_input_groups_window: &chain_input_groups_window,
-        chain_output_groups_window: &chain_output_groups_window,
         chain_insert_window: &chain_insert_window,
         selected_block: selected_block.clone(),
         block_editor_draft: block_editor_draft.clone(),
-        chain_draft: chain_draft.clone(),
         insert_draft: insert_draft.clone(),
-        io_block_insert_draft: io_block_insert_draft.clone(),
         block_type_options: block_type_options.clone(),
         block_model_options: block_model_options.clone(),
         filtered_block_model_options: filtered_block_model_options.clone(),
@@ -708,8 +728,6 @@ pub fn run_desktop_app(
         output_chain_devices: output_chain_devices.clone(),
         chain_input_device_options: chain_input_device_options.clone(),
         chain_output_device_options: chain_output_device_options.clone(),
-        chain_input_channels: chain_input_channels.clone(),
-        chain_output_channels: chain_output_channels.clone(),
         insert_send_channels: insert_send_channels.clone(),
         insert_return_channels: insert_return_channels.clone(),
         open_block_windows: open_block_windows.clone(),
@@ -726,24 +744,6 @@ pub fn run_desktop_app(
     // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
     // --- Chain editor delegation forwarders (extracted to chain_editor_forwarders_wiring) ---
     crate::chain_editor_forwarders_wiring::wire(&window, chain_editor_window.clone());
-    // --- Fullscreen I/O editor + groups callbacks (extracted to chain_io_fullscreen_callbacks) ---
-    crate::chain_io_fullscreen_callbacks::wire(
-        &window,
-        &chain_input_window,
-        &chain_output_window,
-        &chain_input_groups_window,
-        &chain_output_groups_window,
-        crate::chain_io_fullscreen_callbacks::ChainIoFullscreenCallbacksCtx {
-            chain_editor_window: chain_editor_window.clone(),
-            inline_io_groups_is_input: inline_io_groups_is_input.clone(),
-            chain_draft: chain_draft.clone(),
-            project_session: project_session.clone(),
-            chain_input_device_options: chain_input_device_options.clone(),
-            chain_output_device_options: chain_output_device_options.clone(),
-            chain_input_channels: chain_input_channels.clone(),
-            chain_output_channels: chain_output_channels.clone(),
-        },
-    );
     // --- on_save_chain + on_cancel_chain (extracted to chain_save_cancel_callbacks) ---
     crate::chain_save_cancel_callbacks::wire(
         &window,
@@ -756,28 +756,6 @@ pub fn run_desktop_app(
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
-            toast_timer: toast_timer.clone(),
-            auto_save,
-        },
-    );
-    // --- Chain I/O save/cancel callbacks (extracted to chain_io_save_wiring) ---
-    crate::chain_io_save_wiring::wire(
-        &window,
-        &chain_input_window,
-        &chain_output_window,
-        &chain_input_groups_window,
-        &chain_output_groups_window,
-        crate::chain_io_save_wiring::ChainIoSaveCtx {
-            chain_draft: chain_draft.clone(),
-            project_session: project_session.clone(),
-            project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
-            saved_project_snapshot: saved_project_snapshot.clone(),
-            project_dirty: project_dirty.clone(),
-            input_chain_devices: input_chain_devices.clone(),
-            output_chain_devices: output_chain_devices.clone(),
-            chain_editor_window: chain_editor_window.clone(),
-            io_block_insert_draft: io_block_insert_draft.clone(),
             toast_timer: toast_timer.clone(),
             auto_save,
         },
@@ -884,7 +862,13 @@ pub fn run_desktop_app(
                     let Some(session) = session_borrow.as_ref() else {
                         return;
                     };
-                    let events = drain.drain(session.dispatcher.as_ref(), 32);
+                    let mut events = drain.drain(session.dispatcher.as_ref(), 32);
+                    // #693: completions of off-thread command work (DI
+                    // decode, ...) ride the same event path as a dispatch.
+                    {
+                        use application::dispatcher::CommandDispatcher as _;
+                        events.extend(session.dispatcher.poll_async_results());
+                    }
                     let project = &session.project;
                     drain.serve_queries(
                         |kind| match kind {

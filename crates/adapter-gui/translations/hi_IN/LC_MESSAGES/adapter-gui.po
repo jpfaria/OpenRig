@@ -84,6 +84,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "मॉडल खोजें..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "कोई प्रीसेट नहीं मिला"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "कोई मॉडल नहीं मिला"
@@ -478,7 +482,7 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "btn-close"
-msgstr ""
+msgstr "बंद करें"
 
 #: crates/adapter-gui/ui/components/settings_section.slint
 msgid "badge-system"
@@ -490,23 +494,23 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
 msgid "title-section-audio-interface"
-msgstr ""
+msgstr "ऑडियो इंटरफ़ेस"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_language.slint
 msgid "title-section-language"
-msgstr ""
+msgstr "भाषा"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
 msgid "title-section-midi-devices"
-msgstr ""
+msgstr "MIDI डिवाइस"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "title-section-project-meta"
-msgstr ""
+msgstr "मेटाडेटा"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "label-file"
-msgstr ""
+msgstr "फ़ाइल"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "title-section-midi-mapping"
@@ -526,11 +530,11 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-system"
-msgstr ""
+msgstr "सिस्टम"
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-project"
-msgstr ""
+msgstr "प्रोजेक्ट"
 
 #: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
 msgid "preset-search-placeholder"
@@ -557,4 +561,184 @@ msgid "btn-overwrite"
 msgstr "अधिलेखित करें"
 
 msgid "btn-save-audio-settings"
-msgstr ""
+msgstr "लागू करें"
+
+msgid "title-section-integrations"
+msgstr "एकीकरण"
+
+msgid "label-midi-enabled"
+msgstr "MIDI नियंत्रण"
+
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDI एडाप्टर चालू करें ताकि फुटस्विच OpenRig को नियंत्रित करें"
+
+msgid "label-mcp-enabled"
+msgstr "MCP सर्वर"
+
+msgid "desc-mcp-enabled"
+msgstr "एजेंट के लिए MCP सर्वर को 127.0.0.1:4123 पर उपलब्ध कराएं"
+
+msgid "hint-restart-to-apply"
+msgstr "अगली बार शुरू करने पर लागू होगा।"
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "I/O बाइंडिंग"
+
+msgid "label-input-endpoint"
+msgstr "इनपुट एंडपॉइंट"
+
+msgid "label-output-endpoint"
+msgstr "आउटपुट एंडपॉइंट"
+
+msgid "label-resolved-info"
+msgstr "हल की गई जानकारी"
+
+msgid "placeholder-select-endpoint"
+msgstr "एंडपॉइंट चुनें"
+
+msgid "title-section-io-bindings"
+msgstr "इनपुट/आउटपुट बाइंडिंग"
+
+msgid "label-binding-name"
+msgstr "बाइंडिंग नाम"
+
+msgid "label-endpoint-input"
+msgstr "इनपुट एंडपॉइंट"
+
+msgid "label-endpoint-output"
+msgstr "आउटपुट एंडपॉइंट"
+
+msgid "mode-mono"
+msgstr "मोनो"
+
+msgid "mode-stereo"
+msgstr "स्टीरियो"
+
+msgid "mode-dual-mono"
+msgstr "दोहरा मोनो"
+
+msgid "placeholder-binding-name"
+msgstr "बाइंडिंग नाम…"
+
+msgid "label-channels-prefix"
+msgstr "चैनल"
+
+msgid "label-endpoint-device"
+msgstr "डिवाइस"
+
+msgid "label-endpoint-mode"
+msgstr "मोड"
+
+msgid "label-endpoint-channels"
+msgstr "चैनल"
+
+msgid "btn-add-endpoint"
+msgstr "एंडपॉइंट जोड़ें"
+
+msgid "label-group-inputs"
+msgstr "इनपुट"
+
+msgid "label-group-outputs"
+msgstr "आउटपुट"
+
+msgid "empty-no-input-endpoints"
+msgstr "अभी कोई इनपुट नहीं"
+
+msgid "empty-no-output-endpoints"
+msgstr "अभी कोई आउटपुट नहीं"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "नई बाइंडिंग"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "अभी तक कोई बाइंडिंग नहीं"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "किसी इंटरफ़ेस के इनपुट और आउटपुट को समूहित करने के लिए एक बनाएँ।"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "डिवाइस चुनें"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "चुनें…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "फिर लोड करें"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "रीसेट करें"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "प्रोजेक्ट सहेजें"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "DI लूप"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "DI लूप चलाएँ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "DI लूप रोकें"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "मूल्यांकन फ़ोल्डर"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "भाषा"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "प्लगइन कैटलॉग"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "प्लगइन फ़ोल्डर"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "प्रीसेट फ़ोल्डर"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(डिफ़ॉल्ट)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(असहेजा)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "अभी तक फिर लोड नहीं किया"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "पथ"
+
+
+msgid "label-chain-io-bindings"
+msgstr "I/O बाइंडिंग"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "अभी तक कोई I/O बाइंडिंग नहीं — सेटिंग्स → I/O बाइंडिंग में बनाएँ"
+
+msgid "warn-select-binding"
+msgstr "इस chain के लिए कम से कम एक I/O बाइंडिंग चुनें"

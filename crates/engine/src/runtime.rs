@@ -47,7 +47,7 @@ pub(crate) use crate::runtime_state::SelectRuntimeState;
 // runtime_probe.rs. Re-exports below preserve `crate::runtime::PROBE_*`
 // paths in runtime_graph.rs and probe.rs.
 use crate::runtime_probe::{PROBE_ARMED, PROBE_DETECT_THRESHOLD, PROBE_FIRED};
-pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_BEEP_FREQ, PROBE_IDLE};
+pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_IDLE};
 
 // Slice 3: graph + block builders. External callers keep using
 // `engine::runtime::*` paths via these re-exports.
@@ -63,8 +63,8 @@ pub(crate) use crate::runtime_endpoints::{
     effective_inputs, effective_outputs, insert_return_as_input_entry, insert_send_as_output_entry,
 };
 pub use crate::runtime_graph::{
-    build_chain_runtime_state, build_runtime_graph, update_chain_runtime_state,
-    update_chain_runtime_state_spillover, RuntimeGraph,
+    build_chain_runtime_state, build_per_input_runtime_states, build_runtime_graph,
+    update_chain_runtime_state, update_chain_runtime_state_spillover, RuntimeGraph,
 };
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
@@ -127,18 +127,15 @@ pub fn process_input_f32(
             .store(injected_at, Ordering::Relaxed);
         let mut buf = data.to_vec();
         let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
-        // The audible pitch of the beep is approximate — we use the
-        // nominal 48 kHz for the sine step. The measurement itself
-        // does not depend on the beep's frequency.
-        let sr = 48_000.0_f32;
-        for f in 0..beep_frames {
-            let t = f as f32 / sr;
-            let envelope = (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
-            let sample = (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
-            for ch in 0..input_total_channels {
-                buf[f * input_total_channels + ch] = sample;
-            }
-        }
+        // Synthesize the beep at the runtime's REAL rate (issue #723), not a
+        // hardcoded 48 kHz. The measurement is timing-based, but the audible
+        // pitch should still be a true 1 kHz on any device rate.
+        crate::runtime_probe::write_probe_beep(
+            &mut buf,
+            input_total_channels,
+            runtime.sample_rate,
+            beep_frames,
+        );
         Some(buf)
     } else {
         None
@@ -212,9 +209,20 @@ pub fn process_input_f32(
     }
 
     // Process each segment, mixing into scratch.mixed_per_route.
+    //
+    // Issue #699: an armed DI loop plays exactly ONCE per chain — only the
+    // chain's first segment (seg_idx 0) substitutes the loop for its device
+    // frames. Every other segment is fed silence while the loop is armed
+    // (DI playback replaces ALL live input; before this fix every segment
+    // played its own copy of the loop and the copies summed at the output).
     let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
+        let feed = match di_for_seg {
+            Some((d, pos)) if seg_idx == 0 => SegmentFeed::Loop(d, pos),
+            Some(_) => SegmentFeed::Silence,
+            None => SegmentFeed::Live,
+        };
         process_single_segment(
             input_states,
             &mut scratch,
@@ -224,7 +232,7 @@ pub fn process_input_f32(
             num_frames,
             &runtime.error_queue,
             &stream_taps,
-            di_for_seg,
+            feed,
         );
     }
 
@@ -233,11 +241,15 @@ pub fn process_input_f32(
     // loop length. The cursor is advanced here — not inside the segment
     // loop — so that parallel segments sharing the same input callback all
     // read the same window of the loop (consistent with SPSC single-producer
-    // invariant and stream isolation).
+    // invariant and stream isolation). #699: only the callback that owns the
+    // playing segment (seg 0) advances — a second device stream feeding
+    // other segments of this runtime must not double-step the cursor.
     if let Some(d) = di_ref {
-        let len = d.len().max(1);
-        let next = di_start.wrapping_add(num_frames) % len;
-        runtime.di_loop_pos.store(next, Ordering::Relaxed);
+        if scratch.segment_indices.contains(&0) {
+            let len = d.len().max(1);
+            let next = di_start.wrapping_add(num_frames) % len;
+            runtime.di_loop_pos.store(next, Ordering::Relaxed);
+        }
     }
 
     // Snapshot current output routes via ArcSwap — no lock.
@@ -324,6 +336,17 @@ fn mix_outgoing_tail(
     }
 }
 
+/// What fills a segment's frame buffer for one callback (issue #699).
+/// `Live` reads the device frames; `Loop` substitutes the armed DI loop
+/// (first segment only); `Silence` mutes the segment while a loop is
+/// armed elsewhere in the chain.
+#[derive(Clone, Copy)]
+enum SegmentFeed<'a> {
+    Live,
+    Loop(&'a crate::di_loop::DiLoop, usize),
+    Silence,
+}
+
 fn process_single_segment(
     input_states: &mut [InputProcessingState],
     scratch: &mut InputCallbackScratch,
@@ -333,7 +356,7 @@ fn process_single_segment(
     num_frames: usize,
     error_queue: &ArrayQueue<BlockError>,
     stream_taps: &[Arc<StreamTap>],
-    di: Option<(&crate::di_loop::DiLoop, usize)>,
+    feed: SegmentFeed<'_>,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -357,8 +380,20 @@ fn process_single_segment(
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
     }
 
-    match di {
-        Some((di_loop, start_pos)) => {
+    match feed {
+        SegmentFeed::Silence => {
+            // #699: a DI loop is armed and plays in another segment — this
+            // segment is muted for the callback (DI replaces ALL live input).
+            let silent = match *processing_layout {
+                AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+                AudioChannelLayout::Mono => AudioFrame::Mono(0.0),
+            };
+            for _ in 0..num_frames {
+                frame_buffer.push(silent);
+            }
+            let _ = (input_read_layout, input_channels);
+        }
+        SegmentFeed::Loop(di_loop, start_pos) => {
             use crate::di_loop::DiFrame;
             for i in 0..num_frames {
                 let f = di_loop.frame_at(start_pos.wrapping_add(i));
@@ -374,7 +409,7 @@ fn process_single_segment(
             }
             let _ = (input_read_layout, input_channels);
         }
-        None => {
+        SegmentFeed::Live => {
             for frame in data.chunks(input_total_channels).take(num_frames) {
                 let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
                 let chain_frame = match (*input_read_layout, *processing_layout) {
@@ -597,6 +632,15 @@ fn apply_block_processor(
     if block.faulted {
         return;
     }
+    // Issue #670: re-arm flush-to-zero before EVERY block. The engine arms FZ
+    // once per callback, but a C++ block (NAM A2 inference, LV2 reverb) can
+    // clear the FPCR FZ bit mid-chain; every block after it then processes the
+    // note's decaying (subnormal) tail on the FPU gradual-underflow path, and a
+    // single 64-frame buffer stalls ~100x — blowing the deadline as the audio
+    // overload / "beehive" (reproduced by beat_it_green_day_di_analysis: the
+    // heaviest buffers are all on quiet/decay passages). One cheap FPCR check
+    // per block guarantees no block ever runs denormals unprotected.
+    ensure_flush_to_zero();
     match &mut block.processor {
         RuntimeProcessor::Audio(processor) => {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -787,6 +831,10 @@ mod tests;
 #[cfg(test)]
 #[path = "stream_isolation_tests.rs"]
 mod stream_isolation;
+
+#[cfg(test)]
+#[path = "stream_isolation_same_device_tests.rs"]
+mod stream_isolation_same_device;
 
 #[cfg(test)]
 #[path = "volume_invariants_tests.rs"]

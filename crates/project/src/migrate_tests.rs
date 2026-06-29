@@ -1,42 +1,39 @@
 //! Tests for legacy `Project` → `RigProject` migration (#450).
+//!
+//! Model A (#716): device endpoints are NOT carried by migration — the
+//! per-machine binding registry owns them and the user re-selects bindings
+//! after load. These tests assert the structural migration only (one input
+//! per chain, preset banks, processing-block preservation, volume,
+//! placeholder routing), never device data.
 
 use super::*;
-use crate::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use crate::chain::{Chain, ChainInputMode, ChainOutputMode};
+use crate::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use crate::chain::Chain;
 use crate::param::ParameterSet;
-use domain::ids::{BlockId, ChainId, DeviceId};
+use domain::ids::{BlockId, ChainId};
 
-fn input_block(id: &str, entries: Vec<(&str, Vec<usize>)>) -> AudioBlock {
+/// A legacy Input block. Under model A it carries no device endpoints, so the
+/// migration only needs its presence to know the chain had an input.
+fn input_block(id: &str) -> AudioBlock {
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
-            entries: entries
-                .into_iter()
-                .map(|(d, ch)| InputEntry {
-                    device_id: DeviceId(d.into()),
-                    mode: ChainInputMode::Mono,
-                    channels: ch,
-                })
-                .collect(),
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
 
-fn output_block(id: &str, device: &str, channels: Vec<usize>) -> AudioBlock {
+fn output_block(id: &str) -> AudioBlock {
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(device.into()),
-                mode: ChainOutputMode::Stereo,
-                channels,
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -60,6 +57,7 @@ fn chain(desc: &str, volume: f32, blocks: Vec<AudioBlock>) -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume,
+        io_binding_ids: vec![],
         blocks,
     }
 }
@@ -74,68 +72,27 @@ fn legacy(chains: Vec<Chain>) -> Project {
 }
 
 #[test]
-fn migrate_groups_same_source_chains_into_one_input_bank() {
-    // The real-world case: many songs on the same guitar input → ONE
-    // input with a bank of N presets (not N inputs).
+fn migrate_each_chain_becomes_its_own_input() {
+    // Model A: with no device data to group on, every legacy chain becomes
+    // one input (`input-{N}`) holding a single-preset bank.
     let p = legacy(vec![
-        chain(
-            "song-a",
-            110.0,
-            vec![input_block("i1", vec![("sc", vec![0])]), fx("a")],
-        ),
-        chain(
-            "song-b",
-            120.0,
-            vec![input_block("i2", vec![("sc", vec![0])]), fx("b")], // same source
-        ),
-        chain(
-            "voice",
-            100.0,
-            vec![input_block("i3", vec![("sc", vec![1])]), fx("c")], // different (ch1)
-        ),
+        chain("song-a", 110.0, vec![input_block("i1"), fx("a")]),
+        chain("song-b", 120.0, vec![input_block("i2"), fx("b")]),
+        chain("voice", 100.0, vec![input_block("i3"), fx("c")]),
     ]);
     let r = migrate_legacy_project(&p);
 
-    assert_eq!(r.inputs.len(), 2, "two distinct sources → two inputs");
-    let g = r.inputs.get("input-1").expect("input-1 (ch0 group)");
-    assert_eq!(g.bank.len(), 2, "both ch0 chains share one bank");
-    assert_eq!(g.bank.get(&1).map(String::as_str), Some("song-a"));
-    assert_eq!(g.bank.get(&2).map(String::as_str), Some("song-b"));
-    assert_eq!(g.active_preset, 1);
-    assert_eq!(g.active_scene, 1);
-    let v = r.inputs.get("input-2").expect("input-2 (ch1)");
-    assert_eq!(v.bank.len(), 1);
-    assert_eq!(r.presets.len(), 3, "each chain still becomes a preset");
+    assert_eq!(r.inputs.len(), 3, "one input per chain");
+    let a = r.inputs.get("input-1").expect("input-1");
+    assert_eq!(a.bank.len(), 1);
+    assert_eq!(a.bank.get(&1).map(String::as_str), Some("song-a"));
+    assert_eq!(a.active_preset, 1);
+    assert_eq!(a.active_scene, 1);
+    assert_eq!(r.presets.len(), 3, "each chain becomes a preset");
     assert_eq!(
         r.presets.get("song-b").unwrap().volume,
         120.0,
         "per-preset volume preserved (invariant #10)"
-    );
-}
-
-#[test]
-fn migrate_mono_multichannel_normalizes_to_first_channel() {
-    // `mode: mono, channels: [0,1]` (a data quirk) normalizes to [0] and
-    // groups with the plain ch0 input.
-    let p = legacy(vec![
-        chain(
-            "a",
-            100.0,
-            vec![input_block("i1", vec![("sc", vec![0])]), fx("a")],
-        ),
-        chain(
-            "b",
-            100.0,
-            vec![input_block("i2", vec![("sc", vec![0, 1])]), fx("b")],
-        ),
-    ]);
-    let r = migrate_legacy_project(&p);
-    assert_eq!(r.inputs.len(), 1, "mono [0,1] ≡ mono [0] → same input");
-    assert_eq!(r.inputs.get("input-1").unwrap().bank.len(), 2);
-    assert_eq!(
-        r.inputs.get("input-1").unwrap().sources[0].channels,
-        vec![0],
-        "stored source normalized to the single mono channel"
     );
 }
 
@@ -145,20 +102,12 @@ fn migrate_each_chain_becomes_input_preset_bank() {
         chain(
             "clean",
             100.0,
-            vec![
-                input_block("i1", vec![("sc", vec![0])]),
-                fx("a"),
-                output_block("o1", "sc", vec![0, 1]),
-            ],
+            vec![input_block("i1"), fx("a"), output_block("o1")],
         ),
         chain(
             "drive",
             100.0,
-            vec![
-                input_block("i2", vec![("sc", vec![1])]),
-                fx("b"),
-                output_block("o2", "sc", vec![0, 1]),
-            ],
+            vec![input_block("i2"), fx("b"), output_block("o2")],
         ),
     ]);
     let r = migrate_legacy_project(&p);
@@ -168,6 +117,26 @@ fn migrate_each_chain_becomes_input_preset_bank() {
     assert_eq!(i1.active_preset, 1);
     assert_eq!(i1.active_scene, 1);
     assert_eq!(i1.bank.get(&1).map(String::as_str), Some("clean"));
+}
+
+#[test]
+fn migrate_does_not_carry_device_bindings() {
+    // Old projects load WITHOUT device data: io/endpoint/binding-ids are all
+    // empty so the user re-selects bindings in the I/O editor.
+    let p = legacy(vec![chain(
+        "clean",
+        100.0,
+        vec![input_block("i"), fx("a"), output_block("o")],
+    )]);
+    let r = migrate_legacy_project(&p);
+    let input = r.inputs.get("input-1").expect("input-1");
+    assert!(input.io.is_empty());
+    assert!(input.endpoint.is_empty());
+    assert!(input.io_binding_ids.is_empty());
+    for output in r.outputs.values() {
+        assert!(output.io.is_empty());
+        assert!(output.endpoint.is_empty());
+    }
 }
 
 #[test]
@@ -191,10 +160,10 @@ fn migrate_strips_io_and_preserves_processing_order() {
         "clean",
         100.0,
         vec![
-            input_block("i", vec![("sc", vec![0])]),
+            input_block("i"),
             fx("first"),
             fx("second"),
-            output_block("o", "sc", vec![0, 1]),
+            output_block("o"),
         ],
     )]);
     let r = migrate_legacy_project(&p);
@@ -218,25 +187,25 @@ fn migrate_carries_volume() {
 }
 
 #[test]
-fn migrate_dedups_outputs_and_sets_routing() {
+fn migrate_creates_placeholder_output_per_output_block_and_routes_to_it() {
+    // Device endpoints are gone, so each output block on a chain becomes one
+    // structural placeholder output the input routes to. Cross-references
+    // still resolve in `validate`.
     let p = legacy(vec![
-        chain(
-            "a",
-            100.0,
-            vec![fx("x"), output_block("o1", "pa", vec![0, 1])],
-        ),
-        chain(
-            "b",
-            100.0,
-            vec![fx("y"), output_block("o2", "pa", vec![0, 1])],
-        ),
+        chain("a", 100.0, vec![fx("x"), output_block("o1")]),
+        chain("b", 100.0, vec![fx("y"), output_block("o2")]),
     ]);
     let r = migrate_legacy_project(&p);
-    assert_eq!(r.outputs.len(), 1, "identical outputs deduped");
-    let out_name = r.outputs.keys().next().unwrap().clone();
-    for input in r.inputs.values() {
-        assert_eq!(input.routing, vec![out_name.clone()]);
-    }
+    assert_eq!(r.outputs.len(), 2, "one placeholder output per output block");
+    assert_eq!(
+        r.inputs.get("input-1").unwrap().routing,
+        vec!["output-1".to_string()]
+    );
+    assert_eq!(
+        r.inputs.get("input-2").unwrap().routing,
+        vec!["output-2".to_string()]
+    );
+    r.validate().expect("routing cross-refs must resolve");
 }
 
 #[test]
@@ -244,11 +213,7 @@ fn migrate_result_is_valid() {
     let p = legacy(vec![chain(
         "clean",
         100.0,
-        vec![
-            input_block("i", vec![("sc", vec![0])]),
-            fx("a"),
-            output_block("o", "sc", vec![0, 1]),
-        ],
+        vec![input_block("i"), fx("a"), output_block("o")],
     )]);
     migrate_legacy_project(&p)
         .validate()
@@ -258,16 +223,8 @@ fn migrate_result_is_valid() {
 #[test]
 fn migrate_is_deterministic_idempotent() {
     let p = legacy(vec![
-        chain(
-            "clean",
-            100.0,
-            vec![input_block("i", vec![("sc", vec![0])]), fx("a")],
-        ),
-        chain(
-            "drive",
-            120.0,
-            vec![fx("b"), output_block("o", "sc", vec![2, 3])],
-        ),
+        chain("clean", 100.0, vec![input_block("i"), fx("a")]),
+        chain("drive", 120.0, vec![fx("b"), output_block("o")]),
     ]);
     assert_eq!(migrate_legacy_project(&p), migrate_legacy_project(&p));
 }
@@ -281,20 +238,6 @@ fn migrate_empty_project_is_empty_rig() {
     assert_eq!(r.name.as_deref(), Some("Studio"));
 }
 
-#[test]
-fn migrate_preserves_multi_source() {
-    let p = legacy(vec![chain(
-        "dual",
-        100.0,
-        vec![
-            input_block("i", vec![("sc", vec![0]), ("sc", vec![1])]),
-            fx("a"),
-        ],
-    )]);
-    let r = migrate_legacy_project(&p);
-    assert_eq!(r.inputs.get("input-1").unwrap().sources.len(), 2);
-}
-
 // #436: the select showed the slug ("studio-clean-compressor") instead
 // of a description. A RigPreset must carry a human `name` (the original
 // chain description) AND an `id` (the stable pool key). Migration fills
@@ -304,7 +247,7 @@ fn migrate_carries_chain_description_as_preset_name_and_id() {
     let p = legacy(vec![chain(
         "Studio Clean Compressor",
         100.0,
-        vec![input_block("i", vec![("sc", vec![0])]), fx("a")],
+        vec![input_block("i"), fx("a")],
     )]);
     let r = migrate_legacy_project(&p);
 

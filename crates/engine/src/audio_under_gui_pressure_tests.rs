@@ -44,14 +44,31 @@
 use crate::runtime::{
     build_chain_runtime_state, process_input_f32, process_output_f32, DEFAULT_ELASTIC_TARGET,
 };
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{IoBinding, IoEndpoint};
+use project::chain::Chain;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+fn registry() -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
+}
 
 fn chain() -> Chain {
     Chain {
@@ -60,32 +77,8 @@ fn chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
 }
 
@@ -97,7 +90,7 @@ fn chain() -> Chain {
  non-audio thread at sustained rate may silence an audio callback."]
 fn audio_callback_not_silenced_under_sustained_gui_polling() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET])
+        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &registry())
             .expect("runtime should build"),
     );
 

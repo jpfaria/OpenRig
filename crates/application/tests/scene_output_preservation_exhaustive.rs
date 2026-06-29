@@ -13,11 +13,9 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 use project::rig::{RigInput, RigPreset, RigProject};
@@ -29,7 +27,6 @@ use application::local_dispatcher::LocalDispatcher;
 const CHAIN_ID: &str = "rig:in";
 const OUTPUT_BLOCK_ID: &str = "rig:in:out";
 const INPUT_BLOCK_ID: &str = "rig:in:in";
-const DEVICE: &str = "test:device";
 
 fn user_input_block() -> AudioBlock {
     AudioBlock {
@@ -37,11 +34,8 @@ fn user_input_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -52,11 +46,8 @@ fn user_output_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![0, 1],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -97,16 +88,14 @@ fn rig_with_presets_and_scenes() -> RigProject {
         "in".into(),
         RigInput {
             label: None,
-            sources: vec![InputEntry {
-                device_id: DeviceId(DEVICE.into()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
             bank,
             active_preset: 1,
             active_scene: 1,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
+            io_binding_ids: Vec::new(),
         },
     );
     RigProject {
@@ -334,6 +323,7 @@ fn replacement_chain_without_output() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: false,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![user_input_block(), core_block("only-effect:1")],
     }
 }
@@ -359,25 +349,31 @@ fn configure_chain_without_output_in_payload_loses_output_today() {
 // ── Save endpoint commands are explicit replacements ──────────────────────
 
 #[test]
-fn save_chain_output_endpoints_with_empty_list_clears_output() {
+fn save_chain_output_endpoints_preserves_output_block() {
     let (d, p, _r) = dispatcher_with_user_io();
+    // The chain has [input, filter:1, amp:2, output] — output is at index 3.
     let _ = d.dispatch(Command::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
-        output_blocks: vec![],
+        block_index: 3,
+        io: String::new(),
+        endpoint: String::new(),
     });
     assert_eq!(
         outputs_count(&p, CHAIN_ID),
-        0,
-        "save_chain_output_endpoints([]) explicitly clears outputs"
+        1,
+        "save_chain_output_endpoints preserves the existing output block"
     );
 }
 
 #[test]
-fn save_chain_output_endpoints_with_block_keeps_one() {
+fn save_chain_output_endpoints_with_io_binding_keeps_one() {
     let (d, p, _r) = dispatcher_with_user_io();
+    // The chain has [input, filter:1, amp:2, output] — output is at index 3.
     let _ = d.dispatch(Command::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
-        output_blocks: vec![user_output_block()],
+        block_index: 3,
+        io: "main".to_string(),
+        endpoint: "Line Out".to_string(),
     });
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
 }

@@ -23,11 +23,8 @@
 
 use std::sync::Arc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -36,6 +33,25 @@ const FRAMES: usize = 64;
 const ELASTIC: usize = 1024;
 const WARMUP_CALLBACKS: usize = 80;
 const MEASURE_CALLBACKS: usize = 120;
+
+fn registry() -> Vec<domain::io_binding::IoBinding> {
+    vec![domain::io_binding::IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![domain::io_binding::IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+        outputs: vec![domain::io_binding::IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: domain::io_binding::ChannelMode::Mono,
+            channels: vec![0],
+        }],
+    }]
+}
 
 fn passthrough_chain() -> Chain {
     let _ = ParameterSet::default; // silence unused-import if ParameterSet not needed
@@ -52,32 +68,8 @@ fn passthrough_chain() -> Chain {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId("dev".into()),
-                        mode: ChainOutputMode::Mono,
-                        channels: vec![0],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
 }
 
@@ -111,7 +103,7 @@ fn drive_capture_peak(
 fn issue_545_set_draining_makes_process_output_emit_silence() {
     let chain = passthrough_chain();
     let runtime = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, SR, &[ELASTIC])
+        engine::runtime::build_chain_runtime_state(&chain, SR, &[ELASTIC], &registry())
             .expect("passthrough runtime must build"),
     );
 
@@ -155,7 +147,7 @@ fn drain_ring(ring: &engine::spsc::SpscRing<f32>) -> usize {
 fn issue_545_set_draining_stops_stream_tap_pushes() {
     let chain = passthrough_chain();
     let runtime = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, SR, &[ELASTIC])
+        engine::runtime::build_chain_runtime_state(&chain, SR, &[ELASTIC], &registry())
             .expect("runtime must build"),
     );
 

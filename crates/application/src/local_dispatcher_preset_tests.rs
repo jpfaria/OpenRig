@@ -30,6 +30,8 @@ fn save_chain_preset_emits_event_with_name() {
             name: "lead".to_string(),
         })
         .expect("SaveChainPreset deve ok");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
     assert!(
         events
             .iter()
@@ -60,6 +62,7 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: Vec::new(),
         }],
         midi: None,
@@ -74,6 +77,8 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
             name: preset_name.to_string(),
         })
         .expect("SaveChainPreset should succeed");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
 
     let preset_path = crate::preset_file::preset_save_path(&presets_dir, preset_name);
     assert!(
@@ -92,6 +97,8 @@ fn delete_chain_preset_emits_event_with_name() {
             name: "old".to_string(),
         })
         .expect("DeleteChainPreset deve ok");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
     assert!(
         events
             .iter()
@@ -123,6 +130,8 @@ fn delete_chain_preset_removes_file_when_presets_path_attached() {
             name: preset_name.to_string(),
         })
         .expect("DeleteChainPreset deve ok");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
 
     assert!(
         !preset_path.exists(),
@@ -152,6 +161,7 @@ fn save_chain_preset_tags_preset_with_chain_instrument() {
             instrument: "acoustic_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: Vec::new(),
         }],
         midi: None,
@@ -165,6 +175,8 @@ fn save_chain_preset_tags_preset_with_chain_instrument() {
             name: "Violao Clean".to_string(),
         })
         .expect("SaveChainPreset should succeed");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
 
     let preset_path = crate::preset_file::preset_save_path(&presets_dir, "Violao Clean");
     assert!(preset_path.exists(), "preset file must be written");
@@ -206,6 +218,7 @@ fn load_chain_preset_rejects_instrument_mismatch() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![original_block],
         }],
         midi: None,
@@ -243,6 +256,7 @@ fn load_chain_preset_accepts_matching_instrument() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: Vec::new(),
         }],
         midi: None,
@@ -281,6 +295,7 @@ fn load_chain_preset_back_compat_untagged_defaults_to_electric_guitar() {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: Vec::new(),
         }],
         midi: None,
@@ -315,6 +330,8 @@ fn delete_chain_preset_is_idempotent_when_file_missing() {
             name: "does-not-exist".to_string(),
         })
         .expect("DeleteChainPreset of missing file is a no-op");
+    // #693: preset I/O runs on the persist worker — wait before reading back.
+    crate::persist_worker::flush();
     assert!(events
         .iter()
         .any(|e| matches!(e, Event::ChainPresetDeleted { name } if name == "does-not-exist")));

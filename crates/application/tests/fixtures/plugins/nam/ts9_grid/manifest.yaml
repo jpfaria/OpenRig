@@ -5,6 +5,12 @@ brand: nam
 sources:
 - https://www.tone3000.com/
 output_gain_db: 0.0
+# Issue #675: ship the noise gate pre-regulated. Manifest-level applies to
+# every capture; the first capture overrides only the threshold (so the born
+# block seeds enabled=true from here and threshold from the per-capture value).
+noise_gate:
+  enabled: true
+  threshold_db: -60.0
 type: gain_pedal
 backend: nam
 # Multi-axis grid where the per-axis-first combination (drive=0, tone=6,
@@ -32,6 +38,8 @@ captures:
     tone: 3
     level: 6
   file: captures/d0_t3_l6.nam
+  noise_gate:
+    threshold_db: -55.0
 - values:
     drive: 5
     tone: 6

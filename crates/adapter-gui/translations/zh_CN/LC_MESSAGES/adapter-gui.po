@@ -84,6 +84,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "搜索模型..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "未找到预设"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "未找到模型"
@@ -478,7 +482,7 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "btn-close"
-msgstr ""
+msgstr "关闭"
 
 #: crates/adapter-gui/ui/components/settings_section.slint
 msgid "badge-system"
@@ -490,23 +494,23 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
 msgid "title-section-audio-interface"
-msgstr ""
+msgstr "音频接口"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_language.slint
 msgid "title-section-language"
-msgstr ""
+msgstr "语言"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
 msgid "title-section-midi-devices"
-msgstr ""
+msgstr "MIDI 设备"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "title-section-project-meta"
-msgstr ""
+msgstr "元数据"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "label-file"
-msgstr ""
+msgstr "文件"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "title-section-midi-mapping"
@@ -526,11 +530,11 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-system"
-msgstr ""
+msgstr "系统"
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-project"
-msgstr ""
+msgstr "项目"
 
 #: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
 msgid "preset-search-placeholder"
@@ -557,4 +561,184 @@ msgid "btn-overwrite"
 msgstr "覆盖"
 
 msgid "btn-save-audio-settings"
-msgstr ""
+msgstr "应用"
+
+msgid "title-section-integrations"
+msgstr "集成"
+
+msgid "label-midi-enabled"
+msgstr "MIDI 控制"
+
+msgid "desc-midi-enabled"
+msgstr "启用 MIDI/BLE-MIDI 适配器，让踏板控制 OpenRig"
+
+msgid "label-mcp-enabled"
+msgstr "MCP 服务器"
+
+msgid "desc-mcp-enabled"
+msgstr "在 127.0.0.1:4123 上为代理开放 MCP 服务器"
+
+msgid "hint-restart-to-apply"
+msgstr "将在下次启动时生效。"
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "I/O 绑定"
+
+msgid "label-input-endpoint"
+msgstr "输入端点"
+
+msgid "label-output-endpoint"
+msgstr "输出端点"
+
+msgid "label-resolved-info"
+msgstr "已解析信息"
+
+msgid "placeholder-select-endpoint"
+msgstr "选择端点"
+
+msgid "title-section-io-bindings"
+msgstr "输入/输出绑定"
+
+msgid "label-binding-name"
+msgstr "绑定名称"
+
+msgid "label-endpoint-input"
+msgstr "输入端点"
+
+msgid "label-endpoint-output"
+msgstr "输出端点"
+
+msgid "mode-mono"
+msgstr "单声道"
+
+msgid "mode-stereo"
+msgstr "立体声"
+
+msgid "mode-dual-mono"
+msgstr "双单声道"
+
+msgid "placeholder-binding-name"
+msgstr "绑定名称…"
+
+msgid "label-channels-prefix"
+msgstr "通道"
+
+msgid "label-endpoint-device"
+msgstr "设备"
+
+msgid "label-endpoint-mode"
+msgstr "模式"
+
+msgid "label-endpoint-channels"
+msgstr "通道"
+
+msgid "btn-add-endpoint"
+msgstr "添加端点"
+
+msgid "label-group-inputs"
+msgstr "输入"
+
+msgid "label-group-outputs"
+msgstr "输出"
+
+msgid "empty-no-input-endpoints"
+msgstr "暂无输入端点"
+
+msgid "empty-no-output-endpoints"
+msgstr "暂无输出端点"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "将同一接口的输入和输出归为一组。每个链使用一个绑定。"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "新建绑定"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "还没有绑定"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "创建一个，将接口的输入和输出归为一组。"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "选择设备"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "选择…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "重新加载"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "重置"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "保存项目"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "DI 循环"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "播放 DI 循环"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "停止 DI 循环"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "评估文件夹"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "语言"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "插件目录"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "插件文件夹"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "预设文件夹"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(默认)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(未保存)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "尚未重新加载"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "路径"
+
+
+msgid "label-chain-io-bindings"
+msgstr "I/O 绑定"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "尚无 I/O 绑定 — 在设置 → I/O 绑定中创建"
+
+msgid "warn-select-binding"
+msgstr "请为此链选择至少一个 I/O 绑定"

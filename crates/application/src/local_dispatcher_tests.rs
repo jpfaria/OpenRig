@@ -15,10 +15,8 @@ use std::rc::Rc;
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -93,6 +91,7 @@ fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![block],
         }],
         midi: None,
@@ -667,6 +666,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -758,6 +758,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
@@ -1039,23 +1040,21 @@ fn replace_block_model_unknown_model_returns_err() {
 // ── Chain-level test helpers ──────────────────────────────────────────────────
 
 /// Build a chain with an InputBlock on device `dev_id`, channel `ch`.
-fn make_chain_with_input(chain_id: &str, dev_id: &str, ch: usize, enabled: bool) -> Chain {
+fn make_chain_with_input(chain_id: &str, _dev_id: &str, _ch: usize, enabled: bool) -> Chain {
     Chain {
         id: ChainId(chain_id.to_string()),
         description: Some(chain_id.to_string()),
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![AudioBlock {
             id: BlockId("input:0".to_string()),
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
-                entries: vec![InputEntry {
-                    device_id: DeviceId(dev_id.to_string()),
-                    mode: ChainInputMode::Mono,
-                    channels: vec![ch],
-                }],
+                io: String::new(),
+                endpoint: String::new(),
             }),
         }],
     }
@@ -1069,6 +1068,7 @@ fn make_empty_chain(chain_id: &str, enabled: bool) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     }
 }
@@ -1274,17 +1274,51 @@ fn move_chain_down_non_existent_returns_err() {
 // ── ToggleChainEnabled tests ──────────────────────────────────────────────────
 
 #[test]
+fn toggle_chain_enabled_refuses_chain_without_io_binding() {
+    // #716: a chain with no I/O (no io_binding_ids and no bound input) routes
+    // nothing — enabling it produces no sound and invalidates the project. The
+    // dispatcher must refuse to enable it and leave it disabled.
+    use project::chain::Chain;
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("chain_noio".to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: false,
+            volume: 100.0,
+            io_binding_ids: vec![],
+            blocks: vec![],
+        }],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
+        chain: ChainId("chain_noio".to_string()),
+    });
+
+    assert!(
+        result.is_err(),
+        "enabling a chain with no I/O binding must be rejected, got {result:?}"
+    );
+    assert!(
+        !project.borrow().chains[0].enabled,
+        "the chain must stay disabled"
+    );
+}
+
+#[test]
 fn toggle_chain_enabled_enables_disabled_chain() {
-    // chain_1 uses dev_a ch 0, and chain_0 also uses dev_a ch 0 (and is enabled).
-    // But chain_1 shares the channel — expect conflict.
-    // First test a clean enable: use a project with no conflict.
+    // A clean enable: chain_1 carries an I/O binding (model A: `has_io()` is
+    // true when `io_binding_ids` is non-empty), so the dispatcher enables it.
+    let mut chain_1 = make_chain_with_input("chain_1", "dev_b", 0, false);
+    chain_1.io_binding_ids = vec!["io".to_string()];
     let project_no_conflict = Rc::new(RefCell::new(Project {
         name: None,
         device_settings: vec![],
-        chains: vec![
-            make_chain_with_input("chain_0", "dev_a", 0, true),
-            make_chain_with_input("chain_1", "dev_b", 0, false), // different device
-        ],
+        chains: vec![make_chain_with_input("chain_0", "dev_a", 0, true), chain_1],
         midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project_no_conflict));
@@ -1307,6 +1341,67 @@ fn toggle_chain_enabled_enables_disabled_chain() {
     assert!(
         project_no_conflict.borrow().chains[1].enabled,
         "chain_1 must be enabled after toggle"
+    );
+}
+
+// ── SetChainIoBindings (#716) ──────────────────────────────────────────────────
+
+#[test]
+fn set_chain_io_bindings_updates_selection_and_emits_event() {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![make_chain_with_input("chain_0", "dev_a", 0, false)],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SetChainIoBindings {
+        chain: ChainId("chain_0".to_string()),
+        binding_ids: vec!["xyz".to_string(), "abc".to_string()],
+    });
+
+    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+    assert_eq!(
+        project.borrow().chains[0].io_binding_ids,
+        vec!["xyz".to_string(), "abc".to_string()],
+        "the chain's selected bindings must be stored"
+    );
+    let events = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::ChainIoBindingsChanged { chain, binding_ids }
+            if chain.0 == "chain_0" && binding_ids == &vec!["xyz".to_string(), "abc".to_string()]
+        )),
+        "expected ChainIoBindingsChanged, got {:?}",
+        events
+    );
+}
+
+#[test]
+fn set_chain_io_bindings_replaces_previous_selection() {
+    let mut chain = make_chain_with_input("chain_0", "dev_a", 0, false);
+    chain.io_binding_ids = vec!["old".to_string()];
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain],
+        midi: None,
+    }));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatcher
+        .dispatch(Command::SetChainIoBindings {
+            chain: ChainId("chain_0".to_string()),
+            binding_ids: vec!["new".to_string()],
+        })
+        .expect("dispatch ok");
+
+    assert_eq!(
+        project.borrow().chains[0].io_binding_ids,
+        vec!["new".to_string()],
+        "selection is replaced wholesale (checklist sends the full set)"
     );
 }
 
@@ -1337,24 +1432,11 @@ fn toggle_chain_enabled_disables_enabled_chain() {
     );
 }
 
-#[test]
-fn toggle_chain_enabled_conflict_returns_err() {
-    // chain_0 (enabled, dev_a ch 0), chain_1 (disabled, dev_a ch 0).
-    // Enabling chain_1 should fail because chain_0 already uses dev_a ch 0.
-    let project = make_project_two_chains();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
-        chain: ChainId("chain_1".to_string()),
-    });
-
-    assert!(result.is_err(), "expected Err for channel conflict, got Ok");
-    // chain_1 must remain disabled.
-    assert!(
-        !project.borrow().chains[1].enabled,
-        "chain_1 must remain disabled after conflict error"
-    );
-}
+// #716 (model A): `toggle_chain_enabled_conflict_returns_err` was removed.
+// It asserted the per-block cross-chain channel-conflict check (two chains on
+// the same device/channel) — device endpoints no longer live on the chain, so
+// that check moved to the per-machine binding registry at the activation layer
+// (a separate task). There is no model-A equivalent at this dispatcher layer.
 
 #[test]
 fn toggle_chain_enabled_non_existent_returns_err() {
@@ -1481,26 +1563,12 @@ fn add_chain_appends_chain_and_emits_event() {
     );
 }
 
-#[test]
-fn add_chain_enabled_true_with_conflict_returns_err() {
-    // chain_0 is enabled on dev_a ch 0. Add a new chain (enabled=true) on dev_a ch 0 → conflict.
-    let project = make_project_two_chains();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let mut conflicting_chain = make_chain_with_input("chain_new", "dev_a", 0, true); // enabled=true!
-    conflicting_chain.enabled = true;
-
-    let result = dispatcher.dispatch(Command::AddChain {
-        chain: conflicting_chain,
-    });
-
-    assert!(result.is_err(), "expected Err for channel conflict, got Ok");
-    assert_eq!(
-        project.borrow().chains.len(),
-        2,
-        "project must still have 2 chains after error"
-    );
-}
+// #716 (model A): `add_chain_enabled_true_with_conflict_returns_err` was
+// removed. It asserted the per-block cross-chain channel-conflict check on
+// `AddChain` (a new enabled chain on the same device/channel as an existing
+// enabled chain). Device endpoints no longer live on the chain, so that check
+// moved to the per-machine binding registry at the activation layer (a separate
+// task). There is no model-A equivalent at this dispatcher layer.
 
 #[test]
 fn add_chain_enabled_false_no_conflict_check() {
@@ -1670,6 +1738,11 @@ fn save_chain_preserves_enabled_state() {
 }
 
 // ── SaveChainInputEndpoints tests ─────────────────────────────────────────────
+//
+// New semantics: SaveChainInputEndpoints { chain, block_index, io, endpoint }
+// sets `block.io` and `block.endpoint` on the InputBlock at `block_index`.
+// Returns Err when chain not found, block_index out-of-bounds, or the target
+// block is not an InputBlock.
 
 fn make_project_with_input_chain() -> (Rc<RefCell<Project>>, ChainId) {
     let chain = make_chain_with_input("chain_io", "dev_x", 0, false);
@@ -1683,46 +1756,41 @@ fn make_project_with_input_chain() -> (Rc<RefCell<Project>>, ChainId) {
     (project, chain_id)
 }
 
-fn make_input_block(dev_id: &str, ch: usize) -> AudioBlock {
+fn make_input_block(_dev_id: &str, _ch: usize) -> AudioBlock {
     AudioBlock {
         id: BlockId("input:0".to_string()),
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
-            entries: vec![InputEntry {
-                device_id: DeviceId(dev_id.to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![ch],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
 
-fn make_output_block(dev_id: &str, ch: usize) -> AudioBlock {
+fn make_output_block(_dev_id: &str, _ch: usize) -> AudioBlock {
     AudioBlock {
         id: BlockId("output:0".to_string()),
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId(dev_id.to_string()),
-                mode: ChainOutputMode::Stereo,
-                channels: vec![ch],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
 
 #[test]
-fn save_chain_input_endpoints_replaces_input_block_and_emits_event() {
+fn save_chain_input_endpoints_sets_io_and_endpoint_and_emits_event() {
     let (project, chain_id) = make_project_with_input_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let new_input = make_input_block("dev_new", 3);
-
+    // The chain built by make_project_with_input_chain has the input block at index 0.
     let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
         chain: chain_id.clone(),
-        input_blocks: vec![new_input],
+        block_index: 0,
+        io: "main".to_string(),
+        endpoint: "Guitar In".to_string(),
     });
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -1736,26 +1804,36 @@ fn save_chain_input_endpoints_replaces_input_block_and_emits_event() {
     );
     let proj = project.borrow();
     let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    let input_blocks: Vec<_> = chain
+    let input_block = chain
         .blocks
         .iter()
-        .filter(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
-        .collect();
-    assert_eq!(
-        input_blocks.len(),
-        1,
-        "chain must have exactly one input block"
-    );
-    if let AudioBlockKind::Input(ib) = &input_blocks[0].kind {
-        assert_eq!(ib.entries[0].device_id.0, "dev_new");
-        assert_eq!(ib.entries[0].channels, vec![3]);
+        .find(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
+        .expect("input block must exist");
+    if let AudioBlockKind::Input(ib) = &input_block.kind {
+        assert_eq!(ib.io, "main", "io must be set");
+        assert_eq!(ib.endpoint, "Guitar In", "endpoint must be set");
     }
 }
 
 #[test]
-fn save_chain_input_endpoints_multi_block_replaces_all_and_emits_event() {
-    // Build a chain with one existing input block + one core block.
-    let chain_id = ChainId("chain_multi".to_string());
+fn save_chain_input_endpoints_out_of_bounds_returns_err() {
+    let (project, chain_id) = make_project_with_input_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+        chain: chain_id.clone(),
+        block_index: 999,
+        io: "main".to_string(),
+        endpoint: "Guitar In".to_string(),
+    });
+
+    assert!(result.is_err(), "expected Err for out-of-bounds block_index");
+}
+
+#[test]
+fn save_chain_input_endpoints_wrong_block_type_returns_err() {
+    // Chain: [Input, core insert]
+    let chain_id = ChainId("chain_type".to_string());
     let project = Rc::new(RefCell::new(Project {
         name: None,
         device_settings: vec![],
@@ -1765,71 +1843,22 @@ fn save_chain_input_endpoints_multi_block_replaces_all_and_emits_event() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
-            blocks: vec![
-                make_input_block("dev_old", 0),
-                make_core_block("blk_mid", true),
-            ],
+            io_binding_ids: vec![],
+            blocks: vec![make_input_block("dev_x", 0), make_core_block("blk_mid", true)],
         }],
         midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let new_inputs = vec![make_input_block("dev_a", 1), make_input_block("dev_b", 2)];
-
+    // block_index 1 is a core Insert block, not an InputBlock → must fail.
     let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
         chain: chain_id.clone(),
-        input_blocks: new_inputs,
+        block_index: 1,
+        io: "main".to_string(),
+        endpoint: "Guitar In".to_string(),
     });
 
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    let events = result.unwrap();
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, Event::ChainInputEndpointsSaved { chain } if *chain == chain_id)),
-        "expected ChainInputEndpointsSaved"
-    );
-    let proj = project.borrow();
-    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    // Two input blocks at head
-    let input_count = chain
-        .blocks
-        .iter()
-        .filter(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
-        .count();
-    assert_eq!(input_count, 2, "chain must have exactly two input blocks");
-    // Non-input block is preserved
-    assert!(
-        chain
-            .blocks
-            .iter()
-            .any(|b| b.id == BlockId("blk_mid".to_string())),
-        "non-input block must be preserved"
-    );
-    // Inputs are at head (first two positions)
-    assert!(matches!(&chain.blocks[0].kind, AudioBlockKind::Input(_)));
-    assert!(matches!(&chain.blocks[1].kind, AudioBlockKind::Input(_)));
-}
-
-#[test]
-fn save_chain_input_endpoints_zero_blocks_clears_all_inputs() {
-    let (project, chain_id) = make_project_with_input_chain();
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
-        chain: chain_id.clone(),
-        input_blocks: vec![],
-    });
-
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    let proj = project.borrow();
-    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    let input_count = chain
-        .blocks
-        .iter()
-        .filter(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
-        .count();
-    assert_eq!(input_count, 0, "all input blocks must be cleared");
+    assert!(result.is_err(), "expected Err for wrong block type");
 }
 
 #[test]
@@ -1839,15 +1868,18 @@ fn save_chain_input_endpoints_non_existent_chain_returns_err() {
 
     let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
         chain: ChainId("chain_MISSING".to_string()),
-        input_blocks: vec![make_input_block("dev_new", 0)],
+        block_index: 0,
+        io: "main".to_string(),
+        endpoint: "Guitar In".to_string(),
     });
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
 
 #[test]
-fn save_chain_input_endpoints_preserves_non_input_block_order() {
-    // Chain: [Input, CoreA, CoreB, Output] → replace Input with two new inputs
+fn save_chain_input_endpoints_preserves_other_blocks() {
+    // Chain: [Input(index 0), CoreA(index 1), CoreB(index 2), Output(index 3)]
+    // Setting io/endpoint on index 0 must not disturb other blocks.
     let chain_id = ChainId("chain_order".to_string());
     let project = Rc::new(RefCell::new(Project {
         name: None,
@@ -1858,6 +1890,7 @@ fn save_chain_input_endpoints_preserves_non_input_block_order() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_input_block("dev_old", 0),
                 make_core_block("blk_a", true),
@@ -1871,26 +1904,29 @@ fn save_chain_input_endpoints_preserves_non_input_block_order() {
 
     let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
         chain: chain_id.clone(),
-        input_blocks: vec![
-            make_input_block("dev_new1", 1),
-            make_input_block("dev_new2", 2),
-        ],
+        block_index: 0,
+        io: "binding1".to_string(),
+        endpoint: "ep1".to_string(),
     });
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let proj = project.borrow();
     let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    // First two are input blocks
-    assert!(matches!(&chain.blocks[0].kind, AudioBlockKind::Input(_)));
-    assert!(matches!(&chain.blocks[1].kind, AudioBlockKind::Input(_)));
-    // Non-input blocks come after, in original relative order
-    assert_eq!(chain.blocks[2].id, BlockId("blk_a".to_string()));
-    assert_eq!(chain.blocks[3].id, BlockId("blk_b".to_string()));
-    // Output block preserved at tail
-    assert!(matches!(&chain.blocks[4].kind, AudioBlockKind::Output(_)));
+    // 4 blocks preserved; only io/endpoint on block 0 changed
+    assert_eq!(chain.blocks.len(), 4);
+    assert_eq!(chain.blocks[1].id, BlockId("blk_a".to_string()));
+    assert_eq!(chain.blocks[2].id, BlockId("blk_b".to_string()));
+    assert!(matches!(&chain.blocks[3].kind, AudioBlockKind::Output(_)));
+    if let AudioBlockKind::Input(ib) = &chain.blocks[0].kind {
+        assert_eq!(ib.io, "binding1");
+        assert_eq!(ib.endpoint, "ep1");
+    }
 }
 
 // ── SaveChainOutputEndpoints tests ────────────────────────────────────────────
+//
+// New semantics: SaveChainOutputEndpoints { chain, block_index, io, endpoint }
+// sets `block.io` and `block.endpoint` on the OutputBlock at `block_index`.
 
 fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
     let chain_id = ChainId("chain_io_full".to_string());
@@ -1903,6 +1939,7 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
         }],
         midi: None,
@@ -1911,15 +1948,16 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
 }
 
 #[test]
-fn save_chain_output_endpoints_replaces_output_block_and_emits_event() {
+fn save_chain_output_endpoints_sets_io_and_endpoint_and_emits_event() {
     let (project, chain_id) = make_project_with_io_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let new_output = make_output_block("dev_new_out", 5);
-
+    // io chain: [Input(idx 0), Output(idx 1)]
     let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
         chain: chain_id.clone(),
-        output_blocks: vec![new_output],
+        block_index: 1,
+        io: "main".to_string(),
+        endpoint: "Monitor Out".to_string(),
     });
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -1934,102 +1972,46 @@ fn save_chain_output_endpoints_replaces_output_block_and_emits_event() {
     );
     let proj = project.borrow();
     let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    let out_blocks: Vec<_> = chain
+    let output_block = chain
         .blocks
         .iter()
-        .filter(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
-        .collect();
-    assert_eq!(
-        out_blocks.len(),
-        1,
-        "chain must have exactly one output block"
-    );
-    if let AudioBlockKind::Output(ob) = &out_blocks[0].kind {
-        assert_eq!(ob.entries[0].device_id.0, "dev_new_out");
-        assert_eq!(ob.entries[0].channels, vec![5]);
+        .find(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
+        .expect("output block must exist");
+    if let AudioBlockKind::Output(ob) = &output_block.kind {
+        assert_eq!(ob.io, "main", "io must be set");
+        assert_eq!(ob.endpoint, "Monitor Out", "endpoint must be set");
     }
 }
 
 #[test]
-fn save_chain_output_endpoints_multi_block_replaces_all_and_emits_event() {
-    // Chain with input + core + output; replace output with two new outputs.
-    let chain_id = ChainId("chain_multi_out".to_string());
-    let project = Rc::new(RefCell::new(Project {
-        name: None,
-        device_settings: vec![],
-        chains: vec![Chain {
-            id: chain_id.clone(),
-            description: None,
-            instrument: "electric_guitar".to_string(),
-            enabled: false,
-            volume: 100.0,
-            blocks: vec![
-                make_input_block("dev_in", 0),
-                make_core_block("blk_mid", true),
-                make_output_block("dev_out_old", 1),
-            ],
-        }],
-        midi: None,
-    }));
-    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let new_outputs = vec![
-        make_output_block("dev_out_a", 2),
-        make_output_block("dev_out_b", 3),
-    ];
-
-    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
-        chain: chain_id.clone(),
-        output_blocks: new_outputs,
-    });
-
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    let events = result.unwrap();
-    assert!(
-        events.iter().any(|e| matches!(
-            e,
-            Event::ChainOutputEndpointsSaved { chain } if *chain == chain_id
-        )),
-        "expected ChainOutputEndpointsSaved"
-    );
-    let proj = project.borrow();
-    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    let out_count = chain
-        .blocks
-        .iter()
-        .filter(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
-        .count();
-    assert_eq!(out_count, 2, "chain must have exactly two output blocks");
-    // Non-output blocks preserved
-    assert!(chain
-        .blocks
-        .iter()
-        .any(|b| matches!(&b.kind, AudioBlockKind::Input(_))));
-    assert!(chain
-        .blocks
-        .iter()
-        .any(|b| b.id == BlockId("blk_mid".to_string())));
-}
-
-#[test]
-fn save_chain_output_endpoints_zero_blocks_clears_all_outputs() {
+fn save_chain_output_endpoints_out_of_bounds_returns_err() {
     let (project, chain_id) = make_project_with_io_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
         chain: chain_id.clone(),
-        output_blocks: vec![],
+        block_index: 999,
+        io: "main".to_string(),
+        endpoint: "Monitor Out".to_string(),
     });
 
-    assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
-    let proj = project.borrow();
-    let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    let out_count = chain
-        .blocks
-        .iter()
-        .filter(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
-        .count();
-    assert_eq!(out_count, 0, "all output blocks must be cleared");
+    assert!(result.is_err(), "expected Err for out-of-bounds block_index");
+}
+
+#[test]
+fn save_chain_output_endpoints_wrong_block_type_returns_err() {
+    // io chain: [Input(0), Output(1)] — index 0 is Input, not Output.
+    let (project, chain_id) = make_project_with_io_chain();
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+        chain: chain_id.clone(),
+        block_index: 0, // This is an Input block
+        io: "main".to_string(),
+        endpoint: "Monitor Out".to_string(),
+    });
+
+    assert!(result.is_err(), "expected Err for wrong block type (Input ≠ Output)");
 }
 
 #[test]
@@ -2039,15 +2021,17 @@ fn save_chain_output_endpoints_non_existent_chain_returns_err() {
 
     let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
         chain: ChainId("chain_MISSING".to_string()),
-        output_blocks: vec![make_output_block("dev_new_out", 0)],
+        block_index: 0,
+        io: "main".to_string(),
+        endpoint: "Monitor Out".to_string(),
     });
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
 
 #[test]
-fn save_chain_output_endpoints_preserves_non_output_block_order() {
-    // Chain: [Input, CoreA, CoreB, Output] → replace Output with two new outputs
+fn save_chain_output_endpoints_preserves_other_blocks() {
+    // Chain: [Input(0), CoreA(1), CoreB(2), Output(3)]
     let chain_id = ChainId("chain_out_order".to_string());
     let project = Rc::new(RefCell::new(Project {
         name: None,
@@ -2058,6 +2042,7 @@ fn save_chain_output_endpoints_preserves_non_output_block_order() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![
                 make_input_block("dev_in", 0),
                 make_core_block("blk_a", true),
@@ -2071,22 +2056,23 @@ fn save_chain_output_endpoints_preserves_non_output_block_order() {
 
     let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
         chain: chain_id.clone(),
-        output_blocks: vec![
-            make_output_block("dev_out1", 2),
-            make_output_block("dev_out2", 3),
-        ],
+        block_index: 3,
+        io: "binding2".to_string(),
+        endpoint: "ep2".to_string(),
     });
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let proj = project.borrow();
     let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
-    // Non-output blocks come before outputs
+    // 4 blocks preserved
+    assert_eq!(chain.blocks.len(), 4);
     assert!(matches!(&chain.blocks[0].kind, AudioBlockKind::Input(_)));
     assert_eq!(chain.blocks[1].id, BlockId("blk_a".to_string()));
     assert_eq!(chain.blocks[2].id, BlockId("blk_b".to_string()));
-    // Two output blocks appended at tail
-    assert!(matches!(&chain.blocks[3].kind, AudioBlockKind::Output(_)));
-    assert!(matches!(&chain.blocks[4].kind, AudioBlockKind::Output(_)));
+    if let AudioBlockKind::Output(ob) = &chain.blocks[3].kind {
+        assert_eq!(ob.io, "binding2");
+        assert_eq!(ob.endpoint, "ep2");
+    }
 }
 
 // ── InsertPrebuiltBlock tests ─────────────────────────────────────────────────
@@ -2230,13 +2216,13 @@ fn save_chain_io_replaces_both_endpoints_and_emits_event() {
     let (project, chain_id) = make_project_with_io_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let new_input = make_input_block("dev_in_new", 2);
-    let new_output = make_output_block("dev_out_new", 7);
-
+    // io chain: [Input(idx 0), Output(idx 1)]
     let result = dispatcher.dispatch(Command::SaveChainIo {
         chain: chain_id.clone(),
-        input_block: new_input,
-        output_block: new_output,
+        input_block_index: 0,
+        output_block_index: 1,
+        io: "main".to_string(),
+        endpoint: "Guitar In".to_string(),
     });
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -2265,8 +2251,8 @@ fn save_chain_io_replaces_both_endpoints_and_emits_event() {
         }
     });
     assert!(inp.is_some() && out.is_some());
-    assert_eq!(inp.unwrap().entries[0].device_id.0, "dev_in_new");
-    assert_eq!(out.unwrap().entries[0].device_id.0, "dev_out_new");
+    assert_eq!(inp.unwrap().io, "main");
+    assert_eq!(out.unwrap().io, "main");
 }
 
 #[test]
@@ -2276,8 +2262,10 @@ fn save_chain_io_non_existent_chain_returns_err() {
 
     let result = dispatcher.dispatch(Command::SaveChainIo {
         chain: ChainId("chain_MISSING".to_string()),
-        input_block: make_input_block("dev_in", 0),
-        output_block: make_output_block("dev_out", 0),
+        input_block_index: 0,
+        output_block_index: 1,
+        io: String::new(),
+        endpoint: String::new(),
     });
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
@@ -2294,16 +2282,20 @@ fn save_chain_io_missing_input_block_returns_err() {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
         }],
         midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
+    // Block at index 0 is an OutputBlock, not InputBlock → must return Err.
     let result = dispatcher.dispatch(Command::SaveChainIo {
         chain: ChainId("chain_no_input".to_string()),
-        input_block: make_input_block("dev_in", 0),
-        output_block: make_output_block("dev_out", 0),
+        input_block_index: 0,
+        output_block_index: 0,
+        io: String::new(),
+        endpoint: String::new(),
     });
 
     assert!(result.is_err(), "expected Err when chain has no InputBlock");
@@ -2317,16 +2309,7 @@ fn make_insert_block(id: &str) -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Insert(project::block::InsertBlock {
             model: "standard".to_string(),
-            send: project::block::InsertEndpoint {
-                device_id: DeviceId("send_dev".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            },
-            return_: project::block::InsertEndpoint {
-                device_id: DeviceId("return_dev".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![1],
-            },
+            io: "fx".to_string(),
         }),
     }
 }
@@ -2344,6 +2327,7 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             instrument: "electric_guitar".to_string(),
             enabled: false,
             volume: 100.0,
+            io_binding_ids: vec![],
             blocks: vec![insert],
         }],
         midi: None,
@@ -2352,26 +2336,14 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
 }
 
 #[test]
-fn save_insert_block_updates_endpoints_and_emits_event() {
+fn save_insert_block_updates_binding_and_emits_event() {
     let (project, chain_id, block_id) = make_project_with_insert();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-
-    let new_send = project::block::InsertEndpoint {
-        device_id: DeviceId("new_send_dev".to_string()),
-        mode: ChainInputMode::Mono,
-        channels: vec![2],
-    };
-    let new_return = project::block::InsertEndpoint {
-        device_id: DeviceId("new_return_dev".to_string()),
-        mode: ChainInputMode::Mono,
-        channels: vec![3],
-    };
 
     let result = dispatcher.dispatch(Command::SaveInsertBlock {
         chain: chain_id.clone(),
         block: block_id.clone(),
-        send: new_send,
-        return_: new_return,
+        io: "mk300".to_string(),
     });
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -2389,10 +2361,7 @@ fn save_insert_block_updates_endpoints_and_emits_event() {
     let chain = proj.chains.iter().find(|c| c.id == chain_id).unwrap();
     let block = chain.blocks.iter().find(|b| b.id == block_id).unwrap();
     if let AudioBlockKind::Insert(ib) = &block.kind {
-        assert_eq!(ib.send.device_id.0, "new_send_dev");
-        assert_eq!(ib.send.channels, vec![2]);
-        assert_eq!(ib.return_.device_id.0, "new_return_dev");
-        assert_eq!(ib.return_.channels, vec![3]);
+        assert_eq!(ib.io, "mk300");
     } else {
         panic!("expected InsertBlock kind");
     }
@@ -2406,16 +2375,7 @@ fn save_insert_block_non_existent_block_returns_err() {
     let result = dispatcher.dispatch(Command::SaveInsertBlock {
         chain: chain_id,
         block: BlockId("blk_MISSING".to_string()),
-        send: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        return_: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![1],
-        },
+        io: "fx".to_string(),
     });
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
@@ -2430,16 +2390,7 @@ fn save_insert_block_non_insert_kind_returns_err() {
     let result = dispatcher.dispatch(Command::SaveInsertBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
-        send: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        return_: project::block::InsertEndpoint {
-            device_id: DeviceId("dev".to_string()),
-            mode: ChainInputMode::Mono,
-            channels: vec![1],
-        },
+        io: "fx".to_string(),
     });
 
     assert!(result.is_err(), "expected Err for non-Insert block kind");
@@ -2632,6 +2583,9 @@ fn save_audio_settings_persists_input_and_output_separately() {
             output_devices: vec![make_device_settings("dev:out")],
         });
         assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        // #693: the config write is queued to the persist worker — wait
+        // for durability before reading it back.
+        crate::persist_worker::flush();
 
         let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
         let in_ids: Vec<&str> = config
@@ -2654,6 +2608,81 @@ fn save_audio_settings_persists_input_and_output_separately() {
             vec!["dev:out"],
             "output devices must persist output ids only"
         );
+    });
+}
+
+// ── SetMidiEnabled / SetMcpEnabled tests (#712) ───────────────────────────────
+// The Settings toggle persists the per-machine master switch into
+// config.yaml so packaged builds (launched with no CLI flags) bring the
+// subsystem up on next launch. State change → Command (GUI/MCP/gRPC
+// parity), never a borrow_mut in the callback.
+
+#[test]
+fn set_midi_enabled_persists_true_to_config() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("set-midi-enabled-true", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        let result = dispatcher.dispatch(Command::SetMidiEnabled { enabled: true });
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        crate::persist_worker::flush();
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        assert!(config.midi_enabled, "midi_enabled must persist to config.yaml");
+    });
+}
+
+#[test]
+fn set_mcp_enabled_persists_true_to_config() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("set-mcp-enabled-true", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        let result = dispatcher.dispatch(Command::SetMcpEnabled { enabled: true });
+        assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
+        crate::persist_worker::flush();
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        assert!(config.mcp_enabled, "mcp_enabled must persist to config.yaml");
+    });
+}
+
+#[test]
+fn set_midi_enabled_false_clears_the_switch_and_preserves_other_config() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("set-midi-enabled-false", || {
+        let project = Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+            midi: None,
+        }));
+        let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+        // Seed mcp on, midi on; then turn midi off — mcp must stay on.
+        dispatcher
+            .dispatch(Command::SetMcpEnabled { enabled: true })
+            .unwrap();
+        dispatcher
+            .dispatch(Command::SetMidiEnabled { enabled: true })
+            .unwrap();
+        dispatcher
+            .dispatch(Command::SetMidiEnabled { enabled: false })
+            .unwrap();
+        crate::persist_worker::flush();
+
+        let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
+        assert!(!config.midi_enabled, "midi must be off");
+        assert!(config.mcp_enabled, "mcp must remain on — fields are independent");
     });
 }
 
@@ -3205,6 +3234,7 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             instrument: "electric_guitar".to_string(),
             enabled: true,
             volume,
+            io_binding_ids: vec![],
             blocks: vec![],
         }],
         midi: None,

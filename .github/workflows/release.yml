@@ -336,7 +336,11 @@ jobs:
         run: choco install llvm -y --no-progress
 
       - name: Build
-        run: cargo build --release -p adapter-gui
+        # Build the GUI plus the headless console + offline-render binaries
+        # (issue #741). Keep this package list in sync with
+        # scripts/lib/console-binaries.tsv, which package-windows.ps1 reads to
+        # stage them. macOS/Linux derive the same flags via console_build_flags.
+        run: cargo build --release -p adapter-gui -p adapter-console -p adapter-console-rig -p adapter-render
 
       - name: Resolve version
         id: ver

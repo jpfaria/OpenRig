@@ -9,16 +9,48 @@
 //! The bigger settings callbacks (`on_save_audio_settings`, `on_refresh_devices`,
 //! the audio-step navigation) stay in `lib.rs` for now — they capture broader
 //! project state and will move in a follow-up slice.
+//!
+//! ## Audio wizard / default binding (#716, Task 13)
+//!
+//! `wizard_create_or_update_default_binding` is a pure function usable from
+//! both the first-run wizard and the "set default device" flow. It returns the
+//! correct `Command` to dispatch: `CreateIoBinding` when no default binding
+//! exists, `UpdateIoBinding` when one already does.
 
 use std::rc::Rc;
 
+use application::command::Command;
+use domain::io_binding::IoBinding;
 use slint::VecModel;
 
 use crate::audio_devices::{
     toggle_device_row, update_device_bit_depth, update_device_buffer_size,
     update_device_sample_rate,
 };
+use crate::default_io_binding::build_default_io_binding;
 use crate::{AppWindow, DeviceSelectionItem, ProjectSettingsWindow};
+
+// ── Public pure helper (testable without AppWindow) ──────────────────────────
+
+/// Returns the `Command` to dispatch when the audio wizard finishes or the
+/// user changes the default device selection.
+///
+/// - `None` for `existing` → emits `CreateIoBinding`.
+/// - `Some(existing)` → emits `UpdateIoBinding` with the new device ids but
+///   preserving the existing binding id (`"default"`).
+///
+/// Reusable by Task 20 (project-side default binding) via the same call.
+pub(crate) fn wizard_create_or_update_default_binding(
+    input_device_id: &str,
+    output_device_id: &str,
+    existing: Option<&IoBinding>,
+) -> Command {
+    let binding = build_default_io_binding(input_device_id, output_device_id);
+    match existing {
+        None => Command::CreateIoBinding { binding },
+        Some(_) => Command::UpdateIoBinding { binding },
+    }
+}
 
 /// Models backing the device selection lists shared by the main window and the
 /// project settings window. Each `Rc` is cloned per closure that needs it.

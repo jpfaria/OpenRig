@@ -1,0 +1,15 @@
+manifest_version: 1
+id: lv2_dragonfly_hall
+display_name: Dragonfly Hall Reverb
+description: Dragonfly Hall Reverb — algorithmic hall reverb with rich spatial depth.
+brand: dragonfly
+thumbnail: assets/thumbnail.png
+screenshot: assets/screenshot.png
+license: GPL-3.0
+homepage: https://github.com/michaelwillis/dragonfly-reverb
+type: reverb
+backend: lv2
+plugin_uri: https://github.com/michaelwillis/dragonfly-reverb
+binaries:
+  macos-universal: platform/macos-universal/DragonflyHallReverb_dsp.dylib
+  linux-x86_64: platform/linux-x86_64/DragonflyHallReverb_dsp.so

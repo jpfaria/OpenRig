@@ -118,6 +118,12 @@ compile Slint, MCP, and MIDI even when none of them initialise. It
 follows the same pattern as `adapter-console` and `adapter-console-rig`:
 console-style adapters around the same engine core.
 
+Shipped in every platform package as `openrig-render` (issue #741),
+alongside the headless `openrig-console` / `openrig-console-rig` and the
+GUI `openrig` — so an installed OpenRig can render offline without a
+separate `cargo run`. The packagers build and stage these from
+`scripts/lib/console-binaries.tsv` (the single source of truth).
+
 ## Render as a `Command` (issue #576)
 
 Offline render is exposed as `Command::RenderChain`. It does not mutate

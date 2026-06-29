@@ -1,0 +1,60 @@
+manifest_version: 1
+id: nam_maxon_od808_a2
+display_name: OD808 Overdrive
+brand: maxon
+output_gain_db: 0.0000000
+type: gain_pedal
+backend: nam
+architecture: A2
+sources:
+- https://www.tone3000.com/tones/46104
+# Constant across all captures (dropped): pedal model "OD808".
+# Knob positions are clock-face values (noon = 12, 2pm = 2). "+6" is a
+# +6 dB output-level boost, captured as the discrete `boost` axis.
+parameters:
+- name: drive
+  display_name: Drive
+  values:
+  - 12
+  - 2
+- name: tone
+  display_name: Tone
+  values:
+  - 12
+  - 2
+- name: boost
+  display_name: Boost
+  values:
+  - none
+  - plus6
+captures:
+- values:
+    drive: 12
+    tone: 2
+    boost: none
+  file: captures/od808_noon_2pm_a2.nam
+- values:
+    drive: 12
+    tone: 12
+    boost: none
+  file: captures/od808_noon_noon_a2.nam
+- values:
+    drive: 2
+    tone: 2
+    boost: plus6
+  file: captures/od808_2pm_2pm_plus6_a2.nam
+- values:
+    drive: 12
+    tone: 12
+    boost: plus6
+  file: captures/od808_noon_noon_plus6_a2.nam
+- values:
+    drive: 12
+    tone: 2
+    boost: plus6
+  file: captures/od808_noon_2pm_plus6_a2.nam
+- values:
+    drive: 2
+    tone: 2
+    boost: none
+  file: captures/od808_2pm_2pm_a2.nam

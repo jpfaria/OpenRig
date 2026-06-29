@@ -40,102 +40,100 @@
 
 use std::sync::Arc;
 
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{ChainId, DeviceId};
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use project::chain::Chain;
 
 use engine::runtime::{build_chain_runtime_state, process_input_f32, RuntimeGraph};
 
 use super::ProjectRuntimeController;
 
-/// Two-stream chain: one `InputBlock` in `Mono` mode with channels
-/// `[0, 1]` (two guitars on the same Scarlett 2i2) routed to a stereo
-/// output. Mirrors the project the user reproduced the bug on.
-fn two_stream_mono_chain(id: &str, input_device: &str, output_device: &str) -> Chain {
+/// Two-stream chain: one `Mono` input endpoint with channels `[0, 1]` (two
+/// guitars on the same Scarlett 2i2) routed to a stereo output. Mirrors the
+/// project the user reproduced the bug on. Model A (#716): the endpoints come
+/// from the "io" binding (`two_stream_mono_registry`), not block `entries`.
+fn two_stream_mono_chain(id: &str) -> Chain {
     Chain {
         id: ChainId(id.into()),
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId(input_device.into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId(output_device.into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
+}
+
+/// Registry for `two_stream_mono_chain`: ONE split-mono input endpoint
+/// (`Mono`, channels `[0, 1]`) — two parallel streams in ONE runtime — + a
+/// stereo output.
+fn two_stream_mono_registry(input_device: &str, output_device: &str) -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId(input_device.into()),
+            mode: ChannelMode::Mono,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId(output_device.into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 /// Single-stream chain wired exclusively to device channel 1 (NOT 0).
 /// Mirrors the user's "unplug one guitar, leave the other on ch2"
 /// screenshot.
-fn single_stream_on_channel_one(id: &str, input_device: &str, output_device: &str) -> Chain {
+fn single_stream_on_channel_one(id: &str) -> Chain {
     Chain {
         id: ChainId(id.into()),
         description: None,
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        blocks: vec![
-            AudioBlock {
-                id: BlockId("input:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Input(InputBlock {
-                    model: "standard".into(),
-                    entries: vec![InputEntry {
-                        device_id: DeviceId(input_device.into()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![1],
-                    }],
-                }),
-            },
-            AudioBlock {
-                id: BlockId("output:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Output(OutputBlock {
-                    model: "standard".into(),
-                    entries: vec![OutputEntry {
-                        device_id: DeviceId(output_device.into()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
-                    }],
-                }),
-            },
-        ],
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
     }
+}
+
+/// Registry for `single_stream_on_channel_one`: one `Mono` input endpoint on
+/// channel 1 only + a stereo output.
+fn single_stream_on_channel_one_registry(
+    input_device: &str,
+    output_device: &str,
+) -> Vec<IoBinding> {
+    vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId(input_device.into()),
+            mode: ChannelMode::Mono,
+            channels: vec![1],
+        }],
+        outputs: vec![IoEndpoint {
+            name: "out0".into(),
+            device_id: DeviceId(output_device.into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+    }]
 }
 
 fn controller_with_single_runtime(
     chain: &Chain,
+    registry: &[IoBinding],
 ) -> (
     ProjectRuntimeController,
     Arc<engine::runtime::ChainRuntimeState>,
 ) {
     let runtime = Arc::new(
-        build_chain_runtime_state(chain, 48_000.0, &[256])
+        build_chain_runtime_state(chain, 48_000.0, &[256], registry)
             .expect("two-stream mono chain must build a runtime"),
     );
     let mut graph = RuntimeGraph {
@@ -147,6 +145,12 @@ fn controller_with_single_runtime(
     let controller = ProjectRuntimeController {
         runtime_graph: graph,
         active_chains: std::collections::HashMap::new(),
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: registry.to_vec(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -163,8 +167,9 @@ fn controller_with_single_runtime(
 /// runtime always fires with the local cpal group index `0`.
 #[test]
 fn subscribe_input_tap_stream_one_must_receive_signal_when_runtime_processes_audio() {
-    let chain = two_stream_mono_chain("rig:input-1", "scarlett", "monitor");
-    let (controller, runtime) = controller_with_single_runtime(&chain);
+    let chain = two_stream_mono_chain("rig:input-1");
+    let registry = two_stream_mono_registry("scarlett", "monitor");
+    let (controller, runtime) = controller_with_single_runtime(&chain, &registry);
 
     assert_eq!(
         controller.stream_count(&chain.id),
@@ -221,8 +226,9 @@ fn subscribe_input_tap_stream_one_must_receive_signal_when_runtime_processes_aud
 /// every global index past 0 land on the right cpal callback.
 #[test]
 fn subscribe_input_tap_translates_global_index_to_local_cpal_group() {
-    let chain = two_stream_mono_chain("rig:tuner", "scarlett", "monitor");
-    let (controller, runtime) = controller_with_single_runtime(&chain);
+    let chain = two_stream_mono_chain("rig:tuner");
+    let registry = two_stream_mono_registry("scarlett", "monitor");
+    let (controller, runtime) = controller_with_single_runtime(&chain, &registry);
 
     assert_eq!(controller.stream_count(&chain.id), 2);
 
@@ -267,8 +273,9 @@ fn subscribe_input_tap_translates_global_index_to_local_cpal_group() {
 /// is wired (unplug guitar from ch1, tap the cable, meter reacts).
 #[test]
 fn subscribe_input_tap_must_honour_endpoint_channel_not_default_to_zero() {
-    let chain = single_stream_on_channel_one("rig:ch1-only", "scarlett", "monitor");
-    let (controller, runtime) = controller_with_single_runtime(&chain);
+    let chain = single_stream_on_channel_one("rig:ch1-only");
+    let registry = single_stream_on_channel_one_registry("scarlett", "monitor");
+    let (controller, runtime) = controller_with_single_runtime(&chain, &registry);
 
     assert_eq!(
         controller.stream_count(&chain.id),
@@ -303,5 +310,52 @@ fn subscribe_input_tap_must_honour_endpoint_channel_not_default_to_zero() {
         "the chain wired to device ch1 MUST surface ch1 samples in its \
          meter ring; pre-fix the ring read 0.9 (ch0) instead — that's \
          the screenshot the user posted."
+    );
+}
+
+/// Issue #740 — switching a preset rebuilds the chain OFF-THREAD (the #740
+/// live-edit fix). The runtime is swapped in the slot/graph; the spectrum/meter
+/// ("gráfico") subscribed its tap on the OLD runtime, so unless the swap migrates
+/// the tap subscriptions to the rebuilt runtime the graph freezes — no samples
+/// reach it once the new runtime is the one processing audio.
+#[test]
+fn an_offthread_rebuild_keeps_the_graph_tap_alive() {
+    let chain = two_stream_mono_chain("rig:input-1");
+    let registry = two_stream_mono_registry("scarlett", "monitor");
+    let (mut controller, _old) = controller_with_single_runtime(&chain, &registry);
+
+    // The graph subscribes a tap on the live runtime (stream 0).
+    let ring = controller
+        .subscribe_stream_input_tap(&chain.id, 0, 256)
+        .expect("graph tap on stream 0");
+
+    // A preset switch: rebuild the chain off-thread, then apply on the poll tick.
+    let by_device =
+        std::collections::HashMap::from([(DeviceId("scarlett".into()), 48_000.0_f32)]);
+    controller.schedule_chain_rebuild(&chain, 48_000.0, by_device, vec![512]);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while controller.poll_pending_rebuilds() == 0 {
+        assert!(std::time::Instant::now() < deadline, "off-thread rebuild never applied");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+
+    // The rebuilt runtime is now the one processing audio. Drive it and confirm
+    // the SAME tap ring still receives the samples.
+    let new_runtime = controller
+        .chain_runtime(&chain.id)
+        .expect("a live runtime after the rebuild");
+    let frames = 8usize;
+    let samples: Vec<f32> = (0..frames).flat_map(|_| [0.5_f32, 0.0_f32]).collect();
+    process_input_f32(&new_runtime, 0, &samples, 2);
+
+    let mut got = Vec::new();
+    while let Some(s) = ring.pop() {
+        got.push(s);
+    }
+    assert!(
+        !got.is_empty(),
+        "BUG #740: after an off-thread rebuild (preset switch) the graph tap received NO \
+         samples — the tap subscriptions were not migrated to the rebuilt runtime, so the \
+         spectrum/meter freezes."
     );
 }

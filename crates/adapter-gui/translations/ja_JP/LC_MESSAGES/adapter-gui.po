@@ -84,6 +84,10 @@ msgstr "▼"
 msgid "placeholder-search-models"
 msgstr "モデルを検索..."
 
+#: crates/adapter-gui/ui/components/preset_select.slint:170
+msgid "status-no-presets-found"
+msgstr "プリセットが見つかりません"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:209
 msgid "status-no-models-found"
 msgstr "モデルが見つかりません"
@@ -366,7 +370,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:251
 msgid "status-spectrum-empty-help"
-msgstr ""
+msgstr "スペクトラムをオンにし、出力を設定したチェーンを有効にしてください。"
 "スペクトラムをオンにし、出力が構成されたチェーンを有効にしてください。スペク"
 "トラムを電源ONにし、出力が構成されたチェーンを有効にしてください。"
 
@@ -388,7 +392,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr ""
+msgstr "入力を設定したチェーンを有効にすると、ここにチューナーが表示されます。"
 "入力が構成されたチェーンを有効にすると、ここにチューナーが表示されます。入力"
 "が構成されたチェーンを有効にすると、ここにチューナーが表示されます。"
 
@@ -482,7 +486,7 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "btn-close"
-msgstr ""
+msgstr "閉じる"
 
 #: crates/adapter-gui/ui/components/settings_section.slint
 msgid "badge-system"
@@ -494,23 +498,23 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
 msgid "title-section-audio-interface"
-msgstr ""
+msgstr "オーディオインターフェース"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_language.slint
 msgid "title-section-language"
-msgstr ""
+msgstr "言語"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
 msgid "title-section-midi-devices"
-msgstr ""
+msgstr "MIDIデバイス"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "title-section-project-meta"
-msgstr ""
+msgstr "メタデータ"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
 msgid "label-file"
-msgstr ""
+msgstr "ファイル"
 
 #: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
 msgid "title-section-midi-mapping"
@@ -530,11 +534,11 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-system"
-msgstr ""
+msgstr "システム"
 
 #: crates/adapter-gui/ui/pages/settings.slint
 msgid "nav-group-project"
-msgstr ""
+msgstr "プロジェクト"
 
 #: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
 msgid "preset-search-placeholder"
@@ -561,4 +565,184 @@ msgid "btn-overwrite"
 msgstr "上書き"
 
 msgid "btn-save-audio-settings"
-msgstr ""
+msgstr "適用"
+
+msgid "title-section-integrations"
+msgstr "連携"
+
+msgid "label-midi-enabled"
+msgstr "MIDIコントロール"
+
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDIアダプターを有効にしてフットスイッチでOpenRigを操作"
+
+msgid "label-mcp-enabled"
+msgstr "MCPサーバー"
+
+msgid "desc-mcp-enabled"
+msgstr "エージェント向けにMCPサーバーを127.0.0.1:4123で公開"
+
+msgid "hint-restart-to-apply"
+msgstr "次回の起動時に有効になります。"
+
+# I/O Bindings UI strings (added #716)
+
+msgid "label-io-binding"
+msgstr "I/Oバインディング"
+
+msgid "label-input-endpoint"
+msgstr "入力エンドポイント"
+
+msgid "label-output-endpoint"
+msgstr "出力エンドポイント"
+
+msgid "label-resolved-info"
+msgstr "解決済み情報"
+
+msgid "placeholder-select-endpoint"
+msgstr "エンドポイントを選択"
+
+msgid "title-section-io-bindings"
+msgstr "I/Oバインディング"
+
+msgid "label-binding-name"
+msgstr "バインディング名"
+
+msgid "label-endpoint-input"
+msgstr "入力エンドポイント"
+
+msgid "label-endpoint-output"
+msgstr "出力エンドポイント"
+
+msgid "mode-mono"
+msgstr "モノ"
+
+msgid "mode-stereo"
+msgstr "ステレオ"
+
+msgid "mode-dual-mono"
+msgstr "デュアルモノ"
+
+msgid "placeholder-binding-name"
+msgstr "バインディング名…"
+
+msgid "label-channels-prefix"
+msgstr "チャンネル"
+
+msgid "label-endpoint-device"
+msgstr "デバイス"
+
+msgid "label-endpoint-mode"
+msgstr "モード"
+
+msgid "label-endpoint-channels"
+msgstr "チャンネル"
+
+msgid "btn-add-endpoint"
+msgstr "エンドポイントを追加"
+
+msgid "label-group-inputs"
+msgstr "入力"
+
+msgid "label-group-outputs"
+msgstr "出力"
+
+msgid "empty-no-input-endpoints"
+msgstr "入力はまだありません"
+
+msgid "empty-no-output-endpoints"
+msgstr "出力はまだありません"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディングを使用します。"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "新規バインディング"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "バインディングがまだありません"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "インターフェースの入力と出力をまとめるバインディングを作成してください。"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "デバイスを選択"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "選択…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "再読み込み"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "リセット"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "プロジェクトを保存"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "DIループ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "DIループを再生"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "DIループを停止"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "評価フォルダ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "言語"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "プラグインカタログ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "プラグインフォルダ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "プリセットフォルダ"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(デフォルト)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(未保存)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "まだ再読み込みしていません"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "パス"
+
+
+msgid "label-chain-io-bindings"
+msgstr "I/O バインディング"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "I/O バインディングがまだありません — 設定 → I/O バインディング で作成"
+
+msgid "warn-select-binding"
+msgstr "このチェーンに少なくとも1つの I/O バインディングを選択してください"

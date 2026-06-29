@@ -29,10 +29,14 @@ fn session_with_one_rig_chain() -> (TempDir, crate::state::ProjectSession) {
         input: EndpointSpec {
             device_id: Some("dev-A"),
             channels: vec![0],
+            io: String::new(),
+            endpoint: String::new(),
         },
         output: EndpointSpec {
             device_id: Some("test-out"),
             channels: vec![0, 1],
+            io: String::new(),
+            endpoint: String::new(),
         },
     });
     session

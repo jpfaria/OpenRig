@@ -44,7 +44,7 @@ sudo dnf install ./openrig-<ver>-1.x86_64.rpm
 
 Prefer `apt install ./file.deb` over `dpkg -i` — it pulls in dependencies automatically.
 
-A portable `openrig-<ver>-linux-<arch>.tar.gz` is also published: extract it and run the `adapter-gui` binary directly.
+A portable `openrig-<ver>-linux-<arch>.tar.gz` is also published: extract it and run the `openrig` binary directly. Every package (`.deb`/`.rpm`/`.tar.gz`/`.AppImage`, and the macOS `.app` / Windows `.zip`/`.msi`) also ships the headless console (`openrig-console`, `openrig-console-rig`) and the offline renderer (`openrig-render`) next to the GUI binary — see [`../render.md`](../render.md) for offline rendering.
 
 #### Audio setup (required for sound)
 

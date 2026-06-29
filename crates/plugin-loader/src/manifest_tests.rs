@@ -182,6 +182,8 @@ fn round_trip_nam_preserves_data() {
         homepage: None,
         sources: None,
         output_gain_db: None,
+        noise_gate: None,
+        architecture: None,
         block_type: BlockType::Preamp,
         backend: Backend::Nam {
             parameters: vec![GridParameter {
@@ -193,6 +195,7 @@ fn round_trip_nam_preserves_data() {
                 values: BTreeMap::from([("gain".to_string(), ParameterValue::Number(10.0))]),
                 file: PathBuf::from("captures/g10.nam"),
                 output_gain_db: None,
+                noise_gate: None,
             }],
         },
     };
@@ -231,6 +234,82 @@ captures:
         Some(13.0556831),
         "manifest output_gain_db calibration must reach the engine in dB, unchanged"
     );
+}
+
+// Issue #675 — per-capture / manifest-level noise gate defaults so a
+// high-gain capture can ship with the gate regulated (the idle-hiss fix:
+// high-gain captures amplify the input noise floor ~+32 dB).
+
+#[test]
+fn parses_nam_manifest_with_noise_gate_defaults() {
+    let yaml = r#"
+manifest_version: 1
+id: vox_dirty
+display_name: Vox Dirty
+type: amp
+backend: nam
+noise_gate:
+  enabled: true
+  threshold_db: -60.0
+parameters:
+  - name: gain
+    values: [5, 9]
+captures:
+  - values: { gain: 5 }
+    file: captures/clean.nam
+  - values: { gain: 9 }
+    file: captures/hot.nam
+    noise_gate:
+      threshold_db: -55.0
+"#;
+
+    let m = parse(yaml);
+
+    // Manifest-level default applies to all captures.
+    let mg = m.noise_gate.as_ref().expect("manifest-level noise_gate");
+    assert_eq!(mg.enabled, Some(true));
+    assert_eq!(mg.threshold_db, Some(-60.0));
+
+    match m.backend {
+        Backend::Nam { captures, .. } => {
+            // No per-capture override → None (inherits manifest level).
+            assert_eq!(captures[0].noise_gate, None);
+            // Per-capture override sets only the threshold; enabled stays
+            // None so it inherits the manifest-level value.
+            let cg = captures[1]
+                .noise_gate
+                .as_ref()
+                .expect("per-capture noise_gate override");
+            assert_eq!(cg.threshold_db, Some(-55.0));
+            assert_eq!(cg.enabled, None);
+        }
+        other => panic!("expected NAM backend, got {other:?}"),
+    }
+}
+
+#[test]
+fn nam_manifest_without_noise_gate_is_none() {
+    let yaml = r#"
+manifest_version: 1
+id: plain
+display_name: Plain
+type: amp
+backend: nam
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.noise_gate, None);
+    match m.backend {
+        Backend::Nam { captures, .. } => assert_eq!(captures[0].noise_gate, None),
+        other => panic!("expected NAM backend, got {other:?}"),
+    }
 }
 
 #[test]
@@ -362,4 +441,149 @@ captures:
         }
         other => panic!("expected IR backend, got {other:?}"),
     }
+}
+
+// Issue #650 — per-plugin NAM architecture (A1/A2) declared on the manifest.
+// Every NAM plugin is uniform: all captures share one architecture. The field
+// is a summary so the catalog can label/filter without parsing every .nam.
+
+#[test]
+fn parses_nam_manifest_with_architecture_a2() {
+    let yaml = r#"
+manifest_version: 1
+id: slimmable_amp
+display_name: Slimmable Amp
+type: amp
+backend: nam
+architecture: A2
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, Some(NamArchitecture::A2));
+}
+
+#[test]
+fn parses_nam_manifest_with_architecture_a1() {
+    let yaml = r#"
+manifest_version: 1
+id: wavenet_amp
+display_name: WaveNet Amp
+type: amp
+backend: nam
+architecture: A1
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, Some(NamArchitecture::A1));
+}
+
+#[test]
+fn ir_manifest_without_architecture_is_none() {
+    let yaml = r#"
+manifest_version: 1
+id: my_cab
+display_name: My Cab
+type: cab
+backend: ir
+captures:
+  - values: {}
+    file: ir/cab.wav
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, None, "IR plugins never carry architecture");
+}
+
+#[test]
+fn legacy_nam_manifest_without_architecture_is_none() {
+    // A pre-#650 NAM manifest has no `architecture` key — it must still parse,
+    // deserializing the field to None (no error).
+    let yaml = r#"
+manifest_version: 1
+id: legacy_amp
+display_name: Legacy Amp
+type: amp
+backend: nam
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.architecture, None);
+}
+
+#[test]
+fn architecture_round_trips_through_serde() {
+    let yaml = r#"
+manifest_version: 1
+id: rt_arch
+display_name: Round Trip Arch
+type: amp
+backend: nam
+architecture: A2
+parameters:
+  - name: gain
+    values: [5]
+captures:
+  - values: { gain: 5 }
+    file: captures/g5.nam
+"#;
+    let m = parse(yaml);
+    let serialized = serde_yaml::to_string(&m).expect("manifest serializes");
+    let reparsed: PluginManifest = serde_yaml::from_str(&serialized).expect("re-parse");
+
+    assert_eq!(reparsed.architecture, Some(NamArchitecture::A2));
+}
+
+// Issue #675 — pure precedence resolver for the manifest noise gate:
+// per-capture override wins per field over the manifest-level default.
+
+#[test]
+fn resolve_noise_gate_picks_per_capture_over_manifest_per_field() {
+    let manifest = ManifestNoiseGate {
+        enabled: Some(true),
+        threshold_db: Some(-60.0),
+    };
+    let capture = ManifestNoiseGate {
+        enabled: None,
+        threshold_db: Some(-55.0),
+    };
+    let (enabled, threshold) = resolve_noise_gate(Some(&capture), Some(&manifest));
+    assert_eq!(
+        enabled,
+        Some(true),
+        "enabled inherits the manifest-level value"
+    );
+    assert_eq!(
+        threshold,
+        Some(-55.0),
+        "threshold comes from the per-capture override"
+    );
+}
+
+#[test]
+fn resolve_noise_gate_is_none_when_neither_sets_a_field() {
+    let (enabled, threshold) = resolve_noise_gate(None, None);
+    assert_eq!(enabled, None);
+    assert_eq!(threshold, None);
 }

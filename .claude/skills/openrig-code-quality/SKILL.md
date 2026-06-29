@@ -17,6 +17,37 @@ either here; cite them.
 
 ---
 
+## LEI ZERO — PROIBIDO supor quando não está claro; perguntar simples até clarear
+
+**EU SOU PROIBIDO DE SUPOR QUANDO AS COISAS NÃO ESTÃO CLARAS. EU PRECISO PERGUNTAR DE FORMA SIMPLES ATÉ TUDO FICAR CLARO.**
+
+Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o comportamento esperado, a camada certa ou QUALQUER detalhe não está 100% claro, **PARAR e perguntar** — uma pergunta curta e direta de cada vez, até não restar dúvida. PROIBIDO "vou de cabeça e depois conserto"; PROIBIDO inventar caminho; PROIBIDO escolher entre A/B por conta própria quando o usuário não escolheu.
+
+**Why:** supor inverteu o que o usuário pediu e queimou dias — ex.: I/O dentro da chain vs. fora (sistema/binding); "esconder bloco" quando o pedido era NÃO ter bloco; teste-depois quando o pedido era teste-antes. Cada suposição errada vira cascata de retrabalho e quebra a confiança.
+
+**How to apply:** dúvida → pergunta simples → espera a resposta → só então age. Não agrupar várias suposições numa tacada só. Não seguir "parece o passo lógico seguinte". Isto NÃO conflita com "não perguntar o óbvio" (escopo já acordado / default trivial segue direto): a regra vale quando há ambiguidade real — na dúvida entre perguntar e supor, **perguntar**.
+
+---
+
+## LEI — PROIBIDO supor/inventar layout de UI; renderize e confira
+
+É **PROIBIDO** escrever, alterar ou julgar ("ficou bom") QUALQUER layout/UI — `.slint`, posicionamento, espaçamento, hierarquia, alinhamento, componentes visuais — **sem antes invocar `ui-ux-pro-max` (design/UX) + `slint:slint` (plugin slint@slint) + `slint-best-practices`** e **conduzir o trabalho por elas**: layouts nativos do Slint (`HorizontalLayout`/`VerticalLayout`/`GridLayout` com `spacing`/`padding` — nada de `x`/`y` absoluto pra alinhar cluster), hierarquia, estados vazio/erro, alvos ≥44px.
+
+**O agente RENDERIZA e confere** — não chuta:
+- Use o renderizador headless do projeto: `tools/slint-render` (slint-interpreter → PNG, fora do workspace). Build: `cargo build --release --manifest-path tools/slint-render/Cargo.toml`. Uso: `slint-render <arquivo.slint> <Componente> <out.png> [w] [h]`. Para componentes embutidos no app, faça um mockup `.slint` standalone com dados fake (root `inherits Window`, tamanho explícito) e renderize ESSE.
+- Abra o PNG (Read) e confira alinhamento/espaçamento/hierarquia **ANTES de dizer "pronto"**. Chutar layout e mandar o usuário testar é **anti-padrão proibido** (já queimou um dia inteiro de tokens entregando telas tortas).
+- Tocou/criou tela → invocar `ui-ux-pro-max` + `slint:slint` **ANTES da primeira linha de `.slint`**.
+- **AUTO-CRÍTICA obrigatória antes de mostrar o PNG** — rode o checklist e CORRIJA você mesmo; NÃO entregue cru esperando o usuário catar o básico (ele não é designer):
+  - Hierarquia clara (tamanho/peso, não tudo igual).
+  - Cor semântica: estados/categorias distintos com cor+significado (ex.: mono/estéreo badges de cores diferentes), não tudo cinza.
+  - TODAS as ações CRUD presentes em cada item (criar, **editar**, excluir) — não só excluir.
+  - Estados: vazio ("nada ainda" + ação), desabilitado, erro, selecionado.
+  - Regras de domínio refletidas na UI (ex.: mono = 1 canal → 2º canal desabilitado).
+  - Alinhamento em grid, espaçamento 8px consistente, alvos toque ok, badges/labels legíveis.
+- Só DEPOIS da auto-crítica, fechamento visual final em **loop curto com o usuário** (ele aponta o que ainda está torto) — mas o básico já tem que estar resolvido.
+
+---
+
 ## LEI — todo push entrega um bloco de handoff explícito
 
 **Após `git push` numa branch do agente, a resposta no chat para o usuário DEVE conter — no mesmo turno, sem ser pedido — dois blocos:**
@@ -61,13 +92,12 @@ Vale para CADA push da sessão, inclusive incrementais (commit 2/3, commit 3/3).
 
 **ANTES de chamar `gh issue close N`:** rodar `gh issue view N --json milestone` e confirmar que tem milestone atribuído. Se não tiver:
 
-1. Identificar a release que vai (ou já) contém o fix: a `vX.Y.Z-dev.M` do ciclo de develop atual.
-2. Se o milestone está `closed` (porque a tag já saiu), reabrir via `gh api -X PATCH /repos/<owner>/<repo>/milestones/<id> -f state=open`, atribuir, e re-fechar — preserva o histórico real do que entrou em qual release.
-3. Só então `gh issue close N`.
+1. O milestone é a **versão semver atual ainda não lançada** (hoje `v0.1.0`) — **plain semver**. O esquema `vX.Y.Z-dev.N` está MORTO: **NUNCA crie nem reabra** um milestone `-dev.N`. Use o milestone aberto da versão atual; depois do release dela, o próximo é `v0.2.0`.
+2. `gh issue edit N --milestone "v0.1.0"` → `gh issue close N`.
 
 Vale igual pra issue criada e fechada na mesma sessão. Sem exceção.
 
-Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do merge. Quando o GitHub copia a PR pro changelog da release, vê o milestone e classifica.
+Plus: **PRs também** — `gh pr edit <N> --milestone "v0.1.0"` antes do merge. Quando o GitHub copia a PR pro changelog da release, vê o milestone e classifica.
 
 **Por que isso importa.** O release notes do GitHub agrupa por milestone. Issue/PR fechada sem milestone vira release notes pobre — usuário lendo o changelog não sabe que aquilo foi entregue na release. Já tivemos 20 issues acumuladas sem milestone (sessão 2026-05-13); ter que abrir/atribuir/fechar milestone retroativamente pra 20 issues é o custo de não cobrar antes.
 
@@ -79,7 +109,7 @@ Plus: **PRs também** — `gh pr edit <N> --milestone "<vX.Y.Z-dev.M>"` antes do
 
 **Padrão correto:**
 ```
-✅ gh issue edit 423 --milestone "v0.1.0-dev.19"
+✅ gh issue edit 423 --milestone "v0.1.0"
 ✅ gh issue close 423
 ```
 
@@ -413,3 +443,94 @@ Critério definido pelo usuário (NÃO interpretar, NÃO recategorizar):
 - Um arquivo por responsabilidade (file-per-feature): dispatcher = roteador fino; cada handler em seu arquivo. NUNCA crescer arquivo acima do cap (`scripts/validate.sh`) — dividir antes.
 
 **Caso real (2026-05-18, #436):** o usuário repetiu a regra dezenas de vezes; eu fiquei recategorizando ("navegação é tela", "idioma é tela") e errando, fazendo-o repetir ("parece que falo com uma porta"). A regra é a frase acima, literal. Não reabrir o debate.
+
+---
+
+## LEI — bug de runtime/áudio: INSTRUMENTAR antes de teorizar
+
+Bug de áudio/real-time cuja causa não salta da leitura do código: **após a PRIMEIRA hipótese falhar, parar de teorizar e instrumentar.** Adicionar uma medição dos **valores reais** (sample rates, tamanhos de buffer, níveis do elastic, contadores de underrun/xrun, qual arquivo/path) e fazer o usuário rodar e observar. Os números resolvem em uma rodada; hipóteses encadeadas queimam a paciência e a credibilidade.
+
+**Como instrumentar (RT-safe — invariante #8):**
+- **NUNCA** `eprintln!`/log no audio thread (`process_input_f32`/`process_output_f32`/`pop`/`push`). I/O no callback é proibido.
+- No audio thread: incrementar **átomo `Relaxed`** (contador de underrun/xrun/load), e **drenar/imprimir fora da thread** (timer da GUI, loader, wiring). Modelo: `ChainRuntimeState::record_callback_load`/`xrun_count`/`underrun_count` (#670).
+- Em loaders/wiring (fora do audio thread) um `eprintln!` temporário tagueado (`[#670-probe]`) é OK. OpenRig loga em **stderr** via `env_logger` (sem arquivo): rodar `cargo run … 2>/tmp/openrig.log` e `grep` a tag.
+- `openrig://*` (MCP) **não** expõe sample rate viva nem estado de runtime — serializa projeto/devices/meters. Pra valor em execução: instrumentar ou ler o stderr. **Nunca** afirmar um valor de runtime que você não observou.
+- Tag o diagnóstico, commit como `chore:` separado, e **reverter** quando a causa for confirmada (ou promover a contador permanente surfacado, como #670).
+
+**Why:** #669 (DI loop em câmera lenta) — chutei a causa 2× (engine_sr preso em 48000; depois "deve ser o device stream") e entreguei fix que não resolveu, porque raciocinei sobre o estado em vez de observá-lo. Um `eprintln!` de `file_sr/engine_sr/out_frames` mostrou na hora que o loop foi construído a 48000 e **nunca reconstruído** quando o device foi pra 44.1k. Dois fixes errados vs uma linha de log. Padrão recorrente nesta própria sessão (#670): teorizei "rig pesado demais / NAM domina / chains competindo" com base na mediana, até o usuário cravar "single chain em 64 também" — ~18% de CPU não craqueia, é underrun/stall, e só instrumentando dá pra ver.
+
+**How to apply (extra):** bug de resampling ligado a uma config (rate/buffer) → checar se o buffer **já carregado** é reconstruído na mudança, não só os loads novos. O "stall intermitente" num único stream leve aponta pro **decoupling input↔output** (elastic buffer), não pra custo de DSP.
+
+**Anti-padrão:**
+```
+❌ "deve ser X" → fix → "deve ser Y" → fix   (2+ hipóteses sem observar)
+❌ afirmar engine_sr/buffer/contagem sem ter lido o valor real
+❌ eprintln! dentro de process_input_f32 / pop  (I/O no audio thread)
+```
+**Padrão:** 1 hipótese falhou → contador atômico + dump off-thread tagueado → usuário roda em 64 → observa underruns vs xruns → causa cravada → teste que reproduz → fix.
+
+**LEI dentro da LEI — PROVE com teste ANTES de anunciar a descoberta.** Ler o código e dizer "achei o bug, é X" é HIPÓTESE, não prova — e atrapalha/queima credibilidade quando está errado. Antes de afirmar que descobriu a causa: escreva um teste DETERMINÍSTICO que demonstra o defeito (ex.: #670 — em vez de "o worker LV2 roda inline", escrevi um teste que agenda trabalho do worker e checa em qual thread roda; ele FALHOU = provado). E "provei que o defeito X existe" ≠ "provei que X causa a craquejada DO USUÁRIO" — se a medição aponta pra outro bloco/sintoma, diga isso; não conflate um bug real achado de passagem com a causa que o usuário está perseguindo. Caso real #670: provei o worker LV2 inline, mas o stall medido era no NAM (off-CPU) — bugs diferentes; anunciar o worker como "a causa" teria sido errado.
+
+---
+
+## LEI — bug de áudio se acha e se prova por TESTE AUTOMÁTICO. NUNCA validação de ouvido.
+
+**PROIBIDO pedir ao usuário pra ouvir e confirmar ("rode e me diz se o estalo sumiu").** O usuário recusou e foi enfático (2026-06-17): *"me recuso a testar, é obrigação sua"*, *"testes de ouvido têm regressão no futuro"*, *"NUNCA mais me peça para testar de ouvido"*. Achar o defeito E provar o fix é trabalho do agente, via teste determinístico — não do ouvido do usuário.
+
+**Why:** ouvido não é teste — não é determinístico, não deixa guarda de regressão, e empurra a obrigação do engenheiro pro usuário. Bug "confirmado de ouvido" volta calado.
+
+**How to apply (áudio / real-time / scheduling):** reduza o defeito a uma propriedade que um teste assere **sem hardware e sem ouvir**:
+- **Lógica pura:** `BudgetTracker` (#698 RT budget churn), math de bloco DSP, routing, mixdown → teste de unidade na função direto.
+- **Propriedade de sinal** no buffer renderizado: NaN/Inf, clique (salto sample-a-sample > limite de banda), run de hard-clip, DC, nível → `engine/src/audio_signal_integrity_tests.rs`.
+- **Contadores/accounting:** asserir o invariante (ex.: overload TEM que incrementar um contador surfaced), não o som.
+- **Quando o dano é timing** (worker stall, late buffer), teste a LÓGICA que o dispara (ex.: o budget re-declarando em spike transitório de wall-clock), que é determinística, em vez da magnitude wall-clock flaky.
+- A bateria de hardware (`OPENRIG_HW_TESTS=1`) é pro AGENTE rodar e observar — nunca substitui a guarda determinística, nunca é julgada de ouvido pelo usuário.
+
+**Caso real (2026-06-17, estalo single-chain):** o usuário reproduz o estalo com UMA chain / UM input (não é custo de multi-chain — eu supus isso e errei). Numa Mac M4/16GB o DSP custa microssegundos: "load" de 1.5–9× o deadline é **scheduling**, não CPU. Observado (rc=0, promoção RT OK; worker preemptado 2-3ms mid-DSP; #698 re-declara a política RT 10-13×/25s reagindo a wall-clock inflado por preempção = churn). A/B (re-budget on/off) derrubou o pico de ~9× pra <1.6× → causa = churn do #698. Provado por **teste de unidade determinístico** no `BudgetTracker` (spike transitório NÃO pode re-declarar o budget), não de ouvido.
+
+---
+
+## LEI — PROIBIDO marretar sample rate (ou qualquer valor dependente de device)
+
+**Nenhum caminho de áudio/análise pode assumir uma taxa de amostragem fixa.** Cada interface roda na taxa que for melhor pra ela (44.1k, 48k, 96k…). Todo cálculo que depende da taxa — pitch (tuner), bins de FFT→Hz (spectrum), latência, período, resample de loop (DI), timing — **tem que usar a taxa REAL que o stream negociou**, nunca um literal.
+
+**A fonte de verdade da taxa viva:**
+- `ProjectRuntimeController::sample_rate()` — a taxa que os streams realmente abriram (espelhada de `resolved.sample_rate`).
+- `LocalDispatcher::engine_sr()` — a mesma taxa, sincronizada via `attach_engine_sr` (caminho do #669).
+- `adapter_gui::sample_rate::resolve_input_sample_rate(project, device_id, live)` — helper único: setting salvo do device (autoritativo, o stream é forçado a ele ou falha) → senão a taxa viva. **Use este nos consumidores de análise (tuner/spectrum/latency).** NUNCA reimplemente a resolução com `unwrap_or(48_000)`.
+
+**A marreta quase nunca é um literal solto — é o FALLBACK.** O erro recorrente é `…device_settings…find(device)…map(|d| d.sample_rate).unwrap_or(48_000)`: quando o device não tem setting salvo, marreta 48000 enquanto o stream roda a 44.1k → tudo lê ~1.47 semitom acima (#723: E vira F; #669: loop de DI em câmera lenta). Variante igualmente errada: `.device_settings.iter().next()` (primeiro device) em vez do device DAQUELA chain/input.
+
+**Why:** taxa hardcoded é bug silencioso e dependente de hardware — passa na máquina do dev (48k), quebra na do usuário (44.1k). "Em macOS/Windows mudou o som" = regressão (red flag do CLAUDE.md). É a mesma doença que já mordeu tuner, spectrum, latency probe (#723) e o DI loop (#669).
+
+**How to apply:** precisa de uma taxa? Pergunte "de onde vem a taxa VIVA deste stream?" — `controller.sample_rate()` / `dispatcher.engine_sr()` / `resolve_input_sample_rate`. Uma vez que existe stream, a taxa viva SEMPRE existe; "preciso de algum valor de fallback" é falso pra caminho vivo. Exceções legítimas (não são marreta): default pré-device sobrescrito na ativação (estado inicial do controller, init de catálogo VST3), defaults de render/CLI que o usuário sobrescreve, fallback Linux/JACK de device não-configurado atrás de `cfg`, e compensação de design que USA a variável real (`scale = sample_rate / 44_100.0`).
+
+| Desculpa | Realidade |
+|---|---|
+| "Preciso de ALGUM valor pro detector rodar" | Caminho vivo sempre tem taxa viva: `controller.sample_rate()`/`engine_sr()`. O fallback marretado é o bug. |
+| "48000 é o default do projeto, é seguro" | Default pré-device ≠ taxa de um stream vivo. Num caminho de análise, 48000 fixo detona quem roda a 44.1k. |
+| "`unwrap_or(default_sample_rate())` resolve" | Continua marreta no caminho vivo. A taxa autoritativa é a do stream, não uma constante. |
+| "É só o primeiro device (`.next()`)" | Tem que ser o device DAQUELA chain/input. Primeiro device é outro stream/taxa. |
+| "É cosmético (beep/curva), não afeta som" | Mesmo assim é marreta: extraia helper que recebe a taxa real. Sem 48000 plantado. |
+
+**Red flags — PARAR:**
+- `unwrap_or(48_000)` / `unwrap_or(44_100)` em código que lê samples vivos ou calcula Hz/latência/período.
+- Um literal `48_000`/`44_100` num `.rs` de produção fora de: const default pré-device, `cfg(linux)` JACK, ou ratio de design com a variável real.
+- Re-derivar a taxa por conta própria em vez de chamar `resolve_input_sample_rate` / `controller.sample_rate()`.
+- `device_settings.iter().next()` pra achar "a taxa".
+
+---
+
+## Audio runtime / DSP facts (hard-won — verify before touching these areas)
+
+- **`ChainRuntimeState` locks (#580):** the audio thread takes `processing.try_lock()` in `process_input_f32` and emits a SILENT buffer on failure. Any accessor the GUI calls repeatedly (meter timer at 30 Hz, spectrum, tuner) must NEVER take `processing.lock()` — mirror the value as an atomic (`AtomicUsize` etc.) updated at the rare write sites (`build_chain_runtime_state` + the rebuild path in `runtime_graph.rs`). Symptom of a violation is buffer-size dependent (32–64 glitches, 256+ absorbs); offline single-threaded tests pass while production clicks. Pinned by `crates/engine/src/stream_count_contention_tests.rs`.
+- **Cabinet IR = `crates/ir` (#617):** the CAB block is `block_ir` uniformly-partitioned FFT convolution, NOT the NAM C++ `dsp::ImpulseResponse` path. `ir::PARTITION_SIZE` must stay ≤ the smallest supported device buffer (64) or the per-partition FFT burst lands in one callback and xruns ("clips at 64, fine at 128"). Clamp `accum[0].im` and Nyquist `.im` to 0 before the inverse FFT (`realfft` panics on round-off there). The cold-start cushion is decoupled: `engine::IR_COLD_START_CUSHION_FRAMES`.
+- **NAM CAPI surface (#612):** the linked `libNeuralAudioCAPI` dylib exposes ONLY model load/inference + input-level adjustment. There is NO gate/EQ/tone-stack entry point — the NAM block's `noise_gate.*`/`eq.*` knobs have nothing to forward to, and reimplementing that DSP in Rust is forbidden (user decision, #612; a Rust expander was reverted in #496). Before forwarding any NAM param: `nm -gU libs/nam/<platform>/libNeuralAudioCAPI.dylib` and match an exported `Set*`.
+- **Native blocks are pure-Rust DSP:** every `native_*` block compiles into the binary; `libs/lv2/` and the `build.rs` `plugin_binary_present()` check are vestigial. An absent `libs/` does not break natives — investigate the actual symptom instead.
+- **NAM captures live in `plugins_path` (#623):** debug "NAM silent/not working" against `paths.plugins_path` from `config.yaml` (the user's OpenRig-plugins checkout), not the bundled `asset-runtime/captures` (shipped A1-only — gives a false "no A2" read). A2/SlimmableContainer captures need core ≥ `9c7b185`; pre-fix they failed SILENT.
+
+## GUI ↔ runtime wiring traps
+
+- **Two block-creation paths (#675):** `Command::AddBlock` → `block_factory::build_default_block`, AND the GUI block editor → builds the block itself → `Command::InsertPrebuiltBlock` (never calls `build_default_block`). Param/manifest seeding must go through `block_factory::default_params_for_model`, which BOTH paths call — fixing only `build_default_block` leaves GUI-added blocks broken. Seed into the user-visible knob (visible, editable, persisted), never a silent load-time default.
+- **Dispatch alone is dead (#614):** a `Command` targeting a `ChainRuntimeState` only records intent + emits an `Event`. The GUI callback must ALSO apply the runtime effect inline right after dispatch (mirror `wire_mute_inline` in `tuner_wiring.rs`). Always add an end-to-end test driving the callback path and asserting the runtime state flipped — applier-only unit tests hide the gap.
+- **"Doesn't resize / doesn't fit / not updating" UI bugs (#622):** the logic usually exists but a code path doesn't TRIGGER it (e.g. the model-picker path rebuilt params without calling `apply_panel_dimensions`). Reproduce in the running app first; when told "do the same as X", mirror X's trigger, don't reinvent the calculation. NAM amps use the PANEL editor, generic/VST3 the FORM editor (`use_panel_editor` in `catalog.rs`) — don't assume which. Pin GUI-wiring fixes with source-presence tests (`no_native_dialogs.rs` convention).

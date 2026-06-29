@@ -20,6 +20,9 @@ import { ComboBox } from "std-widgets.slint";
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
     in property <[string]> sources: [];
+    // #661: index of the currently loaded source within `sources`, or -1 for
+    // none. Drives the ComboBox so the popup shows the active source on reopen.
+    in property <int> selected-index: -1;
 
     callback di-loop-source-selected(string);
     callback di-loop-choose-file();
@@ -58,16 +61,19 @@ export component ChainDiLoopButton inherits Rectangle {
     accessible-label: @tr("di-loop-button-label");
 
     pop := PopupWindow {
-        // Opens below and slightly left of the button so it stays within
-        // the chain header row and does not overlap the volume popup.
-        x: -168px;
+        // Opens below and to the left of the button (which sits on the right
+        // edge of the chain header) so it stays within the row and does not
+        // overlap the volume popup. #661: widened so long bundled source ids
+        // (e.g. "phil-STRATO-barao_vermelho-pro_dia_nascer_feliz") are legible;
+        // the right edge stays at +28px (button right) by shifting x left.
+        x: -352px;
         y: 32px;
-        width: 196px;
+        width: 380px;
         height: 44px;
         close-policy: close-on-click-outside;
 
         Rectangle {
-            width: 196px;
+            width: 380px;
             height: 44px;
             border-radius: 8px;
             background: #11141af2;
@@ -78,10 +84,12 @@ export component ChainDiLoopButton inherits Rectangle {
             ComboBox {
                 x: 8px;
                 y: 8px;
-                width: 148px;
+                width: 328px;
                 height: 28px;
                 model: root.sources;
-                current-index: -1;
+                // #661: reflect the active source (re-derived from dispatcher
+                // state) so reopening the popup shows what is loaded/playing.
+                current-index: root.selected-index;
                 selected(value) => {
                     if value == "Choose file…" {
                         root.di-loop-choose-file();
@@ -93,7 +101,7 @@ export component ChainDiLoopButton inherits Rectangle {
 
             // Play / Stop toggle button
             Rectangle {
-                x: 160px;
+                x: 344px;
                 y: 8px;
                 width: 28px;
                 height: 28px;

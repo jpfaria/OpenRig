@@ -9,11 +9,9 @@ use std::rc::Rc;
 use crate::command::Command;
 use crate::dispatcher::CommandDispatcher;
 use crate::local_dispatcher::LocalDispatcher;
-use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry,
-};
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+use domain::ids::{BlockId, ChainId};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
+use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
@@ -35,11 +33,8 @@ fn input_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Input(InputBlock {
             model: "standard".to_string(),
-            entries: vec![InputEntry {
-                device_id: DeviceId("dev".to_string()),
-                mode: ChainInputMode::Mono,
-                channels: vec![0],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -50,11 +45,8 @@ fn output_block() -> AudioBlock {
         enabled: true,
         kind: AudioBlockKind::Output(OutputBlock {
             model: "standard".to_string(),
-            entries: vec![OutputEntry {
-                device_id: DeviceId("dev".to_string()),
-                mode: ChainOutputMode::default(),
-                channels: vec![0],
-            }],
+            io: String::new(),
+            endpoint: String::new(),
         }),
     }
 }
@@ -71,6 +63,7 @@ fn chain_with_io_and_blocks(id: &str, n_blocks: usize) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled: true,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks,
     }
 }

@@ -19,6 +19,8 @@
 
 use anyhow::{anyhow, Result};
 
+use domain::io_binding::IoBinding;
+use engine::runtime_endpoints::resolve_chain_io;
 use project::chain::Chain;
 
 use crate::jack_supervisor;
@@ -38,7 +40,12 @@ use crate::usb_proc::detect_all_usb_audio_cards;
 pub(crate) fn jack_resolve_chain_config(
     chain: &Chain,
     supervisor: &jack_supervisor::JackSupervisor<jack_supervisor::LiveJackBackend>,
+    registry: &[IoBinding],
 ) -> Result<ResolvedChainAudioConfig> {
+    // Model A (#716): the chain's device endpoints come from the binding
+    // registry, not from block `entries`. `resolve_chain_io` yields the inputs
+    // (head + mid Input blocks) and outputs (tail + mid Output blocks).
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     // Resolve the JACK server for this chain by inspecting its I/O device_ids.
     // Chain entries may have:
     //   - "jack:<server_name>"  → use that server directly
@@ -70,10 +77,8 @@ pub(crate) fn jack_resolve_chain_config(
 
     // Determine server from first input entry, or fallback to first
     // supervisor-ready card.
-    let server_name = chain
-        .input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter())
+    let server_name = resolved_inputs
+        .iter()
         .find_map(|entry| resolve_server(&entry.device_id.0))
         .or_else(|| {
             cards
@@ -89,10 +94,8 @@ pub(crate) fn jack_resolve_chain_config(
     let in_channels = meta.capture_port_count as u16;
     let out_channels = meta.playback_port_count as u16;
 
-    let input_sigs: Vec<InputStreamSignature> = chain
-        .input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter())
+    let input_sigs: Vec<InputStreamSignature> = resolved_inputs
+        .iter()
         .map(|entry| InputStreamSignature {
             device_id: device_id.clone(),
             channels: entry.channels.clone(),
@@ -102,10 +105,8 @@ pub(crate) fn jack_resolve_chain_config(
         })
         .collect();
 
-    let output_sigs: Vec<OutputStreamSignature> = chain
-        .output_blocks()
-        .into_iter()
-        .flat_map(|(_, ob)| ob.entries.iter())
+    let output_sigs: Vec<OutputStreamSignature> = resolved_outputs
+        .iter()
         .map(|entry| OutputStreamSignature {
             device_id: device_id.clone(),
             channels: entry.channels.clone(),
@@ -119,6 +120,7 @@ pub(crate) fn jack_resolve_chain_config(
         inputs: Vec::new(),
         outputs: Vec::new(),
         sample_rate,
+        by_device: std::collections::HashMap::new(),
         stream_signature: ChainStreamSignature {
             inputs: input_sigs,
             outputs: output_sigs,

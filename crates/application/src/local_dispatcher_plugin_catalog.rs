@@ -36,13 +36,25 @@ impl LocalDispatcher {
     /// `Event::PluginCatalogReloaded { native_count, disk_count,
     /// total_count }`.
     pub(crate) fn handle_reload_plugin_catalog(&self) -> Result<Vec<Event>> {
+        // #693: the full rescan (thousands of manifests) runs on its
+        // own task; the registry swap is atomic and thread-safe. The
+        // completion event arrives via `poll_async_results`.
         let roots = self.plugin_roots()?;
-        let stats = plugin_loader::registry::reload(&roots);
-        Ok(vec![Event::PluginCatalogReloaded {
-            native_count: stats.native_count,
-            disk_count: stats.disk_count,
-            total_count: stats.total_count,
-        }])
+        let tx = self.async_done_tx.clone();
+        std::thread::Builder::new()
+            .name("catalog-reload".into())
+            .spawn(move || {
+                let stats = plugin_loader::registry::reload(&roots);
+                let _ = tx.send(crate::local_dispatcher::AsyncDone::Events(vec![
+                    Event::PluginCatalogReloaded {
+                        native_count: stats.native_count,
+                        disk_count: stats.disk_count,
+                        total_count: stats.total_count,
+                    },
+                ]));
+            })
+            .map_err(|e| anyhow::anyhow!("failed to spawn catalog-reload task: {e}"))?;
+        Ok(vec![])
     }
 
     /// `Command::LoadPlugin { id }` — bring a single disk plugin
@@ -51,9 +63,31 @@ impl LocalDispatcher {
     /// package with that id is discoverable; no-op when already
     /// loaded. Emits `Event::PluginLoaded { id }` on success.
     pub(crate) fn handle_load_plugin(&self, id: String) -> Result<Vec<Event>> {
+        // #693: the root scan runs on its own task; success emits
+        // `PluginLoaded` via poll, failure is logged (non-blocking
+        // logger) — the caller never waits on the directory walk.
         let roots = self.plugin_roots()?;
-        plugin_loader::registry::load_one(&id, &roots).map_err(|e| anyhow::anyhow!("{e}"))?;
-        Ok(vec![Event::PluginLoaded { id }])
+        let tx = self.async_done_tx.clone();
+        std::thread::Builder::new()
+            .name("plugin-load".into())
+            .spawn(move || match plugin_loader::registry::load_one(&id, &roots) {
+                Ok(()) => {
+                    let _ = tx.send(crate::local_dispatcher::AsyncDone::Events(vec![
+                        Event::PluginLoaded { id },
+                    ]));
+                }
+                Err(e) => {
+                    log::error!("LoadPlugin '{id}' failed: {e}");
+                    let _ = tx.send(crate::local_dispatcher::AsyncDone::Events(vec![
+                        Event::PluginLoadFailed {
+                            id,
+                            reason: e.to_string(),
+                        },
+                    ]));
+                }
+            })
+            .map_err(|e| anyhow::anyhow!("failed to spawn plugin-load task: {e}"))?;
+        Ok(vec![])
     }
 
     /// `Command::UnloadPlugin { id }` — remove a single disk plugin

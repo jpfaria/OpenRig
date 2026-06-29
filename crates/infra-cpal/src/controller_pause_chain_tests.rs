@@ -31,6 +31,7 @@ fn empty_chain(id: &str, enabled: bool) -> Chain {
         instrument: "electric_guitar".to_string(),
         enabled,
         volume: 100.0,
+        io_binding_ids: vec![],
         blocks: vec![],
     }
 }
@@ -52,7 +53,7 @@ fn controller_with_active_chain(
 ) {
     let chain = empty_chain(&chain_id.0, true);
     let runtime_arc = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
             .expect("empty chain runtime should build"),
     );
 
@@ -83,6 +84,12 @@ fn controller_with_active_chain(
     let controller = ProjectRuntimeController {
         runtime_graph: graph,
         active_chains,
+        chain_slots: std::collections::HashMap::new(),
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: Vec::new(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -183,7 +190,7 @@ fn pause_chain_drains_every_input_group_runtime() {
     // has two `InputBlock` entries.
     let chain = empty_chain(&chain_id.0, true);
     let group1 = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
             .expect("group-1 runtime should build"),
     );
     controller
@@ -223,7 +230,7 @@ fn upsert_chain_enabled_resumes_every_input_group_runtime() {
 
     let chain = empty_chain(&chain_id.0, true);
     let group1 = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
             .expect("group-1 runtime should build"),
     );
     controller
@@ -252,5 +259,31 @@ fn upsert_chain_enabled_resumes_every_input_group_runtime() {
         !group1.is_draining(),
         "REGRESSION: resume only cleared group 0; group 1 stayed draining \
          and its audio stays silent after toggle-on."
+    );
+}
+
+// ── Issue #670: per-chain xrun count accessor for the GUI overload meter ──
+
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn chain_xrun_count_reports_runtime_overruns() {
+    let chain_id = ChainId("chain:670:xrun".into());
+    let (controller, runtime_arc) = controller_with_active_chain(&chain_id);
+    assert_eq!(controller.chain_xrun_count(&chain_id), 0);
+    // Two overrunning callbacks (2 ms each against a 1 ms deadline).
+    runtime_arc.record_callback_load(2_000_000, 1_000_000);
+    runtime_arc.record_callback_load(2_000_000, 1_000_000);
+    assert_eq!(controller.chain_xrun_count(&chain_id), 2);
+}
+
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn chain_xrun_count_is_zero_for_unknown_chain() {
+    let chain_id = ChainId("chain:670:known".into());
+    let (controller, _rt) = controller_with_active_chain(&chain_id);
+    assert_eq!(
+        controller.chain_xrun_count(&ChainId("nope".into())),
+        0,
+        "unknown chain has no runtime, so no xruns"
     );
 }

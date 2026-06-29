@@ -11,24 +11,28 @@ fn rig() -> RigProject {
         "input-1".to_string(),
         RigInput {
             label: Some("Eu".into()),
-            sources: vec![],
             bank: BTreeMap::from([(1, "clean".to_string()), (4, "lead".to_string())]),
             active_preset: 4,
             active_scene: 3,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
+            io_binding_ids: Vec::new(),
         },
     );
     inputs.insert(
         "input-2".to_string(),
         RigInput {
             label: None,
-            sources: vec![],
             bank: BTreeMap::from([(2, "drive".to_string())]),
             active_preset: 2,
             active_scene: 1,
             routing: vec![],
             instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
+            io_binding_ids: Vec::new(),
         },
     );
     RigProject {

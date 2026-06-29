@@ -101,3 +101,40 @@ fn midi_flag_with_path_is_explicit() {
 fn midi_flag_absent_is_none() {
     assert_eq!(parse_midi_map(&["openrig", "/tmp/p.openrig"]), None);
 }
+
+// ── #712: config master switch folds into the CLI flag ────────────────
+// CLI flag present = dev override (wins). Otherwise the per-machine
+// config switch decides. Both off → subsystem stays down.
+
+#[test]
+fn resolve_mcp_cli_present_wins_over_config() {
+    let cli = Some("0.0.0.0:9000".parse().unwrap());
+    assert_eq!(resolve_mcp_addr(cli, false), cli, "CLI addr overrides config");
+}
+
+#[test]
+fn resolve_mcp_config_enabled_binds_default_addr() {
+    let expected: SocketAddr = DEFAULT_MCP_ADDR.parse().unwrap();
+    assert_eq!(resolve_mcp_addr(None, true), Some(expected));
+}
+
+#[test]
+fn resolve_mcp_both_off_is_none() {
+    assert_eq!(resolve_mcp_addr(None, false), None);
+}
+
+#[test]
+fn resolve_midi_cli_present_wins_over_config() {
+    let cli = Some(MidiMapArg::Path("/tmp/m.yaml".into()));
+    assert_eq!(resolve_midi_map(cli.clone(), false), cli);
+}
+
+#[test]
+fn resolve_midi_config_enabled_uses_default_map() {
+    assert_eq!(resolve_midi_map(None, true), Some(MidiMapArg::Default));
+}
+
+#[test]
+fn resolve_midi_both_off_is_none() {
+    assert_eq!(resolve_midi_map(None, false), None);
+}
