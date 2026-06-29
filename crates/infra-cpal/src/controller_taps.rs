@@ -309,7 +309,7 @@ impl ProjectRuntimeController {
     /// `Event::ChainDiLoopEnabledChanged` is received; the `Arc<DiLoop>` is
     /// retrieved from the dispatcher's ephemeral store (not persisted).
     pub fn set_chain_di_loop(&self, chain_id: &ChainId, di: Option<Arc<engine::DiLoop>>) {
-        arm_di_loop_on_first(&self.runtime_graph.runtimes_for(chain_id), di);
+        arm_di_loop_per_output_stream(&self.runtime_graph.runtimes_for(chain_id), di);
     }
 
     /// Returns `true` when at least one `ChainRuntimeState` for `chain_id`
@@ -326,25 +326,125 @@ impl ProjectRuntimeController {
     }
 }
 
-/// Arm a chain's DI loop on its FIRST per-input-entry runtime only.
+/// Arm a chain's DI loop on the FIRST runtime of EACH distinct sample rate, so
+/// the loop reaches every one of the chain's output streams exactly once.
 ///
-/// #715: since #703 a chain has one isolated runtime PER input entry, each
-/// writing to the same output device — where the backend SUMS them (CLAUDE.md
-/// invariant: mixing happens in the backend, not our code). Arming the same
-/// loop on EVERY runtime plays the signal once per entry, so the device sums N
-/// copies and the loop is heard at N× level (the user-reported "som dobrando"
-/// on a 2-input-entry chain). A DI loop is a single test source: arm it on the
-/// first runtime and CLEAR it on the rest (so a stale loop cannot linger on
-/// entry 2+). A single-entry chain (the common case) is unchanged.
-pub(crate) fn arm_di_loop_on_first(runtimes: &[Arc<ChainRuntimeState>], di: Option<Arc<DiLoop>>) {
-    for (i, runtime) in runtimes.iter().enumerate() {
-        runtime.set_di_loop(if i == 0 { di.clone() } else { None });
+/// #715: a chain has one isolated runtime PER input entry (#703). Arming the
+/// loop on EVERY runtime sums N copies at a shared output device — the
+/// "som dobrando" the owner reported on a 2-input chain. The old fix armed only
+/// the FIRST runtime; but #736 then clocked each runtime at ITS input device's
+/// rate and made an output stream mix ONLY the runtimes at its OWN rate
+/// (`slots_for_output_stream`). On a multi-rate chain (the owner's Scarlett
+/// @44.1 + TEYUN @48 rig) the first runtime sits at one rate, so an output at
+/// the OTHER rate never sees the loop — armed (`has_di_loop` true → icon blue)
+/// yet silent, the user's "dead always". Arming the first runtime of each
+/// distinct rate gives every output stream exactly one copy: audible whichever
+/// output the user monitors, and no two same-rate siblings double it.
+pub(crate) fn arm_di_loop_per_output_stream(
+    runtimes: &[Arc<ChainRuntimeState>],
+    di: Option<Arc<DiLoop>>,
+) {
+    let mut armed_rates: Vec<f32> = Vec::new();
+    for runtime in runtimes {
+        let rate = runtime.sample_rate();
+        let first_of_rate = !armed_rates.iter().any(|r| (r - rate).abs() < 1.0);
+        if di.is_some() && first_of_rate {
+            armed_rates.push(rate);
+            runtime.set_di_loop(di.clone());
+        } else {
+            runtime.set_di_loop(None);
+        }
+    }
+}
+
+#[cfg(test)]
+mod di_loop_multirate_output_tests {
+    use super::arm_di_loop_per_output_stream;
+    use domain::ids::{ChainId, DeviceId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use engine::runtime::build_chain_runtime_state;
+    use engine::DiLoop;
+    use project::chain::Chain;
+    use std::sync::Arc;
+
+    /// One per-input runtime clocked at `rate`, mono in / stereo out (#716: the
+    /// endpoints live in the binding registry).
+    fn runtime_at(rate: f32) -> Arc<engine::runtime::ChainRuntimeState> {
+        let chain = Chain {
+            id: ChainId("mr".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["io".into()],
+            blocks: vec![],
+        };
+        let registry = vec![IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId("d".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            }],
+            outputs: vec![IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId("d".into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        }];
+        Arc::new(build_chain_runtime_state(&chain, rate, &[256], &registry).unwrap())
+    }
+
+    /// #749 — on a multi-rate chain the DI loop must reach EVERY output stream.
+    /// #736 mixes only same-rate runtimes into an output, so arming a single
+    /// entry leaves the other-rate output silent while the icon shows blue
+    /// ("dead always"). Arm the first runtime of each distinct rate so both the
+    /// 44.1 kHz and the 48 kHz outputs play one copy.
+    #[test]
+    fn di_loop_reaches_every_output_rate_on_a_multirate_chain() {
+        let e0 = runtime_at(44_100.0); // Scarlett input entry
+        let e1 = runtime_at(48_000.0); // TEYUN input entry
+        let di = Arc::new(DiLoop::from_samples(&[0.5; 256], 48_000, 1, 48_000, 0));
+
+        arm_di_loop_per_output_stream(&[e0.clone(), e1.clone()], Some(di));
+
+        assert!(
+            e0.has_di_loop(),
+            "REGRESSION #749: the 44.1 kHz output stream must receive the loop"
+        );
+        assert!(
+            e1.has_di_loop(),
+            "REGRESSION #749: the 48 kHz output stream must receive the loop — \
+             armed only on the 44.1 kHz entry, the 48 kHz output (#736) stays \
+             silent while the icon is blue"
+        );
+    }
+
+    /// Two entries at the SAME rate feed the SAME output stream and the backend
+    /// sums them — only ONE may carry the loop or it doubles (#715). The per-rate
+    /// arming must pick exactly one runtime per distinct rate.
+    #[test]
+    fn di_loop_does_not_double_same_rate_entries() {
+        let a = runtime_at(48_000.0);
+        let b = runtime_at(48_000.0); // sibling on the same 48 kHz output
+        let di = Arc::new(DiLoop::from_samples(&[0.5; 256], 48_000, 1, 48_000, 0));
+
+        arm_di_loop_per_output_stream(&[a.clone(), b.clone()], Some(di));
+
+        assert!(a.has_di_loop(), "the first 48 kHz runtime carries the loop");
+        assert!(
+            !b.has_di_loop(),
+            "the same-rate sibling must NOT also carry it (#715 doubling)"
+        );
     }
 }
 
 #[cfg(test)]
 mod di_loop_doubling_tests {
-    use super::arm_di_loop_on_first;
+    use super::arm_di_loop_per_output_stream;
     use crate::{build_chain_runtime, BuildRequest};
     use domain::ids::{ChainId, DeviceId};
     use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
@@ -424,7 +524,7 @@ mod di_loop_doubling_tests {
         assert_eq!(runtimes.len(), 2);
 
         let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2, 0.3, 0.4], 48_000, 1, 48_000, 0));
-        arm_di_loop_on_first(&runtimes, Some(di));
+        arm_di_loop_per_output_stream(&runtimes, Some(di));
 
         assert!(runtimes[0].has_di_loop(), "the loop plays on the first runtime");
         assert!(
@@ -446,8 +546,8 @@ mod di_loop_doubling_tests {
         let built = build_chain_runtime(&req).expect("build");
         let runtimes: Vec<_> = built.into_iter().map(|(_, rt)| rt).collect();
         let di = Arc::new(DiLoop::from_samples(&[0.1, 0.2], 48_000, 1, 48_000, 0));
-        arm_di_loop_on_first(&runtimes, Some(di));
-        arm_di_loop_on_first(&runtimes, None);
+        arm_di_loop_per_output_stream(&runtimes, Some(di));
+        arm_di_loop_per_output_stream(&runtimes, None);
         assert!(!runtimes[0].has_di_loop() && !runtimes[1].has_di_loop());
     }
 }
