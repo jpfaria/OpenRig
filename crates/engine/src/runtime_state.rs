@@ -548,9 +548,21 @@ impl ChainRuntimeState {
     /// are `Arc`s shared with the UI consumers, so adopting the same `Arc`s makes
     /// the new runtime feed the exact rings the UI is already reading. Lock-free
     /// `ArcSwap` store, same as `subscribe_*`.
+    /// #749: the DI loop is the same kind of live, runtime-only state as the
+    /// taps — armed on the runtime, read by the audio thread, never persisted.
+    /// An off-thread rebuild that adopts the taps but NOT the armed loop leaves
+    /// the rebuilt (now-live) runtime playing device input while the UI, still
+    /// reading the old runtime's `has_di_loop`, shows the loop as playing: the
+    /// "icon blue but silent" bug. Carry the loop `Arc` AND its playback cursor
+    /// so a loop that was mid-playback resumes from where it was, not from 0.
     pub fn adopt_taps_from(&self, superseded: &ChainRuntimeState) {
         self.input_taps.store(superseded.input_taps.load_full());
         self.stream_taps.store(superseded.stream_taps.load_full());
+        self.di_loop.store(superseded.di_loop.load_full());
+        self.di_loop_pos.store(
+            superseded.di_loop_pos.load(Ordering::Relaxed),
+            Ordering::Relaxed,
+        );
     }
 
     /// Drop stream taps whose consumer handles have all been released.
