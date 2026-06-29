@@ -1,14 +1,20 @@
 // #614 — per-chain virtual DI loop control (icon + popup with source
 // selector + play/stop). Visually paired with ChainVolumeButton: same
-// 28×28 px touch target, same icon-hover colouring. #749: unlike the volume
-// popup (an inline slider) this one hosts a ComboBox whose dropdown is a
-// separate overlay, so it is `no-auto-close` and the headphones button
-// toggles it — see `pop` and the `ta` TouchArea below.
+// 28×28 px touch target, same icon-hover colouring.
+//
+// #749: the source picker is an INLINE scrollable list, NOT a std-widgets
+// `ComboBox`. A ComboBox opens its dropdown as a SEPARATE top-level
+// PopupWindow; Slint only keeps one PopupWindow open at a time, so opening
+// the dropdown immediately closed THIS popup — the user could never keep a
+// source selected nor reach the play button. The inline list lives inside
+// this popup (clicks count as "inside", so `close-on-click-outside` does not
+// fire), mirroring `model_select_with_search` / `preset_select`. Picking a
+// source keeps the popup open so the user can press play in the same step.
 //
 // ## Callbacks (all forwarded up to ChainRow / project_chains / AppWindow)
-//   di-loop-source-selected(source: string) — user picked an entry from the
-//       ComboBox that is NOT the "Choose file…" sentinel. Rust resolves it
-//       via `parse_di_loop_source` and dispatches `SetChainDiLoopSource`.
+//   di-loop-source-selected(source: string) — user picked a list entry that
+//       is NOT the "Choose file…" sentinel. Rust resolves it via
+//       `parse_di_loop_source` and dispatches `SetChainDiLoopSource`.
 //   di-loop-choose-file                     — user picked "Choose file…".
 //       Rust opens the file picker and, on a result, dispatches the command.
 //   di-loop-play                            — user pressed ▶. Rust dispatches
@@ -17,22 +23,13 @@
 //       `SetChainDiLoopEnabled { enabled: false }`.
 
 import { Theme } from "../theme.slint";
-import { ComboBox } from "std-widgets.slint";
 
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
     in property <[string]> sources: [];
     // #661: index of the currently loaded source within `sources`, or -1 for
-    // none. Drives the ComboBox so the popup shows the active source on reopen.
+    // none. Highlights the active row so the popup shows what is loaded/playing.
     in property <int> selected-index: -1;
-    // #749: the headphones button TOGGLES the popup, because the popup is now
-    // `no-auto-close` (see `pop`). The source ComboBox opens its dropdown as a
-    // SEPARATE top-level overlay; under `close-on-click-outside` clicking a
-    // dropdown item counted as a click "outside" the 380×44 popup and slammed
-    // the whole DI control shut before the user could press play — they could
-    // not even keep a source selected. No auto-close keeps the popup open
-    // through the dropdown selection; this button opens and closes it.
-    private property <bool> popup-open;
 
     callback di-loop-source-selected(string);
     callback di-loop-choose-file();
@@ -64,14 +61,7 @@ export component ChainDiLoopButton inherits Rectangle {
 
     ta := TouchArea {
         mouse-cursor: pointer;
-        clicked => {
-            if (root.popup-open) {
-                pop.close();
-            } else {
-                pop.show();
-            }
-            root.popup-open = !root.popup-open;
-        }
+        clicked => { pop.show(); }
     }
 
     accessible-role: button;
@@ -81,47 +71,27 @@ export component ChainDiLoopButton inherits Rectangle {
         // Opens below and to the left of the button (which sits on the right
         // edge of the chain header) so it stays within the row and does not
         // overlap the volume popup. #661: widened so long bundled source ids
-        // (e.g. "phil-STRATO-barao_vermelho-pro_dia_nascer_feliz") are legible;
-        // the right edge stays at +28px (button right) by shifting x left.
+        // (e.g. "phil-STRATO-barao_vermelho-pro_dia_nascer_feliz") are legible.
         x: -352px;
         y: 32px;
         width: 380px;
-        height: 44px;
-        // #749: no auto-close — the source ComboBox's dropdown is a separate
-        // overlay, so close-on-click-outside fired on every item pick and shut
-        // the popup before the user could press play. The headphones button
-        // (the `ta` TouchArea) opens and closes it explicitly.
-        close-policy: no-auto-close;
+        height: 236px;
+        // #749: an inline list (below) keeps every click inside the popup, so
+        // close-on-click-outside dismisses ONLY on a click elsewhere — never on
+        // a source pick or a play press.
+        close-policy: close-on-click-outside;
 
         Rectangle {
             width: 380px;
-            height: 44px;
+            height: 236px;
             border-radius: 8px;
             background: #11141af2;
             border-width: 1px;
             border-color: #3b4250;
+            clip: true;
 
-            // Source ComboBox — fills most of the popup
-            ComboBox {
-                x: 8px;
-                y: 8px;
-                width: 328px;
-                height: 28px;
-                model: root.sources;
-                // #661: reflect the active source (re-derived from dispatcher
-                // state) so reopening the popup shows what is loaded/playing.
-                current-index: root.selected-index;
-                selected(value) => {
-                    if value == "Choose file…" {
-                        root.di-loop-choose-file();
-                    } else {
-                        root.di-loop-source-selected(value);
-                    }
-                }
-            }
-
-            // Play / Stop toggle button
-            Rectangle {
+            // ── header: play / stop on the right ──────────────────────────
+            play-btn := Rectangle {
                 x: 344px;
                 y: 8px;
                 width: 28px;
@@ -157,6 +127,65 @@ export component ChainDiLoopButton inherits Rectangle {
                 }
                 accessible-role: button;
                 accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
+            }
+
+            // Separator under the header.
+            Rectangle {
+                x: 8px;
+                y: 44px;
+                width: parent.width - 16px;
+                height: 1px;
+                background: #2a3040;
+            }
+
+            // ── inline scrollable source list ─────────────────────────────
+            if root.sources.length > 0 : Flickable {
+                x: 0;
+                y: 50px;
+                width: parent.width;
+                height: parent.height - 58px;
+                viewport-width: self.width;
+                viewport-height: root.sources.length * 34px + 8px;
+
+                for src[i] in root.sources : Rectangle {
+                    x: 6px;
+                    y: 4px + i * 34px;
+                    width: parent.width - 12px;
+                    height: 32px;
+                    border-radius: 5px;
+                    background: i == root.selected-index
+                        ? #2a3050
+                        : row-ta.has-hover ? #ffffff10 : transparent;
+                    animate background { duration: 100ms; }
+
+                    Text {
+                        x: 12px;
+                        y: 0;
+                        width: parent.width - 24px;
+                        height: parent.height;
+                        text: src;
+                        color: i == root.selected-index ? #8aa0ff : #b0bce0;
+                        font-size: 17px;
+                        font-weight: i == root.selected-index ? 700 : 400;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+
+                    row-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            // The popup stays open (no `pop.close()`) so the
+                            // user can press play right after picking.
+                            if src == "Choose file…" {
+                                root.di-loop-choose-file();
+                            } else {
+                                root.di-loop-source-selected(src);
+                            }
+                        }
+                    }
+                    accessible-role: button;
+                    accessible-label: src;
+                }
             }
         }
     }
