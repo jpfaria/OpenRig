@@ -1,7 +1,9 @@
 // #614 — per-chain virtual DI loop control (icon + popup with source
 // selector + play/stop). Visually paired with ChainVolumeButton: same
-// 28×28 px touch target, same icon-hover colouring, same PopupWindow
-// close-on-click-outside behaviour so it doesn't block chain interaction.
+// 28×28 px touch target, same icon-hover colouring. #749: unlike the volume
+// popup (an inline slider) this one hosts a ComboBox whose dropdown is a
+// separate overlay, so it is `no-auto-close` and the headphones button
+// toggles it — see `pop` and the `ta` TouchArea below.
 //
 // ## Callbacks (all forwarded up to ChainRow / project_chains / AppWindow)
 //   di-loop-source-selected(source: string) — user picked an entry from the
@@ -23,6 +25,14 @@ export component ChainDiLoopButton inherits Rectangle {
     // #661: index of the currently loaded source within `sources`, or -1 for
     // none. Drives the ComboBox so the popup shows the active source on reopen.
     in property <int> selected-index: -1;
+    // #749: the headphones button TOGGLES the popup, because the popup is now
+    // `no-auto-close` (see `pop`). The source ComboBox opens its dropdown as a
+    // SEPARATE top-level overlay; under `close-on-click-outside` clicking a
+    // dropdown item counted as a click "outside" the 380×44 popup and slammed
+    // the whole DI control shut before the user could press play — they could
+    // not even keep a source selected. No auto-close keeps the popup open
+    // through the dropdown selection; this button opens and closes it.
+    private property <bool> popup-open;
 
     callback di-loop-source-selected(string);
     callback di-loop-choose-file();
@@ -54,7 +64,14 @@ export component ChainDiLoopButton inherits Rectangle {
 
     ta := TouchArea {
         mouse-cursor: pointer;
-        clicked => { pop.show(); }
+        clicked => {
+            if (root.popup-open) {
+                pop.close();
+            } else {
+                pop.show();
+            }
+            root.popup-open = !root.popup-open;
+        }
     }
 
     accessible-role: button;
@@ -70,7 +87,11 @@ export component ChainDiLoopButton inherits Rectangle {
         y: 32px;
         width: 380px;
         height: 44px;
-        close-policy: close-on-click-outside;
+        // #749: no auto-close — the source ComboBox's dropdown is a separate
+        // overlay, so close-on-click-outside fired on every item pick and shut
+        // the popup before the user could press play. The headphones button
+        // (the `ta` TouchArea) opens and closes it explicitly.
+        close-policy: no-auto-close;
 
         Rectangle {
             width: 380px;
