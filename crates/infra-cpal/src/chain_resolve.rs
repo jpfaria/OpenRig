@@ -35,6 +35,7 @@ use project::project::Project;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use engine::runtime_endpoints::{resolve_chain_io, resolve_chain_io_by_binding, InputEntry, OutputEntry};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::block::{AudioBlockKind, InsertBlock};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;

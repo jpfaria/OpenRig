@@ -91,10 +91,16 @@ mod jack_chain_resolve;
 
 mod validation;
 
+// audio_workgroup (macOS RT-cluster join) and dsp_worker (CPAL per-input DSP
+// worker, #670) serve ONLY the CPAL audio path. On Linux+JACK that path is not
+// compiled (the JACK-direct backend bypasses CPAL), so gate these modules to
+// the same `cfg` as their callers to avoid dead-code warnings (#755).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod audio_workgroup;
 mod callback_load_timing;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod dsp_worker;
-#[cfg(test)]
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "dsp_worker_recovery_tests.rs"]
 mod dsp_worker_recovery_tests;
 mod stream_builder;
