@@ -1,34 +1,28 @@
-// #614 — per-chain virtual DI loop control (icon + popup with source
-// selector + play/stop). Visually paired with ChainVolumeButton: same
-// 28×28 px touch target, same icon-hover colouring.
+// #614 — per-chain virtual DI loop control (icon + popup).
 //
-// #749: the source picker is an INLINE scrollable list, NOT a std-widgets
-// `ComboBox`. A ComboBox opens its dropdown as a SEPARATE top-level
-// PopupWindow; Slint only keeps one PopupWindow open at a time, so opening
-// the dropdown immediately closed THIS popup — the user could never keep a
-// source selected nor reach the play button. The inline list lives inside
-// this popup (clicks count as "inside", so `close-on-click-outside` does not
-// fire), mirroring `model_select_with_search` / `preset_select`. Picking a
-// source keeps the popup open so the user can press play in the same step.
+// #749 layout (owner-specified):
+//   * the headphones icon opens a BOX (PopupWindow, close-on-click-outside).
+//   * the box holds a SELECT field showing the current source.
+//   * clicking the select EXPANDS its options INLINE inside the same box —
+//     NOT a nested PopupWindow. A ComboBox / second PopupWindow can't be used:
+//     Slint keeps only one PopupWindow open, so the dropdown closed the box and
+//     no source could ever be picked. Inline expansion + a concrete collapse on
+//     pick mirrors the working `preset_select` finder.
+//   * picking an option selects it, COLLAPSES the options, and reveals PLAY.
+//   * clicking outside the box closes it.
 //
-// ## Callbacks (all forwarded up to ChainRow / project_chains / AppWindow)
-//   di-loop-source-selected(source: string) — user picked a list entry that
-//       is NOT the "Choose file…" sentinel. Rust resolves it via
-//       `parse_di_loop_source` and dispatches `SetChainDiLoopSource`.
-//   di-loop-choose-file                     — user picked "Choose file…".
-//       Rust opens the file picker and, on a result, dispatches the command.
-//   di-loop-play                            — user pressed ▶. Rust dispatches
-//       `SetChainDiLoopEnabled { enabled: true }`.
-//   di-loop-stop                            — user pressed ■. Rust dispatches
-//       `SetChainDiLoopEnabled { enabled: false }`.
+// ## Callbacks (forwarded up to ChainRow / project_chains / AppWindow)
+//   di-loop-source-selected(source: string) — picked a list entry that is NOT
+//       the "Choose file…" sentinel → Rust dispatches `SetChainDiLoopSource`.
+//   di-loop-choose-file                     — picked "Choose file…".
+//   di-loop-play / di-loop-stop             — pressed ▶ / ■.
 
 import { Theme } from "../theme.slint";
 
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
     in property <[string]> sources: [];
-    // #661: index of the currently loaded source within `sources`, or -1 for
-    // none. Highlights the active row so the popup shows what is loaded/playing.
+    // #661: index of the currently loaded source within `sources`, or -1.
     in property <int> selected-index: -1;
 
     callback di-loop-source-selected(string);
@@ -36,11 +30,16 @@ export component ChainDiLoopButton inherits Rectangle {
     callback di-loop-play();
     callback di-loop-stop();
 
+    // Options list expanded inside the box?
+    private property <bool> expanded;
+    private property <bool> has-selection:
+        root.selected-index >= 0 && root.selected-index < root.sources.length;
+    private property <string> selected-label:
+        root.has-selection ? root.sources[root.selected-index] : "";
+
     width: 28px;
     height: 28px;
     border-radius: 5px;
-    // Highlight the icon in blue when the loop is playing so the user can
-    // glance at the chain tile and know the DI is active.
     background: root.playing ? #6e8aff28
                 : ta.has-hover ? #ffffff10
                 : transparent;
@@ -61,37 +60,82 @@ export component ChainDiLoopButton inherits Rectangle {
 
     ta := TouchArea {
         mouse-cursor: pointer;
-        clicked => { pop.show(); }
+        clicked => {
+            root.expanded = false;
+            pop.show();
+        }
     }
 
     accessible-role: button;
     accessible-label: @tr("di-loop-button-label");
 
     pop := PopupWindow {
-        // Opens below and to the left of the button (which sits on the right
-        // edge of the chain header) so it stays within the row and does not
-        // overlap the volume popup. #661: widened so long bundled source ids
-        // (e.g. "phil-STRATO-barao_vermelho-pro_dia_nascer_feliz") are legible.
+        // Opens below-left of the button so it stays within the row.
         x: -352px;
         y: 32px;
         width: 380px;
-        height: 236px;
-        // #749: an inline list (below) keeps every click inside the popup, so
-        // close-on-click-outside dismisses ONLY on a click elsewhere — never on
-        // a source pick or a play press.
+        // Short when collapsed (just the select + play); grows when the options
+        // are expanded inline.
+        height: root.expanded ? 268px : 44px;
         close-policy: close-on-click-outside;
 
         Rectangle {
             width: 380px;
-            height: 236px;
+            height: parent.height;
             border-radius: 8px;
             background: #11141af2;
             border-width: 1px;
             border-color: #3b4250;
             clip: true;
 
-            // ── header: play / stop on the right ──────────────────────────
-            play-btn := Rectangle {
+            // ── SELECT field (always visible, top row) ────────────────────
+            select-field := Rectangle {
+                x: 6px;
+                y: 6px;
+                // Leave room for PLAY only when it is shown (collapsed + a
+                // source is selected); otherwise the field spans the box.
+                width: (root.has-selection && !root.expanded) ? 330px : 368px;
+                height: 32px;
+                border-radius: 6px;
+                background: #0a0d12;
+                border-width: 1px;
+                border-color: sel-ta.has-hover || root.expanded ? #4d5868 : #2b3340;
+                animate border-color { duration: 150ms; }
+
+                Text {
+                    x: 12px;
+                    width: parent.width - 36px;
+                    height: parent.height;
+                    text: root.selected-label;
+                    color: #f1f4f8;
+                    font-size: 17px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                Image {
+                    x: parent.width - 26px;
+                    y: (parent.height - 14px) / 2;
+                    width: 14px;
+                    height: 14px;
+                    source: @image-url("../assets/arrow-down.svg");
+                    image-fit: contain;
+                    colorize: root.expanded ? #8aa0ff : #8a94a2;
+                    transform-rotation: root.expanded ? 180deg : 0deg;
+                    animate transform-rotation { duration: 120ms; }
+                }
+
+                sel-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.expanded = !root.expanded; }
+                }
+                accessible-role: button;
+                accessible-label: @tr("di-loop-button-label");
+            }
+
+            // ── PLAY / STOP (collapsed + a source is selected) ────────────
+            if root.has-selection && !root.expanded : Rectangle {
                 x: 344px;
                 y: 8px;
                 width: 28px;
@@ -129,21 +173,20 @@ export component ChainDiLoopButton inherits Rectangle {
                 accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
             }
 
-            // Separator under the header.
-            Rectangle {
-                x: 8px;
+            // ── inline OPTIONS list (only when expanded) ──────────────────
+            if root.expanded : Rectangle {
+                x: 6px;
                 y: 44px;
-                width: parent.width - 16px;
+                width: parent.width - 12px;
                 height: 1px;
                 background: #2a3040;
             }
 
-            // ── inline scrollable source list ─────────────────────────────
-            if root.sources.length > 0 : Flickable {
+            if root.expanded && root.sources.length > 0 : Flickable {
                 x: 0;
-                y: 50px;
+                y: 48px;
                 width: parent.width;
-                height: parent.height - 58px;
+                height: parent.height - 54px;
                 viewport-width: self.width;
                 viewport-height: root.sources.length * 34px + 8px;
 
@@ -160,12 +203,11 @@ export component ChainDiLoopButton inherits Rectangle {
 
                     Text {
                         x: 12px;
-                        y: 0;
                         width: parent.width - 24px;
                         height: parent.height;
                         text: src;
                         color: i == root.selected-index ? #8aa0ff : #b0bce0;
-                        font-size: 17px;
+                        font-size: 16px;
                         font-weight: i == root.selected-index ? 700 : 400;
                         vertical-alignment: center;
                         overflow: elide;
@@ -174,13 +216,19 @@ export component ChainDiLoopButton inherits Rectangle {
                     row-ta := TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
-                            // The popup stays open (no `pop.close()`) so the
-                            // user can press play right after picking.
                             if src == "Choose file…" {
                                 root.di-loop-choose-file();
                             } else {
                                 root.di-loop-source-selected(src);
                             }
+                            // Collapse the options (concrete action on pick,
+                            // like preset_select's pop.close()); the box stays
+                            // open so PLAY appears in its place.
+                            root.expanded = false;
+                        }
+                        // Let wheel/trackpad scroll bubble to the Flickable.
+                        scroll-event(_) => {
+                            reject
                         }
                     }
                     accessible-role: button;
