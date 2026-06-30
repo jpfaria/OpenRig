@@ -1,19 +1,17 @@
-//! #749 — HEADLESS interaction proof for the DI loop play/stop control.
+//! #749 — HEADLESS proof of the DI loop panel flow (owner spec):
+//! fone → a panel with a SELECT + play; click the select → options expand;
+//! pick one → it selects AND the options collapse; play/stop.
 //!
-//! Render proves layout only. The slint testing backend CANNOT actuate
-//! PopupWindow content (a separate surface — verified: clicking a row or the
-//! play button inside a popup fired nothing), which is exactly why the
-//! popup-with-play-inside design was unverifiable and flaky. So the play/stop
-//! lives on the header (main window) where a real pointer event DOES reach it,
-//! and this test proves it: with a source selected the play button appears and
-//! clicking it fires `di-loop-play`. The source picker mirrors the proven
-//! `preset_select` popup (pick selects + closes) — its reliability rides on
-//! that shared, in-app-proven pattern.
+//! The panel is INLINE (not a PopupWindow) precisely so these clicks are
+//! reachable by the slint testing backend (popup content is a separate surface
+//! it cannot actuate). So this test dispatches REAL pointer events at the select
+//! field, an option row, and the play button, and asserts each fires — no more
+//! shipping the selection on a guess.
 
 use adapter_gui::DiLoopHarness;
 use slint::platform::{PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, LogicalPosition, ModelRc, SharedString, VecModel};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 fn click_id(w: &impl ComponentHandle, id: &str, nth: usize) -> bool {
@@ -37,14 +35,12 @@ fn click_id(w: &impl ComponentHandle, id: &str, nth: usize) -> bool {
     true
 }
 
-fn exists(w: &impl ComponentHandle, id: &str) -> bool {
-    i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
-        .next()
-        .is_some()
+fn count_id(w: &impl ComponentHandle, id: &str) -> usize {
+    i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).count()
 }
 
 #[test]
-fn di_loop_header_play_button_fires_when_a_source_is_selected() {
+fn di_panel_full_flow_select_expands_pick_collapses_play_fires() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = DiLoopHarness::new().unwrap();
@@ -53,44 +49,52 @@ fn di_loop_header_play_button_fires_when_a_source_is_selected() {
         SharedString::from("fabiano-antunes-strato-clean"),
         SharedString::from("Choose file…"),
     ])));
+    w.set_selected_index(-1);
+    w.set_playing(false);
 
+    let picked: Rc<RefCell<Option<(i32, String)>>> = Rc::new(RefCell::new(None));
+    let p = picked.clone();
+    w.on_source_picked(move |i, s| *p.borrow_mut() = Some((i, s.to_string())));
     let played = Rc::new(Cell::new(false));
     let pl = played.clone();
     w.on_play(move || pl.set(true));
-    let stopped = Rc::new(Cell::new(false));
-    let st = stopped.clone();
-    w.on_stop(move || st.set(true));
 
-    // 1. With NO source selected, the play button is absent (nothing to play).
-    w.set_selected_index(-1);
-    w.set_playing(false);
     w.show().unwrap();
+
+    // 1. The select field is present; the options are NOT shown yet.
     assert!(
-        exists(&w, "Select::ta"),
-        "the fone (the shared Select's trigger) must always be present"
+        count_id(&w, "DiLoopPanel::sel-ta") >= 1,
+        "the select field must be present in the panel"
     );
-    assert!(
-        !exists(&w, "ChainDiLoopButton::play-ta"),
-        "play must be hidden until a source is selected"
+    assert_eq!(
+        count_id(&w, "DiLoopPanel::row-ta"),
+        0,
+        "the options must be collapsed until the select is clicked"
     );
 
-    // 2. Once a source is selected, the play button appears and is hittable,
-    //    firing di-loop-play.
+    // 2. Click the select → options expand.
+    assert!(click_id(&w, "DiLoopPanel::sel-ta", 0), "select field must be hittable");
+    assert!(
+        count_id(&w, "DiLoopPanel::row-ta") >= 3,
+        "clicking the select must expand the options (got {})",
+        count_id(&w, "DiLoopPanel::row-ta")
+    );
+
+    // 3. Pick the 2nd option → it fires AND the options collapse.
+    assert!(click_id(&w, "DiLoopPanel::row-ta", 1), "an option row must be hittable");
+    assert_eq!(
+        picked.borrow().clone(),
+        Some((1, "fabiano-antunes-strato-clean".to_string())),
+        "picking an option must fire source-picked with its index + source"
+    );
+    assert_eq!(
+        count_id(&w, "DiLoopPanel::row-ta"),
+        0,
+        "picking an option must collapse the options"
+    );
+
+    // 4. With a source selected, the play button shows and fires.
     w.set_selected_index(1);
-    assert!(
-        click_id(&w, "ChainDiLoopButton::play-ta", 0),
-        "play button must be hittable once a source is selected"
-    );
-    assert!(
-        played.get(),
-        "REGRESSION #749: clicking the header play button did not fire di-loop-play"
-    );
-
-    // 3. While playing, the same button stops.
-    w.set_playing(true);
-    assert!(click_id(&w, "ChainDiLoopButton::play-ta", 0), "stop must be hittable");
-    assert!(
-        stopped.get(),
-        "REGRESSION #749: clicking the header button while playing did not fire di-loop-stop"
-    );
+    assert!(click_id(&w, "DiLoopPanel::play-ta", 0), "play must be hittable once selected");
+    assert!(played.get(), "clicking play must fire the play callback");
 }

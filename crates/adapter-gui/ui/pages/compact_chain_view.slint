@@ -38,6 +38,8 @@ export component CompactChainViewPage inherits Rectangle {
     // Populated by the header polling timer (same as volume / enabled).
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
+    // #749: index of the loaded source within di-loop-sources, or -1.
+    in property <int> di-loop-selected-index: -1;
 
     in property <bool> chain-enabled;
     callback toggle-chain-enabled(int);
@@ -141,16 +143,15 @@ export component CompactChainViewPage inherits Rectangle {
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }
 
-        // #614: DI loop control — next to the volume button.
+        // #614/#749: DI loop trigger — the fone opens the DI panel (root overlay
+        // via DiPanel); pick/play/stop route through the chain-index.
         ChainDiLoopButton {
             x: parent.width - 266px;
             y: (parent.height - 36px) / 2;
             playing: root.di-loop-playing;
             sources: root.di-loop-sources;
-            di-loop-source-selected(src) => { root.di-loop-source-selected(src); }
-            di-loop-choose-file => { root.di-loop-choose-file(); }
-            di-loop-play => { root.di-loop-play(); }
-            di-loop-stop => { root.di-loop-stop(); }
+            selected-index: root.di-loop-selected-index;
+            chain-index: root.chain-index;
         }
 
         ChainActionIcon {

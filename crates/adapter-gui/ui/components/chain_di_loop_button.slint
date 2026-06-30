@@ -1,102 +1,52 @@
-// #614 / #749 — per-chain virtual DI loop control. The source picker is the
-// ONE shared `Select` (identical to the preset bank select: a field showing the
-// current source + caret that opens a search + list dropdown). Search is backed
-// by the `DiSourcePicker` global (Rust filter), mirroring `PresetPicker`.
-// A separate header PLAY/STOP button (proven by the headless interaction test)
-// sits to the right of the field once a source is selected.
-//
-// Callbacks forwarded up: di-loop-source-selected / di-loop-choose-file /
-// di-loop-play / di-loop-stop.
+// #614 / #749 — the DI loop trigger in a chain header: just the fone icon.
+// Clicking it opens the DI panel (a janela with a select + play) at the window
+// root via the `DiPanel` global, seeded with this chain's data and the fone's
+// absolute position. The panel itself (DiLoopPanel) lives in app-window's root
+// overlay so it is never clipped by the chain list.
 
-import { Select } from "select.slint";
-import { DiSourcePicker } from "di_source_picker_globals.slint";
+import { DiPanel } from "di_panel_globals.slint";
 
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
     in property <[string]> sources: [];
     in property <int> selected-index: -1;
+    in property <int> chain-index;
 
-    callback di-loop-source-selected(string);
-    callback di-loop-choose-file();
-    callback di-loop-play();
-    callback di-loop-stop();
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    background: root.playing ? #6e8aff28
+                : ta.has-hover ? #ffffff10
+                : transparent;
+    animate background { duration: 150ms; }
 
-    private property <bool> has-selection:
-        root.selected-index >= 0 && root.selected-index < root.sources.length;
-    private property <string> selected-source:
-        root.has-selection ? root.sources[root.selected-index] : "";
+    Image {
+        x: 5px;
+        y: 5px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("../assets/headphones.svg");
+        image-fit: contain;
+        colorize: root.playing ? #6e8aff
+                  : ta.has-hover ? #ffffff
+                  : #8a94a2;
+        animate colorize { duration: 150ms; }
+    }
 
-    width: 212px;
-    height: 30px;
-
-    // ── source select (the shared component) ──────────────────────────────
-    Select {
-        x: 0;
-        y: 0;
-        width: 176px;
-        field-icon: @image-url("../assets/headphones.svg");
-        field-icon-active: root.playing;
-        field-label: root.selected-source;
-        field-font-size: 14px;
-        field-font-weight: 700;
-        active-key: root.selected-source;
-        options: DiSourcePicker.options;
-        search <=> DiSourcePicker.search;
-        popup-x: 0px;
-        popup-width: 380px;
-        opened => {
-            DiSourcePicker.open(root.sources);
-        }
-        query-changed(q) => {
-            DiSourcePicker.query-changed(q);
-        }
-        picked(key) => {
-            if key == "Choose file…" {
-                root.di-loop-choose-file();
-            } else {
-                root.di-loop-source-selected(key);
-            }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            DiPanel.chain-index = root.chain-index;
+            DiPanel.sources = root.sources;
+            DiPanel.selected-index = root.selected-index;
+            DiPanel.playing = root.playing;
+            // Open below the fone, the panel's right edge near it.
+            DiPanel.x = root.absolute-position.x - 332px;
+            DiPanel.y = root.absolute-position.y + 32px;
+            DiPanel.open = true;
         }
     }
 
-    // ── PLAY / STOP (right of the field, only once a source is selected) ───
-    if root.has-selection : Rectangle {
-        x: 184px;
-        width: 28px;
-        height: 28px;
-        y: 1px;
-        border-radius: 5px;
-        background: root.playing ? #6e8aff28
-                    : play-ta.has-hover ? #ffffff10
-                    : transparent;
-        animate background { duration: 150ms; }
-
-        Image {
-            x: 4px;
-            y: 4px;
-            width: 20px;
-            height: 20px;
-            source: root.playing
-                ? @image-url("../assets/stop.svg")
-                : @image-url("../assets/play.svg");
-            image-fit: contain;
-            colorize: root.playing
-                ? #f87171
-                : play-ta.has-hover ? #ffffff : #8a94a2;
-            animate colorize { duration: 100ms; }
-        }
-
-        play-ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                if root.playing {
-                    root.di-loop-stop();
-                } else {
-                    root.di-loop-play();
-                }
-            }
-        }
-        accessible-role: button;
-        accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
-    }
+    accessible-role: button;
+    accessible-label: @tr("di-loop-button-label");
 }
