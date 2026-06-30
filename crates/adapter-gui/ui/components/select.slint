@@ -1,0 +1,163 @@
+// #749 — ONE reusable select/dropdown for the whole app. Consumers pass
+// parameters only (options, active, trigger, callbacks); they never re-build a
+// popup. Mirrors the PROVEN `preset_select` dropdown (Flickable list, selected
+// row highlighted, pick selects AND closes, close-on-click-outside) so every
+// select behaves identically and is fixed in one place.
+//
+// String-keyed (`options: [string]`, `picked(string)`) so list-of-string
+// consumers (DI sources, etc.) wire it with ZERO Rust changes. The trigger is
+// either a compact icon (cramped headers) or a labelled field.
+//
+// Follow-up: migrate `preset_select` / `model_select_with_search` onto this
+// (they need a slot/struct option type + the search header — added here next).
+
+import { Theme } from "../theme.slint";
+
+export component Select inherits Rectangle {
+    // ── data ──────────────────────────────────────────────────────────
+    in property <[string]> options;
+    in property <int> active-index: -1;
+
+    // ── trigger ───────────────────────────────────────────────────────
+    // Icon trigger (compact) when `trigger-icon` is set; otherwise a field
+    // showing `field-label` (or `placeholder` when empty).
+    in property <image> trigger-icon;
+    in property <bool> icon-active: false;      // tint the icon as "active"
+    in property <string> field-label;
+    in property <string> placeholder;
+
+    // ── popup placement ───────────────────────────────────────────────
+    in property <length> popup-x: 0px;          // relative to this element
+    in property <length> popup-width: 380px;
+    in property <length> max-popup-height: 360px;
+
+    // ── output ────────────────────────────────────────────────────────
+    callback picked(string);
+    callback opened();
+
+    private property <bool> is-icon: root.trigger-icon.width > 0;
+    private property <length> row-h: 34px;
+
+    width: root.is-icon ? 28px : 240px;
+    height: root.is-icon ? 28px : 38px;
+    border-radius: root.is-icon ? 5px : 6px;
+    background: root.is-icon
+        ? (root.icon-active ? #6e8aff28 : ta.has-hover ? #ffffff10 : transparent)
+        : #0a0d12;
+    border-width: root.is-icon ? 0px : 1px;
+    border-color: ta.has-hover ? #4d5868 : #2b3340;
+    animate background, border-color { duration: 150ms; }
+
+    // ── icon trigger ──────────────────────────────────────────────────
+    if root.is-icon : Image {
+        x: 5px;
+        y: 5px;
+        width: 18px;
+        height: 18px;
+        source: root.trigger-icon;
+        image-fit: contain;
+        colorize: root.icon-active ? #6e8aff
+                  : ta.has-hover ? #ffffff
+                  : #8a94a2;
+        animate colorize { duration: 150ms; }
+    }
+
+    // ── field trigger (label + caret) ─────────────────────────────────
+    if !root.is-icon : Text {
+        x: 14px;
+        width: parent.width - 44px;
+        height: parent.height;
+        text: root.field-label != "" ? root.field-label : root.placeholder;
+        color: root.field-label != "" ? #f1f4f8 : #6a6a82;
+        font-size: 18px;
+        font-weight: 800;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    if !root.is-icon : Image {
+        x: parent.width - 30px;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        source: @image-url("../assets/arrow-down.svg");
+        image-fit: contain;
+        colorize: ta.has-hover ? #ffffff : #8a94a2;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.opened();
+            pop.show();
+        }
+    }
+    accessible-role: button;
+
+    // ── shared dropdown (mirrors preset_select) ───────────────────────
+    pop := PopupWindow {
+        x: root.popup-x;
+        y: root.height + 4px;
+        width: root.popup-width;
+        height: min(8px + root.options.length * root.row-h + 8px, root.max-popup-height);
+        close-policy: close-on-click-outside;
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #0a0d12;
+            border-width: 1px;
+            border-color: #2b3340;
+            border-radius: 8px;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+            drop-shadow-offset-y: 6px;
+            clip: true;
+
+            if root.options.length > 0 : Flickable {
+                x: 0;
+                y: 6px;
+                width: parent.width;
+                height: parent.height - 12px;
+                viewport-width: self.width;
+                viewport-height: root.options.length * root.row-h + 4px;
+
+                for opt[i] in root.options : Rectangle {
+                    x: 6px;
+                    y: i * root.row-h;
+                    width: parent.width - 12px;
+                    height: root.row-h - 2px;
+                    border-radius: 5px;
+                    background: i == root.active-index
+                        ? Theme.palette.accent-end
+                        : row-ta.has-hover ? #1b2230 : transparent;
+                    animate background { duration: 100ms; }
+
+                    Text {
+                        x: 12px;
+                        width: parent.width - 24px;
+                        height: parent.height;
+                        text: opt;
+                        color: #f1f4f8;
+                        font-size: 16px;
+                        font-weight: i == root.active-index ? 800 : 600;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+
+                    row-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.picked(opt);
+                            pop.close();
+                        }
+                        scroll-event(_) => {
+                            reject
+                        }
+                    }
+                    accessible-role: button;
+                    accessible-label: opt;
+                }
+            }
+        }
+    }
+}

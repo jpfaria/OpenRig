@@ -66,8 +66,8 @@ fn di_loop_header_play_button_fires_when_a_source_is_selected() {
     w.set_playing(false);
     w.show().unwrap();
     assert!(
-        exists(&w, "ChainDiLoopButton::ta"),
-        "the fone (picker trigger) must always be present"
+        exists(&w, "Select::ta"),
+        "the fone (the shared Select's trigger) must always be present"
     );
     assert!(
         !exists(&w, "ChainDiLoopButton::play-ta"),

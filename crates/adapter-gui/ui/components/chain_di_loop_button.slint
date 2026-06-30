@@ -1,28 +1,23 @@
 // #614 / #749 — per-chain virtual DI loop control.
 //
-// Two header controls (the popup-selector-with-play-inside was unreliable:
-// Slint popup content can't be actuated by the test backend and broke in the
-// app, so it can't be verified — #749). Instead, mirroring the PROVEN
-// `preset_select`:
-//   * FONE icon → opens a source picker popup whose rows are a `Flickable`
-//     list; clicking a row dispatches the source AND closes the popup (exactly
-//     preset_select's reliable pattern).
-//   * PLAY / STOP — a SEPARATE button on the header, to the LEFT of the fone,
-//     shown once a source is selected. It lives in the main window (not the
-//     popup), so its click IS covered by a headless interaction test.
+// Two header controls, both reusing app-wide building blocks:
+//   * the source picker is the shared `Select` component (#749 — one select for
+//     the whole app, parameters only); the fone icon is its trigger and the
+//     dropdown is identical to the preset select. Picking a source dispatches it
+//     and closes the dropdown (Select's proven behaviour).
+//   * PLAY / STOP — a separate header button to the LEFT of the fone, shown once
+//     a source is selected. It lives in the main window (not the popup), so its
+//     click IS covered by a headless interaction test
+//     (`issue_749_di_loop_popup_interaction.rs`).
 //
 // ## Callbacks (forwarded up to ChainRow / project_chains / AppWindow)
-//   di-loop-source-selected(source: string) — picked a row that is NOT the
-//       "Choose file…" sentinel → Rust dispatches `SetChainDiLoopSource`.
-//   di-loop-choose-file                     — picked "Choose file…".
-//   di-loop-play / di-loop-stop             — pressed ▶ / ■.
+//   di-loop-source-selected(source) / di-loop-choose-file / di-loop-play / di-loop-stop
 
-import { Theme } from "../theme.slint";
+import { Select } from "select.slint";
 
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
     in property <[string]> sources: [];
-    // #661: index of the currently loaded source within `sources`, or -1.
     in property <int> selected-index: -1;
 
     callback di-loop-source-selected(string);
@@ -32,10 +27,8 @@ export component ChainDiLoopButton inherits Rectangle {
 
     private property <bool> has-selection:
         root.selected-index >= 0 && root.selected-index < root.sources.length;
-    private property <length> row-h: 34px;
 
-    // fone (x:32) + play slot (x:0) — fixed width so the cluster never reflows
-    // when a selection toggles the play button on/off.
+    // fone (x:32) + play slot (x:0) — fixed width so the cluster never reflows.
     width: 60px;
     height: 28px;
 
@@ -79,110 +72,25 @@ export component ChainDiLoopButton inherits Rectangle {
         accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
     }
 
-    // ── FONE (right) — opens the source picker ────────────────────────────
-    Rectangle {
+    // ── FONE = the shared Select's trigger ────────────────────────────────
+    Select {
         x: 32px;
-        width: 28px;
-        height: 28px;
-        border-radius: 5px;
-        background: root.playing ? #6e8aff28
-                    : ta.has-hover ? #ffffff10
-                    : transparent;
-        animate background { duration: 150ms; }
-
-        Image {
-            x: 5px;
-            y: 5px;
-            width: 18px;
-            height: 18px;
-            source: @image-url("../assets/headphones.svg");
-            image-fit: contain;
-            colorize: root.playing ? #6e8aff
-                      : ta.has-hover ? #ffffff
-                      : #8a94a2;
-            animate colorize { duration: 150ms; }
-        }
-
-        ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { pop.show(); }
-        }
-        accessible-role: button;
-        accessible-label: @tr("di-loop-button-label");
-    }
-
-    // ── source picker popup (mirrors preset_select — reliable) ────────────
-    pop := PopupWindow {
-        // Anchored under the fone, opening left so it stays within the row.
-        x: -320px;
-        y: 32px;
-        width: 380px;
-        height: min(8px + root.sources.length * root.row-h + 8px, 360px);
-        close-policy: close-on-click-outside;
-
-        Rectangle {
-            width: 100%;
-            height: 100%;
-            background: #0a0d12;
-            border-width: 1px;
-            border-color: #2b3340;
-            border-radius: 8px;
-            drop-shadow-blur: 20px;
-            drop-shadow-color: #000000c0;
-            drop-shadow-offset-y: 6px;
-            clip: true;
-
-            if root.sources.length > 0 : Flickable {
-                x: 0;
-                y: 6px;
-                width: parent.width;
-                height: parent.height - 12px;
-                viewport-width: self.width;
-                viewport-height: root.sources.length * root.row-h + 4px;
-
-                for src[i] in root.sources : Rectangle {
-                    x: 6px;
-                    y: i * root.row-h;
-                    width: parent.width - 12px;
-                    height: root.row-h - 2px;
-                    border-radius: 5px;
-                    background: i == root.selected-index
-                        ? Theme.palette.accent-end
-                        : row-ta.has-hover ? #1b2230 : transparent;
-                    animate background { duration: 100ms; }
-
-                    Text {
-                        x: 12px;
-                        width: parent.width - 24px;
-                        height: parent.height;
-                        text: src;
-                        color: #f1f4f8;
-                        font-size: 16px;
-                        font-weight: i == root.selected-index ? 800 : 600;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-
-                    row-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            if src == "Choose file…" {
-                                root.di-loop-choose-file();
-                            } else {
-                                root.di-loop-source-selected(src);
-                            }
-                            // Like preset_select: pick selects AND closes.
-                            pop.close();
-                        }
-                        // Let wheel/trackpad scroll bubble to the Flickable.
-                        scroll-event(_) => {
-                            reject
-                        }
-                    }
-                    accessible-role: button;
-                    accessible-label: src;
-                }
+        y: 0;
+        trigger-icon: @image-url("../assets/headphones.svg");
+        icon-active: root.playing;
+        options: root.sources;
+        active-index: root.selected-index;
+        // Anchor the dropdown's right edge at the fone (like the old popup).
+        popup-x: -352px;
+        popup-width: 380px;
+        picked(src) => {
+            if src == "Choose file…" {
+                root.di-loop-choose-file();
+            } else {
+                root.di-loop-source-selected(src);
             }
         }
     }
+    accessible-role: button;
+    accessible-label: @tr("di-loop-button-label");
 }
