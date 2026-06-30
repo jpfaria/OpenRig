@@ -38,7 +38,6 @@ export component CompactChainViewPage inherits Rectangle {
     // Populated by the header polling timer (same as volume / enabled).
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
-    // #749: index of the loaded source within di-loop-sources, or -1.
     in property <int> di-loop-selected-index: -1;
 
     in property <bool> chain-enabled;
