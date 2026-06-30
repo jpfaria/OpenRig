@@ -203,11 +203,20 @@ while IFS= read -r -d '' f; do
             ;;
     esac
 done < <(find "$APP/Contents" -type f -print0)
+# Sign the auxiliary console/render executables FIRST, then the bundle's main
+# executable (openrig) LAST: signing the main executable signs it AS the bundle
+# and pulls its Contents/MacOS/ siblings (openrig-console, openrig-console-rig,
+# openrig-render — bundled since #741) in as nested code, so they must already
+# be signed or codesign aborts "code object is not signed at all / In
+# subcomponent: ...openrig-console-rig" (issue #756).
 for exe in "$MACOS_DIR"/*; do
     [ -f "$exe" ] || continue
+    [ "$exe" = "$MACOS_DIR/openrig" ] && continue
     codesign --force --sign - --timestamp=none "$exe" \
         || { echo "FATAL: codesign failed for $exe" >&2; exit 1; }
 done
+codesign --force --sign - --timestamp=none "$MACOS_DIR/openrig" \
+    || { echo "FATAL: codesign failed for $MACOS_DIR/openrig" >&2; exit 1; }
 codesign --force --sign - --timestamp=none "$APP" \
     || { echo "FATAL: codesign failed for the .app bundle" >&2; exit 1; }
 
