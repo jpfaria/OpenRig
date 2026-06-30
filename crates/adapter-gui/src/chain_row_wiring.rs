@@ -508,9 +508,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         let project_session = project_session.clone();
         let toast_timer = toast_timer.clone();
         window.on_di_loop_source_selected(move |index, source_str| {
-            // #749 TEMP PROBE: does the picker row click reach Rust? Remove
-            // once the DI selection is confirmed.
-            eprintln!("[#749-probe] di_loop_source_selected fired: index={index} source={source_str}");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };

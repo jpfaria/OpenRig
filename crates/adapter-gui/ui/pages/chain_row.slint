@@ -217,13 +217,14 @@ export component ChainRow inherits Rectangle {
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }
 
-        // #614/#749: DI loop control — 60px wide: the fone (opens the source
-        // picker) stays at -308; a play/stop button appears 32px to its left
-        // once a source is selected. Positioned at -340 so the fone keeps its
-        // original slot and no other icon shifts.
+        // #614/#749: DI loop control — a 212px-wide cluster: the shared source
+        // Select field (176px) + a play/stop button that appears once a source
+        // is selected. Positioned so the play button ends at -308 (the old fone
+        // slot); the field extends left into the header gap and its dropdown
+        // opens below, like the preset select.
         ChainDiLoopButton {
-            x: parent.width - 340px;
-            y: 12px;
+            x: parent.width - 520px;
+            y: 14px;
             playing: root.chain.di_loop_playing;
             sources: root.chain.di_loop_sources;
             selected-index: root.chain.di_loop_selected_index;

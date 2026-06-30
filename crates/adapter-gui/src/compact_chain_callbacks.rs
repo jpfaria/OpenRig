@@ -307,6 +307,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // wire it here too — without it the compact view's finder would
         // never populate.
         crate::chain_rig_nav_wiring::wire_preset_picker_search(&compact_win);
+        // #749: same for the DI loop source dropdown — each window owns its
+        // own `DiSourcePicker` global, so wire the compact view's here too.
+        crate::di_source_picker_wiring::wire_di_source_picker_search(&compact_win);
         {
             let weak_main = window.as_weak();
             compact_win.on_switch_chain_scene(move |s| {

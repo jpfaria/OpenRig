@@ -1,19 +1,15 @@
-// #614 / #749 — per-chain virtual DI loop control.
+// #614 / #749 — per-chain virtual DI loop control. The source picker is the
+// ONE shared `Select` (identical to the preset bank select: a field showing the
+// current source + caret that opens a search + list dropdown). Search is backed
+// by the `DiSourcePicker` global (Rust filter), mirroring `PresetPicker`.
+// A separate header PLAY/STOP button (proven by the headless interaction test)
+// sits to the right of the field once a source is selected.
 //
-// Two header controls, both reusing app-wide building blocks:
-//   * the source picker is the shared `Select` component (#749 — one select for
-//     the whole app, parameters only); the fone icon is its trigger and the
-//     dropdown is identical to the preset select. Picking a source dispatches it
-//     and closes the dropdown (Select's proven behaviour).
-//   * PLAY / STOP — a separate header button to the LEFT of the fone, shown once
-//     a source is selected. It lives in the main window (not the popup), so its
-//     click IS covered by a headless interaction test
-//     (`issue_749_di_loop_popup_interaction.rs`).
-//
-// ## Callbacks (forwarded up to ChainRow / project_chains / AppWindow)
-//   di-loop-source-selected(source) / di-loop-choose-file / di-loop-play / di-loop-stop
+// Callbacks forwarded up: di-loop-source-selected / di-loop-choose-file /
+// di-loop-play / di-loop-stop.
 
 import { Select } from "select.slint";
+import { DiSourcePicker } from "di_source_picker_globals.slint";
 
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
@@ -27,16 +23,48 @@ export component ChainDiLoopButton inherits Rectangle {
 
     private property <bool> has-selection:
         root.selected-index >= 0 && root.selected-index < root.sources.length;
+    private property <string> selected-source:
+        root.has-selection ? root.sources[root.selected-index] : "";
 
-    // fone (x:32) + play slot (x:0) — fixed width so the cluster never reflows.
-    width: 60px;
-    height: 28px;
+    width: 212px;
+    height: 30px;
 
-    // ── PLAY / STOP (left, only once a source is selected) ────────────────
-    if root.has-selection : Rectangle {
+    // ── source select (the shared component) ──────────────────────────────
+    Select {
         x: 0;
+        y: 0;
+        width: 176px;
+        field-icon: @image-url("../assets/headphones.svg");
+        field-icon-active: root.playing;
+        field-label: root.selected-source;
+        field-font-size: 14px;
+        field-font-weight: 700;
+        active-key: root.selected-source;
+        options: DiSourcePicker.options;
+        search <=> DiSourcePicker.search;
+        popup-x: 0px;
+        popup-width: 380px;
+        opened => {
+            DiSourcePicker.open(root.sources);
+        }
+        query-changed(q) => {
+            DiSourcePicker.query-changed(q);
+        }
+        picked(key) => {
+            if key == "Choose file…" {
+                root.di-loop-choose-file();
+            } else {
+                root.di-loop-source-selected(key);
+            }
+        }
+    }
+
+    // ── PLAY / STOP (right of the field, only once a source is selected) ───
+    if root.has-selection : Rectangle {
+        x: 184px;
         width: 28px;
         height: 28px;
+        y: 1px;
         border-radius: 5px;
         background: root.playing ? #6e8aff28
                     : play-ta.has-hover ? #ffffff10
@@ -71,26 +99,4 @@ export component ChainDiLoopButton inherits Rectangle {
         accessible-role: button;
         accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
     }
-
-    // ── FONE = the shared Select's trigger ────────────────────────────────
-    Select {
-        x: 32px;
-        y: 0;
-        trigger-icon: @image-url("../assets/headphones.svg");
-        icon-active: root.playing;
-        options: root.sources;
-        active-index: root.selected-index;
-        // Anchor the dropdown's right edge at the fone (like the old popup).
-        popup-x: -352px;
-        popup-width: 380px;
-        picked(src) => {
-            if src == "Choose file…" {
-                root.di-loop-choose-file();
-            } else {
-                root.di-loop-source-selected(src);
-            }
-        }
-    }
-    accessible-role: button;
-    accessible-label: @tr("di-loop-button-label");
 }

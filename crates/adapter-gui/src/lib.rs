@@ -54,6 +54,9 @@ mod di_loop_chooser_wiring;
 pub mod di_loop_ui_sources;
 /// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
 pub mod di_loop_wiring;
+/// #749: search-as-you-type filter for the chain DI loop source dropdown
+/// (the shared `Select` component), mirroring the preset picker global.
+pub mod di_source_picker_wiring;
 mod insert_wiring;
 mod plugin_info;
 mod plugin_info_inline_wiring;
