@@ -1,19 +1,19 @@
-// #614 — per-chain virtual DI loop control (icon + popup).
+// #614 / #749 — per-chain virtual DI loop control.
 //
-// #749 layout (owner-specified):
-//   * the headphones icon opens a BOX (PopupWindow, close-on-click-outside).
-//   * the box holds a SELECT field showing the current source.
-//   * clicking the select EXPANDS its options INLINE inside the same box —
-//     NOT a nested PopupWindow. A ComboBox / second PopupWindow can't be used:
-//     Slint keeps only one PopupWindow open, so the dropdown closed the box and
-//     no source could ever be picked. Inline expansion + a concrete collapse on
-//     pick mirrors the working `preset_select` finder.
-//   * picking an option selects it, COLLAPSES the options, and reveals PLAY.
-//   * clicking outside the box closes it.
+// Two header controls (the popup-selector-with-play-inside was unreliable:
+// Slint popup content can't be actuated by the test backend and broke in the
+// app, so it can't be verified — #749). Instead, mirroring the PROVEN
+// `preset_select`:
+//   * FONE icon → opens a source picker popup whose rows are a `Flickable`
+//     list; clicking a row dispatches the source AND closes the popup (exactly
+//     preset_select's reliable pattern).
+//   * PLAY / STOP — a SEPARATE button on the header, to the LEFT of the fone,
+//     shown once a source is selected. It lives in the main window (not the
+//     popup), so its click IS covered by a headless interaction test.
 //
 // ## Callbacks (forwarded up to ChainRow / project_chains / AppWindow)
-//   di-loop-source-selected(source: string) — picked a list entry that is NOT
-//       the "Choose file…" sentinel → Rust dispatches `SetChainDiLoopSource`.
+//   di-loop-source-selected(source: string) — picked a row that is NOT the
+//       "Choose file…" sentinel → Rust dispatches `SetChainDiLoopSource`.
 //   di-loop-choose-file                     — picked "Choose file…".
 //   di-loop-play / di-loop-stop             — pressed ▶ / ■.
 
@@ -30,175 +30,125 @@ export component ChainDiLoopButton inherits Rectangle {
     callback di-loop-play();
     callback di-loop-stop();
 
-    // Options list expanded inside the box?
-    private property <bool> expanded;
     private property <bool> has-selection:
         root.selected-index >= 0 && root.selected-index < root.sources.length;
-    private property <string> selected-label:
-        root.has-selection ? root.sources[root.selected-index] : "";
+    private property <length> row-h: 34px;
 
-    width: 28px;
+    // fone (x:32) + play slot (x:0) — fixed width so the cluster never reflows
+    // when a selection toggles the play button on/off.
+    width: 60px;
     height: 28px;
-    border-radius: 5px;
-    background: root.playing ? #6e8aff28
-                : ta.has-hover ? #ffffff10
-                : transparent;
-    animate background { duration: 150ms; }
 
-    Image {
-        x: 5px;
-        y: 5px;
-        width: 18px;
-        height: 18px;
-        source: @image-url("../assets/headphones.svg");
-        image-fit: contain;
-        colorize: root.playing ? #6e8aff
-                  : ta.has-hover ? #ffffff
-                  : #8a94a2;
-        animate colorize { duration: 150ms; }
-    }
+    // ── PLAY / STOP (left, only once a source is selected) ────────────────
+    if root.has-selection : Rectangle {
+        x: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        background: root.playing ? #6e8aff28
+                    : play-ta.has-hover ? #ffffff10
+                    : transparent;
+        animate background { duration: 150ms; }
 
-    ta := TouchArea {
-        mouse-cursor: pointer;
-        clicked => {
-            root.expanded = false;
-            pop.show();
+        Image {
+            x: 4px;
+            y: 4px;
+            width: 20px;
+            height: 20px;
+            source: root.playing
+                ? @image-url("../assets/stop.svg")
+                : @image-url("../assets/play.svg");
+            image-fit: contain;
+            colorize: root.playing
+                ? #f87171
+                : play-ta.has-hover ? #ffffff : #8a94a2;
+            animate colorize { duration: 100ms; }
         }
+
+        play-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                if root.playing {
+                    root.di-loop-stop();
+                } else {
+                    root.di-loop-play();
+                }
+            }
+        }
+        accessible-role: button;
+        accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
     }
 
-    accessible-role: button;
-    accessible-label: @tr("di-loop-button-label");
+    // ── FONE (right) — opens the source picker ────────────────────────────
+    Rectangle {
+        x: 32px;
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        background: root.playing ? #6e8aff28
+                    : ta.has-hover ? #ffffff10
+                    : transparent;
+        animate background { duration: 150ms; }
 
+        Image {
+            x: 5px;
+            y: 5px;
+            width: 18px;
+            height: 18px;
+            source: @image-url("../assets/headphones.svg");
+            image-fit: contain;
+            colorize: root.playing ? #6e8aff
+                      : ta.has-hover ? #ffffff
+                      : #8a94a2;
+            animate colorize { duration: 150ms; }
+        }
+
+        ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { pop.show(); }
+        }
+        accessible-role: button;
+        accessible-label: @tr("di-loop-button-label");
+    }
+
+    // ── source picker popup (mirrors preset_select — reliable) ────────────
     pop := PopupWindow {
-        // Opens below-left of the button so it stays within the row.
-        x: -352px;
+        // Anchored under the fone, opening left so it stays within the row.
+        x: -320px;
         y: 32px;
         width: 380px;
-        // Short when collapsed (just the select + play); grows when the options
-        // are expanded inline.
-        height: root.expanded ? 268px : 44px;
+        height: min(8px + root.sources.length * root.row-h + 8px, 360px);
         close-policy: close-on-click-outside;
 
         Rectangle {
-            width: 380px;
-            height: parent.height;
-            border-radius: 8px;
-            background: #11141af2;
+            width: 100%;
+            height: 100%;
+            background: #0a0d12;
             border-width: 1px;
-            border-color: #3b4250;
+            border-color: #2b3340;
+            border-radius: 8px;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+            drop-shadow-offset-y: 6px;
             clip: true;
 
-            // ── SELECT field (always visible, top row) ────────────────────
-            select-field := Rectangle {
-                x: 6px;
-                y: 6px;
-                // Leave room for PLAY only when it is shown (collapsed + a
-                // source is selected); otherwise the field spans the box.
-                width: (root.has-selection && !root.expanded) ? 330px : 368px;
-                height: 32px;
-                border-radius: 6px;
-                background: #0a0d12;
-                border-width: 1px;
-                border-color: sel-ta.has-hover || root.expanded ? #4d5868 : #2b3340;
-                animate border-color { duration: 150ms; }
-
-                Text {
-                    x: 12px;
-                    width: parent.width - 36px;
-                    height: parent.height;
-                    text: root.selected-label;
-                    color: #f1f4f8;
-                    font-size: 17px;
-                    font-weight: 700;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
-
-                Image {
-                    x: parent.width - 26px;
-                    y: (parent.height - 14px) / 2;
-                    width: 14px;
-                    height: 14px;
-                    source: @image-url("../assets/arrow-down.svg");
-                    image-fit: contain;
-                    colorize: root.expanded ? #8aa0ff : #8a94a2;
-                    transform-rotation: root.expanded ? 180deg : 0deg;
-                    animate transform-rotation { duration: 120ms; }
-                }
-
-                sel-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.expanded = !root.expanded; }
-                }
-                accessible-role: button;
-                accessible-label: @tr("di-loop-button-label");
-            }
-
-            // ── PLAY / STOP (collapsed + a source is selected) ────────────
-            if root.has-selection && !root.expanded : Rectangle {
-                x: 344px;
-                y: 8px;
-                width: 28px;
-                height: 28px;
-                border-radius: 5px;
-                background: play-ta.has-hover ? #ffffff18 : transparent;
-                animate background { duration: 150ms; }
-
-                Image {
-                    x: 4px;
-                    y: 4px;
-                    width: 20px;
-                    height: 20px;
-                    source: root.playing
-                        ? @image-url("../assets/stop.svg")
-                        : @image-url("../assets/play.svg");
-                    image-fit: contain;
-                    colorize: root.playing
-                        ? #f87171
-                        : play-ta.has-hover ? #ffffff : #8a94a2;
-                    animate colorize { duration: 100ms; }
-                }
-
-                play-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        if root.playing {
-                            root.di-loop-stop();
-                        } else {
-                            root.di-loop-play();
-                        }
-                    }
-                }
-                accessible-role: button;
-                accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
-            }
-
-            // ── inline OPTIONS list (only when expanded) ──────────────────
-            if root.expanded : Rectangle {
-                x: 6px;
-                y: 44px;
-                width: parent.width - 12px;
-                height: 1px;
-                background: #2a3040;
-            }
-
-            if root.expanded && root.sources.length > 0 : Flickable {
+            if root.sources.length > 0 : Flickable {
                 x: 0;
-                y: 48px;
+                y: 6px;
                 width: parent.width;
-                height: parent.height - 54px;
+                height: parent.height - 12px;
                 viewport-width: self.width;
-                viewport-height: root.sources.length * 34px + 8px;
+                viewport-height: root.sources.length * root.row-h + 4px;
 
                 for src[i] in root.sources : Rectangle {
                     x: 6px;
-                    y: 4px + i * 34px;
+                    y: i * root.row-h;
                     width: parent.width - 12px;
-                    height: 32px;
+                    height: root.row-h - 2px;
                     border-radius: 5px;
                     background: i == root.selected-index
-                        ? #2a3050
-                        : row-ta.has-hover ? #ffffff10 : transparent;
+                        ? Theme.palette.accent-end
+                        : row-ta.has-hover ? #1b2230 : transparent;
                     animate background { duration: 100ms; }
 
                     Text {
@@ -206,9 +156,9 @@ export component ChainDiLoopButton inherits Rectangle {
                         width: parent.width - 24px;
                         height: parent.height;
                         text: src;
-                        color: i == root.selected-index ? #8aa0ff : #b0bce0;
+                        color: #f1f4f8;
                         font-size: 16px;
-                        font-weight: i == root.selected-index ? 700 : 400;
+                        font-weight: i == root.selected-index ? 800 : 600;
                         vertical-alignment: center;
                         overflow: elide;
                     }
@@ -221,10 +171,8 @@ export component ChainDiLoopButton inherits Rectangle {
                             } else {
                                 root.di-loop-source-selected(src);
                             }
-                            // Collapse the options (concrete action on pick,
-                            // like preset_select's pop.close()); the box stays
-                            // open so PLAY appears in its place.
-                            root.expanded = false;
+                            // Like preset_select: pick selects AND closes.
+                            pop.close();
                         }
                         // Let wheel/trackpad scroll bubble to the Flickable.
                         scroll-event(_) => {

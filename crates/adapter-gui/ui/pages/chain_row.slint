@@ -217,10 +217,12 @@ export component ChainRow inherits Rectangle {
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }
 
-        // #614: DI loop control — headphones icon, next to the volume icon.
-        // Click reveals a ComboBox (source select) + play/stop toggle.
+        // #614/#749: DI loop control — 60px wide: the fone (opens the source
+        // picker) stays at -308; a play/stop button appears 32px to its left
+        // once a source is selected. Positioned at -340 so the fone keeps its
+        // original slot and no other icon shifts.
         ChainDiLoopButton {
-            x: parent.width - 308px;
+            x: parent.width - 340px;
             y: 12px;
             playing: root.chain.di_loop_playing;
             sources: root.chain.di_loop_sources;
