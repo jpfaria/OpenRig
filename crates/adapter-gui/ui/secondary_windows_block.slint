@@ -4,6 +4,8 @@ import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
+import { DiLoopPanel } from "components/di_loop_panel.slint";
+import { DiPanel } from "components/di_panel_globals.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -372,5 +374,36 @@ export component CompactChainViewWindow inherits Window {
         chain-name: root.confirm-delete-chain-name;
         confirm => { root.confirm-delete-chain(); }
         cancel => { root.cancel-delete-chain(); }
+    }
+
+    // #717: DI panel overlay for the DETACHED compact window. The fone
+    // (ChainDiLoopButton) sets `DiPanel.open` on this window's own global;
+    // without this overlay the click had no visible effect ("botão não faz
+    // nada"). Mirrors app-window's DI overlay, but the window's DI callbacks
+    // are single-chain (no chain index).
+    if DiPanel.open : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        TouchArea { clicked => { DiPanel.open = false; } }
+        DiLoopPanel {
+            x: DiPanel.x;
+            y: DiPanel.y;
+            sources: DiPanel.sources;
+            selected-index: DiPanel.selected-index;
+            playing: DiPanel.playing;
+            source-picked(i, s) => {
+                DiPanel.selected-index = i;
+                root.di-loop-source-selected(s);
+            }
+            choose-file => { root.di-loop-choose-file(); }
+            play => {
+                DiPanel.playing = true;
+                root.di-loop-play();
+            }
+            stop => {
+                DiPanel.playing = false;
+                root.di-loop-stop();
+            }
+        }
     }
 }

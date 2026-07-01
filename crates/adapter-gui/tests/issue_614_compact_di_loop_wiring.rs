@@ -207,6 +207,6 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
 fn session_dispatcher_di_loaded(
     dispatcher: &application::local_dispatcher::LocalDispatcher,
     chain: &domain::ids::ChainId,
-) -> Option<std::sync::Arc<engine::DiLoop>> {
+) -> Option<std::sync::Arc<engine::DiPcm>> {
     dispatcher.di_loop_for_chain(chain)
 }

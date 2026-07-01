@@ -11,3 +11,5 @@ Task 5: pending — adapter-gui arm/disarm wiring.
 Task 6: pending — DI output select UI.
 Task 7: pending — dedicated DI-stream graph + meters Query.
 Task 8: pending — docs + HW battery.
+
+EXTRA (owner-reported, folded into #717): DI fone did nothing in the DETACHED compact window (CompactChainViewWindow lacked the `DiPanel.open` overlay). Fixed by adding the DiLoopPanel overlay there (i-slint interaction test red->green + headless render). Also migrated the 2 #614 test targets #758 left on the old DI API (issue_614_load_di_loop, issue_614_compact_di_loop_wiring) to the DiPcm/to_loop_at flow.
