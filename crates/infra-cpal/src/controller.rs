@@ -19,6 +19,7 @@
 //! caller of an inherent method to pull in a trait.
 
 use anyhow::Result;
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 use std::sync::mpsc::Receiver;
@@ -100,6 +101,12 @@ pub struct ProjectRuntimeController {
     /// `entries`. Set by the owner via [`Self::set_io_bindings`] before
     /// syncing/activating; defaults to empty until then.
     pub(crate) io_bindings: Vec<domain::io_binding::IoBinding>,
+    /// Issue #717: per-chain dedicated DI-loop runtimes, alive only while the
+    /// DI is armed. Each is a fully isolated copy of the chain's block graph
+    /// fed by the loop — never the guitar runtime. `&self` arm/disarm mutate
+    /// this, so it needs interior mutability; the controller is frontend-thread
+    /// owned (cpal `Stream` is `!Send`), so a `RefCell` suffices.
+    pub(crate) di_streams: RefCell<HashMap<ChainId, crate::di_stream::DiStreamHandle>>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -134,6 +141,7 @@ impl ProjectRuntimeController {
             pending_activations: Vec::new(),
             sample_rate,
             io_bindings: Vec::new(),
+            di_streams: RefCell::new(HashMap::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -169,6 +177,7 @@ impl ProjectRuntimeController {
             // as each chain is built below (#669).
             sample_rate: 48_000,
             io_bindings,
+            di_streams: RefCell::new(HashMap::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),

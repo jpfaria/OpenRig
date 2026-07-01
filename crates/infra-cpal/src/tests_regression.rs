@@ -27,6 +27,7 @@ fn is_healthy_returns_true_when_no_chains_active() {
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: Vec::new(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -48,6 +49,7 @@ fn is_running_returns_false_when_no_chains() {
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: Vec::new(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -88,6 +90,7 @@ fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: Vec::new(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -133,6 +136,7 @@ fn teardown_active_chain_for_rebuild_is_noop_when_chain_absent() {
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: Vec::new(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -211,6 +215,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: Vec::new(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
