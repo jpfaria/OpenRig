@@ -11,6 +11,7 @@ use anyhow::Result;
 use domain::ids::ChainId;
 use domain::io_binding::IoBinding;
 use engine::runtime::build_chain_runtime_state;
+use engine::spsc::SpscRing;
 use engine::DiPcm;
 use project::chain::Chain;
 
@@ -67,5 +68,39 @@ impl ProjectRuntimeController {
             .borrow()
             .get(chain_id)
             .and_then(|h| h.slot.load().di_loop_len())
+    }
+
+    /// Subscribe the DI runtime's per-stream OUTPUT tap (post-FX stereo), for
+    /// the dedicated DI graph's meters. Mirrors [`Self::subscribe_stream_tap`]
+    /// but reads the isolated DI runtime, not the guitar. `None` if not armed.
+    pub fn di_subscribe_stream_tap(
+        &self,
+        chain_id: &ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<[Arc<SpscRing<f32>>; 2]> {
+        self.di_streams
+            .borrow()
+            .get(chain_id)
+            .map(|h| h.slot.load().subscribe_stream_tap(stream_index, capacity_per_channel))
+    }
+
+    /// How many streams the chain's DI runtime runs (0 if not armed).
+    pub fn di_stream_count(&self, chain_id: &ChainId) -> usize {
+        self.di_streams
+            .borrow()
+            .get(chain_id)
+            .map(|h| h.slot.load().stream_count())
+            .unwrap_or(0)
+    }
+
+    /// One processing step for the chain's DI runtime — the per-buffer clock the
+    /// DI worker runs. The armed loop substitutes the (silent) device input, so
+    /// stepping fills the runtime's meter taps and output route from the loop.
+    pub fn di_drive_once(&self, chain_id: &ChainId, frames: usize) {
+        if let Some(h) = self.di_streams.borrow().get(chain_id) {
+            let silence = vec![0.0f32; frames];
+            crate::slot_processing::process_input_buffer(&h.slot, 0, &silence, 1);
+        }
     }
 }
