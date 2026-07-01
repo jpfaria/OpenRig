@@ -685,6 +685,15 @@ impl ChainRuntimeState {
     pub fn has_di_loop(&self) -> bool {
         self.di_loop.load().is_some()
     }
+
+    /// Frame length of the armed DI loop, or `None` when disarmed. The
+    /// audio thread reads one loop frame per output frame at THIS runtime's
+    /// rate, so the length must match a resample to `sample_rate` — a loop
+    /// built at a different rate plays at the wrong speed (#749 slow-mo).
+    /// Read-only; used by tests and the DI parity query.
+    pub fn di_loop_len(&self) -> Option<usize> {
+        self.di_loop.load().as_ref().map(|d| d.len())
+    }
 }
 
 /// Acquire a `Mutex` even if a prior panic poisoned it (issue #415).

@@ -17,13 +17,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use adapter_render::wav::read_wav;
-use engine::DiLoop;
+use engine::DiPcm;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-/// The default seam crossfade length in frames (≈ 10 ms at 48 kHz).
-/// Passed to `DiLoop::from_samples` to hide the wrap click.
-pub const DI_LOOP_XFADE_FRAMES: usize = 480;
 
 /// Where a DI loop comes from.
 ///
@@ -40,12 +36,15 @@ pub enum DiLoopSource {
     File(PathBuf),
 }
 
-/// Decode + resample + loop-crossfade a DI source into an `Arc<DiLoop>`.
+/// Decode a DI source into an `Arc<DiPcm>` (the un-resampled source PCM).
 ///
-/// Runs **off** the audio thread. Returns `Err` with a user-facing message on
-/// failure — never panics, never returns `Ok` with silent/empty audio to mask
-/// an error.
-pub fn load_di_loop(source: &DiLoopSource, engine_sr: u32) -> Result<Arc<DiLoop>, String> {
+/// Runs **off** the audio thread. The resample-to-rate + loop crossfade now
+/// happen at ARM time, per output stream (#749): the arming path owns each
+/// runtime's rate, so a multi-rate rig plays every output at true speed
+/// instead of stretching a single `engine_sr` buffer. Returns `Err` with a
+/// user-facing message on failure — never panics, never returns `Ok` with
+/// silent/empty audio to mask an error.
+pub fn load_di_loop(source: &DiLoopSource) -> Result<Arc<DiPcm>, String> {
     let path = resolve_path(source)?;
     let wav = read_wav(&path).map_err(|e| format!("DI loop read error for {path:?}: {e}"))?;
 
@@ -55,14 +54,11 @@ pub fn load_di_loop(source: &DiLoopSource, engine_sr: u32) -> Result<Arc<DiLoop>
         ));
     }
 
-    let di = DiLoop::from_samples(
-        &wav.samples,
+    Ok(Arc::new(DiPcm::new(
+        wav.samples,
         wav.sample_rate_hz,
         wav.channels as usize,
-        engine_sr,
-        DI_LOOP_XFADE_FRAMES,
-    );
-    Ok(Arc::new(di))
+    )))
 }
 
 /// Resolve a [`DiLoopSource`] to an absolute file path.
