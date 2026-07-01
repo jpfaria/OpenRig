@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Repo content in English (code comments, docs, commits, issue comments). Chat in pt-BR.
-- TDD red-first is mandatory: write the failing test, run it, see RED, **then** create `.claude/.red-first-unlocked` and edit production. Never implement without a prior failing test.
+- TDD red-first is mandatory: write the failing test, run it, see RED, **then** create `.dev-rules/.red-first-unlocked` and edit production. Never implement without a prior failing test.
 - Audio-thread invariants must not regress: no alloc/lock/syscall/I/O on the audio thread (#8); registry resolution happens at graph-build time, off the audio thread.
 - Stream isolation (#4): every `(input,output)` pair is its own isolated runtime; the only mix point is the backend (cpal/JACK), summing streams that target the same physical output endpoint.
 - Internal stereo bus (#5) and volume invariants (#10) untouched. `crates/engine/src/volume_invariants_tests.rs` MUST pass unchanged — if it breaks, the source is wrong, not the test.
@@ -87,7 +87,7 @@ Expected: FAIL — `io_binding` module / types do not exist.
 
 - [ ] **Step 3: Implement minimal types**
 
-Create `.claude/.red-first-unlocked`, read `crates/project/src/block/types.rs` to copy the exact `DeviceId` and mode-enum names, then define `IoEndpoint` and `IoBinding` in `crates/project/src/io_binding.rs` with `#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]`. Reuse the existing endpoint field types verbatim (do not introduce a parallel mode enum). Add `pub mod io_binding;` + re-export in `lib.rs`.
+Create `.dev-rules/.red-first-unlocked`, read `crates/project/src/block/types.rs` to copy the exact `DeviceId` and mode-enum names, then define `IoEndpoint` and `IoBinding` in `crates/project/src/io_binding.rs` with `#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]`. Reuse the existing endpoint field types verbatim (do not introduce a parallel mode enum). Add `pub mod io_binding;` + re-export in `lib.rs`.
 
 - [ ] **Step 4: Run test to verify it passes**
 

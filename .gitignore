@@ -29,3 +29,7 @@ crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
 # If committed, the guard sees it on every checkout and never blocks
 # production edits, so the TDD red-first gate is silently disabled.
 .red-first-unlocked
+
+# dev-rules plugin gate sentinels (.red-first-unlocked, .mode-feature) —
+# same reasoning as above, runtime-only, never versioned.
+.dev-rules/

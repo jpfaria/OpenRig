@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **OpenRig RED-first micro-cycle (enforced by a hook):** reading/editing production `src/**` is blocked until a fresh failing test exists. So EVERY task here is: (a) write the failing test, (b) run it and see RED, (c) `touch .claude/.red-first-unlocked`, (d) read the production code you need + implement, (e) green, (f) commit (the commit re-arms the guard). Each commit narrative must name the RED test.
+> **OpenRig RED-first micro-cycle (enforced by the `dev-rules` plugin hook):** reading/editing production `src/**` is blocked until a fresh failing test exists. So EVERY task here is: (a) write the failing test, (b) run it and see RED, (c) `touch .dev-rules/.red-first-unlocked`, (d) read the production code you need + implement, (e) green, (f) commit (the commit re-arms the guard). Each commit narrative must name the RED test.
 
 **Goal:** A heavy command (chain activate/rebuild) never blocks the frontend thread; the new chain runtime is built off-thread and goes live via a wait-free atomic swap, with the old runtime dropped on the worker.
 
@@ -83,7 +83,7 @@ fn publish_swaps_runtime_and_returns_old_for_drop() {
 Run: `cargo test -p infra-cpal --test live_runtime_slot`
 Expected: FAIL — `no LiveRuntimeSlot in the root`.
 
-- [ ] **Step 3: `touch .claude/.red-first-unlocked`, then implement**
+- [ ] **Step 3: `touch .dev-rules/.red-first-unlocked`, then implement**
 
 ```rust
 // crates/infra-cpal/src/live_runtime.rs
