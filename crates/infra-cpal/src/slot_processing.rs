@@ -35,6 +35,9 @@ pub fn build_chain_slots(
 /// one device, so the single callback fans out to all of them. Runtimes
 /// without a per-entry identity (legacy whole-chain shape) fall back to
 /// their group id, which historically WAS the cpal index.
+// Only the CPAL stream-builders call this; the JACK-direct path (Linux+JACK)
+// does not, so gate to its callers' cfg to stay warning-clean (#755).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[must_use]
 pub(crate) fn slots_for_input_stream(
     slots: &[(usize, LiveRuntimeSlot)],
@@ -59,6 +62,7 @@ pub(crate) fn slots_for_input_stream(
 /// the backend mixes same-rate streams). Mixing only same-rate runtimes keeps
 /// each route's producer and consumer in lock-step. A single-output / single-rate
 /// chain is unaffected (every runtime matches the one output rate).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[must_use]
 pub(crate) fn slots_for_output_stream(
     slots: &[(usize, LiveRuntimeSlot)],

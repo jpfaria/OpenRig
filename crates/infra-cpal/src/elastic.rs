@@ -83,6 +83,7 @@ pub(crate) fn compute_elastic_targets_for_chain(
 /// harmlessly on the next full rebuild). Lets a param/block/preset edit reuse
 /// the running stream config and rebuild the DSP off-thread instead of blocking
 /// the GUI on a CoreAudio resolve.
+#[cfg(not(all(target_os = "linux", feature = "jack")))] // CPAL live-rebuild path only (#755)
 pub(crate) fn elastic_targets_from_output_buffers(output_buffer_frames: &[u32]) -> Vec<usize> {
     output_buffer_frames
         .iter()
