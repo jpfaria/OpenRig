@@ -73,6 +73,7 @@ fn four_binding_chain_is_scheduled_async_on_cold_start() {
             "io-4".into(),
         ],
         blocks: vec![],
+        di_output: None,
     };
     let project = Project {
         name: None,

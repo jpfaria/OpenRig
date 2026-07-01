@@ -35,6 +35,7 @@ fn chain_bound(id: &str, enabled: bool) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io1".into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 

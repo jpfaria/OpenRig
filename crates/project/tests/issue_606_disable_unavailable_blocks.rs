@@ -45,6 +45,7 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks,
+        di_output: None,
     }
 }
 

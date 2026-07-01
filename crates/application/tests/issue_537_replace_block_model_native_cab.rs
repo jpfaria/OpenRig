@@ -42,6 +42,7 @@ fn make_project_with_native_cab(model_id: &str) -> Rc<RefCell<Project>> {
                     params: ParameterSet::default(),
                 }),
             }],
+            di_output: None,
         }],
     }))
 }

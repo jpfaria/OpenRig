@@ -100,6 +100,7 @@ fn toggle_chain() -> Chain {
                 params: neutral_params("reverb", "room"),
             }),
         }],
+        di_output: None,
     }
 }
 

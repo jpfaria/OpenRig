@@ -54,6 +54,7 @@ fn save_project_creates_yaml_that_roundtrips_basic_project() {
                     }),
                 },
             ],
+            di_output: None,
         }],
         midi: None,
     };
@@ -615,6 +616,7 @@ fn chain_with_only_io_blocks_roundtrips() {
                     }),
                 },
             ],
+            di_output: None,
         }],
         midi: None,
     };
@@ -852,6 +854,7 @@ fn serialize_project_produces_valid_yaml_string() {
                     }),
                 },
             ],
+            di_output: None,
         }],
         midi: None,
     };
@@ -1176,6 +1179,7 @@ fn project_with_multiple_chains_roundtrips() {
                         }),
                     },
                 ],
+                di_output: None,
             },
             Chain {
                 id: ChainId("chain:1".into()),
@@ -1204,6 +1208,7 @@ fn project_with_multiple_chains_roundtrips() {
                         }),
                     },
                 ],
+                di_output: None,
             },
         ],
         midi: None,
@@ -1357,6 +1362,7 @@ fn chain_volume_150_roundtrips_through_yaml() {
             volume: 150.0,
             io_binding_ids: vec![],
             blocks: Vec::new(),
+            di_output: None,
         }],
         midi: None,
     };
@@ -1385,6 +1391,7 @@ fn chain_io_binding_ids_roundtrip_through_yaml() {
             volume: 100.0,
             io_binding_ids: vec!["main".into(), "fx".into()],
             blocks: Vec::new(),
+            di_output: None,
         }],
         midi: None,
     };

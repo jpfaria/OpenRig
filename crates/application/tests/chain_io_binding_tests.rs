@@ -353,6 +353,7 @@ fn delete_referenced_binding_rejected() {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let mut blk = input_block("my-chain:in");
     if let AudioBlockKind::Input(ref mut ib) = blk.kind {
@@ -425,6 +426,7 @@ fn delete_unreferenced_binding_ok() {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let mut blk = input_block("my-chain:in");
     if let AudioBlockKind::Input(ref mut ib) = blk.kind {

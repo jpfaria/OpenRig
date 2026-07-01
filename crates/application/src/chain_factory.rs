@@ -114,5 +114,6 @@ pub fn build_default_chain(params: DefaultChainParams<'_>) -> project::chain::Ch
         volume: 100.0,
         io_binding_ids: Vec::new(),
         blocks,
+        di_output: None,
     }
 }

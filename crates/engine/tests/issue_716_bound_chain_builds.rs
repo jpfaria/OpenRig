@@ -49,6 +49,7 @@ fn bound_chain() -> Chain {
                 params: ParameterSet::default(),
             }),
         }],
+        di_output: None,
     }
 }
 

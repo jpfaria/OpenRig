@@ -55,6 +55,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -72,6 +73,7 @@ fn make_controller(chain_id: &ChainId) -> ProjectRuntimeController {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let runtime_arc = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])

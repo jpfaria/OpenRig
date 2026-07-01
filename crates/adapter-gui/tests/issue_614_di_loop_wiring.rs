@@ -34,6 +34,7 @@ fn test_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: Vec::<AudioBlock>::new(),
+        di_output: None,
     }
 }
 

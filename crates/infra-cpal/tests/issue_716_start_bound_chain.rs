@@ -51,6 +51,7 @@ fn bound_project() -> Project {
                     params: ParameterSet::default(),
                 }),
             }],
+            di_output: None,
         }],
     }
 }

@@ -118,6 +118,7 @@ fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
                 kind,
             })
             .collect(),
+        di_output: None,
     }
 }
 
@@ -368,6 +369,7 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let project = Project {
         name: None,

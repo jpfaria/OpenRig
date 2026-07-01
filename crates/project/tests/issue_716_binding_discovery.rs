@@ -42,6 +42,7 @@ fn chain_with(io_binding_ids: Vec<String>, blocks: Vec<AudioBlock>) -> Chain {
         volume: 100.0,
         io_binding_ids,
         blocks,
+        di_output: None,
     }
 }
 

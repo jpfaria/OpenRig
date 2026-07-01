@@ -59,6 +59,7 @@ fn chain(desc: &str, volume: f32, blocks: Vec<AudioBlock>) -> Chain {
         volume,
         io_binding_ids: vec![],
         blocks,
+        di_output: None,
     }
 }
 

@@ -81,6 +81,7 @@ fn mono_source_nam_chain(id: &str) -> Chain {
                 params: amp_params,
             }),
         }],
+        di_output: None,
     }
 }
 

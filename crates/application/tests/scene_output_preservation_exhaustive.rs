@@ -325,6 +325,7 @@ fn replacement_chain_without_output() -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![user_input_block(), core_block("only-effect:1")],
+        di_output: None,
     }
 }
 

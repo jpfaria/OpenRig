@@ -135,6 +135,7 @@ mod tests {
                 core_block("b1"),
                 io_block("out", false),
             ],
+            di_output: None,
         }
     }
 

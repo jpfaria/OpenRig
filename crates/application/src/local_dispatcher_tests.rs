@@ -93,6 +93,7 @@ fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Project>> {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![block],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -671,6 +672,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_0", true),
                 make_core_block("blk_1", true),
             ],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -764,6 +766,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_1", true),
                 make_core_block("blk_2", true),
             ],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -1057,6 +1060,7 @@ fn make_chain_with_input(chain_id: &str, _dev_id: &str, _ch: usize, enabled: boo
                 endpoint: String::new(),
             }),
         }],
+        di_output: None,
     }
 }
 
@@ -1070,6 +1074,7 @@ fn make_empty_chain(chain_id: &str, enabled: bool) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -1290,6 +1295,7 @@ fn toggle_chain_enabled_refuses_chain_without_io_binding() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     }));
@@ -1845,6 +1851,7 @@ fn save_chain_input_endpoints_wrong_block_type_returns_err() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_x", 0), make_core_block("blk_mid", true)],
+            di_output: None,
         }],
         midi: None,
     }));
@@ -1897,6 +1904,7 @@ fn save_chain_input_endpoints_preserves_other_blocks() {
                 make_core_block("blk_b", true),
                 make_output_block("dev_out", 1),
             ],
+            di_output: None,
         }],
         midi: None,
     }));
@@ -1941,6 +1949,7 @@ fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
+            di_output: None,
         }],
         midi: None,
     }));
@@ -2049,6 +2058,7 @@ fn save_chain_output_endpoints_preserves_other_blocks() {
                 make_core_block("blk_b", true),
                 make_output_block("dev_out_old", 1),
             ],
+            di_output: None,
         }],
         midi: None,
     }));
@@ -2284,6 +2294,7 @@ fn save_chain_io_missing_input_block_returns_err() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
+            di_output: None,
         }],
         midi: None,
     }));
@@ -2329,6 +2340,7 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![insert],
+            di_output: None,
         }],
         midi: None,
     }));
@@ -3236,6 +3248,7 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             volume,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     }))
