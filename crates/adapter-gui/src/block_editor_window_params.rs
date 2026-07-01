@@ -53,7 +53,7 @@ pub(crate) struct BlockEditorWindowParamsCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
+    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
@@ -435,13 +435,11 @@ pub(crate) fn wire(
         let vst3_handles = vst3_editor_handles.clone();
         let vst3_sr = vst3_sample_rate;
         win.on_open_vst3_editor(move |model_id| {
-            match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
-                Ok(handle) => {
-                    vst3_handles.borrow_mut().push(handle);
-                }
-                Err(e) => {
-                    log::error!("VST3 editor: failed '{}': {}", model_id, e);
-                }
+            let res = vst3_handles.borrow_mut().open_or_replace(model_id.as_str(), || {
+                project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
+            });
+            if let Err(e) = res {
+                log::error!("VST3 editor: failed '{}': {}", model_id, e);
             }
         });
     }

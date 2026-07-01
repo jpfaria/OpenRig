@@ -84,7 +84,7 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
+    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
@@ -277,9 +277,11 @@ pub(crate) fn wire(
         drop(session_borrow);
         // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
         if is_vst3_block && !model_id.is_empty() {
-            match project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate) {
-                Ok(handle) => { vst3_editor_handles.borrow_mut().push(handle); }
-                Err(e) => set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string()),
+            let res = vst3_editor_handles.borrow_mut().open_or_replace(&model_id, || {
+                project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate)
+            });
+            if let Err(e) = res {
+                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string());
             }
             return;
         }

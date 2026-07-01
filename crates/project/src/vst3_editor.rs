@@ -5,7 +5,44 @@
 //! correct dependency boundary for the adapter layer.
 
 use anyhow::Result;
+use std::collections::HashMap;
 pub use block_core::PluginEditorHandle;
+
+/// Tracks the open native editor windows, keyed by `model_id`.
+///
+/// Single-instance VST3 plugins (ValhallaSupermassive, …) reject a second
+/// `IPluginFactory::createInstance` while the first instance is still alive.
+/// The GUI used to `push` every editor handle into a `Vec` and never drop it,
+/// so re-opening such a plugin's editor failed with `createInstance result=-1`.
+///
+/// This registry keeps **at most one** open editor per model and drops the
+/// previous handle (closing its window and releasing the plugin instance)
+/// *before* the new instance is created, so re-opening always works.
+#[derive(Default)]
+pub struct Vst3EditorRegistry {
+    open: HashMap<String, Box<dyn PluginEditorHandle>>,
+}
+
+impl Vst3EditorRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Open (or re-open) the editor for `model_id`, replacing any editor
+    /// already open for the same model. `open_fn` constructs the fresh handle.
+    pub fn open_or_replace(
+        &mut self,
+        model_id: &str,
+        open_fn: impl FnOnce() -> Result<Box<dyn PluginEditorHandle>>,
+    ) -> Result<()> {
+        // Drop the previous editor for this model FIRST, releasing its plugin
+        // instance, so single-instance plugins can create a fresh instance.
+        drop(self.open.remove(model_id));
+        let handle = open_fn()?;
+        self.open.insert(model_id.to_string(), handle);
+        Ok(())
+    }
+}
 
 /// Initialise the VST3 plugin catalog by scanning standard system paths.
 ///
@@ -49,4 +86,54 @@ pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn Plug
         sample_rate,
     )?;
     Ok(Box::new(handle))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    /// A fake editor handle that decrements a shared "live instances" counter
+    /// when dropped, so a test can observe when the plugin instance is released.
+    struct FakeHandle {
+        live: Arc<AtomicUsize>,
+    }
+    impl PluginEditorHandle for FakeHandle {}
+    impl Drop for FakeHandle {
+        fn drop(&mut self) {
+            self.live.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+
+    /// Builds an `open_fn` for a **single-instance** plugin: constructing a new
+    /// instance while one is already alive fails, mirroring ValhallaSupermassive
+    /// returning `createInstance result=-1`.
+    fn single_instance_opener(
+        live: Arc<AtomicUsize>,
+    ) -> impl FnOnce() -> Result<Box<dyn PluginEditorHandle>> {
+        move || {
+            if live.load(Ordering::SeqCst) != 0 {
+                anyhow::bail!("single-instance plugin: an instance is already alive");
+            }
+            live.fetch_add(1, Ordering::SeqCst);
+            Ok(Box::new(FakeHandle { live }) as Box<dyn PluginEditorHandle>)
+        }
+    }
+
+    #[test]
+    fn reopening_single_instance_plugin_drops_previous_instance_first() {
+        let live = Arc::new(AtomicUsize::new(0));
+        let mut reg = Vst3EditorRegistry::new();
+
+        reg.open_or_replace("valhalla", single_instance_opener(live.clone()))
+            .expect("first open should succeed");
+        assert_eq!(live.load(Ordering::SeqCst), 1, "one instance alive");
+
+        // Re-opening must succeed: the previous instance is released BEFORE the
+        // new one is created, otherwise createInstance would fail (result=-1).
+        reg.open_or_replace("valhalla", single_instance_opener(live.clone()))
+            .expect("re-open must succeed after releasing the previous instance");
+        assert_eq!(live.load(Ordering::SeqCst), 1, "still exactly one instance");
+    }
 }
