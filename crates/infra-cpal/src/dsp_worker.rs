@@ -523,8 +523,9 @@ pub(crate) fn spawn(
                 // on the rare late buffer.
                 if elapsed.as_nanos() as u64 > buf_period_ns {
                     log::trace!(
-                        "[#670 worker] late buffer: {}us (period {}us, backlog {})",
+                        "[#670 worker] late buffer: {}us wall / {}us cpu (period {}us, backlog {})",
                         elapsed.as_micros(),
+                        compute_ns / 1000,
                         buf_period_ns / 1000,
                         w - r,
                     );
