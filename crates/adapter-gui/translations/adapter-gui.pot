@@ -1069,3 +1069,7 @@ msgstr ""
 msgctxt "SectionSystemIoBindings"
 msgid "empty-no-output-endpoints"
 msgstr ""
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr ""

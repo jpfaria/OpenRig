@@ -1,0 +1,136 @@
+// #717 — the dedicated DI signal-flow graph. Mirrors the chain graph
+// (IN → blocks → OUT + level meters) but for the isolated DI runtime, shown
+// while the DI plays. The block chips are the SAME BlockChip used by the chain
+// row (read-only here); the meter bar reuses the chain-row IN/OUT bar visual.
+
+import { StreamMeter, ChainBlockItem } from "../models.slint";
+import { ChainEndpointChip } from "chain_chips.slint";
+import { BlockChip } from "block_chip.slint";
+
+// One IN/OUT level-meter bar pair — same gradient + mask + dB-text math as the
+// chain row footer, factored here so the DI graph stays visually identical.
+component MeterBarPair inherits Rectangle {
+    in property <StreamMeter> meter;
+    height: 16px;
+
+    Rectangle {
+        x: 0px; width: 220px; height: 16px;
+        Text {
+            x: 0px; width: 44px; height: parent.height;
+            text: "INPUT";
+            font-size: 8px; font-weight: 700; color: #9ca3af;
+            horizontal-alignment: right; vertical-alignment: center;
+        }
+        Rectangle {
+            x: 48px; y: 2px; width: 130px; height: 12px;
+            border-width: 1px;
+            border-color: root.meter.in_dbfs > 0.0 ? #f87171 : #2a313a;
+            border-radius: 2px;
+            background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
+                #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+            Rectangle {
+                x: parent.width * Math.max(0.0, Math.min(1.0, (root.meter.in_dbfs + 60.0) / 60.0));
+                width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.meter.in_dbfs + 60.0) / 60.0)));
+                height: parent.height;
+                background: #0b0e13e8;
+            }
+        }
+        Text {
+            x: 182px; width: 36px; height: parent.height;
+            text: root.meter.in_dbfs <= -119.0 ? "—" : Math.round(root.meter.in_dbfs) + " dB";
+            font-size: 9px; font-weight: 700;
+            color: root.meter.in_dbfs <= -119.0 ? #6b7280
+                 : root.meter.in_dbfs > -3.0 ? #f87171
+                 : root.meter.in_dbfs >= -30.0 ? #4ade80 : #facc15;
+            vertical-alignment: center;
+        }
+    }
+    Rectangle {
+        x: parent.width - 240px; width: 230px; height: 16px;
+        Text {
+            x: 0px; width: 50px; height: parent.height;
+            text: "OUTPUT";
+            font-size: 8px; font-weight: 700; color: #9ca3af;
+            horizontal-alignment: right; vertical-alignment: center;
+        }
+        Rectangle {
+            x: 54px; y: 2px; width: 130px; height: 12px;
+            border-width: 1px;
+            border-color: root.meter.out_dbfs > 0.0 ? #f87171 : #2a313a;
+            border-radius: 2px;
+            background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
+                #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+            Rectangle {
+                x: parent.width * Math.max(0.0, Math.min(1.0, (root.meter.out_dbfs + 60.0) / 60.0));
+                width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.meter.out_dbfs + 60.0) / 60.0)));
+                height: parent.height;
+                background: #0b0e13e8;
+            }
+        }
+        Text {
+            x: 188px; width: 40px; height: parent.height;
+            text: root.meter.out_dbfs <= -119.0 ? "—" : Math.round(root.meter.out_dbfs) + " dB";
+            font-size: 9px; font-weight: 700;
+            color: root.meter.out_dbfs <= -119.0 ? #6b7280
+                 : root.meter.out_dbfs > -3.0 ? #f87171
+                 : root.meter.out_dbfs >= -30.0 ? #4ade80 : #facc15;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component DiStreamGraph inherits Rectangle {
+    in property <[ChainBlockItem]> blocks;
+    in property <string> input-label: "DI";
+    in property <string> output-label;
+    in property <StreamMeter> meter;
+
+    height: 152px;
+    background: #0d1017f2;
+    border-radius: 10px;
+    border-width: 1px;
+    // DI accent so the second graph is visibly the DI stream, not the guitar.
+    border-color: #6e8aff55;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: 12px;
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            Image {
+                width: 18px; height: 18px;
+                y: 27px;
+                source: @image-url("../assets/headphones.svg");
+                colorize: #6e8aff;
+            }
+            Text {
+                text: @tr("di-stream-graph-title");
+                font-size: 13px; font-weight: 800; color: #cdd6e4;
+                vertical-alignment: center;
+            }
+
+            Rectangle { width: 8px; }
+
+            ChainEndpointChip {
+                label: root.input-label;
+                is-input: true;
+                interactive: false;
+            }
+            for block in root.blocks : BlockChip {
+                width: 90px;
+                height: 72px;
+                block: block;
+            }
+            ChainEndpointChip {
+                label: root.output-label;
+                is-input: false;
+                interactive: false;
+            }
+        }
+
+        MeterBarPair { meter: root.meter; }
+    }
+}

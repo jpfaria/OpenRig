@@ -746,3 +746,7 @@ msgstr "No I/O bindings yet — add them in Settings → I/O bindings"
 
 msgid "warn-select-binding"
 msgstr "Select at least one I/O binding for this chain"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "DI stream"

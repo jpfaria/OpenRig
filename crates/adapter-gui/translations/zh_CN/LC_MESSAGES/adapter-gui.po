@@ -742,3 +742,7 @@ msgstr "尚无 I/O 绑定 — 在设置 → I/O 绑定中创建"
 
 msgid "warn-select-binding"
 msgstr "请为此链选择至少一个 I/O 绑定"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "DI 音频流"

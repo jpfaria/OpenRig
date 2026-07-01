@@ -440,10 +440,11 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetMidiEnabled { enabled } => self.handle_set_midi_enabled(enabled),
             Command::SetMcpEnabled { enabled } => self.handle_set_mcp_enabled(enabled),
 
-            // #614: per-chain virtual DI loop (ephemeral, never persisted).
-            Command::SetChainDiLoopSource { .. } | Command::SetChainDiLoopEnabled { .. } => {
-                self.handle_di_loop(cmd)
-            }
+            // #614/#717: per-chain virtual DI loop (source/enabled ephemeral;
+            // output persisted into project via SetChainDiLoopOutput).
+            Command::SetChainDiLoopSource { .. }
+            | Command::SetChainDiLoopEnabled { .. }
+            | Command::SetChainDiLoopOutput { .. } => self.handle_di_loop(cmd),
 
             // #716: per-machine I/O binding registry (persisted to config.yaml).
             Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {

@@ -745,3 +745,7 @@ msgstr "Aucune liaison d'E/S — créez-les dans Réglages → Liaisons d'E/S"
 
 msgid "warn-select-binding"
 msgstr "Sélectionnez au moins une liaison d'E/S pour cette chaîne"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "Flux DI"

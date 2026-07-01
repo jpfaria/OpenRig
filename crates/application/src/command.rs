@@ -18,6 +18,7 @@ pub use domain::ids::{BlockId, ChainId};
 pub use domain::io_binding::{ChannelMode, IoBinding};
 use project::block::AudioBlock;
 use project::chain::Chain;
+pub use project::chain::DiOutputRef;
 pub use crate::di_loader::DiLoopSource;
 
 /// Every state change the UI or any controller can request.
@@ -565,6 +566,17 @@ pub enum Command {
     SetChainDiLoopEnabled {
         chain: ChainId,
         enabled: bool,
+    },
+
+    /// #717 Task 3: persist the chosen DI output endpoint for a chain.
+    ///
+    /// Sets `chain.di_output = Some(output)` on the matching chain in the
+    /// project and emits `Event::ChainDiLoopOutputChanged { chain }`.
+    ///
+    /// Returns `Err` if `chain` is not found.
+    SetChainDiLoopOutput {
+        chain: ChainId,
+        output: DiOutputRef,
     },
 
     // ── I/O binding registry (#716) ───────────────────────────────────────────

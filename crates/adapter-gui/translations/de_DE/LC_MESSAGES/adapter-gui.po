@@ -748,3 +748,7 @@ msgstr "Noch keine E/A-Bindungen — in Einstellungen → E/A-Bindungen anlegen"
 
 msgid "warn-select-binding"
 msgstr "Wähle mindestens eine E/A-Bindung für diese Chain"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "DI-Stream"

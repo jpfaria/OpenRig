@@ -767,3 +767,7 @@ msgstr "Nenhuma ligação de E/S ainda — crie em Configurações → Ligaçõe
 
 msgid "warn-select-binding"
 msgstr "Selecione ao menos uma ligação de E/S para esta chain"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "Stream do DI"

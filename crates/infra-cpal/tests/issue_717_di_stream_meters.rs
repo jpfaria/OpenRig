@@ -1,8 +1,9 @@
-//! #717 — the dedicated DI runtime must produce its OWN meters when driven,
-//! fully isolated from the guitar runtime. Meters are SPSC taps filled only
-//! inside the runtime's processing call, so the DI runtime yields levels only
-//! once a driver clocks it (`di_drive_once` — the per-buffer step the DI worker
-//! runs). Driving the DI must NOT feed the guitar runtime's taps (isolation #4).
+//! #717 — the dedicated DI runtime must produce its OWN meters, live, fully
+//! isolated from the guitar runtime. Levels are SPSC taps filled only inside the
+//! runtime's processing call, so arming spawns a worker that clocks the DI
+//! runtime buffer by buffer; the armed loop substitutes the silent device input,
+//! so the taps go live on their own. Driving the DI must never feed the guitar
+//! runtime's taps (isolation #4), and disarm tears the worker + runtime down.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -46,7 +47,7 @@ fn chain_and_registry() -> (Chain, Vec<IoBinding>) {
 }
 
 #[test]
-fn driven_di_runtime_produces_its_own_meters_isolated_from_guitar() {
+fn armed_di_runtime_meters_go_live_isolated_from_guitar() {
     let (chain, registry) = chain_and_registry();
     let guitar = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[256], &registry).expect("guitar runtime"),
@@ -60,26 +61,40 @@ fn driven_di_runtime_produces_its_own_meters_isolated_from_guitar() {
     let pcm = Arc::new(DiPcm::new(vec![0.5; 4800], 48_000, 1));
     controller.arm_di_stream(&chain, pcm, &registry).expect("arm DI");
 
-    // Subscribe the DI runtime's own output stream tap + the guitar's.
+    // Subscribe the DI runtime's own output tap + the guitar's. The worker
+    // spawned by arm re-loads the runtime each buffer, so a tap subscribed after
+    // arm still fills.
     let di_tap = controller
         .di_subscribe_stream_tap(&chain.id, 0, 8192)
-        .expect("DI runtime must expose a stream tap");
+        .expect("DI stream tap");
     let guitar_tap = controller
         .subscribe_stream_tap(&chain.id, 0, 8192)
         .expect("guitar stream tap");
 
-    // Clock the DI runtime as the worker will, one buffer at a time.
-    for _ in 0..40 {
-        controller.di_drive_once(&chain.id, 256);
+    // The worker drives the DI runtime on its own — meters go live with no
+    // manual clock, within a short window.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut di_peak = SILENT_DBFS;
+    while std::time::Instant::now() < deadline {
+        di_peak = pop_peak_dbfs(&di_tap);
+        if di_peak > SILENT_DBFS {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
-
     assert!(
-        pop_peak_dbfs(&di_tap) > SILENT_DBFS,
-        "the driven DI runtime must produce its own meter signal from the loop"
+        di_peak > SILENT_DBFS,
+        "arming must spawn a worker that drives the DI runtime → its own live meters"
     );
     assert_eq!(
         pop_peak_dbfs(&guitar_tap),
         SILENT_DBFS,
-        "the guitar tap must stay silent — driving the DI must never feed the guitar runtime"
+        "the guitar tap must stay silent — the DI runtime is fully isolated"
+    );
+
+    controller.disarm_di_stream(&chain.id);
+    assert!(
+        !controller.di_stream_active(&chain.id),
+        "disarm must tear the DI runtime + its worker down"
     );
 }
