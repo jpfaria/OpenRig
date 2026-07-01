@@ -183,6 +183,7 @@ pub(crate) fn build_input_stream_for_input(
                         channels,
                         sample_rate,
                         (buffer_size_frames as usize).max(64) * channels * 8,
+                        workgroup_uid.clone(),
                     )
                 })
                 .collect();
