@@ -38,6 +38,19 @@ pub trait StereoProcessor: Send + Sync + 'static {
             *frame = self.process_frame(*frame);
         }
     }
+
+    /// Retune this processor to `params` in place, without rebuilding it.
+    /// Returns `true` if the update was applied. Default: not supported.
+    ///
+    /// Used by the engine on rebuild so plugins that must NOT be re-instantiated
+    /// (VST3 GUI plugins) keep their single live instance (#251).
+    fn try_in_place_update(
+        &mut self,
+        _params: &crate::param::ParameterSet,
+        _sample_rate: f32,
+    ) -> bool {
+        false
+    }
 }
 
 pub enum BlockProcessor {

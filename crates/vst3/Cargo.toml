@@ -10,3 +10,6 @@ block-core = { path = "../block-core" }
 vst3 = "0.3.0"
 libloading = "0.8"
 crossbeam-queue = "0.3"
+
+[dev-dependencies]
+domain = { path = "../domain" }

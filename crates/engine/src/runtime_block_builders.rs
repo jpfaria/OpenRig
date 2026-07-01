@@ -277,9 +277,13 @@ fn try_in_place_param_update(
             let right_ok = right.try_in_place_update(next.params, sample_rate);
             left_ok && right_ok
         }
-        // Stereo / StereoFromMono use the StereoProcessor trait — not extended
-        // with try_in_place_update yet (#358 scope). Falls through to rebuild.
-        AudioProcessor::Stereo(_) | AudioProcessor::StereoFromMono(_) => false,
+        // Stereo / StereoFromMono retune in place too. This is essential for
+        // VST3 GUI plugins, which must NOT be re-instantiated on a param change
+        // (a reload re-runs createInstance, which fails under the app's
+        // NSApplication after the first instance — #251).
+        AudioProcessor::Stereo(processor) | AudioProcessor::StereoFromMono(processor) => {
+            processor.try_in_place_update(next.params, sample_rate)
+        }
     }
 }
 

@@ -41,6 +41,11 @@ impl StereoVst3Processor {
         self.plugin.set_param(id, normalized)
     }
 
+    /// Read a parameter's current normalized value (0.0..=1.0).
+    pub fn get_param(&self, id: u32) -> f64 {
+        self.plugin.get_param(id)
+    }
+
     /// Drain pending GUI parameter updates, returning them as a Vec.
     fn drain_pending_params(&self) -> Vec<(u32, f64)> {
         if let Some(rx) = &self.param_rx {
@@ -56,6 +61,24 @@ impl StereoVst3Processor {
 }
 
 impl StereoProcessor for StereoVst3Processor {
+    fn try_in_place_update(
+        &mut self,
+        params: &block_core::param::ParameterSet,
+        _sample_rate: f32,
+    ) -> bool {
+        // Apply the new params to the LIVE plugin instead of reloading it.
+        // Paths are "p{id}", values are 0..100 (%) → VST3 normalized 0.0..=1.0.
+        for (path, value) in params.values.iter() {
+            let Some(id) = path.strip_prefix('p').and_then(|s| s.parse::<u32>().ok()) else {
+                continue;
+            };
+            let Some(pct) = value.as_f32() else { continue };
+            let normalized = (pct / 100.0).clamp(0.0, 1.0) as f64;
+            let _ = self.plugin.set_param(id, normalized);
+        }
+        true
+    }
+
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
         let pending = self.drain_pending_params();
         self.buf_in_l[0] = input[0];
