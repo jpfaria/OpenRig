@@ -275,13 +275,19 @@ pub(crate) fn wire(
         let block_id_for_editor = block.id.clone();
         let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
         drop(session_borrow);
-        // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
+        // VST3 blocks: the block is now selected and will process audio in the
+        // chain. Only auto-open the native GUI when the engine already holds the
+        // instance (reuse it); if it isn't running yet, stay silent — the user
+        // opens the editor later, once the chain is live, and it reuses that
+        // instance. Never load a standalone one (it corrupts the plugin, #251).
         if is_vst3_block && !model_id.is_empty() {
-            let res = vst3_editor_handles.borrow_mut().open_or_focus(&model_id, || {
-                project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate)
-            });
-            if let Err(e) = res {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string());
+            if project::vst3_editor::has_engine_context(&model_id) {
+                let res = vst3_editor_handles.borrow_mut().open_or_focus(&model_id, || {
+                    project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate)
+                });
+                if let Err(e) = res {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string());
+                }
             }
             return;
         }
