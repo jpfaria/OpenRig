@@ -15,7 +15,7 @@ pub(crate) fn wire(
     vst3_sample_rate: f64,
 ) {
     window.on_open_vst3_editor(move |model_id| {
-        let res = vst3_editor_handles.borrow_mut().open_or_replace(model_id.as_str(), || {
+        let res = vst3_editor_handles.borrow_mut().open_or_focus(model_id.as_str(), || {
             project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sample_rate)
         });
         if let Err(e) = res {

@@ -10,14 +10,14 @@ pub use block_core::PluginEditorHandle;
 
 /// Tracks the open native editor windows, keyed by `model_id`.
 ///
-/// Single-instance VST3 plugins (ValhallaSupermassive, …) reject a second
-/// `IPluginFactory::createInstance` while the first instance is still alive.
-/// The GUI used to `push` every editor handle into a `Vec` and never drop it,
-/// so re-opening such a plugin's editor failed with `createInstance result=-1`.
+/// Some VST3 plugins (ValhallaSupermassive, …) leave their module in a broken
+/// state after an editor window is attached and then closed: the *next*
+/// `IPluginFactory::createInstance` fails with `result=-1` for the rest of the
+/// process, and releasing the old instance + reloading does NOT recover it.
 ///
-/// This registry keeps **at most one** open editor per model and drops the
-/// previous handle (closing its window and releasing the plugin instance)
-/// *before* the new instance is created, so re-opening always works.
+/// So this registry keeps **at most one** editor per model alive for the whole
+/// session and never rebuilds it. Re-opening reuses (re-focuses) the existing
+/// window instead of creating a second instance.
 #[derive(Default)]
 pub struct Vst3EditorRegistry {
     open: HashMap<String, Box<dyn PluginEditorHandle>>,
@@ -28,16 +28,20 @@ impl Vst3EditorRegistry {
         Self::default()
     }
 
-    /// Open (or re-open) the editor for `model_id`, replacing any editor
-    /// already open for the same model. `open_fn` constructs the fresh handle.
-    pub fn open_or_replace(
+    /// Open the editor for `model_id`, or re-focus the one already open for it.
+    ///
+    /// If an editor for this model is already held, `open_fn` is NOT called —
+    /// the existing window is brought to the front. This avoids the second
+    /// `createInstance` that breaks plugins after a window close + reload.
+    pub fn open_or_focus(
         &mut self,
         model_id: &str,
         open_fn: impl FnOnce() -> Result<Box<dyn PluginEditorHandle>>,
     ) -> Result<()> {
-        // Drop the previous editor for this model FIRST, releasing its plugin
-        // instance, so single-instance plugins can create a fresh instance.
-        drop(self.open.remove(model_id));
+        if let Some(existing) = self.open.get(model_id) {
+            existing.focus();
+            return Ok(());
+        }
         let handle = open_fn()?;
         self.open.insert(model_id.to_string(), handle);
         Ok(())
@@ -94,47 +98,37 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
-    /// A fake editor handle that decrements a shared "live instances" counter
-    /// when dropped, so a test can observe when the plugin instance is released.
+    /// A fake editor handle that counts how many times it is re-focused.
     struct FakeHandle {
-        live: Arc<AtomicUsize>,
+        focuses: Arc<AtomicUsize>,
     }
-    impl PluginEditorHandle for FakeHandle {}
-    impl Drop for FakeHandle {
-        fn drop(&mut self) {
-            self.live.fetch_sub(1, Ordering::SeqCst);
-        }
-    }
-
-    /// Builds an `open_fn` that refuses to construct a new editor while a
-    /// previous one is still alive. This pins the invariant the fix relies on:
-    /// `open_or_replace` must release the previous editor BEFORE building the
-    /// next one (the leaked-`Vec` version kept it alive and broke re-opening).
-    fn single_instance_opener(
-        live: Arc<AtomicUsize>,
-    ) -> impl FnOnce() -> Result<Box<dyn PluginEditorHandle>> {
-        move || {
-            if live.load(Ordering::SeqCst) != 0 {
-                anyhow::bail!("single-instance plugin: an instance is already alive");
-            }
-            live.fetch_add(1, Ordering::SeqCst);
-            Ok(Box::new(FakeHandle { live }) as Box<dyn PluginEditorHandle>)
+    impl PluginEditorHandle for FakeHandle {
+        fn focus(&self) {
+            self.focuses.fetch_add(1, Ordering::SeqCst);
         }
     }
 
     #[test]
-    fn reopening_single_instance_plugin_drops_previous_instance_first() {
-        let live = Arc::new(AtomicUsize::new(0));
+    fn reopening_same_model_reuses_and_focuses_the_open_editor() {
+        let opens = Arc::new(AtomicUsize::new(0));
+        let focuses = Arc::new(AtomicUsize::new(0));
         let mut reg = Vst3EditorRegistry::new();
 
-        reg.open_or_replace("valhalla", single_instance_opener(live.clone()))
-            .expect("first open should succeed");
-        assert_eq!(live.load(Ordering::SeqCst), 1, "one instance alive");
+        let opener = |opens: Arc<AtomicUsize>, focuses: Arc<AtomicUsize>| {
+            move || -> Result<Box<dyn PluginEditorHandle>> {
+                opens.fetch_add(1, Ordering::SeqCst);
+                Ok(Box::new(FakeHandle { focuses }) as Box<dyn PluginEditorHandle>)
+            }
+        };
 
-        // Re-opening must succeed: the previous instance is released BEFORE the
-        // new one is created, otherwise createInstance would fail (result=-1).
-        reg.open_or_replace("valhalla", single_instance_opener(live.clone()))
-            .expect("re-open must succeed after releasing the previous instance");
-        assert_eq!(live.load(Ordering::SeqCst), 1, "still exactly one instance");
+        reg.open_or_focus("valhalla", opener(opens.clone(), focuses.clone()))
+            .expect("first open");
+        reg.open_or_focus("valhalla", opener(opens.clone(), focuses.clone()))
+            .expect("second open");
+
+        // The second open must NOT build a new instance — it re-focuses the
+        // existing one (a new createInstance would fail with result=-1).
+        assert_eq!(opens.load(Ordering::SeqCst), 1, "instance created exactly once");
+        assert_eq!(focuses.load(Ordering::SeqCst), 1, "existing editor re-focused");
     }
 }

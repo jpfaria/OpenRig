@@ -277,7 +277,7 @@ pub(crate) fn wire(
         drop(session_borrow);
         // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
         if is_vst3_block && !model_id.is_empty() {
-            let res = vst3_editor_handles.borrow_mut().open_or_replace(&model_id, || {
+            let res = vst3_editor_handles.borrow_mut().open_or_focus(&model_id, || {
                 project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate)
             });
             if let Err(e) = res {
