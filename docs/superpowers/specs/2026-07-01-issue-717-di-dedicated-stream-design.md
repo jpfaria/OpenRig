@@ -98,14 +98,32 @@ bindings) is settled in the plan against `crates/project/src/chain.rs` +
   test stays green).
 - If the GUI reads the chosen output back, it goes through a **`Query`** too
   (read parity).
+- The dedicated DI-stream graph reads the **DI runtime's own meters** (input/
+  output peaks). Those are a window the GUI has, so per the read-parity law they
+  are served from `QueryKind` (MCP/gRPC see the DI stream too), not a GUI-only
+  path.
 
 ## UI
 
-Second select in the existing `DiLoopPanel` (the reusable select component),
-listing the chain's **already-bound output endpoints**; picking one dispatches
-the new Command. Panel layout stays the owner-approved shape (fone → panel with source
-select + play/stop), with the output select added. i18n: new `@tr` keys added
-to the `.pot` + all locale `.po` in the same commit.
+**A. Output select.** Second select in the existing `DiLoopPanel` (the reusable
+select component), listing the chain's **already-bound output endpoints**;
+picking one dispatches the new Command. Panel layout stays the owner-approved
+shape (fone → panel with source select + play/stop), with the output select
+added.
+
+**B. Dedicated DI-stream graph (owner requirement).** While the DI is armed, the
+screen shows a **second signal-flow graph specific to the DI stream** — the same
+visual as the guitar chain graph (IN → blocks → OUT with input/output meters),
+but for the DI runtime: **IN = the DI source**, the **block copy**, **OUT = the
+chosen output**, with the DI stream's **own meters**. It appears only while the
+DI plays and disappears on stop. This makes the isolation visible: two graphs,
+two independent meter sets — the DI is manifestly not on the guitar's stream.
+Exact placement/layout (below the chain graph vs. a stacked panel) is decided in
+the UI phase with `ui-ux-pro-max` + `slint` + a headless render, not assumed
+here.
+
+i18n: any new `@tr` keys added to the `.pot` + all locale `.po` in the same
+commit.
 
 ## Invariants / risks
 
