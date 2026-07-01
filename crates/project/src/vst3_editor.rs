@@ -106,9 +106,10 @@ mod tests {
         }
     }
 
-    /// Builds an `open_fn` for a **single-instance** plugin: constructing a new
-    /// instance while one is already alive fails, mirroring ValhallaSupermassive
-    /// returning `createInstance result=-1`.
+    /// Builds an `open_fn` that refuses to construct a new editor while a
+    /// previous one is still alive. This pins the invariant the fix relies on:
+    /// `open_or_replace` must release the previous editor BEFORE building the
+    /// next one (the leaked-`Vec` version kept it alive and broke re-opening).
     fn single_instance_opener(
         live: Arc<AtomicUsize>,
     ) -> impl FnOnce() -> Result<Box<dyn PluginEditorHandle>> {
