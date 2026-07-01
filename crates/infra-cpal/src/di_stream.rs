@@ -12,7 +12,6 @@ use std::time::Duration;
 use anyhow::Result;
 
 use domain::ids::ChainId;
-use domain::io_binding::IoBinding;
 use engine::runtime::build_chain_runtime_state;
 use engine::spsc::SpscRing;
 use engine::DiPcm;
@@ -79,17 +78,12 @@ impl ProjectRuntimeController {
     /// the loop, and hold it — NEVER the guitar runtime (#717, invariant #4).
     /// The engine defaults every route's elastic cushion here; Task 4 sizes it
     /// to the chain's chosen output once that output is resolved.
-    pub fn arm_di_stream(
-        &self,
-        chain: &Chain,
-        pcm: Arc<DiPcm>,
-        registry: &[IoBinding],
-    ) -> Result<()> {
+    pub fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
         let runtime = Arc::new(build_chain_runtime_state(
             chain,
             self.sample_rate as f32,
             &[],
-            registry,
+            &self.io_bindings,
         )?);
         let rate = runtime.sample_rate() as u32;
         runtime.set_di_loop(Some(Arc::new(pcm.to_loop_at(rate))));

@@ -54,12 +54,13 @@ fn armed_di_runtime_meters_go_live_isolated_from_guitar() {
     );
     let mut chains = HashMap::new();
     chains.insert((chain.id.clone(), 0usize), guitar);
-    let controller =
+    let mut controller =
         ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, 48_000);
+    controller.set_io_bindings(registry);
 
     // A steady non-silent loop (~ -6 dBFS).
     let pcm = Arc::new(DiPcm::new(vec![0.5; 4800], 48_000, 1));
-    controller.arm_di_stream(&chain, pcm, &registry).expect("arm DI");
+    controller.arm_di_stream(&chain, pcm).expect("arm DI");
 
     // Subscribe the DI runtime's own output tap + the guitar's. The worker
     // spawned by arm re-loads the runtime each buffer, so a tap subscribed after

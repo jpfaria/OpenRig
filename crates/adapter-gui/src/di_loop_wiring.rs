@@ -115,7 +115,16 @@ pub fn handle_chain_di_loop_enabled_changed(
     };
 
     if let Some(rt) = project_runtime.borrow().as_ref() {
-        rt.set_chain_di_loop(chain, if enabled { arc_opt } else { None });
+        rt.set_chain_di_loop(chain, if enabled { arc_opt.clone() } else { None });
+        // #717: also drive the dedicated, isolated DI stream so the DI graph
+        // gets its own live meters. (The guitar-injection line above still
+        // carries the sound until the dedicated output routing lands.)
+        match (enabled, dispatcher.chain_snapshot(chain), arc_opt) {
+            (true, Some(chain_def), Some(pcm)) => {
+                let _ = rt.arm_di_stream(&chain_def, pcm);
+            }
+            _ => rt.disarm_di_stream(chain),
+        }
     }
 }
 

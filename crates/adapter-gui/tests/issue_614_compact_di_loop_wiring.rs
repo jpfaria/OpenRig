@@ -140,6 +140,16 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
         "REGRESSION #614 compact: compact_chain_di_loop_play did not arm the \
          runtime — chain_has_di_loop() is still false"
     );
+    // #717: play must ALSO arm the dedicated DI stream, so its worker drives the
+    // isolated runtime and the DI graph gets its own live meters.
+    assert!(
+        controller
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .di_stream_active(&chain_id),
+        "#717: compact play must arm the dedicated DI stream (di_stream_active)"
+    );
 }
 
 /// `compact_chain_di_loop_stop` must disarm the chain runtime.

@@ -55,15 +55,15 @@ fn di_arms_on_a_separate_runtime_not_the_guitar_runtime() {
     );
     let mut chains = HashMap::new();
     chains.insert((chain.id.clone(), 0usize), guitar.clone());
-    let controller =
+    let mut controller =
         ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, 48_000);
+    controller.set_io_bindings(registry);
 
     let pcm = Arc::new(DiPcm::new(vec![0.2; 4800], 48_000, 1));
-    // NEW API (this task decides its internals — the DI-stream clock/driver).
-    // Takes the chain (to copy its block graph) + the binding registry (to
-    // resolve its I/O), since the controller does not retain `Chain` at rest.
+    // The DI stream is built from a copy of the chain's block graph, resolved
+    // against the controller's own binding registry.
     controller
-        .arm_di_stream(&chain, pcm, &registry)
+        .arm_di_stream(&chain, pcm)
         .expect("arm DI stream");
 
     assert!(
