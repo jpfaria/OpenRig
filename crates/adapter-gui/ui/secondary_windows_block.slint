@@ -261,6 +261,9 @@ export component CompactChainViewWindow inherits Window {
     // #614: DI loop state for the focused chain.
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
+    // #717: which source is selected — without it the compact panel opens with
+    // no selection, so it shows nothing picked and hides the play/stop button.
+    in property <int> di-loop-selected-index: -1;
 
     // I/O device configuration
     callback configure-input(int); // chain_index
@@ -325,6 +328,7 @@ export component CompactChainViewWindow inherits Window {
         volume: root.volume;
         di-loop-playing: root.di-loop-playing;
         di-loop-sources: root.di-loop-sources;
+        di-loop-selected-index: root.di-loop-selected-index;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
         di-loop-source-selected(src) => { root.di-loop-source-selected(src); }

@@ -6,6 +6,9 @@
 //! the fone did nothing ("botão não faz nada"). This drives a real pointer
 //! click at the fone and asserts the panel appears in the SAME window.
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 use adapter_gui::CompactChainViewWindow;
 use slint::platform::{PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, LogicalPosition, ModelRc, SharedString, VecModel};
@@ -70,5 +73,52 @@ fn compact_window_fone_opens_the_di_panel() {
         "#717: clicking the fone in the detached compact window must open the DI \
          panel — today the overlay is missing from CompactChainViewWindow so the \
          button does nothing"
+    );
+}
+
+/// #717 — with a source selected, the compact panel must reflect the selection
+/// and expose the play/stop control. The window must plumb
+/// `di-loop-selected-index` through to the fone/panel; without it the panel
+/// opens at -1 (nothing selected), so it shows no source and hides play/stop —
+/// "não mostra o que selecionei e não consigo dar stop".
+#[test]
+fn compact_panel_reflects_selection_and_can_stop() {
+    i_slint_backend_testing::init_no_event_loop();
+
+    let w = CompactChainViewWindow::new().unwrap();
+    w.set_chain_index(0);
+    w.set_di_loop_sources(ModelRc::new(VecModel::from(vec![
+        SharedString::from("clean-electric-guitar-loop"),
+        SharedString::from("Choose file…"),
+    ])));
+    w.set_di_loop_selected_index(0);
+    w.set_di_loop_playing(true);
+
+    let stopped = Rc::new(Cell::new(false));
+    let s = stopped.clone();
+    w.on_di_loop_stop(move || s.set(true));
+
+    w.show().unwrap();
+
+    assert!(
+        click_id(&w, "ChainDiLoopButton::ta", 0),
+        "the DI fone must be hittable"
+    );
+
+    // A selected source must surface the play/stop button (it renders only when
+    // the panel has a selection).
+    assert!(
+        count_id(&w, "DiLoopPanel::play-ta") >= 1,
+        "#717: a selected source must show the play/stop button in the compact panel"
+    );
+
+    // Playing → the control stops.
+    assert!(
+        click_id(&w, "DiLoopPanel::play-ta", 0),
+        "the play/stop control must be hittable"
+    );
+    assert!(
+        stopped.get(),
+        "#717: clicking the control while playing must fire di-loop-stop"
     );
 }

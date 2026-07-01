@@ -505,6 +505,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                         // #614: mirror DI loop playing state and source list.
                         cw.set_di_loop_playing(row.di_loop_playing);
                         cw.set_di_loop_sources(row.di_loop_sources.clone());
+                        // #717: mirror the selected source too — without it the
+                        // compact panel opens with nothing picked and hides the
+                        // play/stop button.
+                        cw.set_di_loop_selected_index(row.di_loop_selected_index);
                     }
                     if let Some(nav) = nav_model.row_data(ci) {
                         cw.set_rig_nav(nav);
