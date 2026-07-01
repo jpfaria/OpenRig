@@ -14,10 +14,14 @@ use vst3::Steinberg::Vst::{
     IParameterChanges, MediaTypes_, ParameterInfo, ProcessData, ProcessSetup, SpeakerArr,
     SymbolicSampleSizes_,
 };
+use vst3::Steinberg::Vst::IHostApplication;
 use vst3::Steinberg::{
-    kResultOk, IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool, TUID,
+    kResultOk, FUnknown, IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool,
+    TUID,
 };
 use vst3::{ComPtr, ComWrapper, Interface};
+
+use crate::host_application::HostApplication;
 
 use crate::host_utils::{bundle_binary_path, char16_array_to_string, tuid_to_bytes};
 use crate::param_changes::HostParameterChanges;
@@ -195,6 +199,10 @@ pub struct Vst3Plugin {
     /// Internal block size.
     block_size: usize,
 
+    /// The host context passed to `initialize`; kept alive so the plugin can
+    /// hold a reference to it for its whole lifetime.
+    _host_app: ComWrapper<HostApplication>,
+
     /// The `CFBundleRef` whose `bundleEntry` initialised this module (macOS).
     /// Kept alive for the plugin's lifetime; released via `bundleExit` +
     /// `CFRelease` on drop.
@@ -296,9 +304,17 @@ impl Vst3Plugin {
         let component: ComPtr<IComponent> =
             unsafe { ComPtr::from_raw_unchecked(component_raw as *mut IComponent) };
 
-        // 6. Initialize IComponent (IPluginBase::initialize).
-        // We pass null as the host context — most plugins accept this.
-        let res = unsafe { component.initialize(ptr::null_mut()) };
+        // 6. Initialize IComponent (IPluginBase::initialize) with a real host
+        // context (IHostApplication). Passing null makes JUCE-based plugins grab
+        // the process NSApplication themselves, which breaks the *second*
+        // createInstance in the app (#251). The context is kept alive for the
+        // plugin's lifetime in `_host_app`.
+        let host_app = HostApplication::new();
+        let host_ctx: *mut FUnknown = host_app
+            .as_com_ref::<IHostApplication>()
+            .map(|r| r.as_ptr() as *mut FUnknown)
+            .unwrap_or(ptr::null_mut());
+        let res = unsafe { component.initialize(host_ctx) };
         if res != kResultOk {
             log::warn!("IComponent::initialize returned {} (non-fatal)", res);
         }
@@ -428,7 +444,7 @@ impl Vst3Plugin {
             let ctrl: ComPtr<IEditController> =
                 unsafe { ComPtr::from_raw_unchecked(ctrl_raw as *mut IEditController) };
 
-            let res = unsafe { ctrl.initialize(ptr::null_mut()) };
+            let res = unsafe { ctrl.initialize(host_ctx) };
             if res != kResultOk {
                 log::warn!("IEditController::initialize returned {} (non-fatal)", res);
             }
@@ -482,6 +498,7 @@ impl Vst3Plugin {
             num_input_channels,
             num_output_channels,
             block_size,
+            _host_app: host_app,
             #[cfg(target_os = "macos")]
             cf_bundle,
         })
