@@ -19,6 +19,32 @@ fn load(bundle: &std::path::Path, uid: &[u8; 16], sr: f64) -> anyhow::Result<vst
 }
 
 #[test]
+fn concurrent_multithread_load_succeeds() {
+    let sr = 48_000.0_f64;
+    vst3_host::init_vst3_catalog(sr);
+    let Some(entry) = vst3_host::find_vst3_plugin(MODEL_ID) else {
+        eprintln!("ValhallaSupermassive not installed — skipping concurrent-load guard");
+        return;
+    };
+    let bundle = entry.info.bundle_path.clone();
+    let uid = vst3_host::resolve_uid_for_model(MODEL_ID).expect("resolve uid");
+
+    // The live engine builds one instance per stream, often from separate
+    // rebuild threads at the same time. Reproduce that: two threads load the
+    // plugin simultaneously.
+    let handles: Vec<_> = (0..2)
+        .map(|_| {
+            let bundle = bundle.clone();
+            std::thread::spawn(move || load(&bundle, &uid, sr).map(|_| ()))
+        })
+        .collect();
+    for (i, h) in handles.into_iter().enumerate() {
+        let r = h.join().expect("thread panicked");
+        assert!(r.is_ok(), "concurrent load on thread {i} failed: {:?}", r.err());
+    }
+}
+
+#[test]
 fn repeated_in_process_load_succeeds() {
     let sr = 48_000.0_f64;
     vst3_host::init_vst3_catalog(sr);
