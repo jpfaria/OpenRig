@@ -1,17 +1,17 @@
-//! Guard (#669/#670): a DI loop's built length must track the engine sample
-//! rate at BOTH 44.1 kHz and 48 kHz. A loop is played 1:1 (one buffer frame per
-//! device frame), so if it is built at the wrong rate its DURATION/pitch is
-//! wrong — the "slow motion at 44.1 kHz" bug. The dispatcher-level resample is
-//! the single place the device rate enters the loop, so we pin the resulting
-//! frame count for each rate from one fixed-rate source.
+//! Guard (#669/#670/#749): a DI loop's built length must track the OUTPUT
+//! sample rate at BOTH 44.1 kHz and 48 kHz. A loop is played 1:1 (one buffer
+//! frame per device frame), so if it is built at the wrong rate its
+//! DURATION/pitch is wrong — the "slow motion at 44.1 kHz" bug.
 //!
-//! This is the coverage that was missing: earlier tests asserted a relative
-//! length (44.1k < 48k) but never the exact rate-scaled count at each rate, so
-//! a regression that built every loop at 48 kHz could still pass.
+//! #749 moved the resample out of the loader (which used a single `engine_sr`
+//! and stretched the mismatched output on a multi-rate rig) and into the arm
+//! path, per output-stream rate: `load_di_loop` now returns the un-resampled
+//! `DiPcm` source, and `DiPcm::to_loop_at(rate)` builds the rate-correct loop.
+//! We pin the resulting frame count for each rate from one fixed-rate source.
 
 use std::path::Path;
 
-use application::di_loader::{load_di_loop, DiLoopSource, DI_LOOP_XFADE_FRAMES};
+use application::di_loader::{load_di_loop, DiLoopSource};
 
 fn write_mono_wav(path: &Path, sr: u32, samples: &[f32]) {
     let spec = hound::WavSpec {
@@ -27,11 +27,12 @@ fn write_mono_wav(path: &Path, sr: u32, samples: &[f32]) {
     w.finalize().expect("finalize");
 }
 
-/// Expected built length: resample `src_frames` from 48 kHz to `engine_sr`
-/// (linear, round), then drop `DI_LOOP_XFADE_FRAMES` for the seam crossfade.
-fn expected_len(src_frames: usize, engine_sr: u32) -> usize {
-    let resampled = ((src_frames as f64) * (engine_sr as f64) / 48_000.0).round() as usize;
-    resampled - DI_LOOP_XFADE_FRAMES
+/// Expected built length: resample `src_frames` from 48 kHz to `target_sr`
+/// (linear, round), then drop the seam crossfade (~10 ms = `target_sr/100`,
+/// matching `DiPcm::to_loop_at`).
+fn expected_len(src_frames: usize, target_sr: u32) -> usize {
+    let resampled = ((src_frames as f64) * (target_sr as f64) / 48_000.0).round() as usize;
+    resampled - (target_sr / 100) as usize
 }
 
 #[test]
@@ -45,14 +46,10 @@ fn di_loop_built_length_tracks_engine_rate_at_44100_and_48000() {
         .collect();
     write_mono_wav(&wav, 48_000, &samples);
 
-    let load_len = |engine_sr: u32| {
-        load_di_loop(&DiLoopSource::File(wav.clone()), engine_sr)
-            .expect("load_di_loop must succeed")
-            .len()
-    };
-
-    let len_48 = load_len(48_000);
-    let len_44 = load_len(44_100);
+    // #749: decode once (un-resampled), then build the loop at each output rate.
+    let pcm = load_di_loop(&DiLoopSource::File(wav.clone())).expect("load_di_loop must succeed");
+    let len_48 = pcm.to_loop_at(48_000).len();
+    let len_44 = pcm.to_loop_at(44_100).len();
 
     // 48 kHz: source already at the engine rate → identity resample.
     assert_eq!(

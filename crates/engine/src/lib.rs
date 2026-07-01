@@ -32,4 +32,4 @@ pub mod runtime_segments;
 pub mod runtime_state;
 pub mod spsc;
 pub mod stream_tap;
-pub use di_loop::{DiFrame, DiLoop};
+pub use di_loop::{DiFrame, DiLoop, DiPcm};

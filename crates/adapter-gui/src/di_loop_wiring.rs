@@ -5,8 +5,9 @@
 //! ## A — `apply_di_loop_event`
 //! Called by the Slint event-poll loop when `Event::ChainDiLoopEnabledChanged`
 //! arrives. Receives the already-resolved `ChainRuntimeState` plus the
-//! `Option<Arc<DiLoop>>` fetched from the dispatcher's ephemeral store, and
-//! `enabled`. Zero allocation, no locks on the caller side.
+//! `Option<Arc<DiPcm>>` (the un-resampled source) fetched from the
+//! dispatcher's ephemeral store, and `enabled`. The resample to the runtime's
+//! rate happens here, off the audio thread.
 //!
 //! ## B — `di_loop_commands` / `DiLoopIntent`
 //! Maps the four chain-tile DI control intents to `Vec<Command>`. No
@@ -19,7 +20,7 @@ use application::command::Command;
 use application::di_loader::DiLoopSource;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
-use engine::DiLoop;
+use engine::DiPcm;
 
 // ── A: runtime application helper ──────────────────────────────────────────
 
@@ -31,10 +32,13 @@ use engine::DiLoop;
 ///
 /// This function is the only site that calls `rt.set_di_loop` adapter-side,
 /// making it straightforward to unit-test without `AppWindow`.
-pub fn apply_di_loop_event(rt: &ChainRuntimeState, arc_opt: Option<Arc<DiLoop>>, enabled: bool) {
+///
+/// #749: the stored source is un-resampled (`DiPcm`); resample to THIS
+/// runtime's rate here so it plays at true speed on its output stream.
+pub fn apply_di_loop_event(rt: &ChainRuntimeState, arc_opt: Option<Arc<DiPcm>>, enabled: bool) {
     if enabled {
-        if let Some(di) = arc_opt {
-            rt.set_di_loop(Some(di));
+        if let Some(pcm) = arc_opt {
+            rt.set_di_loop(Some(Arc::new(pcm.to_loop_at(rt.sample_rate() as u32))));
         }
         // No arc → do nothing. The UI should only send enabled=true after a
         // source has been confirmed loaded (Task 7 enforces this).
@@ -104,7 +108,7 @@ pub fn handle_chain_di_loop_enabled_changed(
     chain: &ChainId,
     enabled: bool,
 ) {
-    let arc_opt: Option<Arc<DiLoop>> = if enabled {
+    let arc_opt: Option<Arc<DiPcm>> = if enabled {
         dispatcher.di_loop_for_chain(chain)
     } else {
         None
@@ -159,21 +163,18 @@ pub fn stop_chain_di_loop(
     handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, false);
 }
 
-/// #669: push the running controller's real device sample rate into the
-/// dispatcher's `engine_sr`, so a DI loop loaded afterwards (via GUI *or* MCP)
-/// is resampled to the live rate instead of the hardcoded 48000 default. A
-/// stale rate plays loops at the wrong speed (e.g. ~0.92× / "slow motion" at
-/// 44.1 kHz). No-op when no runtime is active.
+/// #669/#749: push the running controller's real device sample rate into the
+/// dispatcher's `engine_sr` (the authoritative-rate fallback for consumers
+/// that would otherwise assume 48000). No-op when no runtime is active.
 ///
 /// Called from the runtime lifecycle whenever the controller is started or
-/// re-synced (a sample-rate change rebuilds the runtime), so the dispatcher's
-/// rate is always current before any DI source is loaded.
+/// re-synced (a sample-rate change rebuilds the runtime).
 ///
-/// On an actual rate change, `attach_engine_sr` re-resamples every
-/// already-loaded loop in place and returns the affected chains; we re-apply
-/// the fresh-rate arc to any chain whose loop is currently armed, so a loop
-/// that was *playing* when the user switched the device rate swaps to the new
-/// buffer instead of dragging in slow motion.
+/// On an actual rate change, `attach_engine_sr` returns every chain with a
+/// loaded DI source; we re-arm any chain whose loop is currently playing so
+/// the arm path (`set_chain_di_loop`) rebuilds the loop at the runtime's NEW
+/// rate — otherwise a loop that was *playing* when the device rate changed
+/// drags in slow motion against its rebuilt runtime.
 pub fn sync_engine_sr_from_runtime(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
     dispatcher: &application::local_dispatcher::LocalDispatcher,

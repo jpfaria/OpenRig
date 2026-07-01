@@ -53,14 +53,14 @@ impl LocalDispatcher {
                 // #693: the WAV decode runs on its own task — the
                 // dispatching thread returns immediately. The completion
                 // lands in `poll_async_results` (frontend tick), which
-                // installs the loop into `di_loop_state` and emits
-                // `ChainDiLoopSourceChanged`.
-                let engine_sr = *self.engine_sr.borrow();
+                // installs the source into `di_loop_state` and emits
+                // `ChainDiLoopSourceChanged`. #749: decode only — the
+                // resample happens at arm time, per output-stream rate.
                 let tx = self.async_done_tx.clone();
                 std::thread::Builder::new()
                     .name("di-load".into())
                     .spawn(move || {
-                        let result = load_di_loop(&source, engine_sr);
+                        let result = load_di_loop(&source);
                         let _ = tx.send(crate::local_dispatcher::AsyncDone::DiLoad(
                             chain, source, result,
                         ));

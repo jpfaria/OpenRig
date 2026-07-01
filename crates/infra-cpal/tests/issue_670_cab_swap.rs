@@ -136,8 +136,9 @@ fn scarlett() -> (
     (input, output)
 }
 
-/// Load a DI file as the engine-rate loop.
-fn load_di_arc(name: &str, engine_sr: u32) -> Arc<engine::DiLoop> {
+/// Decode a DI file into the un-resampled source (#749: the arm path
+/// resamples it to each output stream's rate).
+fn load_di_arc(name: &str) -> Arc<engine::DiPcm> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../assets/di-loops")
         .join(name);
@@ -153,13 +154,7 @@ fn load_di_arc(name: &str, engine_sr: u32) -> Arc<engine::DiLoop> {
                 .collect()
         }
     };
-    Arc::new(engine::DiLoop::from_samples(
-        &samples,
-        spec.sample_rate,
-        spec.channels as usize,
-        engine_sr,
-        256,
-    ))
+    Arc::new(engine::DiPcm::new(samples, spec.sample_rate, spec.channels as usize))
 }
 
 /// Build a single-chain project from a preset fixture on the given devices
@@ -271,10 +266,7 @@ fn swapping_the_cab_while_playing_does_not_damage_sound() {
     controller.set_io_bindings(registry);
     controller.sync_project(&project).expect("resync with bindings");
 
-    let di = load_di_arc(
-        "phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav",
-        controller.sample_rate(),
-    );
+    let di = load_di_arc("phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav");
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
     std::thread::sleep(std::time::Duration::from_secs(5));
 
@@ -390,7 +382,7 @@ fn owner_saved_broken_preset_plays_clean() {
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry);
     controller.sync_project(&project).expect("resync with bindings");
-    let di = load_di_arc("phil-STRATO-green_day.wav", controller.sample_rate());
+    let di = load_di_arc("phil-STRATO-green_day.wav");
     controller.set_chain_di_loop(&chain_id, Some(di));
 
     std::thread::sleep(std::time::Duration::from_secs(3));
@@ -446,7 +438,7 @@ fn owner_full_project_plays_clean() {
     let controller = ProjectRuntimeController::start(&project).expect("start the full rig");
 
     // DI through every enabled chain so the whole rig works like live play.
-    let di = load_di_arc("phil-STRATO-green_day.wav", controller.sample_rate());
+    let di = load_di_arc("phil-STRATO-green_day.wav");
     for chain in &project.chains {
         controller.set_chain_di_loop(&chain.id, Some(di.clone()));
     }
@@ -555,7 +547,7 @@ fn enabling_the_preset_chain_live_is_clean() {
     }
 
     let mut controller = ProjectRuntimeController::start(&project).expect("start rig");
-    let di = load_di_arc("phil-STRATO-green_day.wav", controller.sample_rate());
+    let di = load_di_arc("phil-STRATO-green_day.wav");
 
     std::thread::sleep(std::time::Duration::from_secs(5));
 

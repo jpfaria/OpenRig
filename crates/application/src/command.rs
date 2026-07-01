@@ -532,7 +532,8 @@ pub enum Command {
     ///
     /// **EPHEMERAL — never serialized into the project** (distinct from any
     /// project-level DI configuration in #324). The dispatcher decodes the
-    /// source off the audio thread, stores the resulting `Arc<DiLoop>` keyed
+    /// source off the audio thread, stores the resulting `Arc<DiPcm>` (the
+    /// un-resampled source; #749 resamples per output rate at arm time) keyed
     /// by `chain` in an in-memory map, and emits
     /// `Event::ChainDiLoopSourceChanged`. The chain's audio thread is NOT
     /// touched here — call `SetChainDiLoopEnabled { enabled: true }` to start
@@ -549,10 +550,10 @@ pub enum Command {
     ///
     /// **EPHEMERAL — never serialized into the project**.
     ///
-    /// `enabled: true` — publishes the pre-loaded `Arc<DiLoop>` via
+    /// `enabled: true` — publishes the pre-loaded `Arc<DiPcm>` via
     /// `Event::ChainDiLoopEnabledChanged { chain, enabled: true }`.
-    /// The adapter-gui wiring (Task 6) reacts to this event and calls
-    /// `runtime.set_di_loop(Some(arc))`. If no DI loop has been loaded for
+    /// The adapter-gui wiring (Task 6) reacts to this event and arms the
+    /// chain's runtimes (resampling per output rate). If no DI loop has been loaded for
     /// `chain` yet this is a no-op (emits the event with `enabled: true`
     /// so the adapter can decide).
     ///

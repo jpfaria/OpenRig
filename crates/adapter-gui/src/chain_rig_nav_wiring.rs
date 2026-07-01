@@ -293,6 +293,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRigNavCtx) {
         });
     }
     wire_preset_picker_search(window);
+    crate::di_source_picker_wiring::wire_di_source_picker_search(window);
 }
 
 /// #659: search-as-you-type for the preset bank dropdown (`PresetSelect`).

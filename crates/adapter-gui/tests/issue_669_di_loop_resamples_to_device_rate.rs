@@ -1,17 +1,17 @@
-//! Issue #669 — RED-FIRST: a DI loop must be resampled to the LIVE device
-//! sample rate, not the hardcoded 48000 default.
+//! Issue #669/#749 — a DI loop must play at the LIVE output device rate, not a
+//! single hardcoded/global rate.
 //!
-//! Root cause: `LocalDispatcher.engine_sr` defaults to 48000 and its setter
-//! `attach_engine_sr` was never called from the runtime wiring, so a DI loop
-//! was always resampled to 48 kHz. On a 44.1 kHz stream the 48 kHz buffer
-//! played ~0.92× — "slow motion".
+//! Original #669 root cause: the loop was resampled once at LOAD time to the
+//! dispatcher's `engine_sr`. #736 then clocked each runtime at its OWN device
+//! rate, so on a multi-rate rig the single-rate buffer stretched on the
+//! mismatched output — the owner's "está lento". #749 moves the resample to
+//! ARM time, per output stream: `DiPcm` (the un-resampled source) is armed and
+//! resampled to each runtime's rate.
 //!
-//! The fix wires the running controller's real sample rate into the
-//! dispatcher (`sync_engine_sr_from_runtime`) whenever the runtime is
-//! (re)built. This test drives that helper: the SAME 48 kHz source, loaded
-//! once with the device at 48 kHz and once at 44.1 kHz, must yield FEWER
-//! frames in the 44.1 kHz case (resampled down). The loop crossfade is
-//! identical in both, so comparing the two lengths is robust to it.
+//! This test drives the real end-to-end path: the SAME 48 kHz source, ARMED on
+//! a runtime at 48 kHz and on one at 44.1 kHz, must yield FEWER frames on the
+//! armed 44.1 kHz runtime (resampled down). The loop crossfade is rate-relative
+//! in both, so comparing the two lengths is robust to it.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -81,17 +81,14 @@ fn make_controller_at(chain_id: &ChainId, sr: u32) -> ProjectRuntimeController {
     ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, sr)
 }
 
-/// Load the same 48 kHz source into a dispatcher whose engine sample rate was
-/// synced from a controller running at `device_sr`; return the built loop's
-/// frame count.
-fn loaded_len_at(device_sr: u32, wav: &Path) -> usize {
+/// Load the same 48 kHz source, ARM it on a controller running at `device_sr`,
+/// and return the armed runtime's loop frame count (its actual playback rate).
+fn armed_loop_len_at(device_sr: u32, wav: &Path) -> usize {
     let chain_id = ChainId(format!("chain_669_{device_sr}"));
     let project = make_project(&chain_id.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     let controller = RefCell::new(Some(make_controller_at(&chain_id, device_sr)));
 
-    // The runtime wiring must push the controller's real rate into the
-    // dispatcher BEFORE a DI loop is loaded.
     adapter_gui::di_loop_wiring::sync_engine_sr_from_runtime(&controller, &dispatcher);
 
     dispatcher
@@ -111,10 +108,16 @@ fn loaded_len_at(device_sr: u32, wav: &Path) -> usize {
         }
     }
 
-    dispatcher
-        .di_loop_for_chain(&chain_id)
-        .expect("a DI loop must be loaded")
-        .len()
+    // Arm it: the arm path resamples the source to the runtime's device rate.
+    adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
+
+    let len = controller
+        .borrow()
+        .as_ref()
+        .expect("controller")
+        .chain_di_loop_len(&chain_id)
+        .expect("a DI loop must be armed");
+    len
 }
 
 #[test]
@@ -125,16 +128,16 @@ fn di_loop_resamples_to_device_rate_not_hardcoded_48000() {
     let samples: Vec<f32> = (0..4800).map(|i| ((i % 64) as f32 / 64.0) - 0.5).collect();
     write_mono_wav(&wav, 48_000, &samples);
 
-    let len_48 = loaded_len_at(48_000, &wav);
-    let len_44 = loaded_len_at(44_100, &wav);
+    let len_48 = armed_loop_len_at(48_000, &wav);
+    let len_44 = armed_loop_len_at(44_100, &wav);
 
-    // Same source + same crossfade: 48 kHz device replays 1:1, 44.1 kHz must
-    // resample DOWN. If the dispatcher's engine_sr stays stuck at 48000
-    // (bug #669), both loads are identical and len_44 == len_48.
+    // Same source + rate-relative crossfade: the 48 kHz runtime replays 1:1,
+    // the 44.1 kHz runtime must resample DOWN. If the loop is built at a single
+    // global rate (bug #669/#749), both are identical and len_44 == len_48.
     assert!(
         len_44 < len_48,
-        "REGRESSION #669: DI loop did not resample to the 44.1 kHz device \
-         rate — len@44100={len_44} is not < len@48000={len_48}; engine_sr is \
-         stuck at the hardcoded 48000 (loop plays in slow motion)."
+        "REGRESSION #749: the DI loop did not resample to the 44.1 kHz device \
+         rate — len@44100={len_44} is not < len@48000={len_48}; the armed loop \
+         is stuck at a single global rate (plays in slow motion)."
     );
 }
