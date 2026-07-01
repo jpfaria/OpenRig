@@ -1,0 +1,168 @@
+// #749 — the DI loop "janela": a panel (opened by the fone) containing a SELECT
+// + a play/stop button. Clicking the select expands its options INLINE; picking
+// one collapses them and leaves it selected; play/stop sits beside it.
+//
+// INLINE (inherits Rectangle), NOT a PopupWindow — on purpose:
+//   * a panel can grow/shrink when the select expands (a PopupWindow can't
+//     resize after show), and
+//   * every click is a normal in-tree TouchArea, so the headless interaction
+//     test can actuate it (PopupWindow content is a separate surface the test
+//     backend can't click).
+// The host renders this at the window root (so it is not clipped by the chain
+// list) — see the DiPanel global + the root overlay.
+
+import { Theme } from "../theme.slint";
+
+export component DiLoopPanel inherits Rectangle {
+    in property <[string]> sources;
+    in property <int> selected-index;
+    in property <bool> playing;
+
+    callback source-picked(int, string);
+    callback choose-file();
+    callback play();
+    callback stop();
+
+    private property <bool> expanded;
+    private property <bool> has-selection:
+        root.selected-index >= 0 && root.selected-index < root.sources.length;
+    private property <string> selected-source:
+        root.has-selection ? root.sources[root.selected-index] : "";
+    private property <length> row-h: 34px;
+
+    width: 360px;
+    // Grows when the select is expanded (inline → resizing is allowed).
+    height: root.expanded
+        ? min(52px + root.sources.length * root.row-h + 6px, 360px)
+        : 52px;
+    border-radius: 8px;
+    background: #11141af2;
+    border-width: 1px;
+    border-color: #3b4250;
+    clip: true;
+
+    // ── the SELECT field (closed box) ─────────────────────────────────────
+    select-field := Rectangle {
+        x: 8px;
+        y: 8px;
+        width: root.has-selection ? 308px : 344px;
+        height: 30px;
+        border-radius: 6px;
+        background: #0a0d12;
+        border-width: 1px;
+        border-color: (sel-ta.has-hover || root.expanded) ? #4d5868 : #2b3340;
+        animate border-color { duration: 150ms; }
+
+        Image {
+            x: 10px;
+            y: 7px;
+            width: 16px;
+            height: 16px;
+            source: @image-url("../assets/headphones.svg");
+            colorize: root.playing ? #6e8aff : #8a94a2;
+        }
+        Text {
+            x: 34px;
+            width: parent.width - 64px;
+            height: parent.height;
+            text: root.selected-source;
+            color: #f1f4f8;
+            font-size: 15px;
+            font-weight: 700;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        Image {
+            x: parent.width - 26px;
+            y: 8px;
+            width: 14px;
+            height: 14px;
+            source: @image-url("../assets/arrow-down.svg");
+            colorize: root.expanded ? #8aa0ff : #8a94a2;
+            transform-rotation: root.expanded ? 180deg : 0deg;
+            animate transform-rotation { duration: 120ms; }
+        }
+        sel-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.expanded = !root.expanded; }
+        }
+        accessible-role: button;
+    }
+
+    // ── PLAY / STOP (right of the select, once a source is selected) ───────
+    if root.has-selection : Rectangle {
+        x: 324px;
+        y: 9px;
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        background: root.playing ? #6e8aff28 : play-ta.has-hover ? #ffffff10 : transparent;
+        animate background { duration: 150ms; }
+        Image {
+            x: 4px;
+            y: 4px;
+            width: 20px;
+            height: 20px;
+            source: root.playing
+                ? @image-url("../assets/stop.svg")
+                : @image-url("../assets/play.svg");
+            colorize: root.playing ? #f87171 : play-ta.has-hover ? #ffffff : #8a94a2;
+        }
+        play-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                if root.playing {
+                    root.stop();
+                } else {
+                    root.play();
+                }
+            }
+        }
+        accessible-role: button;
+    }
+
+    // ── the SELECT's options (inline, only when expanded) ─────────────────
+    if root.expanded : Flickable {
+        x: 8px;
+        y: 46px;
+        width: parent.width - 16px;
+        height: parent.height - 52px;
+        viewport-width: self.width;
+        viewport-height: root.sources.length * root.row-h + 4px;
+
+        for src[i] in root.sources : Rectangle {
+            x: 0;
+            y: i * root.row-h;
+            width: parent.width;
+            height: root.row-h - 2px;
+            border-radius: 5px;
+            background: i == root.selected-index
+                ? Theme.palette.accent-end
+                : (row-ta.has-hover ? #1b2230 : transparent);
+            Text {
+                x: 10px;
+                width: parent.width - 20px;
+                height: parent.height;
+                text: src;
+                color: #f1f4f8;
+                font-size: 15px;
+                font-weight: i == root.selected-index ? 800 : 600;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            row-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    if src == "Choose file…" {
+                        root.choose-file();
+                    } else {
+                        root.source-picked(i, src);
+                    }
+                    root.expanded = false;
+                }
+            }
+            accessible-role: button;
+            accessible-label: src;
+        }
+    }
+}

@@ -28,7 +28,7 @@ use std::sync::{Arc, RwLock};
 use anyhow::Result;
 
 use domain::ids::{BlockId, ChainId};
-use engine::DiLoop;
+use engine::DiPcm;
 use project::project::Project;
 use project::rig::RigProject;
 
@@ -85,10 +85,11 @@ pub struct LocalDispatcher {
     /// #614: ephemeral per-chain DI loop state — NEVER serialized into the
     /// project (persisting a DI source is a project-level concern tracked
     /// separately in #324). Each entry holds the original source enum and
-    /// the decoded `Arc<DiLoop>` ready for lock-free audio-thread reads.
-    /// The adapter-gui wiring (Task 6) calls `di_loop_for_chain` to
-    /// retrieve the arc when `Event::ChainDiLoopEnabledChanged` fires.
-    pub(crate) di_loop_state: RefCell<HashMap<ChainId, (DiLoopSource, Arc<DiLoop>)>>,
+    /// the decoded `Arc<DiPcm>` (un-resampled source) ready for the arm path
+    /// to resample per output-stream rate (#749). The adapter-gui wiring
+    /// (Task 6) calls `di_loop_for_chain` to retrieve it when
+    /// `Event::ChainDiLoopEnabledChanged` fires.
+    pub(crate) di_loop_state: RefCell<HashMap<ChainId, (DiLoopSource, Arc<DiPcm>)>>,
 
     /// #614: sample rate used for DI loop decoding + resampling.
     /// Defaults to 48 000 Hz; the adapter sets the real value via
@@ -106,7 +107,7 @@ pub struct LocalDispatcher {
 /// Completed off-thread command work (#693).
 pub(crate) enum AsyncDone {
     /// DI-loop decode: install into `di_loop_state` + emit the event.
-    DiLoad(ChainId, DiLoopSource, Result<Arc<DiLoop>, String>),
+    DiLoad(ChainId, DiLoopSource, Result<Arc<DiPcm>, String>),
     /// Work whose state lives elsewhere (e.g. the global plugin
     /// registry): just surface the completion events.
     Events(Vec<Event>),
@@ -194,32 +195,18 @@ impl LocalDispatcher {
     /// stream is running and whenever the device rate changes. Defaults to
     /// 48 000 Hz.
     ///
-    /// #669: when the rate actually changes, every already-loaded DI loop is
-    /// re-resampled to the new rate in place — a stale 48 kHz buffer plays in
-    /// slow motion on a 44.1 kHz stream. Returns the chains whose loop arc was
-    /// rebuilt so the caller can re-apply the fresh arc to any armed runtime.
-    /// No-op (empty result) when the rate is unchanged.
+    /// #749: DI sources are stored un-resampled (`DiPcm`) and resampled at ARM
+    /// time, per output-stream rate — so the store needs no rebuild on a rate
+    /// change. We still return every chain that has a loaded source so the
+    /// caller can re-arm any that are playing: their live runtime was rebuilt
+    /// at the new rate, and re-arming rebuilds the loop to match (a loop left
+    /// from the old rate would drag in slow motion). No-op when unchanged.
     pub fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
         if *self.engine_sr.borrow() == sr {
             return Vec::new();
         }
         *self.engine_sr.borrow_mut() = sr;
-        let mut rebuilt = Vec::new();
-        let mut state = self.di_loop_state.borrow_mut();
-        for (chain, (source, arc)) in state.iter_mut() {
-            match crate::di_loader::load_di_loop(source, sr) {
-                Ok(new_arc) => {
-                    *arc = new_arc;
-                    rebuilt.push(chain.clone());
-                }
-                Err(e) => {
-                    // Off-thread; never silently swallow — a loop that fails to
-                    // rebuild keeps its old (wrong-rate) buffer, so surface it.
-                    eprintln!("[di-loop #669] rebuild for {chain:?} at {sr} Hz failed: {e}");
-                }
-            }
-        }
-        rebuilt
+        self.di_loop_state.borrow().keys().cloned().collect()
     }
 
     /// The sample rate the live engine is currently running at, as last
@@ -235,7 +222,7 @@ impl LocalDispatcher {
     /// `ChainDiLoopEnabledChanged { enabled: true }` event handler to
     /// forward the arc to the chain's audio runtime. Returns `None` when
     /// no source has been loaded for this chain yet.
-    pub fn di_loop_for_chain(&self, chain: &ChainId) -> Option<Arc<DiLoop>> {
+    pub fn di_loop_for_chain(&self, chain: &ChainId) -> Option<Arc<DiPcm>> {
         self.di_loop_state
             .borrow()
             .get(chain)

@@ -199,6 +199,45 @@ fn di_loop_plays_once_on_multi_source_chain() {
     );
 }
 
+/// Issue #749 — the system is now fully async: a live edit on a running chain
+/// rebuilds its `ChainRuntimeState` OFF-THREAD and swaps a fresh runtime into
+/// the live slot the audio thread reads. `adopt_taps_from` migrates the live
+/// meter/spectrum/tuner taps onto the rebuilt runtime (#740) — but it must ALSO
+/// carry an ARMED DI loop, or the rebuilt runtime (now the one processing
+/// audio) plays live input instead of the loop. That is the user-visible bug:
+/// the headphones icon stays blue (the OLD runtime is still armed) while the
+/// chain passes live guitar and the DI is silent.
+#[test]
+fn di_loop_survives_async_runtime_swap() {
+    // The live runtime the stream currently reads, with a non-silent loop armed.
+    let live = passthrough_runtime();
+    let di = Arc::new(DiLoop::from_samples(&[0.5; 256], SR, 1, SR, 0));
+    live.set_di_loop(Some(di));
+    assert!(live.has_di_loop(), "precondition: live runtime is armed");
+
+    // An off-thread rebuild produced a fresh runtime; the swap migrates live
+    // state from the superseded runtime before it goes live.
+    let rebuilt = passthrough_runtime();
+    rebuilt.adopt_taps_from(&live);
+
+    // The rebuilt runtime is now what the audio thread processes. Feed it
+    // SILENT device input — the armed DI loop must still reach the output.
+    let (frames, channels) = (128usize, 2usize);
+    let device_in = vec![0.0f32; frames * channels];
+    process_input_f32(&rebuilt, 0, &device_in, channels);
+    let mut out = vec![0.0f32; frames * channels];
+    process_output_f32(&rebuilt, 0, &mut out, channels);
+
+    let peak = out.iter().cloned().fold(0.0f32, |m, s| m.max(s.abs()));
+    assert!(
+        peak > 0.1,
+        "REGRESSION #749: the armed DI loop did not survive the off-thread \
+         runtime swap (output peak {peak}); adopt_taps_from carried the taps but \
+         dropped the di_loop, so the live runtime plays device input and the DI \
+         is silent while the icon stays blue"
+    );
+}
+
 /// Issue #699 — while the DI loop is armed, the chain's OTHER segments must
 /// be silent (DI playback replaces ALL live input, it does not leave the
 /// second source bleeding through).

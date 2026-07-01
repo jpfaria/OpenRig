@@ -1,7 +1,17 @@
 import "fonts/CooperHewitt-Semibold.ttf";
 import { Locale } from "locale_globals.slint";
 import { PresetPicker } from "preset_picker_globals.slint";
+import { DiSourcePicker } from "components/di_source_picker_globals.slint";
+// #749: the DI loop panel (fone → janela with a select + play) is rendered as a
+// single root overlay so it is never clipped by the chain list.
+import { DiPanel } from "components/di_panel_globals.slint";
+import { DiLoopPanel } from "components/di_loop_panel.slint";
+export { DiPanel }
 import { ChainRigNav } from "models.slint";
+// #749 test-only: exposes DiLoopHarness as a Rust type for headless DI popup
+// interaction tests. Never instantiated in the running UI.
+import { DiLoopHarness } from "components/di_loop_test_harness.slint";
+export { DiLoopHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -18,6 +28,7 @@ import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_blo
 
 export { Locale }
 export { PresetPicker }
+export { DiSourcePicker }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
@@ -821,6 +832,36 @@ export component AppWindow inherits Window {
         cancel() => { root.preset-picker-cancel(); }
         delete(i) => { root.preset-picker-delete(i); }
         query-changed(t) => { root.preset-picker-query-changed(t); }
+    }
+
+    // #749: DI loop panel overlay. The fone in a chain row flips DiPanel.open
+    // and seeds its data + position; this renders the panel at the root (no
+    // clipping) with a click-outside backdrop.
+    if DiPanel.open : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        TouchArea { clicked => { DiPanel.open = false; } }
+        DiLoopPanel {
+            x: DiPanel.x;
+            y: DiPanel.y;
+            sources: DiPanel.sources;
+            selected-index: DiPanel.selected-index;
+            playing: DiPanel.playing;
+            source-picked(i, s) => {
+                // Reflect the pick in the open panel immediately, then dispatch.
+                DiPanel.selected-index = i;
+                root.di-loop-source-selected(DiPanel.chain-index, s);
+            }
+            choose-file => { root.di-loop-choose-file(DiPanel.chain-index); }
+            play => {
+                DiPanel.playing = true;
+                root.di-loop-play(DiPanel.chain-index);
+            }
+            stop => {
+                DiPanel.playing = false;
+                root.di-loop-stop(DiPanel.chain-index);
+            }
+        }
     }
 
     PresetSaveOverlay {

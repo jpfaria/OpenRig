@@ -18,7 +18,7 @@ use std::sync::Arc;
 use application::command::Command;
 use application::di_loader::DiLoopSource;
 use domain::ids::ChainId;
-use engine::di_loop::DiLoop;
+use engine::di_loop::{DiLoop, DiPcm};
 use engine::runtime::{build_chain_runtime_state, DEFAULT_ELASTIC_TARGET};
 use project::block::AudioBlock;
 use project::chain::Chain;
@@ -50,6 +50,12 @@ fn dummy_di() -> Arc<DiLoop> {
     Arc::new(DiLoop::from_samples(&[0.0, 0.5, 1.0], 48_000, 1, 48_000, 0))
 }
 
+/// The un-resampled source `apply_di_loop_event` now receives (#749); it
+/// resamples per runtime rate internally.
+fn dummy_pcm() -> Arc<DiPcm> {
+    Arc::new(DiPcm::new(vec![0.0, 0.5, 1.0], 48_000, 1))
+}
+
 fn dummy_source() -> DiLoopSource {
     DiLoopSource::File(std::path::PathBuf::from("/tmp/di.wav"))
 }
@@ -61,11 +67,11 @@ fn dummy_source() -> DiLoopSource {
 fn apply_di_loop_event_enabled_true_with_arc_arms_runtime() {
     let chain = test_chain("chain_a");
     let rt = build_rt(&chain);
-    let di = dummy_di();
+    let pcm = dummy_pcm();
 
     assert!(!rt.has_di_loop(), "precondition: no DI loop loaded");
 
-    adapter_gui::di_loop_wiring::apply_di_loop_event(&rt, Some(di), true);
+    adapter_gui::di_loop_wiring::apply_di_loop_event(&rt, Some(pcm), true);
 
     assert!(rt.has_di_loop(), "has_di_loop must be true after enabled=true with arc");
 }
@@ -87,13 +93,12 @@ fn apply_di_loop_event_enabled_true_without_arc_leaves_runtime_unchanged() {
 fn apply_di_loop_event_enabled_false_clears_runtime() {
     let chain = test_chain("chain_c");
     let rt = build_rt(&chain);
-    let di = dummy_di();
 
-    // Arm it first.
-    rt.set_di_loop(Some(di.clone()));
+    // Arm it first (directly with a built loop).
+    rt.set_di_loop(Some(dummy_di()));
     assert!(rt.has_di_loop(), "precondition: DI loop armed");
 
-    adapter_gui::di_loop_wiring::apply_di_loop_event(&rt, Some(di), false);
+    adapter_gui::di_loop_wiring::apply_di_loop_event(&rt, Some(dummy_pcm()), false);
 
     assert!(!rt.has_di_loop(), "has_di_loop must be false after enabled=false");
 }

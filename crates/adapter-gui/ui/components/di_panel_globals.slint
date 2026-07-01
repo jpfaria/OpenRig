@@ -1,0 +1,14 @@
+// #749 — shared state for the DI loop panel: the fone in a chain row seeds these
+// and flips `open`; a single root overlay renders DiLoopPanel (so it is never
+// clipped by the chain list). One panel open at a time.
+export global DiPanel {
+    in-out property <bool> open;
+    // window-absolute position, from the triggering fone's `absolute-position`.
+    in-out property <length> x;
+    in-out property <length> y;
+    // routes the overlay's pick / play / stop back to the right chain.
+    in-out property <int> chain-index;
+    in-out property <[string]> sources;
+    in-out property <int> selected-index;
+    in-out property <bool> playing;
+}

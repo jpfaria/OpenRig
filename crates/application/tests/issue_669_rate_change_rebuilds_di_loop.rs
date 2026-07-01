@@ -1,12 +1,13 @@
-//! Issue #669 — RED-FIRST: changing the engine sample rate must rebuild an
-//! ALREADY-LOADED DI loop at the new rate.
+//! Issue #669/#749 — changing the engine sample rate must flag an
+//! ALREADY-LOADED DI loop so a playing chain is re-armed at the new rate.
 //!
-//! Real-world repro (confirmed via stderr instrumentation): a loop is loaded
-//! while the device runs at 48 kHz (`engine_sr=48000`), then the user switches
-//! the device to 44.1 kHz. The runtime rebuilds at 44100 but the DI buffer
-//! keeps its 48 kHz frames, so it plays at 44100/48000 ≈ 0.92× — "slow motion".
-//! `#669`'s first cut only fixed FUTURE loads (engine_sr now tracks the rate);
-//! this test pins that the EXISTING loaded loop is re-resampled on a rate change.
+//! Real-world repro: a loop is loaded while the device runs at 48 kHz, then the
+//! user switches to 44.1 kHz. The runtime rebuilds at 44100 but the DI buffer
+//! kept its 48 kHz frames → plays at ≈0.92× ("slow motion"). #749 stores the
+//! un-resampled `DiPcm` source and resamples at ARM time, so the store itself
+//! is rate-independent; the rate-change contract is that `attach_engine_sr`
+//! RETURNS every chain with a loaded source, so the wiring re-arms a playing
+//! chain and its loop is rebuilt at the new device rate.
 
 use std::cell::RefCell;
 use std::path::Path;
@@ -52,7 +53,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
 }
 
 #[test]
-fn changing_engine_sr_rebuilds_loaded_di_loop_at_new_rate() {
+fn changing_engine_sr_flags_loaded_di_loop_for_rearm() {
     let dir = tempfile::tempdir().expect("tempdir");
     let wav = dir.path().join("di_48k.wav");
     // 48 kHz source, 4800 frames.
@@ -63,8 +64,6 @@ fn changing_engine_sr_rebuilds_loaded_di_loop_at_new_rate() {
     let project = make_project(&chain.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    // Loaded while the device runs at 48 kHz: 48 kHz source at engine_sr 48000
-    // is an identity (no resample).
     dispatcher.attach_engine_sr(48_000);
     dispatcher
         .dispatch(Command::SetChainDiLoopSource {
@@ -81,23 +80,24 @@ fn changing_engine_sr_rebuilds_loaded_di_loop_at_new_rate() {
         let _ = dispatcher.poll_async_results();
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    let len_48 = dispatcher
-        .di_loop_for_chain(&chain)
-        .expect("loop loaded")
-        .len();
-
-    // Device switches to 44.1 kHz. The already-loaded loop MUST be rebuilt at
-    // the new rate (resampled down → fewer frames), or it plays in slow motion.
-    dispatcher.attach_engine_sr(44_100);
-    let len_44 = dispatcher
-        .di_loop_for_chain(&chain)
-        .expect("loop still present")
-        .len();
-
     assert!(
-        len_44 < len_48,
-        "REGRESSION #669: changing engine_sr must rebuild the loaded DI loop \
-         (len@44100={len_44} not < len@48000={len_48}); the loop kept its 48 kHz \
-         buffer and plays in slow motion on the 44.1 kHz stream."
+        dispatcher.di_loop_for_chain(&chain).is_some(),
+        "precondition: the source must be loaded"
+    );
+
+    // Device switches to 44.1 kHz. The store is rate-independent (DiPcm), so the
+    // contract is that attach_engine_sr RETURNS the chain — the wiring uses that
+    // to re-arm a playing chain, rebuilding the loop at the new device rate.
+    let flagged = dispatcher.attach_engine_sr(44_100);
+    assert!(
+        flagged.contains(&chain),
+        "REGRESSION #749: a rate change must flag the loaded chain for re-arm \
+         (got {flagged:?}); without it a playing loop keeps its old-rate buffer \
+         and drags in slow motion on the rebuilt 44.1 kHz runtime."
+    );
+    // The un-resampled source stays available for the re-arm.
+    assert!(
+        dispatcher.di_loop_for_chain(&chain).is_some(),
+        "the source must remain loaded across a rate change"
     );
 }

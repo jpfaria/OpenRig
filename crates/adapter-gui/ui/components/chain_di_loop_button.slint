@@ -1,39 +1,20 @@
-// #614 — per-chain virtual DI loop control (icon + popup with source
-// selector + play/stop). Visually paired with ChainVolumeButton: same
-// 28×28 px touch target, same icon-hover colouring, same PopupWindow
-// close-on-click-outside behaviour so it doesn't block chain interaction.
-//
-// ## Callbacks (all forwarded up to ChainRow / project_chains / AppWindow)
-//   di-loop-source-selected(source: string) — user picked an entry from the
-//       ComboBox that is NOT the "Choose file…" sentinel. Rust resolves it
-//       via `parse_di_loop_source` and dispatches `SetChainDiLoopSource`.
-//   di-loop-choose-file                     — user picked "Choose file…".
-//       Rust opens the file picker and, on a result, dispatches the command.
-//   di-loop-play                            — user pressed ▶. Rust dispatches
-//       `SetChainDiLoopEnabled { enabled: true }`.
-//   di-loop-stop                            — user pressed ■. Rust dispatches
-//       `SetChainDiLoopEnabled { enabled: false }`.
+// #614 / #749 — the DI loop trigger in a chain header: just the fone icon.
+// Clicking it opens the DI panel (a janela with a select + play) at the window
+// root via the `DiPanel` global, seeded with this chain's data and the fone's
+// absolute position. The panel itself (DiLoopPanel) lives in app-window's root
+// overlay so it is never clipped by the chain list.
 
-import { Theme } from "../theme.slint";
-import { ComboBox } from "std-widgets.slint";
+import { DiPanel } from "di_panel_globals.slint";
 
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
     in property <[string]> sources: [];
-    // #661: index of the currently loaded source within `sources`, or -1 for
-    // none. Drives the ComboBox so the popup shows the active source on reopen.
     in property <int> selected-index: -1;
-
-    callback di-loop-source-selected(string);
-    callback di-loop-choose-file();
-    callback di-loop-play();
-    callback di-loop-stop();
+    in property <int> chain-index;
 
     width: 28px;
     height: 28px;
     border-radius: 5px;
-    // Highlight the icon in blue when the loop is playing so the user can
-    // glance at the chain tile and know the DI is active.
     background: root.playing ? #6e8aff28
                 : ta.has-hover ? #ffffff10
                 : transparent;
@@ -54,89 +35,18 @@ export component ChainDiLoopButton inherits Rectangle {
 
     ta := TouchArea {
         mouse-cursor: pointer;
-        clicked => { pop.show(); }
+        clicked => {
+            DiPanel.chain-index = root.chain-index;
+            DiPanel.sources = root.sources;
+            DiPanel.selected-index = root.selected-index;
+            DiPanel.playing = root.playing;
+            // Open below the fone, the panel's right edge near it.
+            DiPanel.x = root.absolute-position.x - 332px;
+            DiPanel.y = root.absolute-position.y + 32px;
+            DiPanel.open = true;
+        }
     }
 
     accessible-role: button;
     accessible-label: @tr("di-loop-button-label");
-
-    pop := PopupWindow {
-        // Opens below and to the left of the button (which sits on the right
-        // edge of the chain header) so it stays within the row and does not
-        // overlap the volume popup. #661: widened so long bundled source ids
-        // (e.g. "phil-STRATO-barao_vermelho-pro_dia_nascer_feliz") are legible;
-        // the right edge stays at +28px (button right) by shifting x left.
-        x: -352px;
-        y: 32px;
-        width: 380px;
-        height: 44px;
-        close-policy: close-on-click-outside;
-
-        Rectangle {
-            width: 380px;
-            height: 44px;
-            border-radius: 8px;
-            background: #11141af2;
-            border-width: 1px;
-            border-color: #3b4250;
-
-            // Source ComboBox — fills most of the popup
-            ComboBox {
-                x: 8px;
-                y: 8px;
-                width: 328px;
-                height: 28px;
-                model: root.sources;
-                // #661: reflect the active source (re-derived from dispatcher
-                // state) so reopening the popup shows what is loaded/playing.
-                current-index: root.selected-index;
-                selected(value) => {
-                    if value == "Choose file…" {
-                        root.di-loop-choose-file();
-                    } else {
-                        root.di-loop-source-selected(value);
-                    }
-                }
-            }
-
-            // Play / Stop toggle button
-            Rectangle {
-                x: 344px;
-                y: 8px;
-                width: 28px;
-                height: 28px;
-                border-radius: 5px;
-                background: play-ta.has-hover ? #ffffff18 : transparent;
-                animate background { duration: 150ms; }
-
-                Image {
-                    x: 4px;
-                    y: 4px;
-                    width: 20px;
-                    height: 20px;
-                    source: root.playing
-                        ? @image-url("../assets/stop.svg")
-                        : @image-url("../assets/play.svg");
-                    image-fit: contain;
-                    colorize: root.playing
-                        ? #f87171
-                        : play-ta.has-hover ? #ffffff : #8a94a2;
-                    animate colorize { duration: 100ms; }
-                }
-
-                play-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        if root.playing {
-                            root.di-loop-stop();
-                        } else {
-                            root.di-loop-play();
-                        }
-                    }
-                }
-                accessible-role: button;
-                accessible-label: root.playing ? @tr("di-loop-stop-label") : @tr("di-loop-play-label");
-            }
-        }
-    }
 }

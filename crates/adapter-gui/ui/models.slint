@@ -176,6 +176,15 @@ export struct PresetOption {
     slot: int,
 }
 
+// #749 — option type for the shared `Select` component. `key` is the stable
+// identity a consumer selects by (a preset slot rendered as text, a DI source
+// id, …); `label` is what the row shows. String-keyed so list-of-string
+// consumers (DI sources) need no Rust model change.
+export struct SelectOption {
+    key: string,
+    label: string,
+}
+
 export struct BlockKnobOverlay {
     path: string,
     label: string,
