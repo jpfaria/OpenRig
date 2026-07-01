@@ -42,6 +42,8 @@ mod cf {
     pub type CFURLRef = *mut c_void;
     pub type CFBundleRef = *mut c_void;
 
+    pub type CFStringRef = *mut c_void;
+
     #[link(name = "CoreFoundation", kind = "framework")]
     extern "C" {
         pub fn CFURLCreateFromFileSystemRepresentation(
@@ -51,7 +53,31 @@ mod cf {
             is_directory: u8,
         ) -> CFURLRef;
         pub fn CFBundleCreate(allocator: CFAllocatorRef, url: CFURLRef) -> CFBundleRef;
+        pub fn CFBundleGetFunctionPointerForName(
+            bundle: CFBundleRef,
+            function_name: CFStringRef,
+        ) -> *mut c_void;
+        pub fn CFStringCreateWithCString(
+            allocator: CFAllocatorRef,
+            c_str: *const std::os::raw::c_char,
+            encoding: u32,
+        ) -> CFStringRef;
         pub fn CFRelease(cf: CFTypeRef);
+    }
+
+    pub const K_CFSTRING_ENCODING_UTF8: u32 = 0x0800_0100;
+
+    /// Resolve an exported module function (e.g. `bundleEntry`) via the bundle,
+    /// which is how VST3 macOS modules expose them (not always via dlsym).
+    pub unsafe fn bundle_fn(bundle: CFBundleRef, name: &std::ffi::CStr) -> *mut c_void {
+        let cfname =
+            CFStringCreateWithCString(std::ptr::null_mut(), name.as_ptr(), K_CFSTRING_ENCODING_UTF8);
+        if cfname.is_null() {
+            return std::ptr::null_mut();
+        }
+        let p = CFBundleGetFunctionPointerForName(bundle, cfname);
+        CFRelease(cfname);
+        p
     }
 
     /// `bool bundleEntry(CFBundleRef)` exported by the plugin binary.
@@ -72,10 +98,7 @@ mod cf {
 /// ref, kept alive for the plugin's lifetime and released via `bundleExit` +
 /// `CFRelease` on drop. Runs on the caller's (stream/rebuild) thread.
 #[cfg(target_os = "macos")]
-unsafe fn run_bundle_entry(
-    bundle_path: &Path,
-    library: &libloading::Library,
-) -> Result<cf::OwnedBundle> {
+unsafe fn run_bundle_entry(bundle_path: &Path) -> Result<cf::OwnedBundle> {
     use std::os::unix::ffi::OsStrExt;
     let path_bytes = bundle_path.as_os_str().as_bytes();
     let url = cf::CFURLCreateFromFileSystemRepresentation(
@@ -92,10 +115,17 @@ unsafe fn run_bundle_entry(
     if bundle.is_null() {
         bail!("CFBundleCreate failed for {}", bundle_path.display());
     }
-    // `bundleEntry` is optional in the spec but present on real plugins; if the
-    // symbol is missing we still return the bundle ref (nothing to initialise).
-    if let Ok(entry) = library.get::<cf::BundleEntryFn>(b"bundleEntry\0") {
-        if !entry(bundle) {
+    // `bundleEntry` is exposed via the bundle on macOS (not reliably via dlsym).
+    // Skipping it is why plugins that spin up a GUI/message runtime fail their
+    // first createInstance once the host process runs an event loop (#251).
+    let entry_ptr = cf::bundle_fn(bundle, c"bundleEntry");
+    if entry_ptr.is_null() {
+        log::warn!("VST3 bundleEntry not found on bundle");
+    } else {
+        let entry: cf::BundleEntryFn = std::mem::transmute(entry_ptr);
+        let ok = entry(bundle);
+        log::debug!("VST3 bundleEntry called -> {ok}");
+        if !ok {
             cf::CFRelease(bundle);
             bail!("VST3 bundleEntry returned false");
         }
@@ -213,7 +243,7 @@ impl Vst3Plugin {
         // runtimes initialise before `createInstance`. On the loading thread —
         // never the main thread.
         #[cfg(target_os = "macos")]
-        let cf_bundle = unsafe { run_bundle_entry(bundle_path, library.as_ref())? };
+        let cf_bundle = unsafe { run_bundle_entry(bundle_path)? };
 
         // 3. Get the GetPluginFactory symbol.
         // Safety: the symbol must exist and have the correct signature. This is
@@ -636,10 +666,12 @@ impl Drop for Vst3Plugin {
             // library is dlclose'd by the Arc drop) and release the CFBundle.
             #[cfg(target_os = "macos")]
             {
-                if let Ok(exit) = self._library.get::<cf::BundleExitFn>(b"bundleExit\0") {
-                    let _ = exit();
-                }
                 if !self.cf_bundle.0.is_null() {
+                    let exit_ptr = cf::bundle_fn(self.cf_bundle.0, c"bundleExit");
+                    if !exit_ptr.is_null() {
+                        let exit: cf::BundleExitFn = std::mem::transmute(exit_ptr);
+                        let _ = exit();
+                    }
                     cf::CFRelease(self.cf_bundle.0);
                 }
             }
