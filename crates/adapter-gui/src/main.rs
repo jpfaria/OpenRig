@@ -14,6 +14,14 @@ use infra_filesystem::FilesystemStorage;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
 fn main() -> anyhow::Result<()> {
+    // #251: if this process was re-executed as an out-of-process VST3 host
+    // child, run the host loop and exit BEFORE any GUI / NSApplication init —
+    // the child must never touch AppKit (that is what makes multi-instance
+    // JUCE hosting possible without the main thread).
+    if vst3_proc::maybe_run_child() {
+        return Ok(());
+    }
+
     // #693: non-blocking logger — log calls must never stall the GUI
     // thread on a slow stderr consumer.
     adapter_gui::logging::init_logging();

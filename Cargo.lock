@@ -87,6 +87,7 @@ dependencies = [
  "sys-locale",
  "tempfile",
  "ui-openrig",
+ "vst3-proc",
  "webbrowser",
 ]
 
@@ -6896,6 +6897,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "libc",
  "log",
  "memmap2",
  "tempfile",

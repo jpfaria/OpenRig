@@ -172,6 +172,7 @@ impl Vst3ProcClient {
 
         let uid_hex: String = uid.iter().map(|b| format!("{b:02x}")).collect();
         let child = std::process::Command::new(child_bin)
+            .arg(CHILD_FLAG)
             .arg(shm_path)
             .arg(bundle)
             .arg(uid_hex)
@@ -282,43 +283,168 @@ pub fn parse_uid_hex(s: &str) -> Result<[u8; 16]> {
     Ok(out)
 }
 
-/// Best-effort path to the built child binary. Searches next to the app
-/// executable, a couple of directories up (so `target/debug/deps/<test>` finds
-/// `target/debug/openrig-vst3-proc`), and any `target/{debug,release}` dir found
-/// walking up from the executable. Logs the resolved path (or a clear miss).
-pub fn default_child_bin() -> PathBuf {
+// ---------------------------------------------------------------------------
+// Child host entry point (runs in the spawned process, no NSApplication)
+// ---------------------------------------------------------------------------
+
+/// argv[1] that marks a process launched as an out-of-process host child.
+pub const CHILD_FLAG: &str = "--vst3-proc-child";
+
+/// If this process was launched as a host child, run the host loop and exit
+/// (returns `true` so the caller stops). Call at the very TOP of the app's
+/// `main`, before any NSApplication / GUI / logging init — the child must never
+/// touch AppKit (that is the whole point, #251).
+pub fn maybe_run_child() -> bool {
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) != Some(CHILD_FLAG) {
+        return false;
+    }
+    let code = match run_child_from_args(&args[2..]) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("[vst3-proc] child fatal: {e:#}");
+            1
+        }
+    };
+    std::process::exit(code);
+}
+
+fn run_child_from_args(args: &[String]) -> Result<()> {
+    if args.len() != 6 {
+        bail!("child args: <shm> <bundle> <uid_hex> <sr> <block> <n>");
+    }
+    let uid = parse_uid_hex(&args[2])?;
+    run_child(
+        Path::new(&args[0]),
+        Path::new(&args[1]),
+        &uid,
+        args[3].parse().context("sample_rate")?,
+        args[4].parse().context("block_size")?,
+        args[5].parse().context("n")?,
+    )
+}
+
+/// The host loop: map the shared region, lazily create instances, and service
+/// each slot's request/done handshake and param ring. Blocks until shutdown.
+pub fn run_child(
+    shm_path: &Path,
+    bundle: &Path,
+    uid: &[u8; 16],
+    sample_rate: f64,
+    block_size: usize,
+    n: usize,
+) -> Result<()> {
+    use block_core::StereoProcessor;
+    use vst3_host::{StereoVst3Processor, Vst3Plugin};
+
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(shm_path)
+        .with_context(|| format!("open shm {}", shm_path.display()))?;
+    // Safety: the parent sized this file to `Shared` before spawning us.
+    let map = unsafe { memmap2::MmapMut::map_mut(&file)? };
+    let shared: &Shared = unsafe { Shared::from_ptr(map.as_ptr() as *mut u8) };
+
+    let cap = n.min(MAX_INSTANCES);
+    let mut procs: Vec<Option<StereoVst3Processor>> = (0..cap).map(|_| None).collect();
+    shared.ready.store(1, Ordering::SeqCst);
+
+    let mut last_done = vec![0u64; cap];
+    let mut last_param = vec![0u64; cap];
+    let mut scratch: Vec<[f32; 2]> = vec![[0.0; 2]; MAX_FRAMES];
+    let mut idle_polls: u32 = 0;
+
+    loop {
+        if shared.shutdown.load(Ordering::SeqCst) != 0 {
+            return Ok(());
+        }
+        // Exit if the parent process is gone (orphaned → reparented to init on
+        // unix), so a child never lingers after the app closes.
+        #[cfg(unix)]
+        if unsafe { libc::getppid() } == 1 {
+            return Ok(());
+        }
+        let mut did_work = false;
+        for i in 0..cap {
+            let slot = &shared.slots[i];
+            if slot.load_req.load(Ordering::Acquire) == 1 && procs[i].is_none() {
+                match Vst3Plugin::load(bundle, uid, sample_rate, 2, block_size, &[]) {
+                    Ok(p) => {
+                        procs[i] = Some(StereoVst3Processor::new(p, None));
+                        slot.loaded.store(1, Ordering::Release);
+                    }
+                    Err(e) => {
+                        eprintln!("[vst3-proc] load slot {i} failed: {e:#}");
+                        shared.load_failed.store(1, Ordering::SeqCst);
+                    }
+                }
+                did_work = true;
+            }
+            let Some(proc) = procs[i].as_mut() else { continue };
+
+            let pwrite = slot.param_write.load(Ordering::Acquire);
+            while last_param[i] < pwrite {
+                let (id, val) = slot.read_param(last_param[i]);
+                let _ = proc.set_param(id, val as f64);
+                last_param[i] += 1;
+                did_work = true;
+            }
+
+            let req = slot.request.load(Ordering::Acquire);
+            if req != last_done[i] {
+                did_work = true;
+                let frames = (slot.n_frames.load(Ordering::SeqCst) as usize).min(MAX_FRAMES);
+                for f in 0..frames {
+                    scratch[f] = slot.read_input(f);
+                }
+                proc.process_block(&mut scratch[..frames]);
+                for f in 0..frames {
+                    slot.write_output(f, scratch[f]);
+                }
+                slot.done.store(req, Ordering::Release);
+                last_done[i] = req;
+            }
+        }
+        if did_work {
+            idle_polls = 0;
+        } else {
+            // Spin briefly for low latency when audio is flowing, then back off
+            // to a short sleep so an idle host doesn't peg a CPU core.
+            idle_polls = idle_polls.saturating_add(1);
+            if idle_polls < 2_000 {
+                std::hint::spin_loop();
+            } else {
+                std::thread::sleep(std::time::Duration::from_micros(200));
+            }
+        }
+    }
+}
+
+/// Find the installed standalone `openrig-vst3-proc` next to the app executable,
+/// a couple of directories up (so `target/debug/deps/<test>` finds
+/// `target/debug/openrig-vst3-proc`), or in any `target/{debug,release}` walking
+/// up. Returns `None` if it isn't there (the caller falls back to self-exec).
+pub fn find_installed_child_bin() -> Option<PathBuf> {
     const BIN: &str = "openrig-vst3-proc";
+    let exe = std::env::current_exe().ok()?;
     let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Ok(exe) = std::env::current_exe() {
-        let mut dir = exe.parent().map(|p| p.to_path_buf());
-        // exe dir, up one, up two (covers deps/ and .app/Contents/MacOS).
-        for _ in 0..3 {
-            if let Some(d) = &dir {
-                candidates.push(d.join(BIN));
-                dir = d.parent().map(|p| p.to_path_buf());
-            }
-        }
-        // Any `target/{debug,release}` on the way up.
-        let mut up = exe.parent().map(|p| p.to_path_buf());
-        for _ in 0..8 {
-            if let Some(d) = &up {
-                candidates.push(d.join("target/debug").join(BIN));
-                candidates.push(d.join("target/release").join(BIN));
-                up = d.parent().map(|p| p.to_path_buf());
-            }
+    let mut dir = exe.parent().map(|p| p.to_path_buf());
+    for _ in 0..3 {
+        if let Some(d) = &dir {
+            candidates.push(d.join(BIN));
+            dir = d.parent().map(|p| p.to_path_buf());
         }
     }
-    for c in &candidates {
-        if c.exists() {
-            log::debug!("vst3-proc: child binary at {}", c.display());
-            return c.clone();
+    let mut up = exe.parent().map(|p| p.to_path_buf());
+    for _ in 0..8 {
+        if let Some(d) = &up {
+            candidates.push(d.join("target/debug").join(BIN));
+            candidates.push(d.join("target/release").join(BIN));
+            up = d.parent().map(|p| p.to_path_buf());
         }
     }
-    log::error!(
-        "vst3-proc: '{BIN}' not found — build the whole workspace (`cargo build`) so it \
-         sits next to the app binary. Falling back to PATH lookup."
-    );
-    PathBuf::from(BIN)
+    candidates.into_iter().find(|c| c.exists())
 }
 
 // ---------------------------------------------------------------------------
@@ -343,11 +469,16 @@ pub fn set_child_bin(path: PathBuf) {
 }
 
 fn child_bin() -> PathBuf {
-    CHILD_BIN
-        .lock()
-        .unwrap()
-        .clone()
-        .unwrap_or_else(default_child_bin)
+    if let Some(p) = CHILD_BIN.lock().unwrap().clone() {
+        return p;
+    }
+    // Prefer the lean standalone `openrig-vst3-proc` if it is installed next to
+    // the app; otherwise re-execute THIS binary in child mode (`maybe_run_child`),
+    // which is always available — so there is nothing to build or bundle.
+    if let Some(installed) = find_installed_child_bin() {
+        return installed;
+    }
+    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("openrig-vst3-proc"))
 }
 
 struct Host {
