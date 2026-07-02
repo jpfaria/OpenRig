@@ -6890,6 +6890,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vst3-proc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "log",
+ "memmap2",
+ "tempfile",
+ "vst3-host",
+]
+
+[[package]]
 name = "vtable"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

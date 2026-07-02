@@ -1,0 +1,27 @@
+[package]
+name = "vst3-proc"
+version.workspace = true
+edition.workspace = true
+
+# Out-of-process VST3 host. A child process (no NSApplication) loads and runs the
+# VST3 instances; the parent (which owns the app's NSApp) drives them over shared
+# memory. This is the only way to run multiple JUCE-GUI VST3 instances without
+# touching the main thread (#251): JUCE binds its GUI runtime to the process
+# NSApp/main thread, so a foreign-NSApp parent cannot re-instantiate — but a
+# separate NSApp-free process can create as many as it likes.
+
+[dependencies]
+anyhow = { workspace = true }
+log = { workspace = true }
+memmap2 = "0.9"
+block-core = { path = "../block-core" }
+
+[dependencies.vst3-host]
+path = "../vst3"
+
+[[bin]]
+name = "openrig-vst3-proc"
+path = "src/bin/openrig-vst3-proc.rs"
+
+[dev-dependencies]
+tempfile = "3"
