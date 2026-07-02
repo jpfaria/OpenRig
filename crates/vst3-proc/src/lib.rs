@@ -282,25 +282,42 @@ pub fn parse_uid_hex(s: &str) -> Result<[u8; 16]> {
     Ok(out)
 }
 
-/// Best-effort path to the built child binary. Looks next to the current
-/// executable and one directory up (so `target/debug/deps/<test>` finds
-/// `target/debug/openrig-vst3-proc`).
+/// Best-effort path to the built child binary. Searches next to the app
+/// executable, a couple of directories up (so `target/debug/deps/<test>` finds
+/// `target/debug/openrig-vst3-proc`), and any `target/{debug,release}` dir found
+/// walking up from the executable. Logs the resolved path (or a clear miss).
 pub fn default_child_bin() -> PathBuf {
     const BIN: &str = "openrig-vst3-proc";
+    let mut candidates: Vec<PathBuf> = Vec::new();
     if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            let here = dir.join(BIN);
-            if here.exists() {
-                return here;
+        let mut dir = exe.parent().map(|p| p.to_path_buf());
+        // exe dir, up one, up two (covers deps/ and .app/Contents/MacOS).
+        for _ in 0..3 {
+            if let Some(d) = &dir {
+                candidates.push(d.join(BIN));
+                dir = d.parent().map(|p| p.to_path_buf());
             }
-            if let Some(up) = dir.parent() {
-                let up_bin = up.join(BIN);
-                if up_bin.exists() {
-                    return up_bin;
-                }
+        }
+        // Any `target/{debug,release}` on the way up.
+        let mut up = exe.parent().map(|p| p.to_path_buf());
+        for _ in 0..8 {
+            if let Some(d) = &up {
+                candidates.push(d.join("target/debug").join(BIN));
+                candidates.push(d.join("target/release").join(BIN));
+                up = d.parent().map(|p| p.to_path_buf());
             }
         }
     }
+    for c in &candidates {
+        if c.exists() {
+            log::debug!("vst3-proc: child binary at {}", c.display());
+            return c.clone();
+        }
+    }
+    log::error!(
+        "vst3-proc: '{BIN}' not found — build the whole workspace (`cargo build`) so it \
+         sits next to the app binary. Falling back to PATH lookup."
+    );
     PathBuf::from(BIN)
 }
 
