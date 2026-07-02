@@ -1,5 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
-import { CompactBlockItem, BlockTypePickerItem, ChainRigNav, StreamMeter } from "../models.slint";
+import { CompactBlockItem, BlockTypePickerItem, ChainRigNav, StreamMeter, ChainBlockItem } from "../models.slint";
+import { DiStreamGraph } from "../components/di_stream_graph.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainTitlePreset } from "../components/chain_title_preset.slint";
@@ -39,6 +40,11 @@ export component CompactChainViewPage inherits Rectangle {
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
     in property <int> di-loop-selected-index: -1;
+    // #717: dedicated DI-stream graph — the DI's own blocks + live meters,
+    // shown while the DI plays. Isolated from the guitar stream.
+    in property <[ChainBlockItem]> di-graph-blocks: [];
+    in property <StreamMeter> di-graph-meter;
+    in property <string> di-graph-output-label;
 
     in property <bool> chain-enabled;
     callback toggle-chain-enabled(int);
@@ -673,5 +679,18 @@ export component CompactChainViewPage inherits Rectangle {
             horizontal-alignment: left;
             vertical-alignment: center;
         }
+    }
+
+    // #717: the dedicated DI-stream graph — the DI's own IN → blocks → OUT with
+    // its isolated live meters. Floats above the meter footer while the DI
+    // plays; disappears on stop. Makes the isolation visible: two graphs, two
+    // meter sets.
+    if root.di-loop-playing : di-graph := DiStreamGraph {
+        x: 16px;
+        y: root.height - self.height - 96px;
+        width: root.width - 32px;
+        blocks: root.di-graph-blocks;
+        output-label: root.di-graph-output-label;
+        meter: root.di-graph-meter;
     }
 }

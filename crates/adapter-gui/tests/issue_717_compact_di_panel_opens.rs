@@ -122,3 +122,35 @@ fn compact_panel_reflects_selection_and_can_stop() {
         "#717: clicking the control while playing must fire di-loop-stop"
     );
 }
+
+/// #717 — the dedicated DI-stream graph appears in the compact window only while
+/// the DI is playing, and disappears on stop.
+#[test]
+fn compact_di_graph_shows_only_while_playing() {
+    i_slint_backend_testing::init_no_event_loop();
+
+    let w = CompactChainViewWindow::new().unwrap();
+    w.set_chain_index(0);
+    w.set_di_graph_output_label(SharedString::from("Scarlett 1-2"));
+    w.set_di_loop_playing(false);
+    w.show().unwrap();
+
+    assert_eq!(
+        count_id(&w, "CompactChainViewPage::di-graph"),
+        0,
+        "#717: the DI graph must be hidden when the DI is not playing"
+    );
+
+    w.set_di_loop_playing(true);
+    assert!(
+        count_id(&w, "CompactChainViewPage::di-graph") >= 1,
+        "#717: the DI graph must appear while the DI plays"
+    );
+
+    w.set_di_loop_playing(false);
+    assert_eq!(
+        count_id(&w, "CompactChainViewPage::di-graph"),
+        0,
+        "#717: the DI graph must disappear on stop"
+    );
+}

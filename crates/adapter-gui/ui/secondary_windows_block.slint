@@ -1,4 +1,4 @@
-import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter } from "models.slint";
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter, ChainBlockItem } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
@@ -264,6 +264,11 @@ export component CompactChainViewWindow inherits Window {
     // #717: which source is selected — without it the compact panel opens with
     // no selection, so it shows nothing picked and hides the play/stop button.
     in property <int> di-loop-selected-index: -1;
+    // #717: dedicated DI-stream graph payload (the DI's own blocks + live
+    // meters + chosen output label), shown while the DI plays.
+    in property <[ChainBlockItem]> di-graph-blocks: [];
+    in property <StreamMeter> di-graph-meter;
+    in property <string> di-graph-output-label;
 
     // I/O device configuration
     callback configure-input(int); // chain_index
@@ -329,6 +334,9 @@ export component CompactChainViewWindow inherits Window {
         di-loop-playing: root.di-loop-playing;
         di-loop-sources: root.di-loop-sources;
         di-loop-selected-index: root.di-loop-selected-index;
+        di-graph-blocks: root.di-graph-blocks;
+        di-graph-meter: root.di-graph-meter;
+        di-graph-output-label: root.di-graph-output-label;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
         di-loop-source-selected(src) => { root.di-loop-source-selected(src); }
