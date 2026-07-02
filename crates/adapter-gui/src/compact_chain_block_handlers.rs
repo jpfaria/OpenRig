@@ -405,6 +405,7 @@ pub(crate) fn wire(
                 model_id: new_model_id,
             }) {
                 log::error!("compact choose-model dispatch error: {error}");
+                set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
