@@ -12,10 +12,24 @@ export component ModelSelectWithSearch inherits Rectangle {
     in property <BlockModelPickerItem> selected-model;
     in-out property <string> search-text;
     in property <length> popup-height: 220px;
+    // #761: a `PopupWindow` renders its content on a separate surface that
+    // doesn't reliably receive pointer events when the host is nested
+    // inside a `clip: true` ancestor (proven by
+    // `issue_761_model_select_popup_interaction.rs` — same defect class
+    // #749 hit with the DI loop panel). Hosts that live inside such an
+    // ancestor (the compact chain view) set this to `true`: the internal
+    // `PopupWindow` is never shown: `open-requested` fires instead, so the
+    // host can render the option list itself as a root-level overlay that
+    // isn't clipped. Default `false` keeps every other caller (standalone
+    // block editor, block-insert flow) on the original behavior.
+    in property <bool> external-popup: false;
 
     // ── outputs ───────────────────────────────────────────────────────
     callback select(string);
     callback search-text-changed(string);
+    // #761: window-absolute (x, y, width) of the closed button, fired
+    // instead of opening the internal popup when `external-popup` is true.
+    callback open-requested(length, length, length);
 
     // ── closed-button visuals ─────────────────────────────────────────
     height: 40px;
@@ -100,14 +114,18 @@ export component ModelSelectWithSearch inherits Rectangle {
         horizontal-alignment: center;
     }
 
-    TouchArea {
+    main-ta := TouchArea {
         mouse-cursor: pointer;
         clicked => {
             // Search resets every time the popup is reopened so the
             // filter is never sticky between selections.
             root.search-text = "";
             root.search-text-changed("");
-            popup.show();
+            if root.external-popup {
+                root.open-requested(self.absolute-position.x, self.absolute-position.y, root.width);
+            } else {
+                popup.show();
+            }
         }
     }
 
@@ -296,7 +314,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                         }
                     }
 
-                    TouchArea {
+                    row-ta := TouchArea {
                         mouse-cursor: pointer;
                         clicked => {
                             root.select(model.model_id);
