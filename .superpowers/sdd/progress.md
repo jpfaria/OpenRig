@@ -31,3 +31,7 @@ REMAINING (audio-critical, NOT rushed — needs design + hardware validation):
   shared guitar output). Per CLAUDE.md, discuss the trade-off before implementing.
 - Task 6 output-select UI: cosmetic until the routing above exists (the select would
   persist di_output but not change where sound goes). Reuse the shared select component.
+
+
+DONE — SOUND ISOLATION (ea900b0c): DI removed from guitar injection; plays on its own dedicated runtime routed onto the chain's output via a live ArcSwap slot list (backend mix). Guitar meters clean. Routing unit test + engine invariants (595) green.
+REMAINING: output-select UI to pick a DIFFERENT bound output (Task 4/6) — routing currently targets the chain's output(s) at the DI rate.
