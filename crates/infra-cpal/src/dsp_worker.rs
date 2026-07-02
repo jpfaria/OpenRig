@@ -446,21 +446,6 @@ pub(crate) fn spawn(
             let mut idle_since: Option<std::time::Instant> = None;
             // ~43 ms of pinned backlog at 64 frames before declaring the
             // death spiral and recovering.
-            // #760/#715: warm the NAM working set ON THIS core with silence
-            // before the loop consumes real audio. The cpu-vs-wall probe showed
-            // the "just turned on" late buffers are cold-cache COMPUTE (cpu
-            // ~3200us cold vs ~1000us warm), not preemption. Running the exact
-            // per-buffer processing call the loop uses, on zeroed `local`
-            // (silence), pays that cold tail here — before the ring is
-            // consumed, so it never counts as a late buffer at the user's
-            // first note. ~24 buffers ≈ the observed cold-warm settling window.
-            const COLD_WARM_BUFFERS: usize = 24;
-            let warm_len = (max_buffer_samples / 8).min(local.len());
-            for _ in 0..COLD_WARM_BUFFERS {
-                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    process_input_buffer(&slot_handle, input_index, &local[..warm_len], channels);
-                }));
-            }
             let mut recovery = SaturationRecovery::new(32);
             loop {
                 if worker_inner.stop.load(Ordering::Acquire) {
