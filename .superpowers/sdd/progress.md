@@ -13,3 +13,21 @@ Task 7: pending — dedicated DI-stream graph + meters Query.
 Task 8: pending — docs + HW battery.
 
 EXTRA (owner-reported, folded into #717): DI fone did nothing in the DETACHED compact window (CompactChainViewWindow lacked the `DiPanel.open` overlay). Fixed by adding the DiLoopPanel overlay there (i-slint interaction test red->green + headless render). Also migrated the 2 #614 test targets #758 left on the old DI API (issue_614_load_di_loop, issue_614_compact_di_loop_wiring) to the DiPcm/to_loop_at flow.
+
+SHIPPED (this session, all pushed):
+- Task 1 dedicated isolated DI runtime + arm/disarm lifecycle.
+- Task 2 persisted Chain.di_output field.
+- Task 3 Command::SetChainDiLoopOutput + Event + parity.
+- DI worker: drives the isolated runtime live → its own meters (isolated from guitar).
+- Arm-on-play wires the dedicated stream (guitar-injection kept for sound, no regression).
+- DiStreamGraph component + shown in the compact view while the DI plays (i-slint test + render).
+- Compact-view DI fixes (panel opens; selection + stop) — owner-validated.
+- Task 8 docs (screens.md) + i18n (di-stream-graph-title, 9 locales).
+
+REMAINING (audio-critical, NOT rushed — needs design + hardware validation):
+- Task 4/5 sound routing: move the DI audio OFF the guitar runtime onto the dedicated
+  runtime's chosen output endpoint (removing guitar injection). Options: dedicated cpal
+  output stream vs rebuild-with-extra-slot — both touch the audio path (xrun risk on the
+  shared guitar output). Per CLAUDE.md, discuss the trade-off before implementing.
+- Task 6 output-select UI: cosmetic until the routing above exists (the select would
+  persist di_output but not change where sound goes). Reuse the shared select component.
