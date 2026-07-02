@@ -44,7 +44,21 @@ impl LiveRuntimeSlot {
     pub fn handle(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
+
+    /// Whether two handles point at the SAME underlying slot. Used to remove a
+    /// specific runtime (e.g. a DI runtime on disarm) from an output's live slot
+    /// list by identity (#717).
+    #[must_use]
+    pub fn same_slot(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
 }
+
+/// The live, swappable slot list an output stream's callback reads each buffer
+/// (#717). Wrapping the `Vec` in `ArcSwap` lets a DI runtime be appended/removed
+/// while the stream runs — no rebuild — with the callback's `load()` staying
+/// wait-free.
+pub(crate) type OutputSlotList = Arc<ArcSwap<Vec<LiveRuntimeSlot>>>;
 
 impl Clone for LiveRuntimeSlot {
     /// Cloning shares the same underlying slot (same as [`LiveRuntimeSlot::handle`]).

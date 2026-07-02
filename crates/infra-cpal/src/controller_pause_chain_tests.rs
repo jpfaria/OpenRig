@@ -75,6 +75,7 @@ fn controller_with_active_chain(
             },
             _input_streams: vec![],
             _output_streams: vec![],
+            output_slot_lists: vec![],
             #[cfg(all(target_os = "linux", feature = "jack"))]
             _jack_client: None,
             #[cfg(all(target_os = "linux", feature = "jack"))]

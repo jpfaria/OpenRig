@@ -115,10 +115,9 @@ pub fn handle_chain_di_loop_enabled_changed(
     };
 
     if let Some(rt) = project_runtime.borrow().as_ref() {
-        rt.set_chain_di_loop(chain, if enabled { arc_opt.clone() } else { None });
-        // #717: also drive the dedicated, isolated DI stream so the DI graph
-        // gets its own live meters. (The guitar-injection line above still
-        // carries the sound until the dedicated output routing lands.)
+        // #717: the DI plays on its OWN dedicated, isolated stream — routed to
+        // the chain's output by the backend mix — never injected into the guitar
+        // runtime. So the guitar's live signal/meters are untouched.
         match (enabled, dispatcher.chain_snapshot(chain), arc_opt) {
             (true, Some(chain_def), Some(pcm)) => {
                 let _ = rt.arm_di_stream(&chain_def, pcm);
@@ -198,8 +197,18 @@ pub fn sync_engine_sr_from_runtime(
     }
     if let Some(runtime) = project_runtime.borrow().as_ref() {
         for chain in rebuilt {
-            if runtime.chain_has_di_loop(&chain) {
-                runtime.set_chain_di_loop(&chain, dispatcher.di_loop_for_chain(&chain));
+            // #717: re-arm the DEDICATED DI stream at the runtime's NEW rate
+            // (disarm drops the old-rate runtime + its route; arm rebuilds the
+            // loop and re-routes at the new rate) so a playing loop never drags
+            // into slow motion on a device-rate change.
+            if runtime.di_stream_active(&chain) {
+                if let (Some(chain_def), Some(pcm)) = (
+                    dispatcher.chain_snapshot(&chain),
+                    dispatcher.di_loop_for_chain(&chain),
+                ) {
+                    runtime.disarm_di_stream(&chain);
+                    let _ = runtime.arm_di_stream(&chain_def, pcm);
+                }
             }
         }
     }

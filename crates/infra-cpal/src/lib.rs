@@ -59,6 +59,7 @@ pub use control_worker::ControlWorker;
 
 mod live_runtime;
 pub use live_runtime::LiveRuntimeSlot;
+pub(crate) use live_runtime::OutputSlotList;
 
 mod build_request;
 pub use build_request::{build_chain_runtime, BuildRequest};
@@ -71,6 +72,8 @@ pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_taps;
 mod di_stream;
+#[cfg(test)]
+mod di_stream_routing_tests;
 mod device_enum;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_enum::jack_is_running;

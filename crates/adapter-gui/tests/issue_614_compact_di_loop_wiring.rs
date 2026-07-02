@@ -130,18 +130,7 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
         &chain_id,
     );
 
-    // The same runtime must now be armed.
-    assert!(
-        controller
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .chain_has_di_loop(&chain_id),
-        "REGRESSION #614 compact: compact_chain_di_loop_play did not arm the \
-         runtime — chain_has_di_loop() is still false"
-    );
-    // #717: play must ALSO arm the dedicated DI stream, so its worker drives the
-    // isolated runtime and the DI graph gets its own live meters.
+    // #717: play arms the DEDICATED DI stream…
     assert!(
         controller
             .borrow()
@@ -149,6 +138,17 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
             .unwrap()
             .di_stream_active(&chain_id),
         "#717: compact play must arm the dedicated DI stream (di_stream_active)"
+    );
+    // …and MUST NOT inject the loop into the guitar runtime — the whole point of
+    // #717 is that the DI no longer rides the guitar's stream/meters.
+    assert!(
+        !controller
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .chain_has_di_loop(&chain_id),
+        "#717: play must NOT inject the DI into the guitar runtime — it plays on \
+         its own dedicated stream"
     );
 }
 
@@ -191,8 +191,8 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
-        "precondition: di loop must be armed after play"
+            .di_stream_active(&chain_id),
+        "precondition: the dedicated DI stream must be armed after play"
     );
 
     // Stop via the compact entry point.
@@ -207,9 +207,9 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
-        "REGRESSION #614 compact: compact_chain_di_loop_stop did not disarm \
-         the runtime — chain_has_di_loop() is still true"
+            .di_stream_active(&chain_id),
+        "#717 compact: stop must disarm the dedicated DI stream (di_stream_active \
+         still true)"
     );
 }
 

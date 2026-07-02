@@ -113,7 +113,8 @@ pub fn build_streams_for_project(
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
-            let (input_streams, output_streams) = build_chain_streams(&chain.id, resolved, slots)?;
+            let (input_streams, output_streams, _slot_lists) =
+                build_chain_streams(&chain.id, resolved, slots)?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }
@@ -344,11 +345,17 @@ pub(crate) fn build_input_stream_for_input(
 /// the audio thread allocates nothing. Single-runtime chains (99% case)
 /// hit the byte-identical fast path inside `process_output_f32_mixed`.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+/// Spare slot capacity the output callback's `loaded` scratch reserves beyond the
+/// build-time slot count, so a live-armed DI runtime (#717) can be appended to
+/// the output's slot list without the callback reallocating `loaded` on the
+/// audio thread.
+const DI_OUTPUT_SLOT_HEADROOM: usize = 2;
+
 pub(crate) fn build_output_stream_for_output(
     chain_id: &ChainId,
     output_index: usize,
     resolved_output_device: ResolvedOutputDevice,
-    slots: Vec<LiveRuntimeSlot>,
+    slots: std::sync::Arc<arc_swap::ArcSwap<Vec<LiveRuntimeSlot>>>,
 ) -> Result<Stream> {
     log::debug!(
         "building output stream for chain '{}' output_index={}",
@@ -370,8 +377,9 @@ pub(crate) fn build_output_stream_for_output(
     let device = resolved_output_device.device;
     let stream = match sample_format {
         SampleFormat::F32 => {
-            let slots_for_data = slots.clone();
-            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
+            let slots = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> =
+                Vec::with_capacity(slots.load().len() + DI_OUTPUT_SLOT_HEADROOM);
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             // Pre-allocated backend-mix scratch (issue #350 phase 3). Sized
@@ -383,12 +391,13 @@ pub(crate) fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [f32], _| {
                     crate::audio_workgroup::ensure_joined_output();
+                    let slots_now = slots.load();
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_output_buffer(
-                            &slots_for_data,
+                            &slots_now,
                             &mut loaded,
                             output_index,
                             out,
@@ -402,8 +411,9 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::I16 => {
-            let slots_for_data = slots.clone();
-            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
+            let slots = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> =
+                Vec::with_capacity(slots.load().len() + DI_OUTPUT_SLOT_HEADROOM);
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
@@ -412,13 +422,14 @@ pub(crate) fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [i16], _| {
                     crate::audio_workgroup::ensure_joined_output();
+                    let slots_now = slots.load();
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_output_buffer(
-                            &slots_for_data,
+                            &slots_now,
                             &mut loaded,
                             output_index,
                             &mut temp,
@@ -436,8 +447,9 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::U16 => {
-            let slots_for_data = slots.clone();
-            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
+            let slots = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> =
+                Vec::with_capacity(slots.load().len() + DI_OUTPUT_SLOT_HEADROOM);
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
@@ -446,13 +458,14 @@ pub(crate) fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [u16], _| {
                     crate::audio_workgroup::ensure_joined_output();
+                    let slots_now = slots.load();
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_output_buffer(
-                            &slots_for_data,
+                            &slots_now,
                             &mut loaded,
                             output_index,
                             &mut temp,
@@ -471,8 +484,9 @@ pub(crate) fn build_output_stream_for_output(
             )?
         }
         SampleFormat::I32 => {
-            let slots_for_data = slots.clone();
-            let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
+            let slots = slots.clone();
+            let mut loaded: Vec<Arc<ChainRuntimeState>> =
+                Vec::with_capacity(slots.load().len() + DI_OUTPUT_SLOT_HEADROOM);
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let mut temp = Vec::new();
@@ -481,13 +495,14 @@ pub(crate) fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [i32], _| {
                     crate::audio_workgroup::ensure_joined_output();
+                    let slots_now = slots.load();
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         process_output_buffer(
-                            &slots_for_data,
+                            &slots_now,
                             &mut loaded,
                             output_index,
                             &mut temp,
@@ -530,11 +545,12 @@ pub(crate) fn build_output_stream_for_output(
 /// device's stream is handed EVERY runtime and sums them at the backend
 /// (the only mix point invariant #4 permits).
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+#[allow(clippy::type_complexity)]
 fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
-) -> Result<(Vec<Stream>, Vec<Stream>)> {
+) -> Result<(Vec<Stream>, Vec<Stream>, Vec<(f32, crate::OutputSlotList)>)> {
     // Flat list (group order) for the backend output mix. Issue #672: the
     // callbacks read each slot live so a worker-published rebuild takes
     // effect without a stream rebuild.
@@ -586,6 +602,7 @@ fn build_chain_streams(
     }
 
     let mut output_streams = Vec::new();
+    let mut output_slot_lists: Vec<(f32, crate::OutputSlotList)> = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
         // #743: mix only the runtimes clocked at THIS output's rate. A runtime
         // at another input device's rate (the owner's 44.1/48 mixed rig) would
@@ -594,11 +611,17 @@ fn build_chain_streams(
         // single-rate chain is unaffected (every runtime matches the one rate).
         let out_rate = resolved_output_sample_rate(&resolved_output) as f32;
         let out_slots = crate::slot_processing::slots_for_output_stream(&slots, out_rate);
-        let stream = build_output_stream_for_output(chain_id, j, resolved_output, out_slots)?;
+        // #717: hold the slot list behind an ArcSwap so the controller can append
+        // a DI runtime to THIS output (matched by rate) while it runs — no
+        // rebuild; the callback's per-buffer load() stays wait-free.
+        let out_list: crate::OutputSlotList =
+            std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(out_slots));
+        output_slot_lists.push((out_rate, out_list.clone()));
+        let stream = build_output_stream_for_output(chain_id, j, resolved_output, out_list)?;
         output_streams.push(stream);
     }
 
-    Ok((input_streams, output_streams))
+    Ok((input_streams, output_streams, output_slot_lists))
 }
 
 /// Build (and start) the cpal streams for one chain. Issue #350 phase 3:
@@ -644,6 +667,7 @@ pub(crate) fn build_active_chain_runtime(
                 stream_signature,
                 _input_streams: Vec::new(),
                 _output_streams: Vec::new(),
+                output_slot_lists: Vec::new(),
                 _jack_client: Some(jack_client),
                 _dsp_worker: Some(dsp_worker),
             });
@@ -659,6 +683,7 @@ pub(crate) fn build_active_chain_runtime(
             stream_signature,
             _input_streams: Vec::new(),
             _output_streams: Vec::new(),
+            output_slot_lists: Vec::new(),
             _jack_client: None,
             _dsp_worker: None,
         });
@@ -666,7 +691,8 @@ pub(crate) fn build_active_chain_runtime(
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
-        let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, slots)?;
+        let (input_streams, output_streams, output_slot_lists) =
+            build_chain_streams(chain_id, resolved, slots)?;
         for stream in &input_streams {
             stream.play()?;
         }
@@ -683,6 +709,7 @@ pub(crate) fn build_active_chain_runtime(
             stream_signature,
             _input_streams: input_streams,
             _output_streams: output_streams,
+            output_slot_lists,
         })
     }
 }

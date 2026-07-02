@@ -105,6 +105,7 @@ fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
             },
             _input_streams: vec![],
             _output_streams: vec![],
+            output_slot_lists: vec![],
             #[cfg(all(target_os = "linux", feature = "jack"))]
             _jack_client: None,
             #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -200,6 +201,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
             },
             _input_streams: vec![],
             _output_streams: vec![],
+            output_slot_lists: vec![],
             #[cfg(all(target_os = "linux", feature = "jack"))]
             _jack_client: None,
             #[cfg(all(target_os = "linux", feature = "jack"))]
