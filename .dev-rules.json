@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "production_globs": ["crates/**/src/**"],
+  "test_globs": ["**/*_test*.rs", "**/tests/**", "**/*test*.rs"]
+}
