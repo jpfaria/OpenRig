@@ -27,9 +27,6 @@
     "frontend-design@claude-plugins-official": true,
     "andrej-karpathy-skills@karpathy-skills": true,
     "hookify@claude-plugins-official": false,
-    "quality-gate@xgodev-quality-gate": true,
-    "dev-rules@xgodev-dev-rules": true,
-    "skill-rules@xgodev-skill-rules": true,
     "openrig@openrig": true
   }
 }
