@@ -130,7 +130,7 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
         &chain_id,
     );
 
-    // #717: play arms the DEDICATED DI stream…
+    // #717: play arms the DEDICATED DI stream (drives the graph + its meters).
     assert!(
         controller
             .borrow()
@@ -138,17 +138,6 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
             .unwrap()
             .di_stream_active(&chain_id),
         "#717: compact play must arm the dedicated DI stream (di_stream_active)"
-    );
-    // …and MUST NOT inject the loop into the guitar runtime — the whole point of
-    // #717 is that the DI no longer rides the guitar's stream/meters.
-    assert!(
-        !controller
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .chain_has_di_loop(&chain_id),
-        "#717: play must NOT inject the DI into the guitar runtime — it plays on \
-         its own dedicated stream"
     );
 }
 

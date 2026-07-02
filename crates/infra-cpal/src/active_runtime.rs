@@ -35,9 +35,11 @@ pub(crate) struct ActiveChainRuntime {
     pub(crate) stream_signature: ChainStreamSignature,
     pub(crate) _input_streams: Vec<Stream>,
     pub(crate) _output_streams: Vec<Stream>,
-    /// #717: the live, swappable slot list of each output stream (with its rate),
-    /// so the controller can append/remove a DI runtime while the streams run.
-    /// Empty on the JACK path (live DI routing there is a follow-up).
+    /// #717: the live, swappable slot list of each output stream (with its rate).
+    /// Reserved for the output-clocked DI player (the follow-up that gives the DI
+    /// drift-free audio isolation); the current build populates it but nothing
+    /// drains a DI onto it yet, so it is not read.
+    #[allow(dead_code)]
     pub(crate) output_slot_lists: Vec<(f32, crate::OutputSlotList)>,
     #[cfg(all(target_os = "linux", feature = "jack"))]
     pub(crate) _jack_client: Option<jack::AsyncClient<JackShutdownHandler, JackProcessHandler>>,

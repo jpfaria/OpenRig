@@ -89,21 +89,11 @@ impl ProjectRuntimeController {
         runtime.set_di_loop(Some(Arc::new(pcm.to_loop_at(rate))));
         let slot = LiveRuntimeSlot::new(runtime);
         let worker = DiWorker::spawn(slot.handle(), rate);
-        // Route the DI runtime onto the chain's output stream(s) at the DI's rate
-        // so the backend mixes it onto that device — no rebuild, the output
-        // callback picks it up on its next wait-free load (#717).
-        if let Some(active) = self.active_chains.get(&chain.id) {
-            for (out_rate, list) in &active.output_slot_lists {
-                if (out_rate - rate as f32).abs() < 1.0 {
-                    let di = slot.handle();
-                    list.rcu(|cur| {
-                        let mut next: Vec<LiveRuntimeSlot> = (**cur).clone();
-                        next.push(di.handle());
-                        next
-                    });
-                }
-            }
-        }
+        // NOTE: the dedicated runtime drives the DI GRAPH/METERS only. Draining it
+        // straight onto the output device (a free-running worker clock vs the
+        // device clock) drifts and dropouts — the sound must instead come from a
+        // pre-rendered, output-clocked player (follow-up). So no output routing
+        // here; the chain's normal path carries the DI audio.
         self.di_streams.borrow_mut().insert(
             chain.id.clone(),
             DiStreamHandle {
@@ -114,23 +104,11 @@ impl ProjectRuntimeController {
         Ok(())
     }
 
-    /// Tear the chain's dedicated DI runtime down: unroute it from the output
-    /// stream(s), stop its worker, drop the runtime + loop.
+    /// Tear the chain's dedicated DI runtime down: stop its worker, drop the
+    /// runtime + loop.
     pub fn disarm_di_stream(&self, chain_id: &ChainId) {
-        let handle = self.di_streams.borrow_mut().remove(chain_id);
-        if let Some(handle) = handle {
-            if let Some(active) = self.active_chains.get(chain_id) {
-                for (_rate, list) in &active.output_slot_lists {
-                    list.rcu(|cur| {
-                        cur.iter()
-                            .filter(|s| !s.same_slot(&handle.slot))
-                            .cloned()
-                            .collect::<Vec<LiveRuntimeSlot>>()
-                    });
-                }
-            }
-            // `handle` drops here → worker stops+joins, runtime torn down.
-        }
+        // Dropping the handle stops+joins the worker and drops the runtime.
+        self.di_streams.borrow_mut().remove(chain_id);
     }
 
     /// Whether a dedicated DI runtime is currently armed for the chain.

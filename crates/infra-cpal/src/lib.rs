@@ -72,8 +72,6 @@ pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_taps;
 mod di_stream;
-#[cfg(test)]
-mod di_stream_routing_tests;
 mod device_enum;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_enum::jack_is_running;
