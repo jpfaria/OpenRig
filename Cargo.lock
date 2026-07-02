@@ -1852,6 +1852,7 @@ dependencies = [
  "project",
  "rustfft",
  "vst3-host",
+ "vst3-proc",
 ]
 
 [[package]]

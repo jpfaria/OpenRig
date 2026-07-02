@@ -76,13 +76,13 @@ fn run() -> Result<()> {
                 continue;
             };
 
-            // Apply a pending parameter change to the live instance.
-            let pseq = slot.param_seq.load(Ordering::Acquire);
-            if pseq != last_param[i] {
-                last_param[i] = pseq;
-                let id = slot.param_id.load(Ordering::SeqCst);
-                let val = f32::from_bits(slot.param_bits.load(Ordering::SeqCst));
+            // Drain any pending parameter changes onto the live instance.
+            let pwrite = slot.param_write.load(Ordering::Acquire);
+            while last_param[i] < pwrite {
+                let (id, val) = slot.read_param(last_param[i]);
                 let _ = proc.set_param(id, val as f64);
+                last_param[i] += 1;
+                did_work = true;
             }
 
             let req = slot.request.load(Ordering::Acquire);

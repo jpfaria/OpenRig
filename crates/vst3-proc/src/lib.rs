@@ -13,9 +13,11 @@ use anyhow::{bail, Context, Result};
 pub const MAX_INSTANCES: usize = 16;
 /// Maximum frames per processing block. Real blocks are far smaller (≤1024).
 pub const MAX_FRAMES: usize = 4096;
+/// Capacity of the per-slot parameter ring (SPSC parent→child).
+pub const PARAM_RING: usize = 256;
 
 /// One plugin instance's mailbox: audio in/out + a request/done handshake and a
-/// single-slot parameter update. Interleaved stereo `[L, R]` frames.
+/// parameter ring. Interleaved stereo `[L, R]` frames.
 #[repr(C)]
 pub struct Slot {
     /// Parent bumps this to request processing of `n_frames`.
@@ -27,11 +29,11 @@ pub struct Slot {
     pub load_req: AtomicU32,
     /// Child sets 1 once this slot's plugin instance is created.
     pub loaded: AtomicU32,
-    /// Parent bumps when it writes a new param into `param_id`/`param_bits`.
-    pub param_seq: AtomicU64,
-    pub param_id: AtomicU32,
-    /// f32 normalized value, bit-cast.
-    pub param_bits: AtomicU32,
+    /// Total params ever written to the ring (parent-incremented). The child
+    /// tracks its own read cursor and drains up to this.
+    pub param_write: AtomicU64,
+    /// SPSC ring of `(id << 32) | f32::to_bits(value)`.
+    param_ring: [UnsafeCell<u64>; PARAM_RING],
     /// Audio buffers. Written/read by whichever side owns the block per the
     /// request/done handshake, so `UnsafeCell` interior mutability is sound.
     input: [UnsafeCell<[f32; 2]>; MAX_FRAMES],
@@ -39,6 +41,21 @@ pub struct Slot {
 }
 
 impl Slot {
+    /// Parent: push a `(id, normalized)` param onto the ring.
+    pub fn push_param(&self, id: u32, normalized: f32) {
+        let w = self.param_write.load(Ordering::Relaxed);
+        let packed = ((id as u64) << 32) | normalized.to_bits() as u64;
+        // Safety: only the parent writes the ring slot at `w % PARAM_RING`;
+        // the child reads it only after observing the bumped `param_write`.
+        unsafe { *self.param_ring[(w as usize) % PARAM_RING].get() = packed }
+        self.param_write.store(w + 1, Ordering::Release);
+    }
+    /// Child: read the ring entry at absolute index `idx`.
+    pub fn read_param(&self, idx: u64) -> (u32, f32) {
+        let packed = unsafe { *self.param_ring[(idx as usize) % PARAM_RING].get() };
+        ((packed >> 32) as u32, f32::from_bits(packed as u32))
+    }
+
     #[inline]
     pub fn write_input(&self, i: usize, v: [f32; 2]) {
         // Safety: the parent owns `input` between setting `request` and the
@@ -149,7 +166,7 @@ impl Vst3ProcClient {
             for s in shared.slots.iter().take(n) {
                 s.request.store(0, Ordering::SeqCst);
                 s.done.store(0, Ordering::SeqCst);
-                s.param_seq.store(0, Ordering::SeqCst);
+                s.param_write.store(0, Ordering::SeqCst);
             }
         }
 
@@ -216,10 +233,7 @@ impl Vst3ProcClient {
 
     /// Push a normalized param (0.0..=1.0) to `slot`'s instance.
     pub fn set_param(&self, slot: usize, id: u32, normalized: f32) {
-        let s = &self.shared().slots[slot];
-        s.param_id.store(id, Ordering::SeqCst);
-        s.param_bits.store(normalized.to_bits(), Ordering::SeqCst);
-        s.param_seq.fetch_add(1, Ordering::SeqCst);
+        self.shared().slots[slot].push_param(id, normalized);
     }
 
     /// Process `frames` through `slot`'s instance in place. Spins until the
@@ -268,12 +282,26 @@ pub fn parse_uid_hex(s: &str) -> Result<[u8; 16]> {
     Ok(out)
 }
 
-/// Best-effort path to the built child binary next to the current executable.
+/// Best-effort path to the built child binary. Looks next to the current
+/// executable and one directory up (so `target/debug/deps/<test>` finds
+/// `target/debug/openrig-vst3-proc`).
 pub fn default_child_bin() -> PathBuf {
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.join("openrig-vst3-proc")))
-        .unwrap_or_else(|| PathBuf::from("openrig-vst3-proc"))
+    const BIN: &str = "openrig-vst3-proc";
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let here = dir.join(BIN);
+            if here.exists() {
+                return here;
+            }
+            if let Some(up) = dir.parent() {
+                let up_bin = up.join(BIN);
+                if up_bin.exists() {
+                    return up_bin;
+                }
+            }
+        }
+    }
+    PathBuf::from(BIN)
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +360,91 @@ impl ProcHandle {
     pub fn set_param(&self, id: u32, normalized: f32) {
         self.host.client.set_param(self.slot, id, normalized);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Processor proxies — a StereoProcessor / MonoProcessor backed by a ProcHandle
+// ---------------------------------------------------------------------------
+
+use block_core::param::ParameterSet;
+use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StereoProcessor};
+
+fn apply_param_set(handle: &ProcHandle, params: &ParameterSet) {
+    for (path, value) in params.values.iter() {
+        let Some(id) = path.strip_prefix('p').and_then(|s| s.parse::<u32>().ok()) else {
+            continue;
+        };
+        let Some(pct) = value.as_f32() else { continue };
+        handle.set_param(id, (pct / 100.0).clamp(0.0, 1.0));
+    }
+}
+
+/// Stereo audio processor whose DSP runs in the out-of-process host.
+pub struct ProcStereoProcessor {
+    handle: ProcHandle,
+}
+impl StereoProcessor for ProcStereoProcessor {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        let mut b = [input];
+        self.handle.process_block(&mut b);
+        b[0]
+    }
+    fn process_block(&mut self, frames: &mut [[f32; 2]]) {
+        self.handle.process_block(frames);
+    }
+    fn try_in_place_update(&mut self, params: &ParameterSet, _sr: f32) -> bool {
+        apply_param_set(&self.handle, params);
+        true
+    }
+}
+
+/// Mono adapter: feeds the stereo out-of-process instance a duplicated mono
+/// signal and takes the left channel back.
+pub struct ProcMonoProcessor {
+    handle: ProcHandle,
+    buf: Vec<[f32; 2]>,
+}
+impl MonoProcessor for ProcMonoProcessor {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        let mut b = [[input, input]];
+        self.handle.process_block(&mut b);
+        b[0][0]
+    }
+    fn process_block(&mut self, buffer: &mut [f32]) {
+        self.buf.clear();
+        self.buf.extend(buffer.iter().map(|&s| [s, s]));
+        self.handle.process_block(&mut self.buf);
+        for (o, w) in buffer.iter_mut().zip(self.buf.iter()) {
+            *o = w[0];
+        }
+    }
+    fn try_in_place_update(&mut self, params: &ParameterSet, _sr: f32) -> bool {
+        apply_param_set(&self.handle, params);
+        true
+    }
+}
+
+/// Build an out-of-process VST3 processor for `layout`, applying `initial_params`
+/// (normalized `(id, value)` pairs). Used by the engine in place of the
+/// in-process `Vst3Plugin` build for GUI plugins (#251).
+pub fn build_vst3_proc_processor(
+    bundle: &Path,
+    uid: &[u8; 16],
+    sample_rate: f64,
+    block_size: usize,
+    layout: AudioChannelLayout,
+    initial_params: &[(u32, f64)],
+) -> Result<BlockProcessor> {
+    let handle = acquire(bundle, uid, sample_rate, block_size)?;
+    for &(id, norm) in initial_params {
+        handle.set_param(id, norm as f32);
+    }
+    Ok(match layout {
+        AudioChannelLayout::Mono => {
+            BlockProcessor::Mono(Box::new(ProcMonoProcessor { handle, buf: Vec::new() }))
+        }
+        AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(ProcStereoProcessor { handle })),
+    })
 }
 
 /// Acquire an out-of-process instance of the plugin at `bundle`. Reuses the
