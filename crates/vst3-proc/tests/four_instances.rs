@@ -66,6 +66,9 @@ fn four_instances_process_under_parent_nsapp() {
     )
     .expect("spawn out-of-process host with 4 instances");
     assert_eq!(client.instances(), 4);
+    for i in 0..4 {
+        client.load_slot(i).expect("load slot");
+    }
 
     // Every instance must process (colour the signal) — none faults.
     for slot in 0..4 {

@@ -39,26 +39,15 @@ fn run() -> Result<()> {
     let map = unsafe { memmap2::MmapMut::map_mut(&file)? };
     let shared: &Shared = unsafe { Shared::from_ptr(map.as_ptr() as *mut u8) };
 
-    // Create N instances. No NSApplication here → sequential createInstance is
-    // reliable, unlike inside the GUI app process (#251).
-    let mut procs: Vec<StereoVst3Processor> = Vec::with_capacity(n);
-    for i in 0..n {
-        let plugin = match Vst3Plugin::load(bundle, &uid, sample_rate, 2, block_size, &[]) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!("[vst3-proc] load instance {i} failed: {e:#}");
-                shared.load_failed.store(1, Ordering::SeqCst);
-                return Err(e);
-            }
-        };
-        procs.push(StereoVst3Processor::new(plugin, None));
-        shared.slots[i].loaded.store(1, Ordering::SeqCst);
-    }
+    // Instances are created lazily, on demand: no NSApplication in this process
+    // → sequential createInstance is reliable, unlike inside the GUI app (#251).
+    let cap = n.min(vst3_proc::MAX_INSTANCES);
+    let mut procs: Vec<Option<StereoVst3Processor>> = (0..cap).map(|_| None).collect();
     shared.ready.store(1, Ordering::SeqCst);
 
     // Track last-serviced request and last-applied param per slot.
-    let mut last_done = vec![0u64; n];
-    let mut last_param = vec![0u64; n];
+    let mut last_done = vec![0u64; cap];
+    let mut last_param = vec![0u64; cap];
     let mut scratch: Vec<[f32; 2]> = vec![[0.0; 2]; MAX_FRAMES];
 
     loop {
@@ -66,8 +55,26 @@ fn run() -> Result<()> {
             return Ok(());
         }
         let mut did_work = false;
-        for i in 0..n {
+        for i in 0..cap {
             let slot = &shared.slots[i];
+
+            // Lazily create this slot's instance when the parent requests it.
+            if slot.load_req.load(Ordering::Acquire) == 1 && procs[i].is_none() {
+                match Vst3Plugin::load(bundle, &uid, sample_rate, 2, block_size, &[]) {
+                    Ok(p) => {
+                        procs[i] = Some(StereoVst3Processor::new(p, None));
+                        slot.loaded.store(1, Ordering::Release);
+                    }
+                    Err(e) => {
+                        eprintln!("[vst3-proc] load slot {i} failed: {e:#}");
+                        shared.load_failed.store(1, Ordering::SeqCst);
+                    }
+                }
+                did_work = true;
+            }
+            let Some(proc) = procs[i].as_mut() else {
+                continue;
+            };
 
             // Apply a pending parameter change to the live instance.
             let pseq = slot.param_seq.load(Ordering::Acquire);
@@ -75,7 +82,7 @@ fn run() -> Result<()> {
                 last_param[i] = pseq;
                 let id = slot.param_id.load(Ordering::SeqCst);
                 let val = f32::from_bits(slot.param_bits.load(Ordering::SeqCst));
-                let _ = procs[i].set_param(id, val as f64);
+                let _ = proc.set_param(id, val as f64);
             }
 
             let req = slot.request.load(Ordering::Acquire);
@@ -86,7 +93,7 @@ fn run() -> Result<()> {
                     scratch[f] = slot.read_input(f);
                 }
                 use block_core::StereoProcessor;
-                procs[i].process_block(&mut scratch[..frames]);
+                proc.process_block(&mut scratch[..frames]);
                 for f in 0..frames {
                     slot.write_output(f, scratch[f]);
                 }

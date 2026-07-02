@@ -23,6 +23,8 @@ pub struct Slot {
     /// Child sets this equal to `request` once the block is processed.
     pub done: AtomicU64,
     pub n_frames: AtomicU32,
+    /// Parent sets 1 to ask the child to create this slot's instance.
+    pub load_req: AtomicU32,
     /// Child sets 1 once this slot's plugin instance is created.
     pub loaded: AtomicU32,
     /// Parent bumps when it writes a new param into `param_id`/`param_bits`.
@@ -105,8 +107,6 @@ pub struct Vst3ProcClient {
     base: *mut u8,
     child: std::process::Child,
     n: usize,
-    /// Monotonic per-slot request counters (parent-owned).
-    req: Vec<u64>,
 }
 
 impl Vst3ProcClient {
@@ -171,7 +171,6 @@ impl Vst3ProcClient {
             base,
             child,
             n,
-            req: vec![0; n],
         };
         client.wait_ready()?;
         Ok(client)
@@ -199,8 +198,24 @@ impl Vst3ProcClient {
         self.n
     }
 
+    /// Ask the child to create `slot`'s instance and wait until it's ready.
+    pub fn load_slot(&self, slot: usize) -> Result<()> {
+        let s = &self.shared().slots[slot];
+        s.load_req.store(1, Ordering::Release);
+        for _ in 0..10_000 {
+            if s.loaded.load(Ordering::Acquire) == 1 {
+                return Ok(());
+            }
+            if self.shared().load_failed.load(Ordering::SeqCst) != 0 {
+                bail!("vst3-proc child failed to load slot {slot}");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        bail!("vst3-proc slot {slot} did not load in time");
+    }
+
     /// Push a normalized param (0.0..=1.0) to `slot`'s instance.
-    pub fn set_param(&mut self, slot: usize, id: u32, normalized: f32) {
+    pub fn set_param(&self, slot: usize, id: u32, normalized: f32) {
         let s = &self.shared().slots[slot];
         s.param_id.store(id, Ordering::SeqCst);
         s.param_bits.store(normalized.to_bits(), Ordering::SeqCst);
@@ -209,16 +224,17 @@ impl Vst3ProcClient {
 
     /// Process `frames` through `slot`'s instance in place. Spins until the
     /// child finishes (bounded), leaving the block unchanged on timeout.
-    pub fn process(&mut self, slot: usize, frames: &mut [[f32; 2]]) {
+    ///
+    /// Takes `&self` so one client can be shared across slots (one per stream);
+    /// each slot has its own atomics, so distinct slots never contend.
+    pub fn process(&self, slot: usize, frames: &mut [[f32; 2]]) {
         let n = frames.len().min(MAX_FRAMES);
         let s = &self.shared().slots[slot];
         for (i, f) in frames.iter().take(n).enumerate() {
             s.write_input(i, *f);
         }
         s.n_frames.store(n as u32, Ordering::SeqCst);
-        self.req[slot] += 1;
-        let target = self.req[slot];
-        s.request.store(target, Ordering::Release);
+        let target = s.request.fetch_add(1, Ordering::AcqRel) + 1;
         // Bounded spin — the child is a tight loop; a block is sub-millisecond.
         for _ in 0..2_000_000 {
             if s.done.load(Ordering::Acquire) >= target {
@@ -258,4 +274,104 @@ pub fn default_child_bin() -> PathBuf {
         .ok()
         .and_then(|p| p.parent().map(|d| d.join("openrig-vst3-proc")))
         .unwrap_or_else(|| PathBuf::from("openrig-vst3-proc"))
+}
+
+// ---------------------------------------------------------------------------
+// Global manager — one child host per (bundle, uid), slots handed out per stream
+// ---------------------------------------------------------------------------
+
+// Safety: cross-slot access to the shared mapping is serialised by per-slot
+// atomics; distinct slots never touch the same memory, so a shared client can be
+// used from many threads (one stream each).
+unsafe impl Send for Vst3ProcClient {}
+unsafe impl Sync for Vst3ProcClient {}
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
+
+static CHILD_BIN: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+/// Set the path to the `openrig-vst3-proc` executable (the app calls this once
+/// at startup; it ships next to the app binary).
+pub fn set_child_bin(path: PathBuf) {
+    *CHILD_BIN.lock().unwrap() = Some(path);
+}
+
+fn child_bin() -> PathBuf {
+    CHILD_BIN
+        .lock()
+        .unwrap()
+        .clone()
+        .unwrap_or_else(default_child_bin)
+}
+
+struct Host {
+    client: Vst3ProcClient,
+    next_slot: std::sync::atomic::AtomicUsize,
+}
+
+type HostKey = (PathBuf, [u8; 16]);
+static HOSTS: OnceLock<Mutex<HashMap<HostKey, Arc<Host>>>> = OnceLock::new();
+
+fn hosts() -> &'static Mutex<HashMap<HostKey, Arc<Host>>> {
+    HOSTS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+static SHM_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A single out-of-process VST3 instance (one slot of a shared child host).
+pub struct ProcHandle {
+    host: Arc<Host>,
+    slot: usize,
+}
+
+impl ProcHandle {
+    pub fn process_block(&self, frames: &mut [[f32; 2]]) {
+        self.host.client.process(self.slot, frames);
+    }
+    pub fn set_param(&self, id: u32, normalized: f32) {
+        self.host.client.set_param(self.slot, id, normalized);
+    }
+}
+
+/// Acquire an out-of-process instance of the plugin at `bundle`. Reuses the
+/// per-(bundle,uid) child host, allocating one more slot.
+pub fn acquire(
+    bundle: &Path,
+    uid: &[u8; 16],
+    sample_rate: f64,
+    block_size: usize,
+) -> Result<ProcHandle> {
+    let key: HostKey = (bundle.to_path_buf(), *uid);
+    let host = {
+        let mut map = hosts().lock().unwrap();
+        if let Some(h) = map.get(&key) {
+            h.clone()
+        } else {
+            let id = SHM_COUNTER.fetch_add(1, Ordering::SeqCst);
+            let shm = std::env::temp_dir()
+                .join(format!("openrig-vst3-{}-{}.shm", std::process::id(), id));
+            let client = Vst3ProcClient::spawn(
+                &child_bin(),
+                &shm,
+                bundle,
+                uid,
+                sample_rate,
+                block_size,
+                MAX_INSTANCES,
+            )?;
+            let h = Arc::new(Host {
+                client,
+                next_slot: std::sync::atomic::AtomicUsize::new(0),
+            });
+            map.insert(key, h.clone());
+            h
+        }
+    };
+    let slot = host.next_slot.fetch_add(1, Ordering::SeqCst);
+    if slot >= MAX_INSTANCES {
+        bail!("out-of-process VST3 host is full ({MAX_INSTANCES} instances)");
+    }
+    host.client.load_slot(slot)?;
+    Ok(ProcHandle { host, slot })
 }
