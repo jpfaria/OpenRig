@@ -1,0 +1,166 @@
+import { ChainRigNav } from "../models.slint";
+import { ChainTitlePreset } from "../components/chain_title_preset.slint";
+import { ChainActionIcon } from "../components/chain_chips.slint";
+import { ChainVolumeButton } from "../components/chain_volume_button.slint";
+import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
+
+// Compact chain view header — preset select + scene bar + chain action
+// cluster. Extracted out of `compact_chain_view.slint` to keep that page
+// under the 500-line cap (`scripts/validate.sh`).
+//
+// Taller than the original 44 px header so `ChainTitlePreset` (which
+// carries the rename popup) has room to render the popup anchor without
+// overlapping the block grid.
+export component CompactChainViewHeader inherits Rectangle {
+    in property <bool> chain-enabled;
+    in property <int> chain-index;
+    in property <string> chain-title;
+    in property <ChainRigNav> rig-nav;
+    in property <int> volume: 100;
+    in property <bool> di-loop-playing: false;
+    in property <[string]> di-loop-sources: [];
+    in property <int> di-loop-selected-index: -1;
+    in property <float> latency-ms: 0.0;
+
+    callback toggle-chain-enabled(int);
+    callback switch-chain-preset(int);
+    callback switch-chain-scene(int);
+    callback rename-chain-preset(string);
+    callback load-chain-preset();
+    callback save-chain-preset-as();
+    callback chain-volume-changed(int, int);
+    callback probe-chain-latency(int);
+    callback configure-chain(int);
+    callback remove-chain(int);
+
+    height: 62px;
+    background: #12141a;
+    border-width: 0px; border-color: #252830;
+
+    // Chain power toggle (sprite)
+    PowerSwitch {
+        x: 8px;
+        y: (parent.height - 40px) / 2;
+        width: 40px; height: 40px;
+        enabled: root.chain-enabled;
+        clicked => { root.toggle-chain-enabled(root.chain-index); }
+    }
+
+    // Title + preset combobox + preset actions + scene bar.
+    // `fullscreen: true` disables the "click to expand" interaction
+    // (we're already in the compact view).
+    ChainTitlePreset {
+        x: 56px;
+        y: (parent.height - 40px) / 2;
+        width: parent.width - 56px - 302px;
+        height: 40px;
+        title: root.chain-title;
+        nav: root.rig-nav;
+        fullscreen: true;
+        preset-picked(slot) => { root.switch-chain-preset(slot); }
+        scene-picked(s) => { root.switch-chain-scene(s); }
+        rename-preset(name) => { root.rename-chain-preset(name); }
+        load-preset => { root.load-chain-preset(); }
+        save-preset => { root.save-chain-preset-as(); }
+    }
+
+    // Right-side chain action cluster — 40 px stride matches the
+    // main chain row. Order: volume, DI loop, sonar, latency badge,
+    // gear, IN, OUT, trash. Chain reorder (↑/↓) lives only on the
+    // chains list — the compact view is single-chain focused (#613).
+    // The IN / OUT chips configure the endpoints; the dBFS bars at
+    // the footer report the live signal level.
+    ChainVolumeButton {
+        x: parent.width - 298px;
+        y: (parent.height - 36px) / 2;
+        volume: root.volume;
+        value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
+    }
+
+    // #614/#749: DI loop trigger — the fone opens the DI panel (root overlay
+    // via DiPanel); pick/play/stop route through the chain-index.
+    ChainDiLoopButton {
+        x: parent.width - 266px;
+        y: (parent.height - 36px) / 2;
+        playing: root.di-loop-playing;
+        sources: root.di-loop-sources;
+        selected-index: root.di-loop-selected-index;
+        chain-index: root.chain-index;
+    }
+
+    ChainActionIcon {
+        x: parent.width - 202px;
+        y: (parent.height - 30px) / 2;
+        icon: @image-url("../assets/sonar.svg");
+        tooltip: @tr("tooltip-measure-latency");
+        clicked => { root.probe-chain-latency(root.chain-index); }
+    }
+
+    // Measured-latency badge (#613) — renders next to the sonar
+    // button that triggers the probe, so the result shows inside the
+    // compact view instead of only on the chains list. Same colours
+    // and `label-lat` key as the main chain row's badge.
+    if root.latency-ms > 0 : Rectangle {
+        x: parent.width - 162px;
+        y: (parent.height - 22px) / 2;
+        width: 64px;
+        height: 22px;
+        border-radius: 4px;
+        background: root.latency-ms < 10.0 ? #4ade8018
+                  : root.latency-ms < 20.0 ? #facc1518
+                  : #f8717118;
+        border-width: 1px;
+        border-color: root.latency-ms < 10.0 ? #4ade8055
+                    : root.latency-ms < 20.0 ? #facc1555
+                    : #f8717155;
+
+        Text {
+            x: 0px;
+            y: 2px;
+            width: 26px;
+            height: parent.height;
+            text: @tr("label-lat");
+            color: root.latency-ms < 10.0 ? #4ade8099
+                 : root.latency-ms < 20.0 ? #facc1599
+                 : #f8717199;
+            font-size: 8px;
+            font-weight: 700;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: 29px;
+            y: 0px;
+            width: parent.width - 30px;
+            height: parent.height;
+            text: Math.round(root.latency-ms) + "ms";
+            color: root.latency-ms < 10.0 ? #4ade80
+                 : root.latency-ms < 20.0 ? #facc15
+                 : #f87171;
+            font-size: 11px;
+            font-weight: 800;
+            vertical-alignment: center;
+        }
+    }
+
+    ChainActionIcon {
+        x: parent.width - 82px;
+        y: (parent.height - 30px) / 2;
+        icon: @image-url("../assets/gear.svg");
+        tooltip: @tr("tooltip-configure");
+        clicked => { root.configure-chain(root.chain-index); }
+    }
+
+    // #716: no IN/OUT badges in compact — the chain's I/O is configured
+    // via the gear (configure-chain) menu, not from the compact row.
+
+    ChainActionIcon {
+        x: parent.width - 42px;
+        y: (parent.height - 30px) / 2;
+        icon: @image-url("../assets/trash.svg");
+        tooltip: @tr("tooltip-delete");
+        clicked => { root.remove-chain(root.chain-index); }
+    }
+}

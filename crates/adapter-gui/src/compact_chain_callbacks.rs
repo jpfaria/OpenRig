@@ -220,6 +220,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     bi,
                     model_id.as_str(),
                 ) else {
+                    log::warn!(
+                        "[compact] choose-model-by-id: model_id '{}' not found in \
+                         block (chain={}, block={}) — nothing dispatched",
+                        model_id,
+                        ci,
+                        bi
+                    );
                     return;
                 };
                 cw.invoke_choose_block_model(ci, bi, idx);

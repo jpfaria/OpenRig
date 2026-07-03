@@ -1,12 +1,10 @@
 import { ScrollView } from "std-widgets.slint";
-import { CompactBlockItem, BlockTypePickerItem, ChainRigNav, StreamMeter } from "../models.slint";
+import { CompactBlockItem, BlockTypePickerItem, BlockModelPickerItem, ChainRigNav, StreamMeter } from "../models.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
-import { PowerSwitch } from "../components/power_switch.slint";
-import { ChainTitlePreset } from "../components/chain_title_preset.slint";
-import { ChainActionIcon } from "../components/chain_chips.slint";
-import { ChainVolumeButton } from "../components/chain_volume_button.slint";
-import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
 import { CompactBlockRow } from "compact_block_row.slint";
+import { CompactChainViewHeader } from "compact_chain_view_header.slint";
+import { CompactModelSelectOverlay } from "../components/compact_model_select_overlay.slint";
+import { CompactStreamMeters } from "../components/compact_stream_meters.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -84,6 +82,21 @@ export component CompactChainViewPage inherits Rectangle {
     private property <bool> show-type-picker: false;
     private property <int> insert-before-index: 0;
 
+    // #761: model-select overlay state — rendered at THIS page's root
+    // (below) instead of inside a `CompactBlockRow`'s `PopupWindow`, so it
+    // isn't clipped by the row / Flickable. `model-select-array-index` is
+    // the position within `compact-blocks` (captured from the `for` loop
+    // below at open time) used to read that row's `filtered-models`;
+    // `model-select-chain/block-index` are the REAL indices forwarded to
+    // `choose-model-by-id`.
+    private property <bool> model-select-open: false;
+    private property <int> model-select-array-index: -1;
+    private property <int> model-select-chain-index: -1;
+    private property <int> model-select-block-index: -1;
+    private property <length> model-select-x: 0px;
+    private property <length> model-select-y: 0px;
+    private property <length> model-select-width: 260px;
+
     // Drag-to-reorder state
     private property <int> dragging-block-index: -1;
     private property <int> drag-hover-before-index: -1;
@@ -94,139 +107,28 @@ export component CompactChainViewPage inherits Rectangle {
     background: #0a0c10;
 
     // Header — preset select + scene bar + chain action cluster.
-    // Taller than the original 44 px header so `ChainTitlePreset`
-    // (which carries the rename popup) has room to render the popup
-    // anchor without overlapping the block grid.
-    Rectangle {
-        x: 0; y: 0; width: parent.width; height: 62px;
-        background: #12141a;
-        border-width: 0px; border-color: #252830;
-
-        // Chain power toggle (sprite)
-        PowerSwitch {
-            x: 8px;
-            y: (parent.height - 40px) / 2;
-            width: 40px; height: 40px;
-            enabled: root.chain-enabled;
-            clicked => { root.toggle-chain-enabled(root.chain-index); }
-        }
-
-        // Title + preset combobox + preset actions + scene bar.
-        // `fullscreen: true` disables the "click to expand" interaction
-        // (we're already in the compact view).
-        ChainTitlePreset {
-            x: 56px;
-            y: (parent.height - 40px) / 2;
-            width: parent.width - 56px - 302px;
-            height: 40px;
-            title: root.chain-title;
-            nav: root.rig-nav;
-            fullscreen: true;
-            preset-picked(slot) => { root.switch-chain-preset(slot); }
-            scene-picked(s) => { root.switch-chain-scene(s); }
-            rename-preset(name) => { root.rename-chain-preset(name); }
-            load-preset => { root.load-chain-preset(); }
-            save-preset => { root.save-chain-preset-as(); }
-        }
-
-        // Right-side chain action cluster — 40 px stride matches the
-        // main chain row. Order: volume, DI loop, sonar, latency badge,
-        // gear, IN, OUT, trash. Chain reorder (↑/↓) lives only on the
-        // chains list — the compact view is single-chain focused (#613).
-        // The IN / OUT chips configure the endpoints; the dBFS bars at
-        // the footer report the live signal level.
-        ChainVolumeButton {
-            x: parent.width - 298px;
-            y: (parent.height - 36px) / 2;
-            volume: root.volume;
-            value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
-        }
-
-        // #614/#749: DI loop trigger — the fone opens the DI panel (root overlay
-        // via DiPanel); pick/play/stop route through the chain-index.
-        ChainDiLoopButton {
-            x: parent.width - 266px;
-            y: (parent.height - 36px) / 2;
-            playing: root.di-loop-playing;
-            sources: root.di-loop-sources;
-            selected-index: root.di-loop-selected-index;
-            chain-index: root.chain-index;
-        }
-
-        ChainActionIcon {
-            x: parent.width - 202px;
-            y: (parent.height - 30px) / 2;
-            icon: @image-url("../assets/sonar.svg");
-            tooltip: @tr("tooltip-measure-latency");
-            clicked => { root.probe-chain-latency(root.chain-index); }
-        }
-
-        // Measured-latency badge (#613) — renders next to the sonar
-        // button that triggers the probe, so the result shows inside the
-        // compact view instead of only on the chains list. Same colours
-        // and `label-lat` key as the main chain row's badge.
-        if root.latency-ms > 0 : Rectangle {
-            x: parent.width - 162px;
-            y: (parent.height - 22px) / 2;
-            width: 64px;
-            height: 22px;
-            border-radius: 4px;
-            background: root.latency-ms < 10.0 ? #4ade8018
-                      : root.latency-ms < 20.0 ? #facc1518
-                      : #f8717118;
-            border-width: 1px;
-            border-color: root.latency-ms < 10.0 ? #4ade8055
-                        : root.latency-ms < 20.0 ? #facc1555
-                        : #f8717155;
-
-            Text {
-                x: 0px;
-                y: 2px;
-                width: 26px;
-                height: parent.height;
-                text: @tr("label-lat");
-                color: root.latency-ms < 10.0 ? #4ade8099
-                     : root.latency-ms < 20.0 ? #facc1599
-                     : #f8717199;
-                font-size: 8px;
-                font-weight: 700;
-                horizontal-alignment: right;
-                vertical-alignment: center;
-            }
-
-            Text {
-                x: 29px;
-                y: 0px;
-                width: parent.width - 30px;
-                height: parent.height;
-                text: Math.round(root.latency-ms) + "ms";
-                color: root.latency-ms < 10.0 ? #4ade80
-                     : root.latency-ms < 20.0 ? #facc15
-                     : #f87171;
-                font-size: 11px;
-                font-weight: 800;
-                vertical-alignment: center;
-            }
-        }
-
-        ChainActionIcon {
-            x: parent.width - 82px;
-            y: (parent.height - 30px) / 2;
-            icon: @image-url("../assets/gear.svg");
-            tooltip: @tr("tooltip-configure");
-            clicked => { root.configure-chain(root.chain-index); }
-        }
-
-        // #716: no IN/OUT badges in compact — the chain's I/O is configured
-        // via the gear (configure-chain) menu, not from the compact row.
-
-        ChainActionIcon {
-            x: parent.width - 42px;
-            y: (parent.height - 30px) / 2;
-            icon: @image-url("../assets/trash.svg");
-            tooltip: @tr("tooltip-delete");
-            clicked => { root.remove-chain(root.chain-index); }
-        }
+    // Extracted to `compact_chain_view_header.slint` (file-size cap).
+    CompactChainViewHeader {
+        x: 0; y: 0; width: parent.width;
+        chain-enabled: root.chain-enabled;
+        chain-index: root.chain-index;
+        chain-title: root.chain-title;
+        rig-nav: root.rig-nav;
+        volume: root.volume;
+        di-loop-playing: root.di-loop-playing;
+        di-loop-sources: root.di-loop-sources;
+        di-loop-selected-index: root.di-loop-selected-index;
+        latency-ms: root.latency-ms;
+        toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
+        switch-chain-preset(slot) => { root.switch-chain-preset(slot); }
+        switch-chain-scene(s) => { root.switch-chain-scene(s); }
+        rename-chain-preset(name) => { root.rename-chain-preset(name); }
+        load-chain-preset => { root.load-chain-preset(); }
+        save-chain-preset-as => { root.save-chain-preset-as(); }
+        chain-volume-changed(ci, v) => { root.chain-volume-changed(ci, v); }
+        probe-chain-latency(ci) => { root.probe-chain-latency(ci); }
+        configure-chain(ci) => { root.configure-chain(ci); }
+        remove-chain(ci) => { root.remove-chain(ci); }
     }
 
     // Footer reservation: one 22 px row per stream meter (multi-input
@@ -294,6 +196,15 @@ export component CompactChainViewPage inherits Rectangle {
                 choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
                 choose-model-by-id(ci, bi2, mid) => { root.choose-block-model-by-id(ci, bi2, mid); }
                 search-model(ci, bi2, text) => { root.search-block-model(ci, bi2, text); }
+                request-model-popup(ci, bi2, x, y, w) => {
+                    root.model-select-open = true;
+                    root.model-select-array-index = bi;
+                    root.model-select-chain-index = ci;
+                    root.model-select-block-index = bi2;
+                    root.model-select-x = x;
+                    root.model-select-y = y;
+                    root.model-select-width = w;
+                }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
                 remove-block(ci, bi2) => { root.remove-block(ci, bi2); }
                 open-plugin(model-id) => { root.open-plugin(model-id); }
@@ -448,230 +359,47 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
+    // ── Model-select overlay (#761) — rendered at the page root so it
+    // escapes the block row's `clip: true` and the block list's
+    // `Flickable`. See the state block above for why `PopupWindow` isn't
+    // used (PopupWindow content never received the row click reliably).
+    if root.model-select-open : Rectangle {
+        x: 0; y: 0; width: parent.width; height: parent.height;
+
+        TouchArea {
+            width: 100%; height: 100%;
+            clicked => { root.model-select-open = false; }
+        }
+
+        CompactModelSelectOverlay {
+            x: root.model-select-x - root.absolute-position.x;
+            y: root.model-select-y - root.absolute-position.y + 44px;
+            width: root.model-select-width;
+            filtered-models: root.model-select-array-index >= 0
+                && root.model-select-array-index < root.compact-blocks.length
+                ? root.compact-blocks[root.model-select-array-index].filtered-models : [];
+            selected-model: root.model-select-array-index >= 0
+                && root.model-select-array-index < root.compact-blocks.length
+                && root.compact-blocks[root.model-select-array-index].model-selected-index >= 0
+                && root.compact-blocks[root.model-select-array-index].model-selected-index < root.compact-blocks[root.model-select-array-index].models.length
+                ? root.compact-blocks[root.model-select-array-index].models[root.compact-blocks[root.model-select-array-index].model-selected-index]
+                : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
+            select(model-id) => {
+                root.choose-block-model-by-id(root.model-select-chain-index, root.model-select-block-index, model-id);
+                root.model-select-open = false;
+            }
+            search-text-changed(text) => {
+                root.search-block-model(root.model-select-chain-index, root.model-select-block-index, text);
+            }
+        }
+    }
+
     // ── Footer: per-stream IN / OUT peak meter rows (#496 / #559) ─────
-    // One IN/OUT pair per `stream-meters` entry. Multi-input chains
-    // (e.g. a 3-input chain) get 3 stacked rows here. Empty list ⇒
-    // fall back to the single aggregate `meter-in-dbfs` /
-    // `meter-out-dbfs` pair so old wiring keeps working.
-    for stream[i] in root.stream-meters: Rectangle {
-        x: 0px;
-        y: parent.height - 22px
-            - (root.stream-meters.length - 1 - i) * 22px;
-        width: parent.width;
-        height: 16px;
-
-        Rectangle {
-            x: 60px; y: 0px;
-            width: 220px; height: 16px;
-            Text {
-                x: 0px; y: 0px;
-                width: 44px; height: parent.height;
-                text: "INPUT";
-                font-size: 8px; font-weight: 700;
-                color: #9ca3af;
-                horizontal-alignment: right;
-                vertical-alignment: center;
-            }
-            Rectangle {
-                x: 48px; y: 2px;
-                width: 130px; height: 12px;
-                border-width: 1px;
-                border-color: stream.in_dbfs > 0.0 ? #f87171 : #2a313a;
-                border-radius: 2px;
-                background: @linear-gradient(90deg,
-                    #facc1560 0%,
-                    #facc15 6%,
-                    #facc15 35%,
-                    #4ade80 50%,
-                    #4ade80 88%,
-                    #f87171 95%,
-                    #f87171 100%);
-                Rectangle {
-                    x: parent.width * Math.max(0.0,
-                        Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0));
-                    y: 0px;
-                    width: parent.width * (1.0 - Math.max(0.0,
-                        Math.min(1.0, (stream.in_dbfs + 60.0) / 60.0)));
-                    height: parent.height;
-                    background: #0b0e13e8;
-                }
-            }
-            Text {
-                x: 182px; y: 0px;
-                width: 36px; height: parent.height;
-                text: stream.in_dbfs <= -119.0
-                    ? "—"
-                    : Math.round(stream.in_dbfs) + " dB";
-                font-size: 9px; font-weight: 700;
-                color: stream.in_dbfs <= -119.0 ? #6b7280
-                     : stream.in_dbfs > -3.0     ? #f87171
-                     : stream.in_dbfs >= -30.0   ? #4ade80
-                     :                              #facc15;
-                horizontal-alignment: left;
-                vertical-alignment: center;
-            }
-        }
-
-        Rectangle {
-            x: parent.width - 240px; y: 0px;
-            width: 230px; height: 16px;
-            Text {
-                x: 0px; y: 0px;
-                width: 50px; height: parent.height;
-                text: "OUTPUT";
-                font-size: 8px; font-weight: 700;
-                color: #9ca3af;
-                horizontal-alignment: right;
-                vertical-alignment: center;
-            }
-            Rectangle {
-                x: 54px; y: 2px;
-                width: 130px; height: 12px;
-                border-width: 1px;
-                border-color: stream.out_dbfs > 0.0 ? #f87171 : #2a313a;
-                border-radius: 2px;
-                background: @linear-gradient(90deg,
-                    #facc1560 0%,
-                    #facc15 6%,
-                    #facc15 35%,
-                    #4ade80 50%,
-                    #4ade80 88%,
-                    #f87171 95%,
-                    #f87171 100%);
-                Rectangle {
-                    x: parent.width * Math.max(0.0,
-                        Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0));
-                    y: 0px;
-                    width: parent.width * (1.0 - Math.max(0.0,
-                        Math.min(1.0, (stream.out_dbfs + 60.0) / 60.0)));
-                    height: parent.height;
-                    background: #0b0e13e8;
-                }
-            }
-            Text {
-                x: 188px; y: 0px;
-                width: 40px; height: parent.height;
-                text: stream.out_dbfs <= -119.0
-                    ? "—"
-                    : Math.round(stream.out_dbfs) + " dB";
-                font-size: 9px; font-weight: 700;
-                color: stream.out_dbfs <= -119.0 ? #6b7280
-                     : stream.out_dbfs > -3.0     ? #f87171
-                     : stream.out_dbfs >= -30.0   ? #4ade80
-                     :                               #facc15;
-                horizontal-alignment: left;
-                vertical-alignment: center;
-            }
-        }
-    }
-
-    // Fallback: when `stream-meters` is empty, render the legacy
-    // single aggregate IN/OUT pair so wiring that hasn't migrated
-    // to per-stream meters still shows something at the footer.
-    if root.stream-meters.length == 0 : Rectangle {
-        x: 60px;
-        y: parent.height - 22px;
-        width: 220px;
-        height: 16px;
-        Text {
-            x: 0; y: 0;
-            width: 44px; height: parent.height;
-            text: "INPUT";
-            font-size: 8px; font-weight: 700;
-            color: #9ca3af;
-            horizontal-alignment: right;
-            vertical-alignment: center;
-        }
-        Rectangle {
-            x: 48px; y: 2px;
-            width: 130px; height: 12px;
-            border-width: 1px;
-            border-color: root.meter-in-dbfs > 0.0 ? #f87171 : #2a313a;
-            border-radius: 2px;
-            background: @linear-gradient(90deg,
-                #facc1560 0%,
-                #facc15 6%,
-                #facc15 35%,
-                #4ade80 50%,
-                #4ade80 88%,
-                #f87171 95%,
-                #f87171 100%);
-            Rectangle {
-                x: parent.width * Math.max(0.0,
-                    Math.min(1.0, (root.meter-in-dbfs + 60.0) / 60.0));
-                y: 0;
-                width: parent.width * (1.0 - Math.max(0.0,
-                    Math.min(1.0, (root.meter-in-dbfs + 60.0) / 60.0)));
-                height: parent.height;
-                background: #0b0e13e8;
-            }
-        }
-        Text {
-            x: 182px; y: 0;
-            width: 36px; height: parent.height;
-            text: root.meter-in-dbfs <= -119.0
-                ? "—"
-                : Math.round(root.meter-in-dbfs) + " dB";
-            font-size: 9px; font-weight: 700;
-            color: root.meter-in-dbfs <= -119.0 ? #6b7280
-                 : root.meter-in-dbfs > -3.0     ? #f87171
-                 : root.meter-in-dbfs >= -30.0   ? #4ade80
-                 :                                  #facc15;
-            horizontal-alignment: left;
-            vertical-alignment: center;
-        }
-    }
-    if root.stream-meters.length == 0 : Rectangle {
-        x: parent.width - 240px;
-        y: parent.height - 22px;
-        width: 230px;
-        height: 16px;
-        Text {
-            x: 0; y: 0;
-            width: 50px; height: parent.height;
-            text: "OUTPUT";
-            font-size: 8px; font-weight: 700;
-            color: #9ca3af;
-            horizontal-alignment: right;
-            vertical-alignment: center;
-        }
-        Rectangle {
-            x: 54px; y: 2px;
-            width: 130px; height: 12px;
-            border-width: 1px;
-            border-color: root.meter-out-dbfs > 0.0 ? #f87171 : #2a313a;
-            border-radius: 2px;
-            background: @linear-gradient(90deg,
-                #facc1560 0%,
-                #facc15 6%,
-                #facc15 35%,
-                #4ade80 50%,
-                #4ade80 88%,
-                #f87171 95%,
-                #f87171 100%);
-            Rectangle {
-                x: parent.width * Math.max(0.0,
-                    Math.min(1.0, (root.meter-out-dbfs + 60.0) / 60.0));
-                y: 0;
-                width: parent.width * (1.0 - Math.max(0.0,
-                    Math.min(1.0, (root.meter-out-dbfs + 60.0) / 60.0)));
-                height: parent.height;
-                background: #0b0e13e8;
-            }
-        }
-        Text {
-            x: 188px; y: 0;
-            width: 40px; height: parent.height;
-            text: root.meter-out-dbfs <= -119.0
-                ? "—"
-                : Math.round(root.meter-out-dbfs) + " dB";
-            font-size: 9px; font-weight: 700;
-            color: root.meter-out-dbfs <= -119.0 ? #6b7280
-                 : root.meter-out-dbfs > -3.0     ? #f87171
-                 : root.meter-out-dbfs >= -30.0   ? #4ade80
-                 :                                   #facc15;
-            horizontal-alignment: left;
-            vertical-alignment: center;
-        }
+    // Extracted to `compact_stream_meters.slint` (file-size cap).
+    CompactStreamMeters {
+        x: 0; y: 0; width: 100%; height: 100%;
+        stream-meters: root.stream-meters;
+        meter-in-dbfs: root.meter-in-dbfs;
+        meter-out-dbfs: root.meter-out-dbfs;
     }
 }
