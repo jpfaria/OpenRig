@@ -1,0 +1,242 @@
+// #749 / #754 — THE single reusable select for the whole app. A real select: a
+// FIELD (box showing the current value + caret) that opens a dropdown with a
+// search box + a scrolling list + the active row highlighted. Extracted
+// verbatim from the proven `preset_select.slint`, parameterized so the preset
+// bank, the DI source picker, and (next) every other select share ONE
+// implementation. Consumers pass parameters only.
+//
+// Filtering stays in Rust (Slint has no string `contains`): the consumer wires
+// `opened` (publish the full list) and `query-changed` (republish filtered) to
+// its own small global, mirroring `PresetPicker`. `picked(key)` reports the
+// chosen option's stable key.
+
+import { Theme } from "../theme.slint";
+import { SelectOption } from "../models.slint";
+
+export component Select inherits Rectangle {
+    // ── data ──────────────────────────────────────────────────────────
+    in property <[SelectOption]> options;       // already filtered by consumer
+    in property <string> active-key;            // highlights the matching row
+
+    // ── closed field ──────────────────────────────────────────────────
+    in property <image> field-icon;             // optional leading glyph
+    in property <bool> field-icon-active: false; // tint the icon as active
+    in property <string> field-label;           // current value text
+    in property <string> placeholder;           // shown when label is empty
+    in property <string> search-placeholder;
+    in property <string> empty-text;            // "no results" row
+    in property <length> field-font-size: 18px;
+    in property <int> field-font-weight: 800;
+
+    // ── popup ─────────────────────────────────────────────────────────
+    in-out property <string> search;
+    in property <length> popup-x: 0px;
+    in property <length> popup-width: 380px;
+    in property <length> max-popup-height: 380px;
+
+    // ── output ────────────────────────────────────────────────────────
+    callback picked(string /* key */);
+    callback query-changed(string);
+    callback opened();
+
+    private property <length> header-height: 54px;
+    private property <length> row-height: 34px;
+    private property <length> list-height:
+        root.options.length > 0 ? root.options.length * root.row-height : root.row-height;
+    private property <bool> has-icon: root.field-icon.width > 0;
+
+    height: 38px;
+    border-radius: 6px;
+    background: #0a0d12;
+    border-width: 1px;
+    border-color: ta.has-hover ? #4d5868 : #2b3340;
+    animate border-color { duration: 150ms; }
+
+    if root.has-icon : Image {
+        x: 10px;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        source: root.field-icon;
+        image-fit: contain;
+        colorize: root.field-icon-active ? #6e8aff : #8a94a2;
+    }
+
+    Text {
+        x: root.has-icon ? 34px : 14px;
+        width: parent.width - (root.has-icon ? 34px : 14px) - 30px;
+        height: parent.height;
+        text: root.field-label != "" ? root.field-label : root.placeholder;
+        color: root.field-label != "" ? #f1f4f8 : #6a6a82;
+        font-size: root.field-font-size;
+        font-weight: root.field-font-weight;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    Image {
+        x: parent.width - 30px;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        source: @image-url("../assets/arrow-down.svg");
+        image-fit: contain;
+        colorize: ta.has-hover ? #ffffff : #8a94a2;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.search = "";
+            root.opened();
+            pop.show();
+        }
+    }
+    accessible-role: button;
+    accessible-label: root.field-label != "" ? root.field-label : root.placeholder;
+
+    pop := PopupWindow {
+        x: root.popup-x;
+        y: root.height + 4px;
+        width: root.popup-width;
+        height: min(root.header-height + root.list-height + 8px, root.max-popup-height);
+        close-policy: close-on-click-outside;
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #0a0d12;
+            border-width: 1px;
+            border-color: #2b3340;
+            border-radius: 6px;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+            drop-shadow-offset-y: 6px;
+            clip: true;
+
+            // Sticky search header.
+            Rectangle {
+                x: 6px;
+                y: 6px;
+                width: parent.width - 12px;
+                height: 40px;
+                background: #15191f;
+                border-width: 1px;
+                border-color: #2b3340;
+                border-radius: 6px;
+
+                Image {
+                    x: 10px;
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: @image-url("../modules/surrealism-ui/icons/search.svg");
+                    colorize: #6a6a82;
+                }
+
+                input := TextInput {
+                    x: 30px;
+                    y: 0;
+                    width: parent.width - 30px - (root.search == "" ? 8px : 28px);
+                    height: parent.height;
+                    text <=> root.search;
+                    color: #d8e0ff;
+                    font-size: 16px;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                    single-line: true;
+                    edited => {
+                        root.query-changed(self.text);
+                    }
+                }
+
+                if root.search == "" : Text {
+                    x: 30px;
+                    y: 0;
+                    width: parent.width - 38px;
+                    height: parent.height;
+                    text: root.search-placeholder;
+                    color: #6a6a82;
+                    font-size: 16px;
+                    vertical-alignment: center;
+                }
+
+                if root.search != "" : TouchArea {
+                    x: parent.width - 28px;
+                    y: 0;
+                    width: 24px;
+                    height: parent.height;
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.search = "";
+                        root.query-changed("");
+                    }
+                    Image {
+                        x: (parent.width - 12px) / 2;
+                        y: (parent.height - 12px) / 2;
+                        width: 12px;
+                        height: 12px;
+                        source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                        colorize: #8a8aa2;
+                    }
+                }
+            }
+
+            // Empty state.
+            if root.options.length == 0 : Text {
+                x: 0;
+                y: 58px;
+                width: parent.width;
+                height: 36px;
+                text: root.empty-text;
+                color: #6a6a82;
+                font-size: 15px;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+            }
+
+            // Scrolling list.
+            if root.options.length > 0 : Flickable {
+                x: 0;
+                y: root.header-height;
+                width: parent.width;
+                height: parent.height - root.header-height - 4px;
+                viewport-width: self.width;
+                viewport-height: root.options.length * root.row-height + 4px;
+
+                for opt[i] in root.options : Rectangle {
+                    x: 4px;
+                    y: i * root.row-height;
+                    width: parent.width - 8px;
+                    height: root.row-height;
+                    border-radius: 4px;
+                    background: opt.key == root.active-key
+                        ? Theme.palette.accent-end
+                        : (row-ta.has-hover ? #1b2230 : transparent);
+                    Text {
+                        x: 10px;
+                        width: parent.width - 20px;
+                        height: parent.height;
+                        text: opt.label;
+                        color: #f1f4f8;
+                        font-size: 16px;
+                        font-weight: opt.key == root.active-key ? 800 : 600;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    row-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.picked(opt.key);
+                            pop.close();
+                        }
+                        scroll-event(_) => {
+                            reject
+                        }
+                    }
+                    accessible-role: button;
+                    accessible-label: opt.label;
+                }
+            }
+        }
+    }
+}

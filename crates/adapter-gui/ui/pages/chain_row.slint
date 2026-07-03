@@ -217,26 +217,16 @@ export component ChainRow inherits Rectangle {
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }
 
-        // #614: DI loop control — headphones icon, next to the volume icon.
-        // Click reveals a ComboBox (source select) + play/stop toggle.
+        // #614/#749: DI loop trigger — just the fone icon (28px) in its original
+        // slot. Clicking it opens the DI panel (select + play) as a root overlay
+        // via the DiPanel global; pick/play/stop route back through chain-index.
         ChainDiLoopButton {
             x: parent.width - 308px;
             y: 12px;
             playing: root.chain.di_loop_playing;
             sources: root.chain.di_loop_sources;
             selected-index: root.chain.di_loop_selected_index;
-            di-loop-source-selected(src) => {
-                root.di-loop-source-selected(root.chain-index, src);
-            }
-            di-loop-choose-file => {
-                root.di-loop-choose-file(root.chain-index);
-            }
-            di-loop-play => {
-                root.di-loop-play(root.chain-index);
-            }
-            di-loop-stop => {
-                root.di-loop-stop(root.chain-index);
-            }
+            chain-index: root.chain-index;
         }
 
         if !root.fullscreen : ChainActionIcon {

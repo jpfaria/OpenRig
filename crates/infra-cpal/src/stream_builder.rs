@@ -25,6 +25,7 @@
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use anyhow::anyhow;
 use anyhow::Result;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use std::sync::Arc;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -35,6 +36,7 @@ use cpal::Stream;
 
 use domain::ids::ChainId;
 use domain::io_binding::IoBinding;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use engine::runtime::ChainRuntimeState;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use engine::runtime_endpoints::{resolve_chain_io, InputEntry, OutputEntry};

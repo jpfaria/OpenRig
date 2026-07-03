@@ -87,6 +87,45 @@ impl DiLoop {
     }
 }
 
+/// Decoded, un-resampled DI source PCM (interleaved `channels` at `src_sr`).
+///
+/// The loader decodes the WAV into this ONCE, off the audio thread. The DI
+/// arming path then calls [`DiPcm::to_loop_at`] to resample it to EACH
+/// runtime's own rate (#749): a multi-rate rig (Scarlett @44.1 + TEYUN @48)
+/// plays every output at true speed, instead of stretching a single
+/// `engine_sr` buffer on the mismatched-rate output ("está lento"). Holding
+/// the source — not a pre-resampled loop — keeps the resample single-hop
+/// (source → target), never source → engine_sr → target.
+pub struct DiPcm {
+    samples: Box<[f32]>,
+    src_sr: u32,
+    channels: usize,
+}
+
+impl DiPcm {
+    /// Wrap decoded interleaved PCM. No resample happens here.
+    pub fn new(samples: Vec<f32>, src_sr: u32, channels: usize) -> Self {
+        Self {
+            samples: samples.into_boxed_slice(),
+            src_sr,
+            channels,
+        }
+    }
+
+    /// `true` when there are no samples to play.
+    pub fn is_empty(&self) -> bool {
+        self.samples.is_empty()
+    }
+
+    /// Build a [`DiLoop`] resampled to `target_sr`, with a ~10 ms seam
+    /// crossfade (rate-relative, so the seam stays ~10 ms at any rate — the
+    /// old fixed 480-frame constant was exactly 10 ms only at 48 kHz).
+    pub fn to_loop_at(&self, target_sr: u32) -> DiLoop {
+        let xfade = (target_sr / 100) as usize;
+        DiLoop::from_samples(&self.samples, self.src_sr, self.channels, target_sr, xfade)
+    }
+}
+
 /// Linear-interpolation resample. Identity (clone) when `src_sr == dst_sr`.
 /// Linear is adequate for a practice DI loop; a windowed-sinc upgrade is a
 /// follow-up. Runs off the audio thread.

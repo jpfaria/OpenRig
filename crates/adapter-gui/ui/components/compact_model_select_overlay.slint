@@ -1,0 +1,200 @@
+import { BlockModelPickerItem } from "../models.slint";
+
+// #761: the compact chain view's model picker, rendered at the PAGE root
+// (outside the clipped, scrolling block list) instead of inside a
+// `PopupWindow` — `PopupWindow` content is a separate surface that never
+// received the row click reliably (same defect class #749 hit with the DI
+// loop panel; see `issue_761_model_select_popup_interaction.rs`). Content
+// mirrors `ModelSelectWithSearch`'s popup so the two look identical to the
+// user; only the parent/positioning strategy differs.
+export component CompactModelSelectOverlay inherits Rectangle {
+    in property <[BlockModelPickerItem]> filtered-models;
+    in property <BlockModelPickerItem> selected-model;
+    in-out property <string> search-text;
+    in property <length> popup-height: 320px;
+
+    callback select(string);
+    callback search-text-changed(string);
+
+    width: 260px;
+    height: root.popup-height;
+    background: #08080e;
+    border-width: 1px;
+    border-color: #2a2a40;
+    border-radius: 6px;
+    drop-shadow-blur: 20px;
+    drop-shadow-color: #000000c0;
+    drop-shadow-offset-x: 0px;
+    drop-shadow-offset-y: 6px;
+    clip: true;
+
+    // Sticky search header.
+    search-field := Rectangle {
+        x: 6px;
+        y: 6px;
+        width: parent.width - 12px;
+        height: 40px;
+        background: #14142a;
+        border-width: 1px;
+        border-color: #2a2a40;
+        border-radius: 6px;
+
+        Image {
+            x: 10px;
+            y: (parent.height - 16px) / 2;
+            width: 16px;
+            height: 16px;
+            source: @image-url("../modules/surrealism-ui/icons/search.svg");
+            colorize: #6a6a82;
+        }
+
+        input := TextInput {
+            x: 30px;
+            y: 0;
+            width: parent.width - 30px - (root.search-text == "" ? 8px : 28px);
+            height: parent.height;
+            text <=> root.search-text;
+            color: #d8e0ff;
+            font-size: 18px;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+            single-line: true;
+            edited => {
+                root.search-text-changed(self.text);
+            }
+        }
+
+        if root.search-text == "" : Text {
+            x: 30px;
+            y: 0;
+            width: parent.width - 38px;
+            height: parent.height;
+            text: @tr("placeholder-search-models");
+            color: #6a6a82;
+            font-size: 18px;
+            vertical-alignment: center;
+        }
+
+        if root.search-text != "" : TouchArea {
+            x: parent.width - 28px;
+            y: 0;
+            width: 24px;
+            height: parent.height;
+            mouse-cursor: pointer;
+            clicked => {
+                root.search-text = "";
+                root.search-text-changed("");
+            }
+
+            Image {
+                x: (parent.width - 12px) / 2;
+                y: (parent.height - 12px) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                colorize: #8a8aa2;
+            }
+        }
+    }
+
+    if root.filtered-models.length == 0 : Text {
+        x: 0;
+        y: 58px;
+        width: parent.width;
+        height: 36px;
+        text: @tr("status-no-models-found");
+        color: #6a6a82;
+        font-size: 16px;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+
+    if root.filtered-models.length > 0 : Flickable {
+        x: 0;
+        y: 54px;
+        width: parent.width;
+        height: parent.height - 54px;
+        viewport-width: self.width;
+        viewport-height: root.filtered-models.length * 36px + 8px;
+
+        for model[i] in root.filtered-models : Rectangle {
+            x: 4px;
+            y: 4px + i * 36px;
+            width: parent.width - 8px;
+            height: 36px;
+            border-radius: 5px;
+            opacity: model.available ? 1.0 : 0.4;
+            background: model.model_id == root.selected-model.model_id
+                ? #14142a : transparent;
+
+            private property <bool> row-has-brand:
+                model.brand != ""
+                && model.brand != "native"
+                && model.brand != "generic";
+
+            Text {
+                x: 12px;
+                y: 0;
+                width: parent.width - 70px;
+                height: parent.height;
+                text: row-has-brand
+                    ? model.brand + " " + model.display_name
+                    : model.display_name;
+                color: model.model_id == root.selected-model.model_id
+                    ? #7788ff : #b0bce0;
+                font-size: 19px;
+                font-weight: model.model_id == root.selected-model.model_id ? 700 : 400;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            if model.type_label != "" : Rectangle {
+                x: parent.width - 54px;
+                y: (parent.height - 22px) / 2;
+                width: 42px;
+                height: 22px;
+                border-radius: 3px;
+                background: model.type_label == "NATIVE" ? #0d2a0d
+                    : model.type_label == "NAM/A2" ? #2e260d
+                    : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #0d1a2e
+                    : model.type_label == "IR" ? #1a0d2e
+                    : model.type_label == "LV2" ? #0d2e2a
+                    : #2e1a0d;
+                border-width: 1px;
+                border-color: model.type_label == "NATIVE" ? #1a6b1a
+                    : model.type_label == "NAM/A2" ? #8a6a1a
+                    : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #1a4488
+                    : model.type_label == "IR" ? #6b1a88
+                    : model.type_label == "LV2" ? #1a886b
+                    : #883300;
+
+                Text {
+                    width: parent.width;
+                    height: parent.height;
+                    text: model.type_label;
+                    color: model.type_label == "NATIVE" ? #33bb33
+                        : model.type_label == "NAM/A2" ? #ffcc44
+                        : (model.type_label == "NAM" || model.type_label == "NAM/A1") ? #4499ff
+                        : model.type_label == "IR" ? #aa44ff
+                        : model.type_label == "LV2" ? #44ddaa
+                        : #ff8833;
+                    font-size: 10px;
+                    font-weight: 800;
+                    letter-spacing: 0.5px;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+            }
+
+            row-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.select(model.model_id);
+                }
+                scroll-event(_) => {
+                    reject
+                }
+            }
+        }
+    }
+}
