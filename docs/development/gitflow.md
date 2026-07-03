@@ -23,7 +23,7 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 6. **NUNCA `Closes #N` ou `Fixes #N`** em commits — GitHub auto-fecha.
 7. Bugfix/hotfix mergeia imediato. Feature aguarda review. Nunca mergear feature→develop sem o usuário pedir.
 8. **NUNCA rebase.** Sempre `git merge`, nunca `git pull --rebase`.
-9. **Quality gate só na criação do PR — NUNCA por push.** Push é direto após o commit. O gate **compartilhado** `xgodev/quality-gate` (`~/.quality-gate/qg --base origin/develop` ou a skill `claude-plugin:quality-gate`) roda **uma vez, antes de `gh pr create`**, e o mesmo dispatcher roda no CI do PR (`.github/workflows/pr.yml`): falha lá = sticky comment + request-changes automático. Rodar o gate a cada push arrastou 2 dias de trabalho — proibido. Detalhes em [`quality-gate.md`](quality-gate.md).
+9. **Quality gate só na criação do PR — NUNCA por push.** Push é direto após o commit. O gate **compartilhado** `xgodev/claude-plugin` (`~/.claude-plugin/tools/quality-gate/qg --base origin/develop` ou a skill `claude-plugin:quality-gate`) roda **uma vez, antes de `gh pr create`**, e o mesmo dispatcher roda no CI do PR (`.github/workflows/pr.yml`): falha lá = sticky comment + request-changes automático. Rodar o gate a cada push arrastou 2 dias de trabalho — proibido. Detalhes em [`quality-gate.md`](quality-gate.md).
 10. **Push imediato após cada commit** (sem gate; o gate é só no PR).
 
 ## Fechar issue

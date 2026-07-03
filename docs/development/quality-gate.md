@@ -1,22 +1,23 @@
 # Quality Gate — OpenRig
 
 OpenRig **não tem mais gate interno**. Usa o gate **compartilhado** mantido
-centralmente em [`github.com/xgodev/quality-gate`](https://github.com/xgodev/quality-gate),
-igual para todos os projetos. Mesma filosofia de sempre: **comparativo**,
+centralmente em [`github.com/xgodev/claude-plugin`](https://github.com/xgodev/claude-plugin)
+(dispatcher em `tools/quality-gate/qg`; o repo standalone
+`xgodev/quality-gate` foi arquivado), igual para todos os projetos. Mesma filosofia de sempre: **comparativo**,
 falha só quando o PR **piora** uma métrica vs `develop`; dívida preexistente
 nunca bloqueia.
 
 > Migração: issue #482 (removeu `scripts/qa.sh` + gate interno).
-> Canônico de uso/contrato: `~/.quality-gate/docs/` após clonar.
+> Canônico de uso/contrato: `~/.claude-plugin/docs/` após clonar.
 
 ## TL;DR
 
 ```bash
 # primeira vez (clona) — depois, manter atualizado:
-git -C ~/.quality-gate pull --ff-only \
-  || git clone --depth 1 https://github.com/xgodev/quality-gate.git ~/.quality-gate
+git -C ~/.claude-plugin pull --ff-only \
+  || git clone --depth 1 https://github.com/xgodev/claude-plugin.git ~/.claude-plugin
 
-~/.quality-gate/qg --base origin/develop
+~/.claude-plugin/tools/quality-gate/qg --base origin/develop
 ```
 
 Vermelho → arrumar a **causa raiz** do que regrediu → rodar de novo → só
@@ -26,8 +27,8 @@ então `git push`.
 
 A skill **`claude-plugin:quality-gate`** faz isso automaticamente. Triggers:
 "rodar quality gate", "rodar QG", "verificar qualidade", "validar antes do
-PR", "qa antes do push" (e equivalentes em EN). Ela clona/atualiza
-`~/.quality-gate`, roda o dispatcher e interpreta o JSON. Instalação:
+PR", "qa antes do push" (e equivalentes em EN). Ela resolve o dispatcher
+direto do plugin instalado, roda e interpreta o JSON. Instalação:
 
 ```
 /plugin marketplace add git@github.com:xgodev/claude-plugin.git
@@ -60,7 +61,7 @@ dívida; nunca aumentar.
 
 | Aspecto | Local | CI (`.github/workflows/pr.yml`) |
 |---|---|---|
-| Comando | `~/.quality-gate/qg --base origin/develop` | mesmo `qg`, clonado no job |
+| Comando | `~/.claude-plugin/tools/quality-gate/qg --base origin/develop` | mesmo `qg`, clonado no job |
 | Baseline | `git archive origin/develop` (cache em `/tmp`) | `--baseline-dir baseline/` (checkout paralelo) + `--force-full` |
 | Falha no CI | — | sticky comment (header `openrig-quality-gate`) + `request-changes` formal do `github-actions[bot]`; sucesso → comment ✅ + dismissal |
 | Codecov | — | reusa profraw do PR → `lcov.info` → upload |
