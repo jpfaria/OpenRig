@@ -47,7 +47,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(cargo llvm-cov*),Bash(rustfmt*),Bash(git clone*xgodev/quality-gate*),Bash(git -C*quality-gate*),Bash(~/.quality-gate/qg*),Bash(*/.quality-gate/qg*),Bash(./scripts/validate.sh*),Bash(gh run watch*),Bash(gh run view*),Bash(gh pr view*),Bash(gh pr comment*),Bash(gh pr checks*)"
+          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(cargo llvm-cov*),Bash(rustfmt*),Bash(git clone*xgodev/claude-plugin*),Bash(git -C*claude-plugin*),Bash(~/.claude-plugin/tools/quality-gate/qg*),Bash(*/.claude-plugin/tools/quality-gate/qg*),Bash(./scripts/validate.sh*),Bash(gh run watch*),Bash(gh run view*),Bash(gh pr view*),Bash(gh pr comment*),Bash(gh pr checks*)"
           base_branch: "develop"
           claude_args: "--max-turns 200"
           additional_system_prompt: |
@@ -73,7 +73,8 @@ jobs:
 
             QUALITY GATE — MANDATORY BEFORE PUSH AND ON CI:
             All PRs to `develop` must pass the SHARED gate
-            `github.com/xgodev/quality-gate` — a single comparative gate
+            `github.com/xgodev/claude-plugin` (tools/quality-gate) — a
+            single comparative gate
             that runs identically locally and in CI
             (.github/workflows/pr.yml). It compares 6 metrics (fmt, lint,
             build, test, complexity, coverage) of the PR against
@@ -83,11 +84,11 @@ jobs:
             cannot soften it by editing thresholds.
 
             Before any `git push` (clone once, then keep it updated):
-              git -C ~/.quality-gate pull --ff-only \
+              git -C ~/.claude-plugin pull --ff-only \
                 || git clone --depth 1 \
-                     https://github.com/xgodev/quality-gate.git \
-                     ~/.quality-gate
-              ~/.quality-gate/qg --base origin/develop
+                     https://github.com/xgodev/claude-plugin.git \
+                     ~/.claude-plugin
+              ~/.claude-plugin/tools/quality-gate/qg --base origin/develop
             If it fails, fix the ROOT CAUSE and re-run until green. Do not
             push red code. NEVER set QG_BYPASS_REASON on your own.
 
@@ -101,7 +102,7 @@ jobs:
                  gh pr view <PR_NUMBER> --comments
             2. Identify the regressed metric(s) from the comment + logs.
             3. Fix the root cause (do NOT bypass or skip steps).
-            4. Re-run `~/.quality-gate/qg --base origin/develop` until green.
+            4. Re-run `~/.claude-plugin/tools/quality-gate/qg --base origin/develop` until green.
             5. Commit + push.
             6. Wait for CI again.
 
