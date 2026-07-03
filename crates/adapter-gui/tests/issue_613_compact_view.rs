@@ -23,6 +23,19 @@ fn compact_view_source() -> String {
         .unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
+/// #761: the header cluster (chain title, volume, DI loop, latency badge,
+/// gear, trash) was extracted out of `compact_chain_view.slint` into its
+/// own file to keep the page under the 500-line cap. The latency-badge
+/// assertion below cares whether the compact view's RENDERED page includes
+/// the badge, not which specific file the markup lives in — so it scans
+/// both.
+fn compact_view_header_source() -> String {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("ui/pages/compact_chain_view_header.slint");
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+}
+
 #[test]
 fn compact_view_has_no_chain_reorder_buttons() {
     let src = compact_view_source();
@@ -62,9 +75,11 @@ fn compact_view_renders_latency_badge() {
         "compact_chain_view.slint must expose a latency-ms property so the \
          measured latency renders inside the compact view"
     );
+    let src_and_header = format!("{src}\n{}", compact_view_header_source());
     assert!(
-        src.contains("label-lat"),
-        "compact_chain_view.slint must render the label-lat latency badge \
-         (parity with the main chain row)"
+        src_and_header.contains("label-lat"),
+        "the compact view's page (compact_chain_view.slint) or its header \
+         (compact_chain_view_header.slint) must render the label-lat \
+         latency badge (parity with the main chain row)"
     );
 }

@@ -31,6 +31,11 @@ export component CompactBlockRow inherits Rectangle {
     callback choose-model(int, int, int); // chain_index, block_index, model_index (legacy)
     callback choose-model-by-id(int, int, string); // chain_index, block_index, model_id
     callback search-model(int, int, string); // chain_index, block_index, search_text
+    // #761: the model picker's option list can't live inside this row (it's
+    // `clip: true`, so the ~320px popup gets cut to the 100px row height).
+    // Forward the closed-button's position so the page root can render the
+    // list itself, unclipped. (chain_index, block_index, x, y, width)
+    callback request-model-popup(int, int, length, length, length);
     callback open-block-detail(int, int);
     callback remove-block(int, int);
     callback open-plugin(string); // model-id, for VST3 blocks
@@ -92,11 +97,15 @@ export component CompactBlockRow inherits Rectangle {
         y: (parent.height - 40px) / 2;
         width: 260px;
         popup-height: 320px;
+        external-popup: true;
         filtered-models: root.block-data.filtered-models;
         selected-model: root.block-data.model-selected-index >= 0
             && root.block-data.model-selected-index < root.block-data.models.length
             ? root.block-data.models[root.block-data.model-selected-index]
             : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
+        open-requested(x, y, w) => {
+            root.request-model-popup(root.block-data.chain-index, root.block-data.block-index, x, y, w);
+        }
         select(model-id) => {
             root.choose-model-by-id(root.block-data.chain-index, root.block-data.block-index, model-id);
         }

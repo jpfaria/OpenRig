@@ -25,7 +25,9 @@ crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
 # private CC auto-memory — must never be versioned
 .claude/projects/
 
-# RED-FIRST unlock sentinel — ephemeral/local only, never versioned.
-# If committed, the guard sees it on every checkout and never blocks
-# production edits, so the TDD red-first gate is silently disabled.
+# dev-rules gate sentinels (.dev-rules/.red-first-unlocked, .mode-feature) --
+# ephemeral/local only, never versioned. If committed, the guard sees them on
+# every checkout and never blocks, silently disabling the gate. The bare
+# .red-first-unlocked line is kept for the pre-plugin sentinel path.
+.dev-rules/
 .red-first-unlocked
