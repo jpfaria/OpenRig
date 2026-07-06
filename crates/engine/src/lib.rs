@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod di_loop;
+pub mod di_output_resolve;
 pub mod elastic_prime;
 pub mod input_tap;
 pub mod native_registry;
