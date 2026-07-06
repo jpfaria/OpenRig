@@ -97,6 +97,27 @@ mod cf {
     unsafe impl Sync for OwnedBundle {}
 }
 
+/// #251 DIAGNOSTIC: read the process-global `NSApp` via dlsym WITHOUT creating
+/// it (never calls `[NSApplication sharedApplication]`), so we can tell whether
+/// something already brought up an NSApplication before a `createInstance`.
+/// Returns `None` if AppKit / the symbol isn't loaded yet.
+#[cfg(target_os = "macos")]
+fn nsapp_present() -> Option<bool> {
+    unsafe {
+        let sym = libc::dlsym(libc::RTLD_DEFAULT, b"NSApp\0".as_ptr() as *const _);
+        if sym.is_null() {
+            return None;
+        }
+        let nsapp = *(sym as *const *mut std::ffi::c_void);
+        Some(!nsapp.is_null())
+    }
+}
+
+/// #251 DIAGNOSTIC: how many `createInstance` calls this process has attempted.
+#[cfg(target_os = "macos")]
+static CREATE_INSTANCE_SEQ: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
 /// Create the `CFBundleRef` for the `.vst3` and run its `bundleEntry`, so the
 /// module is initialised per the VST3 macOS spec. Returns the (retained) bundle
 /// ref, kept alive for the plugin's lifetime and released via `bundleExit` +
@@ -294,9 +315,28 @@ impl Vst3Plugin {
         let cid_ptr = class_tuid.as_ptr() as *const c_char;
         let icomponent_iid_ptr = IComponent::IID.as_ptr() as *const c_char;
 
+        // #251 DIAGNOSTIC: capture the process context right before createInstance
+        // so a failure in the real app reveals WHY. nsapp_present() reads NSApp
+        // without creating it. Folded into the error message because the child
+        // has no logger — this rides the existing "[vst3-proc] load slot failed"
+        // path straight to the user's terminal.
+        #[cfg(target_os = "macos")]
+        let seq = CREATE_INSTANCE_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        #[cfg(target_os = "macos")]
+        let nsapp_before = nsapp_present();
+
         let res =
             unsafe { factory.createInstance(cid_ptr, icomponent_iid_ptr, &mut component_raw) };
         if res != kResultOk || component_raw.is_null() {
+            #[cfg(target_os = "macos")]
+            bail!(
+                "IPluginFactory::createInstance failed (result={res}) [#251 seq={seq} \
+                 nsapp_before={nsapp_before:?} nsapp_after={:?} pid={} ppid={}]",
+                nsapp_present(),
+                unsafe { libc::getpid() },
+                unsafe { libc::getppid() },
+            );
+            #[cfg(not(target_os = "macos"))]
             bail!("IPluginFactory::createInstance failed (result={})", res);
         }
 

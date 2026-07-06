@@ -457,8 +457,7 @@ pub fn find_installed_child_bin() -> Option<PathBuf> {
 unsafe impl Send for Vst3ProcClient {}
 unsafe impl Sync for Vst3ProcClient {}
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Mutex;
 
 static CHILD_BIN: Mutex<Option<PathBuf>> = Mutex::new(None);
 
@@ -484,32 +483,23 @@ fn child_bin() -> Result<PathBuf> {
     })
 }
 
-struct Host {
-    client: Vst3ProcClient,
-    next_slot: std::sync::atomic::AtomicUsize,
-}
-
-type HostKey = (PathBuf, [u8; 16]);
-static HOSTS: OnceLock<Mutex<HashMap<HostKey, Arc<Host>>>> = OnceLock::new();
-
-fn hosts() -> &'static Mutex<HashMap<HostKey, Arc<Host>>> {
-    HOSTS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
 static SHM_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// A single out-of-process VST3 instance (one slot of a shared child host).
+/// A single out-of-process VST3 instance, backed by its OWN dedicated child
+/// process (one plugin per child). Stream isolation (invariant #4): no shm,
+/// lock, or host loop is shared between two instances. It also sidesteps the
+/// JUCE multi-instance limitation — each child only ever performs
+/// `createInstance` #1, which is the one that reliably succeeds (#251).
 pub struct ProcHandle {
-    host: Arc<Host>,
-    slot: usize,
+    client: Vst3ProcClient,
 }
 
 impl ProcHandle {
     pub fn process_block(&self, frames: &mut [[f32; 2]]) {
-        self.host.client.process(self.slot, frames);
+        self.client.process(0, frames);
     }
     pub fn set_param(&self, id: u32, normalized: f32) {
-        self.host.client.set_param(self.slot, id, normalized);
+        self.client.set_param(0, id, normalized);
     }
 }
 
@@ -598,44 +588,19 @@ pub fn build_vst3_proc_processor(
     })
 }
 
-/// Acquire an out-of-process instance of the plugin at `bundle`. Reuses the
-/// per-(bundle,uid) child host, allocating one more slot.
+/// Acquire an out-of-process instance of the plugin at `bundle`, in its OWN
+/// dedicated child process (one plugin per child — see [`ProcHandle`]). Every
+/// call spawns a fresh, fully isolated child and loads the single instance.
 pub fn acquire(
     bundle: &Path,
     uid: &[u8; 16],
     sample_rate: f64,
     block_size: usize,
 ) -> Result<ProcHandle> {
-    let key: HostKey = (bundle.to_path_buf(), *uid);
-    let host = {
-        let mut map = hosts().lock().unwrap();
-        if let Some(h) = map.get(&key) {
-            h.clone()
-        } else {
-            let id = SHM_COUNTER.fetch_add(1, Ordering::SeqCst);
-            let shm = std::env::temp_dir()
-                .join(format!("openrig-vst3-{}-{}.shm", std::process::id(), id));
-            let client = Vst3ProcClient::spawn(
-                &child_bin()?,
-                &shm,
-                bundle,
-                uid,
-                sample_rate,
-                block_size,
-                MAX_INSTANCES,
-            )?;
-            let h = Arc::new(Host {
-                client,
-                next_slot: std::sync::atomic::AtomicUsize::new(0),
-            });
-            map.insert(key, h.clone());
-            h
-        }
-    };
-    let slot = host.next_slot.fetch_add(1, Ordering::SeqCst);
-    if slot >= MAX_INSTANCES {
-        bail!("out-of-process VST3 host is full ({MAX_INSTANCES} instances)");
-    }
-    host.client.load_slot(slot)?;
-    Ok(ProcHandle { host, slot })
+    let id = SHM_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let shm =
+        std::env::temp_dir().join(format!("openrig-vst3-{}-{}.shm", std::process::id(), id));
+    let client = Vst3ProcClient::spawn(&child_bin()?, &shm, bundle, uid, sample_rate, block_size, 1)?;
+    client.load_slot(0)?;
+    Ok(ProcHandle { client })
 }
