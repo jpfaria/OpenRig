@@ -402,6 +402,7 @@ pub(crate) fn spawn(
     channels: usize,
     sample_rate: u32,
     max_buffer_samples: usize,
+    device_uid: Option<String>,
 ) -> DspWorkerProducer {
     let inner = Arc::new(Inner {
         slots: (0..RING_SLOTS)
@@ -431,11 +432,15 @@ pub(crate) fn spawn(
             // together (#698).
             let mut budget = BudgetTracker::new(rt_period_ns * 85 / 100);
             promote_to_audio_rt(rt_period_ns, budget.declared_ns);
-            // Measured on the real-streams test: joining the device workgroup
-            // and/or spinning the idle gap made the tail WORSE and erratic
-            // (50/15/2 xruns per 60 s vs 0-11 without). Plain preemptible RT
-            // with short idle sleeps is the best-behaving configuration; the
-            // residual tail is diagnosed via the log below.
+            // #760: co-schedule this worker with ITS OWN device's IO thread so
+            // the kernel keeps it on a P-core under contention (the residual
+            // "RT thread still late under load" tail). The earlier "joining the
+            // workgroup made it WORSE" result (#670) was measured with the join
+            // hard-coded to the SYSTEM DEFAULT device (the #760 bug) — under a
+            // multi-device rig the worker joined the wrong device's workgroup
+            // and was mis-scheduled. Now that the join resolves the bound
+            // device's UID, the worker co-schedules with the device it serves.
+            crate::audio_workgroup::ensure_joined_input(device_uid.as_deref());
             let mut local = vec![0.0_f32; max_buffer_samples];
             let spin_budget = std::time::Duration::from_nanos(period_ns * 35 / 100);
             let mut idle_since: Option<std::time::Instant> = None;
@@ -518,8 +523,9 @@ pub(crate) fn spawn(
                 // on the rare late buffer.
                 if elapsed.as_nanos() as u64 > buf_period_ns {
                     log::trace!(
-                        "[#670 worker] late buffer: {}us (period {}us, backlog {})",
+                        "[#670 worker] late buffer: {}us wall / {}us cpu (period {}us, backlog {})",
                         elapsed.as_micros(),
+                        compute_ns / 1000,
                         buf_period_ns / 1000,
                         w - r,
                     );

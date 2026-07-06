@@ -746,3 +746,7 @@ msgstr "I/O バインディングがまだありません — 設定 → I/O バ
 
 msgid "warn-select-binding"
 msgstr "このチェーンに少なくとも1つの I/O バインディングを選択してください"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "DIストリーム"

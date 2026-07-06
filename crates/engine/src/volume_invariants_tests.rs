@@ -127,6 +127,7 @@ fn chain_with_blocks(
         volume: 100.0,
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: fx,
+        di_output: None,
     };
     (chain, registry)
 }

@@ -742,3 +742,7 @@ msgstr "아직 I/O 바인딩이 없습니다 — 설정 → I/O 바인딩에서 
 
 msgid "warn-select-binding"
 msgstr "이 체인에 최소 하나의 I/O 바인딩을 선택하세요"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "DI 스트림"

@@ -35,6 +35,7 @@ fn two_binding_chain() -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["scarlet".into(), "teyun".into()],
         blocks: Vec::new(),
+        di_output: None,
     }
 }
 

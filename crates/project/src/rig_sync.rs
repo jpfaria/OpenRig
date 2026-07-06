@@ -137,6 +137,7 @@ mod tests {
                     volume: 100.0,
                     io_binding_ids: Vec::new(),
                     blocks: Vec::new(),
+                    di_output: None,
                 })
                 .collect(),
             midi: None,

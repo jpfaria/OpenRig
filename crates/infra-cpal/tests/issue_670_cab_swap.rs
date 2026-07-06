@@ -215,6 +215,7 @@ fn preset_project(
             volume: 0.0,
             io_binding_ids: vec!["io".into()],
             blocks,
+            di_output: None,
         }],
         midi: None,
     };

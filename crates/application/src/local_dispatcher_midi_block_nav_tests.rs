@@ -65,6 +65,7 @@ fn chain_with_io_and_blocks(id: &str, n_blocks: usize) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks,
+        di_output: None,
     }
 }
 

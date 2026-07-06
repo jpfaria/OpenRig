@@ -172,6 +172,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             volume: preset.scene_volume(input.active_scene),
             io_binding_ids: input.io_binding_ids.clone(),
             blocks,
+            di_output: None,
         });
     }
     chains

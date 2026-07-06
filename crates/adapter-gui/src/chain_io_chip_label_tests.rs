@@ -51,6 +51,7 @@ fn chain_with_input_binding(binding_id: &str, endpoint: &str) -> Chain {
                 endpoint: endpoint.to_string(),
             }),
         }],
+        di_output: None,
     }
 }
 
@@ -63,6 +64,7 @@ fn chain_empty() -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     }
 }
 

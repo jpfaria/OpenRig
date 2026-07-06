@@ -166,7 +166,12 @@ is only logical grouping.
 
 - **Two devices** (#350 phase 3): one cpal stream per device, each bound
   to its own runtime; the shared output device sums them at the backend
-  (the only mix point invariant #4 permits).
+  (the only mix point invariant #4 permits). On macOS each device's
+  callback joins **its own** device's OS workgroup — resolved by the
+  bound device's UID, never the system default (#760). Before this the
+  join was hard-coded to the default device, so the non-default
+  interface's callback co-scheduled with the wrong device's IO thread and
+  underran under CPU contention despite spare cores.
 - **Two entries on ONE device** (#703): Core Audio cannot open two
   streams on one device (a previous attempt produced total silence), so
   the device keeps ONE cpal stream whose callback fans out to every

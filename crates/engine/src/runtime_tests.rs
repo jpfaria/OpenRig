@@ -54,6 +54,7 @@ fn empty_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -171,6 +172,7 @@ fn runtime_graph_builds_for_chain_with_cab_block() {
                     params,
                 }),
             }],
+            di_output: None,
         }],
         midi: None,
     };
@@ -209,6 +211,7 @@ fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
                     params,
                 }),
             }],
+            di_output: None,
         }],
         midi: None,
     };
@@ -361,6 +364,7 @@ fn dual_mono_chain_does_not_leak_left_into_right() {
             native_cab_block("chain:stereo:block:2"),
             reverb_block("chain:stereo:block:3"),
         ],
+        di_output: None,
     };
     let runtime = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_split_dual())
@@ -402,6 +406,7 @@ fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
             ir_cab_block("chain:asset-backed:block:1"),
             reverb_block("chain:asset-backed:block:2"),
         ],
+        di_output: None,
     };
     let runtime = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_split_dual())
@@ -477,6 +482,7 @@ fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks,
+        di_output: None,
     }
 }
 
@@ -714,6 +720,7 @@ fn io_passthrough_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -742,6 +749,7 @@ fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
                 ],
             }),
         }],
+        di_output: None,
     }
 }
 
@@ -1464,6 +1472,7 @@ fn build_runtime_graph_skips_disabled_chains() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     };
@@ -1489,6 +1498,7 @@ fn build_runtime_graph_errors_on_missing_sample_rate() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     };
@@ -1621,6 +1631,7 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
             volume,
             io_binding_ids: vec![IO_BINDING_ID.into()],
             blocks: vec![],
+            di_output: None,
         }
     }
 
@@ -1862,6 +1873,7 @@ fn insert_chain() -> Chain {
                 }),
             },
         ],
+        di_output: None,
     }
 }
 
@@ -2096,6 +2108,7 @@ fn process_input_stereo_output_preserves_channels() {
         volume: 100.0,
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
+        di_output: None,
     };
     let runtime = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_stereo())
@@ -2359,6 +2372,7 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
                 volume: 100.0,
                 io_binding_ids: vec![],
                 blocks: vec![],
+                di_output: None,
             },
             tuner_track("enabled", vec![tuner_block("b:0", 440.0)]),
         ],
@@ -2709,6 +2723,7 @@ fn build_chain_runtime_state_no_io_blocks_uses_fallback() {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![tuner_block("b:0", 440.0)],
+        di_output: None,
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(runtime.is_ok(), "should build with fallback I/O");
@@ -2792,6 +2807,7 @@ fn build_chain_runtime_state_empty_chain_succeeds() {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(runtime.is_ok(), "empty chain should build successfully");

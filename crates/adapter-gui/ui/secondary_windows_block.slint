@@ -1,9 +1,11 @@
-import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter } from "models.slint";
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter, ChainBlockItem } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
+import { DiLoopPanel } from "components/di_loop_panel.slint";
+import { DiPanel } from "components/di_panel_globals.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -259,6 +261,12 @@ export component CompactChainViewWindow inherits Window {
     // #614: DI loop state for the focused chain.
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
+    // #717: which source is selected — without it the compact panel opens with
+    // no selection, so it shows nothing picked and hides the play/stop button.
+    in property <int> di-loop-selected-index: -1;
+    // #717: dedicated DI-stream graph payload (the DI's own blocks + live
+    // meters + chosen output label), shown while the DI plays.
+    in property <StreamMeter> di-graph-meter;
 
     // I/O device configuration
     callback configure-input(int); // chain_index
@@ -323,6 +331,8 @@ export component CompactChainViewWindow inherits Window {
         volume: root.volume;
         di-loop-playing: root.di-loop-playing;
         di-loop-sources: root.di-loop-sources;
+        di-loop-selected-index: root.di-loop-selected-index;
+        di-graph-meter: root.di-graph-meter;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
         di-loop-source-selected(src) => { root.di-loop-source-selected(src); }
@@ -372,5 +382,36 @@ export component CompactChainViewWindow inherits Window {
         chain-name: root.confirm-delete-chain-name;
         confirm => { root.confirm-delete-chain(); }
         cancel => { root.cancel-delete-chain(); }
+    }
+
+    // #717: DI panel overlay for the DETACHED compact window. The fone
+    // (ChainDiLoopButton) sets `DiPanel.open` on this window's own global;
+    // without this overlay the click had no visible effect ("botão não faz
+    // nada"). Mirrors app-window's DI overlay, but the window's DI callbacks
+    // are single-chain (no chain index).
+    if DiPanel.open : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        TouchArea { clicked => { DiPanel.open = false; } }
+        DiLoopPanel {
+            x: DiPanel.x;
+            y: DiPanel.y;
+            sources: DiPanel.sources;
+            selected-index: DiPanel.selected-index;
+            playing: DiPanel.playing;
+            source-picked(i, s) => {
+                DiPanel.selected-index = i;
+                root.di-loop-source-selected(s);
+            }
+            choose-file => { root.di-loop-choose-file(); }
+            play => {
+                DiPanel.playing = true;
+                root.di-loop-play();
+            }
+            stop => {
+                DiPanel.playing = false;
+                root.di-loop-stop();
+            }
+        }
     }
 }

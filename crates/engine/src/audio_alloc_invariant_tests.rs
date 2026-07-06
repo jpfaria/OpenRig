@@ -171,6 +171,7 @@ fn chain() -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -324,6 +325,7 @@ fn p670_real_rig_chain() -> Chain {
                 ]),
             ),
         ],
+        di_output: None,
     }
 }
 
@@ -387,6 +389,7 @@ fn p670_isolated(block: AudioBlock) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![block],
+        di_output: None,
     }
 }
 

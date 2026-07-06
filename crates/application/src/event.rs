@@ -345,6 +345,15 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #717 Task 3: the chain's chosen DI output endpoint was persisted.
+    ///
+    /// The adapter-gui reacts to this event to refresh any UI showing the
+    /// selected DI output. The new value can be read back from the project via
+    /// `chain.di_output`.
+    ChainDiLoopOutputChanged {
+        chain: ChainId,
+    },
+
     // ── I/O binding registry (#716) ───────────────────────────────────────────
 
     /// #716: the per-machine I/O binding registry in `config.yaml` was
@@ -381,7 +390,8 @@ impl Event {
             | Event::ChainIoBindingsChanged { chain, .. }
             | Event::BlockSelectionChanged { chain, .. }
             | Event::ChainDiLoopSourceChanged { chain }
-            | Event::ChainDiLoopEnabledChanged { chain, .. } => Some(chain),
+            | Event::ChainDiLoopEnabledChanged { chain, .. }
+            | Event::ChainDiLoopOutputChanged { chain } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

@@ -550,9 +550,11 @@ pub fn start_meter_polling(
             };
             let aggregate_changed = (row.meter_in_dbfs - in_db).abs() > 0.05
                 || (row.meter_out_dbfs - out_db).abs() > 0.05;
-            // #614: poll DI loop playing state so the chain-tile icon
-            // reflects the engine's current armed/disarmed state.
-            let di_playing_now = controller.chain_has_di_loop(&cid);
+            // #614/#717: poll DI loop playing state so the chain-tile icon (and
+            // the dedicated DI graph) reflect the engine's armed/disarmed state.
+            // The DI now plays on its own dedicated stream, so "playing" is
+            // di_stream_active — not the (removed) guitar-runtime injection.
+            let di_playing_now = controller.di_stream_active(&cid);
             let di_changed = row.di_loop_playing != di_playing_now;
             // #661: re-derive the loaded source from the dispatcher so the
             // popup ComboBox (a) lists a user-chosen File as a labelled entry

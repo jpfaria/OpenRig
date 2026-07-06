@@ -1180,6 +1180,7 @@ mod issue_736_per_binding_rate_tests {
             volume: 100.0,
             io_binding_ids: vec!["a".into(), "b".into()],
             blocks: Vec::new(),
+            di_output: None,
         }
     }
 

@@ -61,6 +61,7 @@ fn two_stream_mono_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -98,6 +99,7 @@ fn single_stream_on_channel_one(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -151,6 +153,7 @@ fn controller_with_single_runtime(
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: registry.to_vec(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

@@ -95,6 +95,7 @@ fn grid_chain(drive: f32, pedal_enabled: bool) -> Chain {
                 params,
             }),
         }],
+        di_output: None,
     }
 }
 

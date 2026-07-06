@@ -759,3 +759,7 @@ msgstr "Aún no hay enlaces de E/S — créalos en Ajustes → Enlaces de E/S"
 
 msgid "warn-select-binding"
 msgstr "Selecciona al menos un enlace de E/S para esta cadena"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "Stream del DI"
