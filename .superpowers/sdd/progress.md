@@ -1,0 +1,37 @@
+# SDD progress — #717 DI dedicated stream
+
+Branch: feature/issue-717
+Plan: docs/superpowers/plans/2026-07-01-issue-717-di-dedicated-stream.md
+
+Task 1: complete — mechanism = Candidate B (worker-clocked isolated DI runtime). `arm_di_stream`/`disarm_di_stream`/`di_stream_active`/`di_stream_loop_len` added to ProjectRuntimeController; new `di_streams: RefCell<HashMap<ChainId, DiStreamHandle>>` field + module `di_stream.rs`. Builds an isolated ChainRuntimeState (copy of chain blocks) fed by the loop, never the guitar runtime. RED seen (behavioral: di_stream_active==false) → GREEN. 108 lib tests + issue_717_di_dedicated_runtime green.
+Task 2: complete — `Chain.di_output: Option<DiOutputRef>` (binding_id+endpoint), `#[serde(default, skip_serializing_if)]` so legacy `.openrig` deserialize to None. Serde round-trip test green; `di_output: None` propagated to all Chain literals (108 files). NOTE: found #758 left 2 pre-existing broken test targets (issue_614_load_di_loop, issue_614_compact_di_loop_wiring) calling the old DI loader API — out of #717 scope, flagged to owner.
+Task 3: pending — Command::SetChainDiLoopOutput + parity.
+Task 4: pending — route DI to chosen output at its rate (sizes elastic + resolves output).
+Task 5: pending — adapter-gui arm/disarm wiring.
+Task 6: pending — DI output select UI.
+Task 7: pending — dedicated DI-stream graph + meters Query.
+Task 8: pending — docs + HW battery.
+
+EXTRA (owner-reported, folded into #717): DI fone did nothing in the DETACHED compact window (CompactChainViewWindow lacked the `DiPanel.open` overlay). Fixed by adding the DiLoopPanel overlay there (i-slint interaction test red->green + headless render). Also migrated the 2 #614 test targets #758 left on the old DI API (issue_614_load_di_loop, issue_614_compact_di_loop_wiring) to the DiPcm/to_loop_at flow.
+
+SHIPPED (this session, all pushed):
+- Task 1 dedicated isolated DI runtime + arm/disarm lifecycle.
+- Task 2 persisted Chain.di_output field.
+- Task 3 Command::SetChainDiLoopOutput + Event + parity.
+- DI worker: drives the isolated runtime live → its own meters (isolated from guitar).
+- Arm-on-play wires the dedicated stream (guitar-injection kept for sound, no regression).
+- DiStreamGraph component + shown in the compact view while the DI plays (i-slint test + render).
+- Compact-view DI fixes (panel opens; selection + stop) — owner-validated.
+- Task 8 docs (screens.md) + i18n (di-stream-graph-title, 9 locales).
+
+REMAINING (audio-critical, NOT rushed — needs design + hardware validation):
+- Task 4/5 sound routing: move the DI audio OFF the guitar runtime onto the dedicated
+  runtime's chosen output endpoint (removing guitar injection). Options: dedicated cpal
+  output stream vs rebuild-with-extra-slot — both touch the audio path (xrun risk on the
+  shared guitar output). Per CLAUDE.md, discuss the trade-off before implementing.
+- Task 6 output-select UI: cosmetic until the routing above exists (the select would
+  persist di_output but not change where sound goes). Reuse the shared select component.
+
+
+DONE — SOUND ISOLATION (ea900b0c): DI removed from guitar injection; plays on its own dedicated runtime routed onto the chain's output via a live ArcSwap slot list (backend mix). Guitar meters clean. Routing unit test + engine invariants (595) green.
+REMAINING: output-select UI to pick a DIFFERENT bound output (Task 4/6) — routing currently targets the chain's output(s) at the DI rate.

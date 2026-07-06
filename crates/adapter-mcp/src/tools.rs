@@ -97,7 +97,9 @@ mod tests {
     /// GUI into handlers (GUI is a pure dispatcher, LAW 1).
     /// #716 bumped to 72 with `SetChainIoBindings` — a chain selects which I/O
     /// bindings it uses; the tool auto-derives via `command_schema`.
-    const COMMAND_VARIANT_COUNT: usize = 72;
+    /// #717 bumped to 73 with `SetChainDiLoopOutput` — persists the chain's
+    /// chosen DI output endpoint.
+    const COMMAND_VARIANT_COUNT: usize = 73;
 
     #[test]
     fn parity_guard_every_command_variant_is_a_tool() {

@@ -69,6 +69,7 @@ fn bound_chain(id: &str, description: Option<String>, blocks: Vec<AudioBlock>) -
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks,
+        di_output: None,
     }
 }
 

@@ -91,6 +91,7 @@ fn get_block_params_returns_materialized_descriptors_envelope() {
                     params,
                 }),
             }],
+            di_output: None,
         }],
         midi: None,
     };

@@ -9,8 +9,86 @@ export component CompactStreamMeters inherits Rectangle {
     in property <[StreamMeter]> stream-meters;
     in property <float> meter-in-dbfs: -120.0;
     in property <float> meter-out-dbfs: -120.0;
+    // #717: the DI stream's own IN/OUT meter — rendered as one more row ABOVE
+    // the chain's stream rows while the DI plays, with a DI accent so it reads
+    // as the DI, not an input.
+    in property <StreamMeter> di-meter;
+    in property <bool> di-playing: false;
 
     background: transparent;
+
+    // #717: the DI row (one row above the chain's stream rows).
+    if root.di-playing : di-row := Rectangle {
+        x: 0px;
+        y: parent.height - 22px - root.stream-meters.length * 22px;
+        width: parent.width;
+        height: 16px;
+
+        Rectangle {
+            x: 60px; y: 0px; width: 220px; height: 16px;
+            Text {
+                x: 0px; y: 0px; width: 44px; height: parent.height;
+                text: "DI";
+                font-size: 8px; font-weight: 800; color: #6e8aff;
+                horizontal-alignment: right; vertical-alignment: center;
+            }
+            Rectangle {
+                x: 48px; y: 2px; width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: root.di-meter.in_dbfs > 0.0 ? #f87171 : #6e8aff66;
+                border-radius: 2px;
+                background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
+                    #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0, Math.min(1.0, (root.di-meter.in_dbfs + 60.0) / 60.0));
+                    width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.di-meter.in_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 182px; y: 0px; width: 36px; height: parent.height;
+                text: root.di-meter.in_dbfs <= -119.0 ? "—" : Math.round(root.di-meter.in_dbfs) + " dB";
+                font-size: 9px; font-weight: 700;
+                color: root.di-meter.in_dbfs <= -119.0 ? #6b7280
+                     : root.di-meter.in_dbfs > -3.0 ? #f87171
+                     : root.di-meter.in_dbfs >= -30.0 ? #4ade80 : #facc15;
+                vertical-alignment: center;
+            }
+        }
+        Rectangle {
+            x: parent.width - 240px; y: 0px; width: 230px; height: 16px;
+            Text {
+                x: 0px; y: 0px; width: 50px; height: parent.height;
+                text: "DI OUT";
+                font-size: 8px; font-weight: 800; color: #6e8aff;
+                horizontal-alignment: right; vertical-alignment: center;
+            }
+            Rectangle {
+                x: 54px; y: 2px; width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: root.di-meter.out_dbfs > 0.0 ? #f87171 : #6e8aff66;
+                border-radius: 2px;
+                background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
+                    #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0, Math.min(1.0, (root.di-meter.out_dbfs + 60.0) / 60.0));
+                    width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.di-meter.out_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 188px; y: 0px; width: 40px; height: parent.height;
+                text: root.di-meter.out_dbfs <= -119.0 ? "—" : Math.round(root.di-meter.out_dbfs) + " dB";
+                font-size: 9px; font-weight: 700;
+                color: root.di-meter.out_dbfs <= -119.0 ? #6b7280
+                     : root.di-meter.out_dbfs > -3.0 ? #f87171
+                     : root.di-meter.out_dbfs >= -30.0 ? #4ade80 : #facc15;
+                vertical-alignment: center;
+            }
+        }
+    }
 
     // One IN/OUT pair per `stream-meters` entry. Multi-input chains
     // (e.g. a 3-input chain) get 3 stacked rows here. Empty list ⇒

@@ -54,6 +54,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             volume: existing.volume,
             io_binding_ids: draft.io_binding_ids.clone(),
             blocks: existing.blocks.clone(),
+            di_output: None,
         }
     } else {
         // Create mode: a new chain has no blocks. Its input/output is
@@ -68,6 +69,7 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             volume: 100.0,
             io_binding_ids: draft.io_binding_ids.clone(),
             blocks: Vec::new(),
+            di_output: None,
         }
     }
 }

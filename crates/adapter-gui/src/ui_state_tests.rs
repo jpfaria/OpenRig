@@ -312,6 +312,7 @@ fn routing_summary_uses_human_friendly_channel_numbers() {
         volume: 100.0,
         io_binding_ids: vec!["io1".to_string()],
         blocks: vec![],
+        di_output: None,
     };
     let registry = vec![IoBinding {
         id: "io1".into(),

@@ -82,6 +82,22 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainDiLoopEnabledChanged { chain, enabled }])
             }
 
+            Command::SetChainDiLoopOutput { chain, output } => {
+                // Locate the chain and persist di_output.
+                {
+                    let mut proj = self.project.borrow_mut();
+                    let found = proj.chains.iter_mut().find(|c| c.id == chain);
+                    match found {
+                        Some(c) => c.di_output = Some(output),
+                        None => {
+                            return Err(anyhow::anyhow!("chain not found: {:?}", chain));
+                        }
+                    }
+                }
+
+                Ok(vec![Event::ChainDiLoopOutputChanged { chain }])
+            }
+
             other => {
                 unreachable!("handle_di_loop received non-di-loop command: {other:?}")
             }

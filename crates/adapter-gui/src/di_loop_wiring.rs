@@ -115,7 +115,18 @@ pub fn handle_chain_di_loop_enabled_changed(
     };
 
     if let Some(rt) = project_runtime.borrow().as_ref() {
-        rt.set_chain_di_loop(chain, if enabled { arc_opt } else { None });
+        // Sound: the DI is carried by the chain's normal path (clean, no drift).
+        rt.set_chain_di_loop(chain, if enabled { arc_opt.clone() } else { None });
+        // #717: also drive the dedicated, isolated runtime — the DI graph + its
+        // own meters read from it. (Draining it straight onto the device drifts;
+        // a pre-rendered, output-clocked player is the follow-up for true audio
+        // isolation.)
+        match (enabled, dispatcher.chain_snapshot(chain), arc_opt) {
+            (true, Some(chain_def), Some(pcm)) => {
+                let _ = rt.arm_di_stream(&chain_def, pcm);
+            }
+            _ => rt.disarm_di_stream(chain),
+        }
     }
 }
 
@@ -189,8 +200,20 @@ pub fn sync_engine_sr_from_runtime(
     }
     if let Some(runtime) = project_runtime.borrow().as_ref() {
         for chain in rebuilt {
+            // Re-arm the AUDIBLE loop (chain path) at the new rate so a playing
+            // loop never drags into slow motion on a device-rate change (#669).
             if runtime.chain_has_di_loop(&chain) {
                 runtime.set_chain_di_loop(&chain, dispatcher.di_loop_for_chain(&chain));
+            }
+            // …and rebuild the DEDICATED runtime (graph/meters) at the new rate.
+            if runtime.di_stream_active(&chain) {
+                if let (Some(chain_def), Some(pcm)) = (
+                    dispatcher.chain_snapshot(&chain),
+                    dispatcher.di_loop_for_chain(&chain),
+                ) {
+                    runtime.disarm_di_stream(&chain);
+                    let _ = runtime.arm_di_stream(&chain_def, pcm);
+                }
             }
         }
     }

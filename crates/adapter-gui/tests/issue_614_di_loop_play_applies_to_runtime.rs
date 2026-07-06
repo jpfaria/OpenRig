@@ -3,12 +3,12 @@
 //!
 //! The bug: `on_di_loop_play` dispatched `SetChainDiLoopEnabled` (which emits
 //! `Event::ChainDiLoopEnabledChanged`) but never called `set_chain_di_loop` on
-//! the `ProjectRuntimeController`.  `chain_has_di_loop()` therefore stayed
+//! the `ProjectRuntimeController`.  `di_stream_active()` therefore stayed
 //! `false` and the loop never played.
 //!
 //! This test drives the combined `play_chain_di_loop` / `stop_chain_di_loop`
 //! functions that the production callbacks call.  Until those functions exist
-//! and wire the apply, `chain_has_di_loop()` stays `false` and the test is
+//! and wire the apply, `di_stream_active()` stays `false` and the test is
 //! RED.
 
 use std::cell::RefCell;
@@ -55,6 +55,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -72,6 +73,7 @@ fn make_controller(chain_id: &ChainId) -> ProjectRuntimeController {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let runtime_arc = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
@@ -89,7 +91,7 @@ fn make_controller(chain_id: &ChainId) -> ProjectRuntimeController {
 /// Calling the play handler after a source is loaded must arm the chain
 /// runtime.  This is the end-to-end regression test for the bug where
 /// `on_di_loop_play` dispatched the command but never applied it to the
-/// runtime — `chain_has_di_loop()` stayed `false`.
+/// runtime — `di_stream_active()` stayed `false`.
 #[test]
 fn play_chain_di_loop_arms_runtime() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -126,7 +128,7 @@ fn play_chain_di_loop_arms_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
+            .di_stream_active(&chain_id),
         "precondition: di loop must not be armed before play"
     );
 
@@ -139,9 +141,9 @@ fn play_chain_di_loop_arms_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
+            .di_stream_active(&chain_id),
         "REGRESSION #614: play_chain_di_loop did not arm the runtime — \
-         chain_has_di_loop() is still false after pressing Play"
+         di_stream_active() is still false after pressing Play"
     );
 }
 
@@ -185,7 +187,7 @@ fn stop_chain_di_loop_disarms_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
+            .di_stream_active(&chain_id),
         "precondition: di loop must be armed after play"
     );
 
@@ -197,8 +199,8 @@ fn stop_chain_di_loop_disarms_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
+            .di_stream_active(&chain_id),
         "REGRESSION #614: stop_chain_di_loop did not disarm the runtime — \
-         chain_has_di_loop() is still true after pressing Stop"
+         di_stream_active() is still true after pressing Stop"
     );
 }

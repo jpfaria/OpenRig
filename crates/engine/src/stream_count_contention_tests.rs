@@ -115,6 +115,7 @@ fn chain() -> Chain {
         volume: 100.0,
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 

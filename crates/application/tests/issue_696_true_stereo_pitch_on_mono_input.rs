@@ -73,6 +73,7 @@ fn validate_accepts_true_stereo_pitch_on_mono_input_chain() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![mono_input(), true_stereo_pitch_block(), stereo_output()],
+            di_output: None,
         }],
         midi: None,
     };

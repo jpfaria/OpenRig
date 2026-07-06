@@ -37,6 +37,8 @@ export component CompactChainViewPage inherits Rectangle {
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
     in property <int> di-loop-selected-index: -1;
+    // #717: the DI stream's own INPUT/OUTPUT meter, shown while the DI plays.
+    in property <StreamMeter> di-graph-meter;
 
     in property <bool> chain-enabled;
     callback toggle-chain-enabled(int);
@@ -134,7 +136,8 @@ export component CompactChainViewPage inherits Rectangle {
     // Footer reservation: one 22 px row per stream meter (multi-input
     // chains stack), minimum one row so the IN/OUT pair always fits.
     property <int> meter-row-count:
-        root.stream-meters.length > 0 ? root.stream-meters.length : 1;
+        (root.stream-meters.length > 0 ? root.stream-meters.length : 1)
+        + (root.di-loop-playing ? 1 : 0);
     property <length> meter-footer-height: root.meter-row-count * 22px + 6px;
 
     // Block rows with insert slots between them
@@ -401,5 +404,8 @@ export component CompactChainViewPage inherits Rectangle {
         stream-meters: root.stream-meters;
         meter-in-dbfs: root.meter-in-dbfs;
         meter-out-dbfs: root.meter-out-dbfs;
+        // #717: the DI's own IN/OUT meter shows as one more row here while it plays.
+        di-playing: root.di-loop-playing;
+        di-meter: root.di-graph-meter;
     }
 }

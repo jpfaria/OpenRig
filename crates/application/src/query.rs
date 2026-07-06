@@ -469,6 +469,7 @@ mod tests {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks,
+            di_output: None,
         }
     }
 

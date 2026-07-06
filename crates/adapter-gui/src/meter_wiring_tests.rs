@@ -220,6 +220,7 @@ fn chain_signature_changes_when_enabled_flag_flips() {
                 params: ParameterSet::default(),
             }),
         }],
+        di_output: None,
     };
     let s1 = chain_meter_signature(&c);
     c.enabled = true;
@@ -248,6 +249,7 @@ fn chain_signature_changes_when_block_enabled_bit_flips() {
                 params: ParameterSet::default(),
             }),
         }],
+        di_output: None,
     };
     let s1 = chain_meter_signature(&c);
     c.blocks[0].enabled = false;
@@ -284,6 +286,7 @@ fn chain_signature_stable_when_only_param_value_changes() {
                 params,
             }),
         }],
+        di_output: None,
     };
     let s1 = chain_meter_signature(&c);
     // Just a knob movement — doesn't restart the runtime, must NOT
@@ -329,6 +332,7 @@ fn timer_signature_flips_on_toggle_off_then_on_cycle() {
                 params: ParameterSet::default(),
             }),
         }],
+        di_output: None,
     };
     // Initial: enabled, runtime up with 3 streams.
     let s_initial = crate::meter_wiring::timer_chain_signature(&c, 3);
@@ -384,6 +388,7 @@ fn controller_offline_then_back_invalidates_every_chain() {
                 params: ParameterSet::default(),
             }),
         }],
+        di_output: None,
     };
     let mut last_sig: std::collections::HashMap<domain::ids::ChainId, u64> =
         std::collections::HashMap::new();
@@ -451,6 +456,7 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
                 params: ParameterSet::default(),
             }),
         }],
+        di_output: None,
     };
     // Two consecutive steady-state ticks: same enabled, same blocks,
     // same stream_count → signature stable, no re-subscribe (flicker

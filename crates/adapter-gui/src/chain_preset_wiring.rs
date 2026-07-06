@@ -196,6 +196,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 volume: 100.0,
                                 io_binding_ids: vec![],
                                 blocks: stripped,
+                                di_output: None,
                             };
                             assign_new_block_ids(&mut tmp_chain);
                             Some((chain_id, tmp_chain.blocks))

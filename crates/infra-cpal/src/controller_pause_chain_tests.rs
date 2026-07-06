@@ -33,6 +33,7 @@ fn empty_chain(id: &str, enabled: bool) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -90,6 +91,7 @@ fn controller_with_active_chain(
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: Vec::new(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

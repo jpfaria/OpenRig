@@ -742,3 +742,7 @@ msgstr "अभी तक कोई I/O बाइंडिंग नहीं —
 
 msgid "warn-select-binding"
 msgstr "इस chain के लिए कम से कम एक I/O बाइंडिंग चुनें"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "DI स्ट्रीम"

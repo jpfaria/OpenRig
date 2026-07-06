@@ -75,6 +75,7 @@ impl ChainYaml {
             volume: self.volume,
             io_binding_ids: self.io_binding_ids.clone(),
             blocks: parsed_blocks,
+            di_output: None,
         })
     }
 

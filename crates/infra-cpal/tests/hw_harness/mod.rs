@@ -125,6 +125,7 @@ pub fn rig_project_with(
             volume: 0.0,
             io_binding_ids: vec!["io".into()],
             blocks,
+            di_output: None,
         }],
         midi: None,
     };

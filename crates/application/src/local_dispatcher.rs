@@ -229,6 +229,18 @@ impl LocalDispatcher {
             .map(|(_, arc)| Arc::clone(arc))
     }
 
+    /// #717: a clone of the chain's current definition, so the runtime layer can
+    /// build the dedicated DI runtime from a copy of the chain's graph without
+    /// holding a borrow on the project.
+    pub fn chain_snapshot(&self, chain: &ChainId) -> Option<project::chain::Chain> {
+        self.project
+            .borrow()
+            .chains
+            .iter()
+            .find(|c| &c.id == chain)
+            .cloned()
+    }
+
     /// #661: retrieve WHICH source is currently loaded for `chain`, if any.
     ///
     /// Parity twin of [`Self::di_loop_for_chain`]: the GUI reads this back so
@@ -440,10 +452,11 @@ impl CommandDispatcher for LocalDispatcher {
             Command::SetMidiEnabled { enabled } => self.handle_set_midi_enabled(enabled),
             Command::SetMcpEnabled { enabled } => self.handle_set_mcp_enabled(enabled),
 
-            // #614: per-chain virtual DI loop (ephemeral, never persisted).
-            Command::SetChainDiLoopSource { .. } | Command::SetChainDiLoopEnabled { .. } => {
-                self.handle_di_loop(cmd)
-            }
+            // #614/#717: per-chain virtual DI loop (source/enabled ephemeral;
+            // output persisted into project via SetChainDiLoopOutput).
+            Command::SetChainDiLoopSource { .. }
+            | Command::SetChainDiLoopEnabled { .. }
+            | Command::SetChainDiLoopOutput { .. } => self.handle_di_loop(cmd),
 
             // #716: per-machine I/O binding registry (persisted to config.yaml).
             Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {

@@ -53,6 +53,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -67,6 +68,7 @@ fn make_controller(chain_id: &ChainId) -> ProjectRuntimeController {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let runtime_arc = Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
@@ -128,15 +130,14 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
         &chain_id,
     );
 
-    // The same runtime must now be armed.
+    // #717: play arms the DEDICATED DI stream (drives the graph + its meters).
     assert!(
         controller
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
-        "REGRESSION #614 compact: compact_chain_di_loop_play did not arm the \
-         runtime — chain_has_di_loop() is still false"
+            .di_stream_active(&chain_id),
+        "#717: compact play must arm the dedicated DI stream (di_stream_active)"
     );
 }
 
@@ -179,8 +180,8 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
-        "precondition: di loop must be armed after play"
+            .di_stream_active(&chain_id),
+        "precondition: the dedicated DI stream must be armed after play"
     );
 
     // Stop via the compact entry point.
@@ -195,9 +196,9 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
             .borrow()
             .as_ref()
             .unwrap()
-            .chain_has_di_loop(&chain_id),
-        "REGRESSION #614 compact: compact_chain_di_loop_stop did not disarm \
-         the runtime — chain_has_di_loop() is still true"
+            .di_stream_active(&chain_id),
+        "#717 compact: stop must disarm the dedicated DI stream (di_stream_active \
+         still true)"
     );
 }
 
@@ -205,6 +206,6 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
 fn session_dispatcher_di_loaded(
     dispatcher: &application::local_dispatcher::LocalDispatcher,
     chain: &domain::ids::ChainId,
-) -> Option<std::sync::Arc<engine::DiLoop>> {
+) -> Option<std::sync::Arc<engine::DiPcm>> {
     dispatcher.di_loop_for_chain(chain)
 }
