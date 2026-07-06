@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **OpenRig red-first gate:** every task starts by writing a test and watching it FAIL. Only after seeing RED do you touch production code (the repo hook enforces this; create `.claude/.red-first-unlocked` after showing the RED run, per `docs/testing.md`). Push after each commit; `gh issue comment` after each push. The shared quality gate runs only at PR creation — never run it on push.
+> **OpenRig red-first gate:** every task starts by writing a test and watching it FAIL. Only after seeing RED do you touch production code (the `dev-rules` plugin hook enforces this; create `.dev-rules/.red-first-unlocked` after showing the RED run, per `docs/testing.md`). Push after each commit; `gh issue comment` after each push. The shared quality gate runs only at PR creation — never run it on push.
 
 **Goal:** Let the user shape tone hands-free by injecting a looping dry guitar DI in place of a single chain's live input, ephemerally, passing through that chain's full block graph.
 
@@ -106,7 +106,7 @@ fn loop_crossfade_makes_seam_continuous() {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test -p engine di_loop`
-Expected: FAIL — `DiLoop` / `DiFrame` not found. (Create `.claude/.red-first-unlocked` after showing this RED run.)
+Expected: FAIL — `DiLoop` / `DiFrame` not found. (Create `.dev-rules/.red-first-unlocked` after showing this RED run.)
 
 - [ ] **Step 3: Implement `di_loop.rs`**
 
