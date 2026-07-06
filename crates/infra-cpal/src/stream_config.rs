@@ -33,8 +33,6 @@ use cpal::SupportedStreamConfigRange;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
 
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use cpal::traits::DeviceTrait;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::ResolvedInputDevice;
@@ -317,79 +315,19 @@ mod unify_rate_tests {
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
-    let max_supported = match device.supported_input_configs() {
-        Ok(configs) => {
-            let max = configs.map(|config| config.channels() as usize).max();
-            log::info!(
-                "[max_supported_input_channels] supported_input_configs max={:?}",
-                max
-            );
-            max
-        }
-        Err(e) => {
-            log::warn!(
-                "[max_supported_input_channels] supported_input_configs error: {}",
-                e
-            );
-            return Err(e.into());
-        }
-    };
-    let default_channels = match device.default_input_config() {
-        Ok(config) => {
-            let ch = config.channels() as usize;
-            log::info!(
-                "[max_supported_input_channels] default_input_config channels={}",
-                ch
-            );
-            Some(ch)
-        }
-        Err(e) => {
-            log::info!(
-                "[max_supported_input_channels] default_input_config error: {}",
-                e
-            );
-            None
-        }
-    };
+    // #762: cached CoreAudio query — repeated live syncs hit the same devices.
+    let cfg = crate::device_config_cache::configs_for(device, true)?;
+    let max_supported = cfg.supported.iter().map(|c| c.channels() as usize).max();
+    let default_channels = cfg.default.as_ref().map(|c| c.channels() as usize);
     max_supported_channels(default_channels, max_supported)
 }
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
-    let max_supported = match device.supported_output_configs() {
-        Ok(configs) => {
-            let max = configs.map(|config| config.channels() as usize).max();
-            log::info!(
-                "[max_supported_output_channels] supported_output_configs max={:?}",
-                max
-            );
-            max
-        }
-        Err(e) => {
-            log::warn!(
-                "[max_supported_output_channels] supported_output_configs error: {}",
-                e
-            );
-            return Err(e.into());
-        }
-    };
-    let default_channels = match device.default_output_config() {
-        Ok(config) => {
-            let ch = config.channels() as usize;
-            log::info!(
-                "[max_supported_output_channels] default_output_config channels={}",
-                ch
-            );
-            Some(ch)
-        }
-        Err(e) => {
-            log::info!(
-                "[max_supported_output_channels] default_output_config error: {}",
-                e
-            );
-            None
-        }
-    };
+    // #762: cached CoreAudio query — repeated live syncs hit the same devices.
+    let cfg = crate::device_config_cache::configs_for(device, false)?;
+    let max_supported = cfg.supported.iter().map(|c| c.channels() as usize).max();
+    let default_channels = cfg.default.as_ref().map(|c| c.channels() as usize);
     max_supported_channels(default_channels, max_supported)
 }
 
