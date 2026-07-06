@@ -28,8 +28,18 @@ falhar.** Ler o código primeiro produz hipótese enviesada vendida como
 pré-fix (mantendo os testes) e rodar — tem que dar RED. Restaurar a produção
 depois (nada se perde; está commitado).
 
-Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`
-(seção "LEI — RED-FIRST OBRIGATÓRIO").
+**Enforcement:** o gate é o hook genérico do plugin `dev-rules` (não mais um
+hook local do OpenRig), configurado em `.dev-rules.json` na raiz (globs Rust:
+`crates/**/src/**` produção, `**/tests/**`/`*_test*.rs`/`*test*.rs` teste).
+Sentinelas em `.dev-rules/` (nunca versionado):
+
+- nenhuma sentinela → leitura E edição de produção bloqueadas (disciplina de bug).
+- `.dev-rules/.mode-feature` → leitura de produção liberada pra planejar
+  feature/melhoria; edição continua presa ao RED.
+- `.dev-rules/.red-first-unlocked` → leitura e edição liberadas (criar só
+  depois de mostrar o RED real, passo 3 acima).
+
+Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
 
 ## Cobertura
 

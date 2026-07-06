@@ -40,8 +40,6 @@ use project::block::{AudioBlockKind, InsertBlock};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;
 
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use cpal::traits::DeviceTrait;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::{is_asio_host, using_jack_direct};
@@ -153,21 +151,18 @@ pub(crate) fn resolve_input_device_for_chain_input(
             input.device_id.0
         )
     })?;
-    let default_config = device.default_input_config().with_context(|| {
-        format!(
+    // #762: cached CoreAudio query — avoid re-probing the same device (and
+    // disturbing it) on every live sync.
+    let cfg = crate::device_config_cache::configs_for(&device, true).with_context(|| {
+        format!("failed to query input configs for '{}'", input.device_id.0)
+    })?;
+    let default_config = cfg.default.ok_or_else(|| {
+        anyhow!(
             "failed to get default input config for '{}'",
             input.device_id.0
         )
     })?;
-    let supported_ranges = device
-        .supported_input_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate input configs for '{}'",
-                input.device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
+    let supported_ranges = cfg.supported;
     let required_channels = crate::required_channel_count(&input.channels);
     let supported = crate::select_supported_stream_config(
         &default_config,
@@ -219,21 +214,17 @@ pub(crate) fn resolve_output_device_for_chain_output(
             output.device_id.0
         )
     })?;
-    let default_config = device.default_output_config().with_context(|| {
-        format!(
+    // #762: cached CoreAudio query — avoid re-probing on every live sync.
+    let cfg = crate::device_config_cache::configs_for(&device, false).with_context(|| {
+        format!("failed to query output configs for '{}'", output.device_id.0)
+    })?;
+    let default_config = cfg.default.ok_or_else(|| {
+        anyhow!(
             "failed to get default output config for '{}'",
             output.device_id.0
         )
     })?;
-    let supported_ranges = device
-        .supported_output_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate output configs for '{}'",
-                output.device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
+    let supported_ranges = cfg.supported;
     let required_channels = crate::required_channel_count(&output.channels);
     let supported = crate::select_supported_stream_config(
         &default_config,

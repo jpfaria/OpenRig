@@ -597,6 +597,14 @@ impl ProjectRuntimeController {
                 if self.schedule_chain_activation(project, chain)? {
                     continue;
                 }
+                // #762: an already-streaming chain whose IO is unchanged (a
+                // block/model/preset edit or a re-sync) must rebuild OFF the
+                // GUI thread (#672), never load NAM synchronously on the caller.
+                // Only a real re-bind (IO changed) falls through to the
+                // synchronous stream rebuild below.
+                if self.request_offthread_rebuild_if_live(project, chain)? {
+                    continue;
+                }
                 let resolved = match resolved_chains.remove(&chain.id) {
                     Some(resolved) => resolved,
                     None => {

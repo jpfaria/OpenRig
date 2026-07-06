@@ -21,6 +21,9 @@
 )]
 mod jack_supervisor;
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod device_config_cache;
+
 mod host;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -59,7 +62,6 @@ pub use control_worker::ControlWorker;
 
 mod live_runtime;
 pub use live_runtime::LiveRuntimeSlot;
-pub(crate) use live_runtime::OutputSlotList;
 
 mod build_request;
 pub use build_request::{build_chain_runtime, BuildRequest};
