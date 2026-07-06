@@ -1,6 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
-import { CompactBlockItem, BlockTypePickerItem, BlockModelPickerItem, ChainRigNav, StreamMeter, ChainBlockItem } from "../models.slint";
-import { DiStreamGraph } from "../components/di_stream_graph.slint";
+import { CompactBlockItem, BlockTypePickerItem, BlockModelPickerItem, ChainRigNav, StreamMeter } from "../models.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
 import { CompactBlockRow } from "compact_block_row.slint";
 import { CompactChainViewHeader } from "compact_chain_view_header.slint";
@@ -38,11 +37,8 @@ export component CompactChainViewPage inherits Rectangle {
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
     in property <int> di-loop-selected-index: -1;
-    // #717: dedicated DI-stream graph — the DI's own blocks + live meters,
-    // shown while the DI plays. Isolated from the guitar stream.
-    in property <[ChainBlockItem]> di-graph-blocks: [];
+    // #717: the DI stream's own INPUT/OUTPUT meter, shown while the DI plays.
     in property <StreamMeter> di-graph-meter;
-    in property <string> di-graph-output-label;
 
     in property <bool> chain-enabled;
     callback toggle-chain-enabled(int);
@@ -140,7 +136,8 @@ export component CompactChainViewPage inherits Rectangle {
     // Footer reservation: one 22 px row per stream meter (multi-input
     // chains stack), minimum one row so the IN/OUT pair always fits.
     property <int> meter-row-count:
-        root.stream-meters.length > 0 ? root.stream-meters.length : 1;
+        (root.stream-meters.length > 0 ? root.stream-meters.length : 1)
+        + (root.di-loop-playing ? 1 : 0);
     property <length> meter-footer-height: root.meter-row-count * 22px + 6px;
 
     // Block rows with insert slots between them
@@ -407,18 +404,8 @@ export component CompactChainViewPage inherits Rectangle {
         stream-meters: root.stream-meters;
         meter-in-dbfs: root.meter-in-dbfs;
         meter-out-dbfs: root.meter-out-dbfs;
-    }
-
-    // #717: the dedicated DI-stream graph — the DI's own IN → blocks → OUT with
-    // its isolated live meters. Floats above the meter footer while the DI
-    // plays; disappears on stop. Makes the isolation visible: two graphs, two
-    // meter sets.
-    if root.di-loop-playing : di-graph := DiStreamGraph {
-        x: 16px;
-        y: root.height - self.height - 96px;
-        width: root.width - 32px;
-        blocks: root.di-graph-blocks;
-        output-label: root.di-graph-output-label;
-        meter: root.di-graph-meter;
+        // #717: the DI's own IN/OUT meter shows as one more row here while it plays.
+        di-playing: root.di-loop-playing;
+        di-meter: root.di-graph-meter;
     }
 }

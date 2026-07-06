@@ -516,14 +516,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                         // compact panel opens with nothing picked and hides the
                         // play/stop button.
                         cw.set_di_loop_selected_index(row.di_loop_selected_index);
-                        // #717: feed the dedicated DI-stream graph — the DI's own
-                        // blocks + output label + meter. While the DI plays via
-                        // injection the chain's meter IS the DI signal, so it
-                        // reads the same row levels (swaps to the isolated
-                        // runtime's own tap once the dedicated output routing
-                        // lands).
-                        cw.set_di_graph_blocks(row.blocks.clone());
-                        cw.set_di_graph_output_label(row.output_label.clone());
+                        // #717: feed the DI stream's own INPUT/OUTPUT meter. While
+                        // the DI plays via the chain path, the chain meter IS the
+                        // DI signal, so it reads the same row levels.
                         cw.set_di_graph_meter(crate::StreamMeter {
                             in_dbfs: row.meter_in_dbfs,
                             out_dbfs: row.meter_out_dbfs,
