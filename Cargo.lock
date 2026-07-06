@@ -87,7 +87,6 @@ dependencies = [
  "sys-locale",
  "tempfile",
  "ui-openrig",
- "vst3-proc",
  "webbrowser",
 ]
 

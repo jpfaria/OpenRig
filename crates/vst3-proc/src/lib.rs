@@ -468,17 +468,20 @@ pub fn set_child_bin(path: PathBuf) {
     *CHILD_BIN.lock().unwrap() = Some(path);
 }
 
-fn child_bin() -> PathBuf {
+fn child_bin() -> Result<PathBuf> {
     if let Some(p) = CHILD_BIN.lock().unwrap().clone() {
-        return p;
+        return Ok(p);
     }
-    // Prefer the lean standalone `openrig-vst3-proc` if it is installed next to
-    // the app; otherwise re-execute THIS binary in child mode (`maybe_run_child`),
-    // which is always available — so there is nothing to build or bundle.
-    if let Some(installed) = find_installed_child_bin() {
-        return installed;
-    }
-    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("openrig-vst3-proc"))
+    // The child MUST be the lean standalone `openrig-vst3-proc`. Re-executing the
+    // GUI app is not viable: its dylibs bring up NSApplication at load, which is
+    // exactly what breaks JUCE `createInstance` (#251) — verified to SIGABRT.
+    find_installed_child_bin().ok_or_else(|| {
+        anyhow::anyhow!(
+            "out-of-process VST3 host 'openrig-vst3-proc' not found next to the app; \
+             build it with `cargo build --release --bin openrig-vst3-proc` (or bundle \
+             it beside the app binary)"
+        )
+    })
 }
 
 struct Host {
@@ -613,7 +616,7 @@ pub fn acquire(
             let shm = std::env::temp_dir()
                 .join(format!("openrig-vst3-{}-{}.shm", std::process::id(), id));
             let client = Vst3ProcClient::spawn(
-                &child_bin(),
+                &child_bin()?,
                 &shm,
                 bundle,
                 uid,
