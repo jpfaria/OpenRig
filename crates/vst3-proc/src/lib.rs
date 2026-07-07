@@ -325,6 +325,58 @@ fn run_child_from_args(args: &[String]) -> Result<()> {
 }
 
 /// The host loop: map the shared region, lazily create instances, and service
+/// Promote THIS thread to the macOS realtime (time-constraint) class, mirroring
+/// the audio `dsp_worker` (#670/#698). The out-of-process host child must be RT:
+/// the parent's dsp_worker is RT-promoted and busy-spins in `process()` waiting
+/// for us, so if we stay a normal SCHED_OTHER thread the kernel deprioritizes us
+/// under load and the RT worker spins on a descheduled child — priority
+/// inversion → a flood of underruns (#251 × #760). We can't join the parent's
+/// audio workgroup from another process, but RT scheduling alone removes the
+/// inversion.
+#[cfg(target_os = "macos")]
+fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
+    #[repr(C)]
+    struct Timebase {
+        numer: u32,
+        denom: u32,
+    }
+    #[repr(C)]
+    struct TimeConstraint {
+        period: u32,
+        computation: u32,
+        constraint: u32,
+        preemptible: u32,
+    }
+    extern "C" {
+        fn mach_thread_self() -> u32;
+        fn mach_timebase_info(info: *mut Timebase) -> i32;
+        fn thread_policy_set(thread: u32, flavor: i32, policy: *const u32, count: u32) -> i32;
+    }
+    const THREAD_TIME_CONSTRAINT_POLICY: i32 = 2;
+    unsafe {
+        let mut tb = Timebase { numer: 0, denom: 0 };
+        if mach_timebase_info(&mut tb) != 0 || tb.numer == 0 {
+            return;
+        }
+        let to_mach = |ns: u64| ((ns as u128 * tb.denom as u128) / tb.numer as u128) as u32;
+        let policy = TimeConstraint {
+            period: to_mach(period_ns),
+            computation: to_mach(computation_ns.min(period_ns * 85 / 100)),
+            constraint: to_mach(period_ns),
+            preemptible: 1,
+        };
+        thread_policy_set(
+            mach_thread_self(),
+            THREAD_TIME_CONSTRAINT_POLICY,
+            &policy as *const _ as *const u32,
+            4,
+        );
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn promote_to_audio_rt(_period_ns: u64, _computation_ns: u64) {}
+
 /// each slot's request/done handshake and param ring. Blocks until shutdown.
 pub fn run_child(
     shm_path: &Path,
@@ -348,6 +400,12 @@ pub fn run_child(
 
     let cap = n.min(MAX_INSTANCES);
     let mut procs: Vec<Option<StereoVst3Processor>> = (0..cap).map(|_| None).collect();
+
+    // Match the audio callback's cadence so the kernel schedules us in lockstep
+    // with the RT worker that spins on us (period = block/sr).
+    let period_ns = ((block_size as f64 / sample_rate) * 1e9) as u64;
+    promote_to_audio_rt(period_ns, period_ns * 85 / 100);
+
     shared.ready.store(1, Ordering::SeqCst);
 
     let mut last_done = vec![0u64; cap];
