@@ -516,13 +516,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                         // compact panel opens with nothing picked and hides the
                         // play/stop button.
                         cw.set_di_loop_selected_index(row.di_loop_selected_index);
-                        // #717: feed the DI stream's own INPUT/OUTPUT meter. While
-                        // the DI plays via the chain path, the chain meter IS the
-                        // DI signal, so it reads the same row levels.
-                        cw.set_di_graph_meter(crate::StreamMeter {
-                            in_dbfs: row.meter_in_dbfs,
-                            out_dbfs: row.meter_out_dbfs,
-                        });
+                        // #771: the DI meter row shows the isolated playback's
+                        // OWN levels (row.di_meter, fed from di_playback_peaks)
+                        // — never a mirror of the chain meters.
+                        cw.set_di_graph_meter(row.di_meter);
                     }
                     if let Some(nav) = nav_model.row_data(ci) {
                         cw.set_rig_nav(nav);

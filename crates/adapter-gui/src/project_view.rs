@@ -5,10 +5,10 @@ use crate::block_editor::{
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::state::SelectedBlock;
 use crate::ui_state::{chain_io_chip_label_from_bindings, chain_routing_summary};
-use infra_filesystem::IoBinding;
 use crate::AppWindow;
 use crate::{BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem, ProjectChainItem};
 use infra_cpal::AudioDeviceDescriptor;
+use infra_filesystem::IoBinding;
 use project::block::AudioBlockKind;
 use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
 use project::chain::Chain;
@@ -457,8 +457,7 @@ pub(crate) fn replace_project_chains(
                     }
                 },
                 input_label: {
-                    let binding_name =
-                        chain_io_chip_label_from_bindings(chain, io_bindings, true);
+                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, true);
                     if binding_name.is_empty() {
                         // #716: device endpoints resolve from the binding
                         // registry (never from block `entries`).
@@ -476,8 +475,7 @@ pub(crate) fn replace_project_chains(
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices, io_bindings)
                     .into(),
                 output_label: {
-                    let binding_name =
-                        chain_io_chip_label_from_bindings(chain, io_bindings, false);
+                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, false);
                     if binding_name.is_empty() {
                         // #716: device endpoints resolve from the binding
                         // registry (never from block `entries`).
@@ -500,6 +498,12 @@ pub(crate) fn replace_project_chains(
                 // timer subscribes & polls (engine::output_meter).
                 meter_in_dbfs: engine::output_meter::SILENT_DBFS,
                 meter_out_dbfs: engine::output_meter::SILENT_DBFS,
+                // #771: the DI meter row starts silent; the timer fills it
+                // from the isolated playback's own peaks while the DI plays.
+                di_meter: crate::StreamMeter {
+                    in_dbfs: engine::output_meter::SILENT_DBFS,
+                    out_dbfs: engine::output_meter::SILENT_DBFS,
+                },
                 // Issue #670: no overload until the meter timer observes
                 // xruns from the running audio callback.
                 audio_overload: false,

@@ -556,6 +556,14 @@ pub fn start_meter_polling(
             // di_stream_active — not the (removed) guitar-runtime injection.
             let di_playing_now = controller.di_stream_active(&cid);
             let di_changed = row.di_loop_playing != di_playing_now;
+            // #771: the DI meter row reads the isolated playback's OWN peaks
+            // (maintained by the output callback's mix) — not the chain's.
+            let di_meter_now = crate::di_meter::di_meter_from_peaks(
+                controller.di_playback_peaks(&cid),
+                di_playing_now,
+            );
+            let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
+                || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
             // #661: re-derive the loaded source from the dispatcher so the
             // popup ComboBox (a) lists a user-chosen File as a labelled entry
             // and (b) highlights the active source when reopened (the popup is
@@ -588,7 +596,9 @@ pub fn start_meter_polling(
             let overloaded = chain_overloaded(prev_xruns, cur_xruns)
                 || chain_overloaded(prev_underruns, cur_underruns);
             last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
-            last_underruns.borrow_mut().insert(cid.clone(), cur_underruns);
+            last_underruns
+                .borrow_mut()
+                .insert(cid.clone(), cur_underruns);
             // One concise warning only on the transition INTO overload (not
             // every event) so it never spams the log.
             if overloaded && !row.audio_overload {
@@ -604,6 +614,7 @@ pub fn start_meter_polling(
             if aggregate_changed
                 || stream_meters_changed
                 || di_changed
+                || di_meter_changed
                 || di_selected_changed
                 || di_sources_changed
                 || overload_changed
@@ -615,6 +626,9 @@ pub fn start_meter_polling(
                 }
                 if di_changed {
                     row.di_loop_playing = di_playing_now;
+                }
+                if di_meter_changed {
+                    row.di_meter = di_meter_now;
                 }
                 if di_sources_changed {
                     row.di_loop_sources =
