@@ -113,13 +113,24 @@ fn armed_loop_len_at(device_sr: u32, wav: &Path) -> usize {
     // Arm it: the arm path resamples the source to the runtime's device rate.
     adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
 
-    let len = controller
-        .borrow()
-        .as_ref()
-        .expect("controller")
-        .chain_di_loop_len(&chain_id)
-        .expect("a DI loop must be armed");
-    len
+    // #771: the audible loop is the isolated pre-rendered playback; it parks
+    // off-thread, so poll its length (rendered at the resolved output rate).
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let len = controller
+            .borrow()
+            .as_ref()
+            .expect("controller")
+            .di_stream_loop_len(&chain_id);
+        if let Some(len) = len {
+            return len;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "a DI loop must be armed (render never parked)"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
 }
 
 #[test]

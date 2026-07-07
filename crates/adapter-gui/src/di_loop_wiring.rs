@@ -88,7 +88,9 @@ pub fn di_loop_commands(chain: ChainId, intent: DiLoopIntent) -> Vec<Command> {
             chain,
             enabled: false,
         }],
-        DiLoopIntent::SelectSource { source } => vec![Command::SetChainDiLoopSource { chain, source }],
+        DiLoopIntent::SelectSource { source } => {
+            vec![Command::SetChainDiLoopSource { chain, source }]
+        }
     }
 }
 
@@ -115,12 +117,10 @@ pub fn handle_chain_di_loop_enabled_changed(
     };
 
     if let Some(rt) = project_runtime.borrow().as_ref() {
-        // Sound: the DI is carried by the chain's normal path (clean, no drift).
-        rt.set_chain_di_loop(chain, if enabled { arc_opt.clone() } else { None });
-        // #717: also drive the dedicated, isolated runtime — the DI graph + its
-        // own meters read from it. (Draining it straight onto the device drifts;
-        // a pre-rendered, output-clocked player is the follow-up for true audio
-        // isolation.)
+        // #771: the DI plays ONLY on its isolated pre-rendered stream —
+        // arm resolves the chain's chosen output, renders the loop through a
+        // copy of the block graph off-thread, and the output callback plays
+        // it at its own cursor. The guitar runtime is never touched.
         match (enabled, dispatcher.chain_snapshot(chain), arc_opt) {
             (true, Some(chain_def), Some(pcm)) => {
                 let _ = rt.arm_di_stream(&chain_def, pcm);
@@ -200,18 +200,15 @@ pub fn sync_engine_sr_from_runtime(
     }
     if let Some(runtime) = project_runtime.borrow().as_ref() {
         for chain in rebuilt {
-            // Re-arm the AUDIBLE loop (chain path) at the new rate so a playing
-            // loop never drags into slow motion on a device-rate change (#669).
-            if runtime.chain_has_di_loop(&chain) {
-                runtime.set_chain_di_loop(&chain, dispatcher.di_loop_for_chain(&chain));
-            }
-            // …and rebuild the DEDICATED runtime (graph/meters) at the new rate.
+            // #771: re-arm the isolated DI stream at the new rate — arm
+            // re-resolves the chosen output's rate and re-renders, so a
+            // playing loop never drags into slow motion on a device-rate
+            // change (#669).
             if runtime.di_stream_active(&chain) {
                 if let (Some(chain_def), Some(pcm)) = (
                     dispatcher.chain_snapshot(&chain),
                     dispatcher.di_loop_for_chain(&chain),
                 ) {
-                    runtime.disarm_di_stream(&chain);
                     let _ = runtime.arm_di_stream(&chain_def, pcm);
                 }
             }
