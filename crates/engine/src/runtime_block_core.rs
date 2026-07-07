@@ -301,10 +301,17 @@ pub(crate) fn build_core_block_runtime_node(
                     Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
                 })
                 .collect();
-            // Load the plugin once so we can extract the controller and library
-            // Arc before building the processor. This allows the GUI to reuse
-            // the same IEditController instead of creating a second instance
-            // (which fails for plugins like ValhallaSupermassive).
+            // VST3 loads IN-PROCESS, like LV2. The `createInstance -1` that once
+            // looked like a JUCE multi-instance/NSApp limitation was actually a
+            // wrong-class uid (the controller instead of the Audio Module class),
+            // fixed in `resolve_uid_for_model`. With the right uid, many JUCE
+            // instances instantiate in-process under a live NSApp with no trouble
+            // (proven by the `bg-concurrent-4` repro), so no out-of-process host
+            // is needed (#251).
+            //
+            // Load once so we can share the controller + library Arc with the
+            // native editor (it reuses the same IEditController instead of
+            // creating a second instance).
             const VST3_BLOCK_SIZE: usize = 512;
             let plugin = vst3_host::Vst3Plugin::load(
                 &bundle_path,
@@ -315,14 +322,11 @@ pub(crate) fn build_core_block_runtime_node(
                 &vst3_params,
             )
             .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
-            // Register GUI context: shared controller + library Arc + param channel.
             let param_channel = vst3_host::register_vst3_gui_context(
                 model,
                 plugin.controller_clone(),
                 plugin.library_arc(),
             );
-            // Wrap in Option so we can move the plugin out of the FnMut closure
-            // (VST3 MonoToStereo schema guarantees the closure is called exactly once).
             let mut plugin_opt = Some(plugin);
             Ok(audio_block_runtime_node(
                 block,

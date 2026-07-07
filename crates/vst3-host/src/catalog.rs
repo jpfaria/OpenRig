@@ -167,28 +167,42 @@ pub fn resolve_uid_for_model(model_id: &str) -> anyhow::Result<[u8; 16]> {
         )
     })?;
 
-    // Cache all classes from this bundle.
+    // Pick the AUDIO MODULE CLASS (the IComponent audio processor) for a given
+    // class name. A plugin can expose several factory classes sharing the SAME
+    // name — e.g. ValhallaSupermassive ships both an "Audio Module Class" and a
+    // "Component Controller Class". Only the Audio Module Class implements
+    // IComponent; instantiating any other with IComponent returns kNoInterface
+    // (-1) and the block faults into bypass (#251). Fall back to a name-only
+    // match if the plugin doesn't tag categories.
+    let pick_uid = |name: &str| -> Option<[u8; 16]> {
+        classes
+            .iter()
+            .find(|c| c.name == name && c.category.contains("Audio Module Class"))
+            .or_else(|| classes.iter().find(|c| c.name == name))
+            .map(|c| c.uid)
+    };
+
+    // Cache the Audio-Module uid per distinct class name, so a same-named
+    // controller (enumerated later) can never overwrite the processor's uid —
+    // that overwrite is what made the 2nd+ resolve return the wrong class.
     let mut cache = uid_cache().lock().unwrap();
     let by_class = cache.entry(bundle_path.clone()).or_default();
     for cls in &classes {
-        by_class.insert(cls.name.clone(), cls.uid);
+        if let Some(uid) = pick_uid(&cls.name) {
+            by_class.insert(cls.name.clone(), uid);
+        }
     }
 
-    // Find the matching class.
-    classes
-        .iter()
-        .find(|c| c.name == class_name)
-        .map(|c| c.uid)
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "class '{}' not found in bundle {} (found: {})",
-                class_name,
-                bundle_path.display(),
-                classes
-                    .iter()
-                    .map(|c| c.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        })
+    pick_uid(class_name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "class '{}' not found in bundle {} (found: {})",
+            class_name,
+            bundle_path.display(),
+            classes
+                .iter()
+                .map(|c| c.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    })
 }

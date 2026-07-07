@@ -25,6 +25,7 @@ pub mod catalog;
 pub mod component_handler;
 pub mod discovery;
 pub mod editor;
+pub mod host_application;
 mod host;
 mod host_factory;
 mod host_utils;

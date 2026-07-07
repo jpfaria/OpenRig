@@ -17,7 +17,14 @@ use crate::component_handler::ComponentHandler;
 use crate::host::Vst3Plugin;
 use crate::param_registry::Vst3GuiContext;
 
-impl block_core::PluginEditorHandle for Vst3EditorHandle {}
+impl block_core::PluginEditorHandle for Vst3EditorHandle {
+    fn focus(&self) {
+        // Re-open request for an editor we still hold: bring its window back to
+        // the front instead of creating a second plugin instance.
+        #[cfg(target_os = "macos")]
+        self._ns_window.focus();
+    }
+}
 
 /// Handle to an open VST3 editor window.
 ///
@@ -36,6 +43,15 @@ pub struct Vst3EditorHandle {
     _standalone_plugin: Option<Box<Vst3Plugin>>,
     #[cfg(target_os = "macos")]
     _ns_window: macos::OwnedNsWindow,
+}
+
+impl Vst3EditorHandle {
+    /// Bring the editor window back to the front (e.g. a re-open request after
+    /// the user closed/hid it).
+    #[cfg(target_os = "macos")]
+    pub fn focus(&self) {
+        self._ns_window.focus();
+    }
 }
 
 impl Drop for Vst3EditorHandle {
@@ -360,6 +376,14 @@ mod macos {
     impl OwnedNsWindow {
         pub fn content_view(&self) -> *mut c_void {
             unsafe { msg0!(self.0, sel("contentView")) }
+        }
+
+        /// Bring an already-created window back to the front (re-open request).
+        pub fn focus(&self) {
+            unsafe {
+                msg1v!(self.0, sel("makeKeyAndOrderFront:"), std::ptr::null_mut());
+                msg0!(self.0, sel("orderFront:"));
+            }
         }
 
         pub fn show(&self, title: &str) {

@@ -156,8 +156,8 @@ pub fn run_desktop_app(
         plugin_loader::registry::len() - plugin_loader::registry::native_count(),
     );
     // Open VST3 editor handles (kept alive so the OS window stays open).
-    let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
-        Rc::new(RefCell::new(Vec::new()));
+    let vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>> =
+        Rc::new(RefCell::new(project::vst3_editor::Vst3EditorRegistry::new()));
     let vst3_editor_handles_for_on_open = vst3_editor_handles.clone();
     // Scan system VST3 paths in a background thread so startup isn't blocked.
     // The catalog is available before any project is opened.

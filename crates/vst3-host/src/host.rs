@@ -14,13 +14,128 @@ use vst3::Steinberg::Vst::{
     IParameterChanges, MediaTypes_, ParameterInfo, ProcessData, ProcessSetup, SpeakerArr,
     SymbolicSampleSizes_,
 };
+use vst3::Steinberg::Vst::IHostApplication;
 use vst3::Steinberg::{
-    kResultOk, IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool, TUID,
+    kResultOk, FUnknown, IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool,
+    TUID,
 };
 use vst3::{ComPtr, ComWrapper, Interface};
 
+use crate::host_application::HostApplication;
+
 use crate::host_utils::{bundle_binary_path, char16_array_to_string, tuid_to_bytes};
 use crate::param_changes::HostParameterChanges;
+
+// ---------------------------------------------------------------------------
+// macOS VST3 module lifecycle (bundleEntry / bundleExit)
+// ---------------------------------------------------------------------------
+//
+// The VST3 spec REQUIRES calling the bundle's `bundleEntry(CFBundleRef)` before
+// using its factory on macOS, and `bundleExit()` when done. We used to skip it
+// (plain `dlopen` + `GetPluginFactory`), which works when nothing else runs,
+// but plugins that initialise a GUI/message runtime on entry fail their first
+// `createInstance` (result=-1) once the host process already runs an event loop
+// — i.e. inside the app but not in a headless test (#251). Calling `bundleEntry`
+// on the loading thread (never the main thread) initialises the module cleanly.
+#[cfg(target_os = "macos")]
+mod cf {
+    use std::ffi::c_void;
+
+    pub type CFTypeRef = *mut c_void;
+    pub type CFAllocatorRef = *mut c_void;
+    pub type CFURLRef = *mut c_void;
+    pub type CFBundleRef = *mut c_void;
+
+    pub type CFStringRef = *mut c_void;
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        pub fn CFURLCreateFromFileSystemRepresentation(
+            allocator: CFAllocatorRef,
+            buffer: *const u8,
+            buf_len: isize,
+            is_directory: u8,
+        ) -> CFURLRef;
+        pub fn CFBundleCreate(allocator: CFAllocatorRef, url: CFURLRef) -> CFBundleRef;
+        pub fn CFBundleGetFunctionPointerForName(
+            bundle: CFBundleRef,
+            function_name: CFStringRef,
+        ) -> *mut c_void;
+        pub fn CFStringCreateWithCString(
+            allocator: CFAllocatorRef,
+            c_str: *const std::os::raw::c_char,
+            encoding: u32,
+        ) -> CFStringRef;
+        pub fn CFRelease(cf: CFTypeRef);
+    }
+
+    pub const K_CFSTRING_ENCODING_UTF8: u32 = 0x0800_0100;
+
+    /// Resolve an exported module function (e.g. `bundleEntry`) via the bundle,
+    /// which is how VST3 macOS modules expose them (not always via dlsym).
+    pub unsafe fn bundle_fn(bundle: CFBundleRef, name: &std::ffi::CStr) -> *mut c_void {
+        let cfname =
+            CFStringCreateWithCString(std::ptr::null_mut(), name.as_ptr(), K_CFSTRING_ENCODING_UTF8);
+        if cfname.is_null() {
+            return std::ptr::null_mut();
+        }
+        let p = CFBundleGetFunctionPointerForName(bundle, cfname);
+        CFRelease(cfname);
+        p
+    }
+
+    /// `bool bundleEntry(CFBundleRef)` exported by the plugin binary.
+    pub type BundleEntryFn = unsafe extern "C" fn(CFBundleRef) -> bool;
+    /// `bool bundleExit(void)` exported by the plugin binary.
+    pub type BundleExitFn = unsafe extern "C" fn() -> bool;
+
+    /// A retained `CFBundleRef`. `Vst3Plugin` already guarantees single-owner,
+    /// non-concurrent use (see its `Send` note); the ref is only touched on
+    /// load and drop, so wrapping it Send+Sync is sound.
+    pub struct OwnedBundle(pub CFBundleRef);
+    unsafe impl Send for OwnedBundle {}
+    unsafe impl Sync for OwnedBundle {}
+}
+
+/// Create the `CFBundleRef` for the `.vst3` and run its `bundleEntry`, so the
+/// module is initialised per the VST3 macOS spec. Returns the (retained) bundle
+/// ref, kept alive for the plugin's lifetime and released via `bundleExit` +
+/// `CFRelease` on drop. Runs on the caller's (stream/rebuild) thread.
+#[cfg(target_os = "macos")]
+unsafe fn run_bundle_entry(bundle_path: &Path) -> Result<cf::OwnedBundle> {
+    use std::os::unix::ffi::OsStrExt;
+    let path_bytes = bundle_path.as_os_str().as_bytes();
+    let url = cf::CFURLCreateFromFileSystemRepresentation(
+        ptr::null_mut(),
+        path_bytes.as_ptr(),
+        path_bytes.len() as isize,
+        1, // isDirectory: a .vst3 bundle is a directory
+    );
+    if url.is_null() {
+        bail!("CFURLCreateFromFileSystemRepresentation failed for {}", bundle_path.display());
+    }
+    let bundle = cf::CFBundleCreate(ptr::null_mut(), url);
+    cf::CFRelease(url);
+    if bundle.is_null() {
+        bail!("CFBundleCreate failed for {}", bundle_path.display());
+    }
+    // `bundleEntry` is exposed via the bundle on macOS (not reliably via dlsym).
+    // Skipping it is why plugins that spin up a GUI/message runtime fail their
+    // first createInstance once the host process runs an event loop (#251).
+    let entry_ptr = cf::bundle_fn(bundle, c"bundleEntry");
+    if entry_ptr.is_null() {
+        log::warn!("VST3 bundleEntry not found on bundle");
+    } else {
+        let entry: cf::BundleEntryFn = std::mem::transmute(entry_ptr);
+        let ok = entry(bundle);
+        log::debug!("VST3 bundleEntry called -> {ok}");
+        if !ok {
+            cf::CFRelease(bundle);
+            bail!("VST3 bundleEntry returned false");
+        }
+    }
+    Ok(cf::OwnedBundle(bundle))
+}
 
 // ---------------------------------------------------------------------------
 // Public data types
@@ -83,6 +198,16 @@ pub struct Vst3Plugin {
 
     /// Internal block size.
     block_size: usize,
+
+    /// The host context passed to `initialize`; kept alive so the plugin can
+    /// hold a reference to it for its whole lifetime.
+    _host_app: ComWrapper<HostApplication>,
+
+    /// The `CFBundleRef` whose `bundleEntry` initialised this module (macOS).
+    /// Kept alive for the plugin's lifetime; released via `bundleExit` +
+    /// `CFRelease` on drop.
+    #[cfg(target_os = "macos")]
+    cf_bundle: cf::OwnedBundle,
 }
 
 // Safety: VST3 plugins must only be used on the audio thread. The owner
@@ -121,6 +246,12 @@ impl Vst3Plugin {
                 format!("failed to dlopen VST3 binary: {}", binary_path.display())
             })?,
         );
+
+        // 2b. macOS: run the module's `bundleEntry` (VST3 spec) so GUI/message
+        // runtimes initialise before `createInstance`. On the loading thread —
+        // never the main thread.
+        #[cfg(target_os = "macos")]
+        let cf_bundle = unsafe { run_bundle_entry(bundle_path)? };
 
         // 3. Get the GetPluginFactory symbol.
         // Safety: the symbol must exist and have the correct signature. This is
@@ -173,9 +304,17 @@ impl Vst3Plugin {
         let component: ComPtr<IComponent> =
             unsafe { ComPtr::from_raw_unchecked(component_raw as *mut IComponent) };
 
-        // 6. Initialize IComponent (IPluginBase::initialize).
-        // We pass null as the host context — most plugins accept this.
-        let res = unsafe { component.initialize(ptr::null_mut()) };
+        // 6. Initialize IComponent (IPluginBase::initialize) with a real host
+        // context (IHostApplication). Passing null makes JUCE-based plugins grab
+        // the process NSApplication themselves, which breaks the *second*
+        // createInstance in the app (#251). The context is kept alive for the
+        // plugin's lifetime in `_host_app`.
+        let host_app = HostApplication::new();
+        let host_ctx: *mut FUnknown = host_app
+            .as_com_ref::<IHostApplication>()
+            .map(|r| r.as_ptr() as *mut FUnknown)
+            .unwrap_or(ptr::null_mut());
+        let res = unsafe { component.initialize(host_ctx) };
         if res != kResultOk {
             log::warn!("IComponent::initialize returned {} (non-fatal)", res);
         }
@@ -305,7 +444,7 @@ impl Vst3Plugin {
             let ctrl: ComPtr<IEditController> =
                 unsafe { ComPtr::from_raw_unchecked(ctrl_raw as *mut IEditController) };
 
-            let res = unsafe { ctrl.initialize(ptr::null_mut()) };
+            let res = unsafe { ctrl.initialize(host_ctx) };
             if res != kResultOk {
                 log::warn!("IEditController::initialize returned {} (non-fatal)", res);
             }
@@ -359,6 +498,9 @@ impl Vst3Plugin {
             num_input_channels,
             num_output_channels,
             block_size,
+            _host_app: host_app,
+            #[cfg(target_os = "macos")]
+            cf_bundle,
         })
     }
 
@@ -536,6 +678,20 @@ impl Drop for Vst3Plugin {
                 let _ = self.controller.terminate();
             }
             let _ = self.component.terminate();
+
+            // macOS: balance run_bundle_entry — exit the module (before the
+            // library is dlclose'd by the Arc drop) and release the CFBundle.
+            #[cfg(target_os = "macos")]
+            {
+                if !self.cf_bundle.0.is_null() {
+                    let exit_ptr = cf::bundle_fn(self.cf_bundle.0, c"bundleExit");
+                    if !exit_ptr.is_null() {
+                        let exit: cf::BundleExitFn = std::mem::transmute(exit_ptr);
+                        let _ = exit();
+                    }
+                    cf::CFRelease(self.cf_bundle.0);
+                }
+            }
         }
         log::debug!("VST3: plugin instance dropped");
     }
