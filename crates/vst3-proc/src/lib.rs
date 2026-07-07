@@ -1027,3 +1027,31 @@ mod rt_promotion_tests {
         .unwrap();
     }
 }
+
+#[cfg(test)]
+mod editor_registry_tests {
+    use super::*;
+
+    // #251: request_open_editor must set the child's `open_editor` shm flag for a
+    // registered plugin key, return true, and be a no-op (false) for an unknown
+    // key. This is the deterministic core of the GUI "open plugin" wiring.
+    #[test]
+    fn request_open_editor_sets_flag_only_for_registered_key() {
+        // Anonymous shared-memory region shaped like the child protocol.
+        let map = std::sync::Arc::new(memmap2::MmapMut::map_anon(shared_size()).unwrap());
+        let base = map.as_ptr() as *mut u8;
+        let shared = unsafe { Shared::from_ptr(base) };
+        shared.slots[0].open_editor.store(0, Ordering::SeqCst);
+
+        let key = "vst3:test:issue_251_registry";
+        register_editor(key, EditorOpener { map: map.clone(), base: SendPtr(base) });
+
+        // Unknown key: false, and our flag stays clear.
+        assert!(!request_open_editor("vst3:test:not_registered"));
+        assert_eq!(shared.slots[0].open_editor.load(Ordering::SeqCst), 0);
+
+        // Registered key: true, and the child's open-editor flag is raised.
+        assert!(request_open_editor(key));
+        assert_eq!(shared.slots[0].open_editor.load(Ordering::SeqCst), 1);
+    }
+}
