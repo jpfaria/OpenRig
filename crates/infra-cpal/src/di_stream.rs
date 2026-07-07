@@ -120,6 +120,10 @@ impl ProjectRuntimeController {
         let dest_left = dest.first().copied().unwrap_or(0);
         let dest_right = dest.get(1).copied().unwrap_or(dest_left);
 
+        log::info!(
+            "[#771-probe] arm: chain='{}' output_index={} output_rate={} dest=({},{})",
+            chain.id.0, output_index, output_rate, dest_left, dest_right
+        );
         let cell = self.di_playback_cell(&chain.id, output_index);
         let armed = Arc::new(Mutex::new(true));
         let failed = Arc::new(AtomicBool::new(false));

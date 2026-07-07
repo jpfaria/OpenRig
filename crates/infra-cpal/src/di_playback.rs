@@ -78,6 +78,11 @@ impl DiPlayback {
 /// wide). Pops whole frames only (no L/R skew); an under-filled ring leaves
 /// the remaining frames untouched (the worker is catching up). No-op when
 /// the cell is empty. Runs on the output audio callback — zero alloc/lock.
+/// [#771-probe] TEMP diagnostics — relaxed counters, RT-safe; removed once
+/// the live distortion is root-caused.
+pub static MIX_WANTED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static MIX_POPPED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 pub(crate) fn mix_di_playback(
     cell: &DiPlaybackCell,
     out: &mut [f32],
@@ -91,6 +96,10 @@ pub(crate) fn mix_di_playback(
         return;
     }
     let mut out_peak = 0.0f32;
+    MIX_WANTED.fetch_add(
+        (out.len() / output_total_channels) as u64,
+        Ordering::Relaxed,
+    );
     for frame in out.chunks_mut(output_total_channels) {
         // A whole frame (2 samples) or stop — the producer pushes whole
         // frames, so fewer than 2 readable samples means "mid-push"; leave
@@ -101,6 +110,7 @@ pub(crate) fn mix_di_playback(
         let (Some(l), Some(r)) = (playback.ring.pop(), playback.ring.pop()) else {
             break;
         };
+        MIX_POPPED.fetch_add(1, Ordering::Relaxed);
         out_peak = out_peak.max(l.abs()).max(r.abs());
         if let Some(s) = frame.get_mut(playback.dest_left) {
             *s = output_limiter(*s + l);

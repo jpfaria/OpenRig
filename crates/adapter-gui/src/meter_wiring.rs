@@ -555,6 +555,35 @@ pub fn start_meter_polling(
             // The DI now plays on its own dedicated stream, so "playing" is
             // di_stream_active — not the (removed) guitar-runtime injection.
             let di_playing_now = controller.di_stream_active(&cid);
+            // [#771-probe] TEMP: surface the DI stream's real numbers once a
+            // second while playing (off the audio thread; removed once the
+            // in-app distortion is root-caused).
+            if di_playing_now {
+                use std::sync::atomic::{AtomicU64, Ordering};
+                static LAST: AtomicU64 = AtomicU64::new(0);
+                static LAST_W: AtomicU64 = AtomicU64::new(0);
+                static LAST_P: AtomicU64 = AtomicU64::new(0);
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                if LAST.swap(now, Ordering::Relaxed) != now {
+                    let w = infra_cpal::MIX_WANTED.load(Ordering::Relaxed);
+                    let p = infra_cpal::MIX_POPPED.load(Ordering::Relaxed);
+                    let dw = w - LAST_W.swap(w, Ordering::Relaxed);
+                    let dp = p - LAST_P.swap(p, Ordering::Relaxed);
+                    log::warn!(
+                        "[#771-probe] chain='{}' parked={:?} loop_len={:?} wanted/s={} popped/s={} fill={}% peaks={:?}",
+                        cid.0,
+                        controller.di_playback_active_output(&cid),
+                        controller.di_stream_loop_len(&cid),
+                        dw,
+                        dp,
+                        if dw > 0 { dp * 100 / dw } else { 0 },
+                        controller.di_playback_peaks(&cid),
+                    );
+                }
+            }
             let di_changed = row.di_loop_playing != di_playing_now;
             // #771: the DI meter row reads the isolated playback's OWN peaks
             // (maintained by the output callback's mix) — not the chain's.
