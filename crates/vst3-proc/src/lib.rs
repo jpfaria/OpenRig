@@ -563,8 +563,9 @@ pub fn run_child(
     Ok(())
 }
 
-/// macOS GUI main thread: become a foreground app, then pump the run loop and
-/// open the plugin's native editor window when the parent requests it.
+/// macOS GUI main thread: become a background (accessory) app, keep the process
+/// latency-critical (no App Nap), then dispatch UI events and open/focus the
+/// plugin's native editor window when the parent requests it.
 #[cfg(target_os = "macos")]
 fn gui_main_loop(shared: &'static Shared, bridge: &std::sync::Arc<EditorBridge>) {
     use std::ffi::c_void;
@@ -573,56 +574,137 @@ fn gui_main_loop(shared: &'static Shared, bridge: &std::sync::Arc<EditorBridge>)
         fn objc_getClass(name: *const i8) -> *mut c_void;
         fn sel_registerName(s: *const i8) -> *mut c_void;
         fn objc_msgSend();
+        fn objc_autoreleasePoolPush() -> *mut c_void;
+        fn objc_autoreleasePoolPop(pool: *mut c_void);
     }
-    #[link(name = "CoreFoundation", kind = "framework")]
-    extern "C" {
-        static kCFRunLoopDefaultMode: *const c_void;
-        fn CFRunLoopRunInMode(mode: *const c_void, seconds: f64, return_after_source: u8) -> i32;
+    unsafe fn sel(s: &[u8]) -> *mut c_void {
+        sel_registerName(s.as_ptr() as *const i8)
     }
-    unsafe fn msg0(obj: *mut c_void, sel: &[u8]) -> *mut c_void {
+    unsafe fn class(s: &[u8]) -> *mut c_void {
+        objc_getClass(s.as_ptr() as *const i8)
+    }
+    unsafe fn msg0(o: *mut c_void, s: &[u8]) -> *mut c_void {
         let f: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
             std::mem::transmute(objc_msgSend as *const ());
-        f(obj, sel_registerName(sel.as_ptr() as *const i8))
+        f(o, sel(s))
     }
-    unsafe fn msg1i(obj: *mut c_void, sel: &[u8], a: i64) -> *mut c_void {
+    unsafe fn msg1i(o: *mut c_void, s: &[u8], a: i64) -> *mut c_void {
         let f: unsafe extern "C" fn(*mut c_void, *mut c_void, i64) -> *mut c_void =
             std::mem::transmute(objc_msgSend as *const ());
-        f(obj, sel_registerName(sel.as_ptr() as *const i8), a)
+        f(o, sel(s), a)
+    }
+    unsafe fn msg1p(o: *mut c_void, s: &[u8], a: *mut c_void) -> *mut c_void {
+        let f: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as *const ());
+        f(o, sel(s), a)
+    }
+    unsafe fn msg1f(o: *mut c_void, s: &[u8], a: f64) -> *mut c_void {
+        let f: unsafe extern "C" fn(*mut c_void, *mut c_void, f64) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as *const ());
+        f(o, sel(s), a)
+    }
+    unsafe fn msg2u(o: *mut c_void, s: &[u8], a: u64, b: *mut c_void) -> *mut c_void {
+        let f: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as *const ());
+        f(o, sel(s), a, b)
+    }
+    // nextEventMatchingMask:untilDate:inMode:dequeue:
+    unsafe fn msg_next(
+        o: *mut c_void,
+        mask: u64,
+        until: *mut c_void,
+        mode: *mut c_void,
+        deq: i8,
+    ) -> *mut c_void {
+        let f: unsafe extern "C" fn(
+            *mut c_void,
+            *mut c_void,
+            u64,
+            *mut c_void,
+            *mut c_void,
+            i8,
+        ) -> *mut c_void = std::mem::transmute(objc_msgSend as *const ());
+        f(
+            o,
+            sel(b"nextEventMatchingMask:untilDate:inMode:dequeue:\0"),
+            mask,
+            until,
+            mode,
+            deq,
+        )
+    }
+    unsafe fn nsstring(nul_terminated: &[u8]) -> *mut c_void {
+        msg1p(
+            class(b"NSString\0"),
+            b"stringWithUTF8String:\0",
+            nul_terminated.as_ptr() as *mut c_void,
+        )
     }
 
-    // Accessory app (policy 1): can show the editor window but takes NO dock
-    // icon — otherwise every per-instance child would clutter the dock.
     unsafe {
-        let app = msg0(
-            objc_getClass(b"NSApplication\0".as_ptr() as *const i8),
-            b"sharedApplication\0",
-        );
+        let app = msg0(class(b"NSApplication\0"), b"sharedApplication\0");
+        // Accessory app: shows windows, but no dock icon (4 per-instance children
+        // would otherwise clutter the dock).
         msg1i(app, b"setActivationPolicy:\0", 1);
         msg0(app, b"finishLaunching\0");
-    }
 
-    let mut editor: Option<vst3_host::Vst3EditorHandle> = None;
-    loop {
-        if shared.shutdown.load(Ordering::SeqCst) != 0 {
-            return;
-        }
-        #[cfg(unix)]
-        if unsafe { libc::getppid() } == 1 {
-            return;
-        }
-        let slot = &shared.slots[0];
-        if slot.open_editor.swap(0, Ordering::AcqRel) == 1 && editor.is_none() {
-            match bridge.ctx.lock().unwrap().take() {
-                Some(ctx) => match vst3_host::open_vst3_editor_window(&bridge.title, ctx) {
-                    Ok(h) => editor = Some(h),
-                    Err(e) => eprintln!("[vst3-proc] open editor failed: {e:#}"),
-                },
-                // Instance not loaded yet — re-arm and retry next tick.
-                None => slot.open_editor.store(1, Ordering::Release),
+        // Disable App Nap for this whole process: a background (accessory) app is
+        // otherwise throttled by macOS, which deschedules the RT audio thread and
+        // floods the parent with late buffers. Declaring it latency-critical and
+        // retaining the activity token keeps the throttling off for good.
+        const NS_ACTIVITY_LATENCY_CRITICAL: u64 = 0xFF00_0000_00;
+        const NS_ACTIVITY_USER_INITIATED: u64 = 0x00FF_FFFF;
+        let pi = msg0(class(b"NSProcessInfo\0"), b"processInfo\0");
+        let reason = nsstring(b"openrig realtime vst3 audio host\0");
+        let activity = msg2u(
+            pi,
+            b"beginActivityWithOptions:reason:\0",
+            NS_ACTIVITY_LATENCY_CRITICAL | NS_ACTIVITY_USER_INITIATED,
+            reason,
+        );
+        let _ = msg0(activity, b"retain\0"); // never released → App Nap stays off
+
+        let default_mode = msg0(nsstring(b"kCFRunLoopDefaultMode\0"), b"retain\0");
+        let ns_date_cls = class(b"NSDate\0");
+        let mut editor: Option<vst3_host::Vst3EditorHandle> = None;
+
+        loop {
+            if shared.shutdown.load(Ordering::SeqCst) != 0 {
+                return;
             }
+            #[cfg(unix)]
+            if libc::getppid() == 1 {
+                return;
+            }
+            let slot = &shared.slots[0];
+            if slot.open_editor.swap(0, Ordering::AcqRel) == 1 {
+                match &editor {
+                    // Already open (possibly hidden by the user) — re-front it.
+                    Some(h) => h.focus(),
+                    None => match bridge.ctx.lock().unwrap().take() {
+                        Some(ctx) => match vst3_host::open_vst3_editor_window(&bridge.title, ctx) {
+                            Ok(h) => editor = Some(h),
+                            Err(e) => eprintln!("[vst3-proc] open editor failed: {e:#}"),
+                        },
+                        // Instance not loaded yet — re-arm and retry next tick.
+                        None => slot.open_editor.store(1, Ordering::Release),
+                    },
+                }
+            }
+
+            // Block up to ~30ms for the next UI event and DISPATCH it, so the
+            // editor window's close button and controls actually respond. A bare
+            // CFRunLoop pump services sources but never calls `sendEvent:`, which
+            // is why the window couldn't be closed. Drain inside an autorelease
+            // pool so per-iteration temporaries don't accumulate.
+            let pool = objc_autoreleasePoolPush();
+            let until = msg1f(ns_date_cls, b"dateWithTimeIntervalSinceNow:\0", 0.03);
+            let event = msg_next(app, u64::MAX, until, default_mode, 1);
+            if !event.is_null() {
+                msg1p(app, b"sendEvent:\0", event);
+            }
+            objc_autoreleasePoolPop(pool);
         }
-        // Pump the run loop so the editor window stays responsive.
-        unsafe { CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.02, 1) };
     }
 }
 

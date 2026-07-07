@@ -45,6 +45,15 @@ pub struct Vst3EditorHandle {
     _ns_window: macos::OwnedNsWindow,
 }
 
+impl Vst3EditorHandle {
+    /// Bring the editor window back to the front (e.g. a re-open request after
+    /// the user closed/hid it).
+    #[cfg(target_os = "macos")]
+    pub fn focus(&self) {
+        self._ns_window.focus();
+    }
+}
+
 impl Drop for Vst3EditorHandle {
     fn drop(&mut self) {
         unsafe {
