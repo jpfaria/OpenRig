@@ -20,7 +20,7 @@ block-core = { path = "../block-core" }
 libc = "0.2"
 
 [dependencies.vst3-host]
-path = "../vst3"
+path = "../vst3-host"
 
 [[bin]]
 name = "openrig-vst3-proc"

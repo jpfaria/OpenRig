@@ -195,6 +195,51 @@ fn main() {
             });
             unsafe { msg0(app, b"run\0") };
         }
+        // App-like: NSApp running, FOUR streams load concurrently (barrier so
+        // their createInstance truly overlap — the owner's 4-mono-input rig).
+        "bg-concurrent-4" => {
+            use std::sync::{Arc, Barrier};
+            let app = nsapp_full();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(300));
+                let barrier = Arc::new(Barrier::new(4));
+                let handles: Vec<_> = (0..4)
+                    .map(|i| {
+                        let b = barrier.clone();
+                        std::thread::spawn(move || {
+                            b.wait();
+                            load_once(&format!("stream-{i}"));
+                        })
+                    })
+                    .collect();
+                for h in handles {
+                    h.join().unwrap();
+                }
+                std::process::exit(0);
+            });
+            unsafe { msg0(app, b"run\0") };
+        }
+        // Staggered overlap: start 4 loads 60ms apart so they overlap in flight
+        // but only the first initialises JUCE (others just bump the refcount).
+        "bg-stagger-4" => {
+            let app = nsapp_full();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(300));
+                let handles: Vec<_> = (0..4)
+                    .map(|i| {
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_millis(60 * i));
+                            load_once(&format!("stream-{i}"));
+                        })
+                    })
+                    .collect();
+                for h in handles {
+                    h.join().unwrap();
+                }
+                std::process::exit(0);
+            });
+            unsafe { msg0(app, b"run\0") };
+        }
         // App-like: NSApp running, TWO stream threads load concurrently.
         "bg-concurrent" => {
             let app = nsapp_full();
