@@ -17,7 +17,7 @@ use anyhow::Result;
 
 use domain::ids::ChainId;
 use engine::di_output_resolve::resolve_di_output_index;
-use engine::di_render::render_di_loop;
+use engine::di_render::render_di_loop_routed;
 use engine::runtime_endpoints::resolve_chain_io;
 use engine::DiPcm;
 use project::chain::Chain;
@@ -99,7 +99,17 @@ impl ProjectRuntimeController {
             std::thread::Builder::new()
                 .name("di-render".into())
                 .spawn(move || {
-                    match render_di_loop(&chain, &registry, output_index, output_rate, &pcm) {
+                    // Routed render (#771 owner bug): the loop must be fed
+                    // through the CHOSEN output's own binding — a flat-index
+                    // render on a multi-binding chain drains silence for any
+                    // binding but the first (#716/#699).
+                    match render_di_loop_routed(
+                        &chain,
+                        &registry,
+                        chain.di_output.as_ref(),
+                        output_rate,
+                        &pcm,
+                    ) {
                         Ok(rendered) => {
                             if cancel.load(Ordering::Relaxed) {
                                 return;

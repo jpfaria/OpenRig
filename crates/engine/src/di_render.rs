@@ -83,3 +83,44 @@ pub fn render_di_loop(
         sample_rate: output_rate,
     })
 }
+
+/// Render for a CHOSEN output (`Chain.di_output`): the loop is fed through
+/// the chosen output's OWN binding. #716 routes a binding's inputs only to
+/// that binding's outputs and the loop substitutes segment 0 only (#699) —
+/// rendering the full multi-binding chain at a second binding's output
+/// drains pure silence (the owner's "no sound" on a two-interface rig). The
+/// chain is reduced to the target binding for the render; the block graph is
+/// unchanged, so the sound is identical.
+pub fn render_di_loop_routed(
+    chain: &Chain,
+    registry: &[IoBinding],
+    di_output: Option<&project::chain::DiOutputRef>,
+    output_rate: u32,
+    pcm: &DiPcm,
+) -> Result<DiRenderedLoop> {
+    // Which binding + which output within it is the target. `None` or a
+    // stale ref → the main output (the first binding that has outputs).
+    let ports: Vec<_> = crate::runtime_endpoints::resolve_chain_io_by_binding(chain, registry)
+        .into_iter()
+        .filter(|g| !g.outputs.is_empty())
+        .collect();
+    let (binding_id, local_index) = di_output
+        .and_then(|target| {
+            let group = ports.iter().find(|g| g.binding_id == target.binding_id)?;
+            let binding = registry.iter().find(|b| b.id == group.binding_id)?;
+            let local = binding
+                .outputs
+                .iter()
+                .position(|ep| ep.name == target.endpoint)?;
+            Some((group.binding_id.clone(), local))
+        })
+        .or_else(|| ports.first().map(|g| (g.binding_id.clone(), 0)))
+        .ok_or_else(|| anyhow!("chain has no bound outputs to play the DI on"))?;
+
+    // Reduce the chain's head/tail I/O to the target binding so the loop
+    // (segment 0) feeds the SAME binding's output route. Blocks are
+    // untouched — the DSP is identical.
+    let mut reduced = chain.clone();
+    reduced.io_binding_ids = vec![binding_id];
+    render_di_loop(&reduced, registry, local_index, output_rate, pcm)
+}
