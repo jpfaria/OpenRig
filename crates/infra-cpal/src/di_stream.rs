@@ -9,9 +9,21 @@
 //! so it can never drift (the free-running worker→output routing tried in
 //! #717 drifted and was reverted, `f1131725e`). The guitar runtime is never
 //! touched (invariant #4).
+//!
+//! Lifecycle rules (review findings, #771):
+//! - The render thread parks ONLY under the handle's `armed` lock, and
+//!   disarm flips it under the same lock — a disarm ALWAYS wins over an
+//!   in-flight render (no zombie playback). The lock lives entirely off the
+//!   audio thread.
+//! - A retired playback is never dropped by the audio callback: disarm swaps
+//!   it out and parks it in `di_retired`; the entry is freed on a LATER
+//!   disarm/arm cycle, long after any in-flight callback guard is gone.
+//! - A failed render flips the handle's `failed` flag; `di_stream_active`
+//!   then reports NOT playing (the meter poll resets the UI) instead of an
+//!   eternal silent "playing".
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 
@@ -25,21 +37,36 @@ use project::chain::Chain;
 use crate::di_playback::{DiPlayback, DiPlaybackCell};
 use crate::ProjectRuntimeController;
 
-/// Bookkeeping for one armed DI: the output cell that holds (or, while the
-/// render still runs, will hold) the playback, and the cancel flag the render
-/// thread checks before parking. Dropping the handle cancels a pending render
-/// and silences the cell — the render thread itself is detached (a long NAM
-/// render must never block the frontend on disarm).
+/// Bookkeeping for one armed DI. Dropping the handle disarms (safety net);
+/// the controller's `disarm_di_stream` is the primary path because it also
+/// retires the parked playback off the audio thread.
 pub(crate) struct DiStreamHandle {
     output_index: usize,
     cell: DiPlaybackCell,
-    cancel: Arc<AtomicBool>,
+    /// `true` while this arm owns the cell. The render thread parks only
+    /// under this lock; disarm flips it under the same lock.
+    armed: Arc<Mutex<bool>>,
+    /// The source, kept so the controller can re-arm after a rebuild
+    /// without a dispatcher round-trip.
+    pcm: Arc<DiPcm>,
+    /// Set by the render thread on failure; surfaces through
+    /// [`ProjectRuntimeController::di_stream_active`].
+    failed: Arc<AtomicBool>,
+}
+
+impl DiStreamHandle {
+    fn disarm(&self) -> Option<Arc<DiPlayback>> {
+        let mut armed = self.armed.lock().unwrap_or_else(|e| e.into_inner());
+        *armed = false;
+        self.cell.swap(None)
+    }
 }
 
 impl Drop for DiStreamHandle {
     fn drop(&mut self) {
-        self.cancel.store(true, Ordering::Relaxed);
-        self.cell.store(None);
+        // Safety net for non-controller drops (controller teardown). The
+        // swapped-out playback drops here, on a non-audio thread.
+        let _ = self.disarm();
     }
 }
 
@@ -74,8 +101,8 @@ impl ProjectRuntimeController {
     /// through a copy of the chain's block graph off-thread, and park the
     /// playback on that output's cell. The guitar runtime is NEVER touched.
     pub fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
-        // Re-arm replaces any previous playback (drop clears the old cell and
-        // cancels its pending render).
+        // Re-arm replaces any previous playback (and retires it off the
+        // audio thread).
         self.disarm_di_stream(&chain.id);
 
         let output_index =
@@ -90,12 +117,15 @@ impl ProjectRuntimeController {
         let dest_right = dest.get(1).copied().unwrap_or(dest_left);
 
         let cell = self.di_playback_cell(&chain.id, output_index);
-        let cancel = Arc::new(AtomicBool::new(false));
+        let armed = Arc::new(Mutex::new(true));
+        let failed = Arc::new(AtomicBool::new(false));
         {
             let cell = cell.clone();
-            let cancel = Arc::clone(&cancel);
+            let armed = Arc::clone(&armed);
+            let failed = Arc::clone(&failed);
             let chain = chain.clone();
             let registry = self.io_bindings.clone();
+            let pcm = Arc::clone(&pcm);
             std::thread::Builder::new()
                 .name("di-render".into())
                 .spawn(move || {
@@ -111,19 +141,24 @@ impl ProjectRuntimeController {
                         &pcm,
                     ) {
                         Ok(rendered) => {
-                            if cancel.load(Ordering::Relaxed) {
-                                return;
-                            }
                             let raw = Arc::new(pcm.to_loop_at(output_rate));
-                            cell.store(Some(Arc::new(DiPlayback::new(
+                            let playback = Arc::new(DiPlayback::new(
                                 Arc::new(rendered),
                                 raw,
                                 dest_left,
                                 dest_right,
-                            ))));
+                            ));
+                            // Park ONLY while this arm still owns the cell —
+                            // a disarm/re-arm flips `armed` under this lock,
+                            // so a late render can never park a zombie.
+                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
+                            if *armed {
+                                cell.store(Some(playback));
+                            }
                         }
                         Err(e) => {
-                            log::error!("di-render failed for chain '{}': {e:#}", chain.id.0)
+                            failed.store(true, Ordering::Relaxed);
+                            log::error!("di-render failed for chain '{}': {e:#}", chain.id.0);
                         }
                     }
                 })
@@ -134,21 +169,59 @@ impl ProjectRuntimeController {
             DiStreamHandle {
                 output_index,
                 cell,
-                cancel,
+                armed,
+                pcm,
+                failed,
             },
         );
         Ok(())
     }
 
-    /// Disarm the chain's DI: cancel a pending render and silence the cell.
+    /// Disarm the chain's DI: the in-flight render (if any) is neutralized
+    /// under the handle's lock, and the parked playback is RETIRED — freed on
+    /// a later cycle, never by the audio callback (invariant #8).
     pub fn disarm_di_stream(&self, chain_id: &ChainId) {
-        self.di_streams.borrow_mut().remove(chain_id);
+        // Free the previous cycle's retirees first: by now any callback
+        // guard that referenced them (a µs-scale window) is long gone.
+        self.di_retired.borrow_mut().clear();
+        if let Some(handle) = self.di_streams.borrow_mut().remove(chain_id) {
+            if let Some(old) = handle.disarm() {
+                self.di_retired.borrow_mut().push(old);
+            }
+        }
     }
 
-    /// Whether the chain's DI is currently armed (the render may still be
-    /// running; the playback parks when it finishes).
+    /// Controller-side re-arm after a stream/runtime rebuild: re-resolves the
+    /// chosen output (index, rate, dest channels may all have changed) and
+    /// re-renders from the source stored at arm time. No-op when not armed.
+    pub fn rearm_di_stream_after_rebuild(&self, chain: &Chain) {
+        let pcm = self
+            .di_streams
+            .borrow()
+            .get(&chain.id)
+            .map(|h| Arc::clone(&h.pcm));
+        if let Some(pcm) = pcm {
+            let _ = self.arm_di_stream(chain, pcm);
+        }
+    }
+
+    /// Drop every DI resource of a removed chain (handle, cells, retirees) so
+    /// deleting chains never leaks parked render buffers.
+    pub(crate) fn drop_di_state_for_chain(&self, chain_id: &ChainId) {
+        self.disarm_di_stream(chain_id);
+        self.di_playback_cells
+            .borrow_mut()
+            .retain(|(cid, _), _| cid != chain_id);
+    }
+
+    /// Whether the chain's DI is playing or still rendering. A FAILED render
+    /// reports `false`, so the UI resets instead of showing an eternal
+    /// silent "playing".
     pub fn di_stream_active(&self, chain_id: &ChainId) -> bool {
-        self.di_streams.borrow().contains_key(chain_id)
+        self.di_streams
+            .borrow()
+            .get(chain_id)
+            .is_some_and(|h| !h.failed.load(Ordering::Relaxed))
     }
 
     /// Length (frames) of the parked pre-rendered loop — `None` while the

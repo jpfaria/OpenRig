@@ -662,11 +662,11 @@ pub(crate) fn build_active_chain_runtime(
                 .next()
                 .map(|(_, slot)| slot.load())
                 .ok_or_else(|| anyhow::anyhow!("chain '{}' has no runtime state", chain_id.0))?;
-            // #771: JACK-direct chains have a single output stream (index 0);
-            // its callback mixes the chain's first DI playback cell.
-            let di_cell = di_cells.first().cloned().unwrap_or_default();
+            // #771: JACK-direct runs a single output stream — hand it ALL
+            // the chain's DI cells so the DI is audible whichever output the
+            // arm parked on.
             let (jack_client, dsp_worker) =
-                build_jack_direct_chain(chain_id, chain, runtime, registry, di_cell)?;
+                build_jack_direct_chain(chain_id, chain, runtime, registry, di_cells.to_vec())?;
             return Ok(ActiveChainRuntime {
                 stream_signature,
                 _input_streams: Vec::new(),

@@ -155,6 +155,7 @@ fn controller_with_single_runtime(
         io_bindings: registry.to_vec(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
+        di_retired: std::cell::RefCell::new(Vec::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

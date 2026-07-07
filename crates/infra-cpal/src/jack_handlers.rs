@@ -162,9 +162,11 @@ pub(crate) struct JackProcessHandler {
     /// every iteration regardless of jackd's actual buffer size, adding
     /// latency and wasting CPU on zero-padded tail samples.
     pub(crate) current_n_frames: Arc<std::sync::atomic::AtomicUsize>,
-    /// #771: this chain's first-output DI playback cell — the RT callback
-    /// mixes whatever pre-rendered DI loop is parked there (wait-free load).
-    pub(crate) di_cell: crate::di_playback::DiPlaybackCell,
+    /// #771: ALL of this chain's DI playback cells — JACK-direct runs a
+    /// single output stream, so the callback drains every cell (the arm
+    /// parks on the chosen output's cell; mixing all of them keeps the DI
+    /// audible whichever output was picked).
+    pub(crate) di_cells: Vec<crate::di_playback::DiPlaybackCell>,
     /// `true` once the RT thread has pinned itself to the big cores.
     /// libjack spawns the thread that ends up calling `process` lazily
     /// inside its own infrastructure, and there is no public hook to
@@ -251,7 +253,9 @@ impl jack::ProcessHandler for JackProcessHandler {
             buf.fill(0.0);
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 process_output_f32(&self.runtime, 0, buf, total_out_ports);
-                crate::di_playback::mix_di_playback(&self.di_cell, buf, total_out_ports);
+                for cell in &self.di_cells {
+                    crate::di_playback::mix_di_playback(cell, buf, total_out_ports);
+                }
             }));
             for (ch, port) in self.output_ports.iter_mut().enumerate() {
                 let port_data = port.as_mut_slice(ps);

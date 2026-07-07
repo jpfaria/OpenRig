@@ -96,8 +96,12 @@ pub(crate) fn mix_di_playback(
         if let Some(s) = frame.get_mut(playback.dest_left) {
             *s = output_limiter(*s + l);
         }
-        if let Some(s) = frame.get_mut(playback.dest_right) {
-            *s = output_limiter(*s + r);
+        // A mono dest (dest_right == dest_left) already carries the frame —
+        // a second add would be +6 dB over the chain's own rendering.
+        if playback.dest_right != playback.dest_left {
+            if let Some(s) = frame.get_mut(playback.dest_right) {
+                *s = output_limiter(*s + r);
+            }
         }
         cursor = (cursor + 1) % len;
     }
@@ -187,6 +191,24 @@ mod tests {
                 "sample {i} must still be the SUM (limited), not a replace, got {s}"
             );
         }
+    }
+
+    /// #771 review: a MONO output endpoint has dest_left == dest_right and
+    /// the rendered frame is [m, m] — the sample must be written ONCE, not
+    /// summed twice (+6 dB vs the chain's own rendering of the same loop).
+    #[test]
+    fn mono_dest_is_written_once_not_summed_twice() {
+        let mono = Arc::new(DiRenderedLoop {
+            frames: vec![[0.25, 0.25]; 4],
+            sample_rate: 48_000,
+        });
+        let cell = cell_with(DiPlayback::new(mono, raw(4), 0, 0));
+        let mut out = vec![0.0f32; 4];
+        mix_di_playback(&cell, &mut out, 1);
+        assert_eq!(
+            out[0], 0.25,
+            "mono dest must carry the frame once, not 2x (+6 dB)"
+        );
     }
 
     #[test]

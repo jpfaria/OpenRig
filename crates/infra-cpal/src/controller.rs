@@ -119,6 +119,10 @@ pub struct ProjectRuntimeController {
     /// created on demand and survive stream rebuilds.
     pub(crate) di_playback_cells:
         RefCell<HashMap<(ChainId, usize), crate::di_playback::DiPlaybackCell>>,
+    /// Issue #771: playbacks swapped out by disarm, freed on a LATER cycle so
+    /// the audio callback is never the last owner of a multi-MB render
+    /// buffer (invariant #8).
+    pub(crate) di_retired: RefCell<Vec<std::sync::Arc<crate::di_playback::DiPlayback>>>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -155,6 +159,7 @@ impl ProjectRuntimeController {
             io_bindings: Vec::new(),
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
+            di_retired: RefCell::new(Vec::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -192,6 +197,7 @@ impl ProjectRuntimeController {
             io_bindings,
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
+            di_retired: RefCell::new(Vec::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -359,6 +365,9 @@ impl ProjectRuntimeController {
                     ) {
                         Ok(active) => {
                             self.active_chains.insert(chain_id, active);
+                            // #771: an armed DI re-renders against the fresh
+                            // streams (output index/rate/dest may have moved).
+                            self.rearm_di_stream_after_rebuild(&chain);
                             applied += 1;
                         }
                         Err(e) => {
@@ -953,6 +962,8 @@ impl ProjectRuntimeController {
         }
         self.active_chains.remove(chain_id);
         self.runtime_graph.remove_chain(chain_id);
+        // #771: never leak a parked render buffer past its chain.
+        self.drop_di_state_for_chain(chain_id);
     }
 
     pub fn stop(&mut self) {
@@ -1154,6 +1165,8 @@ impl ProjectRuntimeController {
                 &di_cells,
             )?;
             self.active_chains.insert(chain.id.clone(), active);
+            // #771: an armed DI re-renders against the fresh streams.
+            self.rearm_di_stream_after_rebuild(chain);
         }
 
         Ok(())

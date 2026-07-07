@@ -104,7 +104,7 @@ pub fn render_di_loop_routed(
         .into_iter()
         .filter(|g| !g.outputs.is_empty())
         .collect();
-    let (binding_id, local_index) = di_output
+    let Some((binding_id, local_index)) = di_output
         .and_then(|target| {
             let group = ports.iter().find(|g| g.binding_id == target.binding_id)?;
             let binding = registry.iter().find(|b| b.id == group.binding_id)?;
@@ -115,7 +115,12 @@ pub fn render_di_loop_routed(
             Some((group.binding_id.clone(), local))
         })
         .or_else(|| ports.first().map(|g| (g.binding_id.clone(), 0)))
-        .ok_or_else(|| anyhow!("chain has no bound outputs to play the DI on"))?;
+    else {
+        // No bound outputs (e.g. a chain playing through its implicit
+        // default route) — render the chain as-is on route 0, exactly the
+        // pre-#771 behaviour.
+        return render_di_loop(chain, registry, 0, output_rate, pcm);
+    };
 
     // Reduce the chain's head/tail I/O to the target binding so the loop
     // (segment 0) feeds the SAME binding's output route. Blocks are
