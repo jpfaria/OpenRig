@@ -257,17 +257,30 @@ impl Vst3ProcClient {
         }
         s.n_frames.store(n as u32, Ordering::SeqCst);
         let target = s.request.fetch_add(1, Ordering::AcqRel) + 1;
-        // Bounded spin — the child is a tight loop; a block is sub-millisecond.
-        for _ in 0..2_000_000 {
+        // Wait for the child. A brief hard spin catches the common sub-100µs
+        // case with no context switch; after that we YIELD instead of spinning,
+        // because this worker is RT-promoted and a pure spin starves the (also
+        // RT) child of the very core it needs to answer us — that priority
+        // inversion pinned four cores at ~300% and overran the period (#251).
+        // Bounded (~a few ms of yields) so a dead child can't wedge the caller.
+        let mut spins: u32 = 0;
+        loop {
             if s.done.load(Ordering::Acquire) >= target {
                 for (i, f) in frames.iter_mut().take(n).enumerate() {
                     *f = s.read_output(i);
                 }
                 return;
             }
-            std::hint::spin_loop();
+            spins += 1;
+            if spins < 256 {
+                std::hint::spin_loop();
+            } else {
+                std::thread::yield_now();
+                if spins > 200_000 {
+                    break; // child not responding — leave frames dry.
+                }
+            }
         }
-        // Timed out: leave frames as-is (dry). Better than blocking the caller.
     }
 }
 
@@ -313,7 +326,23 @@ pub fn maybe_run_child() -> bool {
             1
         }
     };
-    std::process::exit(code);
+    hard_exit(code);
+}
+
+/// Exit the child process without running C++ static destructors / `atexit`
+/// handlers. A JUCE/AppKit plugin loaded here registers teardown hooks that
+/// crash when the process winds down with an editor window and a live audio
+/// thread still around; `_exit` skips all of that (we need no cleanup on the
+/// way out — the OS reclaims everything).
+fn hard_exit(code: i32) -> ! {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        let _ = std::io::stderr().flush();
+        unsafe { libc::_exit(code) }
+    }
+    #[cfg(not(unix))]
+    std::process::exit(code)
 }
 
 fn run_child_from_args(args: &[String]) -> Result<()> {
