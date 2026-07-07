@@ -37,7 +37,7 @@ pub(crate) struct ChainWiringDeps<'a> {
 
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
     pub open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
+    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub toast_timer: Rc<Timer>,
 
     pub app_config: Rc<RefCell<AppConfig>>,

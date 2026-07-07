@@ -61,7 +61,7 @@ pub(crate) struct BlockEditorWindowSetupCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
+    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }

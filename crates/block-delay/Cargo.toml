@@ -7,7 +7,7 @@ anyhow.workspace = true
 block-core = { path = "../block-core" }
 plugin-loader = { path = "../plugin-loader" }
 lv2 = { path = "../lv2" }
-vst3-host = { path = "../vst3" }
+vst3-host = { path = "../vst3-host" }
 [dev-dependencies]
 domain = { path = "../domain" }
 realfft = "3"

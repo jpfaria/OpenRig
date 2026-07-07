@@ -65,9 +65,9 @@ pub(crate) struct BlockWiringDeps<'a> {
     pub open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
+    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub vst3_editor_handles_for_on_open:
-        Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
+        Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub block_editor_persist_timer: Rc<Timer>,
 
     pub vst3_sample_rate: f64,

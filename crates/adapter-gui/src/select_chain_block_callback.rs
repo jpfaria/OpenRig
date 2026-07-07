@@ -84,7 +84,7 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
+    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
@@ -275,11 +275,27 @@ pub(crate) fn wire(
         let block_id_for_editor = block.id.clone();
         let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
         drop(session_borrow);
-        // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
+        // VST3 blocks: the block is now selected and will process audio in the
+        // chain. Only auto-open the native GUI when the engine already holds the
+        // instance (reuse it); if it isn't running yet, stay silent — the user
+        // opens the editor later, once the chain is live, and it reuses that
+        // instance. Never load a standalone one (it corrupts the plugin, #251).
         if is_vst3_block && !model_id.is_empty() {
-            match project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate) {
-                Ok(handle) => { vst3_editor_handles.borrow_mut().push(handle); }
-                Err(e) => set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string()),
+            // VST3 runs in-process (#251). The engine registers the GUI context
+            // (controller + library) when it builds the block, so the native
+            // editor reuses that instance. Only auto-open when it's registered
+            // (chain built); if not, stay silent — the user opens it once live.
+            if project::vst3_editor::has_engine_context(&model_id) {
+                let res = vst3_editor_handles.borrow_mut().open_or_focus(&model_id, || {
+                    project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate)
+                });
+                if let Err(e) = res {
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-vst3-open", err = e).to_string(),
+                    );
+                }
             }
             return;
         }

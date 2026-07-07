@@ -38,6 +38,19 @@ pub trait StereoProcessor: Send + Sync + 'static {
             *frame = self.process_frame(*frame);
         }
     }
+
+    /// Retune this processor to `params` in place, without rebuilding it.
+    /// Returns `true` if the update was applied. Default: not supported.
+    ///
+    /// Used by the engine on rebuild so plugins that must NOT be re-instantiated
+    /// (VST3 GUI plugins) keep their single live instance (#251).
+    fn try_in_place_update(
+        &mut self,
+        _params: &crate::param::ParameterSet,
+        _sample_rate: f32,
+    ) -> bool {
+        false
+    }
 }
 
 pub enum BlockProcessor {
@@ -127,7 +140,14 @@ pub trait NamedModel {
 ///
 /// Dropping the handle closes the window and releases all resources.
 /// The concrete type is an implementation detail of the plugin host crate.
-pub trait PluginEditorHandle: Send {}
+pub trait PluginEditorHandle: Send {
+    /// Bring the already-open editor window back to the front.
+    ///
+    /// Called when the user re-opens an editor that is still held open, so the
+    /// host reuses the existing plugin instance instead of creating a new one
+    /// (some plugins break their module after a window close + reload).
+    fn focus(&self) {}
+}
 
 #[cfg(test)]
 #[path = "traits_tests.rs"]
