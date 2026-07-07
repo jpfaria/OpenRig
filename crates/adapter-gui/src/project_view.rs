@@ -504,6 +504,23 @@ pub(crate) fn replace_project_chains(
                     in_dbfs: engine::output_meter::SILENT_DBFS,
                     out_dbfs: engine::output_meter::SILENT_DBFS,
                 },
+                // #771: the DI panel's output select — the chain's bound
+                // output endpoints + the persisted pick.
+                di_loop_outputs: {
+                    let (labels, _) =
+                        crate::di_output_options::output_labels_and_index(chain, io_bindings);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        labels
+                            .into_iter()
+                            .map(SharedString::from)
+                            .collect::<Vec<_>>(),
+                    )))
+                },
+                di_output_selected_index: crate::di_output_options::output_labels_and_index(
+                    chain,
+                    io_bindings,
+                )
+                .1,
                 // Issue #670: no overload until the meter timer observes
                 // xruns from the running audio callback.
                 audio_overload: false,

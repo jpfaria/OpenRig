@@ -11,4 +11,7 @@ export global DiPanel {
     in-out property <[string]> sources;
     in-out property <int> selected-index;
     in-out property <bool> playing;
+    // #771: the chain's bound output endpoints + the persisted pick.
+    in-out property <[string]> outputs;
+    in-out property <int> output-selected-index;
 }

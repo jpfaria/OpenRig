@@ -174,6 +174,42 @@ pub fn stop_chain_di_loop(
     handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, false);
 }
 
+/// #771: the DI panel's OUTPUT select was picked. Persist the choice through
+/// `Command::SetChainDiLoopOutput` and, when the DI is playing, re-arm so the
+/// sound moves to the picked output (re-render + park on its cell).
+pub fn select_chain_di_output(
+    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
+    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    chain: &ChainId,
+    registry: &[domain::io_binding::IoBinding],
+    output_index: usize,
+) {
+    use application::dispatcher::CommandDispatcher;
+    let Some(chain_def) = dispatcher.chain_snapshot(chain) else {
+        return;
+    };
+    let options = crate::di_output_options::build_di_output_options(&chain_def, registry);
+    let Some(option) = options.get(output_index) else {
+        return;
+    };
+    let _ = dispatcher.dispatch(application::command::Command::SetChainDiLoopOutput {
+        chain: chain.clone(),
+        output: option.di_ref.clone(),
+    });
+    // While playing, move the sound to the picked output now — arm re-resolves
+    // the (updated) di_output, re-renders and parks on the new cell.
+    if let Some(rt) = project_runtime.borrow().as_ref() {
+        if rt.di_stream_active(chain) {
+            if let (Some(updated), Some(pcm)) = (
+                dispatcher.chain_snapshot(chain),
+                dispatcher.di_loop_for_chain(chain),
+            ) {
+                let _ = rt.arm_di_stream(&updated, pcm);
+            }
+        }
+    }
+}
+
 /// #669/#749: push the running controller's real device sample rate into the
 /// dispatcher's `engine_sr` (the authoritative-rate fallback for consumers
 /// that would otherwise assume 48000). No-op when no runtime is active.

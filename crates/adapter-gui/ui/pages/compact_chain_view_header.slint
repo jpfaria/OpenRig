@@ -21,6 +21,8 @@ export component CompactChainViewHeader inherits Rectangle {
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
     in property <int> di-loop-selected-index: -1;
+    in property <[string]> di-loop-outputs: [];
+    in property <int> di-output-selected-index: -1;
     in property <float> latency-ms: 0.0;
 
     callback toggle-chain-enabled(int);
@@ -86,6 +88,8 @@ export component CompactChainViewHeader inherits Rectangle {
         playing: root.di-loop-playing;
         sources: root.di-loop-sources;
         selected-index: root.di-loop-selected-index;
+        outputs: root.di-loop-outputs;
+        output-selected-index: root.di-output-selected-index;
         chain-index: root.chain-index;
     }
 

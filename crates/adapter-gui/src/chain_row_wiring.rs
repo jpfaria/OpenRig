@@ -550,6 +550,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         });
     }
 
+    // ── #771 on_di_loop_output_selected ─────────────────────────────────────
+    crate::di_output_select_wiring::wire_main(
+        window,
+        project_session.clone(),
+        project_runtime.clone(),
+    );
+
     // ── on_di_loop_choose_file ───────────────────────────────────────────────
     // Wired separately in di_loop_chooser_wiring.rs (uses the native file
     // dialog crate; chain_row_wiring.rs is forbidden from that — issue #511).

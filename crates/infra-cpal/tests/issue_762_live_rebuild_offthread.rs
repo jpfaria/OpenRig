@@ -24,7 +24,9 @@ use domain::ids::{BlockId, ChainId, DeviceId};
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
-use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::block::{
+    AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry,
+};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::device::DeviceSettings;
 use project::project::Project;
@@ -51,7 +53,8 @@ fn init_registry() {
         block_delay::register_natives();
         block_mod::register_natives();
         block_pitch::register_natives();
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../engine/tests/fixtures/plugins");
+        let root =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../engine/tests/fixtures/plugins");
         plugin_loader::registry::init(&root);
     });
 }

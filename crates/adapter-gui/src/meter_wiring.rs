@@ -583,6 +583,20 @@ pub fn start_meter_polling(
                     row.di_loop_sources.iter().map(|s| s.to_string()).collect();
                 current != desired_sources
             };
+            // #771: keep the DI output select fresh — bindings and the
+            // persisted pick (SetChainDiLoopOutput) both change under the
+            // open panel.
+            let (desired_outputs, di_output_selected_now) =
+                crate::di_output_options::output_labels_and_index(
+                    &project.chains[idx],
+                    &session.io_bindings.borrow(),
+                );
+            let di_outputs_changed = {
+                let current: Vec<String> =
+                    row.di_loop_outputs.iter().map(|s| s.to_string()).collect();
+                current != desired_outputs
+            };
+            let di_output_selected_changed = row.di_output_selected_index != di_output_selected_now;
             // Issue #670: per-chain audio overload. Catch BOTH failure modes
             // the user hears as crackle — an xrun (the audio callback missed
             // its deadline) or an underrun (the output elastic buffer ran
@@ -617,6 +631,8 @@ pub fn start_meter_polling(
                 || di_meter_changed
                 || di_selected_changed
                 || di_sources_changed
+                || di_outputs_changed
+                || di_output_selected_changed
                 || overload_changed
             {
                 row.meter_in_dbfs = in_db;
@@ -641,6 +657,18 @@ pub fn start_meter_polling(
                 }
                 if di_selected_changed {
                     row.di_loop_selected_index = di_selected_now;
+                }
+                if di_outputs_changed {
+                    row.di_loop_outputs =
+                        slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+                            desired_outputs
+                                .into_iter()
+                                .map(slint::SharedString::from)
+                                .collect::<Vec<_>>(),
+                        )));
+                }
+                if di_output_selected_changed {
+                    row.di_output_selected_index = di_output_selected_now;
                 }
                 if stream_meters_changed {
                     // #715: mutate the existing per-stream model IN PLACE when

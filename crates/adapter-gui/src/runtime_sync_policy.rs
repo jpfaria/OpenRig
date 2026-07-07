@@ -16,6 +16,8 @@ use application::event::Event;
 pub(crate) fn event_requires_runtime_sync(event: &Event) -> bool {
     !matches!(
         event,
-        Event::ChainDiLoopEnabledChanged { .. } | Event::ChainDiLoopSourceChanged { .. }
+        Event::ChainDiLoopEnabledChanged { .. }
+            | Event::ChainDiLoopSourceChanged { .. }
+            | Event::ChainDiLoopOutputChanged { .. }
     )
 }

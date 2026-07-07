@@ -465,7 +465,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     &*session.project.borrow(),
                     &input_chain_devices.borrow(),
                     &output_chain_devices.borrow(),
-            &[]
+                    &[],
                 );
                 crate::project_ops::sync_project_dirty(
                     &main_win,
@@ -516,6 +516,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                         // compact panel opens with nothing picked and hides the
                         // play/stop button.
                         cw.set_di_loop_selected_index(row.di_loop_selected_index);
+                        // #771: mirror the output select too.
+                        cw.set_di_loop_outputs(row.di_loop_outputs.clone());
+                        cw.set_di_output_selected_index(row.di_output_selected_index);
                         // #771: the DI meter row shows the isolated playback's
                         // OWN levels (row.di_meter, fed from di_playback_peaks)
                         // — never a mirror of the chain meters.
@@ -708,9 +711,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             compact_win.on_di_loop_source_selected(move |source_str| {
                 let chain_id = {
                     let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let Some(session) = session_borrow.as_ref() else {
+                        return;
+                    };
                     let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    let Some(chain) = proj.chains.get(chain_index as usize) else {
+                        return;
+                    };
                     chain.id.clone()
                 };
                 let source = DiLoopSource::Bundled(source_str.to_string());
@@ -719,7 +726,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
                 );
                 let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
                 for cmd in cmds {
                     if let Err(err) = session.dispatcher.dispatch(cmd) {
                         if let Some(main_win) = weak_window.upgrade() {
@@ -731,6 +740,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             });
         }
 
+        // #771 on_di_loop_output_selected: user picked an output endpoint.
+        crate::di_output_select_wiring::wire_compact(
+            &compact_win,
+            chain_index,
+            project_session.clone(),
+            project_runtime.clone(),
+        );
+
         // on_di_loop_choose_file: user picked "Choose file…" — open native dialog.
         {
             let project_session = project_session.clone();
@@ -739,9 +756,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             compact_win.on_di_loop_choose_file(move || {
                 let chain_id = {
                     let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let Some(session) = session_borrow.as_ref() else {
+                        return;
+                    };
                     let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    let Some(chain) = proj.chains.get(chain_index as usize) else {
+                        return;
+                    };
                     chain.id.clone()
                 };
                 let Some(path) = rfd::FileDialog::new()
@@ -757,7 +778,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     },
                 );
                 let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
                 for cmd in cmds {
                     if let Err(err) = session.dispatcher.dispatch(cmd) {
                         if let Some(main_win) = weak_window.upgrade() {
@@ -776,13 +799,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             compact_win.on_di_loop_play(move || {
                 let chain_id = {
                     let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let Some(session) = session_borrow.as_ref() else {
+                        return;
+                    };
                     let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    let Some(chain) = proj.chains.get(chain_index as usize) else {
+                        return;
+                    };
                     chain.id.clone()
                 };
                 let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
                 compact_chain_di_loop_play(&project_runtime, &session.dispatcher, &chain_id);
             });
         }
@@ -794,13 +823,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             compact_win.on_di_loop_stop(move || {
                 let chain_id = {
                     let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let Some(session) = session_borrow.as_ref() else {
+                        return;
+                    };
                     let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else { return; };
+                    let Some(chain) = proj.chains.get(chain_index as usize) else {
+                        return;
+                    };
                     chain.id.clone()
                 };
                 let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
+                let Some(session) = session_borrow.as_ref() else {
+                    return;
+                };
                 compact_chain_di_loop_stop(&project_runtime, &session.dispatcher, &chain_id);
             });
         }

@@ -11,10 +11,13 @@ export component DiLoopHarness inherits Window {
     in property <[string]> sources;
     in property <int> selected-index: -1;
     in property <bool> playing: false;
+    in property <[string]> outputs;
+    in property <int> output-selected-index: -1;
     callback source-picked(int, string);
     callback choose-file();
     callback play();
     callback stop();
+    callback output-picked(int, string);
 
     DiLoopPanel {
         x: 20px;
@@ -22,9 +25,12 @@ export component DiLoopHarness inherits Window {
         sources: root.sources;
         selected-index: root.selected-index;
         playing: root.playing;
+        outputs: root.outputs;
+        output-selected-index: root.output-selected-index;
         source-picked(i, s) => { root.source-picked(i, s); }
         choose-file => { root.choose-file(); }
         play => { root.play(); }
         stop => { root.stop(); }
+        output-picked(i, s) => { root.output-picked(i, s); }
     }
 }
