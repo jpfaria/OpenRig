@@ -1,32 +1,36 @@
-//! #771: RT-safe, output-clocked playback of a pre-rendered DI loop.
+//! #771: RT-safe, output-clocked playback of the DI worker's stream.
 //!
-//! One [`DiPlaybackCell`] exists per chain output stream. Arming stores a
-//! [`DiPlayback`] in the CHOSEN output's cell; that output device's callback
-//! calls [`mix_di_playback`] right after draining the chain runtimes, summing
-//! the rendered frames at a cursor the callback itself advances — the output
-//! device clock IS the DI clock, so it can never drift (the #717 revert
-//! `f1131725e`). Zero alloc/lock in the callback: an `ArcSwapOption` load,
-//! slice reads and relaxed atomics.
+//! One [`DiPlaybackCell`] exists per chain output stream. Arming parks a
+//! [`DiPlayback`] in the CHOSEN output's cell; the DI worker keeps the
+//! playback's SPSC ring topped up (paced by ring backpressure — the ring
+//! level IS the clock, so it can never drift), and that output device's
+//! callback pops frames and sums them into its buffer. Zero alloc/lock in
+//! the callback: an `ArcSwapOption` load, SPSC pops and relaxed atomics.
 
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
-use engine::di_render::DiRenderedLoop;
 use engine::runtime_dsp::output_limiter;
-use engine::DiLoop;
+use engine::spsc::SpscRing;
 
-/// A pre-rendered DI loop parked on one output stream, plus the cursor and
-/// meter peaks the callback maintains.
+/// Ring capacity in FRAMES (interleaved L,R — 2 slots per frame). ~170 ms at
+/// 48 kHz: enough cushion for the worker, small enough to stop fast.
+pub(crate) const DI_RING_FRAMES: usize = 8192;
+
+/// The DI stream parked on one output: the worker-fed ring plus the meter
+/// peaks. The audio callback pops; the worker pushes.
 pub(crate) struct DiPlayback {
-    rendered: Arc<DiRenderedLoop>,
-    /// Raw (un-processed) loop at the same rate/length — the DI IN meter.
-    raw: Arc<DiLoop>,
-    /// Device-frame channel offsets the rendered L/R land on.
+    /// Interleaved stereo samples (L,R per frame). Single producer (the DI
+    /// worker), single consumer (the output callback).
+    ring: Arc<SpscRing<f32>>,
+    /// Device-frame channel offsets the L/R land on.
     dest_left: usize,
     dest_right: usize,
-    cursor: AtomicUsize,
-    /// f32 bits of the last mixed window's peaks (Relaxed; meter poll only).
+    /// One loop period at the stream's rate, in frames (UI info).
+    loop_len: usize,
+    /// f32 bits of the last window's peaks (Relaxed). `in` is published by
+    /// the worker (raw loop), `out` by the callback (mixed frames).
     in_peak_bits: AtomicU32,
     out_peak_bits: AtomicU32,
 }
@@ -35,24 +39,28 @@ pub(crate) struct DiPlayback {
 pub(crate) type DiPlaybackCell = Arc<ArcSwapOption<DiPlayback>>;
 
 impl DiPlayback {
-    pub(crate) fn new(
-        rendered: Arc<DiRenderedLoop>,
-        raw: Arc<DiLoop>,
-        dest_left: usize,
-        dest_right: usize,
-    ) -> Self {
+    pub(crate) fn new(dest_left: usize, dest_right: usize, loop_len: usize) -> Self {
         Self {
-            rendered,
-            raw,
+            ring: Arc::new(SpscRing::new(DI_RING_FRAMES * 2, 0.0)),
             dest_left,
             dest_right,
-            cursor: AtomicUsize::new(0),
+            loop_len,
             in_peak_bits: AtomicU32::new(0),
             out_peak_bits: AtomicU32::new(0),
         }
     }
 
-    /// Linear `(in, out)` peaks of the last mixed window (DI meter row).
+    /// The worker's handle to the ring (producer side).
+    pub(crate) fn ring(&self) -> Arc<SpscRing<f32>> {
+        Arc::clone(&self.ring)
+    }
+
+    /// Worker-side: publish the raw loop's peak for the DI IN meter.
+    pub(crate) fn set_in_peak(&self, peak: f32) {
+        self.in_peak_bits.store(peak.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Linear `(in, out)` peaks of the last window (DI meter row).
     pub(crate) fn peaks(&self) -> (f32, f32) {
         (
             f32::from_bits(self.in_peak_bits.load(Ordering::Relaxed)),
@@ -60,15 +68,16 @@ impl DiPlayback {
         )
     }
 
-    /// One steady-state loop period, in frames (the render length).
+    /// One loop period, in frames.
     pub(crate) fn loop_len(&self) -> usize {
-        self.rendered.frames.len()
+        self.loop_len
     }
 }
 
-/// Sum the parked DI loop into `out` (interleaved, `output_total_channels`
-/// wide) and advance its cursor by the frames written. No-op when the cell is
-/// empty. Runs on the output audio callback — zero alloc/lock.
+/// Sum the parked DI stream into `out` (interleaved, `output_total_channels`
+/// wide). Pops whole frames only (no L/R skew); an under-filled ring leaves
+/// the remaining frames untouched (the worker is catching up). No-op when
+/// the cell is empty. Runs on the output audio callback — zero alloc/lock.
 pub(crate) fn mix_di_playback(
     cell: &DiPlaybackCell,
     out: &mut [f32],
@@ -78,21 +87,21 @@ pub(crate) fn mix_di_playback(
     let Some(playback) = guard.as_ref() else {
         return;
     };
-    let len = playback.rendered.frames.len();
-    if len == 0 || output_total_channels == 0 {
+    if output_total_channels == 0 {
         return;
     }
-    let mut cursor = playback.cursor.load(Ordering::Relaxed);
-    let mut in_peak = 0.0f32;
     let mut out_peak = 0.0f32;
     for frame in out.chunks_mut(output_total_channels) {
-        let [l, r] = playback.rendered.frames[cursor % len];
-        out_peak = out_peak.max(l.abs()).max(r.abs());
-        let raw_peak = match playback.raw.frame_at(cursor) {
-            engine::DiFrame::Mono(s) => s.abs(),
-            engine::DiFrame::Stereo([a, b]) => a.abs().max(b.abs()),
+        // A whole frame (2 samples) or stop — the producer pushes whole
+        // frames, so fewer than 2 readable samples means "mid-push"; leave
+        // it for the next callback rather than skewing channels.
+        if playback.ring.len() < 2 {
+            break;
+        }
+        let (Some(l), Some(r)) = (playback.ring.pop(), playback.ring.pop()) else {
+            break;
         };
-        in_peak = in_peak.max(raw_peak);
+        out_peak = out_peak.max(l.abs()).max(r.abs());
         if let Some(s) = frame.get_mut(playback.dest_left) {
             *s = output_limiter(*s + l);
         }
@@ -103,12 +112,7 @@ pub(crate) fn mix_di_playback(
                 *s = output_limiter(*s + r);
             }
         }
-        cursor = (cursor + 1) % len;
     }
-    playback.cursor.store(cursor, Ordering::Relaxed);
-    playback
-        .in_peak_bits
-        .store(in_peak.to_bits(), Ordering::Relaxed);
     playback
         .out_peak_bits
         .store(out_peak.to_bits(), Ordering::Relaxed);
@@ -117,98 +121,76 @@ pub(crate) fn mix_di_playback(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine::DiPcm;
 
-    /// A rendered loop whose frame i is `((i+1)/32, -(i+1)/32)` — per-index
-    /// recognizable AND exactly representable in f32 (binary fractions), so
-    /// identity assertions can use `==`.
-    fn rendered(len: usize) -> Arc<DiRenderedLoop> {
-        Arc::new(DiRenderedLoop {
-            frames: (0..len)
-                .map(|i| [(i + 1) as f32 / 32.0, -((i + 1) as f32) / 32.0])
-                .collect(),
-            sample_rate: 48_000,
-        })
+    fn cell_with(playback: DiPlayback) -> (DiPlaybackCell, Arc<SpscRing<f32>>) {
+        let ring = playback.ring();
+        (
+            Arc::new(ArcSwapOption::from(Some(Arc::new(playback)))),
+            ring,
+        )
     }
 
-    fn raw(len: usize) -> Arc<DiLoop> {
-        Arc::new(DiPcm::new(vec![0.5; len], 48_000, 1).to_loop_at(48_000))
-    }
-
-    fn cell_with(playback: DiPlayback) -> DiPlaybackCell {
-        Arc::new(ArcSwapOption::from(Some(Arc::new(playback))))
+    /// Push whole frames; values exactly representable in f32.
+    fn push_frames(ring: &SpscRing<f32>, frames: &[[f32; 2]]) {
+        for f in frames {
+            assert!(ring.push(f[0]));
+            assert!(ring.push(f[1]));
+        }
     }
 
     #[test]
-    fn mix_writes_loop_frames_on_dest_channels_and_wraps() {
-        let cell = cell_with(DiPlayback::new(rendered(8), raw(8), 0, 1));
-        let mut out = vec![0.0f32; 12 * 2];
+    fn mix_pops_frames_onto_dest_channels() {
+        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        push_frames(&ring, &[[0.03125, -0.03125], [0.0625, -0.0625]]);
+        let mut out = vec![0.0f32; 2 * 2];
         mix_di_playback(&cell, &mut out, 2);
+        assert_eq!(out, vec![0.03125, -0.03125, 0.0625, -0.0625]);
+    }
 
-        // Frame 0 carries rendered frame 0 on (0, 1)...
-        assert_eq!(out[0], 0.03125, "frame 0 L must carry rendered[0]");
-        assert_eq!(out[1], -0.03125, "frame 0 R must carry rendered[0]");
-        // ...frame 7 carries rendered frame 7, and frame 8 WRAPS to frame 0.
-        assert_eq!(out[7 * 2], 0.25, "frame 7 L must carry rendered[7]");
-        assert_eq!(out[8 * 2], 0.03125, "frame 8 must wrap to rendered[0]");
-        assert_eq!(out[11 * 2], 0.125, "frame 11 must wrap to rendered[3]");
-
-        // Cursor persisted: the NEXT buffer continues from frame 12 % 8 = 4.
-        let mut next = vec![0.0f32; 2];
-        mix_di_playback(&cell, &mut next, 2);
-        assert_eq!(next[0], 0.15625, "next buffer must continue at rendered[4]");
+    #[test]
+    fn underfilled_ring_leaves_remaining_frames_untouched() {
+        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        push_frames(&ring, &[[0.25, 0.25]]);
+        let mut out = vec![0.0f32; 3 * 2];
+        mix_di_playback(&cell, &mut out, 2);
+        assert_eq!(
+            out,
+            vec![0.25, 0.25, 0.0, 0.0, 0.0, 0.0],
+            "only the available frame plays; the rest stays silent"
+        );
     }
 
     #[test]
     fn mix_targets_only_its_dest_channels() {
-        let cell = cell_with(DiPlayback::new(rendered(4), raw(4), 2, 3));
-        let mut out = vec![0.0f32; 4 * 4];
+        let (cell, ring) = cell_with(DiPlayback::new(2, 3, 8));
+        push_frames(&ring, &[[0.03125, -0.03125]]);
+        let mut out = vec![0.0f32; 4];
         mix_di_playback(&cell, &mut out, 4);
-
-        assert_eq!(out[2], 0.03125, "dest L is channel 2");
-        assert_eq!(out[3], -0.03125, "dest R is channel 3");
-        assert_eq!(out[0], 0.0, "channel 0 stays untouched");
-        assert_eq!(out[1], 0.0, "channel 1 stays untouched");
+        assert_eq!(out, vec![0.0, 0.0, 0.03125, -0.03125]);
     }
 
     #[test]
     fn mix_sums_over_existing_signal_with_the_output_limiter() {
-        let loud = Arc::new(DiRenderedLoop {
-            frames: vec![[0.9, 0.9]; 4],
-            sample_rate: 48_000,
-        });
-        let cell = cell_with(DiPlayback::new(loud, raw(4), 0, 1));
+        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        push_frames(&ring, &[[0.9, 0.9]; 4]);
         let mut out = vec![0.9f32; 4 * 2];
         mix_di_playback(&cell, &mut out, 2);
-
         for (i, s) in out.iter().enumerate() {
-            assert!(
-                *s <= 1.0,
-                "sample {i} must stay limited to full scale, got {s}"
-            );
-            assert!(
-                *s > 0.9,
-                "sample {i} must still be the SUM (limited), not a replace, got {s}"
-            );
+            assert!(*s <= 1.0, "sample {i} must stay limited, got {s}");
+            assert!(*s > 0.9, "sample {i} must be the SUM (limited), got {s}");
         }
     }
 
     /// #771 review: a MONO output endpoint has dest_left == dest_right and
-    /// the rendered frame is [m, m] — the sample must be written ONCE, not
-    /// summed twice (+6 dB vs the chain's own rendering of the same loop).
+    /// the frame is [m, m] — the sample must be written ONCE, not summed
+    /// twice (+6 dB vs the chain's own rendering).
     #[test]
     fn mono_dest_is_written_once_not_summed_twice() {
-        let mono = Arc::new(DiRenderedLoop {
-            frames: vec![[0.25, 0.25]; 4],
-            sample_rate: 48_000,
-        });
-        let cell = cell_with(DiPlayback::new(mono, raw(4), 0, 0));
-        let mut out = vec![0.0f32; 4];
+        let (cell, ring) = cell_with(DiPlayback::new(0, 0, 8));
+        push_frames(&ring, &[[0.25, 0.25]]);
+        let mut out = vec![0.0f32; 1];
         mix_di_playback(&cell, &mut out, 1);
-        assert_eq!(
-            out[0], 0.25,
-            "mono dest must carry the frame once, not 2x (+6 dB)"
-        );
+        assert_eq!(out[0], 0.25, "mono dest carries the frame once, not 2x");
     }
 
     #[test]
@@ -221,19 +203,15 @@ mod tests {
 
     #[test]
     fn peaks_reflect_the_last_mixed_window() {
-        let cell = cell_with(DiPlayback::new(rendered(8), raw(8), 0, 1));
-        let mut out = vec![0.0f32; 8 * 2];
+        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        push_frames(&ring, &[[0.25, -0.125], [0.0625, 0.0]]);
+        let mut out = vec![0.0f32; 2 * 2];
         mix_di_playback(&cell, &mut out, 2);
-
         let playback = cell.load();
-        let (in_peak, out_peak) = playback.as_ref().expect("parked").peaks();
-        assert!(
-            (out_peak - 0.25).abs() < 1e-6,
-            "out peak must be the window's max rendered magnitude, got {out_peak}"
-        );
-        assert!(
-            in_peak > 0.0,
-            "in peak must read the raw loop's magnitude, got {in_peak}"
-        );
+        let playback = playback.as_ref().expect("parked");
+        playback.set_in_peak(0.5);
+        let (in_peak, out_peak) = playback.peaks();
+        assert!((out_peak - 0.25).abs() < 1e-6, "out peak, got {out_peak}");
+        assert_eq!(in_peak, 0.5, "in peak comes from the worker");
     }
 }

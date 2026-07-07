@@ -1,13 +1,14 @@
 //! #771 owner bug "dei play e não saiu o som": on a TWO-binding chain the DI
 //! loop substitutes only segment 0 (#699), and #716 routes each binding's
-//! inputs only to that SAME binding's outputs — so a render aimed at the
-//! second binding's output drained pure silence. The routed render must feed
-//! the loop through the CHOSEN output's own binding, so EVERY pickable
-//! output carries the loop.
+//! inputs only to that SAME binding's outputs — so the second binding's
+//! output route drained pure silence. The routed DI runtime must feed the
+//! loop through the CHOSEN output's own binding, so EVERY pickable output
+//! carries the loop.
 
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use engine::di_render::render_di_loop_routed;
+use engine::di_render::build_routed_di_runtime;
+use engine::runtime::{process_input_f32, process_output_f32};
 use engine::DiPcm;
 use project::chain::{Chain, DiOutputRef};
 
@@ -62,8 +63,31 @@ fn sine() -> DiPcm {
     DiPcm::new(samples, 44_100, 1)
 }
 
+/// Step the routed runtime a few blocks and return the drained peak.
+fn drained_peak(routed: &engine::di_render::RoutedDiRuntime) -> f32 {
+    const BLOCK: usize = 256;
+    let silence = vec![0.0f32; BLOCK];
+    let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
+    let mut peak = 0.0f32;
+    for _ in 0..40 {
+        process_input_f32(&routed.runtime, 0, &silence, 1);
+        process_output_f32(
+            &routed.runtime,
+            routed.output_index,
+            &mut drain,
+            routed.drain_width,
+        );
+        for frame in drain.chunks(routed.drain_width) {
+            peak = peak
+                .max(frame[routed.drain_left].abs())
+                .max(frame[routed.drain_right].abs());
+        }
+    }
+    peak
+}
+
 #[test]
-fn every_pickable_output_renders_the_loop_with_signal() {
+fn every_pickable_output_streams_the_loop_with_signal() {
     let (chain, registry) = rig();
     let picks = [
         None,
@@ -77,17 +101,23 @@ fn every_pickable_output_renders_the_loop_with_signal() {
         }),
     ];
     for pick in picks {
-        let rendered = render_di_loop_routed(&chain, &registry, pick.as_ref(), 48_000, &sine())
-            .expect("render");
-        let peak = rendered
-            .frames
-            .iter()
-            .map(|f| f[0].abs().max(f[1].abs()))
-            .fold(0.0f32, f32::max);
+        let routed = build_routed_di_runtime(&chain, &registry, pick.as_ref(), 48_000, &sine())
+            .expect("build routed runtime");
+        let peak = drained_peak(&routed);
         assert!(
             peak > 0.1,
-            "#771: output pick {pick:?} rendered SILENT (peak {peak}) — the \
+            "#771: output pick {pick:?} streams SILENCE (peak {peak}) — the \
              loop must be fed through the chosen output's own binding"
         );
     }
+}
+
+/// A chain with no bound outputs keeps its implicit default route.
+#[test]
+fn unbound_chain_streams_on_the_default_route() {
+    let (mut chain, registry) = rig();
+    chain.io_binding_ids.clear();
+    let routed = build_routed_di_runtime(&chain, &registry, None, 48_000, &sine())
+        .expect("build routed runtime");
+    assert!(drained_peak(&routed) > 0.1);
 }

@@ -1,14 +1,17 @@
-//! Issue #771 — an armed DI loop plays on its own isolated, PRE-RENDERED
-//! stream, output-clocked, never injected into the guitar's runtime.
+//! Issue #771 — an armed DI loop plays on its own isolated, STREAMED
+//! runtime, output-clocked via ring backpressure, never injected into the
+//! guitar's runtime.
 //!
 //! Arming resolves the chain's persisted output choice (`Chain.di_output`),
-//! pre-renders the loop through a fresh copy of the chain's block graph on a
-//! short-lived `di-render` thread, and parks the result in the CHOSEN
-//! output's [`DiPlaybackCell`]. That output device's callback mixes the
-//! buffer at a cursor it advances itself — the output clock IS the DI clock,
-//! so it can never drift (the free-running worker→output routing tried in
-//! #717 drifted and was reverted, `f1131725e`). The guitar runtime is never
-//! touched (invariant #4).
+//! builds a fresh routed copy of the chain's block graph on a `di-stream`
+//! worker and parks a ring-backed playback in the CHOSEN output's
+//! [`DiPlaybackCell`] immediately (a 75 s loop starts in milliseconds — the
+//! full pre-render tried first took minutes before the first sample). The
+//! worker only produces what the output callback consumed (ring
+//! backpressure), so the output device clock IS the DI clock: no drift by
+//! construction (the sleep-paced worker tried in #717 drifted and was
+//! reverted, `f1131725e`), and no DSP ever runs in the callback. The guitar
+//! runtime is never touched (invariant #4).
 //!
 //! Lifecycle rules (review findings, #771):
 //! - The render thread parks ONLY under the handle's `armed` lock, and
@@ -29,7 +32,8 @@ use anyhow::Result;
 
 use domain::ids::ChainId;
 use engine::di_output_resolve::resolve_di_output_index;
-use engine::di_render::render_di_loop_routed;
+use engine::di_render::build_routed_di_runtime;
+use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_endpoints::resolve_chain_io;
 use engine::DiPcm;
 use project::chain::Chain;
@@ -97,9 +101,9 @@ impl ProjectRuntimeController {
             .unwrap_or(self.sample_rate)
     }
 
-    /// Arm the chain's DI: resolve the chosen output, pre-render the loop
-    /// through a copy of the chain's block graph off-thread, and park the
-    /// playback on that output's cell. The guitar runtime is NEVER touched.
+    /// Arm the chain's DI: resolve the chosen output, build the routed
+    /// runtime off-thread and stream the loop into that output's cell. The
+    /// guitar runtime is NEVER touched.
     pub fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
         // Re-arm replaces any previous playback (and retires it off the
         // audio thread).
@@ -127,42 +131,92 @@ impl ProjectRuntimeController {
             let registry = self.io_bindings.clone();
             let pcm = Arc::clone(&pcm);
             std::thread::Builder::new()
-                .name("di-render".into())
+                .name("di-stream".into())
                 .spawn(move || {
-                    // Routed render (#771 owner bug): the loop must be fed
-                    // through the CHOSEN output's own binding — a flat-index
-                    // render on a multi-binding chain drains silence for any
-                    // binding but the first (#716/#699).
-                    match render_di_loop_routed(
+                    // Build the routed isolated runtime (heavy: NAM/IR loads)
+                    // OFF the frontend; the loop is fed through the CHOSEN
+                    // output's own binding (#716/#699 — a flat render on a
+                    // multi-binding chain was silent for any binding but the
+                    // first: the owner's "no sound").
+                    let routed = match build_routed_di_runtime(
                         &chain,
                         &registry,
                         chain.di_output.as_ref(),
                         output_rate,
                         &pcm,
                     ) {
-                        Ok(rendered) => {
-                            let raw = Arc::new(pcm.to_loop_at(output_rate));
-                            let playback = Arc::new(DiPlayback::new(
-                                Arc::new(rendered),
-                                raw,
-                                dest_left,
-                                dest_right,
-                            ));
-                            // Park ONLY while this arm still owns the cell —
-                            // a disarm/re-arm flips `armed` under this lock,
-                            // so a late render can never park a zombie.
-                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
-                            if *armed {
-                                cell.store(Some(playback));
-                            }
-                        }
+                        Ok(r) => r,
                         Err(e) => {
                             failed.store(true, Ordering::Relaxed);
-                            log::error!("di-render failed for chain '{}': {e:#}", chain.id.0);
+                            log::error!("di-stream build failed for chain '{}': {e:#}", chain.id.0);
+                            return;
                         }
+                    };
+                    // Raw (pre-chain) loop for the DI IN meter.
+                    let raw = pcm.to_loop_at(output_rate);
+                    let raw_len = raw.len().max(1);
+
+                    // Park the playback IMMEDIATELY — frames start flowing
+                    // within one block, regardless of loop length (a 75 s
+                    // loop used to pre-render for minutes before the first
+                    // sample). Park ONLY while this arm still owns the cell.
+                    let playback =
+                        Arc::new(DiPlayback::new(dest_left, dest_right, routed.loop_len));
+                    let ring = playback.ring();
+                    {
+                        let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
+                        if !*armed {
+                            return;
+                        }
+                        cell.store(Some(Arc::clone(&playback)));
+                    }
+
+                    // Stream the DI: paced by RING BACKPRESSURE — the worker
+                    // only produces what the output consumed, so the output
+                    // device clock IS the DI clock (no drift by construction;
+                    // the sleep-paced worker tried in #717 drifted and was
+                    // reverted, f1131725e). All DSP runs HERE, never in the
+                    // callback (invariant #8).
+                    const BLOCK: usize = 256;
+                    let silence = vec![0.0f32; BLOCK];
+                    let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
+                    let mut pos: usize = 0;
+                    loop {
+                        {
+                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
+                            if !*armed {
+                                return;
+                            }
+                        }
+                        let free = ring.capacity() - ring.len();
+                        if free < BLOCK * 2 {
+                            std::thread::sleep(std::time::Duration::from_millis(2));
+                            continue;
+                        }
+                        process_input_f32(&routed.runtime, 0, &silence, 1);
+                        process_output_f32(
+                            &routed.runtime,
+                            routed.output_index,
+                            &mut drain,
+                            routed.drain_width,
+                        );
+                        for frame in drain.chunks(routed.drain_width) {
+                            let _ = ring.push(frame[routed.drain_left]);
+                            let _ = ring.push(frame[routed.drain_right]);
+                        }
+                        let mut in_peak = 0.0f32;
+                        for i in 0..BLOCK {
+                            let f = match raw.frame_at((pos + i) % raw_len) {
+                                engine::DiFrame::Mono(s) => s.abs(),
+                                engine::DiFrame::Stereo([a, b]) => a.abs().max(b.abs()),
+                            };
+                            in_peak = in_peak.max(f);
+                        }
+                        pos = (pos + BLOCK) % raw_len;
+                        playback.set_in_peak(in_peak);
                     }
                 })
-                .expect("spawn di-render thread");
+                .expect("spawn di-stream thread");
         }
         self.di_streams.borrow_mut().insert(
             chain.id.clone(),
@@ -224,8 +278,8 @@ impl ProjectRuntimeController {
             .is_some_and(|h| !h.failed.load(Ordering::Relaxed))
     }
 
-    /// Length (frames) of the parked pre-rendered loop — `None` while the
-    /// render is still running or when not armed.
+    /// Length (frames) of one loop period — `None` while the worker is still
+    /// building the runtime or when not armed.
     pub fn di_stream_loop_len(&self, chain_id: &ChainId) -> Option<usize> {
         self.di_streams
             .borrow()

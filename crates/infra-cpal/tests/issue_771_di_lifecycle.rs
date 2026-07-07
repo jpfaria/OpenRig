@@ -4,6 +4,8 @@
 //! 3. a failed render must not report the DI as playing forever;
 //! 4. a rebuild re-arm re-parks the playback from the stored source.
 
+mod hw_harness;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -154,4 +156,41 @@ fn rearm_after_rebuild_reparks_from_stored_source() {
         "#771: after a rebuild the DI must re-park from the stored source"
     );
     assert!(controller.di_stream_active(&chain.id));
+}
+
+/// #771 owner bug ("dei play e o som não sai"): a LONG loop (75 s, like the
+/// bundled phil-STRATO-green_day) must start playing near-instantly. The
+/// pre-render approach rendered 2×75 s through the whole block graph before
+/// parking anything — minutes of silence after Play. The DI must be armed
+/// AND producing frames within a couple of seconds regardless of loop length.
+#[test]
+fn long_loop_starts_playing_within_two_seconds() {
+    // Real-world shape: a NAM-heavy preset chain (fixtures), like the
+    // owner's rig — the render cost scales with loop length × block cost.
+    hw_harness::init_registry();
+    let (mut chain, registry) = chain_and_registry(false);
+    chain.blocks = infra_yaml::load_chain_preset_file(
+        &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../engine/tests/fixtures/presets/clean.yaml"),
+    )
+    .expect("preset")
+    .blocks;
+    let controller = controller_for(&chain, &registry);
+
+    // 75 s of audio, like the owner's bundled loop.
+    let samples: Vec<f32> = (0..44_100 * 75)
+        .map(|i| (2.0 * std::f32::consts::PI * 220.0 * i as f32 / 44_100.0).sin() * 0.5)
+        .collect();
+    let pcm = Arc::new(DiPcm::new(samples, 44_100, 1));
+
+    controller.arm_di_stream(&chain, pcm).expect("arm DI");
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < deadline && controller.di_playback_active_output(&chain.id).is_none() {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(
+        controller.di_playback_active_output(&chain.id).is_some(),
+        "#771: a 75 s loop must be ready to play within 2 s of Play — the \
+         owner heard silence because the full pre-render took minutes"
+    );
 }
