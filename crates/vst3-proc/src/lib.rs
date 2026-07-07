@@ -662,3 +662,71 @@ pub fn acquire(
     client.load_slot(0)?;
     Ok(ProcHandle { client })
 }
+
+#[cfg(all(test, target_os = "macos"))]
+mod rt_promotion_tests {
+    use super::promote_to_audio_rt;
+
+    #[repr(C)]
+    struct TimeConstraint {
+        period: u32,
+        computation: u32,
+        constraint: u32,
+        preemptible: u32,
+    }
+    extern "C" {
+        fn mach_thread_self() -> u32;
+        fn thread_policy_get(
+            thread: u32,
+            flavor: i32,
+            policy: *mut u32,
+            count: *mut u32,
+            get_default: *mut u32,
+        ) -> i32;
+    }
+    const THREAD_TIME_CONSTRAINT_POLICY: i32 = 2;
+
+    /// True when THIS thread has an explicit time-constraint policy set. Mach
+    /// reports `get_default = true` when the thread carries no such policy, so a
+    /// `false` here means the promotion took effect.
+    fn is_time_constraint() -> bool {
+        unsafe {
+            let mut pol = TimeConstraint {
+                period: 0,
+                computation: 0,
+                constraint: 0,
+                preemptible: 0,
+            };
+            let mut count = 4u32;
+            // Input 0 = return the thread's ACTUAL policy; Mach sets this to 1 on
+            // output when the thread carries no explicit policy of this flavor.
+            let mut get_default = 0u32;
+            let rc = thread_policy_get(
+                mach_thread_self(),
+                THREAD_TIME_CONSTRAINT_POLICY,
+                &mut pol as *mut _ as *mut u32,
+                &mut count,
+                &mut get_default,
+            );
+            rc == 0 && get_default == 0
+        }
+    }
+
+    // #251/#760: the out-of-process host child must run its processing thread in
+    // the realtime class, or the RT worker that spins on it inverts priority.
+    #[test]
+    fn promote_puts_thread_in_time_constraint_class() {
+        // On a dedicated thread, so the test runner itself is never left RT.
+        std::thread::spawn(|| {
+            assert!(!is_time_constraint(), "a fresh thread must start non-RT");
+            let period_ns = ((64.0 / 48_000.0) * 1e9) as u64;
+            promote_to_audio_rt(period_ns, period_ns * 85 / 100);
+            assert!(
+                is_time_constraint(),
+                "child processing thread must be RT (time-constraint) after promotion"
+            );
+        })
+        .join()
+        .unwrap();
+    }
+}
