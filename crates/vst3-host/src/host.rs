@@ -118,6 +118,24 @@ fn nsapp_present() -> Option<bool> {
 static CREATE_INSTANCE_SEQ: std::sync::atomic::AtomicUsize =
     std::sync::atomic::AtomicUsize::new(0);
 
+/// #251 DIAGNOSTIC: a fixed-size c_char array (VST3 `PClassInfo` name/category)
+/// to a Rust String, stopping at the NUL.
+#[cfg(target_os = "macos")]
+fn cchars_to_string(buf: &[std::os::raw::c_char]) -> String {
+    let bytes: Vec<u8> = buf
+        .iter()
+        .take_while(|&&c| c != 0)
+        .map(|&c| c as u8)
+        .collect();
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+/// #251 DIAGNOSTIC: 16 raw bytes to lowercase hex.
+#[cfg(target_os = "macos")]
+fn hex16(b: &[u8; 16]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
 /// Create the `CFBundleRef` for the `.vst3` and run its `bundleEntry`, so the
 /// module is initialised per the VST3 macOS spec. Returns the (retained) bundle
 /// ref, kept alive for the plugin's lifetime and released via `bundleExit` +
@@ -293,6 +311,13 @@ impl Vst3Plugin {
         // 4. Find the class whose UID matches plugin_uid.
         let class_count = unsafe { factory.countClasses() };
         let mut found_tuid: Option<TUID> = None;
+        // #251 DIAGNOSTIC: remember every class (name/category/uid) + which one
+        // the requested uid matched, so a createInstance failure can show whether
+        // the uid points at the audio processor or (wrongly) the controller.
+        #[cfg(target_os = "macos")]
+        let mut class_dump: Vec<String> = Vec::new();
+        #[cfg(target_os = "macos")]
+        let mut matched_category = String::new();
 
         for i in 0..class_count {
             let mut info: PClassInfo = unsafe { std::mem::zeroed() };
@@ -301,8 +326,22 @@ impl Vst3Plugin {
                 continue;
             }
             let bytes = tuid_to_bytes(&info.cid);
-            if &bytes == plugin_uid {
+            #[cfg(target_os = "macos")]
+            {
+                let name = cchars_to_string(&info.name);
+                let category = cchars_to_string(&info.category);
+                if &bytes == plugin_uid {
+                    matched_category = category.clone();
+                }
+                class_dump.push(format!(
+                    "  [{i}]{} name={name:?} category={category:?} uid={}",
+                    if &bytes == plugin_uid { " <-- MATCH" } else { "" },
+                    hex16(&bytes),
+                ));
+            }
+            if &bytes == plugin_uid && found_tuid.is_none() {
                 found_tuid = Some(info.cid);
+                #[cfg(not(target_os = "macos"))]
                 break;
             }
         }
@@ -322,20 +361,30 @@ impl Vst3Plugin {
         // path straight to the user's terminal.
         #[cfg(target_os = "macos")]
         let seq = CREATE_INSTANCE_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-        #[cfg(target_os = "macos")]
-        let nsapp_before = nsapp_present();
 
         let res =
             unsafe { factory.createInstance(cid_ptr, icomponent_iid_ptr, &mut component_raw) };
         if res != kResultOk || component_raw.is_null() {
             #[cfg(target_os = "macos")]
-            bail!(
-                "IPluginFactory::createInstance failed (result={res}) [#251 seq={seq} \
-                 nsapp_before={nsapp_before:?} nsapp_after={:?} pid={} ppid={}]",
-                nsapp_present(),
-                unsafe { libc::getpid() },
-                unsafe { libc::getppid() },
-            );
+            {
+                // Dump the factory's full class table to a file so we can see
+                // whether the requested uid points at the audio processor or the
+                // controller (kNoInterface on IComponent → wrong class).
+                let dump = format!(
+                    "#251 createInstance FAILED res={res} seq={seq} pid={} \
+                     matched_category={matched_category:?}\nrequested_uid={}\nclasses:\n{}\n",
+                    unsafe { libc::getpid() },
+                    hex16(plugin_uid),
+                    class_dump.join("\n"),
+                );
+                let _ = std::fs::write("/tmp/openrig-vst3-diag.txt", &dump);
+                bail!(
+                    "IPluginFactory::createInstance failed (result={res}) [#251 seq={seq} \
+                     matched_category={matched_category:?} nsapp={:?} \
+                     — full class dump in /tmp/openrig-vst3-diag.txt]",
+                    nsapp_present(),
+                );
+            }
             #[cfg(not(target_os = "macos"))]
             bail!("IPluginFactory::createInstance failed (result={})", res);
         }
