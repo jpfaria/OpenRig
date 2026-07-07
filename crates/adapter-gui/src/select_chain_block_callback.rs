@@ -284,7 +284,8 @@ pub(crate) fn wire(
             // VST3 runs out of process (#251): ask the plugin's child to open its
             // native editor. Silent no-op if the instance isn't running yet (the
             // chain is disabled) — the user opens it once audio is live.
-            let _ = vst3_proc::request_open_editor(&model_id);
+            let opened = vst3_proc::request_open_editor(&model_id);
+            log::info!("[select_chain_block] VST3 request_open_editor '{model_id}' -> {opened}");
             return;
         }
         if use_inline_block_editor(&window) {
