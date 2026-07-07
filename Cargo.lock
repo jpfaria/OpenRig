@@ -87,7 +87,6 @@ dependencies = [
  "sys-locale",
  "tempfile",
  "ui-openrig",
- "vst3-proc",
  "webbrowser",
 ]
 
@@ -1853,7 +1852,6 @@ dependencies = [
  "project",
  "rustfft",
  "vst3-host",
- "vst3-proc",
 ]
 
 [[package]]
@@ -6889,19 +6887,6 @@ dependencies = [
  "libloading 0.8.9",
  "log",
  "vst3",
-]
-
-[[package]]
-name = "vst3-proc"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "block-core",
- "libc",
- "log",
- "memmap2",
- "tempfile",
- "vst3-host",
 ]
 
 [[package]]

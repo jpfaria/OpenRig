@@ -301,12 +301,33 @@ pub(crate) fn build_core_block_runtime_node(
                     Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
                 })
                 .collect();
-            // VST3 plugins run OUT OF PROCESS. JUCE-based GUI plugins bind their
-            // runtime to the app's NSApplication/main thread, so a foreign-NSApp
-            // host cannot reliably create more than one instance — and OpenRig
-            // must keep the main thread untouched. A separate NSApp-free child
-            // hosts every instance instead (#251).
+            // VST3 loads IN-PROCESS, like LV2. The `createInstance -1` that once
+            // looked like a JUCE multi-instance/NSApp limitation was actually a
+            // wrong-class uid (the controller instead of the Audio Module class),
+            // fixed in `resolve_uid_for_model`. With the right uid, many JUCE
+            // instances instantiate in-process under a live NSApp with no trouble
+            // (proven by the `bg-concurrent-4` repro), so no out-of-process host
+            // is needed (#251).
+            //
+            // Load once so we can share the controller + library Arc with the
+            // native editor (it reuses the same IEditController instead of
+            // creating a second instance).
             const VST3_BLOCK_SIZE: usize = 512;
+            let plugin = vst3_host::Vst3Plugin::load(
+                &bundle_path,
+                &uid,
+                sample_rate as f64,
+                2,
+                VST3_BLOCK_SIZE,
+                &vst3_params,
+            )
+            .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
+            let param_channel = vst3_host::register_vst3_gui_context(
+                model,
+                plugin.controller_clone(),
+                plugin.library_arc(),
+            );
+            let mut plugin_opt = Some(plugin);
             Ok(audio_block_runtime_node(
                 block,
                 input_layout,
@@ -318,16 +339,14 @@ pub(crate) fn build_core_block_runtime_node(
                     input_layout,
                     content_mono,
                     |layout| {
-                        vst3_proc::build_vst3_proc_processor(
-                            model,
-                            &bundle_path,
-                            &uid,
-                            sample_rate as f64,
-                            VST3_BLOCK_SIZE,
+                        let p = plugin_opt
+                            .take()
+                            .ok_or_else(|| anyhow!("VST3 plugin consumed twice"))?;
+                        Ok(vst3_host::build_vst3_processor_from_plugin(
+                            p,
                             layout,
-                            &vst3_params,
-                        )
-                        .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))
+                            param_channel.clone(),
+                        ))
                     },
                 )?,
             ))

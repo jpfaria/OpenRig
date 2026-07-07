@@ -281,11 +281,22 @@ pub(crate) fn wire(
         // opens the editor later, once the chain is live, and it reuses that
         // instance. Never load a standalone one (it corrupts the plugin, #251).
         if is_vst3_block && !model_id.is_empty() {
-            // VST3 runs out of process (#251): ask the plugin's child to open its
-            // native editor. Silent no-op if the instance isn't running yet (the
-            // chain is disabled) — the user opens it once audio is live.
-            let opened = vst3_proc::request_open_editor(&model_id);
-            log::info!("[select_chain_block] VST3 request_open_editor '{model_id}' -> {opened}");
+            // VST3 runs in-process (#251). The engine registers the GUI context
+            // (controller + library) when it builds the block, so the native
+            // editor reuses that instance. Only auto-open when it's registered
+            // (chain built); if not, stay silent — the user opens it once live.
+            if project::vst3_editor::has_engine_context(&model_id) {
+                let res = vst3_editor_handles.borrow_mut().open_or_focus(&model_id, || {
+                    project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate)
+                });
+                if let Err(e) = res {
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-vst3-open", err = e).to_string(),
+                    );
+                }
+            }
             return;
         }
         if use_inline_block_editor(&window) {

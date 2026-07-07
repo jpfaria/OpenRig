@@ -9,7 +9,6 @@ application = { path = "../application" }
 adapter-mcp = { path = "../adapter-mcp" }
 adapter-midi = { path = "../adapter-midi" }
 block-core = { path = "../block-core" }
-vst3-proc = { path = "../vst3-proc" }
 image = { version = "0.25", default-features = false, features = ["png"] }
 cpal = "0.17"
 domain = { path = "../domain" }

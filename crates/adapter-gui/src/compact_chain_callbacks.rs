@@ -75,9 +75,11 @@ pub(crate) struct CompactChainCallbacksCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub toast_timer: Rc<Timer>,
     pub open_compact_window: Rc<RefCell<Option<(usize, Weak<CompactChainViewWindow>)>>>,
+    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub fullscreen: bool,
     pub auto_save: bool,
+    pub vst3_sample_rate: f64,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
@@ -91,9 +93,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         project_dirty,
         toast_timer,
         open_compact_window,
+        vst3_editor_handles,
         block_editor_draft,
         fullscreen,
         auto_save,
+        vst3_sample_rate,
     } = ctx;
 
     let weak_window = window.as_weak();
@@ -676,15 +680,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         }
 
         {
-            // VST3 runs out of process (#251): the plugin's native editor is
-            // hosted by its own child. Ask that child to open its window —
-            // there is no in-process instance to attach to here.
+            let vst3_handles = vst3_editor_handles.clone();
+            let vst3_sr = vst3_sample_rate;
             compact_win.on_open_plugin(move |model_id| {
-                if !vst3_proc::request_open_editor(model_id.as_str()) {
-                    log::warn!(
-                        "[compact] no running VST3 instance for '{}' — enable the chain first",
-                        model_id
-                    );
+                let res = vst3_handles.borrow_mut().open_or_focus(model_id.as_str(), || {
+                    project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
+                });
+                if let Err(e) = res {
+                    log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e)
                 }
             });
         }
