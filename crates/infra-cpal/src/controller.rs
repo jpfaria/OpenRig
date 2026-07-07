@@ -87,7 +87,12 @@ pub struct ProjectRuntimeController {
     pub(crate) pending_activations: Vec<(
         ChainId,
         Chain,
-        Receiver<Result<(Vec<(usize, Arc<ChainRuntimeState>)>, ResolvedChainAudioConfig)>>,
+        Receiver<
+            Result<(
+                Vec<(usize, Arc<ChainRuntimeState>)>,
+                ResolvedChainAudioConfig,
+            )>,
+        >,
     )>,
     /// Sample rate (Hz) the live streams were built at, captured from the last
     /// resolved chain config. The DI-loop loader reads this (via the
@@ -107,6 +112,13 @@ pub struct ProjectRuntimeController {
     /// this, so it needs interior mutability; the controller is frontend-thread
     /// owned (cpal `Stream` is `!Send`), so a `RefCell` suffices.
     pub(crate) di_streams: RefCell<HashMap<ChainId, crate::di_stream::DiStreamHandle>>,
+    /// Issue #771: one playback cell per (chain, flat output index). The
+    /// output stream's callback clones its cell at build time and mixes
+    /// whatever playback is parked there (wait-free load); arming parks the
+    /// pre-rendered loop on the CHOSEN output's cell only. Entries are
+    /// created on demand and survive stream rebuilds.
+    pub(crate) di_playback_cells:
+        RefCell<HashMap<(ChainId, usize), crate::di_playback::DiPlaybackCell>>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -142,6 +154,7 @@ impl ProjectRuntimeController {
             sample_rate,
             io_bindings: Vec::new(),
             di_streams: RefCell::new(HashMap::new()),
+            di_playback_cells: RefCell::new(HashMap::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -178,6 +191,7 @@ impl ProjectRuntimeController {
             sample_rate: 48_000,
             io_bindings,
             di_streams: RefCell::new(HashMap::new()),
+            di_playback_cells: RefCell::new(HashMap::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -330,12 +344,18 @@ impl ProjectRuntimeController {
                     // mirror it like the synchronous upsert path does, so DI
                     // loops resample to the live rate.
                     self.sample_rate = resolved.sample_rate as u32;
+                    // #771: one DI playback cell per output stream, shared
+                    // with arm_di_stream through the controller map.
+                    let di_cells: Vec<_> = (0..resolved.outputs.len())
+                        .map(|j| self.di_playback_cell(&chain_id, j))
+                        .collect();
                     match crate::build_active_chain_runtime(
                         &chain_id,
                         &chain,
                         resolved,
                         slots,
                         &self.io_bindings,
+                        &di_cells,
                     ) {
                         Ok(active) => {
                             self.active_chains.insert(chain_id, active);
@@ -573,8 +593,10 @@ impl ProjectRuntimeController {
             // same device+channel. Refuse to bring up a chain whose input tap
             // is already claimed by an earlier enabled chain (first wins);
             // within-chain duplicates are caught too. Output may be shared.
-            let input_conflicts =
-                engine::runtime_endpoints::input_conflicting_chains(project.chains.iter(), &self.io_bindings);
+            let input_conflicts = engine::runtime_endpoints::input_conflicting_chains(
+                project.chains.iter(),
+                &self.io_bindings,
+            );
 
             for chain in &project.chains {
                 if !chain.enabled {
@@ -762,14 +784,22 @@ impl ProjectRuntimeController {
                 .get(&chain.id)
                 .expect("just checked active")
                 .stream_signature;
-            let sample_rate = sig.inputs.first().map(|i| i.sample_rate as f32).unwrap_or(48_000.0);
+            let sample_rate = sig
+                .inputs
+                .first()
+                .map(|i| i.sample_rate as f32)
+                .unwrap_or(48_000.0);
             let device_sample_rates: std::collections::HashMap<domain::ids::DeviceId, f32> = sig
                 .inputs
                 .iter()
-                .map(|i| (domain::ids::DeviceId(i.device_id.clone()), i.sample_rate as f32))
+                .map(|i| {
+                    (
+                        domain::ids::DeviceId(i.device_id.clone()),
+                        i.sample_rate as f32,
+                    )
+                })
                 .collect();
-            let out_buffers: Vec<u32> =
-                sig.outputs.iter().map(|o| o.buffer_size_frames).collect();
+            let out_buffers: Vec<u32> = sig.outputs.iter().map(|o| o.buffer_size_frames).collect();
             (sample_rate, device_sample_rates, out_buffers)
         };
         let elastic_targets = crate::elastic::elastic_targets_from_output_buffers(&out_buffers);
@@ -810,13 +840,23 @@ impl ProjectRuntimeController {
             .stream_signature
             .inputs
             .iter()
-            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .map(|s| {
+                (
+                    domain::ids::DeviceId(s.device_id.clone()),
+                    s.channels.clone(),
+                )
+            })
             .collect();
         let live_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = active
             .stream_signature
             .outputs
             .iter()
-            .map(|s| (domain::ids::DeviceId(s.device_id.clone()), s.channels.clone()))
+            .map(|s| {
+                (
+                    domain::ids::DeviceId(s.device_id.clone()),
+                    s.channels.clone(),
+                )
+            })
             .collect();
         let (bound_in, bound_out) =
             engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings);
@@ -879,11 +919,8 @@ impl ProjectRuntimeController {
                 &chain_for_build,
                 &registry_for_build,
             )?;
-            let elastic_targets = compute_elastic_targets_for_chain(
-                &chain_for_build,
-                &resolved,
-                &registry_for_build,
-            );
+            let elastic_targets =
+                compute_elastic_targets_for_chain(&chain_for_build, &resolved, &registry_for_build);
             let request = BuildRequest {
                 chain: chain_for_build,
                 sample_rate: resolved.sample_rate,
@@ -1103,12 +1140,18 @@ impl ProjectRuntimeController {
                 self.chain_slots
                     .insert((chain.id.clone(), *group), slot.handle());
             }
+            // #771: one DI playback cell per output stream, shared with
+            // arm_di_stream through the controller map.
+            let di_cells: Vec<_> = (0..resolved.outputs.len())
+                .map(|j| self.di_playback_cell(&chain.id, j))
+                .collect();
             let active = crate::build_active_chain_runtime(
                 &chain.id,
                 chain,
                 resolved,
                 slots,
                 &self.io_bindings,
+                &di_cells,
             )?;
             self.active_chains.insert(chain.id.clone(), active);
         }

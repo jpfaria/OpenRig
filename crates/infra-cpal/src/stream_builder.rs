@@ -113,7 +113,8 @@ pub fn build_streams_for_project(
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
-            let (input_streams, output_streams) = build_chain_streams(&chain.id, resolved, slots)?;
+            let (input_streams, output_streams) =
+                build_chain_streams(&chain.id, resolved, slots, &[])?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }
@@ -354,6 +355,7 @@ pub(crate) fn build_output_stream_for_output(
     output_index: usize,
     resolved_output_device: ResolvedOutputDevice,
     slots: Vec<LiveRuntimeSlot>,
+    di_cell: crate::di_playback::DiPlaybackCell,
 ) -> Result<Stream> {
     log::debug!(
         "building output stream for chain '{}' output_index={}",
@@ -381,6 +383,7 @@ pub(crate) fn build_output_stream_for_output(
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let di_cell = di_cell.clone();
             // Pre-allocated backend-mix scratch (issue #350 phase 3). Sized
             // to the configured buffer once here; the steady-state callback
             // never allocates. `process_output_f32_mixed` takes the
@@ -402,6 +405,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, out, channels);
                     }));
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
@@ -413,6 +417,7 @@ pub(crate) fn build_output_stream_for_output(
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let di_cell = di_cell.clone();
             let mut temp = Vec::new();
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
@@ -432,6 +437,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -447,6 +453,7 @@ pub(crate) fn build_output_stream_for_output(
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let di_cell = di_cell.clone();
             let mut temp = Vec::new();
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
@@ -466,6 +473,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
@@ -482,6 +490,7 @@ pub(crate) fn build_output_stream_for_output(
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let di_cell = di_cell.clone();
             let mut temp = Vec::new();
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
@@ -501,6 +510,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -541,6 +551,7 @@ fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
+    di_cells: &[crate::di_playback::DiPlaybackCell],
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
     // Flat list (group order) for the backend output mix. Issue #672: the
     // callbacks read each slot live so a worker-published rebuild takes
@@ -601,7 +612,12 @@ fn build_chain_streams(
         // single-rate chain is unaffected (every runtime matches the one rate).
         let out_rate = resolved_output_sample_rate(&resolved_output) as f32;
         let out_slots = crate::slot_processing::slots_for_output_stream(&slots, out_rate);
-        let stream = build_output_stream_for_output(chain_id, j, resolved_output, out_slots)?;
+        // #771: this output's DI playback cell — the callback mixes whatever
+        // pre-rendered loop is parked there. Callers with no controller (the
+        // bulk/console path) pass no cells; an empty default stays silent.
+        let di_cell = di_cells.get(j).cloned().unwrap_or_default();
+        let stream =
+            build_output_stream_for_output(chain_id, j, resolved_output, out_slots, di_cell)?;
         output_streams.push(stream);
     }
 
@@ -620,6 +636,7 @@ pub(crate) fn build_active_chain_runtime(
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
     #[allow(unused_variables)] registry: &[IoBinding],
+    di_cells: &[crate::di_playback::DiPlaybackCell],
 ) -> Result<ActiveChainRuntime> {
     log::info!(
         "building active chain runtime for '{}', sample_rate={}",
@@ -645,8 +662,11 @@ pub(crate) fn build_active_chain_runtime(
                 .next()
                 .map(|(_, slot)| slot.load())
                 .ok_or_else(|| anyhow::anyhow!("chain '{}' has no runtime state", chain_id.0))?;
+            // #771: JACK-direct chains have a single output stream (index 0);
+            // its callback mixes the chain's first DI playback cell.
+            let di_cell = di_cells.first().cloned().unwrap_or_default();
             let (jack_client, dsp_worker) =
-                build_jack_direct_chain(chain_id, chain, runtime, registry)?;
+                build_jack_direct_chain(chain_id, chain, runtime, registry, di_cell)?;
             return Ok(ActiveChainRuntime {
                 stream_signature,
                 _input_streams: Vec::new(),
@@ -662,6 +682,7 @@ pub(crate) fn build_active_chain_runtime(
         let _ = chain_id;
         let _ = resolved;
         let _ = slots;
+        let _ = di_cells;
         return Ok(ActiveChainRuntime {
             stream_signature,
             _input_streams: Vec::new(),
@@ -673,7 +694,8 @@ pub(crate) fn build_active_chain_runtime(
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
-        let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, slots)?;
+        let (input_streams, output_streams) =
+            build_chain_streams(chain_id, resolved, slots, di_cells)?;
         for stream in &input_streams {
             stream.play()?;
         }

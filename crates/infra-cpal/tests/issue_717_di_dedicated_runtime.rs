@@ -75,9 +75,16 @@ fn di_arms_on_a_separate_runtime_not_the_guitar_runtime() {
         controller.di_stream_active(&chain.id),
         "#717: a dedicated, isolated DI runtime must be playing for the chain"
     );
+    // #771: the loop is pre-rendered on a short-lived off-thread and parks on
+    // the chosen output's cell when done — poll until it does.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline && controller.di_stream_loop_len(&chain.id).is_none()
+    {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
     assert!(
         controller.di_stream_loop_len(&chain.id).is_some(),
-        "#717: the dedicated DI runtime must actually carry the loop (a real \
-         isolated runtime, not just a flag)"
+        "#717: the dedicated DI stream must actually carry the loop (a real \
+         pre-rendered playback, not just a flag)"
     );
 }
