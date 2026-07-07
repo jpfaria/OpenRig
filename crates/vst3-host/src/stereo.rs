@@ -36,6 +36,19 @@ impl StereoVst3Processor {
         }
     }
 
+    /// Build a `Vst3GuiContext` that shares this instance's controller, dylib,
+    /// and — crucially — the SAME param channel this processor drains, so edits
+    /// made in the native editor window reach this very audio instance (#251
+    /// out-of-process editor). `None` if the processor has no param channel.
+    pub fn make_gui_context(&self) -> Option<crate::param_registry::Vst3GuiContext> {
+        let param_channel = self.param_rx.clone()?;
+        Some(crate::param_registry::Vst3GuiContext {
+            param_channel,
+            controller: self.plugin.controller_clone(),
+            library: self.plugin.library_arc(),
+        })
+    }
+
     /// Set a normalized parameter value (0.0..=1.0) by plugin parameter ID.
     pub fn set_param(&self, id: u32, normalized: f64) -> anyhow::Result<()> {
         self.plugin.set_param(id, normalized)

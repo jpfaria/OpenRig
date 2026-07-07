@@ -29,6 +29,10 @@ pub struct Slot {
     pub load_req: AtomicU32,
     /// Child sets 1 once this slot's plugin instance is created.
     pub loaded: AtomicU32,
+    /// Parent sets 1 to ask the child to open this instance's native editor
+    /// window (only honoured by a single-instance child on macOS, which owns an
+    /// NSApplication — see `run_child`). Child sets it back to 0 once handled.
+    pub open_editor: AtomicU32,
     /// Total params ever written to the ring (parent-incremented). The child
     /// tracks its own read cursor and drains up to this.
     pub param_write: AtomicU64,
@@ -377,26 +381,33 @@ fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
 #[cfg(not(target_os = "macos"))]
 fn promote_to_audio_rt(_period_ns: u64, _computation_ns: u64) {}
 
-/// each slot's request/done handshake and param ring. Blocks until shutdown.
-pub fn run_child(
-    shm_path: &Path,
+/// Shared between the child's audio thread (producer) and, on macOS, its GUI
+/// main thread (consumer): the audio thread publishes the loaded instance's
+/// `Vst3GuiContext` so the main thread can open the native editor on request.
+#[allow(dead_code)] // `title` is read only on the macOS GUI path.
+struct EditorBridge {
+    /// Param channel shared by the audio processor (which drains it) and the
+    /// editor (which pushes to it) — the SAME instance, so knob moves in the
+    /// native window land on the live audio without any cross-process sync.
+    channel: vst3_host::Vst3ParamChannel,
+    ctx: std::sync::Mutex<Option<vst3_host::Vst3GuiContext>>,
+    title: String,
+}
+
+/// The audio worker. Lazily creates instances, services process/param, and (if
+/// `bridge` is set) publishes each instance's GUI context. RT-promoted; runs
+/// until shutdown. `shared`/the mapping are `'static` (leaked in `run_child`).
+fn audio_loop(
+    shared: &'static Shared,
     bundle: &Path,
     uid: &[u8; 16],
     sample_rate: f64,
     block_size: usize,
     n: usize,
-) -> Result<()> {
+    bridge: Option<std::sync::Arc<EditorBridge>>,
+) {
     use block_core::StereoProcessor;
     use vst3_host::{StereoVst3Processor, Vst3Plugin};
-
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(shm_path)
-        .with_context(|| format!("open shm {}", shm_path.display()))?;
-    // Safety: the parent sized this file to `Shared` before spawning us.
-    let map = unsafe { memmap2::MmapMut::map_mut(&file)? };
-    let shared: &Shared = unsafe { Shared::from_ptr(map.as_ptr() as *mut u8) };
 
     let cap = n.min(MAX_INSTANCES);
     let mut procs: Vec<Option<StereoVst3Processor>> = (0..cap).map(|_| None).collect();
@@ -415,21 +426,29 @@ pub fn run_child(
 
     loop {
         if shared.shutdown.load(Ordering::SeqCst) != 0 {
-            return Ok(());
+            return;
         }
         // Exit if the parent process is gone (orphaned → reparented to init on
         // unix), so a child never lingers after the app closes.
         #[cfg(unix)]
         if unsafe { libc::getppid() } == 1 {
-            return Ok(());
+            return;
         }
         let mut did_work = false;
         for i in 0..cap {
             let slot = &shared.slots[i];
             if slot.load_req.load(Ordering::Acquire) == 1 && procs[i].is_none() {
+                // The editor and this processor must share ONE param channel.
+                let channel = bridge.as_ref().map(|b| b.channel.clone());
                 match Vst3Plugin::load(bundle, uid, sample_rate, 2, block_size, &[]) {
                     Ok(p) => {
-                        procs[i] = Some(StereoVst3Processor::new(p, None));
+                        let proc = StereoVst3Processor::new(p, channel);
+                        if let Some(b) = &bridge {
+                            if let Some(ctx) = proc.make_gui_context() {
+                                *b.ctx.lock().unwrap() = Some(ctx);
+                            }
+                        }
+                        procs[i] = Some(proc);
                         slot.loaded.store(1, Ordering::Release);
                     }
                     Err(e) => {
@@ -476,6 +495,130 @@ pub fn run_child(
                 std::thread::sleep(std::time::Duration::from_micros(200));
             }
         }
+    }
+}
+
+/// Map the shared region and run the host. On macOS a SINGLE-instance child runs
+/// audio on a background RT thread and keeps the MAIN thread for the plugin's
+/// native editor (NSApplication + run loop) — only single-instance is safe with
+/// an NSApp (the #251 multi-instance bug is exactly NSApp + createInstance #2),
+/// so n>1 stays headless. Blocks until shutdown.
+pub fn run_child(
+    shm_path: &Path,
+    bundle: &Path,
+    uid: &[u8; 16],
+    sample_rate: f64,
+    block_size: usize,
+    n: usize,
+) -> Result<()> {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(shm_path)
+        .with_context(|| format!("open shm {}", shm_path.display()))?;
+    // Safety: the parent sized this file to `Shared` before spawning us.
+    let map = unsafe { memmap2::MmapMut::map_mut(&file)? };
+    // Leak the mapping so `&'static Shared` is valid on both the audio thread and
+    // the GUI main thread for the child's whole life; the child exits via
+    // process::exit, so the OS reclaims it.
+    let map: &'static memmap2::MmapMut = Box::leak(Box::new(map));
+    let shared: &'static Shared = unsafe { Shared::from_ptr(map.as_ptr() as *mut u8) };
+
+    #[cfg(target_os = "macos")]
+    if n == 1 {
+        let bridge = std::sync::Arc::new(EditorBridge {
+            channel: vst3_host::vst3_param_channel(),
+            ctx: std::sync::Mutex::new(None),
+            title: bundle
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("VST3")
+                .to_string(),
+        });
+        let b2 = bridge.clone();
+        let bundle_owned = bundle.to_path_buf();
+        let uid_owned = *uid;
+        std::thread::Builder::new()
+            .name("vst3-audio".into())
+            .spawn(move || {
+                audio_loop(
+                    shared,
+                    &bundle_owned,
+                    &uid_owned,
+                    sample_rate,
+                    block_size,
+                    1,
+                    Some(b2),
+                );
+            })
+            .context("spawn audio thread")?;
+        gui_main_loop(shared, &bridge);
+        return Ok(());
+    }
+
+    audio_loop(shared, bundle, uid, sample_rate, block_size, n, None);
+    Ok(())
+}
+
+/// macOS GUI main thread: become a foreground app, then pump the run loop and
+/// open the plugin's native editor window when the parent requests it.
+#[cfg(target_os = "macos")]
+fn gui_main_loop(shared: &'static Shared, bridge: &std::sync::Arc<EditorBridge>) {
+    use std::ffi::c_void;
+    #[link(name = "objc")]
+    extern "C" {
+        fn objc_getClass(name: *const i8) -> *mut c_void;
+        fn sel_registerName(s: *const i8) -> *mut c_void;
+        fn objc_msgSend();
+    }
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        static kCFRunLoopDefaultMode: *const c_void;
+        fn CFRunLoopRunInMode(mode: *const c_void, seconds: f64, return_after_source: u8) -> i32;
+    }
+    unsafe fn msg0(obj: *mut c_void, sel: &[u8]) -> *mut c_void {
+        let f: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as *const ());
+        f(obj, sel_registerName(sel.as_ptr() as *const i8))
+    }
+    unsafe fn msg1i(obj: *mut c_void, sel: &[u8], a: i64) -> *mut c_void {
+        let f: unsafe extern "C" fn(*mut c_void, *mut c_void, i64) -> *mut c_void =
+            std::mem::transmute(objc_msgSend as *const ());
+        f(obj, sel_registerName(sel.as_ptr() as *const i8), a)
+    }
+
+    // Foreground GUI app so the editor window can appear.
+    unsafe {
+        let app = msg0(
+            objc_getClass(b"NSApplication\0".as_ptr() as *const i8),
+            b"sharedApplication\0",
+        );
+        msg1i(app, b"setActivationPolicy:\0", 0);
+        msg0(app, b"finishLaunching\0");
+    }
+
+    let mut editor: Option<vst3_host::Vst3EditorHandle> = None;
+    loop {
+        if shared.shutdown.load(Ordering::SeqCst) != 0 {
+            return;
+        }
+        #[cfg(unix)]
+        if unsafe { libc::getppid() } == 1 {
+            return;
+        }
+        let slot = &shared.slots[0];
+        if slot.open_editor.swap(0, Ordering::AcqRel) == 1 && editor.is_none() {
+            match bridge.ctx.lock().unwrap().take() {
+                Some(ctx) => match vst3_host::open_vst3_editor_window(&bridge.title, ctx) {
+                    Ok(h) => editor = Some(h),
+                    Err(e) => eprintln!("[vst3-proc] open editor failed: {e:#}"),
+                },
+                // Instance not loaded yet — re-arm and retry next tick.
+                None => slot.open_editor.store(1, Ordering::Release),
+            }
+        }
+        // Pump the run loop so the editor window stays responsive.
+        unsafe { CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.02, 1) };
     }
 }
 
@@ -558,6 +701,13 @@ impl ProcHandle {
     }
     pub fn set_param(&self, id: u32, normalized: f32) {
         self.client.set_param(0, id, normalized);
+    }
+    /// Ask the child to open this instance's native editor window (macOS,
+    /// single-instance child). No-op if the child can't host a GUI.
+    pub fn open_editor(&self) {
+        self.client.shared().slots[0]
+            .open_editor
+            .store(1, Ordering::Release);
     }
 }
 
