@@ -122,7 +122,9 @@ pub fn shared_size() -> usize {
 /// Drives an out-of-process host of `n` instances of one plugin.
 pub struct Vst3ProcClient {
     _file: std::fs::File,
-    _map: memmap2::MmapMut,
+    /// `Arc` so an `EditorOpener` can keep the mapping alive after the client
+    /// (and its child) are dropped — poking a dead child's flag is harmless.
+    _map: std::sync::Arc<memmap2::MmapMut>,
     /// Base pointer of the mapping (copyable, so methods can read the shared
     /// state without holding a borrow on `self`).
     base: *mut u8,
@@ -186,6 +188,7 @@ impl Vst3ProcClient {
             .spawn()
             .with_context(|| format!("spawn {}", child_bin.display()))?;
 
+        let map = std::sync::Arc::new(map);
         let base = map.as_ptr() as *mut u8;
         let mut client = Self {
             _file: file,
@@ -587,13 +590,14 @@ fn gui_main_loop(shared: &'static Shared, bridge: &std::sync::Arc<EditorBridge>)
         f(obj, sel_registerName(sel.as_ptr() as *const i8), a)
     }
 
-    // Foreground GUI app so the editor window can appear.
+    // Accessory app (policy 1): can show the editor window but takes NO dock
+    // icon — otherwise every per-instance child would clutter the dock.
     unsafe {
         let app = msg0(
             objc_getClass(b"NSApplication\0".as_ptr() as *const i8),
             b"sharedApplication\0",
         );
-        msg1i(app, b"setActivationPolicy:\0", 0);
+        msg1i(app, b"setActivationPolicy:\0", 1);
         msg0(app, b"finishLaunching\0");
     }
 
@@ -658,7 +662,8 @@ pub fn find_installed_child_bin() -> Option<PathBuf> {
 unsafe impl Send for Vst3ProcClient {}
 unsafe impl Sync for Vst3ProcClient {}
 
-use std::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 static CHILD_BIN: Mutex<Option<PathBuf>> = Mutex::new(None);
 
@@ -708,6 +713,63 @@ impl ProcHandle {
         self.client.shared().slots[0]
             .open_editor
             .store(1, Ordering::Release);
+    }
+
+    /// A detachable trigger that opens this instance's editor. It keeps the
+    /// shared mapping alive, so calling it after the block is gone is a safe
+    /// no-op (the child has already exited).
+    pub fn editor_opener(&self) -> EditorOpener {
+        EditorOpener {
+            map: self.client._map.clone(),
+            base: SendPtr(self.client.base),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct SendPtr(*mut u8);
+// Safety: only ever used to store `1` into an `AtomicU32` inside the shared
+// mapping the accompanying `Arc<MmapMut>` keeps alive.
+unsafe impl Send for SendPtr {}
+unsafe impl Sync for SendPtr {}
+
+/// A detachable trigger to open an out-of-process instance's native editor,
+/// registered per plugin model so the GUI can open it without holding the
+/// engine's processor. Holds the mapping `Arc` alive for its own safety.
+#[derive(Clone)]
+pub struct EditorOpener {
+    #[allow(dead_code)] // held only to keep the mapping alive.
+    map: std::sync::Arc<memmap2::MmapMut>,
+    base: SendPtr,
+}
+
+impl EditorOpener {
+    fn open(&self) {
+        let shared = unsafe { Shared::from_ptr(self.base.0) };
+        shared.slots[0].open_editor.store(1, Ordering::Release);
+    }
+}
+
+static EDITORS: OnceLock<Mutex<HashMap<String, EditorOpener>>> = OnceLock::new();
+fn editors() -> &'static Mutex<HashMap<String, EditorOpener>> {
+    EDITORS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Register the editor trigger for a plugin `key` (its model id). A later build
+/// of the same model overwrites the previous entry.
+pub fn register_editor(key: &str, opener: EditorOpener) {
+    editors().lock().unwrap().insert(key.to_string(), opener);
+}
+
+/// Ask the out-of-process child hosting `key` to open its native editor window.
+/// Returns `false` if no instance for `key` is currently registered.
+pub fn request_open_editor(key: &str) -> bool {
+    match editors().lock().unwrap().get(key) {
+        Some(o) => {
+            o.open();
+            true
+        }
+        None => false,
     }
 }
 
@@ -777,6 +839,7 @@ impl MonoProcessor for ProcMonoProcessor {
 /// (normalized `(id, value)` pairs). Used by the engine in place of the
 /// in-process `Vst3Plugin` build for GUI plugins (#251).
 pub fn build_vst3_proc_processor(
+    model_id: &str,
     bundle: &Path,
     uid: &[u8; 16],
     sample_rate: f64,
@@ -788,6 +851,8 @@ pub fn build_vst3_proc_processor(
     for &(id, norm) in initial_params {
         handle.set_param(id, norm as f32);
     }
+    // Register the editor trigger so the GUI can open this instance's window.
+    register_editor(model_id, handle.editor_opener());
     Ok(match layout {
         AudioChannelLayout::Mono => {
             BlockProcessor::Mono(Box::new(ProcMonoProcessor { handle, buf: Vec::new() }))

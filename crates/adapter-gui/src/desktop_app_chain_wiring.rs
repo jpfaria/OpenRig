@@ -79,11 +79,9 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             project_dirty: deps.project_dirty.clone(),
             toast_timer: deps.toast_timer.clone(),
             open_compact_window: deps.open_compact_window.clone(),
-            vst3_editor_handles: deps.vst3_editor_handles.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             fullscreen: deps.fullscreen,
             auto_save: deps.auto_save,
-            vst3_sample_rate: deps.vst3_sample_rate,
         },
     );
     // --- Chain name edit callback (extracted to chain_name_wiring) ---

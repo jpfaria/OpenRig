@@ -87,6 +87,7 @@ dependencies = [
  "sys-locale",
  "tempfile",
  "ui-openrig",
+ "vst3-proc",
  "webbrowser",
 ]
 
@@ -6885,7 +6886,6 @@ dependencies = [
  "block-core",
  "crossbeam-queue",
  "domain",
- "libc",
  "libloading 0.8.9",
  "log",
  "vst3",

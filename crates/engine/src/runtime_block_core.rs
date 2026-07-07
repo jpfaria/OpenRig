@@ -319,6 +319,7 @@ pub(crate) fn build_core_block_runtime_node(
                     content_mono,
                     |layout| {
                         vst3_proc::build_vst3_proc_processor(
+                            model,
                             &bundle_path,
                             &uid,
                             sample_rate as f64,
