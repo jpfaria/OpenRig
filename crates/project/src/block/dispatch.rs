@@ -507,6 +507,12 @@ pub(super) fn describe_block_params(
 ) -> Result<Vec<BlockParameterDescriptor>, String> {
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
+    let ctx = block_core::param::MaterializeContext {
+        block_id,
+        effect_type,
+        model,
+        audio_mode: schema.audio_mode,
+    };
     Ok(schema
         .parameters
         .iter()
@@ -516,13 +522,7 @@ pub(super) fn describe_block_params(
                 .cloned()
                 .or_else(|| spec.default_value.clone())
                 .unwrap_or(ParameterValue::Null);
-            spec.materialize(
-                block_id,
-                effect_type,
-                model,
-                schema.audio_mode,
-                current_value,
-            )
+            spec.materialize(&ctx, current_value)
         })
         .collect())
 }

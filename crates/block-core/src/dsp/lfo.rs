@@ -58,9 +58,8 @@ impl Lfo {
         self.rate_hz
     }
 
-    /// Returns the next sample in [-1, 1].
-    #[allow(clippy::should_implement_trait)] // an LFO is not an `Iterator`; `next` reads naturally
-    pub fn next(&mut self) -> f32 {
+    /// Returns the next sample in [-1, 1] (paired with [`Self::next_unipolar`]).
+    pub fn next_bipolar(&mut self) -> f32 {
         let p = self.phase;
         self.phase += self.inc;
         if self.phase >= 1.0 {
@@ -93,7 +92,7 @@ impl Lfo {
     /// Returns the next sample mapped to [0, 1] (handy for a
     /// modulation envelope around 0.5).
     pub fn next_unipolar(&mut self) -> f32 {
-        0.5 * (1.0 + self.next())
+        0.5 * (1.0 + self.next_bipolar())
     }
 }
 

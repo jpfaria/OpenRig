@@ -39,7 +39,6 @@ fn schema() -> Result<ModelParameterSchema> {
             "file",
             "IR File",
             None,
-            None,
             &["wav"],
             false,
         )],

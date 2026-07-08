@@ -35,8 +35,8 @@ pub use constants::{
 };
 pub use effect_type_caps::effect_type_uses_model_catalog;
 pub use dsp::{
-    calculate_coefficient, capitalize_first, db_to_lin, lin_to_db, BiquadFilter, BiquadKind,
-    EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
+    calculate_coefficient, capitalize_first, db_to_lin, lin_to_db, BiquadDesign, BiquadFilter,
+    BiquadKind, EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
 };
 pub use traits::{
     wrap_with_output_gain_db, BlockProcessor, MonoProcessor, NamedModel, PluginEditorHandle,

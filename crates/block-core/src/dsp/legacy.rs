@@ -159,6 +159,18 @@ pub enum BiquadKind {
     Notch,
 }
 
+/// One biquad's design point: the five parameters that together determine its
+/// normalized coefficients. Passed as a unit so retuning a filter is a single
+/// value instead of five positional arguments that are easy to transpose.
+#[derive(Clone, Copy)]
+pub struct BiquadDesign {
+    pub kind: BiquadKind,
+    pub freq_hz: f32,
+    pub gain_db: f32,
+    pub q: f32,
+    pub sample_rate: f32,
+}
+
 /// Number of samples over which `update_coefficients` ramps from the current
 /// coefficients to the target. ~5.3 ms @ 48 kHz, which is short enough to feel
 /// instant at the slider but long enough to suppress the parameter-change click
@@ -299,16 +311,14 @@ impl BiquadFilter {
     /// [`BIQUAD_COEFF_RAMP_FRAMES`] samples. No allocation, no syscall — safe to
     /// invoke when the rebuild thread has exclusive ownership of the processor
     /// (issue #358 — runtime swap path in `try_reuse_block_node`).
-    #[allow(clippy::too_many_arguments)]
-    pub fn update_coefficients(
-        &mut self,
-        kind: BiquadKind,
-        freq_hz: f32,
-        gain_db: f32,
-        q: f32,
-        sample_rate: f32,
-    ) {
-        let c = compute_normalized_coefficients(kind, freq_hz, gain_db, q, sample_rate);
+    pub fn update_coefficients(&mut self, design: BiquadDesign) {
+        let c = compute_normalized_coefficients(
+            design.kind,
+            design.freq_hz,
+            design.gain_db,
+            design.q,
+            design.sample_rate,
+        );
         self.target_b0 = c.b0;
         self.target_b1 = c.b1;
         self.target_b2 = c.b2;
@@ -375,7 +385,13 @@ mod biquad_smoothing_tests {
             let s = (two_pi * 1000.0 * n as f32 / 48_000.0).sin() * 0.5;
             last_before = bq.process(s);
         }
-        bq.update_coefficients(BiquadKind::Peak, 1000.0, 12.0, 1.0, 48_000.0);
+        bq.update_coefficients(BiquadDesign {
+            kind: BiquadKind::Peak,
+            freq_hz: 1000.0,
+            gain_db: 12.0,
+            q: 1.0,
+            sample_rate: 48_000.0,
+        });
         let next_input = (two_pi * 1000.0 * 1024_f32 / 48_000.0).sin() * 0.5;
         let first_after = bq.process(next_input);
         let cliff = (first_after - last_before).abs();
@@ -391,7 +407,13 @@ mod biquad_smoothing_tests {
         // a freshly built filter at the same params — otherwise the filter
         // would forever lag the user's slider.
         let mut bq = BiquadFilter::new(BiquadKind::Peak, 1000.0, 0.0, 1.0, 48_000.0);
-        bq.update_coefficients(BiquadKind::Peak, 1000.0, 12.0, 1.0, 48_000.0);
+        bq.update_coefficients(BiquadDesign {
+            kind: BiquadKind::Peak,
+            freq_hz: 1000.0,
+            gain_db: 12.0,
+            q: 1.0,
+            sample_rate: 48_000.0,
+        });
         for _ in 0..(BIQUAD_COEFF_RAMP_FRAMES + 4) {
             bq.process(0.0);
         }
