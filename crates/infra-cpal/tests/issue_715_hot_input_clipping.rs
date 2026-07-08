@@ -107,6 +107,13 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
         r.spec().sample_rate
     };
 
+    // The user's real chains now carry catalog/system VST3 blocks (ChowCentaur,
+    // ValhallaSupermassive — issue #776). The offline render resolves them from
+    // the VST3 catalog, which the live app builds at startup; without this the
+    // blocks fault "not found in catalog", every guitar chain is skipped, and
+    // the test can't measure clipping at all. Initialise it the same way.
+    project::vst3_editor::init_vst3_catalog(di_sr as f64, &[real_plugins_root()]);
+
     let mut worst: Option<(String, Scan)> = None;
     for chain in project.chains.into_iter().filter(is_guitar) {
         let n_nam = chain
