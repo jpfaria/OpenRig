@@ -222,6 +222,36 @@ fn t12_pending_param_change_does_not_crash() {
     let _ = process_last(&mut plugin, &[(id, 0.7)], 4);
 }
 
+// ── Concurrent instantiation (the DI "no effect" + reorder crash root) ────────
+
+#[test]
+fn t22_concurrent_instantiation_all_succeed() {
+    // The guitar chain build and the DI pre-render can load ChowCentaur on
+    // different threads at the same time. JUCE plugins refuse concurrent
+    // instantiation, so the loser faults -> bypass (DI plays dry) or crashes.
+    // Every concurrent load must succeed.
+    let Some(entry) = chow() else { return };
+    let uid = vst3_host::resolve_uid_for_model(entry.model_id).expect("uid");
+    let bundle = entry.info.bundle_path.clone();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let handles: Vec<_> = (0..2)
+        .map(|_| {
+            let b = barrier.clone();
+            let bundle = bundle.clone();
+            std::thread::spawn(move || {
+                b.wait(); // release all four loads at once
+                vst3_host::Vst3Plugin::load(&bundle, &uid, SR, 2, 512, &[]).is_ok()
+            })
+        })
+        .collect();
+    let ok = handles
+        .into_iter()
+        .map(|h| h.join().unwrap())
+        .filter(|&ok| ok)
+        .count();
+    assert_eq!(ok, 2, "all concurrent instantiations must succeed, got {ok}/2");
+}
+
 // ── Teardown marshaling (issue #778) ──────────────────────────────────────────
 
 #[test]

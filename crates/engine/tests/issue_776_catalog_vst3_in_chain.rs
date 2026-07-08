@@ -145,6 +145,36 @@ fn t19_disabling_the_block_equals_passthrough() {
     );
 }
 
+// ── The DI scenario: a 2nd instance while the 1st is alive ────────────────────
+
+#[test]
+fn t21_second_instance_processes_while_the_first_is_alive() {
+    // Arming a DI loop (#771) pre-renders through a FRESH copy of the chain
+    // graph — a 2nd ChowCentaur instance while the guitar chain's 1st is live.
+    // The 2nd must still process, or the DI plays dry ("no effect on the DI").
+    let Some(model) = chow_model_id() else { return };
+    let entry = vst3_host::find_vst3_plugin(model).expect("entry");
+    let uid = vst3_host::resolve_uid_for_model(model).expect("uid");
+    // Instance #1: the "guitar" instance — kept ALIVE for the whole test.
+    let _alive =
+        vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR as f64, 2, 512, &[]).unwrap();
+
+    let input = sine_input(8192);
+    let dry = render_chain(&chain_with("pass", vec![]), SR, &input, 256, 0).expect("dry");
+    // Instance #2: the "DI" copy, built while #1 is alive.
+    let block = vst3_block(model, true, ParameterSet::default());
+    let wet = render_chain(&chain_with("di", vec![block]), SR, &input, 256, 0).expect("wet");
+    assert!(
+        wet.faulted_blocks.is_empty(),
+        "2nd VST3 instance faulted while the 1st was alive: {:?}",
+        wet.faulted_blocks
+    );
+    assert_ne!(
+        dry.samples, wet.samples,
+        "BUG: a 2nd VST3 instance (the DI's copy) plays DRY while the 1st is alive"
+    );
+}
+
 // ── Catalog surface ───────────────────────────────────────────────────────────
 
 #[test]

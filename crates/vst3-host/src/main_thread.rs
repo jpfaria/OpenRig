@@ -14,8 +14,23 @@
 //! (CLI, tests, headless render), teardown runs inline — those paths never open
 //! a native editor, so there is nothing to marshal.
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::thread::ThreadId;
+
+/// Serialises JUCE-touching COM operations across threads: `createInstance`
+/// (load) and `terminate()` (teardown). JUCE-based VST3s (e.g. ChowCentaur)
+/// SIGSEGV when two instances are created — or torn down — concurrently, which
+/// happens when the guitar-chain build and the DI pre-render load the same
+/// plugin on their own threads, on a reorder rebuild, or when several plugins
+/// drop at once. Both operations run off the audio thread, so a lock is
+/// RT-free. (issue #776/#778)
+static JUCE_OP_LOCK: Mutex<()> = Mutex::new(());
+
+/// Acquire the JUCE-operation lock for the duration of an instantiate/teardown.
+/// Recovers from a poisoned lock so one panicked op can't wedge every future one.
+pub(crate) fn juce_op_guard() -> MutexGuard<'static, ()> {
+    JUCE_OP_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 /// The thread the UI declared as its main/AppKit thread, if any.
 static MAIN_THREAD: OnceLock<ThreadId> = OnceLock::new();

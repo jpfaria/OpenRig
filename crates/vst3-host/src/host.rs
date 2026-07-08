@@ -404,6 +404,9 @@ impl Vst3Plugin {
 
 impl Drop for Vst3Inner {
     fn drop(&mut self) {
+        // Serialise teardown with instantiation: concurrent `terminate()` of a
+        // JUCE plugin SIGSEGVs just like concurrent `createInstance` (#776).
+        let _serialize = crate::main_thread::juce_op_guard();
         // Deactivate processing and component in reverse order.
         unsafe {
             let _ = self.audio_processor.setProcessing(0 as TBool);

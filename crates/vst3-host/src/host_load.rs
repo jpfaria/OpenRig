@@ -42,6 +42,11 @@ impl Vst3Plugin {
         block_size: usize,
         initial_params: &[(u32, f64)],
     ) -> Result<Self> {
+        // Serialise instantiation: concurrent createInstance of a JUCE plugin
+        // SIGSEGVs (issue #776). Held for the whole load; the same lock also
+        // guards teardown (`Vst3Inner::drop`).
+        let _serialize = crate::main_thread::juce_op_guard();
+
         // 1. Resolve the binary inside the bundle.
         let binary_path = bundle_binary_path(bundle_path)?;
         log::info!(
