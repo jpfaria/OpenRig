@@ -3250,6 +3250,7 @@ dependencies = [
  "nam",
  "plugin-loader",
  "project",
+ "vst3-host",
 ]
 
 [[package]]
