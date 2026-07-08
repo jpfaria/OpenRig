@@ -29,6 +29,7 @@ pub mod host_application;
 mod host;
 mod host_factory;
 mod host_utils;
+mod main_thread;
 mod param_changes;
 pub mod param_channel;
 pub mod param_registry;
@@ -45,6 +46,7 @@ pub use discovery::{
 };
 pub use editor::{open_vst3_editor_window, open_vst3_editor_window_standalone, Vst3EditorHandle};
 pub use host::{Vst3ParamInfo, Vst3Plugin, Vst3PluginClass};
+pub use main_thread::{drain_main_thread_deferred, mark_main_thread};
 pub use param_channel::{vst3_param_channel, Vst3ParamChannel, Vst3ParamUpdate};
 pub use param_registry::{
     lookup_vst3_channel, lookup_vst3_gui_context, register_vst3_gui_context, Vst3GuiContext,

@@ -33,6 +33,10 @@ pub(crate) fn start(
     project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
 ) {
+    // Issue #778: this is the UI/AppKit (main) thread. Record it so a VST3 plugin
+    // whose native editor is open, when dropped on the control worker, has its
+    // teardown marshaled back here instead of crashing off the main thread.
+    project::vst3_editor::mark_main_thread();
     // Error polling timer — drains block errors from the audio engine and shows toasts
     {
         let weak_window = window.as_weak();
@@ -54,6 +58,9 @@ pub(crate) fn start(
                 // control worker — swaps the live runtime in on the frontend tick
                 // so the heavy build never blocked the UI.
                 rt.poll_pending_rebuilds();
+                // Issue #778: run any VST3 teardown the control worker deferred to
+                // the main thread (dropping a plugin editor off-main crashes).
+                project::vst3_editor::drain_deferred_vst3_teardowns();
                 let errors = rt.poll_errors();
                 if let Some(first) = errors.first() {
                     set_status_error(

@@ -60,6 +60,19 @@ pub fn init_vst3_catalog(sample_rate: f64, plugin_roots: &[std::path::PathBuf]) 
     vst3_host::init_vst3_catalog(sample_rate, &extra_dirs);
 }
 
+/// Record the UI thread as the main/AppKit thread (issue #778). Call once on the
+/// UI thread at startup so VST3 teardown that lands on the control worker is
+/// marshaled back here instead of crashing off the main thread.
+pub fn mark_main_thread() {
+    vst3_host::mark_main_thread();
+}
+
+/// Run any VST3 plugin teardown deferred from a non-main thread (issue #778).
+/// Call on the frontend tick, on the main thread.
+pub fn drain_deferred_vst3_teardowns() {
+    vst3_host::drain_main_thread_deferred();
+}
+
 /// The native editor may only open by reusing the engine's plugin instance.
 ///
 /// `has_engine_context` is whether a `Vst3GuiContext` is registered for the
