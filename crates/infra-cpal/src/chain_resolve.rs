@@ -34,12 +34,13 @@ use domain::io_binding::IoBinding;
 use project::project::Project;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use engine::runtime_endpoints::{resolve_chain_io, resolve_chain_io_by_binding, InputEntry, OutputEntry};
+use engine::runtime_endpoints::{
+    resolve_chain_io, resolve_chain_io_by_binding, InputEntry, OutputEntry,
+};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::block::{AudioBlockKind, InsertBlock};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;
-
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::{is_asio_host, using_jack_direct};
@@ -69,8 +70,8 @@ pub fn resolve_project_chain_sample_rates(
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         let _ = registry; // device endpoints come from libjack meta on this path
-        // Probe the first running named server via the libjack helper — no
-        // cache involved; this is a one-off read for UI/display purposes.
+                          // Probe the first running named server via the libjack helper — no
+                          // cache involved; this is a one-off read for UI/display purposes.
         let cards = detect_all_usb_audio_cards();
         let meta = cards
             .iter()
@@ -104,17 +105,31 @@ pub fn resolve_project_chain_sample_rates(
             let mut by_device: std::collections::HashMap<domain::ids::DeviceId, u32> =
                 std::collections::HashMap::new();
             for (logical, resolved) in logical_inputs.iter().zip(inputs.iter()) {
-                by_device.insert(logical.device_id.clone(), crate::resolved_input_sample_rate(resolved));
+                by_device.insert(
+                    logical.device_id.clone(),
+                    crate::resolved_input_sample_rate(resolved),
+                );
             }
             for (logical, resolved) in logical_outputs.iter().zip(outputs.iter()) {
-                by_device.insert(logical.device_id.clone(), crate::resolved_output_sample_rate(resolved));
+                by_device.insert(
+                    logical.device_id.clone(),
+                    crate::resolved_output_sample_rate(resolved),
+                );
             }
             let binding_rates: Vec<(Vec<u32>, Vec<u32>)> =
                 engine::runtime_endpoints::resolve_chain_io_by_binding(chain, registry)
                     .iter()
                     .map(|g| {
-                        let in_r = g.inputs.iter().map(|e| by_device.get(&e.device_id).copied().unwrap_or(0)).collect();
-                        let out_r = g.outputs.iter().map(|e| by_device.get(&e.device_id).copied().unwrap_or(0)).collect();
+                        let in_r = g
+                            .inputs
+                            .iter()
+                            .map(|e| by_device.get(&e.device_id).copied().unwrap_or(0))
+                            .collect();
+                        let out_r = g
+                            .outputs
+                            .iter()
+                            .map(|e| by_device.get(&e.device_id).copied().unwrap_or(0))
+                            .collect();
                         (in_r, out_r)
                     })
                     .collect();
@@ -153,9 +168,8 @@ pub(crate) fn resolve_input_device_for_chain_input(
     })?;
     // #762: cached CoreAudio query — avoid re-probing the same device (and
     // disturbing it) on every live sync.
-    let cfg = crate::device_config_cache::configs_for(&device, true).with_context(|| {
-        format!("failed to query input configs for '{}'", input.device_id.0)
-    })?;
+    let cfg = crate::device_config_cache::configs_for(&device, true)
+        .with_context(|| format!("failed to query input configs for '{}'", input.device_id.0))?;
     let default_config = cfg.default.ok_or_else(|| {
         anyhow!(
             "failed to get default input config for '{}'",
@@ -216,7 +230,10 @@ pub(crate) fn resolve_output_device_for_chain_output(
     })?;
     // #762: cached CoreAudio query — avoid re-probing on every live sync.
     let cfg = crate::device_config_cache::configs_for(&device, false).with_context(|| {
-        format!("failed to query output configs for '{}'", output.device_id.0)
+        format!(
+            "failed to query output configs for '{}'",
+            output.device_id.0
+        )
     })?;
     let default_config = cfg.default.ok_or_else(|| {
         anyhow!(

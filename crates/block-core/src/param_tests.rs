@@ -343,7 +343,7 @@ fn validate_text_whitespace_only_fails_when_not_allowed() {
 
 #[test]
 fn validate_file_path_valid_extension_ok() {
-    let spec = file_path_parameter("file", "File", None, None, &["wav", "mp3"], false);
+    let spec = file_path_parameter("file", "File", None, &["wav", "mp3"], false);
     assert!(spec
         .validate_value(&ParameterValue::String("/path/to/file.wav".to_string()))
         .is_ok());
@@ -351,7 +351,7 @@ fn validate_file_path_valid_extension_ok() {
 
 #[test]
 fn validate_file_path_wrong_extension_fails() {
-    let spec = file_path_parameter("file", "File", None, None, &["wav", "mp3"], false);
+    let spec = file_path_parameter("file", "File", None, &["wav", "mp3"], false);
     assert!(spec
         .validate_value(&ParameterValue::String("/path/to/file.txt".to_string()))
         .is_err());
@@ -359,7 +359,7 @@ fn validate_file_path_wrong_extension_fails() {
 
 #[test]
 fn validate_file_path_case_insensitive_extension() {
-    let spec = file_path_parameter("file", "File", None, None, &["wav"], false);
+    let spec = file_path_parameter("file", "File", None, &["wav"], false);
     assert!(spec
         .validate_value(&ParameterValue::String("file.WAV".to_string()))
         .is_ok());
@@ -367,7 +367,7 @@ fn validate_file_path_case_insensitive_extension() {
 
 #[test]
 fn validate_file_path_no_extensions_allows_any() {
-    let spec = file_path_parameter("file", "File", None, None, &[], false);
+    let spec = file_path_parameter("file", "File", None, &[], false);
     assert!(spec
         .validate_value(&ParameterValue::String("anything.xyz".to_string()))
         .is_ok());
@@ -375,7 +375,7 @@ fn validate_file_path_no_extensions_allows_any() {
 
 #[test]
 fn validate_file_path_empty_string_fails() {
-    let spec = file_path_parameter("file", "File", None, None, &["wav"], false);
+    let spec = file_path_parameter("file", "File", None, &["wav"], false);
     assert!(spec
         .validate_value(&ParameterValue::String("".to_string()))
         .is_err());
@@ -743,7 +743,7 @@ fn text_parameter_builder() {
 
 #[test]
 fn file_path_parameter_builder() {
-    let spec = file_path_parameter("ir", "IR File", None, None, &["wav", "flac"], true);
+    let spec = file_path_parameter("ir", "IR File", None, &["wav", "flac"], true);
     assert_eq!(spec.path, "ir");
     assert_eq!(spec.widget, ParameterWidget::FilePicker);
     assert!(spec.optional);
@@ -957,13 +957,13 @@ fn materialize_creates_correct_descriptor() {
         ParameterUnit::Percent,
     );
     let block_id = BlockId("test_block".to_string());
-    let desc = spec.materialize(
-        &block_id,
-        "preamp",
-        "test_model",
-        ModelAudioMode::DualMono,
-        ParameterValue::Float(75.0),
-    );
+    let ctx = crate::param::MaterializeContext {
+        block_id: &block_id,
+        effect_type: "preamp",
+        model: "test_model",
+        audio_mode: ModelAudioMode::DualMono,
+    };
+    let desc = spec.materialize(&ctx, ParameterValue::Float(75.0));
     assert_eq!(desc.path, "gain");
     assert_eq!(desc.label, "Gain");
     assert_eq!(desc.group, Some("amp".to_string()));

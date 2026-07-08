@@ -117,29 +117,28 @@ pub fn process_input_f32(
     // callback's input with a short sine beep and record the injection
     // time. Only the primary input (index 0) probes so we measure the
     // round-trip of the user-visible signal path.
-    let probe_buf: Option<Vec<f32>> = if input_index == 0
-        && runtime.probe_state.load(Ordering::Acquire) == PROBE_ARMED
-    {
-        runtime.probe_state.store(PROBE_FIRED, Ordering::Release);
-        let injected_at = runtime.created_at.elapsed().as_nanos() as u64;
-        runtime
-            .last_input_nanos
-            .store(injected_at, Ordering::Relaxed);
-        let mut buf = data.to_vec();
-        let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
-        // Synthesize the beep at the runtime's REAL rate (issue #723), not a
-        // hardcoded 48 kHz. The measurement is timing-based, but the audible
-        // pitch should still be a true 1 kHz on any device rate.
-        crate::runtime_probe::write_probe_beep(
-            &mut buf,
-            input_total_channels,
-            runtime.sample_rate,
-            beep_frames,
-        );
-        Some(buf)
-    } else {
-        None
-    };
+    let probe_buf: Option<Vec<f32>> =
+        if input_index == 0 && runtime.probe_state.load(Ordering::Acquire) == PROBE_ARMED {
+            runtime.probe_state.store(PROBE_FIRED, Ordering::Release);
+            let injected_at = runtime.created_at.elapsed().as_nanos() as u64;
+            runtime
+                .last_input_nanos
+                .store(injected_at, Ordering::Relaxed);
+            let mut buf = data.to_vec();
+            let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
+            // Synthesize the beep at the runtime's REAL rate (issue #723), not a
+            // hardcoded 48 kHz. The measurement is timing-based, but the audible
+            // pitch should still be a true 1 kHz on any device rate.
+            crate::runtime_probe::write_probe_beep(
+                &mut buf,
+                input_total_channels,
+                runtime.sample_rate,
+                beep_frames,
+            );
+            Some(buf)
+        } else {
+            None
+        };
     let data: &[f32] = match probe_buf.as_ref() {
         Some(b) => b.as_slice(),
         None => data,

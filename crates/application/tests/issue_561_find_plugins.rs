@@ -30,9 +30,7 @@ fn seed_natives_and_reload(dispatcher: &LocalDispatcher) {
     // #693: the rescan runs on its own task — wait for the completion
     // event (poll_async_results is the frontend tick's job).
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-    while dispatcher.poll_async_results().is_empty()
-        && std::time::Instant::now() < deadline
-    {
+    while dispatcher.poll_async_results().is_empty() && std::time::Instant::now() < deadline {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 }

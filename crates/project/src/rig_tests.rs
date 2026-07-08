@@ -657,8 +657,7 @@ presets: {}
 #[test]
 fn rig_input_instrument_serde_roundtrip() {
     let mut p = project_with(vec![("guitar", input(&[(1, "a")], 1))], &["a"]);
-    p.inputs.get_mut("guitar").unwrap().instrument =
-        block_core::INST_ACOUSTIC_GUITAR.to_string();
+    p.inputs.get_mut("guitar").unwrap().instrument = block_core::INST_ACOUSTIC_GUITAR.to_string();
 
     let yaml = serde_yaml::to_string(&p).unwrap();
     let restored: RigProject = serde_yaml::from_str(&yaml).unwrap();

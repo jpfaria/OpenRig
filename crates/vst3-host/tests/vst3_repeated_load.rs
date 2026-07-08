@@ -10,11 +10,17 @@
 
 use vst3::ComPtr;
 use vst3::Steinberg::IPlugView;
-use vst3::Steinberg::Vst::{IConnectionPoint, IConnectionPointTrait, IEditControllerTrait, ViewType};
+use vst3::Steinberg::Vst::{
+    IConnectionPoint, IConnectionPointTrait, IEditControllerTrait, ViewType,
+};
 
 const MODEL_ID: &str = "vst3:ValhallaSupermassive:ValhallaSupermassive";
 
-fn load(bundle: &std::path::Path, uid: &[u8; 16], sr: f64) -> anyhow::Result<vst3_host::Vst3Plugin> {
+fn load(
+    bundle: &std::path::Path,
+    uid: &[u8; 16],
+    sr: f64,
+) -> anyhow::Result<vst3_host::Vst3Plugin> {
     vst3_host::Vst3Plugin::load(bundle, uid, sr, 2, 512, &[])
 }
 
@@ -40,7 +46,11 @@ fn concurrent_multithread_load_succeeds() {
         .collect();
     for (i, h) in handles.into_iter().enumerate() {
         let r = h.join().expect("thread panicked");
-        assert!(r.is_ok(), "concurrent load on thread {i} failed: {:?}", r.err());
+        assert!(
+            r.is_ok(),
+            "concurrent load on thread {i} failed: {:?}",
+            r.err()
+        );
     }
 }
 

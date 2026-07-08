@@ -142,7 +142,10 @@ fn mono_channel_toggle_is_single_select() {
 
     // Mono: select ch0, then ch1 → only ch1 stays selected.
     let after0 = super::apply_channel_toggle(&items, 0, true, ChannelMode::Mono);
-    assert!(after0[0].selected && !after0[1].selected, "mono: ch0 selected");
+    assert!(
+        after0[0].selected && !after0[1].selected,
+        "mono: ch0 selected"
+    );
     let after1 = super::apply_channel_toggle(&after0, 1, true, ChannelMode::Mono);
     assert!(
         !after1[0].selected && after1[1].selected,

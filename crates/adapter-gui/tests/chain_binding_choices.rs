@@ -18,7 +18,11 @@ fn binding(id: &str, name: &str) -> IoBinding {
 
 #[test]
 fn binding_choices_marks_the_chains_selected_bindings() {
-    let registry = vec![binding("xyz", "XYZ"), binding("abc", "ABC"), binding("def", "DEF")];
+    let registry = vec![
+        binding("xyz", "XYZ"),
+        binding("abc", "ABC"),
+        binding("def", "DEF"),
+    ];
     let choices = binding_choices(&registry, &["abc".to_string()]);
 
     assert_eq!(choices.len(), 3, "every registry binding becomes a row");
@@ -33,9 +37,21 @@ fn binding_choices_marks_the_chains_selected_bindings() {
 #[test]
 fn selected_binding_ids_reads_checked_rows_in_order() {
     let choices = vec![
-        ChainBindingChoice { id: "xyz".into(), name: "XYZ".into(), selected: true },
-        ChainBindingChoice { id: "abc".into(), name: "ABC".into(), selected: false },
-        ChainBindingChoice { id: "def".into(), name: "DEF".into(), selected: true },
+        ChainBindingChoice {
+            id: "xyz".into(),
+            name: "XYZ".into(),
+            selected: true,
+        },
+        ChainBindingChoice {
+            id: "abc".into(),
+            name: "ABC".into(),
+            selected: false,
+        },
+        ChainBindingChoice {
+            id: "def".into(),
+            name: "DEF".into(),
+            selected: true,
+        },
     ];
     assert_eq!(
         selected_binding_ids(&choices),

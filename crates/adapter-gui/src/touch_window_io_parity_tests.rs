@@ -18,8 +18,7 @@ fn ui_dir() -> std::path::PathBuf {
 
 fn read_slint(name: &str) -> String {
     let path = ui_dir().join(name);
-    fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {}", path.display(), e))
+    fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {}", path.display(), e))
 }
 
 // ── touch_main: inline endpoint editor must bind io-binding-names from root ───

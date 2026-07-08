@@ -13,8 +13,8 @@ pub mod svf;
 // exists; legacy types are kept stable so the existing block-* crates
 // keep building unchanged.
 pub use legacy::{
-    calculate_coefficient, capitalize_first, db_to_lin, lin_to_db, BiquadFilter, BiquadKind,
-    EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
+    calculate_coefficient, capitalize_first, db_to_lin, lin_to_db, BiquadDesign, BiquadFilter,
+    BiquadKind, EnvelopeFollower, OnePoleHighPass, OnePoleLowPass, BIQUAD_COEFF_RAMP_FRAMES,
 };
 
 // Friendly aliases so new plugin code reads with intent rather than

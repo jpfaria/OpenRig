@@ -22,16 +22,20 @@ fn make_item(id: &str) -> DeviceSelectionItem {
 #[test]
 fn wizard_finish_creates_default_binding() {
     let cmd = wizard_create_or_update_default_binding(
-        "devA",
-        "devA",
-        None, // no existing default binding → CREATE
+        "devA", "devA", None, // no existing default binding → CREATE
     );
 
     match cmd {
         Command::CreateIoBinding { binding } => {
             assert_eq!(binding.id, "default", "binding id must be 'default'");
-            assert!(!binding.inputs.is_empty(), "must have at least one input endpoint");
-            assert!(!binding.outputs.is_empty(), "must have at least one output endpoint");
+            assert!(
+                !binding.inputs.is_empty(),
+                "must have at least one input endpoint"
+            );
+            assert!(
+                !binding.outputs.is_empty(),
+                "must have at least one output endpoint"
+            );
             // Input endpoint uses the chosen input device
             assert_eq!(
                 binding.inputs[0].device_id,
@@ -76,11 +80,8 @@ fn wizard_finish_updates_existing_default() {
         }],
     };
 
-    let cmd = wizard_create_or_update_default_binding(
-        "new-input-dev",
-        "new-output-dev",
-        Some(&existing),
-    );
+    let cmd =
+        wizard_create_or_update_default_binding("new-input-dev", "new-output-dev", Some(&existing));
 
     match cmd {
         Command::UpdateIoBinding { binding } => {

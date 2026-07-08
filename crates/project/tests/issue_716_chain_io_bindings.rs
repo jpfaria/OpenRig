@@ -19,7 +19,10 @@ fn io_block_is_a_pure_binding_reference_no_entries() {
     };
     let yaml = serde_yaml::to_string(&input).expect("serialize input block");
     assert!(yaml.contains("io: scarlett"), "io persisted: {yaml}");
-    assert!(yaml.contains("endpoint: in-1"), "endpoint persisted: {yaml}");
+    assert!(
+        yaml.contains("endpoint: in-1"),
+        "endpoint persisted: {yaml}"
+    );
     assert!(
         !yaml.contains("entries"),
         "the model must not carry legacy device entries: {yaml}"

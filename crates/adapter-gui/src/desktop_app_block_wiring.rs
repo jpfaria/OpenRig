@@ -18,9 +18,7 @@ use slint::{SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use crate::state::{
-    BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
-};
+use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
     ChainInsertWindow, ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint,
@@ -66,8 +64,7 @@ pub(crate) struct BlockWiringDeps<'a> {
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
     pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
-    pub vst3_editor_handles_for_on_open:
-        Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
+    pub vst3_editor_handles_for_on_open: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub block_editor_persist_timer: Rc<Timer>,
 
     pub vst3_sample_rate: f64,

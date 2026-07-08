@@ -104,6 +104,19 @@ If a file exceeds 600 lines, it MUST be split before adding anything new. This i
 - [ ] Code that introduces warnings is not mergeable
 - [ ] `#[allow(dead_code)]` or `#[allow(unused)]` are NOT acceptable fixes — fix the root cause
 
+### `#[allow(...)]` is a last resort, not a fix — it's a workaround to shut the lint up
+
+A lint fires because the code has a real smell. **`#[allow(...)]` hides the smell; it does not remove it.** Reaching for `#[allow]` to make a build/clippy pass is a *gambiarra*. Fix what the lint is pointing at:
+
+| Lint | The gambiarra (don't) | The real fix |
+|---|---|---|
+| `too_many_arguments` | `#[allow(clippy::too_many_arguments)]` | group the cohesive/loop-invariant args into a struct (e.g. a `Context`/`Design` value) and pass that |
+| `should_implement_trait` (a method named `next`/`add`/…) | `#[allow(...)]` | rename it to say what it does (`next_bipolar`, `advance`, …) — if it's not the trait, don't borrow the trait's name |
+| `needless_range_loop` | `#[allow(...)]` | iterate the collection (`for (i, x) in xs.iter().enumerate()`), not `0..len` |
+| `excessive_precision` | `#[allow(...)]` | trim the literal to the value the `f32`/`f64` can actually represent |
+
+**`#[allow]` is justified ONLY in genuinely extreme cases** — e.g. an ergonomic constructor with 8 all-essential, cohesive args and hundreds of call sites where a struct would add indirection without value (`float_parameter` in `block-core`). "Extreme" means *refactoring costs more than it's worth AND the args are irreducibly essential*, not *"the fix is annoying"*. When you do allow, it must be the narrowest scope (per-item, never crate-wide unless it's a documented debt snapshot) with a comment saying **why** it's extreme. Also: the shared `quality-gate` treats an `#[allow(...)]` without a root cause as tampering (see the QG section above).
+
 **Anti-Pattern:**
 ```rust
 ❌ cargo build  // with 3 warnings about unused variables
@@ -113,6 +126,11 @@ If a file exceeds 600 lines, it MUST be split before adding anything new. This i
    pub fn unused_helper() { ... }
    // WRONG: suppress warning without fixing root cause
 
+❌ #[allow(clippy::too_many_arguments)]
+   fn materialize(&self, block_id, effect_type, model, audio_mode, value) { ... }
+   // WRONG: gambiarra — the first four args travel together
+
+✅ fn materialize(&self, ctx: &MaterializeContext, value) { ... }  // grouped → 2 args
 ✅ Remove or use the dead code
 ✅ cargo build 2>&1 | grep "^warning"  // → empty output
 ```

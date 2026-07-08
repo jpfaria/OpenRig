@@ -55,10 +55,7 @@ fn fx(id: &str) -> AudioBlock {
     }
 }
 
-fn rig(
-    inputs: Vec<(&str, RigInput)>,
-    presets: Vec<(&str, Vec<AudioBlock>)>,
-) -> RigProject {
+fn rig(inputs: Vec<(&str, RigInput)>, presets: Vec<(&str, Vec<AudioBlock>)>) -> RigProject {
     RigProject {
         name: Some("Studio".into()),
         inputs: inputs

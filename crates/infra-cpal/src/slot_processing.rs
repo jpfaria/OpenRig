@@ -153,8 +153,12 @@ mod issue_743_output_rate_isolation_tests {
         // TEYUN @48. The 44.1 kHz output stream must consume ONLY the 44.1 kHz
         // runtimes — mixing a 48 kHz runtime's route into a 44.1 kHz output
         // (consumed slower than produced) is the owner's underrun flood (#743).
-        let slots: Vec<(usize, LiveRuntimeSlot)> =
-            vec![(0, pipe(44_100.0)), (1, pipe(44_100.0)), (2, pipe(48_000.0)), (3, pipe(48_000.0))];
+        let slots: Vec<(usize, LiveRuntimeSlot)> = vec![
+            (0, pipe(44_100.0)),
+            (1, pipe(44_100.0)),
+            (2, pipe(48_000.0)),
+            (3, pipe(48_000.0)),
+        ];
 
         let at_44k = slots_for_output_stream(&slots, 44_100.0);
         assert_eq!(
@@ -163,11 +167,17 @@ mod issue_743_output_rate_isolation_tests {
             "the 44.1 kHz output must mix exactly the two 44.1 kHz runtimes, not the 48 kHz ones"
         );
         assert!(
-            at_44k.iter().all(|s| (s.load().sample_rate() - 44_100.0).abs() < 1.0),
+            at_44k
+                .iter()
+                .all(|s| (s.load().sample_rate() - 44_100.0).abs() < 1.0),
             "every mixed runtime must be at the output's own rate"
         );
 
         let at_48k = slots_for_output_stream(&slots, 48_000.0);
-        assert_eq!(at_48k.len(), 2, "the 48 kHz output must mix exactly the two 48 kHz runtimes");
+        assert_eq!(
+            at_48k.len(),
+            2,
+            "the 48 kHz output must mix exactly the two 48 kHz runtimes"
+        );
     }
 }

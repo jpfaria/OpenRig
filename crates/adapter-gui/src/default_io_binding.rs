@@ -26,10 +26,7 @@ pub(crate) const DEFAULT_BINDING_ID: &str = "default";
 /// Both Task 13 (wizard finish) and Task 20 (project-side default) call this
 /// to derive the binding from whatever the audio wizard or system settings
 /// currently have selected.
-pub(crate) fn build_default_io_binding(
-    input_device_id: &str,
-    output_device_id: &str,
-) -> IoBinding {
+pub(crate) fn build_default_io_binding(input_device_id: &str, output_device_id: &str) -> IoBinding {
     IoBinding {
         id: DEFAULT_BINDING_ID.to_string(),
         name: "Default".to_string(),

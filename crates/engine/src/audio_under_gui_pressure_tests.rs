@@ -91,8 +91,13 @@ fn chain() -> Chain {
  non-audio thread at sustained rate may silence an audio callback."]
 fn audio_callback_not_silenced_under_sustained_gui_polling() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &registry())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry(),
+        )
+        .expect("runtime should build"),
     );
 
     // Spawn the "GUI thread" — hammer every ChainRuntimeState accessor

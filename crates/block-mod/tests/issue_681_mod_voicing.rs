@@ -33,7 +33,10 @@ fn render(model: &str, params: &ParameterSet, input: &[f32]) -> (Vec<f32>, Vec<f
     let mut proc =
         build_modulation_processor_for_layout(model, params, SR, AudioChannelLayout::Stereo)
             .unwrap_or_else(|e| panic!("build '{model}': {e}"));
-    let (mut l, mut r) = (Vec::with_capacity(input.len()), Vec::with_capacity(input.len()));
+    let (mut l, mut r) = (
+        Vec::with_capacity(input.len()),
+        Vec::with_capacity(input.len()),
+    );
     match &mut proc {
         BlockProcessor::Stereo(p) => {
             for &x in input {
@@ -52,7 +55,9 @@ fn render_default(model: &str, input: &[f32]) -> (Vec<f32>, Vec<f32>) {
 }
 
 fn sine(freq: f32, n: usize) -> Vec<f32> {
-    (0..n).map(|i| 0.5 * (TAU * freq * i as f32 / SR).sin()).collect()
+    (0..n)
+        .map(|i| 0.5 * (TAU * freq * i as f32 / SR).sin())
+        .collect()
 }
 
 /// Deterministic white-ish noise in [-amp, amp] via a small LCG.
@@ -75,7 +80,11 @@ fn rms(x: &[f32]) -> f32 {
 
 /// Relative-RMS difference of the steady-state regions (effect vs reference).
 fn rel_diff(a: &[f32], b: &[f32]) -> f32 {
-    let d: Vec<f32> = a[SKIP..].iter().zip(&b[SKIP..]).map(|(x, y)| x - y).collect();
+    let d: Vec<f32> = a[SKIP..]
+        .iter()
+        .zip(&b[SKIP..])
+        .map(|(x, y)| x - y)
+        .collect();
     rms(&d) / rms(&a[SKIP..]).max(1e-9)
 }
 
@@ -122,8 +131,9 @@ fn mag_window(x: &[f32], freq: f32) -> f32 {
 /// Cosine DISTANCE between the magnitude spectra of an early vs late window.
 /// High ⇒ the filter shape moved over time (flanger/phaser signature).
 fn spectral_time_variance(x: &[f32]) -> f32 {
-    let probes: Vec<f32> =
-        (0..24).map(|k| 100.0 * (8000.0f32 / 100.0).powf(k as f32 / 23.0)).collect();
+    let probes: Vec<f32> = (0..24)
+        .map(|k| 100.0 * (8000.0f32 / 100.0).powf(k as f32 / 23.0))
+        .collect();
     let third = (x.len() - SKIP) / 3;
     let wa = &x[SKIP..SKIP + third];
     let wb = &x[SKIP + 2 * third..];
@@ -154,7 +164,10 @@ fn assert_chorus(model: &str, min_decorr: f32) {
     let presence = rel_diff(&l, &input);
     let decorr = rel_diff(&l, &r);
     eprintln!("{model}: presence={presence:.3} stereoDecorr={decorr:.3}");
-    assert!(presence > 0.15, "{model} barely alters the dry tone (presence {presence:.3})");
+    assert!(
+        presence > 0.15,
+        "{model} barely alters the dry tone (presence {presence:.3})"
+    );
     assert!(
         decorr > min_decorr,
         "{model} stereo image too narrow (decorr {decorr:.3} ≤ {min_decorr}) — a chorus must widen"
@@ -182,7 +195,10 @@ fn assert_swept_notch(model: &str) {
     let presence = rel_diff(&l, &input);
     let stv = spectral_time_variance(&l);
     eprintln!("{model}: presence={presence:.3} specTimeVar={stv:.4}");
-    assert!(presence > 0.15, "{model} barely alters the signal (presence {presence:.3})");
+    assert!(
+        presence > 0.15,
+        "{model} barely alters the signal (presence {presence:.3})"
+    );
     assert!(
         stv > 0.05,
         "{model} spectrum is static (specTimeVar {stv:.4}) — no sweeping notch"
@@ -223,7 +239,11 @@ fn ring_modulator_fulfills_sideband_signature() {
     let lower = mag_at(&l, 440.0 - carrier);
     let upper = mag_at(&l, 440.0 + carrier);
     let center = mag_at(&l, 440.0);
-    eprintln!("ring_modulator: side{:.0}={lower:.3} side{:.0}={upper:.3} carrier440={center:.3}", 440.0 - carrier, 440.0 + carrier);
+    eprintln!(
+        "ring_modulator: side{:.0}={lower:.3} side{:.0}={upper:.3} carrier440={center:.3}",
+        440.0 - carrier,
+        440.0 + carrier
+    );
     assert!(
         lower > 0.10 && upper > 0.10,
         "ring mod produced no sidebands (lower {lower:.3}, upper {upper:.3})"
@@ -246,8 +266,14 @@ fn frequency_shifter_fulfills_single_sideband_signature() {
     let center = mag_at(&l, 440.0);
     let (strong, weak) = if up >= down { (up, down) } else { (down, up) };
     eprintln!("frequency_shifter: up={up:.3} down={down:.3} carrier440={center:.3}");
-    assert!(strong > 0.15, "frequency shifter produced no shifted tone ({strong:.3})");
-    assert!(center < 0.10, "frequency shifter left the original tone in place ({center:.3})");
+    assert!(
+        strong > 0.15,
+        "frequency shifter produced no shifted tone ({strong:.3})"
+    );
+    assert!(
+        center < 0.10,
+        "frequency shifter left the original tone in place ({center:.3})"
+    );
     assert!(
         strong > 4.0 * weak.max(1e-4),
         "frequency shifter is not single-sideband (strong {strong:.3} vs other {weak:.3})"
@@ -262,8 +288,14 @@ fn tremolo_sine_fulfills_amplitude_modulation_signature() {
     let swing = env_swing(&l);
     let carrier = mag_at(&l, 440.0);
     eprintln!("tremolo_sine: envSwing={swing:.3} carrier440={carrier:.3}");
-    assert!(swing > 0.20, "tremolo barely modulates amplitude (swing {swing:.3})");
-    assert!(carrier > 0.15, "tremolo destroyed the carrier (mag440 {carrier:.3})");
+    assert!(
+        swing > 0.20,
+        "tremolo barely modulates amplitude (swing {swing:.3})"
+    );
+    assert!(
+        carrier > 0.15,
+        "tremolo destroyed the carrier (mag440 {carrier:.3})"
+    );
 }
 
 // ── vibrato: pitch-only — modulation present, amplitude flat ─────────────
@@ -276,12 +308,18 @@ fn vibrato_fulfills_pitch_modulation_signature() {
     let presence = rel_diff(&l, &input);
     let carrier = mag_at(&l, 440.0); // dry would be ~0.5
     eprintln!("vibrato: envSwing={swing:.3} presence={presence:.3} carrier440={carrier:.3}");
-    assert!(presence > 0.20, "vibrato barely alters the tone (presence {presence:.3})");
+    assert!(
+        presence > 0.20,
+        "vibrato barely alters the tone (presence {presence:.3})"
+    );
     assert!(
         carrier < 0.40,
         "vibrato did not detune — 440 energy still {carrier:.3} (dry ≈ 0.5)"
     );
-    assert!(swing < 0.15, "vibrato is modulating amplitude (swing {swing:.3}) — should be pitch-only");
+    assert!(
+        swing < 0.15,
+        "vibrato is modulating amplitude (swing {swing:.3}) — should be pitch-only"
+    );
 }
 
 // ── Leslie: amplitude modulation + a wide swirling stereo image ──────────
@@ -293,8 +331,14 @@ fn assert_leslie(model: &str) {
     let swing = env_swing(&l);
     let decorr = rel_diff(&l, &r);
     eprintln!("{model}: presence={presence:.3} envSwing={swing:.3} stereoDecorr={decorr:.3}");
-    assert!(presence > 0.15, "{model} barely alters the tone (presence {presence:.3})");
-    assert!(swing > 0.08, "{model} has no amplitude swirl (swing {swing:.3})");
+    assert!(
+        presence > 0.15,
+        "{model} barely alters the tone (presence {presence:.3})"
+    );
+    assert!(
+        swing > 0.08,
+        "{model} has no amplitude swirl (swing {swing:.3})"
+    );
     assert!(
         decorr > 0.20,
         "{model} stereo image too narrow (decorr {decorr:.3}) — a rotary speaker must swirl in stereo"
@@ -317,8 +361,10 @@ fn rotary_leslie_vintage_fulfills_rotary_signature() {
 // ── variant distinctness within a family (same input, shipped defaults) ──
 
 fn assert_family_distinct(models: &[&str], input: &[f32], min_diff: f32) {
-    let renders: Vec<(&str, Vec<f32>)> =
-        models.iter().map(|m| (*m, render_default(m, input).0)).collect();
+    let renders: Vec<(&str, Vec<f32>)> = models
+        .iter()
+        .map(|m| (*m, render_default(m, input).0))
+        .collect();
     for i in 0..renders.len() {
         for j in (i + 1)..renders.len() {
             let diff = rel_diff(&renders[i].1, &renders[j].1);
@@ -337,20 +383,36 @@ fn assert_family_distinct(models: &[&str], input: &[f32], min_diff: f32) {
 
 #[test]
 fn flanger_variants_are_distinct() {
-    assert_family_distinct(&["flanger_classic", "flanger_jet", "flanger_subtle"], &broadband(), 0.20);
+    assert_family_distinct(
+        &["flanger_classic", "flanger_jet", "flanger_subtle"],
+        &broadband(),
+        0.20,
+    );
 }
 #[test]
 fn phaser_variants_are_distinct() {
-    assert_family_distinct(&["phaser_classic", "phaser_4stage", "phaser_8stage"], &broadband(), 0.20);
+    assert_family_distinct(
+        &["phaser_classic", "phaser_4stage", "phaser_8stage"],
+        &broadband(),
+        0.20,
+    );
 }
 #[test]
 fn chorus_variants_are_distinct() {
-    assert_family_distinct(&["classic_chorus", "ensemble_chorus", "stereo_chorus"], &tone(), 0.20);
+    assert_family_distinct(
+        &["classic_chorus", "ensemble_chorus", "stereo_chorus"],
+        &tone(),
+        0.20,
+    );
 }
 #[test]
 fn leslie_variants_are_distinct() {
     assert_family_distinct(
-        &["rotary_leslie", "rotary_leslie_studio", "rotary_leslie_vintage"],
+        &[
+            "rotary_leslie",
+            "rotary_leslie_studio",
+            "rotary_leslie_vintage",
+        ],
         &tone(),
         0.20,
     );
@@ -368,6 +430,8 @@ fn ensemble_chorus_is_a_wide_image() {
     let (el, er) = render_default("ensemble_chorus", &input);
     let decorr = rel_diff(&el, &er);
     eprintln!("ensemble decorr={decorr:.3}");
-    assert!(decorr > 0.70, "ensemble stereo image not wide enough (decorr {decorr:.3})");
+    assert!(
+        decorr > 0.70,
+        "ensemble stereo image not wide enough (decorr {decorr:.3})"
+    );
 }
-

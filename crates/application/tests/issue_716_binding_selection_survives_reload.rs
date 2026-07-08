@@ -23,7 +23,10 @@ use project::rig::{RigInput, RigPreset, RigProject};
 /// A rig with one input chain ("rig:in"), mirroring chain_io_binding_tests.
 fn rig_with_chain() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     let mut inputs = BTreeMap::new();
@@ -73,8 +76,7 @@ fn binding_selection_survives_rig_reopen() {
         .expect("SetChainIoBindings must succeed");
 
     // Reopen: the app rebuilds the project from the persisted rig.
-    let reloaded =
-        engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
+    let reloaded = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
     let chain = reloaded
         .chains
         .iter()
@@ -108,8 +110,7 @@ fn two_binding_selection_survives_rig_reopen() {
         })
         .expect("SetChainIoBindings must succeed");
 
-    let reloaded =
-        engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
+    let reloaded = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
     let chain = reloaded
         .chains
         .iter()
@@ -151,8 +152,7 @@ fn binding_selection_via_savechain_survives_rig_reopen() {
         .dispatch(Command::SaveChain { chain: edited })
         .expect("SaveChain must succeed");
 
-    let reloaded =
-        engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
+    let reloaded = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
     let chain = reloaded
         .chains
         .iter()

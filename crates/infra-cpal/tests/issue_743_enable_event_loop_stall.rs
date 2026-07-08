@@ -118,7 +118,9 @@ fn owner_two_interface_rig_enable_is_clean() {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")
         .join("beat_it_michael_jackson_rhythm.yaml");
-    let blocks: Vec<AudioBlock> = infra_yaml::load_chain_preset_file(&preset).expect("preset").blocks;
+    let blocks: Vec<AudioBlock> = infra_yaml::load_chain_preset_file(&preset)
+        .expect("preset")
+        .blocks;
     let chain_id = ChainId("rig".into());
     let project = Project {
         name: Some("issue-743-owner-rig".into()),

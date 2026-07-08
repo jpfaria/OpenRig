@@ -185,7 +185,7 @@ mod tests {
         let mut sel = SelectionState::default();
         sel.active_chain = Some("rig:input-1".to_string());
         sel.active_block = Some("b0".to_string()); // UI 0
-        // neighbor = the block after the active one → b1 (UI 1)
+                                                   // neighbor = the block after the active one → b1 (UI 1)
         assert_eq!(active_neighbor_block_ui_index(&project(), &sel), 1);
     }
 
@@ -194,8 +194,8 @@ mod tests {
         let mut sel = SelectionState::default();
         sel.active_chain = Some("rig:input-1".to_string());
         sel.active_block = Some("b1".to_string()); // last audio block; raw-next is Output
-        // The toggle-neighbor command targets the raw-next block (here the
-        // Output endpoint), which has no chip on the strip → not markable.
+                                                   // The toggle-neighbor command targets the raw-next block (here the
+                                                   // Output endpoint), which has no chip on the strip → not markable.
         assert_eq!(active_neighbor_block_ui_index(&project(), &sel), -1);
     }
 

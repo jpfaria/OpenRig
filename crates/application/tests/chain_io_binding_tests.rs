@@ -138,7 +138,10 @@ fn save_input_endpoints_sets_reference() {
         if c.id.0 == chain_id_str {
             // Input block is already seeded by rig_to_legacy_project at index 0.
             // If absent, push it.
-            if c.blocks.iter().all(|b| !matches!(b.kind, AudioBlockKind::Input(_))) {
+            if c.blocks
+                .iter()
+                .all(|b| !matches!(b.kind, AudioBlockKind::Input(_)))
+            {
                 c.blocks.insert(0, input_block("rig:in:in"));
             }
         }
@@ -236,7 +239,10 @@ fn save_output_endpoints_sets_reference() {
     for c in project.borrow_mut().chains.iter_mut() {
         if c.id.0 == chain_id_str {
             // Ensure there's an output block somewhere.
-            if c.blocks.iter().all(|b| !matches!(b.kind, AudioBlockKind::Output(_))) {
+            if c.blocks
+                .iter()
+                .all(|b| !matches!(b.kind, AudioBlockKind::Output(_)))
+            {
                 c.blocks.push(output_block("rig:in:out"));
             }
         }

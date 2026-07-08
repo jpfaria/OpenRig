@@ -572,7 +572,10 @@ fn e01_two_unity_volume_blocks_preserve_unity() {
     let (chain, registry) = chain_with_blocks(
         "e01",
         input_mono(vec![0]),
-        vec![core_block("v1", "gain", "volume", p1), core_block("v2", "gain", "volume", p2)],
+        vec![
+            core_block("v1", "gain", "volume", p1),
+            core_block("v2", "gain", "volume", p2),
+        ],
         output(ChannelMode::Stereo, vec![0, 1]),
     );
     let peak = measure_steady_peak(&chain, &registry, 1, &[0.5], 2, 6);
@@ -660,7 +663,7 @@ fn g01_split_mono_solo_emits_at_unity_gain() {
         input_mono(vec![0, 1]),
         vec![],
         // split-mono: 2 channels in mono mode
-            output(ChannelMode::Stereo, vec![0, 1]),
+        output(ChannelMode::Stereo, vec![0, 1]),
     );
     let peak = measure_steady_peak(&chain, &registry, 2, &[0.5, 0.0], 2, 4);
     assert!(
@@ -1015,8 +1018,15 @@ fn k05_update_chain_runtime_state_propagates_volume() {
 
     let mut chain150 = chain100.clone();
     chain150.volume = 150.0;
-    super::update_chain_runtime_state(&runtime, &chain150, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry)
-        .expect("update_chain_runtime_state should propagate volume");
+    super::update_chain_runtime_state(
+        &runtime,
+        &chain150,
+        SR,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &registry,
+    )
+    .expect("update_chain_runtime_state should propagate volume");
     assert!(
         (runtime.volume_pct() - 150.0).abs() < VOLUME_TOLERANCE,
         "after update_chain_runtime_state with chain.volume=150, \
@@ -1054,7 +1064,14 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
     };
 
     let runtime = graph
-        .upsert_chain(&chain_v100, SR, &std::collections::HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &registry)
+        .upsert_chain(
+            &chain_v100,
+            SR,
+            &std::collections::HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
         .expect("first upsert builds chain runtime");
     assert!(
         (runtime.volume_pct() - 100.0).abs() < VOLUME_TOLERANCE,
@@ -1068,7 +1085,14 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
     let mut chain_v175 = chain_v100.clone();
     chain_v175.volume = 175.0;
     let runtime_after = graph
-        .upsert_chain(&chain_v175, SR, &std::collections::HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &registry)
+        .upsert_chain(
+            &chain_v175,
+            SR,
+            &std::collections::HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
         .expect("re-upsert updates volume in place");
     assert!(
         Arc::ptr_eq(&runtime, &runtime_after),
@@ -1414,7 +1438,8 @@ fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
 
     let drive = |buffer: usize| -> f32 {
         let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-        let runtime = Arc::new(build_chain_runtime_state(&chain, SR, &[target], &registry).expect("runtime"));
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, SR, &[target], &registry).expect("runtime"));
         let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
         for chunk in sig.chunks(buffer) {
             process_input_f32(&runtime, 0, chunk, 1);
@@ -1463,14 +1488,26 @@ fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
 //    isolates one independent property of a clean signal path.
 // ─────────────────────────────────────────────────────────────────────────
 
-fn thd_n_db_through_chain(chain: &Chain, registry: &[IoBinding], sig: &[f32], buffer: usize) -> f32 {
+fn thd_n_db_through_chain(
+    chain: &Chain,
+    registry: &[IoBinding],
+    sig: &[f32],
+    buffer: usize,
+) -> f32 {
     thd_n_db_at_freq_through_chain(chain, registry, sig, buffer, 1_000.0)
 }
 
-fn thd_n_db_at_freq_through_chain(chain: &Chain, registry: &[IoBinding], sig: &[f32], buffer: usize, freq: f32) -> f32 {
+fn thd_n_db_at_freq_through_chain(
+    chain: &Chain,
+    registry: &[IoBinding],
+    sig: &[f32],
+    buffer: usize,
+    freq: f32,
+) -> f32 {
     use rustfft::{num_complex::Complex, FftPlanner};
     let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
+    let runtime =
+        Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
     let mut out_collected: Vec<f32> = Vec::with_capacity(sig.len());
     for chunk in sig.chunks(buffer) {
         process_input_f32(&runtime, 0, chunk, 1);
@@ -1543,7 +1580,8 @@ fn silent_residue(chain: &Chain, registry: &[IoBinding], buffer: usize) -> f32 {
 fn lufs_delta_through_chain(chain: &Chain, registry: &[IoBinding], buffer: usize) -> f64 {
     use ebur128::{EbuR128, Mode};
     let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
+    let runtime =
+        Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
     let pink = pink_noise(SR as usize * 3, 0xDEAD_BEEF);
     let mut out_collected: Vec<f32> = Vec::with_capacity(pink.len());
     for chunk in pink.chunks(buffer) {
@@ -1852,10 +1890,18 @@ bcast_sine_test!(n30_b_60hz_0_5_buf_512, 60.0, 0.5, 512);
 /// THD+N computed using a specified skip duration (samples). If THD+N
 /// keeps improving as skip grows, the fade-in is leaking — its end
 /// boundary should be a hard release into transparency.
-fn thd_with_skip(chain: &Chain, registry: &[IoBinding], freq: f32, amp: f32, buffer: usize, skip: usize) -> f32 {
+fn thd_with_skip(
+    chain: &Chain,
+    registry: &[IoBinding],
+    freq: f32,
+    amp: f32,
+    buffer: usize,
+    skip: usize,
+) -> f32 {
     use rustfft::{num_complex::Complex, FftPlanner};
     let target = DEFAULT_ELASTIC_TARGET.max(buffer);
-    let runtime = Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
+    let runtime =
+        Arc::new(build_chain_runtime_state(chain, SR, &[target], registry).expect("runtime"));
     let n: usize = (SR as usize) * 3;
     let sig: Vec<f32> = (0..n)
         .map(|i| amp * (2.0 * std::f32::consts::PI * freq * i as f32 / SR).sin())
