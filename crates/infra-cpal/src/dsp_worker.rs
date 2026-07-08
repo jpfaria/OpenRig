@@ -89,7 +89,7 @@ pub(crate) fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
             &policy as *const _ as *const u32,
             4,
         );
-        log::info!("[#670] dsp-worker realtime promotion rc={rc}");
+        log::info!("dsp-worker realtime promotion rc={rc}");
     }
 }
 
@@ -477,7 +477,7 @@ pub(crate) fn spawn(
                     promote_to_audio_rt(rt_period_ns, budget.reset(rt_period_ns));
                     r = w.saturating_sub(1);
                     log::warn!(
-                        "[#670 worker] saturation spiral: re-promoted realtime and dropped backlog"
+                        "dsp-worker: saturation spiral — re-promoted realtime and dropped backlog"
                     );
                 }
                 let slot = &worker_inner.slots[r % RING_SLOTS];
@@ -523,7 +523,7 @@ pub(crate) fn spawn(
                 // on the rare late buffer.
                 if elapsed.as_nanos() as u64 > buf_period_ns {
                     log::trace!(
-                        "[#670 worker] late buffer: {}us wall / {}us cpu (period {}us, backlog {})",
+                        "dsp-worker: late buffer: {}us wall / {}us cpu (period {}us, backlog {})",
                         elapsed.as_micros(),
                         compute_ns / 1000,
                         buf_period_ns / 1000,

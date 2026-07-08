@@ -617,7 +617,7 @@ pub fn start_meter_polling(
             // every event) so it never spams the log.
             if overloaded && !row.audio_overload {
                 log::warn!(
-                    "[#670] audio overload on chain '{}': {} new xrun(s), {} new \
+                    "audio overload on chain '{}': {} new xrun(s), {} new \
                      underrun(s) — the rig is heavy for this buffer size",
                     cid.0,
                     cur_xruns.saturating_sub(prev_xruns),
