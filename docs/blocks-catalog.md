@@ -72,6 +72,14 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   `backend: vst3`) lands in the **same** VST3 block list as a user-installed
   one, with the same native editor and `Vst3Processor`. Parameters are read at
   runtime from the plugin's `IEditController`, not from the manifest.
+  Parameter changes made in the plugin's **native editor** are captured back
+  into the block's params (`p{id}` percent) on save, via `CaptureRigEdits`
+  (#780) — the controller's current non-default values are read through the
+  block's registered `Vst3GuiContext` and persisted, so tweaks survive
+  save + reload. The VST3 GUI-context registry is keyed by **block instance**
+  (`BlockId`), not model, so two blocks referencing the same plugin open and
+  persist independently. Surfacing the discovered params as OpenRig FORM knobs
+  (so the standard `SetBlockParameter*` path also persists) is a follow-up.
 
 ### Native cab voicing (#620)
 
