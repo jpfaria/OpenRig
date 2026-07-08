@@ -171,7 +171,13 @@ is only logical grouping.
   bound device's UID, never the system default (#760). Before this the
   join was hard-coded to the default device, so the non-default
   interface's callback co-scheduled with the wrong device's IO thread and
-  underran under CPU contention despite spare cores.
+  underran under CPU contention despite spare cores. The `dsp_worker`
+  thread (which we own, unlike the C-owned cpal HAL callback thread) holds
+  its membership in an RAII guard and **leaves** the workgroup before the
+  thread exits: a chain rebuild tears the worker down and respawns it, and
+  a thread that joined but exits without leaving crashes in libpthread's
+  `_os_workgroup_tsd_cleanup` (#779). The HAL callback thread cannot leave
+  from another thread, so it keeps its membership for the process lifetime.
 - **Two entries on ONE device** (#703): Core Audio cannot open two
   streams on one device (a previous attempt produced total silence), so
   the device keeps ONE cpal stream whose callback fans out to every
