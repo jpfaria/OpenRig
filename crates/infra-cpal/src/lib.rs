@@ -72,6 +72,7 @@ pub use slot_processing::{build_chain_slots, process_input_buffer, process_outpu
 mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
+mod controller_offthread_live_rebuild;
 mod controller_taps;
 mod device_enum;
 mod di_playback;
@@ -135,6 +136,8 @@ pub(crate) use validation::{
     find_input_device_by_id, find_output_device_by_id, validate_buffer_size,
 };
 
+#[cfg(test)]
+mod controller_live_edit_replicates_user_report_tests;
 #[cfg(test)]
 mod controller_pause_chain_tests;
 #[cfg(test)]
