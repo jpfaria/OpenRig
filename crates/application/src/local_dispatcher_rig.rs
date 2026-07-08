@@ -121,6 +121,13 @@ impl LocalDispatcher {
     /// called by hand in the GUI save path — now a Command so the UI
     /// carries no model mutation. No-op for non-rig sessions.
     pub(crate) fn handle_capture_rig_edits(&self) -> Result<Vec<Event>> {
+        // #780: pull each live VST3 block's current controller values into its
+        // params first, so parameters changed only in the native editor persist.
+        // Runs on the save path, never on the audio thread; a no-op for blocks
+        // with no live context. Must precede the rig fold so the captured values
+        // flow through `sync_synthetic_into_rig` into the preset.
+        project::vst3_capture::capture_live_vst3_params(&mut self.project.borrow_mut());
+
         let Some(rig) = self.rig.borrow().clone() else {
             return Ok(vec![]);
         };
