@@ -749,3 +749,7 @@ msgstr "Sélectionnez au moins une liaison d'E/S pour cette chaîne"
 #: crates/adapter-gui/ui/components/di_stream_graph.slint
 msgid "di-stream-graph-title"
 msgstr "Flux DI"
+
+#: crates/adapter-gui/ui/components/di_loop_panel.slint
+msgid "di-output-select-label"
+msgstr "Sortie du DI"

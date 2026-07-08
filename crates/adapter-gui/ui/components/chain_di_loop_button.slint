@@ -11,6 +11,9 @@ export component ChainDiLoopButton inherits Rectangle {
     in property <[string]> sources: [];
     in property <int> selected-index: -1;
     in property <int> chain-index;
+    // #771: the chain's bound output endpoints + the persisted pick.
+    in property <[string]> outputs: [];
+    in property <int> output-selected-index: -1;
 
     width: 28px;
     height: 28px;
@@ -40,6 +43,8 @@ export component ChainDiLoopButton inherits Rectangle {
             DiPanel.sources = root.sources;
             DiPanel.selected-index = root.selected-index;
             DiPanel.playing = root.playing;
+            DiPanel.outputs = root.outputs;
+            DiPanel.output-selected-index = root.output-selected-index;
             // Open below the fone, the panel's right edge near it.
             DiPanel.x = root.absolute-position.x - 332px;
             DiPanel.y = root.absolute-position.y + 32px;

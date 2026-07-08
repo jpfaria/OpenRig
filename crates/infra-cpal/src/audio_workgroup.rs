@@ -228,14 +228,14 @@ mod imp {
                 match property_u32(SYSTEM_OBJECT, default_selector) {
                     Some(d) => d,
                     None => {
-                        log::warn!("[#670] workgroup: no default {label} device (skipping join)");
+                        log::warn!("workgroup: no default {label} device (skipping join)");
                         return;
                     }
                 }
             }
         };
         let Some(workgroup) = device_workgroup(device) else {
-            log::warn!("[#670] workgroup: {label} device {device} has no OS workgroup (skipping)");
+            log::warn!("workgroup: {label} device {device} has no OS workgroup (skipping)");
             return;
         };
         // The thread never leaves the workgroup, so the join token must outlive
@@ -243,10 +243,10 @@ mod imp {
         let token = Box::leak(Box::new(JoinToken { _opaque: [0; 8] }));
         let rc = unsafe { os_workgroup_join(workgroup, token) };
         if rc == 0 {
-            log::info!("[#670] audio {label} callback thread joined the device OS workgroup");
+            log::info!("audio {label} callback thread joined the device OS workgroup");
         } else {
             log::info!(
-                "[#670] workgroup: {label} os_workgroup_join returned {rc} \
+                "workgroup: {label} os_workgroup_join returned {rc} \
                  (EALREADY/already-a-member is harmless)"
             );
         }

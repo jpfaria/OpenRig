@@ -763,3 +763,7 @@ msgstr "Selecciona al menos un enlace de E/S para esta cadena"
 #: crates/adapter-gui/ui/components/di_stream_graph.slint
 msgid "di-stream-graph-title"
 msgstr "Stream del DI"
+
+#: crates/adapter-gui/ui/components/di_loop_panel.slint
+msgid "di-output-select-label"
+msgstr "Salida del DI"

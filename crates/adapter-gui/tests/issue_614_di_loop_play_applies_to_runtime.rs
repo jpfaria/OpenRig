@@ -204,3 +204,56 @@ fn stop_chain_di_loop_disarms_runtime() {
          di_stream_active() is still true after pressing Stop"
     );
 }
+
+// ── #771: play never touches the guitar runtime ─────────────────────────────
+
+/// The DI plays ONLY on its isolated pre-rendered stream. Pressing Play must
+/// leave the guitar runtime's injection slot empty — the loop never rides the
+/// guitar's stream, meters, or outputs (isolation #4).
+#[test]
+fn play_leaves_the_guitar_runtime_unarmed() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let wav = dir.path().join("di.wav");
+    write_mono_wav(&wav, 48_000, &[0.5f32; 64]);
+
+    let chain_id = ChainId("chain_771_isolated".to_string());
+    let project = make_project(&chain_id.0);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let controller = RefCell::new(Some(make_controller(&chain_id)));
+
+    dispatcher
+        .dispatch(Command::SetChainDiLoopSource {
+            chain: chain_id.clone(),
+            source: DiLoopSource::File(wav),
+        })
+        .expect("SetChainDiLoopSource must succeed");
+    {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while dispatcher.di_loop_for_chain(&chain_id).is_none()
+            && std::time::Instant::now() < deadline
+        {
+            let _ = dispatcher.poll_async_results();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+
+    adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
+
+    assert!(
+        controller
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .di_stream_active(&chain_id),
+        "precondition: play arms the isolated DI stream"
+    );
+    assert!(
+        !controller
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .chain_has_di_loop(&chain_id),
+        "#771: play must NOT inject the loop into the guitar runtime — the DI \
+         plays only on its isolated pre-rendered stream"
+    );
+}

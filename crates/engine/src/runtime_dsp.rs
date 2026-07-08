@@ -73,8 +73,10 @@ pub(crate) fn blend_frame(frame: &mut AudioFrame, dry: AudioFrame, dry_gain: f32
 /// ever dropping back (the previous `tanh()` form had a -2.17 dB step
 /// at 0.95 and a non-monotonic region from 0.95 to ~1.83 — every loud
 /// peak got mangled into harmonics + pumping, on every chain output).
+/// Public so the DI playback mix (infra-cpal, #771) sums with the SAME
+/// limiter the chain outputs use — never a second implementation.
 #[inline]
-pub(crate) fn output_limiter(sample: f32) -> f32 {
+pub fn output_limiter(sample: f32) -> f32 {
     const THRESHOLD: f32 = 0.95;
     let a = sample.abs();
     if a <= THRESHOLD {

@@ -556,6 +556,14 @@ pub fn start_meter_polling(
             // di_stream_active — not the (removed) guitar-runtime injection.
             let di_playing_now = controller.di_stream_active(&cid);
             let di_changed = row.di_loop_playing != di_playing_now;
+            // #771: the DI meter row reads the isolated playback's OWN peaks
+            // (maintained by the output callback's mix) — not the chain's.
+            let di_meter_now = crate::di_meter::di_meter_from_peaks(
+                controller.di_playback_peaks(&cid),
+                di_playing_now,
+            );
+            let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
+                || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
             // #661: re-derive the loaded source from the dispatcher so the
             // popup ComboBox (a) lists a user-chosen File as a labelled entry
             // and (b) highlights the active source when reopened (the popup is
@@ -575,6 +583,20 @@ pub fn start_meter_polling(
                     row.di_loop_sources.iter().map(|s| s.to_string()).collect();
                 current != desired_sources
             };
+            // #771: keep the DI output select fresh — bindings and the
+            // persisted pick (SetChainDiLoopOutput) both change under the
+            // open panel.
+            let (desired_outputs, di_output_selected_now) =
+                crate::di_output_options::output_labels_and_index(
+                    &project.chains[idx],
+                    &session.io_bindings.borrow(),
+                );
+            let di_outputs_changed = {
+                let current: Vec<String> =
+                    row.di_loop_outputs.iter().map(|s| s.to_string()).collect();
+                current != desired_outputs
+            };
+            let di_output_selected_changed = row.di_output_selected_index != di_output_selected_now;
             // Issue #670: per-chain audio overload. Catch BOTH failure modes
             // the user hears as crackle — an xrun (the audio callback missed
             // its deadline) or an underrun (the output elastic buffer ran
@@ -588,12 +610,14 @@ pub fn start_meter_polling(
             let overloaded = chain_overloaded(prev_xruns, cur_xruns)
                 || chain_overloaded(prev_underruns, cur_underruns);
             last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
-            last_underruns.borrow_mut().insert(cid.clone(), cur_underruns);
+            last_underruns
+                .borrow_mut()
+                .insert(cid.clone(), cur_underruns);
             // One concise warning only on the transition INTO overload (not
             // every event) so it never spams the log.
             if overloaded && !row.audio_overload {
                 log::warn!(
-                    "[#670] audio overload on chain '{}': {} new xrun(s), {} new \
+                    "audio overload on chain '{}': {} new xrun(s), {} new \
                      underrun(s) — the rig is heavy for this buffer size",
                     cid.0,
                     cur_xruns.saturating_sub(prev_xruns),
@@ -604,8 +628,11 @@ pub fn start_meter_polling(
             if aggregate_changed
                 || stream_meters_changed
                 || di_changed
+                || di_meter_changed
                 || di_selected_changed
                 || di_sources_changed
+                || di_outputs_changed
+                || di_output_selected_changed
                 || overload_changed
             {
                 row.meter_in_dbfs = in_db;
@@ -615,6 +642,9 @@ pub fn start_meter_polling(
                 }
                 if di_changed {
                     row.di_loop_playing = di_playing_now;
+                }
+                if di_meter_changed {
+                    row.di_meter = di_meter_now;
                 }
                 if di_sources_changed {
                     row.di_loop_sources =
@@ -627,6 +657,18 @@ pub fn start_meter_polling(
                 }
                 if di_selected_changed {
                     row.di_loop_selected_index = di_selected_now;
+                }
+                if di_outputs_changed {
+                    row.di_loop_outputs =
+                        slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+                            desired_outputs
+                                .into_iter()
+                                .map(slint::SharedString::from)
+                                .collect::<Vec<_>>(),
+                        )));
+                }
+                if di_output_selected_changed {
+                    row.di_output_selected_index = di_output_selected_now;
                 }
                 if stream_meters_changed {
                     // #715: mutate the existing per-stream model IN PLACE when

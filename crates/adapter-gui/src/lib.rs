@@ -25,6 +25,9 @@ mod block_model_search_wiring;
 mod block_panel_dimensions;
 mod block_parameter_wiring;
 mod block_picker_wiring;
+/// #614: compact chain view callbacks — also exposes public play/stop helpers
+/// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
+pub mod chain_binding_choices;
 mod chain_block_crud_wiring;
 mod chain_crud_wiring;
 mod chain_editor_callbacks;
@@ -39,9 +42,6 @@ mod chain_row_wiring;
 mod chain_save_cancel_callbacks;
 mod cli;
 mod compact_chain_block_handlers;
-/// #614: compact chain view callbacks — also exposes public play/stop helpers
-/// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
-pub mod chain_binding_choices;
 pub mod compact_chain_callbacks;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
@@ -54,6 +54,12 @@ mod di_loop_chooser_wiring;
 pub mod di_loop_ui_sources;
 /// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
 pub mod di_loop_wiring;
+/// #771: DI meter row values from the isolated playback's own peaks.
+pub mod di_meter;
+/// #771: pure option list + index mapping for the DI panel's output select.
+pub mod di_output_options;
+/// #771: window wiring for the DI panel's output select.
+mod di_output_select_wiring;
 /// #749: search-as-you-type filter for the chain DI loop source dropdown
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
@@ -113,21 +119,21 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
-mod default_io_binding;
 mod block_editor;
 mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
 mod chain_editor;
+mod default_io_binding;
 mod eq;
 pub mod graph_view_model;
 mod helpers;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
+mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
-mod latency_probe;
 mod meter_wiring;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;

@@ -17,24 +17,39 @@ export component DiLoopPanel inherits Rectangle {
     in property <[string]> sources;
     in property <int> selected-index;
     in property <bool> playing;
+    // #771: the chain's already-bound output endpoints + the persisted pick.
+    in property <[string]> outputs;
+    in property <int> output-selected-index;
 
     callback source-picked(int, string);
     callback choose-file();
     callback play();
     callback stop();
+    // #771: an output endpoint was picked (index into `outputs`, label).
+    callback output-picked(int, string);
 
     private property <bool> expanded;
+    // #771: the output select's own expansion — opening one collapses the other.
+    private property <bool> out-expanded;
     private property <bool> has-selection:
         root.selected-index >= 0 && root.selected-index < root.sources.length;
     private property <string> selected-source:
         root.has-selection ? root.sources[root.selected-index] : "";
+    private property <bool> has-outputs: root.outputs.length > 0;
+    private property <string> selected-output:
+        (root.output-selected-index >= 0 && root.output-selected-index < root.outputs.length)
+            ? root.outputs[root.output-selected-index] : "";
     private property <length> row-h: 34px;
+    // Collapsed height: one row (source+play), plus the output row when bound.
+    private property <length> base-h: root.has-outputs ? 90px : 52px;
 
     width: 360px;
-    // Grows when the select is expanded (inline → resizing is allowed).
+    // Grows when either select is expanded (inline → resizing is allowed).
     height: root.expanded
-        ? min(52px + root.sources.length * root.row-h + 6px, 360px)
-        : 52px;
+        ? min(root.base-h + root.sources.length * root.row-h + 6px, 420px)
+        : root.out-expanded
+        ? min(root.base-h + root.outputs.length * root.row-h + 6px, 420px)
+        : root.base-h;
     border-radius: 8px;
     background: #11141af2;
     border-width: 1px;
@@ -84,9 +99,64 @@ export component DiLoopPanel inherits Rectangle {
         }
         sel-ta := TouchArea {
             mouse-cursor: pointer;
-            clicked => { root.expanded = !root.expanded; }
+            clicked => {
+                root.expanded = !root.expanded;
+                root.out-expanded = false;
+            }
         }
         accessible-role: button;
+    }
+
+    // ── #771: the OUTPUT select (chain's bound output endpoints) ──────────
+    if root.has-outputs : Rectangle {
+        x: 8px;
+        y: 46px;
+        width: 344px;
+        height: 30px;
+        border-radius: 6px;
+        background: #0a0d12;
+        border-width: 1px;
+        border-color: (out-sel-ta.has-hover || root.out-expanded) ? #4d5868 : #2b3340;
+        animate border-color { duration: 150ms; }
+
+        Image {
+            x: 10px;
+            y: 7px;
+            width: 16px;
+            height: 16px;
+            source: @image-url("../assets/output.svg");
+            colorize: root.playing ? #6e8aff : #8a94a2;
+        }
+        Text {
+            x: 34px;
+            width: parent.width - 64px;
+            height: parent.height;
+            text: root.selected-output;
+            color: #f1f4f8;
+            font-size: 15px;
+            font-weight: 700;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        Image {
+            x: parent.width - 26px;
+            y: 8px;
+            width: 14px;
+            height: 14px;
+            source: @image-url("../assets/arrow-down.svg");
+            colorize: root.out-expanded ? #8aa0ff : #8a94a2;
+            transform-rotation: root.out-expanded ? 180deg : 0deg;
+            animate transform-rotation { duration: 120ms; }
+        }
+        out-sel-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.out-expanded = !root.out-expanded;
+                root.expanded = false;
+            }
+        }
+        accessible-role: button;
+        accessible-label: @tr("di-output-select-label");
     }
 
     // ── PLAY / STOP (right of the select, once a source is selected) ───────
@@ -124,9 +194,9 @@ export component DiLoopPanel inherits Rectangle {
     // ── the SELECT's options (inline, only when expanded) ─────────────────
     if root.expanded : Flickable {
         x: 8px;
-        y: 46px;
+        y: root.base-h - 6px;
         width: parent.width - 16px;
-        height: parent.height - 52px;
+        height: parent.height - root.base-h;
         viewport-width: self.width;
         viewport-height: root.sources.length * root.row-h + 4px;
 
@@ -163,6 +233,47 @@ export component DiLoopPanel inherits Rectangle {
             }
             accessible-role: button;
             accessible-label: src;
+        }
+    }
+
+    // ── #771: the OUTPUT select's options (inline, only when expanded) ────
+    if root.out-expanded : Flickable {
+        x: 8px;
+        y: root.base-h - 6px;
+        width: parent.width - 16px;
+        height: parent.height - root.base-h;
+        viewport-width: self.width;
+        viewport-height: root.outputs.length * root.row-h + 4px;
+
+        for out[i] in root.outputs : Rectangle {
+            x: 0;
+            y: i * root.row-h;
+            width: parent.width;
+            height: root.row-h - 2px;
+            border-radius: 5px;
+            background: i == root.output-selected-index
+                ? Theme.palette.accent-end
+                : (out-row-ta.has-hover ? #1b2230 : transparent);
+            Text {
+                x: 10px;
+                width: parent.width - 20px;
+                height: parent.height;
+                text: out;
+                color: #f1f4f8;
+                font-size: 15px;
+                font-weight: i == root.output-selected-index ? 800 : 600;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            out-row-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.output-picked(i, out);
+                    root.out-expanded = false;
+                }
+            }
+            accessible-role: button;
+            accessible-label: out;
         }
     }
 }

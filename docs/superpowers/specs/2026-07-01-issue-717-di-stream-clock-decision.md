@@ -63,3 +63,8 @@ graph is not live-editable — revisit only if live-edit of the DI path is dropp
 
 (Output selection — plan Task 4 — extends `arm_di_stream` to resolve the chain's
 `di_output` to the chosen output binding + rate.)
+
+
+---
+
+**SUPERSEDED by #771.** Candidate B (the free-running, sleep-paced worker producer) was implemented and **drifted against the output device clock** — dropouts, reverted in `f1131725e`. #771 ships the fallback documented above: the loop is **pre-rendered** through a copy of the chain's block graph off-thread and played back at a cursor the **output callback** advances (output-clocked, no drift, no DSP in the callback). Trade-off accepted: the DI graph is not live-editable while playing (re-renders on next play).

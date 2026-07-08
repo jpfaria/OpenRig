@@ -191,6 +191,9 @@ export component AppWindow inherits Window {
     callback di-loop-choose-file(int);
     callback di-loop-play(int);
     callback di-loop-stop(int);
+    /// #771: an output endpoint was picked in the DI panel.
+    /// Args: chain-index, index into the chain's di_loop_outputs.
+    callback di-loop-output-selected(int, int);
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);
@@ -847,6 +850,8 @@ export component AppWindow inherits Window {
             sources: DiPanel.sources;
             selected-index: DiPanel.selected-index;
             playing: DiPanel.playing;
+            outputs: DiPanel.outputs;
+            output-selected-index: DiPanel.output-selected-index;
             source-picked(i, s) => {
                 // Reflect the pick in the open panel immediately, then dispatch.
                 DiPanel.selected-index = i;
@@ -860,6 +865,10 @@ export component AppWindow inherits Window {
             stop => {
                 DiPanel.playing = false;
                 root.di-loop-stop(DiPanel.chain-index);
+            }
+            output-picked(i, s) => {
+                DiPanel.output-selected-index = i;
+                root.di-loop-output-selected(DiPanel.chain-index, i);
             }
         }
     }
