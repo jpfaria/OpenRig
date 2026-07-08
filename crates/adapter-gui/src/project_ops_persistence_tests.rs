@@ -68,10 +68,10 @@ fn chain_count(s: &ProjectSession) -> usize {
 /// Set up a fresh in-memory session and bind it to a temp `project.yaml`,
 /// mimicking what `on_confirm_new_project` does after the file-save
 /// dialog picks a path.
-fn new_session_at(path: &PathBuf, cfg: &PathBuf) -> ProjectSession {
+fn new_session_at(path: &std::path::Path, cfg: &std::path::Path) -> ProjectSession {
     let mut session = create_new_project_session(cfg);
-    session.project_path = Some(path.clone());
-    session.config_path = Some(cfg.clone());
+    session.project_path = Some(path.to_path_buf());
+    session.config_path = Some(cfg.to_path_buf());
     session
 }
 

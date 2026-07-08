@@ -113,7 +113,7 @@ fn poll_per_stream_returns_one_reading_per_stream() {
             },
         ],
     };
-    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[], &make_streams);
+    refresh_subscriptions_lazy_per_stream(&store, std::slice::from_ref(&id), &[], &make_streams);
     let readings = poll_per_stream(&store);
     assert_eq!(readings.len(), 1, "one chain");
     let chain_readings = &readings[0];
@@ -151,12 +151,12 @@ fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
         }
     };
 
-    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[], &make_streams);
+    refresh_subscriptions_lazy_per_stream(&store, std::slice::from_ref(&id), &[], &make_streams);
     assert_eq!(calls.get(), 1, "first call subscribes");
 
     // Repeat with no invalidation: must skip — stale rings would
     // otherwise flicker the meter every tick (~30 Hz).
-    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[], &make_streams);
+    refresh_subscriptions_lazy_per_stream(&store, std::slice::from_ref(&id), &[], &make_streams);
     assert_eq!(
         calls.get(),
         1,
@@ -164,7 +164,12 @@ fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
     );
 
     // Caller invalidates explicitly (e.g. on chain toggle / rig-nav).
-    refresh_subscriptions_lazy_per_stream(&store, &[id.clone()], &[id.clone()], &make_streams);
+    refresh_subscriptions_lazy_per_stream(
+        &store,
+        std::slice::from_ref(&id),
+        std::slice::from_ref(&id),
+        &make_streams,
+    );
     assert_eq!(
         calls.get(),
         2,
@@ -565,7 +570,7 @@ fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
     let out_ptrs: Vec<*const SpscRing<f32>> = chain
         .streams
         .iter()
-        .flat_map(|s| s.output.iter().map(|r| Arc::as_ptr(r)))
+        .flat_map(|s| s.output.iter().map(Arc::as_ptr))
         .collect();
     let unique: std::collections::HashSet<_> = out_ptrs.iter().collect();
     assert_eq!(

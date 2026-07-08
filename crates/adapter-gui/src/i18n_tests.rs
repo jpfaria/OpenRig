@@ -407,6 +407,7 @@ fn gettext_resolves_btn_new_project_in_en_us() {
 ///   1. `build.rs` calls `with_default_translation_context(None)` so the
 ///      compiler stops emitting the component name as msgctxt.
 ///   2. The `.po` catalogs are flat (no msgctxt lines).
+///
 /// Guard: every `@tr("…")` in `preset_picker_overlay.slint` must have a
 /// non-empty translation in the pt_BR catalog under no msgctxt.
 #[test]
@@ -684,6 +685,7 @@ fn every_tr_key_has_translation_in_en_pt_es() {
 ///   - `text: ""` (empty placeholder)
 ///   - Slint string interpolations using `\{…}` (template-only strings;
 ///     the interpolation IS the content).
+///
 /// Banned: `text: "Hello"`, `text: "INPUT"`, `text: "✓"` (use `@tr("✓")`).
 #[test]
 fn no_raw_text_literals_in_settings_slint() {
@@ -917,6 +919,7 @@ fn settings_screen_tr_keys_are_translated_in_pt_br() {
 ///      re-add `msgctxt`), where the runtime flat lookup
 ///      (`build.rs` `DefaultTranslationContext::None`) fails and the whole UI
 ///      renders raw keys (regressions: 4590afeb, and #716 again).
+///
 /// Symbolic keys = lowercase identifiers with a `-` (btn-*, label-*, help-*,
 /// …); English/source-literal msgids (e.g. "Volume", "OpenRig") fall back to
 /// themselves and are intentionally allowed to have an empty msgstr.

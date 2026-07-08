@@ -136,12 +136,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                         }
                     }
                     let title =
-                        project_title_for_path(Some(&canonical_path), &*session.project.borrow());
-                    let display_name = project_display_name(&*session.project.borrow());
+                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
+                    let display_name = project_display_name(&session.project.borrow());
                     stop_project_runtime(&project_runtime);
                     replace_project_chains(
                         &project_chains,
-                        &*session.project.borrow(),
+                        &session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
             &[]

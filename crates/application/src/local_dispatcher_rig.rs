@@ -106,7 +106,7 @@ impl LocalDispatcher {
                     !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
                 });
                 let mut final_blocks = preserved_inputs;
-                final_blocks.extend(rebuilt.blocks.drain(..));
+                final_blocks.append(&mut rebuilt.blocks);
                 final_blocks.extend(preserved_outputs);
                 rebuilt.blocks = final_blocks;
                 *slot = rebuilt;

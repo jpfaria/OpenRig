@@ -102,7 +102,7 @@ pub struct Language {
 /// Stop-gap until each shipped locale has real translations. Once a
 /// `.po` is populated, add its code to [`LOCALES_WITH_TRANSLATIONS`].
 pub fn effective_locale(requested: &str) -> String {
-    if LOCALES_WITH_TRANSLATIONS.iter().any(|c| *c == requested) {
+    if LOCALES_WITH_TRANSLATIONS.contains(&requested) {
         requested.to_string()
     } else {
         "en-US".to_string()

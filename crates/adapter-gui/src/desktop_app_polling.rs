@@ -66,7 +66,7 @@ pub(crate) fn start(
                     set_status_error(
                         &win,
                         &toast_timer_for_errors,
-                        &rust_i18n::t!("status-plugin-error", msg = first.message).to_string(),
+                        rust_i18n::t!("status-plugin-error", msg = first.message).as_ref(),
                     );
                 }
             },
@@ -133,7 +133,7 @@ pub(crate) fn start(
                     return;
                 };
                 let proj_borrow = session.project.borrow();
-                match rt.try_reconnect(&*proj_borrow) {
+                match rt.try_reconnect(&proj_borrow) {
                     Ok(true) => {
                         *is_disconnected = false;
                         set_status_info(

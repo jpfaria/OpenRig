@@ -102,19 +102,18 @@ pub(crate) fn wire(
                 log::error!("[compact] update param error: {e}");
                 return;
             }
-            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
             &[]
             );
-            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -198,19 +197,18 @@ pub(crate) fn wire(
                 log::error!("[compact] select option error: {e}");
                 return;
             }
-            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
             &[]
             );
-            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -267,19 +265,18 @@ pub(crate) fn wire(
                 log::error!("[compact] update bool param error: {e}");
                 return;
             }
-            let chain_id = chain_id;
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
             &[]
             );
-            let blocks = build_compact_blocks(&*session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,

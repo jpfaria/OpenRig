@@ -7,7 +7,7 @@
 //! - `on_confirm_new_project`  — validate name, build session, route to chains
 //! - `on_cancel_new_project`   — back to launcher view
 //! - `on_save_project`         — save to known path or save-as dialog, then refresh
-//!                                recent list and toast on error
+//!   recent list and toast on error
 //!
 //! Stays out of `lib.rs` so launcher tweaks don't collide with other UI work.
 
@@ -108,12 +108,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         }
                     }
                     let title =
-                        project_title_for_path(Some(&canonical_path), &*session.project.borrow());
-                    let display_name = project_display_name(&*session.project.borrow());
+                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
+                    let display_name = project_display_name(&session.project.borrow());
                     stop_project_runtime(&project_runtime);
                     replace_project_chains(
                         &project_chains,
-                        &*session.project.borrow(),
+                        &session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
             &[]
@@ -239,7 +239,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 .dispatch(Command::UpdateProjectName { name: name.clone() });
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             &[]
@@ -330,7 +330,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 Ok(_) => {
                     let canonical_path =
                         canonical_project_path(&project_path).unwrap_or(project_path.clone());
-                    let recent_name = project_display_name(&*session.project.borrow());
+                    let recent_name = project_display_name(&session.project.borrow());
                     register_recent_project(
                         &mut app_config.borrow_mut(),
                         &canonical_path,
@@ -353,7 +353,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         window.get_recent_project_search().as_str(),
                     ));
                     window.set_project_title(
-                        project_title_for_path(Some(&canonical_path), &*session.project.borrow())
+                        project_title_for_path(Some(&canonical_path), &session.project.borrow())
                             .into(),
                     );
                     window.set_project_name_draft(

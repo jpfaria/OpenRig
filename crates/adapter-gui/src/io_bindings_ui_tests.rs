@@ -76,7 +76,7 @@ fn binding_named(id: &str, name: &str) -> IoBindingModel {
 fn nth_abs_y(w: &ProjectSettingsWindow, id: &str, n: usize) -> Option<f32> {
     i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
         .nth(n)
-        .map(|el| el.absolute_position().y as f32)
+        .map(|el| el.absolute_position().y)
 }
 
 #[test]
