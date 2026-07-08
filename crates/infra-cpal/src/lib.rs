@@ -73,8 +73,9 @@ mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_taps;
-mod di_stream;
 mod device_enum;
+mod di_playback;
+mod di_stream;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_enum::jack_is_running;
 pub use device_enum::{

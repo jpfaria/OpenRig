@@ -746,3 +746,7 @@ msgstr "请为此链选择至少一个 I/O 绑定"
 #: crates/adapter-gui/ui/components/di_stream_graph.slint
 msgid "di-stream-graph-title"
 msgstr "DI 音频流"
+
+#: crates/adapter-gui/ui/components/di_loop_panel.slint
+msgid "di-output-select-label"
+msgstr "DI输出"

@@ -752,3 +752,7 @@ msgstr "Wähle mindestens eine E/A-Bindung für diese Chain"
 #: crates/adapter-gui/ui/components/di_stream_graph.slint
 msgid "di-stream-graph-title"
 msgstr "DI-Stream"
+
+#: crates/adapter-gui/ui/components/di_loop_panel.slint
+msgid "di-output-select-label"
+msgstr "DI-Ausgang"

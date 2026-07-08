@@ -14,7 +14,8 @@ use slint::platform::{PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, LogicalPosition, ModelRc, SharedString, VecModel};
 
 fn click_id(w: &impl ComponentHandle, id: &str, nth: usize) -> bool {
-    let Some(el) = i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).nth(nth) else {
+    let Some(el) = i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).nth(nth)
+    else {
         return false;
     };
     let pos = el.absolute_position();

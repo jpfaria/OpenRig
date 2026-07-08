@@ -746,3 +746,7 @@ msgstr "इस chain के लिए कम से कम एक I/O बाइ�
 #: crates/adapter-gui/ui/components/di_stream_graph.slint
 msgid "di-stream-graph-title"
 msgstr "DI स्ट्रीम"
+
+#: crates/adapter-gui/ui/components/di_loop_panel.slint
+msgid "di-output-select-label"
+msgstr "DI आउटपुट"

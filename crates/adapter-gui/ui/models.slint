@@ -119,6 +119,18 @@ export struct ProjectChainItem {
     /// loop source, or -1 when none. Refreshed by the meter timer from the
     /// dispatcher so the popup ComboBox highlights the active source on reopen.
     di_loop_selected_index: int,
+    /// Issue #771: the DI stream's OWN in/out levels (dBFS), read from the
+    /// isolated playback's peaks — never a mirror of the chain meters.
+    /// Refreshed by the meter timer via `di_playback_peaks`.
+    di_meter: StreamMeter,
+    /// Issue #771: the chain's already-bound output endpoints (labels), the
+    /// DI panel's output select. Order matches the engine's flat resolve
+    /// order, so a picked index maps 1:1 to the playback's output.
+    di_loop_outputs: [string],
+    /// Issue #771: index into `di_loop_outputs` of the persisted `di_output`
+    /// (0 = main output when none persisted; -1 when the chain has no bound
+    /// outputs).
+    di_output_selected_index: int,
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the
