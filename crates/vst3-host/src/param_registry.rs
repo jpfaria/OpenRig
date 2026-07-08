@@ -72,7 +72,7 @@ pub fn register_vst3_gui_context(
                 model_id: model_id.to_string(),
             },
         );
-    log::debug!(
+    log::info!(
         "VST3 registry: registered context for instance '{}' (model '{}')",
         instance_key,
         model_id

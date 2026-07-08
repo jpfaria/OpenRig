@@ -137,7 +137,7 @@ pub fn open_vst3_editor(
         )
     })?;
 
-    log::debug!(
+    log::info!(
         "VST3 editor: reusing engine controller for instance '{}' (model '{}')",
         instance_key,
         gui_context.model_id

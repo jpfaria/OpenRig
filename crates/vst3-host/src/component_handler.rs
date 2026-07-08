@@ -51,7 +51,7 @@ impl IComponentHandlerTrait for ComponentHandler {
     unsafe fn performEdit(&self, id: ParamID, valueNormalized: ParamValue) -> i32 {
         // #780: confirms the native editor's edits reach the host (they were
         // silent when the handler was registered after createView).
-        log::debug!("VST3 performEdit: param {id} -> {valueNormalized}");
+        log::info!("VST3 performEdit: param {id} -> {valueNormalized}");
         self.channel.push(Vst3ParamUpdate {
             id,
             normalized: valueNormalized,
