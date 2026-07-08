@@ -57,6 +57,19 @@ pub use stereo::StereoVst3Processor;
 use anyhow::Result;
 use block_core::{AudioChannelLayout, BlockProcessor};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Total VST3 instances created this process — incremented on each successful
+/// `IPluginFactory::createInstance` (`host_load`). A live param edit that
+/// RE-INSTANTIATES the plugin (a fresh `createInstance` on the worker thread,
+/// concurrent with the audio thread's `process()`) is the #779 crash; a param
+/// edit must retune the live instance in place and leave this count unchanged.
+pub(crate) static VST3_INSTANTIATIONS: AtomicU64 = AtomicU64::new(0);
+
+/// Number of VST3 instances this process has created (see [`VST3_INSTANTIATIONS`]).
+pub fn instantiation_count() -> u64 {
+    VST3_INSTANTIATIONS.load(Ordering::Relaxed)
+}
 
 /// Build a ready-to-use VST3 `BlockProcessor`.
 ///

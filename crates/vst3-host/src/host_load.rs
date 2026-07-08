@@ -116,6 +116,9 @@ impl Vst3Plugin {
         if res != kResultOk || component_raw.is_null() {
             bail!("IPluginFactory::createInstance failed (result={})", res);
         }
+        // #779: a live VST3 param edit must NOT reach here — re-instantiating on
+        // the worker while the audio thread processes the old instance SIGSEGVs.
+        crate::VST3_INSTANTIATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         // Safety: createInstance returned a valid IComponent* (non-null, result ok).
         let component: ComPtr<IComponent> =
