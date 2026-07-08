@@ -85,8 +85,7 @@ fn promote_to_audio_rt(period_ns: u64) {
 fn nam_block_holds_the_64_frame_budget_under_allocator_contention() {
     let mut params = DEFAULT_PLUGIN_PARAMS;
     params.noise_gate_enabled = false;
-    let mut proc =
-        NamProcessor::new(&od808(), None, params, 44_100.0).expect("od808 A2 must load");
+    let mut proc = NamProcessor::new(&od808(), None, params, 44_100.0).expect("od808 A2 must load");
     let mut buf: Vec<f32> = (0..64)
         .map(|i| 0.3 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / 44_100.0).sin())
         .collect();

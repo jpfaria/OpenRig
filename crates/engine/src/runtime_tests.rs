@@ -14,6 +14,7 @@ use super::{
     BlockRuntimeNode, ElasticBuffer, FadeState, ProcessorScratch, RuntimeProcessor,
     DEFAULT_ELASTIC_TARGET, ERROR_QUEUE_CAPACITY, FADE_IN_FRAMES,
 };
+use crate::runtime_endpoints::{InputEntry, OutputEntry};
 use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
 use block_core::AudioChannelLayout;
 use block_delay::supported_models as supported_delay_models;
@@ -21,7 +22,6 @@ use block_dyn::compressor_supported_models;
 use block_preamp::supported_models as supported_preamp_models;
 use block_reverb::supported_models as supported_reverb_models;
 use crossbeam_queue::ArrayQueue;
-use crate::runtime_endpoints::{InputEntry, OutputEntry};
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::value_objects::ParameterValue;
 use project::block::{
@@ -258,8 +258,15 @@ fn update_chain_runtime_state_preserves_unchanged_block_instances() {
             .insert("reference_hz", ParameterValue::Float(432.0));
     }
 
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime update should succeed");
+    update_chain_runtime_state(
+        &runtime,
+        &chain,
+        48_000.0,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &[],
+    )
+    .expect("runtime update should succeed");
 
     let updated_serials = {
         let locked = runtime.processing.lock().expect("runtime poisoned");
@@ -300,8 +307,15 @@ fn update_chain_runtime_state_preserves_block_identity_when_reordered() {
 
     chain.blocks.swap(0, 1);
 
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime update should succeed");
+    update_chain_runtime_state(
+        &runtime,
+        &chain,
+        48_000.0,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &[],
+    )
+    .expect("runtime update should succeed");
 
     let reordered = runtime.processing.lock().expect("runtime poisoned");
     assert_eq!(reordered.input_states[0].blocks.len(), 2);
@@ -367,8 +381,13 @@ fn dual_mono_chain_does_not_leak_left_into_right() {
         di_output: None,
     };
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_split_dual())
-            .expect("runtime state should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_split_dual(),
+        )
+        .expect("runtime state should build"),
     );
 
     let mut input = vec![0.0f32; 256 * 2];
@@ -409,8 +428,13 @@ fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
         di_output: None,
     };
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_split_dual())
-            .expect("runtime state should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_split_dual(),
+        )
+        .expect("runtime state should build"),
     );
 
     let mut input = vec![0.0f32; 256 * 2];
@@ -462,8 +486,15 @@ fn update_chain_runtime_state_preserves_select_instance_when_switching_active_op
         select.selected_block_id = BlockId("chain:select:block:0::delay_b".into());
     }
 
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime update should succeed when switching select option");
+    update_chain_runtime_state(
+        &runtime,
+        &chain,
+        48_000.0,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &[],
+    )
+    .expect("runtime update should succeed when switching select option");
 
     let updated_serial = {
         let locked = runtime.processing.lock().expect("runtime poisoned");
@@ -1547,7 +1578,14 @@ fn runtime_graph_upsert_chain_creates_new_entry() {
         chains: HashMap::new(),
     };
     let chain = tuner_track("chain:new", Vec::new());
-    let result = graph.upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[]);
+    let result = graph.upsert_chain(
+        &chain,
+        48_000.0,
+        &HashMap::new(),
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &[],
+    );
     assert!(result.is_ok());
     assert_eq!(graph.chains.len(), 1);
 }
@@ -1560,11 +1598,25 @@ fn runtime_graph_upsert_chain_updates_existing() {
     };
     let chain = tuner_track("chain:upsert", vec![tuner_block("b:0", 440.0)]);
     graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[])
+        .upsert_chain(
+            &chain,
+            48_000.0,
+            &HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &[],
+        )
         .unwrap();
     // Update — should reuse existing entry
     let chain2 = tuner_track("chain:upsert", vec![tuner_block("b:0", 445.0)]);
-    let result = graph.upsert_chain(&chain2, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[]);
+    let result = graph.upsert_chain(
+        &chain2,
+        48_000.0,
+        &HashMap::new(),
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &[],
+    );
     assert!(result.is_ok());
     assert_eq!(graph.chains.len(), 1);
 }
@@ -1586,7 +1638,14 @@ fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
     let mut chain = io_passthrough_chain("chain:vol");
     chain.volume = 100.0;
     graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
+        .upsert_chain(
+            &chain,
+            48_000.0,
+            &HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
         .unwrap();
     let rt = graph.runtime_for_chain(&chain.id).expect("runtime exists");
     assert_eq!(rt.volume_pct(), 100.0, "initial volume must be 100");
@@ -1595,7 +1654,14 @@ fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
     // live chain (needs_stream_rebuild = false → fast in-place path).
     chain.volume = 150.0;
     graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
+        .upsert_chain(
+            &chain,
+            48_000.0,
+            &HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
         .unwrap();
     let rt2 = graph.runtime_for_chain(&chain.id).expect("runtime exists");
     assert_eq!(
@@ -1640,7 +1706,14 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
     };
     let mut chain = two_device_chain("chain:2dev", 100.0);
     graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), true, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
+        .upsert_chain(
+            &chain,
+            48_000.0,
+            &HashMap::new(),
+            true,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_two_device(),
+        )
         .unwrap();
 
     // The cpal callbacks capture these Arcs at stream-build time and keep
@@ -1652,7 +1725,14 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
     // chain whose stream signature is unchanged: needs_stream_rebuild=false.
     chain.volume = 150.0;
     graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
+        .upsert_chain(
+            &chain,
+            48_000.0,
+            &HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_two_device(),
+        )
         .unwrap();
 
     for (i, rt) in held.iter().enumerate() {
@@ -1671,8 +1751,13 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
 fn process_output_fills_silence_for_invalid_output_index() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     let mut out = vec![1.0f32; 8];
@@ -1693,8 +1778,13 @@ fn process_output_underrun_returns_silence_not_last_frame() {
     // are not).
     let chain = io_passthrough_chain("chain:underrun");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
     let warmup = vec![0.0f32; FADE_IN_FRAMES + 16];
     process_input_f32(&runtime, 0, &warmup, 1);
@@ -1732,14 +1822,16 @@ fn process_output_underrun_returns_silence_not_last_frame() {
 #[test]
 fn measured_latency_ms_returns_zero_initially() {
     let chain = tuner_track("chain:0", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
+    let runtime =
+        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
     assert!((runtime.measured_latency_ms() - 0.0).abs() < 1e-6);
 }
 
 #[test]
 fn poll_errors_drains_and_returns_all() {
     let chain = tuner_track("chain:0", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
+    let runtime =
+        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
     // Manually push errors
     runtime
         .error_queue
@@ -1765,7 +1857,8 @@ fn poll_errors_drains_and_returns_all() {
 #[test]
 fn poll_stream_returns_none_for_unknown_block() {
     let chain = tuner_track("chain:0", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
+    let runtime =
+        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
     assert!(runtime
         .poll_stream(&BlockId("nonexistent".into()))
         .is_none());
@@ -2008,8 +2101,10 @@ fn split_two_bindings_pairs_each_input_with_its_own_binding_output() {
 
     // No cross-routing: the TEYUN input must never reach the SCARLET output.
     assert!(
-        !segments.iter().any(|s| s.input.device_id.0 == "teyun-in"
-            && s.output_route_indices.contains(&scarlet_out)),
+        !segments
+            .iter()
+            .any(|s| s.input.device_id.0 == "teyun-in"
+                && s.output_route_indices.contains(&scarlet_out)),
         "cross-binding routing: TEYUN input reached the SCARLET output"
     );
     // Sanity: the TEYUN input still routes somewhere (to its own output).
@@ -2111,8 +2206,13 @@ fn process_input_stereo_output_preserves_channels() {
         di_output: None,
     };
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_stereo())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_stereo(),
+        )
+        .expect("runtime should build"),
     );
 
     // Push enough frames to get past fade-in (interleaved stereo)
@@ -2156,16 +2256,28 @@ fn process_input_stereo_output_preserves_channels() {
 fn update_chain_runtime_state_with_reset_output_queue() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     // Push some data
     process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
 
     // Update with reset_output_queue=true should clear the buffer
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, true, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-        .expect("update should succeed");
+    update_chain_runtime_state(
+        &runtime,
+        &chain,
+        48_000.0,
+        true,
+        &[DEFAULT_ELASTIC_TARGET],
+        &io_registry_mono(),
+    )
+    .expect("update should succeed");
 
     let mut out = vec![0.0f32; 2];
     process_output_f32(&runtime, 0, &mut out, 1);
@@ -2259,7 +2371,12 @@ fn insert_send_as_output_entry_stereo_mode() {
 fn insert_send_as_output_entry_dual_mono_becomes_stereo() {
     use super::insert_send_as_output_entry;
     use domain::io_binding::ChannelMode;
-    let reg = fx_registry(ChannelMode::DualMono, vec![0, 1], ChannelMode::Mono, vec![0]);
+    let reg = fx_registry(
+        ChannelMode::DualMono,
+        vec![0, 1],
+        ChannelMode::Mono,
+        vec![0],
+    );
     let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
     assert!(matches!(entry.mode, ChainOutputMode::Stereo));
 }
@@ -2392,8 +2509,13 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
 fn process_input_with_empty_data_does_not_panic() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
     process_input_f32(&runtime, 0, &[], 1);
 }
@@ -2402,8 +2524,13 @@ fn process_input_with_empty_data_does_not_panic() {
 fn process_input_with_invalid_index_does_not_panic() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
     process_input_f32(&runtime, 999, &[0.5, 0.7], 1);
 }
@@ -2414,8 +2541,13 @@ fn process_input_with_invalid_index_does_not_panic() {
 fn subscribe_input_tap_receives_pre_fx_samples() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     // Subscribe to input 0, channel 0 (mono input).
@@ -2438,8 +2570,13 @@ fn subscribe_input_tap_receives_pre_fx_samples() {
 fn subscribe_input_tap_only_targets_matching_input_index() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     let rings = runtime.subscribe_input_tap(0, 1, &[0], 256);
@@ -2456,8 +2593,13 @@ fn subscribe_input_tap_only_targets_matching_input_index() {
 fn prune_dead_input_taps_removes_unused() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     {
@@ -2477,8 +2619,13 @@ fn prune_dead_input_taps_removes_unused() {
 fn subscribe_stream_tap_receives_post_fx_stereo() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     // Subscribe to stream 0 (the chain's single input pipeline).
@@ -2505,8 +2652,13 @@ fn subscribe_stream_tap_receives_post_fx_stereo() {
 fn subscribe_stream_tap_only_targets_matching_stream_index() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     // Subscribe to a stream that does not exist (chain has only one).
@@ -2523,8 +2675,13 @@ fn subscribe_stream_tap_only_targets_matching_stream_index() {
 fn stream_tap_publishes_independent_of_output_mute() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     let [l_ring, r_ring] = runtime.subscribe_stream_tap(0, 256);
@@ -2558,8 +2715,13 @@ fn stream_tap_publishes_independent_of_output_mute() {
 fn prune_dead_stream_taps_removes_unused() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     {
@@ -2576,8 +2738,13 @@ fn prune_dead_stream_taps_removes_unused() {
 fn output_muted_defaults_to_false() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     assert!(!runtime.is_output_muted());
@@ -2587,8 +2754,13 @@ fn output_muted_defaults_to_false() {
 fn set_output_muted_round_trips() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     runtime.set_output_muted(true);
@@ -2602,8 +2774,13 @@ fn set_output_muted_round_trips() {
 fn output_muted_zeros_process_output_buffer() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     // Push some samples through the input so the chain has data
@@ -2624,8 +2801,13 @@ fn output_muted_zeros_process_output_buffer() {
 fn output_muted_unset_does_not_zero_buffer() {
     let chain = io_passthrough_chain("chain:0");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     // Drive a known signal through input → passthrough → output.
@@ -2735,8 +2917,13 @@ fn build_chain_runtime_state_no_io_blocks_uses_fallback() {
 fn passthrough_chain_round_trip_preserves_signal() {
     let chain = io_passthrough_chain("chain:rt");
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry_mono(),
+        )
+        .expect("runtime should build"),
     );
 
     // Warm up past fade-in
@@ -2764,7 +2951,8 @@ fn passthrough_chain_round_trip_preserves_signal() {
 #[test]
 fn measured_latency_ms_converts_nanos_correctly() {
     let chain = tuner_track("chain:lat", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
+    let runtime =
+        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
     // Store 5ms worth of nanos
     runtime
         .measured_latency_nanos

@@ -72,7 +72,8 @@ fn main() -> Result<()> {
     }
 
     let chain_sample_rates = resolve_project_chain_sample_rates(&legacy, &registry)?;
-    let runtime_graph = build_runtime_graph(&legacy, &chain_sample_rates, &HashMap::new(), &registry)?;
+    let runtime_graph =
+        build_runtime_graph(&legacy, &chain_sample_rates, &HashMap::new(), &registry)?;
     let streams = build_streams_for_project(&legacy, &runtime_graph, &registry)?;
     for stream in &streams {
         stream.play()?;

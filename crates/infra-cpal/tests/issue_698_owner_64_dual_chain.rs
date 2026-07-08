@@ -20,7 +20,9 @@
 mod hw_harness;
 
 use domain::ids::ChainId;
-use hw_harness::{device_guard, hw_tests_enabled, init_registry_with_root, load_di, rig_project_with};
+use hw_harness::{
+    device_guard, hw_tests_enabled, init_registry_with_root, load_di, rig_project_with,
+};
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
@@ -60,7 +62,9 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
 
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry.clone());
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
     let di1 = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
 
     // ── Phase 1: SOLO — only chain 1 plays.
@@ -105,7 +109,9 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
     }
     let mut controller = ProjectRuntimeController::start(&five).expect("start 5-chain streams");
     controller.set_io_bindings(registry);
-    controller.sync_project(&five).expect("resync with bindings");
+    controller
+        .sync_project(&five)
+        .expect("resync with bindings");
     let all_ids: Vec<ChainId> = five.chains.iter().map(|c| c.id.clone()).collect();
     for id in &all_ids {
         let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
@@ -128,9 +134,7 @@ fn owner_chains_at_64_frames_play_clean_solo_and_dual() {
         five_x += controller.chain_xrun_count(id) - x0;
         five_u += controller.chain_underrun_count(id) - u0;
     }
-    eprintln!(
-        "[#698 FIVE-64] five chains playing 20s: total xruns={five_x} underruns={five_u}"
-    );
+    eprintln!("[#698 FIVE-64] five chains playing 20s: total xruns={five_x} underruns={five_u}");
 
     assert_eq!(
         (solo_x, solo_u),

@@ -48,8 +48,10 @@ fn main() -> anyhow::Result<()> {
     // that wins when present. Config-load failure → treat as disabled (the
     // flags still work), never block startup.
     let app_config = FilesystemStorage::load_app_config().unwrap_or_default();
-    let mcp_addr =
-        adapter_gui::resolve_mcp_addr(adapter_gui::parse_mcp_addr(&raw_refs), app_config.mcp_enabled);
+    let mcp_addr = adapter_gui::resolve_mcp_addr(
+        adapter_gui::parse_mcp_addr(&raw_refs),
+        app_config.mcp_enabled,
+    );
     let midi_map = adapter_gui::resolve_midi_map(
         adapter_gui::parse_midi_map(&raw_refs),
         app_config.midi_enabled,

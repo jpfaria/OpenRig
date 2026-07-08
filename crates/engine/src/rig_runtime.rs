@@ -314,7 +314,14 @@ impl RigRuntime {
             }
             let id = ChainId(format!("rig:{name}"));
             if let Some(chain) = rig_to_chains(&project).into_iter().find(|c| c.id == id) {
-                graph.upsert_chain(&chain, sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &registry)?;
+                graph.upsert_chain(
+                    &chain,
+                    sample_rate,
+                    &HashMap::new(),
+                    false,
+                    &[DEFAULT_ELASTIC_TARGET],
+                    &registry,
+                )?;
                 enabled.insert(name.clone());
             }
         }
@@ -344,7 +351,9 @@ impl RigRuntime {
         if self.enabled.contains(input) {
             return Ok(());
         }
-        if let Some((dev, ch, holder)) = tap_conflict(&self.project, &self.enabled, ri, &self.registry) {
+        if let Some((dev, ch, holder)) =
+            tap_conflict(&self.project, &self.enabled, ri, &self.registry)
+        {
             return Err(anyhow!(
                 "cannot enable input '{input}': device '{dev}' channel {ch} \
                  is already in use by active input '{holder}'"
@@ -355,8 +364,14 @@ impl RigRuntime {
             .into_iter()
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
-        self.graph
-            .upsert_chain(&chain, self.sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &self.registry)?;
+        self.graph.upsert_chain(
+            &chain,
+            self.sample_rate,
+            &HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &self.registry,
+        )?;
         self.enabled.insert(input.to_string());
         Ok(())
     }
@@ -408,8 +423,14 @@ impl RigRuntime {
             .into_iter()
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
-        self.graph
-            .upsert_chain(&chain, self.sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &self.registry)?;
+        self.graph.upsert_chain(
+            &chain,
+            self.sample_rate,
+            &HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &self.registry,
+        )?;
         Ok(())
     }
 
@@ -442,8 +463,14 @@ impl RigRuntime {
             .into_iter()
             .find(|c| c.id == id)
             .ok_or_else(|| anyhow!("input '{input}' has no buildable chain"))?;
-        self.graph
-            .upsert_chain(&chain, self.sample_rate, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &self.registry)?;
+        self.graph.upsert_chain(
+            &chain,
+            self.sample_rate,
+            &HashMap::new(),
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &self.registry,
+        )?;
         Ok(())
     }
 }

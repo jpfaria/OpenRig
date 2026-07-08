@@ -22,9 +22,9 @@ use vst3::{ComPtr, Interface};
 use crate::host_application::HostApplication;
 use crate::host_utils::{bundle_binary_path, tuid_to_bytes};
 
-use super::{Vst3Inner, Vst3Plugin};
 #[cfg(target_os = "macos")]
 use super::run_bundle_entry;
+use super::{Vst3Inner, Vst3Plugin};
 
 impl Vst3Plugin {
     /// Load a `.vst3` bundle and instantiate the plugin identified by `uid`.

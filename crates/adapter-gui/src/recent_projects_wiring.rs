@@ -144,7 +144,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                         &*session.project.borrow(),
                         &input_chain_devices.borrow(),
                         &output_chain_devices.borrow(),
-            &[]
+                        &[],
                     );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);

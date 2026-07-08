@@ -122,7 +122,11 @@ fn measure(rt: &Arc<ChainRuntimeState>) -> (usize, u128, u128) {
     }
     let late = times.iter().filter(|&&t| t > PERIOD.as_nanos()).count();
     times.sort_unstable();
-    (late, times[times.len() / 2] / 1000, times[times.len() * 99 / 100] / 1000)
+    (
+        late,
+        times[times.len() / 2] / 1000,
+        times[times.len() * 99 / 100] / 1000,
+    )
 }
 
 /// Spawn `n` threads that saturate memory bandwidth + evict the shared cache —
@@ -152,7 +156,9 @@ fn spawn_memory_thrash(n: usize) -> Arc<AtomicBool> {
 fn nam_inference_balloons_under_memory_contention_not_cpu() {
     init_registry();
     let rt = build();
-    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(8);
 
     // Baseline: the real NAM chain, no contention.
     let (late0, med0, p99_0) = measure(&rt);
@@ -162,7 +168,9 @@ fn nam_inference_balloons_under_memory_contention_not_cpu() {
     let stop = spawn_memory_thrash(cores);
     let (late_m, med_m, p99_m) = measure(&rt);
     stop.store(true, Ordering::Relaxed);
-    eprintln!("[#715] + memory thrashers : late={late_m:>4}/{ITERS}  median={med_m}us  p99={p99_m}us");
+    eprintln!(
+        "[#715] + memory thrashers : late={late_m:>4}/{ITERS}  median={med_m}us  p99={p99_m}us"
+    );
 
     eprintln!(
         "[#715] memory contention inflated NAM p99 by {:.1}x and added {} late buffers",

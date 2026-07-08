@@ -61,10 +61,7 @@ fn seed_natives_and_reload(dispatcher: &LocalDispatcher) {
 
 /// #693 helper: poll async completions until `pred` matches (2s cap);
 /// returns every event drained along the way.
-fn wait_async(
-    dispatcher: &LocalDispatcher,
-    pred: impl Fn(&Event) -> bool,
-) -> Vec<Event> {
+fn wait_async(dispatcher: &LocalDispatcher, pred: impl Fn(&Event) -> bool) -> Vec<Event> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
     let mut all = Vec::new();
     while std::time::Instant::now() < deadline {
@@ -180,10 +177,11 @@ fn load_plugin_command_errors_when_id_is_unknown_on_disk() {
             id: "definitely_not_a_real_plugin_id_561".into(),
         })
         .expect("dispatch only enqueues the scan");
-    assert!(events.is_empty(), "scan must run off-thread, got {events:?}");
-    let done = wait_async(&dispatcher, |e| {
-        matches!(e, Event::PluginLoadFailed { .. })
-    });
+    assert!(
+        events.is_empty(),
+        "scan must run off-thread, got {events:?}"
+    );
+    let done = wait_async(&dispatcher, |e| matches!(e, Event::PluginLoadFailed { .. }));
     let msg = done
         .iter()
         .find_map(|e| match e {
@@ -212,11 +210,15 @@ fn load_plugin_command_with_known_native_id_emits_plugin_loaded_event() {
     let events = dispatcher
         .dispatch(Command::LoadPlugin { id: id.clone() })
         .expect("load known id");
-    assert!(events.is_empty(), "scan must run off-thread, got {events:?}");
+    assert!(
+        events.is_empty(),
+        "scan must run off-thread, got {events:?}"
+    );
     // #693: the confirmation arrives via the async-completion poll.
-    let done = wait_async(&dispatcher, |e| {
-        matches!(e, Event::PluginLoaded { id: ev_id } if ev_id == &id)
-    });
+    let done = wait_async(
+        &dispatcher,
+        |e| matches!(e, Event::PluginLoaded { id: ev_id } if ev_id == &id),
+    );
     assert!(
         done.iter().any(|e| matches!(
             e,

@@ -28,8 +28,7 @@ fn slint_source() -> String {
         .join("pages")
         .join("settings")
         .join("section_system_audio.slint");
-    fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()))
+    fs::read_to_string(&path).unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()))
 }
 
 /// Extract the `TouchArea { ... }` block that lives inside

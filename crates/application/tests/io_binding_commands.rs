@@ -253,7 +253,11 @@ fn test_add_input_endpoint_builds_and_persists() {
     application::persist_worker::flush();
 
     let cfg = reload(&cfg_path);
-    let b = cfg.io_bindings.iter().find(|b| b.id == "main").expect("binding");
+    let b = cfg
+        .io_bindings
+        .iter()
+        .find(|b| b.id == "main")
+        .expect("binding");
     assert_eq!(b.inputs.len(), 1, "handler must append the input endpoint");
     let ep = &b.inputs[0];
     assert_eq!(ep.name, "In 1", "handler assigns the sequential name");
@@ -294,7 +298,11 @@ fn test_remove_io_endpoint() {
     application::persist_worker::flush();
 
     let cfg = reload(&cfg_path);
-    let b = cfg.io_bindings.iter().find(|b| b.id == "main").expect("binding");
+    let b = cfg
+        .io_bindings
+        .iter()
+        .find(|b| b.id == "main")
+        .expect("binding");
     assert!(b.inputs.is_empty(), "handler must remove the endpoint");
 }
 
@@ -319,7 +327,11 @@ fn test_rename_io_binding() {
     application::persist_worker::flush();
 
     let cfg = reload(&cfg_path);
-    let b = cfg.io_bindings.iter().find(|b| b.id == "main").expect("binding");
+    let b = cfg
+        .io_bindings
+        .iter()
+        .find(|b| b.id == "main")
+        .expect("binding");
     assert_eq!(b.name, "New Name");
     assert_eq!(cfg.io_bindings.len(), 1, "rename must not change count");
 }

@@ -104,10 +104,7 @@ impl LocalDispatcher {
                         .find(|c| c.id == chain)
                         .map(|c| c.instrument.as_str())
                         .ok_or_else(|| {
-                            anyhow::anyhow!(
-                                "Command::LoadChainPreset: chain {:?} not found",
-                                chain
-                            )
+                            anyhow::anyhow!("Command::LoadChainPreset: chain {:?} not found", chain)
                         })?;
                     if preset_instrument != chain_instrument {
                         anyhow::bail!(

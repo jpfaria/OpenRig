@@ -54,7 +54,7 @@ pub(crate) fn try_auto_open(
                 &*session.project.borrow(),
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
-            &[]
+                &[],
             );
             let snapshot = project_session_snapshot(&session).ok();
             *project_session.borrow_mut() = Some(session);

@@ -1833,7 +1833,10 @@ fn save_chain_input_endpoints_out_of_bounds_returns_err() {
         endpoint: "Guitar In".to_string(),
     });
 
-    assert!(result.is_err(), "expected Err for out-of-bounds block_index");
+    assert!(
+        result.is_err(),
+        "expected Err for out-of-bounds block_index"
+    );
 }
 
 #[test]
@@ -1850,7 +1853,10 @@ fn save_chain_input_endpoints_wrong_block_type_returns_err() {
             enabled: false,
             volume: 100.0,
             io_binding_ids: vec![],
-            blocks: vec![make_input_block("dev_x", 0), make_core_block("blk_mid", true)],
+            blocks: vec![
+                make_input_block("dev_x", 0),
+                make_core_block("blk_mid", true),
+            ],
             di_output: None,
         }],
         midi: None,
@@ -2004,7 +2010,10 @@ fn save_chain_output_endpoints_out_of_bounds_returns_err() {
         endpoint: "Monitor Out".to_string(),
     });
 
-    assert!(result.is_err(), "expected Err for out-of-bounds block_index");
+    assert!(
+        result.is_err(),
+        "expected Err for out-of-bounds block_index"
+    );
 }
 
 #[test]
@@ -2020,7 +2029,10 @@ fn save_chain_output_endpoints_wrong_block_type_returns_err() {
         endpoint: "Monitor Out".to_string(),
     });
 
-    assert!(result.is_err(), "expected Err for wrong block type (Input ≠ Output)");
+    assert!(
+        result.is_err(),
+        "expected Err for wrong block type (Input ≠ Output)"
+    );
 }
 
 #[test]
@@ -2645,7 +2657,10 @@ fn set_midi_enabled_persists_true_to_config() {
         crate::persist_worker::flush();
 
         let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
-        assert!(config.midi_enabled, "midi_enabled must persist to config.yaml");
+        assert!(
+            config.midi_enabled,
+            "midi_enabled must persist to config.yaml"
+        );
     });
 }
 
@@ -2665,7 +2680,10 @@ fn set_mcp_enabled_persists_true_to_config() {
         crate::persist_worker::flush();
 
         let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
-        assert!(config.mcp_enabled, "mcp_enabled must persist to config.yaml");
+        assert!(
+            config.mcp_enabled,
+            "mcp_enabled must persist to config.yaml"
+        );
     });
 }
 
@@ -2694,7 +2712,10 @@ fn set_midi_enabled_false_clears_the_switch_and_preserves_other_config() {
 
         let config = infra_filesystem::FilesystemStorage::load_app_config().unwrap();
         assert!(!config.midi_enabled, "midi must be off");
-        assert!(config.mcp_enabled, "mcp must remain on — fields are independent");
+        assert!(
+            config.mcp_enabled,
+            "mcp must remain on — fields are independent"
+        );
     });
 }
 
