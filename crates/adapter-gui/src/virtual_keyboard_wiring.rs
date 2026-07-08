@@ -20,11 +20,9 @@ pub(crate) fn wire(window: &AppWindow) {
             "⎵" => " ".into(),
             s => s.into(),
         };
-        win
-            .window()
+        win.window()
             .dispatch_event(slint::platform::WindowEvent::KeyPressed { text: text.clone() });
-        win
-            .window()
+        win.window()
             .dispatch_event(slint::platform::WindowEvent::KeyReleased { text });
     });
 }

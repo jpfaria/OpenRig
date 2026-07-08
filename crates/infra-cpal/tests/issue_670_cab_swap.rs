@@ -154,7 +154,11 @@ fn load_di_arc(name: &str) -> Arc<engine::DiPcm> {
                 .collect()
         }
     };
-    Arc::new(engine::DiPcm::new(samples, spec.sample_rate, spec.channels as usize))
+    Arc::new(engine::DiPcm::new(
+        samples,
+        spec.sample_rate,
+        spec.channels as usize,
+    ))
 }
 
 /// Build a single-chain project from a preset fixture on the given devices
@@ -265,7 +269,9 @@ fn swapping_the_cab_while_playing_does_not_damage_sound() {
         preset_project("barao_vermelho_bete_balanco.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry);
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
 
     let di = load_di_arc("phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav");
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
@@ -382,7 +388,9 @@ fn owner_saved_broken_preset_plays_clean() {
         preset_project("beat_it_rhythm_as_saved_broken.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry);
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
     let di = load_di_arc("phil-STRATO-green_day.wav");
     controller.set_chain_di_loop(&chain_id, Some(di));
 

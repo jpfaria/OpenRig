@@ -386,8 +386,12 @@ impl LeslieRotary {
     }
 
     pub fn process_stereo(&mut self, dry_in: f32) -> [f32; 2] {
-        let lo = self.crossover_lp_b.process(self.crossover_lp_a.process(dry_in));
-        let hi = self.crossover_hp_b.process(self.crossover_hp_a.process(dry_in));
+        let lo = self
+            .crossover_lp_b
+            .process(self.crossover_lp_a.process(dry_in));
+        let hi = self
+            .crossover_hp_b
+            .process(self.crossover_hp_a.process(dry_in));
 
         let (horn_rate, drum_rate) = self.target_rates();
         let [horn_l, horn_r] = self.horn.step(hi, horn_rate);
@@ -435,11 +439,11 @@ fn build(
 ) -> Result<block_core::BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(Box::new(
-            LeslieMono {
+        block_core::AudioChannelLayout::Mono => {
+            Ok(block_core::BlockProcessor::Mono(Box::new(LeslieMono {
                 inner: LeslieRotary::new(p.speed, p.mix, sample_rate),
-            },
-        ))),
+            })))
+        }
         block_core::AudioChannelLayout::Stereo => {
             struct LeslieStereoProc {
                 inner: LeslieRotary,

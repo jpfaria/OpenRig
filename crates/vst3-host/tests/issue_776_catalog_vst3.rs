@@ -112,7 +112,10 @@ fn t04_find_vst3_plugin_resolves_the_catalog_model_id() {
 fn t05_resolve_uid_returns_a_real_uid() {
     let Some(entry) = chow() else { return };
     let uid = vst3_host::resolve_uid_for_model(entry.model_id).expect("uid resolves");
-    assert_ne!(uid, [0u8; 16], "uid must be resolved (lazy from the bundle)");
+    assert_ne!(
+        uid, [0u8; 16],
+        "uid must be resolved (lazy from the bundle)"
+    );
 }
 
 // ── Load ─────────────────────────────────────────────────────────────────────
@@ -131,7 +134,8 @@ fn t06_loads_successfully() {
 fn t07_exposes_parameters() {
     let Some(entry) = chow() else { return };
     let uid = vst3_host::resolve_uid_for_model(entry.model_id).expect("uid");
-    let plugin = vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
+    let plugin =
+        vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
     assert!(plugin.param_count() > 0, "plugin should expose parameters");
 }
 
@@ -139,7 +143,8 @@ fn t07_exposes_parameters() {
 fn t08_reports_valid_channel_counts() {
     let Some(entry) = chow() else { return };
     let uid = vst3_host::resolve_uid_for_model(entry.model_id).expect("uid");
-    let plugin = vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
+    let plugin =
+        vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
     assert!(
         plugin.num_input_channels > 0 && plugin.num_output_channels > 0,
         "channel counts must be positive: in={} out={}",
@@ -194,7 +199,8 @@ fn t10_process_audio_alters_the_signal_at_defaults() {
 fn t11_gain_param_changes_the_output() {
     let Some(entry) = chow() else { return };
     let uid = vst3_host::resolve_uid_for_model(entry.model_id).expect("uid");
-    let load = || vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
+    let load =
+        || vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
     let mut lo = load();
     let mut hi = load();
     let gain = param_id(&lo, "Gain").expect("ChowCentaur exposes a Gain param");
@@ -249,7 +255,10 @@ fn t22_concurrent_instantiation_all_succeed() {
         .map(|h| h.join().unwrap())
         .filter(|&ok| ok)
         .count();
-    assert_eq!(ok, 2, "all concurrent instantiations must succeed, got {ok}/2");
+    assert_eq!(
+        ok, 2,
+        "all concurrent instantiations must succeed, got {ok}/2"
+    );
 }
 
 // ── Teardown marshaling (issue #778) ──────────────────────────────────────────

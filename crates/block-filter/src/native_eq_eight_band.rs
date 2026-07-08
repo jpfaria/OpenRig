@@ -6,7 +6,9 @@ use block_core::param::{
     required_f32, required_string, CurveEditorRole, ModelParameterSchema, ParameterSet,
     ParameterUnit,
 };
-use block_core::{db_to_lin, BiquadDesign, BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor};
+use block_core::{
+    db_to_lin, BiquadDesign, BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor,
+};
 
 pub const MODEL_ID: &str = "eq_eight_band_parametric";
 pub const DISPLAY_NAME: &str = "8-Band Parametric EQ";

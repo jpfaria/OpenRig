@@ -591,7 +591,10 @@ mod di_loop_doubling_tests {
         let di = Arc::new(DiPcm::new(vec![0.1, 0.2, 0.3, 0.4], 48_000, 1));
         arm_di_loop_per_output_stream(&runtimes, Some(di));
 
-        assert!(runtimes[0].has_di_loop(), "the loop plays on the first runtime");
+        assert!(
+            runtimes[0].has_di_loop(),
+            "the loop plays on the first runtime"
+        );
         assert!(
             !runtimes[1].has_di_loop(),
             "the loop must NOT also play on the second entry's runtime — that is \

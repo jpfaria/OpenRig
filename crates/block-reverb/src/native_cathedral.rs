@@ -18,7 +18,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -31,12 +33,12 @@ const N: usize = 16;
 // Long delay lengths in ms — co-prime-ish, spread between 60ms and 180ms
 // so the first reflection density is high without identical-period collisions.
 const DELAY_MS: [f32; N] = [
-    60.3, 67.7, 75.1, 82.9, 91.3, 100.7, 110.3, 120.7,
-    131.9, 143.3, 155.7, 168.3, 178.9, 162.1, 148.7, 135.3,
+    60.3, 67.7, 75.1, 82.9, 91.3, 100.7, 110.3, 120.7, 131.9, 143.3, 155.7, 168.3, 178.9, 162.1,
+    148.7, 135.3,
 ];
 
 struct Params {
-    decay_pct: f32,    // 0..1 → maps to feedback giving 3..10s decay
+    decay_pct: f32, // 0..1 → maps to feedback giving 3..10s decay
     damping: f32,
     pre_delay_ms: f32,
     mix: f32,
@@ -61,10 +63,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
-            float_parameter("decay", "Decay", None, Some(d.decay_pct), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(d.damping), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("pre_delay_ms", "Pre-delay", None, Some(d.pre_delay_ms), 0.0, 200.0, 1.0, ParameterUnit::Milliseconds),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "decay",
+                "Decay",
+                None,
+                Some(d.decay_pct),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(d.damping),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "pre_delay_ms",
+                "Pre-delay",
+                None,
+                Some(d.pre_delay_ms),
+                0.0,
+                200.0,
+                1.0,
+                ParameterUnit::Milliseconds,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -84,19 +122,34 @@ struct DelayLine {
 }
 impl DelayLine {
     fn new(samples: usize) -> Self {
-        Self { buf: vec![0.0; samples.max(1)], write_idx: 0 }
+        Self {
+            buf: vec![0.0; samples.max(1)],
+            write_idx: 0,
+        }
     }
-    fn read(&self) -> f32 { self.buf[self.write_idx] }
+    fn read(&self) -> f32 {
+        self.buf[self.write_idx]
+    }
     fn write(&mut self, v: f32) {
         self.buf[self.write_idx] = v;
         self.write_idx = (self.write_idx + 1) % self.buf.len();
     }
 }
 
-struct OnePoleLpf { state: f32, coeff: f32 }
+struct OnePoleLpf {
+    state: f32,
+    coeff: f32,
+}
 impl OnePoleLpf {
-    fn new() -> Self { Self { state: 0.0, coeff: 0.0 } }
-    fn set_damping(&mut self, d: f32) { self.coeff = d.clamp(0.0, 1.0).sqrt(); }
+    fn new() -> Self {
+        Self {
+            state: 0.0,
+            coeff: 0.0,
+        }
+    }
+    fn set_damping(&mut self, d: f32) {
+        self.coeff = d.clamp(0.0, 1.0).sqrt();
+    }
     fn process(&mut self, x: f32) -> f32 {
         self.state = (1.0 - self.coeff).mul_add(x, self.coeff * self.state);
         self.state
@@ -175,7 +228,11 @@ impl StereoProcessor for CathedralReverb {
         let mut wet_l = 0.0;
         let mut wet_r = 0.0;
         for (i, &s_i) in s.iter().enumerate() {
-            if i % 2 == 0 { wet_l += s_i; } else { wet_r += s_i; }
+            if i % 2 == 0 {
+                wet_l += s_i;
+            } else {
+                wet_r += s_i;
+            }
         }
         wet_l *= 2.0 / N as f32;
         wet_r *= 2.0 / N as f32;
@@ -217,8 +274,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(CathedralReverb::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(CathedralAsMono(CathedralReverb::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(CathedralReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(CathedralAsMono(
+            CathedralReverb::new(p, sample_rate),
+        )))),
     }
 }
 

@@ -73,7 +73,11 @@ fn t14_passthrough_chain_renders_the_input() {
     }
     let input = sine_input(4096);
     let out = render_chain(&chain_with("pass", vec![]), SR, &input, 256, 0).expect("renders");
-    assert_eq!(out.samples.len(), input.len(), "passthrough preserves length");
+    assert_eq!(
+        out.samples.len(),
+        input.len(),
+        "passthrough preserves length"
+    );
 }
 
 // ── Build ─────────────────────────────────────────────────────────────────────
@@ -115,7 +119,11 @@ fn t17_catalog_vst3_alters_the_rendered_output() {
     let dry = render_chain(&chain_with("pass", vec![]), SR, &input, 256, 0).expect("dry");
     let block = vst3_block(model, true, ParameterSet::default());
     let wet = render_chain(&chain_with("chow", vec![block]), SR, &input, 256, 0).expect("wet");
-    assert!(wet.faulted_blocks.is_empty(), "block faulted: {:?}", wet.faulted_blocks);
+    assert!(
+        wet.faulted_blocks.is_empty(),
+        "block faulted: {:?}",
+        wet.faulted_blocks
+    );
     assert_ne!(
         dry.samples, wet.samples,
         "BUG: catalog VST3 output is identical to passthrough — it never processed"

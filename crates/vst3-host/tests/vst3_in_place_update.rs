@@ -25,7 +25,10 @@ fn vst3_stereo_processor_updates_params_in_place() {
     let plugin = vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR as f64, 2, 512, &[])
         .expect("load");
     // VST3 parameter IDs are arbitrary — use the first real one.
-    let param_id = plugin.param_info(0).expect("plugin has at least one param").id;
+    let param_id = plugin
+        .param_info(0)
+        .expect("plugin has at least one param")
+        .id;
     let mut proc = StereoVst3Processor::new(plugin, None);
 
     // Set two distinct values in place and confirm the LIVE instance reflects

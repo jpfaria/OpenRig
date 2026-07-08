@@ -516,9 +516,7 @@ fn parse_port_properties(block: &str) -> std::collections::HashSet<String> {
     while let Some(start) = search.find("lv2:portProperty") {
         let after = &search[start + "lv2:portProperty".len()..];
         // Read until the terminating `;` or `]`.
-        let end = after
-            .find([';', ']'])
-            .unwrap_or(after.len());
+        let end = after.find([';', ']']).unwrap_or(after.len());
         let list = &after[..end];
         for token in list.split(',') {
             let trimmed = token.trim();

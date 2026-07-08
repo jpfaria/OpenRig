@@ -236,7 +236,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                             &session.project.borrow(),
                             &input_chain_devices.borrow(),
                             &output_chain_devices.borrow(),
-            &[]
+                            &[],
                         );
                         // Issue #510 bug fix: the chain preset combobox
                         // is fed by `chain-rig-nav`, not by `project_chains`.

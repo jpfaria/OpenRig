@@ -106,8 +106,18 @@ fn io_bindings_ui_interactions() {
     {
         let w = new_window(vec![empty_binding()]);
         let chans = vec![
-            ChannelOptionItem { index: 0, label: "1".into(), selected: false, available: true },
-            ChannelOptionItem { index: 1, label: "2".into(), selected: false, available: true },
+            ChannelOptionItem {
+                index: 0,
+                label: "1".into(),
+                selected: false,
+                available: true,
+            },
+            ChannelOptionItem {
+                index: 1,
+                label: "2".into(),
+                selected: false,
+                available: true,
+            },
         ];
         w.set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
 
@@ -138,8 +148,14 @@ fn io_bindings_ui_interactions() {
         let w = new_window(vec![empty_binding()]);
 
         // Resting state: pencil + trash are present.
-        assert!(exists(&w, "SectionSystemIoBindings::rename-btn"), "pencil missing at rest");
-        assert!(exists(&w, "SectionSystemIoBindings::delete-btn"), "trash missing at rest");
+        assert!(
+            exists(&w, "SectionSystemIoBindings::rename-btn"),
+            "pencil missing at rest"
+        );
+        assert!(
+            exists(&w, "SectionSystemIoBindings::delete-btn"),
+            "trash missing at rest"
+        );
 
         let fired = Rc::new(Cell::new(false));
         let f = fired.clone();
@@ -269,7 +285,8 @@ fn io_bindings_ui_interactions() {
             "rename did not update the displayed binding name (model not reprojected)"
         );
         assert_eq!(
-            cfg.borrow().io_bindings[0].name, "Renamed",
+            cfg.borrow().io_bindings[0].name,
+            "Renamed",
             "rename did not commit to the config"
         );
     }
@@ -413,8 +430,16 @@ fn io_bindings_ui_interactions() {
         let w = ChainEditorWindow::new().unwrap();
         w.window().set_size(LogicalSize::new(1100.0, 700.0));
         w.set_bindings(ModelRc::new(VecModel::from(vec![
-            ChainBindingChoice { id: "xyz".into(), name: "XYZ".into(), selected: false },
-            ChainBindingChoice { id: "abc".into(), name: "ABC".into(), selected: true },
+            ChainBindingChoice {
+                id: "xyz".into(),
+                name: "XYZ".into(),
+                selected: false,
+            },
+            ChainBindingChoice {
+                id: "abc".into(),
+                name: "ABC".into(),
+                selected: true,
+            },
         ])));
         w.show().unwrap();
 
@@ -428,7 +453,10 @@ fn io_bindings_ui_interactions() {
              old add-input/add-output flow instead of a binding checklist"
         );
         let (idx, on) = fired.get();
-        assert_eq!(idx, 0, "clicking the first binding row must toggle binding 0");
+        assert_eq!(
+            idx, 0,
+            "clicking the first binding row must toggle binding 0"
+        );
         assert!(on, "an unselected binding row must toggle ON when clicked");
     }
 }

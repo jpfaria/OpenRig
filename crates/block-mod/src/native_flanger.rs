@@ -220,8 +220,7 @@ impl MonoProcessor for Flanger {
         let delayed = self.read_cubic(delay);
 
         // Feedback path: DC-block, denormal-flush, write to ring.
-        let feedback_in =
-            flush_denormal(self.feedback_dc_blocker.process(self.feedback * delayed));
+        let feedback_in = flush_denormal(self.feedback_dc_blocker.process(self.feedback * delayed));
         let to_buffer = input + feedback_in;
         self.buffer[self.write_idx] = to_buffer;
         self.write_idx = (self.write_idx + 1) % self.buffer.len();
@@ -281,10 +280,12 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoFlanger {
-                left: build_processor(params, sample_rate)?,
-                right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
-            })))
+            Ok(block_core::BlockProcessor::Stereo(Box::new(
+                StereoFlanger {
+                    left: build_processor(params, sample_rate)?,
+                    right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
+                },
+            )))
         }
     }
 }

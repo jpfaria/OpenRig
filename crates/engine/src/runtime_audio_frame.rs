@@ -702,7 +702,11 @@ mod elastic_tests {
         for _ in 0..5 {
             let _ = b.pop();
         }
-        assert_eq!(b.underrun_count(), 3, "exactly the popped-minus-pushed deficit");
+        assert_eq!(
+            b.underrun_count(),
+            3,
+            "exactly the popped-minus-pushed deficit"
+        );
     }
     #[test]
     fn r34_primed_cushion_drains_as_silence_without_underrun() {
@@ -715,7 +719,11 @@ mod elastic_tests {
         for _ in 0..10 {
             assert_eq!(unwrap_mono(b.pop()), 0.0);
         }
-        assert_eq!(b.underrun_count(), 0, "draining the primed cushion is not a starve");
+        assert_eq!(
+            b.underrun_count(),
+            0,
+            "draining the primed cushion is not a starve"
+        );
         assert_eq!(b.len(), 0);
     }
 
@@ -729,7 +737,7 @@ mod elastic_tests {
         assert_eq!(elastic_target_for_buffer(64, 2), 128); // common cpal case
         assert_eq!(elastic_target_for_buffer(256, 2), 512);
         assert_eq!(elastic_target_for_buffer(64, 8), 512); // jack
-        // Pathological huge buffer saturates instead of overflowing.
+                                                           // Pathological huge buffer saturates instead of overflowing.
         assert!(elastic_target_for_buffer(u32::MAX, 8) >= ELASTIC_TARGET_FLOOR);
     }
 }

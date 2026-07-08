@@ -157,10 +157,12 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoFlanger {
-                left: build_processor(params, sample_rate)?,
-                right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
-            })))
+            Ok(block_core::BlockProcessor::Stereo(Box::new(
+                StereoFlanger {
+                    left: build_processor(params, sample_rate)?,
+                    right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
+                },
+            )))
         }
     }
 }

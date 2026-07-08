@@ -683,9 +683,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             let vst3_handles = vst3_editor_handles.clone();
             let vst3_sr = vst3_sample_rate;
             compact_win.on_open_plugin(move |model_id| {
-                let res = vst3_handles.borrow_mut().open_or_focus(model_id.as_str(), || {
-                    project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
-                });
+                let res = vst3_handles
+                    .borrow_mut()
+                    .open_or_focus(model_id.as_str(), || {
+                        project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
+                    });
                 if let Err(e) = res {
                     log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e)
                 }

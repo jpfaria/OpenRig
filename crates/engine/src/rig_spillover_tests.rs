@@ -110,8 +110,15 @@ fn spillover_retains_previous_pipeline_then_drops_it() {
 
     // Switch preset (same I/O, different processing) WITH spillover.
     let b = chain(vec![]);
-    update_chain_runtime_state_spillover(&rt, &b, SR, false, &[DEFAULT_ELASTIC_TARGET], &registry())
-        .expect("spillover switch");
+    update_chain_runtime_state_spillover(
+        &rt,
+        &b,
+        SR,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &registry(),
+    )
+    .expect("spillover switch");
 
     // The previous pipeline is retained, full window pending.
     assert_eq!(

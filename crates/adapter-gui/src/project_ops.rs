@@ -483,7 +483,9 @@ pub(crate) fn save_project_session(
     session: &ProjectSession,
     project_path: &std::path::Path,
 ) -> Result<()> {
-    session.dispatcher.attach_project_path(project_path.to_path_buf());
+    session
+        .dispatcher
+        .attach_project_path(project_path.to_path_buf());
     session
         .dispatcher
         .attach_presets_path(session.presets_path.clone());

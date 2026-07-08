@@ -81,15 +81,25 @@ fn binding(id: &str, dev: &str, in_ch: usize) -> IoBinding {
 #[test]
 fn second_chain_sharing_an_input_tap_is_skipped_first_wins() {
     // a and b both select bindings that read dev "scarlett" channel 0.
-    let registry = vec![binding("io_a", "scarlett", 0), binding("io_b", "scarlett", 0)];
+    let registry = vec![
+        binding("io_a", "scarlett", 0),
+        binding("io_b", "scarlett", 0),
+    ];
     let chains = [chain("a", "io_a"), chain("b", "io_b")];
     let skip = input_conflicting_chains(chains.iter(), &registry);
-    assert_eq!(skip, vec![ChainId("b".into())], "first chain wins; the second is skipped");
+    assert_eq!(
+        skip,
+        vec![ChainId("b".into())],
+        "first chain wins; the second is skipped"
+    );
 }
 
 #[test]
 fn distinct_input_channels_activate_both() {
-    let registry = vec![binding("io_a", "scarlett", 0), binding("io_b", "scarlett", 1)];
+    let registry = vec![
+        binding("io_a", "scarlett", 0),
+        binding("io_b", "scarlett", 1),
+    ];
     let chains = [chain("a", "io_a"), chain("b", "io_b")];
     assert!(input_conflicting_chains(chains.iter(), &registry).is_empty());
 }

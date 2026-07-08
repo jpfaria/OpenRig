@@ -260,8 +260,13 @@ fn run_deadline(
     iterations: usize,
 ) -> DeadlineResult {
     let runtime = Arc::new(
-        build_chain_runtime_state(chain, sample_rate_hz as f32, &[DEFAULT_ELASTIC_TARGET], registry)
-            .expect("runtime should build for deadline test"),
+        build_chain_runtime_state(
+            chain,
+            sample_rate_hz as f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            registry,
+        )
+        .expect("runtime should build for deadline test"),
     );
     measure_deadline(
         label,

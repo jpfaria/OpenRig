@@ -457,7 +457,12 @@ fn eq_eight_band_at_defaults_is_transparent_no_clipping() {
     let (chain, registry) = chain_with_blocks(
         "eq8-defaults",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", eq_params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            eq_params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     let runtime = build_runtime(&chain, &registry);
@@ -483,7 +488,12 @@ fn eq_eight_band_at_defaults_silent_input_silent_output() {
     let (chain, registry) = chain_with_blocks(
         "eq8-silent",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", eq_params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            eq_params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     let runtime = build_runtime(&chain, &registry);
@@ -520,7 +530,12 @@ fn eq_eight_band_one_band_max_boost_does_not_overshoot_input() {
     let (chain, registry) = chain_with_blocks(
         "eq8-1k-+24",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     let runtime = build_runtime(&chain, &registry);
@@ -549,7 +564,12 @@ fn eq_eight_band_output_trim_attenuates_uniformly() {
     let (chain, registry) = chain_with_blocks(
         "eq8-out-trim",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     let runtime = build_runtime(&chain, &registry);
@@ -575,7 +595,12 @@ fn eq_eight_band_default_output_db_is_unity() {
     let (chain, registry) = chain_with_blocks(
         "eq8-default-trim",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     let runtime = build_runtime(&chain, &registry);
@@ -613,7 +638,12 @@ fn eq_eight_band_smile_curve_typical_user_config() {
     let (chain, registry) = chain_with_blocks(
         "eq8-smile",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     // Input at 0.5 (already a hot guitar level). Sweep across the
@@ -668,7 +698,12 @@ fn eq_eight_band_full_scale_with_band_boost_clips_through_limiter() {
     let (chain, registry) = chain_with_blocks(
         "eq8-1k-+24-fullscale",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     let runtime = build_runtime(&chain, &registry);
@@ -698,7 +733,12 @@ fn eq_eight_band_at_defaults_full_scale_no_overshoot() {
     let (chain, registry) = chain_with_blocks(
         "eq8-fullscale",
         input_mono(vec![0]),
-        vec![core_block("eq8", "filter", "eq_eight_band_parametric", eq_params)],
+        vec![core_block(
+            "eq8",
+            "filter",
+            "eq_eight_band_parametric",
+            eq_params,
+        )],
         output(ChannelMode::Mono, vec![0]),
     );
     let runtime = build_runtime(&chain, &registry);

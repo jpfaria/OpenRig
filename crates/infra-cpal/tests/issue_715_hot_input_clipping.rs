@@ -29,7 +29,8 @@ fn user_project_path() -> PathBuf {
 }
 
 fn di_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/di-loops/phil-STRATO-green_day.wav")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/di-loops/phil-STRATO-green_day.wav")
 }
 
 fn is_guitar(chain: &Chain) -> bool {
@@ -46,13 +47,21 @@ fn load_di_hot(target: f32) -> Vec<[f32; 2]> {
         hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap()).collect(),
         hound::SampleFormat::Int => {
             let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
-            reader.samples::<i32>().map(|s| s.unwrap() as f32 / max).collect()
+            reader
+                .samples::<i32>()
+                .map(|s| s.unwrap() as f32 / max)
+                .collect()
         }
     };
     let mono: Vec<f32> = raw.chunks(ch).map(|c| c[0]).collect();
     let peak = mono.iter().fold(0.0_f32, |a, &b| a.max(b.abs())).max(1e-9);
     let g = target / peak;
-    mono.iter().map(|&s| { let v = s * g; [v, v] }).collect()
+    mono.iter()
+        .map(|&s| {
+            let v = s * g;
+            [v, v]
+        })
+        .collect()
 }
 
 struct Scan {
@@ -63,7 +72,12 @@ struct Scan {
 }
 
 fn scan(samples: &[[f32; 2]]) -> Scan {
-    let mut s = Scan { peak: 0.0, over_one: 0, rail_run_max: 0, nan: 0 };
+    let mut s = Scan {
+        peak: 0.0,
+        over_one: 0,
+        rail_run_max: 0,
+        nan: 0,
+    };
     for ch in 0..2 {
         let mut run = 0usize;
         for fr in samples {
@@ -119,9 +133,18 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
         let n_nam = chain
             .blocks
             .iter()
-            .filter(|b| matches!(&b.kind, AudioBlockKind::Core(c) if c.model.starts_with("nam_")) || matches!(b.kind, AudioBlockKind::Nam(_)))
+            .filter(|b| {
+                matches!(&b.kind, AudioBlockKind::Core(c) if c.model.starts_with("nam_"))
+                    || matches!(b.kind, AudioBlockKind::Nam(_))
+            })
             .count();
-        let outcome = match engine::offline::render_chain(&chain, di_sr as f32, &di_hot, 64, di_sr as usize) {
+        let outcome = match engine::offline::render_chain(
+            &chain,
+            di_sr as f32,
+            &di_hot,
+            64,
+            di_sr as usize,
+        ) {
             Ok(o) => o,
             Err(e) => {
                 eprintln!("[#715-clip] chain '{}' did not render: {e}", chain.id.0);
@@ -129,7 +152,10 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
             }
         };
         if !outcome.faulted_blocks.is_empty() {
-            eprintln!("[#715-clip] chain '{}' has faulted blocks {:?} — skipping", chain.id.0, outcome.faulted_blocks);
+            eprintln!(
+                "[#715-clip] chain '{}' has faulted blocks {:?} — skipping",
+                chain.id.0, outcome.faulted_blocks
+            );
             continue;
         }
         let s = scan(&outcome.samples);
@@ -137,7 +163,10 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
             "[#715-clip] chain '{}' ({n_nam} NAM): peak={:.4} over1.0={} rail_run_max={} nan={}",
             chain.id.0, s.peak, s.over_one, s.rail_run_max, s.nan
         );
-        if worst.as_ref().is_none_or(|(_, w)| s.rail_run_max > w.rail_run_max) {
+        if worst
+            .as_ref()
+            .is_none_or(|(_, w)| s.rail_run_max > w.rail_run_max)
+        {
             worst = Some((chain.id.0.clone(), s));
         }
     }
@@ -155,6 +184,7 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
          pinned at the +-1.0 rail (peak {:.4}). That is the buzzy 'clipando / em curto', \
          distinct from the musical tanh limiter. A gain stage before the limiter is \
          railing the signal.",
-        s.rail_run_max, s.peak
+        s.rail_run_max,
+        s.peak
     );
 }

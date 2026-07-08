@@ -47,9 +47,7 @@ use crate::project_view::{
     block_type_picker_items, set_selected_block,
 };
 use crate::runtime_lifecycle::ui_index_to_real_block_index;
-use crate::state::{
-    BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
-};
+use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::ui_state::block_drawer_state;
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, BlockStreamData, BlockStreamEntry,

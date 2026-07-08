@@ -143,7 +143,11 @@ impl BasicNoiseGate {
             hold_samples_remaining: 0,
             is_open: false,
             envelope: EnvelopeFollower::from_ms(params.attack_ms, params.release_ms, sample_rate),
-            gain_follower: EnvelopeFollower::from_ms(params.attack_ms, params.release_ms, sample_rate),
+            gain_follower: EnvelopeFollower::from_ms(
+                params.attack_ms,
+                params.release_ms,
+                sample_rate,
+            ),
         }
     }
 }

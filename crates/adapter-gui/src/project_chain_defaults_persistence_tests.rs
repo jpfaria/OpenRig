@@ -370,8 +370,7 @@ fn new_project_has_default_binding() {
     };
     assert_eq!(io, DEFAULT_BINDING_ID, "head block io must be 'default'");
     assert_eq!(
-        endpoint,
-        &first_input_ep.name,
+        endpoint, &first_input_ep.name,
         "head block endpoint must match binding input endpoint name"
     );
 
@@ -385,10 +384,12 @@ fn new_project_has_default_binding() {
     else {
         panic!("last block must be an Output block");
     };
-    assert_eq!(out_io, DEFAULT_BINDING_ID, "tail block io must be 'default'");
     assert_eq!(
-        out_endpoint,
-        &first_output_ep.name,
+        out_io, DEFAULT_BINDING_ID,
+        "tail block io must be 'default'"
+    );
+    assert_eq!(
+        out_endpoint, &first_output_ep.name,
         "tail block endpoint must match binding output endpoint name"
     );
 }

@@ -778,11 +778,7 @@ pub fn run_desktop_app(
     );
     // #614: DI loop file picker — separate module because chain_row_wiring
     // is forbidden from using rfd:: (issue #511).
-    crate::di_loop_chooser_wiring::wire(
-        &window,
-        project_session.clone(),
-        toast_timer.clone(),
-    );
+    crate::di_loop_chooser_wiring::wire(&window, project_session.clone(), toast_timer.clone());
     crate::chain_rig_nav_wiring::wire(
         &window,
         crate::chain_rig_nav_wiring::ChainRigNavCtx {
