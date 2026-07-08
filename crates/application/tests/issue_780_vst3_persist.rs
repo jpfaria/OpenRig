@@ -55,7 +55,11 @@ fn native_editor_param_change_persists_via_capture_rig_edits() {
 
     // Drive a param away from its default, like the native editor's knob does.
     let info = plugin.param_info(0).expect("has a param");
-    let target = if info.default_normalized < 0.5 { 0.85 } else { 0.15 };
+    let target = if info.default_normalized < 0.5 {
+        0.85
+    } else {
+        0.15
+    };
     plugin.set_param(info.id, target).unwrap();
 
     // A project whose one chain has this VST3 block (empty params, as a

@@ -60,7 +60,10 @@ fn capture_reads_a_native_editor_edit_and_omits_defaults() {
     );
     // No captured value should equal its default (defaults are omitted).
     // We at least prove the edited one is non-default.
-    assert!((got.1 - default).abs() > 1e-6, "edited value must be non-default");
+    assert!(
+        (got.1 - default).abs() > 1e-6,
+        "edited value must be non-default"
+    );
     drop(plugin);
 }
 

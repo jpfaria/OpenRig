@@ -131,7 +131,10 @@ pub fn open_vst3_editor(
     let gui_context = gui_context.expect("engine context present after require_engine_context");
 
     let entry = vst3_host::find_vst3_plugin(&gui_context.model_id).ok_or_else(|| {
-        anyhow::anyhow!("VST3 plugin '{}' not found in catalog", gui_context.model_id)
+        anyhow::anyhow!(
+            "VST3 plugin '{}' not found in catalog",
+            gui_context.model_id
+        )
     })?;
 
     log::debug!(
