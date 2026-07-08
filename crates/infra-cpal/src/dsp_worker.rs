@@ -52,7 +52,7 @@ use crate::process_input_buffer;
 /// reverted #670 attempt) and then re-declares from its own measured cost
 /// (see `BudgetTracker`), so concurrent chains fit the band together.
 #[cfg(target_os = "macos")]
-fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
+pub(crate) fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
     #[repr(C)]
     struct Timebase {
         numer: u32,
@@ -94,7 +94,7 @@ fn promote_to_audio_rt(period_ns: u64, computation_ns: u64) {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn promote_to_audio_rt(_period_ns: u64, _computation_ns: u64) {}
+pub(crate) fn promote_to_audio_rt(_period_ns: u64, _computation_ns: u64) {}
 
 /// Per-thread CPU time in nanoseconds — the time THIS thread actually spent
 /// executing on a CPU, EXCLUDING any interval it was descheduled/preempted.

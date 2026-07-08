@@ -182,6 +182,14 @@ impl ProjectRuntimeController {
                     // reverted, f1131725e). All DSP runs HERE, never in the
                     // callback (invariant #8).
                     const BLOCK: usize = 256;
+                    // The owner's in-app probe measured fill dips to 71% at
+                    // normal priority (GUI + the guitar's RT dsp_worker
+                    // preempt this thread) — audible stutter. Same class the
+                    // dsp_worker runs at: RT time-constraint sized to the
+                    // block period.
+                    let period_ns =
+                        (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
+                    crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns / 3);
                     let silence = vec![0.0f32; BLOCK];
                     let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
                     let mut pos: usize = 0;

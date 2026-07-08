@@ -14,9 +14,11 @@ use arc_swap::ArcSwapOption;
 use engine::runtime_dsp::output_limiter;
 use engine::spsc::SpscRing;
 
-/// Ring capacity in FRAMES (interleaved L,R — 2 slots per frame). ~170 ms at
-/// 48 kHz: enough cushion for the worker, small enough to stop fast.
-pub(crate) const DI_RING_FRAMES: usize = 8192;
+/// Ring capacity in FRAMES (interleaved L,R — 2 slots per frame). ~740 ms at
+/// 44.1 kHz: rides out interactive-session preemption bursts (the owner's
+/// live probe showed 200-300 ms starvation dips at normal priority) while
+/// still stopping fast on disarm (the cell empties instantly).
+pub(crate) const DI_RING_FRAMES: usize = 32768;
 
 /// The DI stream parked on one output: the worker-fed ring plus the meter
 /// peaks. The audio callback pops; the worker pushes.
