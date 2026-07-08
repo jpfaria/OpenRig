@@ -473,11 +473,11 @@ mod elastic_tests {
         for _ in 0..10 {
             popped.push(unwrap_mono(b.pop()));
         }
-        for i in 3..10 {
+        for (i, &p) in popped.iter().enumerate().skip(3) {
             assert!(
-                (popped[i] - pushed[2]).abs() > 1e-6,
+                (p - pushed[2]).abs() > 1e-6,
                 "frame {i} repeats last pushed ({}); flat-top harmonic-injection bug",
-                popped[i]
+                p
             );
         }
     }

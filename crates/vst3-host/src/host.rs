@@ -277,8 +277,8 @@ impl Vst3Plugin {
         let mut input_channels: [*mut f32; 2] = [input_l.as_mut_ptr(), input_r.as_mut_ptr()];
         let mut output_channels: [*mut f32; 2] = [output_l.as_mut_ptr(), output_r.as_mut_ptr()];
 
-        let num_in = self.num_input_channels.max(1).min(2) as usize;
-        let num_out = self.num_output_channels.max(1).min(2) as usize;
+        let num_in = self.num_input_channels.clamp(1, 2) as usize;
+        let num_out = self.num_output_channels.clamp(1, 2) as usize;
 
         let mut input_bus = AudioBusBuffers {
             numChannels: num_in as i32,

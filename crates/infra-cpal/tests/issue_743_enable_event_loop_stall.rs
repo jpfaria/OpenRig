@@ -1,5 +1,5 @@
-//! Issue #743 — the owner's four-stream, two-interface rig (Scarlett 2i2 @44.1 kHz
-//! + TEYUN Q26 @48 kHz) on enable. Two real defects, measured on the real
+//! Issue #743 — the owner's four-stream, two-interface rig (Scarlett 2i2 @44.1 kHz +
+//! TEYUN Q26 @48 kHz) on enable. Two real defects, measured on the real
 //! interfaces (NOT arbitrary first-two devices — virtual loopbacks like BlackHole
 //! starve unconditionally and tell us nothing):
 //!

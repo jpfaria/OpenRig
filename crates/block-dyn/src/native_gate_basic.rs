@@ -133,24 +133,17 @@ pub struct BasicNoiseGate {
 }
 
 impl BasicNoiseGate {
-    pub fn new(
-        threshold_db: f32,
-        attack_ms: f32,
-        release_ms: f32,
-        hold_ms: f32,
-        hysteresis_db: f32,
-        sample_rate: f32,
-    ) -> Self {
-        let close_db = threshold_db - hysteresis_db.max(0.0);
-        let hold_samples_max = ((hold_ms.max(0.0) / 1000.0) * sample_rate).round() as u32;
+    pub fn new(params: &GateParams, sample_rate: f32) -> Self {
+        let close_db = params.threshold - params.hysteresis_db.max(0.0);
+        let hold_samples_max = ((params.hold_ms.max(0.0) / 1000.0) * sample_rate).round() as u32;
         Self {
-            threshold_open: db_to_lin(threshold_db),
+            threshold_open: db_to_lin(params.threshold),
             threshold_close: db_to_lin(close_db),
             hold_samples_max,
             hold_samples_remaining: 0,
             is_open: false,
-            envelope: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
-            gain_follower: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
+            envelope: EnvelopeFollower::from_ms(params.attack_ms, params.release_ms, sample_rate),
+            gain_follower: EnvelopeFollower::from_ms(params.attack_ms, params.release_ms, sample_rate),
         }
     }
 }
@@ -190,14 +183,7 @@ impl MonoProcessor for BasicNoiseGate {
 
 pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
     let params = params_from_set(params)?;
-    Ok(Box::new(BasicNoiseGate::new(
-        params.threshold,
-        params.attack_ms,
-        params.release_ms,
-        params.hold_ms,
-        params.hysteresis_db,
-        sample_rate,
-    )))
+    Ok(Box::new(BasicNoiseGate::new(&params, sample_rate)))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -293,11 +279,13 @@ mod tests {
 
     fn build_gate(hold_ms: f32, hysteresis_db: f32) -> BasicNoiseGate {
         BasicNoiseGate::new(
-            -40.0, // threshold_db — open at -40 dBFS
-            1.0,   // attack_ms — fast envelope so tests converge quickly
-            5.0,   // release_ms — same
-            hold_ms,
-            hysteresis_db,
+            &GateParams {
+                threshold: -40.0, // open at -40 dBFS
+                attack_ms: 1.0,   // fast envelope so tests converge quickly
+                release_ms: 5.0,  // same
+                hold_ms,
+                hysteresis_db,
+            },
             SR,
         )
     }

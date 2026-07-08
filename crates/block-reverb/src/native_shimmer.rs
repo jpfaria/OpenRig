@@ -236,18 +236,18 @@ impl StereoProcessor for ShimmerReverb {
         let pitched_l = self.pitch_l.step(wet_l);
         let pitched_r = self.pitch_r.step(wet_r);
 
-        for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]);
+        for (i, s_i) in s.iter_mut().enumerate() {
+            *s_i = self.lpfs[i].process(*s_i);
         }
         hadamard8(&mut s);
 
         let sa = self.params.shimmer_amount;
-        for i in 0..N {
+        for (i, &s_i) in s.iter().enumerate() {
             // Crossfade the recirculated signal between the plain reverberant
             // tail and its octave-shifted twin. At sa=0 this is a clean FDN;
             // as sa rises, more of the loop energy climbs an octave each pass.
             let pitched = if i % 2 == 0 { pitched_l } else { pitched_r };
-            let recirc = self.feedback * ((1.0 - sa) * s[i] + sa * pitched);
+            let recirc = self.feedback * ((1.0 - sa) * s_i + sa * pitched);
             self.delays[i].write(recirc + in_mono * 0.25);
         }
 

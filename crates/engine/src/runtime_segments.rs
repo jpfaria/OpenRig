@@ -172,8 +172,8 @@ fn segments_without_inserts(
     // single-binding chain is bit-identical (golden).
     let by_binding = resolve_chain_io_by_binding(chain, registry);
 
-    for out_entry_idx in 0..effective_outs.len() {
-        let out_binding = binding_of_output(&by_binding, &effective_outs[out_entry_idx]);
+    for (out_entry_idx, out_entry) in effective_outs.iter().enumerate() {
+        let out_binding = binding_of_output(&by_binding, out_entry);
         for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
             if let (Some(a), Some(b)) = (binding_of_input(&by_binding, input), out_binding) {
                 if a != b {

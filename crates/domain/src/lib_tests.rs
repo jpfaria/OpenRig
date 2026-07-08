@@ -401,7 +401,7 @@ fn parameter_value_as_i64_from_string_returns_none() {
 
 #[test]
 fn parameter_value_as_f32_from_float() {
-    assert_eq!(ParameterValue::Float(3.14).as_f32(), Some(3.14));
+    assert_eq!(ParameterValue::Float(2.5).as_f32(), Some(2.5));
 }
 
 #[test]

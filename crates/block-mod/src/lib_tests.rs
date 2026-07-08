@@ -385,7 +385,7 @@ fn tremolo_sine_output_bounded_by_input() {
             for _ in 0..512 {
                 let out = p.process_sample(1.0);
                 assert!(
-                    out <= 1.0 && out >= 0.0,
+                    (0.0..=1.0).contains(&out),
                     "tremolo output {} should be in [0,1] for unit input",
                     out
                 );

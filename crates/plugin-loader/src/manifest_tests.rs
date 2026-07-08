@@ -231,7 +231,7 @@ captures:
 
     assert_eq!(
         m.output_gain_db,
-        Some(13.0556831),
+        Some(13.055_683),
         "manifest output_gain_db calibration must reach the engine in dB, unchanged"
     );
 }

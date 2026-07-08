@@ -52,7 +52,7 @@
         let mut trem = SineTremolo::new(4.0, 1.0, 44_100.0);
         for _ in 0..1024 {
             let out = MonoProcessor::process_sample(&mut trem, 1.0);
-            assert!(out >= 0.0 && out <= 1.0,
+            assert!((0.0..=1.0).contains(&out),
                 "tremolo output {out} should be in [0,1] for unit input with full depth");
         }
     }

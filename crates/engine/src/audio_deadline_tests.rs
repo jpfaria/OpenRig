@@ -208,7 +208,7 @@ impl DeadlineResult {
         let p99_ratio = self.p99_ns as f64 / self.period_ns as f64;
 
         assert!(
-            self.overruns <= MAX_OVERRUNS,
+            self.overruns == MAX_OVERRUNS,
             "{}: {} buffers exceeded period (max allowed: {}). \
              period={}us, max observed={}us, p99={}us. \
              Every overrun is an audible click in production. The most recent commit \

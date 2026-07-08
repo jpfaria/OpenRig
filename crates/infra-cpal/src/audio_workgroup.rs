@@ -105,7 +105,6 @@ mod imp {
     const UTF8: u32 = 0x0800_0100; // kCFStringEncodingUTF8
 
     #[link(name = "CoreAudio", kind = "framework")]
-    #[link(name = "CoreFoundation", kind = "framework")]
     extern "C" {
         fn AudioObjectGetPropertyDataSize(
             object: u32,
@@ -114,6 +113,10 @@ mod imp {
             qualifier: *const c_void,
             size: *mut u32,
         ) -> i32;
+    }
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
         fn CFStringGetCString(
             the_string: *const c_void,
             buffer: *mut core::ffi::c_char,

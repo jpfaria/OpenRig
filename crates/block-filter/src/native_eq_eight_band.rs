@@ -242,7 +242,7 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
     let mut filters = Vec::with_capacity(8);
     let mut enabled = [true; 8];
 
-    for i in 0..8usize {
+    for (i, en_slot) in enabled.iter_mut().enumerate() {
         let n = i + 1;
         let en = required_bool(params, &format!("band{n}_enabled")).map_err(Error::msg)?;
         let band_type = required_string(params, &format!("band{n}_type")).map_err(Error::msg)?;
@@ -252,7 +252,7 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
 
         let kind = parse_band_kind(&band_type)?;
         filters.push(BiquadFilter::new(kind, freq, gain, q, sample_rate));
-        enabled[i] = en;
+        *en_slot = en;
     }
 
     let output_db = required_f32(params, "output_db").map_err(Error::msg)?;

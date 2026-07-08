@@ -32,7 +32,7 @@ fn unipolar_in_zero_one() {
     let mut lfo = Lfo::new(LfoShape::Sine, 4.0, 44_100.0);
     for _ in 0..44_100 {
         let s = lfo.next_unipolar();
-        assert!(s.is_finite() && s >= -1e-6 && s <= 1.0 + 1e-6);
+        assert!(s.is_finite() && (-1e-6..=1.0 + 1e-6).contains(&s));
     }
 }
 

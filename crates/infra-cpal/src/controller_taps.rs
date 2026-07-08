@@ -31,7 +31,7 @@ impl ProjectRuntimeController {
         &self,
         block_id: &domain::ids::BlockId,
     ) -> Option<Vec<block_core::StreamEntry>> {
-        for (_, runtime) in &self.runtime_graph.chains {
+        for runtime in self.runtime_graph.chains.values() {
             if let Some(entries) = runtime.poll_stream(block_id) {
                 return Some(entries);
             }
@@ -437,8 +437,8 @@ mod di_loop_multirate_output_tests {
 
         let rt_48 = runtime_at(48_000.0);
         let rt_441 = runtime_at(44_100.0);
-        arm_di_loop_per_output_stream(&[rt_48.clone()], Some(pcm.clone()));
-        arm_di_loop_per_output_stream(&[rt_441.clone()], Some(pcm));
+        arm_di_loop_per_output_stream(std::slice::from_ref(&rt_48), Some(pcm.clone()));
+        arm_di_loop_per_output_stream(std::slice::from_ref(&rt_441), Some(pcm));
 
         let len48 = rt_48.di_loop_len().expect("48 kHz armed");
         let len441 = rt_441.di_loop_len().expect("44.1 kHz armed");

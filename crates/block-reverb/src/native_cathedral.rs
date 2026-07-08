@@ -174,19 +174,19 @@ impl StereoProcessor for CathedralReverb {
         // Stereo wet: even taps → L, odd taps → R for natural width.
         let mut wet_l = 0.0;
         let mut wet_r = 0.0;
-        for i in 0..N {
-            if i % 2 == 0 { wet_l += s[i]; } else { wet_r += s[i]; }
+        for (i, &s_i) in s.iter().enumerate() {
+            if i % 2 == 0 { wet_l += s_i; } else { wet_r += s_i; }
         }
         wet_l *= 2.0 / N as f32;
         wet_r *= 2.0 / N as f32;
 
-        for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]) * self.feedback;
+        for (i, s_i) in s.iter_mut().enumerate() {
+            *s_i = self.lpfs[i].process(*s_i) * self.feedback;
         }
         hadamard16(&mut s);
 
-        for i in 0..N {
-            self.delays[i].write(s[i] + pre * (1.0 / N as f32));
+        for (i, &s_i) in s.iter().enumerate() {
+            self.delays[i].write(s_i + pre * (1.0 / N as f32));
         }
 
         let dry = 1.0 - self.params.mix;

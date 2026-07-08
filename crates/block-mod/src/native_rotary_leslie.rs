@@ -224,30 +224,35 @@ struct Rotor {
     motor_tau_seconds: f32,
 }
 
+/// The per-rotor design point. The horn and drum rotors differ only in these
+/// six values, so they are grouped into one config instead of seven positional
+/// arguments that are easy to transpose.
+#[derive(Clone, Copy)]
+struct RotorConfig {
+    base_delay_ms: f32,
+    depth_ms: f32,
+    am_depth: f32,
+    rate_hz: f32,
+    phase_offset: f32,
+    motor_tau_seconds: f32,
+}
+
 impl Rotor {
-    fn new(
-        sample_rate: f32,
-        base_delay_ms: f32,
-        depth_ms: f32,
-        am_depth: f32,
-        rate_hz: f32,
-        phase_offset: f32,
-        motor_tau_seconds: f32,
-    ) -> Self {
+    fn new(config: RotorConfig, sample_rate: f32) -> Self {
         let max_samples =
-            (((base_delay_ms + depth_ms) / 1000.0) * sample_rate).ceil() as usize + 8;
-        let mut lfo = Lfo::new(LfoShape::Sine, rate_hz, sample_rate);
-        lfo.set_phase(phase_offset / TAU);
+            (((config.base_delay_ms + config.depth_ms) / 1000.0) * sample_rate).ceil() as usize + 8;
+        let mut lfo = Lfo::new(LfoShape::Sine, config.rate_hz, sample_rate);
+        lfo.set_phase(config.phase_offset / TAU);
         Self {
-            base_delay_samples: (base_delay_ms / 1000.0) * sample_rate,
-            depth_samples: (depth_ms / 1000.0) * sample_rate,
-            am_depth: am_depth.clamp(0.0, 1.0),
+            base_delay_samples: (config.base_delay_ms / 1000.0) * sample_rate,
+            depth_samples: (config.depth_ms / 1000.0) * sample_rate,
+            am_depth: config.am_depth.clamp(0.0, 1.0),
             buffer: vec![0.0; max_samples],
             write_idx: 0,
             lfo,
             sample_rate,
-            rate_hz,
-            motor_tau_seconds: motor_tau_seconds.max(0.01),
+            rate_hz: config.rate_hz,
+            motor_tau_seconds: config.motor_tau_seconds.max(0.01),
         }
     }
 
@@ -342,22 +347,26 @@ impl LeslieRotary {
             crossover_hp_a: Biquad::highpass(tuning.crossover_hz, sample_rate, q),
             crossover_hp_b: Biquad::highpass(tuning.crossover_hz, sample_rate, q),
             horn: Rotor::new(
+                RotorConfig {
+                    base_delay_ms: tuning.horn_delay_base_ms,
+                    depth_ms: tuning.horn_delay_depth_ms,
+                    am_depth: tuning.horn_am_depth,
+                    rate_hz: tuning.horn_rate_slow_hz,
+                    phase_offset: 0.0,
+                    motor_tau_seconds: tuning.motor_tau_seconds,
+                },
                 sample_rate,
-                tuning.horn_delay_base_ms,
-                tuning.horn_delay_depth_ms,
-                tuning.horn_am_depth,
-                tuning.horn_rate_slow_hz,
-                0.0,
-                tuning.motor_tau_seconds,
             ),
             drum: Rotor::new(
+                RotorConfig {
+                    base_delay_ms: tuning.drum_delay_base_ms,
+                    depth_ms: tuning.drum_delay_depth_ms,
+                    am_depth: tuning.drum_am_depth,
+                    rate_hz: tuning.drum_rate_slow_hz,
+                    phase_offset: std::f32::consts::PI,
+                    motor_tau_seconds: tuning.motor_tau_seconds,
+                },
                 sample_rate,
-                tuning.drum_delay_base_ms,
-                tuning.drum_delay_depth_ms,
-                tuning.drum_am_depth,
-                tuning.drum_rate_slow_hz,
-                std::f32::consts::PI,
-                tuning.motor_tau_seconds,
             ),
             dc_blocker_l: DcBlocker::new(5.0, sample_rate),
             dc_blocker_r: DcBlocker::new(5.0, sample_rate),

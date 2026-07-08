@@ -209,17 +209,17 @@ impl StereoProcessor for FdnReverb {
         let wet_r = (s[1] + s[3] + s[5] + s[7]) * 0.25;
 
         // Damping inside the loop.
-        for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]) * self.feedback;
+        for (i, s_i) in s.iter_mut().enumerate() {
+            *s_i = self.lpfs[i].process(*s_i) * self.feedback;
         }
 
         // Hadamard mixing matrix.
         hadamard8(&mut s);
 
         // Inject pre-delayed input across all lines and write back.
-        for i in 0..N {
+        for (i, &s_i) in s.iter().enumerate() {
             let inject = pre * 0.25;
-            self.delays[i].write(s[i] + inject);
+            self.delays[i].write(s_i + inject);
         }
 
         let dry = 1.0 - self.params.mix;

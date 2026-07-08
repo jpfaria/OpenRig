@@ -97,8 +97,8 @@ pub fn resolve_project_chain_sample_rates(
             if !chain.enabled {
                 continue;
             }
-            let inputs = resolve_chain_inputs(&host, project, chain, registry)?;
-            let outputs = resolve_chain_outputs(&host, project, chain, registry)?;
+            let inputs = resolve_chain_inputs(host, project, chain, registry)?;
+            let outputs = resolve_chain_outputs(host, project, chain, registry)?;
             let (logical_inputs, logical_outputs) =
                 engine::runtime_endpoints::resolve_chain_io(chain, registry);
             let mut by_device: std::collections::HashMap<domain::ids::DeviceId, u32> =

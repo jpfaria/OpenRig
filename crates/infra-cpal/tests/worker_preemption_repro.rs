@@ -10,6 +10,7 @@
 //! CONTENTION, which we inject here. The variants show the mechanism:
 //!   - a NORMAL (non-RT) thread under contention → many late buffers
 //!   - an RT-promoted (Mach time-constraint) thread → fewer
+//!
 //! The remaining gap (RT thread STILL late under heavy contention) is exactly
 //! why the worker needs the CoreAudio workgroup (P-core coscheduling) — which
 //! requires a real device, so it is validated in the HW battery, not here.

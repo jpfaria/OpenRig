@@ -73,7 +73,7 @@ use std::sync::Arc;
 // about is "no NEW allocation".
 
 thread_local! {
-    static ALLOC_GUARD: Cell<bool> = Cell::new(false);
+    static ALLOC_GUARD: Cell<bool> = const { Cell::new(false) };
 }
 
 static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -370,11 +370,11 @@ fn audio_callback_does_not_allocate_with_real_blocks() {
 fn p670_eq8() -> AudioBlock {
     let mut p = P670Set::default();
     for b in 1..=8 {
-        p.insert(&format!("band{b}_enabled"), P670Val::Bool(true));
-        p.insert(&format!("band{b}_freq"), P670Val::Float(1000.0));
-        p.insert(&format!("band{b}_gain"), P670Val::Float(0.0));
-        p.insert(&format!("band{b}_q"), P670Val::Float(1.0));
-        p.insert(&format!("band{b}_type"), P670Val::String("peak".into()));
+        p.insert(format!("band{b}_enabled"), P670Val::Bool(true));
+        p.insert(format!("band{b}_freq"), P670Val::Float(1000.0));
+        p.insert(format!("band{b}_gain"), P670Val::Float(0.0));
+        p.insert(format!("band{b}_q"), P670Val::Float(1.0));
+        p.insert(format!("band{b}_type"), P670Val::String("peak".into()));
     }
     p.insert("output_db", P670Val::Float(0.0));
     p670_core("eq8", "filter", "eq_eight_band_parametric", p)

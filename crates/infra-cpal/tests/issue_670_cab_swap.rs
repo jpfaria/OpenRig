@@ -54,7 +54,7 @@ fn init_registry() {
 /// interface between them. A create-new lock file does (stale locks older
 /// than 10 min are reclaimed; the guard removes the file on drop, including
 /// on panic unwind).
-
+///
 /// Real-hardware battery gate (issue #670). These tests open the PHYSICAL
 /// audio interface and assert real-time deadlines — they are only meaningful
 /// on an otherwise IDLE machine, run on demand:

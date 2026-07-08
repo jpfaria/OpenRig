@@ -103,11 +103,11 @@ impl BandSmoother {
     }
 
     fn update(&mut self, new_levels: &[f32; N_BANDS]) {
-        for i in 0..N_BANDS {
-            if new_levels[i] > self.levels[i] {
-                self.levels[i] = new_levels[i];
+        for (i, level) in self.levels.iter_mut().enumerate() {
+            if new_levels[i] > *level {
+                *level = new_levels[i];
             } else {
-                self.levels[i] *= self.decay_factor;
+                *level *= self.decay_factor;
             }
         }
     }
@@ -129,11 +129,11 @@ impl PeakHolder {
     }
 
     fn update(&mut self, levels: &[f32; N_BANDS]) {
-        for i in 0..N_BANDS {
-            if levels[i] >= self.peaks[i] {
-                self.peaks[i] = levels[i];
+        for (i, peak) in self.peaks.iter_mut().enumerate() {
+            if levels[i] >= *peak {
+                *peak = levels[i];
             } else {
-                self.peaks[i] *= self.decay_factor;
+                *peak *= self.decay_factor;
             }
         }
     }

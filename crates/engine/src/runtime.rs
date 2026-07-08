@@ -822,7 +822,7 @@ pub fn process_output_f32_mixed(
     }
 }
 
-/// Soft limiter — transparent below 0dBFS, gentle saturation above.
+// Soft limiter — transparent below 0dBFS, gentle saturation above.
 
 #[cfg(test)]
 #[path = "runtime_tests.rs"]

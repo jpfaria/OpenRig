@@ -101,9 +101,7 @@ impl MonoProcessor for Vst3Processor {
                 params_for_chunk,
             );
 
-            for i in 0..chunk {
-                samples[offset + i] = self.buf_out_l[i];
-            }
+            samples[offset..(chunk + offset)].copy_from_slice(&self.buf_out_l[..chunk]);
 
             offset += chunk;
         }

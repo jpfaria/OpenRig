@@ -137,7 +137,7 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
             "[#715-clip] chain '{}' ({n_nam} NAM): peak={:.4} over1.0={} rail_run_max={} nan={}",
             chain.id.0, s.peak, s.over_one, s.rail_run_max, s.nan
         );
-        if worst.as_ref().map_or(true, |(_, w)| s.rail_run_max > w.rail_run_max) {
+        if worst.as_ref().is_none_or(|(_, w)| s.rail_run_max > w.rail_run_max) {
             worst = Some((chain.id.0.clone(), s));
         }
     }

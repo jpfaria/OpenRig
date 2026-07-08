@@ -33,13 +33,13 @@
             44_100.0,
         );
         // Feed alternating values; SRR should hold each across two output samples.
-        let mut last = None;
+        let mut last: Option<f32> = None;
         let mut held_count = 0;
         for i in 0..40 {
             let v = if i % 2 == 0 { 0.5 } else { -0.5 };
             let out = p.process_sample(v);
             if let Some(prev) = last {
-                if (out - prev as f32).abs() < 1e-3 {
+                if (out - prev).abs() < 1e-3 {
                     held_count += 1;
                 }
             }

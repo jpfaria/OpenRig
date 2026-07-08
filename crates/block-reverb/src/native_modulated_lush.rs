@@ -188,12 +188,12 @@ impl StereoProcessor for LushReverb {
         let wet_l = (s[0] + s[2] + s[4] + s[6]) * 0.25;
         let wet_r = (s[1] + s[3] + s[5] + s[7]) * 0.25;
 
-        for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]) * self.feedback;
+        for (i, s_i) in s.iter_mut().enumerate() {
+            *s_i = self.lpfs[i].process(*s_i) * self.feedback;
         }
         hadamard8(&mut s);
-        for i in 0..N {
-            self.delays[i].write(s[i] + in_mono * 0.25);
+        for (i, &s_i) in s.iter().enumerate() {
+            self.delays[i].write(s_i + in_mono * 0.25);
         }
 
         let dry = 1.0 - self.params.mix;
