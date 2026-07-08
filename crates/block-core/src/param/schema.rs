@@ -78,6 +78,7 @@ impl ParameterSpec {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn materialize(
         &self,
         block_id: &BlockId,

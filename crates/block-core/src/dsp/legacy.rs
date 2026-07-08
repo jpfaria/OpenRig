@@ -299,6 +299,7 @@ impl BiquadFilter {
     /// [`BIQUAD_COEFF_RAMP_FRAMES`] samples. No allocation, no syscall — safe to
     /// invoke when the rebuild thread has exclusive ownership of the processor
     /// (issue #358 — runtime swap path in `try_reuse_block_node`).
+    #[allow(clippy::too_many_arguments)]
     pub fn update_coefficients(
         &mut self,
         kind: BiquadKind,

@@ -59,6 +59,7 @@ impl Lfo {
     }
 
     /// Returns the next sample in [-1, 1].
+    #[allow(clippy::should_implement_trait)] // an LFO is not an `Iterator`; `next` reads naturally
     pub fn next(&mut self) -> f32 {
         let p = self.phase;
         self.phase += self.inc;

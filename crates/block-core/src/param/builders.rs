@@ -57,6 +57,7 @@ pub fn bool_parameter(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn file_path_parameter(
     path: &str,
     label: &str,

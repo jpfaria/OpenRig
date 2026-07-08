@@ -25,7 +25,7 @@ fn build_hbf() -> [f32; HBF_LEN] {
     let mut taps = [0.0_f32; HBF_LEN];
     // Half-band low-pass: cutoff at fs/4 of the *up-rate* (= original
     // Nyquist), so sinc argument is d * 0.5.
-    for n in 0..HBF_LEN {
+    for (n, tap) in taps.iter_mut().enumerate() {
         let d = n as i32 - HBF_CENTER;
         let raw = if d == 0 {
             // Limit of sinc as arg -> 0
@@ -36,7 +36,7 @@ fn build_hbf() -> [f32; HBF_LEN] {
         };
         // Hamming window
         let w = 0.54 - 0.46 * ((TAU * n as f32) / (HBF_LEN as f32 - 1.0)).cos();
-        taps[n] = raw * w;
+        *tap = raw * w;
     }
     // Normalise so the DC gain is exactly 1 *after* the post-upsample
     // ×2 compensation. In a half-band kernel the centre tap (= 0.5
@@ -103,9 +103,9 @@ impl Oversampler2x {
 
     fn fir(taps: &[f32; HBF_LEN], buffer: &[f32; HBF_LEN], write_idx: usize) -> f32 {
         let mut acc = 0.0_f32;
-        for k in 0..HBF_LEN {
+        for (k, tap) in taps.iter().enumerate() {
             let bi = (write_idx + HBF_LEN - 1 - k) % HBF_LEN;
-            acc += taps[k] * buffer[bi];
+            acc += tap * buffer[bi];
         }
         acc
     }
