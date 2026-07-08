@@ -29,7 +29,9 @@ static JUCE_OP_LOCK: Mutex<()> = Mutex::new(());
 /// Acquire the JUCE-operation lock for the duration of an instantiate/teardown.
 /// Recovers from a poisoned lock so one panicked op can't wedge every future one.
 pub(crate) fn juce_op_guard() -> MutexGuard<'static, ()> {
-    JUCE_OP_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    JUCE_OP_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// The thread the UI declared as its main/AppKit thread, if any.
@@ -68,7 +70,10 @@ pub fn run_on_main_or_defer(teardown: Deferred) {
     if !main_thread_registered() || on_main_thread() {
         teardown();
     } else {
-        queue().lock().expect("vst3 teardown queue poisoned").push(teardown);
+        queue()
+            .lock()
+            .expect("vst3 teardown queue poisoned")
+            .push(teardown);
     }
 }
 

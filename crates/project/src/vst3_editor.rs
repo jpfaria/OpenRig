@@ -5,8 +5,8 @@
 //! correct dependency boundary for the adapter layer.
 
 use anyhow::Result;
-use std::collections::HashMap;
 pub use block_core::PluginEditorHandle;
+use std::collections::HashMap;
 
 /// Tracks the open native editor windows, keyed by `model_id`.
 ///
@@ -157,7 +157,15 @@ mod tests {
 
         // The second open must NOT build a new instance — it re-focuses the
         // existing one (a new createInstance would fail with result=-1).
-        assert_eq!(opens.load(Ordering::SeqCst), 1, "instance created exactly once");
-        assert_eq!(focuses.load(Ordering::SeqCst), 1, "existing editor re-focused");
+        assert_eq!(
+            opens.load(Ordering::SeqCst),
+            1,
+            "instance created exactly once"
+        );
+        assert_eq!(
+            focuses.load(Ordering::SeqCst),
+            1,
+            "existing editor re-focused"
+        );
     }
 }

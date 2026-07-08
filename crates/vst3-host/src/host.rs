@@ -68,8 +68,11 @@ mod cf {
     /// Resolve an exported module function (e.g. `bundleEntry`) via the bundle,
     /// which is how VST3 macOS modules expose them (not always via dlsym).
     pub unsafe fn bundle_fn(bundle: CFBundleRef, name: &std::ffi::CStr) -> *mut c_void {
-        let cfname =
-            CFStringCreateWithCString(std::ptr::null_mut(), name.as_ptr(), K_CFSTRING_ENCODING_UTF8);
+        let cfname = CFStringCreateWithCString(
+            std::ptr::null_mut(),
+            name.as_ptr(),
+            K_CFSTRING_ENCODING_UTF8,
+        );
         if cfname.is_null() {
             return std::ptr::null_mut();
         }
@@ -106,7 +109,10 @@ unsafe fn run_bundle_entry(bundle_path: &Path) -> Result<cf::OwnedBundle> {
         1, // isDirectory: a .vst3 bundle is a directory
     );
     if url.is_null() {
-        bail!("CFURLCreateFromFileSystemRepresentation failed for {}", bundle_path.display());
+        bail!(
+            "CFURLCreateFromFileSystemRepresentation failed for {}",
+            bundle_path.display()
+        );
     }
     let bundle = cf::CFBundleCreate(ptr::null_mut(), url);
     cf::CFRelease(url);
@@ -238,7 +244,6 @@ impl std::ops::DerefMut for Vst3Plugin {
 mod load;
 
 impl Vst3Plugin {
-
     /// Process a stereo (or mono-duplicated) block of audio.
     ///
     /// `input_l`, `input_r` are input channel slices (length = `n_samples`).
