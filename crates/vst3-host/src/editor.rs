@@ -73,35 +73,37 @@ pub fn open_vst3_editor_window(
     plugin_name: &str,
     gui_context: Vst3GuiContext,
 ) -> Result<Vst3EditorHandle> {
-    let controller = gui_context.controller;
-
-    // Get IPlugView from the controller.
-    let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
-    if view_ptr.is_null() {
-        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
-    }
-
     #[cfg(target_os = "macos")]
     {
         use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
 
+        let controller = gui_context.controller;
         let library = gui_context.library;
         let param_channel = gui_context.param_channel;
 
-        // Register the component handler so parameter changes from the native GUI
-        // reach the audio processor via the param channel.
+        // #780: register the host IComponentHandler BEFORE creating the view.
+        // The plugin's editor captures the controller's handler when the view
+        // is created; if it is set afterwards, `performEdit` from the native GUI
+        // targets a null handler, so knob moves never reach the audio processor
+        // (silent edits) nor mark the project dirty. VST3 hosts must set the
+        // handler before `createView`.
         let component_handler = {
             let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
             unsafe {
                 use vst3::Steinberg::Vst::IComponentHandler;
                 if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
                     let _ = controller.setComponentHandler(com_ref.as_ptr());
-                    log::debug!("VST3 editor: IComponentHandler registered");
+                    log::debug!("VST3 editor: IComponentHandler registered (pre-createView)");
                 }
             }
             Some(wrapper)
         };
 
+        // Now create the view — it picks up the handler registered above.
+        let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
+        if view_ptr.is_null() {
+            bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+        }
         let view: ComPtr<vst3::Steinberg::IPlugView> =
             unsafe { ComPtr::from_raw_unchecked(view_ptr) };
 
@@ -145,7 +147,10 @@ pub fn open_vst3_editor_window(
     }
 
     #[cfg(not(target_os = "macos"))]
-    bail!("VST3 editor window not yet supported on this platform")
+    {
+        let _ = (&gui_context, plugin_name);
+        bail!("VST3 editor window not yet supported on this platform")
+    }
 }
 
 /// Open the editor by loading a **fresh** plugin instance.
