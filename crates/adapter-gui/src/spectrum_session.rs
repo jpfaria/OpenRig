@@ -23,10 +23,10 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
+use domain::io_binding::IoBinding;
 use engine::spsc::SpscRing;
 use feature_dsp::spectrum_fft::{SpectrumAnalyzer, SpectrumSnapshot, FFT_SIZE, N_BANDS};
 use infra_cpal::ProjectRuntimeController;
-use domain::io_binding::IoBinding;
 use project::project::Project;
 use slint::{Model, ModelRc, VecModel};
 
@@ -102,8 +102,7 @@ fn project_stream_fingerprint(project: &Project, registry: &[IoBinding]) -> Stri
         s.push('@');
         // #716: device endpoints resolve from the binding registry, not from
         // block `entries`.
-        let (resolved_inputs, _) =
-            engine::runtime_endpoints::resolve_chain_io(chain, registry);
+        let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
         for (stream_index, entry) in resolved_inputs.iter().enumerate() {
             s.push_str(&format!(
                 "[{}/{}/{:?}]",
@@ -172,8 +171,7 @@ impl SpectrumSession {
 
             // #716: the chain's input endpoints resolve from the binding
             // registry, not from block `entries`.
-            let (resolved_inputs, _) =
-                engine::runtime_endpoints::resolve_chain_io(chain, registry);
+            let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
 
             // Best-effort device label for each stream — picks the resolved
             // input entries in order, falling back to the chain id if there are

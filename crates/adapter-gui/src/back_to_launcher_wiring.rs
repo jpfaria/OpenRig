@@ -94,7 +94,7 @@ pub(crate) fn wire(
             },
             &input_chain_devices.borrow(),
             &output_chain_devices.borrow(),
-            &[]
+            &[],
         );
         clear_status(&window, &toast_timer);
         set_project_dirty(&window, &project_dirty, false);

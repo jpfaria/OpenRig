@@ -63,7 +63,11 @@ fn loading_preset_keeps_nam_gain_block_as_core_not_generic_nam() {
     .expect("write preset");
 
     let preset = infra_yaml::load_chain_preset_file(&preset_path).expect("preset loads");
-    assert_eq!(preset.blocks.len(), 1, "the gain block must survive the load");
+    assert_eq!(
+        preset.blocks.len(),
+        1,
+        "the gain block must survive the load"
+    );
 
     match &preset.blocks[0].kind {
         AudioBlockKind::Core(core) => assert_eq!(

@@ -84,8 +84,7 @@ fn issue_692_runtime_start_probe() {
     };
     let real_project = home.join(".openrig/project.yaml");
     let real_cfg = home.join("Library/Application Support/OpenRig/config.yaml");
-    let user_plugins = home
-        .join("Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source");
+    let user_plugins = home.join("Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source");
     if !real_project.exists() || !real_cfg.exists() || !user_plugins.exists() {
         eprintln!("issue_692: real-world fixture not present, skipping");
         return;
@@ -114,8 +113,7 @@ fn issue_692_runtime_start_probe() {
     let enabled_chains = project.chains.iter().filter(|c| c.enabled).count();
 
     let t1 = Instant::now();
-    let controller =
-        infra_cpal::ProjectRuntimeController::start(&project).expect("runtime start");
+    let controller = infra_cpal::ProjectRuntimeController::start(&project).expect("runtime start");
     let elapsed = t1.elapsed();
     eprintln!(
         "issue_692: ProjectRuntimeController::start took {elapsed:?} \

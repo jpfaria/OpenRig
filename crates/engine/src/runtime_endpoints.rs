@@ -45,7 +45,10 @@ pub struct OutputEntry {
 /// `registry`. Head/tail come from `chain.io_binding_ids`; mid `Input`/`Output`
 /// blocks resolve their `io`/`endpoint`. The device data lives only in the
 /// registry — never in the chain (#716, model A).
-pub fn resolve_chain_io(chain: &Chain, registry: &[IoBinding]) -> (Vec<InputEntry>, Vec<OutputEntry>) {
+pub fn resolve_chain_io(
+    chain: &Chain,
+    registry: &[IoBinding],
+) -> (Vec<InputEntry>, Vec<OutputEntry>) {
     let ports = resolve_chain_ports(chain, registry);
     let mut inputs = Vec::new();
     let mut outputs = Vec::new();

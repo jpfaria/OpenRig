@@ -11,10 +11,10 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use project::project::Project;
-use application::dispatcher::CommandDispatcher;
 use application::command::Command;
+use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
+use project::project::Project;
 
 fn empty_project_rc() -> Rc<RefCell<Project>> {
     Rc::new(RefCell::new(Project {
@@ -29,11 +29,11 @@ fn empty_project_rc() -> Rc<RefCell<Project>> {
 fn catalog_loads_and_emits_event() {
     // RED: Verify that catalog loads without panicking.
     // This is a baseline test to ensure the catalog initialization completes.
-    
+
     engine::native_registry::register_all_natives();
     let project = empty_project_rc();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    
+
     let mut events = dispatcher
         .dispatch(Command::ReloadPluginCatalog)
         .expect("dispatch ReloadPluginCatalog");
@@ -46,17 +46,17 @@ fn catalog_loads_and_emits_event() {
             events = dispatcher.poll_async_results();
         }
     }
-    
+
     // Verify that a PluginCatalogReloaded event was emitted
-    let found_reload_event = events.iter().any(|e| {
-        matches!(e, application::event::Event::PluginCatalogReloaded { .. })
-    });
-    
+    let found_reload_event = events
+        .iter()
+        .any(|e| matches!(e, application::event::Event::PluginCatalogReloaded { .. }));
+
     assert!(
         found_reload_event,
         "Expected PluginCatalogReloaded event; catalog initialization completed"
     );
-    
+
     eprintln!(
         "Catalog loaded successfully. Run with 'heaptrack' or check /proc/<pid>/maps \
          to measure actual memory usage during catalog init.\n\
@@ -70,13 +70,13 @@ fn catalog_loads_and_emits_event() {
 fn catalog_structure_inspection() {
     // RED: Inspect the actual registry structure to understand what it holds.
     // This is a manual inspection point — run with `RUST_LOG=debug` to see output.
-    
+
     engine::native_registry::register_all_natives();
-    
+
     // Attempt to access and inspect the global registry
     // This test is primarily for debugging — you can add println/eprintln
     // to understand the registry's memory layout.
-    
+
     eprintln!(
         "Registry inspection complete. To profile memory usage:\n\
          1. Run OpenRig with 'heaptrack openrig' (Linux/macOS with devel tools)\n\

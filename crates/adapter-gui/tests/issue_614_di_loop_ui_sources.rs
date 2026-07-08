@@ -17,7 +17,9 @@
 
 use application::di_loader::DiLoopSource;
 
-use adapter_gui::di_loop_ui_sources::{build_di_loop_sources, parse_di_loop_source, CHOOSE_FILE_SENTINEL};
+use adapter_gui::di_loop_ui_sources::{
+    build_di_loop_sources, parse_di_loop_source, CHOOSE_FILE_SENTINEL,
+};
 
 // ── build_di_loop_sources ────────────────────────────────────────────────────
 
@@ -55,7 +57,10 @@ fn parse_bundled_id_returns_bundled_source() {
 fn parse_sentinel_returns_none() {
     let ids = vec!["dry_guitar_1"];
     let result = parse_di_loop_source(CHOOSE_FILE_SENTINEL, &ids);
-    assert!(result.is_none(), "sentinel must return None (caller opens file picker)");
+    assert!(
+        result.is_none(),
+        "sentinel must return None (caller opens file picker)"
+    );
 }
 
 #[test]

@@ -49,7 +49,12 @@ const READY_BUDGET: Duration = Duration::from_secs(15);
 /// One isolated input: a single mono channel of `input`, paired with the shared
 /// stereo `output`. Four of these (two channels on each of two interfaces) make
 /// the owner's four-stream rig.
-fn binding(id: &str, input: &AudioDeviceDescriptor, channel: usize, output: &AudioDeviceDescriptor) -> IoBinding {
+fn binding(
+    id: &str,
+    input: &AudioDeviceDescriptor,
+    channel: usize,
+    output: &AudioDeviceDescriptor,
+) -> IoBinding {
     IoBinding {
         id: id.into(),
         name: id.to_uppercase(),
@@ -119,7 +124,11 @@ fn four_binding_cold_start_is_async_and_underrun_free() {
     let chain_id = ChainId("rig".into());
     let project = Project {
         name: Some("issue-740-four-binding".into()),
-        device_settings: vec![device_settings(in_a), device_settings(in_b), device_settings(output)],
+        device_settings: vec![
+            device_settings(in_a),
+            device_settings(in_b),
+            device_settings(output),
+        ],
         chains: vec![Chain {
             id: chain_id.clone(),
             description: None,
@@ -181,7 +190,9 @@ fn four_binding_cold_start_is_async_and_underrun_free() {
     let xruns = controller.chain_xrun_count(&chain_id) - x0;
     let underruns = controller.chain_underrun_count(&chain_id) - u0;
 
-    eprintln!("[#740 REAL] 20s after a four-binding cold start: xruns={xruns} underruns={underruns}");
+    eprintln!(
+        "[#740 REAL] 20s after a four-binding cold start: xruns={xruns} underruns={underruns}"
+    );
     assert_eq!(
         (xruns, underruns),
         (0, 0),

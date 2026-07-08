@@ -87,8 +87,7 @@ fn issue_627_buffer_override_survives_whole_config_resave() {
         // Confirm disk shows 128.
         let from_disk = FilesystemStorage::load_app_config().expect("reload after Aplicar");
         assert_eq!(
-            from_disk.input_devices[0].buffer_size_frames,
-            128,
+            from_disk.input_devices[0].buffer_size_frames, 128,
             "disk must hold buffer 128 after Aplicar"
         );
 
@@ -98,8 +97,7 @@ fn issue_627_buffer_override_survives_whole_config_resave() {
         in_memory.input_devices = vec![device_with_buffer("built-in-mic", 64)];
         in_memory.output_devices = vec![device_with_buffer("built-in-out", 64)];
         assert_eq!(
-            in_memory.input_devices[0].buffer_size_frames,
-            64,
+            in_memory.input_devices[0].buffer_size_frames, 64,
             "in-memory snapshot starts stale at 64"
         );
 
@@ -107,13 +105,11 @@ fn issue_627_buffer_override_survives_whole_config_resave() {
         apply_audio_override(&mut in_memory, &input_128, &output_128);
 
         assert_eq!(
-            in_memory.input_devices[0].buffer_size_frames,
-            128,
+            in_memory.input_devices[0].buffer_size_frames, 128,
             "apply_audio_override must mirror the applied buffer into the in-memory AppConfig"
         );
         assert_eq!(
-            in_memory.output_devices[0].buffer_size_frames,
-            128,
+            in_memory.output_devices[0].buffer_size_frames, 128,
             "apply_audio_override must mirror output devices too"
         );
 
@@ -123,13 +119,11 @@ fn issue_627_buffer_override_survives_whole_config_resave() {
         // --- Step 5: reload and assert buffer survived.
         let reloaded = FilesystemStorage::load_app_config().expect("final reload");
         assert_eq!(
-            reloaded.input_devices[0].buffer_size_frames,
-            128,
+            reloaded.input_devices[0].buffer_size_frames, 128,
             "REGRESSION #627: whole-config re-save clobbered the user's buffer 128 back to 64"
         );
         assert_eq!(
-            reloaded.output_devices[0].buffer_size_frames,
-            128,
+            reloaded.output_devices[0].buffer_size_frames, 128,
             "REGRESSION #627: output buffer clobbered back to 64"
         );
     });

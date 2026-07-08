@@ -335,12 +335,14 @@ fn an_offthread_rebuild_keeps_the_graph_tap_alive() {
         .expect("graph tap on stream 0");
 
     // A preset switch: rebuild the chain off-thread, then apply on the poll tick.
-    let by_device =
-        std::collections::HashMap::from([(DeviceId("scarlett".into()), 48_000.0_f32)]);
+    let by_device = std::collections::HashMap::from([(DeviceId("scarlett".into()), 48_000.0_f32)]);
     controller.schedule_chain_rebuild(&chain, 48_000.0, by_device, vec![512]);
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     while controller.poll_pending_rebuilds() == 0 {
-        assert!(std::time::Instant::now() < deadline, "off-thread rebuild never applied");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "off-thread rebuild never applied"
+        );
         std::thread::sleep(std::time::Duration::from_millis(2));
     }
 

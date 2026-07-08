@@ -17,9 +17,7 @@ use crate::ids::DeviceId;
 /// declarations stay in sync with chain I/O configuration.
 ///
 /// Serde wire format: `mono` / `stereo` / `dual_mono` (snake_case).
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ChannelMode {
     /// Single-channel; upmixed to stereo for stereo outputs.

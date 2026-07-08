@@ -31,7 +31,9 @@ fn broadband(n: usize) -> Vec<f32> {
 }
 
 fn sine(freq: f32, n: usize) -> Vec<f32> {
-    (0..n).map(|i| 0.5 * (2.0 * PI * freq * i as f32 / SR).sin()).collect()
+    (0..n)
+        .map(|i| 0.5 * (2.0 * PI * freq * i as f32 / SR).sin())
+        .collect()
 }
 
 fn render(model: &str, params: &ParameterSet, input: &[f32]) -> Vec<f32> {
@@ -53,7 +55,11 @@ fn rms(x: &[f32]) -> f32 {
 /// Relative RMS difference, ignoring the first 100 ms transient.
 fn rel_diff(a: &[f32], b: &[f32]) -> f32 {
     let skip = (SR * 0.1) as usize;
-    let d: Vec<f32> = a[skip..].iter().zip(&b[skip..]).map(|(x, y)| x - y).collect();
+    let d: Vec<f32> = a[skip..]
+        .iter()
+        .zip(&b[skip..])
+        .map(|(x, y)| x - y)
+        .collect();
     rms(&d) / rms(&a[skip..]).max(1e-9)
 }
 
@@ -68,8 +74,10 @@ fn defaults_for(model: &str) -> ParameterSet {
 fn native_cabs_are_audibly_distinct_with_same_knobs() {
     let shared = defaults_for("brit_4x12");
     let signal = broadband(SR as usize);
-    let renders: Vec<(&str, Vec<f32>)> =
-        MODELS.iter().map(|m| (*m, render(m, &shared, &signal))).collect();
+    let renders: Vec<(&str, Vec<f32>)> = MODELS
+        .iter()
+        .map(|m| (*m, render(m, &shared, &signal)))
+        .collect();
 
     for i in 0..renders.len() {
         for j in (i + 1)..renders.len() {

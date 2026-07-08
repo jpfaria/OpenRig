@@ -144,7 +144,9 @@ fn late_buffers_reproduce_under_contention() {
         );
         return;
     }
-    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(8);
     let contenders = cores * 2; // oversubscribe, like the app + browser + OS
 
     let total_buffers = SECONDS * 1_000_000 / PERIOD_US;

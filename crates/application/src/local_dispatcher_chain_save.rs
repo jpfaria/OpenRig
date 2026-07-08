@@ -35,9 +35,7 @@ impl LocalDispatcher {
                             // #716: carry the editor's I/O binding selection
                             // onto the freshly-created rig input so it survives
                             // reopen.
-                            if let Some(input) =
-                                rig.borrow_mut().inputs.get_mut(&input_name)
-                            {
+                            if let Some(input) = rig.borrow_mut().inputs.get_mut(&input_name) {
                                 input.io_binding_ids = chain.io_binding_ids.clone();
                             }
                             // Re-tag the chain id so the chains-screen
@@ -113,9 +111,7 @@ impl LocalDispatcher {
                 // rig→legacy projection keeps the user's io/endpoint.
                 if let Some(input_name) = chain.0.strip_prefix("rig:") {
                     if let Some(rig) = self.rig.borrow().clone() {
-                        if let Some(rig_input) =
-                            rig.borrow_mut().inputs.get_mut(input_name)
-                        {
+                        if let Some(rig_input) = rig.borrow_mut().inputs.get_mut(input_name) {
                             rig_input.io = io;
                             rig_input.endpoint = endpoint;
                         }
@@ -210,11 +206,14 @@ pub(crate) fn propagate_output_ref_to_rig(
     // Store or update the binding reference in rig.outputs under the stable key.
     // The `RigOutput.io` and `.endpoint` fields are propagated to the output block
     // by `rig_to_chains` during projection (#716).
-    let entry = rig.outputs.entry(key).or_insert_with(|| project::rig::RigOutput {
-        label: None,
-        io: String::new(),
-        endpoint: String::new(),
-    });
+    let entry = rig
+        .outputs
+        .entry(key)
+        .or_insert_with(|| project::rig::RigOutput {
+            label: None,
+            io: String::new(),
+            endpoint: String::new(),
+        });
     entry.io = io.to_string();
     entry.endpoint = endpoint.to_string();
 }
