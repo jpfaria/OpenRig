@@ -323,6 +323,7 @@ pub(crate) fn build_core_block_runtime_node(
             )
             .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
             let param_channel = vst3_host::register_vst3_gui_context(
+                &block.id.0,
                 model,
                 plugin.controller_clone(),
                 plugin.library_arc(),

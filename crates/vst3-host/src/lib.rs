@@ -49,7 +49,8 @@ pub use host::{Vst3ParamInfo, Vst3Plugin, Vst3PluginClass};
 pub use main_thread::{drain_main_thread_deferred, mark_main_thread};
 pub use param_channel::{vst3_param_channel, Vst3ParamChannel, Vst3ParamUpdate};
 pub use param_registry::{
-    lookup_vst3_channel, lookup_vst3_gui_context, register_vst3_gui_context, Vst3GuiContext,
+    capture_vst3_params, lookup_vst3_channel, lookup_vst3_gui_context, register_vst3_gui_context,
+    Vst3GuiContext,
 };
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;

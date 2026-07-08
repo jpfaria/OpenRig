@@ -46,6 +46,9 @@ impl StereoVst3Processor {
             param_channel,
             controller: self.plugin.controller_clone(),
             library: self.plugin.library_arc(),
+            // Legacy out-of-process editor path (currently unused); the model id
+            // is not threaded here. Registered contexts (engine path) carry it.
+            model_id: String::new(),
         })
     }
 
