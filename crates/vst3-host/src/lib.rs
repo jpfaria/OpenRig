@@ -41,7 +41,7 @@ pub use catalog::{
 };
 pub use discovery::{
     resolve_vst3_bundle, scan_system_vst3, scan_vst3_bundle, scan_vst3_bundle_light,
-    system_vst3_paths, Vst3PluginInfo,
+    scan_vst3_dirs, system_vst3_paths, Vst3PluginInfo,
 };
 pub use editor::{open_vst3_editor_window, open_vst3_editor_window_standalone, Vst3EditorHandle};
 pub use host::{Vst3ParamInfo, Vst3Plugin, Vst3PluginClass};

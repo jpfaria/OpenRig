@@ -18,7 +18,7 @@ const SR: f64 = 48_000.0;
 
 #[test]
 fn resolve_uid_is_stable_and_is_the_audio_module_class() {
-    init_vst3_catalog(SR);
+    init_vst3_catalog(SR, &[]);
     let Some(entry) = find_vst3_plugin(MODEL_ID) else {
         eprintln!("ValhallaSupermassive not installed — skipping");
         return;

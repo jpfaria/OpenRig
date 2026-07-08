@@ -63,6 +63,15 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   plugin params above; A1 never does.
 - **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617). For `type: cab`/`body` it is 100% wet and exposes a user-adjustable **Output** knob (dB, −24..+24) mirroring NAM (#655): the absolute applied output level, defaulting to the selected capture's `output_gain_db` audit baseline and re-seeding to the new capture's baseline when the user switches mic/position. Presets saved before the knob keep their audit loudness (the audio path resolves the per-capture baseline from the raw params; volume invariant #10). For `type: reverb` (#733) the **same convolution engine** drives the wet path but the block stays gain-passive and blends dry/wet via **mix** (+ **pre_delay_ms**, wet **level**) instead of normalising to a calibrated level — long diffuse reverb tails would be wrong under cab-style peak normalisation. Dispatch branches on the backend in `block_reverb::build_reverb_processor_for_layout`; the wet builder is shared via `ir::from_package::build_convolution_from_package`.
 - **LV2** — Plugins externos open-source
+- **VST3** — Native VST3 plugins hosted through the plugin's own editor window
+  (`crates/vst3-host`). Discovered from the standard OS VST3 paths
+  (`~/Library/Audio/Plug-Ins/VST3` and platform equivalents) **and** from the
+  `vst3/` sub-directory of each configured plugin root (#776), so a catalog VST3
+  shipped in OpenRig-plugins
+  (`<plugins_root>/vst3/<id>/bundles/<Name>.vst3`, manifest `type: vst3` /
+  `backend: vst3`) lands in the **same** VST3 block list as a user-installed
+  one, with the same native editor and `Vst3Processor`. Parameters are read at
+  runtime from the plugin's `IEditController`, not from the manifest.
 
 ### Native cab voicing (#620)
 

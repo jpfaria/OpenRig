@@ -16,7 +16,7 @@ const SR: f32 = 48_000.0;
 
 #[test]
 fn vst3_stereo_processor_updates_params_in_place() {
-    vst3_host::init_vst3_catalog(SR as f64);
+    vst3_host::init_vst3_catalog(SR as f64, &[]);
     let Some(entry) = vst3_host::find_vst3_plugin(MODEL_ID) else {
         eprintln!("ValhallaSupermassive not installed — skipping in-place update test");
         return;

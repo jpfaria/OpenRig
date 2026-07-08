@@ -21,7 +21,7 @@ fn load(bundle: &std::path::Path, uid: &[u8; 16], sr: f64) -> anyhow::Result<vst
 #[test]
 fn concurrent_multithread_load_succeeds() {
     let sr = 48_000.0_f64;
-    vst3_host::init_vst3_catalog(sr);
+    vst3_host::init_vst3_catalog(sr, &[]);
     let Some(entry) = vst3_host::find_vst3_plugin(MODEL_ID) else {
         eprintln!("ValhallaSupermassive not installed — skipping concurrent-load guard");
         return;
@@ -47,7 +47,7 @@ fn concurrent_multithread_load_succeeds() {
 #[test]
 fn repeated_in_process_load_succeeds() {
     let sr = 48_000.0_f64;
-    vst3_host::init_vst3_catalog(sr);
+    vst3_host::init_vst3_catalog(sr, &[]);
 
     let Some(entry) = vst3_host::find_vst3_plugin(MODEL_ID) else {
         eprintln!("ValhallaSupermassive not installed — skipping repeated-load guard");

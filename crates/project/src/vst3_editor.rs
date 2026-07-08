@@ -48,11 +48,16 @@ impl Vst3EditorRegistry {
     }
 }
 
-/// Initialise the VST3 plugin catalog by scanning standard system paths.
+/// Initialise the VST3 plugin catalog by scanning standard system paths plus
+/// the `vst3/` sub-directory of each configured plugin root (issue #776), so a
+/// catalog VST3 shipped in the OpenRig plugins folder is discovered exactly
+/// like a system-installed one.
 ///
 /// Safe to call from a background thread. Subsequent calls are no-ops.
-pub fn init_vst3_catalog(sample_rate: f64) {
-    vst3_host::init_vst3_catalog(sample_rate);
+pub fn init_vst3_catalog(sample_rate: f64, plugin_roots: &[std::path::PathBuf]) {
+    let extra_dirs: Vec<std::path::PathBuf> =
+        plugin_roots.iter().map(|root| root.join("vst3")).collect();
+    vst3_host::init_vst3_catalog(sample_rate, &extra_dirs);
 }
 
 /// The native editor may only open by reusing the engine's plugin instance.

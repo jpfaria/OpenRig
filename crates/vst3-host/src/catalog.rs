@@ -10,10 +10,10 @@
 //! `class_name` is the plugin's display name with spaces replaced by `_`.
 //! This scheme is stable as long as the plugin is installed at the same path.
 
-use crate::discovery::{scan_system_vst3, Vst3PluginInfo};
+use crate::discovery::{scan_system_vst3, scan_vst3_dirs, Vst3PluginInfo};
 use crate::host::Vst3Plugin;
 use block_core::ModelVisualData;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
@@ -67,24 +67,37 @@ pub fn make_model_id(info: &Vst3PluginInfo) -> String {
 /// Uses light scanning (no plugin instantiation), so it is safe even for
 /// complex commercial plugins that might crash on full initialisation.
 /// `sample_rate` is kept for API compatibility but is no longer used here.
-pub fn init_vst3_catalog(sample_rate: f64) {
+///
+/// `extra_dirs` are scanned alongside the standard system paths (issue #776):
+/// the caller passes the OpenRig plugins folder(s) so catalog VST3 bundles
+/// (`<plugins_root>/vst3/<id>/bundles/`) join the same catalog as
+/// system-installed plugins — same model-ID scheme, same block kind, same
+/// native editor. A bundle discovered in both places (same `model_id`) is
+/// kept once.
+pub fn init_vst3_catalog(sample_rate: f64, extra_dirs: &[PathBuf]) {
     CATALOG.get_or_init(|| {
-        let infos = scan_system_vst3(sample_rate); // sample_rate unused (light scan)
+        let mut infos = scan_system_vst3(sample_rate); // sample_rate unused (light scan)
+        infos.extend(scan_vst3_dirs(extra_dirs));
         log::info!("VST3 catalog: discovered {} plugins", infos.len());
+        let mut seen: HashSet<String> = HashSet::new();
         infos
             .into_iter()
-            .map(|info| {
-                let model_id = leak(make_model_id(&info));
+            .filter_map(|info| {
+                let id = make_model_id(&info);
+                if !seen.insert(id.clone()) {
+                    return None; // same bundle found in a system path and a plugins root
+                }
+                let model_id = leak(id);
                 let display_name = leak(info.name.clone());
                 let brand = leak(info.vendor.clone());
                 let category = leak(info.category.clone());
-                Vst3CatalogEntry {
+                Some(Vst3CatalogEntry {
                     model_id,
                     display_name,
                     brand,
                     category,
                     info,
-                }
+                })
             })
             .collect()
     });

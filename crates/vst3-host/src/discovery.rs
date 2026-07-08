@@ -358,16 +358,24 @@ pub fn resolve_vst3_bundle(bundle_name: &str) -> Result<PathBuf> {
 ///
 /// Bundles that fail to open are silently skipped (errors are logged).
 pub fn scan_system_vst3(_sample_rate: f64) -> Vec<Vst3PluginInfo> {
-    let search_paths = system_vst3_paths();
-    let mut results = Vec::new();
+    scan_vst3_dirs(&system_vst3_paths())
+}
 
-    for root in &search_paths {
+/// Scan the given directories for `.vst3` bundles (light mode), recursing into
+/// sub-directories. Non-existent dirs are skipped silently.
+///
+/// Issue #776: lets discovery fold extra roots — the OpenRig plugins folder,
+/// where catalog VST3 packages live at `<plugins_root>/vst3/<id>/bundles/` —
+/// in alongside the standard system paths, so a catalog VST3 surfaces through
+/// the exact same catalog / block-kind / editor path as a system-installed one.
+pub fn scan_vst3_dirs(dirs: &[PathBuf]) -> Vec<Vst3PluginInfo> {
+    let mut results = Vec::new();
+    for root in dirs {
         if !root.exists() {
             continue;
         }
         scan_directory_light(root, &mut results);
     }
-
     results
 }
 

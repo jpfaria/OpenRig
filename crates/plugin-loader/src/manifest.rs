@@ -187,6 +187,12 @@ pub enum BlockType {
     Wah,
     Pitch,
     Util,
+    /// Native VST3 plugin hosted through its own editor (issue #776). Unlike
+    /// the sonic categories above, this is not a DSP family — it marks a
+    /// package whose `backend: vst3` bundle is surfaced through the same VST3
+    /// block kind and discovery path as a system-installed VST3, so the
+    /// manifest deserializes instead of being skipped.
+    Vst3,
 }
 
 /// Backend-specific payload of a plugin.

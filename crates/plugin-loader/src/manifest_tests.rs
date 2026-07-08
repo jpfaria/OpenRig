@@ -236,6 +236,30 @@ captures:
     );
 }
 
+#[test]
+fn vst3_manifest_deserializes_type_vst3_as_block_type_vst3() {
+    // Issue #776: OpenRig-plugins ships catalog VST3 packages with `type: vst3`.
+    // Without a `BlockType::Vst3` variant the manifest fails to deserialize and
+    // the whole package is skipped, so the plugin never reaches the VST3 block
+    // list. Production-shaped manifest copied from
+    // `plugins/source/vst3/chow_centaur/manifest.yaml`.
+    let yaml = r#"
+manifest_version: 1
+id: vst3_chow_centaur
+display_name: ChowCentaur
+brand: chowdsp
+type: vst3
+backend: vst3
+bundle: bundles/ChowCentaur.vst3
+parameters: []
+"#;
+
+    let m = parse(yaml);
+
+    assert_eq!(m.block_type, BlockType::Vst3);
+    assert!(matches!(m.backend, Backend::Vst3 { .. }));
+}
+
 // Issue #675 — per-capture / manifest-level noise gate defaults so a
 // high-gain capture can ship with the gate regulated (the idle-hiss fix:
 // high-gain captures amplify the input noise floor ~+32 dB).

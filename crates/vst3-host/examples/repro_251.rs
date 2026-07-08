@@ -41,7 +41,7 @@ extern "C" {
 }
 
 fn load_keep(tag: &str) -> Option<vst3_host::Vst3Plugin> {
-    vst3_host::init_vst3_catalog(48_000.0);
+    vst3_host::init_vst3_catalog(48_000.0, &[]);
     let Some(entry) = vst3_host::find_vst3_plugin(MODEL_ID) else {
         println!("[{tag}] plugin not installed");
         return None;
