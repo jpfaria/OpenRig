@@ -122,7 +122,11 @@ impl ProjectRuntimeController {
 
         log::info!(
             "[#771-probe] arm: chain='{}' output_index={} output_rate={} dest=({},{})",
-            chain.id.0, output_index, output_rate, dest_left, dest_right
+            chain.id.0,
+            output_index,
+            output_rate,
+            dest_left,
+            dest_right
         );
         let cell = self.di_playback_cell(&chain.id, output_index);
         let armed = Arc::new(Mutex::new(true));
@@ -160,20 +164,14 @@ impl ProjectRuntimeController {
                     let raw = pcm.to_loop_at(output_rate);
                     let raw_len = raw.len().max(1);
 
-                    // Park the playback IMMEDIATELY — frames start flowing
-                    // within one block, regardless of loop length (a 75 s
-                    // loop used to pre-render for minutes before the first
-                    // sample). Park ONLY while this arm still owns the cell.
+                    // Parked below only after a ~100 ms pre-buffer, so
+                    // playback starts with a cushion instead of racing the
+                    // worker from frame one (still well under a second for a
+                    // 75 s loop — the pre-render took minutes).
                     let playback =
                         Arc::new(DiPlayback::new(dest_left, dest_right, routed.loop_len));
                     let ring = playback.ring();
-                    {
-                        let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
-                        if !*armed {
-                            return;
-                        }
-                        cell.store(Some(Arc::clone(&playback)));
-                    }
+                    let mut parked = false;
 
                     // Stream the DI: paced by RING BACKPRESSURE — the worker
                     // only produces what the output consumed, so the output
@@ -182,17 +180,27 @@ impl ProjectRuntimeController {
                     // reverted, f1131725e). All DSP runs HERE, never in the
                     // callback (invariant #8).
                     const BLOCK: usize = 256;
-                    // The owner's in-app probe measured fill dips to 71% at
-                    // normal priority (GUI + the guitar's RT dsp_worker
-                    // preempt this thread) — audible stutter. Same class the
-                    // dsp_worker runs at: RT time-constraint sized to the
-                    // block period.
-                    let period_ns =
-                        (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
-                    crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns / 3);
+                    // Scheduling shape matters more than raw priority here
+                    // (#698 lesson, re-measured live on the owner's rig):
+                    // - normal priority + continuous burn → 71-88% fill
+                    //   (preempted by the GUI + the guitar's RT worker);
+                    // - RT class + continuous burn → 38% fill (the kernel
+                    //   demotes a time-constraint thread that blows through
+                    //   its declared computation budget for seconds).
+                    // The guitar's dsp_worker sustains the SAME chain cost
+                    // in debug because it works in SHORT BURSTS. Mirror it:
+                    // one block per iteration, a breath every few blocks,
+                    // and an honest RT declaration sized to that cadence.
+                    let period_ns = (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
+                    crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns * 3 / 5);
                     let silence = vec![0.0f32; BLOCK];
                     let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
                     let mut pos: usize = 0;
+                    // Catch-up bursts are capped: after every few back-to-back
+                    // blocks the worker yields, so it never presents the
+                    // scheduler with a multi-second monolithic burn (that is
+                    // what collapsed throughput to 38%).
+                    let mut burst: u32 = 0;
                     loop {
                         {
                             let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
@@ -202,8 +210,24 @@ impl ProjectRuntimeController {
                         }
                         let free = ring.capacity() - ring.len();
                         if free < BLOCK * 2 {
-                            std::thread::sleep(std::time::Duration::from_millis(2));
+                            // Ring topped up: rest half a block period.
+                            burst = 0;
+                            std::thread::sleep(std::time::Duration::from_nanos(period_ns / 2));
                             continue;
+                        }
+                        if burst >= 4 {
+                            burst = 0;
+                            std::thread::sleep(std::time::Duration::from_millis(1));
+                            continue;
+                        }
+                        burst += 1;
+                        if !parked && ring.len() >= BLOCK * 2 * 16 {
+                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
+                            if !*armed {
+                                return;
+                            }
+                            cell.store(Some(Arc::clone(&playback)));
+                            parked = true;
                         }
                         process_input_f32(&routed.runtime, 0, &silence, 1);
                         process_output_f32(
