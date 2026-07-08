@@ -55,6 +55,9 @@ pub(crate) struct BlockEditorWindowParamsCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub vst3_sample_rate: f64,
+    /// This window's block instance key — the native VST3 editor opens the
+    /// engine instance registered under it, not by model (#780).
+    pub block_id: domain::ids::BlockId,
     pub auto_save: bool,
 }
 
@@ -79,6 +82,7 @@ pub(crate) fn wire(
         output_chain_devices,
         vst3_editor_handles,
         vst3_sample_rate,
+        block_id,
         auto_save,
     } = ctx;
 
@@ -434,12 +438,16 @@ pub(crate) fn wire(
     {
         let vst3_handles = vst3_editor_handles.clone();
         let vst3_sr = vst3_sample_rate;
-        win.on_open_vst3_editor(move |model_id| {
-            let res = vst3_handles.borrow_mut().open_or_focus(model_id.as_str(), || {
-                project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
+        // The editor addresses this window's block instance, not the model — two
+        // blocks of the same plugin open their own instance (#780). The Slint
+        // `model-id` argument is ignored in favour of the block key.
+        let instance_key = block_id.0.clone();
+        win.on_open_vst3_editor(move |_model_id| {
+            let res = vst3_handles.borrow_mut().open_or_focus(&instance_key, || {
+                project::vst3_editor::open_vst3_editor(&instance_key, vst3_sr)
             });
             if let Err(e) = res {
-                log::error!("VST3 editor: failed '{}': {}", model_id, e);
+                log::error!("VST3 editor: failed '{}': {}", instance_key, e);
             }
         });
     }

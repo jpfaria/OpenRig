@@ -80,10 +80,19 @@ pub fn drain_deferred_vst3_teardowns() {
 /// standalone instance is intentionally NOT allowed: for plugins like
 /// ValhallaSupermassive it corrupts the plugin module and breaks the engine's
 /// audio instance (#251).
-/// Whether the engine has already built this plugin (a `Vst3GuiContext` is
-/// registered), i.e. its editor can be opened by reusing that instance.
-pub fn has_engine_context(model_id: &str) -> bool {
-    vst3_host::lookup_vst3_gui_context(model_id).is_some()
+/// Whether the engine has already built this block's plugin (a `Vst3GuiContext`
+/// is registered under its instance key), i.e. its editor can be opened by
+/// reusing that instance. Keyed per block, not per model (#780).
+pub fn has_engine_context(instance_key: &str) -> bool {
+    vst3_host::lookup_vst3_gui_context(instance_key).is_some()
+}
+
+/// The plugin `model_id` of the block instance registered under `instance_key`,
+/// or `None` if no context is registered. The open path uses this to resolve
+/// the catalog entry (display name) from the block's own live instance instead
+/// of being handed the model id (#780).
+pub fn editor_model_for(instance_key: &str) -> Option<String> {
+    vst3_host::lookup_vst3_gui_context(instance_key).map(|ctx| ctx.model_id)
 }
 
 pub fn require_engine_context(has_engine_context: bool) -> Result<()> {
@@ -96,7 +105,8 @@ pub fn require_engine_context(has_engine_context: bool) -> Result<()> {
     Ok(())
 }
 
-/// Open the native editor window for the VST3 plugin identified by `model_id`.
+/// Open the native editor window for the VST3 block registered under
+/// `instance_key` (its `BlockId`, #780).
 ///
 /// The editor ALWAYS reuses the plugin instance the audio engine built (its
 /// registered `Vst3GuiContext`). It never loads a second, standalone instance:
@@ -104,19 +114,31 @@ pub fn require_engine_context(has_engine_context: bool) -> Result<()> {
 /// ValhallaSupermassive and breaks the engine's audio instance (#251). If the
 /// engine has not built the plugin yet, opening is refused with a clear reason.
 ///
+/// The plugin model — needed only to resolve the catalog display name — is
+/// recovered from the block's own context, so two blocks of the same plugin
+/// address their own instance.
+///
 /// `sample_rate` is unused now that standalone loading is gone; kept for the
 /// call-site signature (the engine owns the instance's sample rate).
 ///
 /// Must be called on the main/UI thread (macOS AppKit requirement).
-pub fn open_vst3_editor(model_id: &str, _sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
-    let entry = vst3_host::find_vst3_plugin(model_id)
-        .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
-
-    let gui_context = vst3_host::lookup_vst3_gui_context(model_id);
+pub fn open_vst3_editor(
+    instance_key: &str,
+    _sample_rate: f64,
+) -> Result<Box<dyn PluginEditorHandle>> {
+    let gui_context = vst3_host::lookup_vst3_gui_context(instance_key);
     require_engine_context(gui_context.is_some())?;
     let gui_context = gui_context.expect("engine context present after require_engine_context");
 
-    log::debug!("VST3 editor: reusing engine controller for '{}'", model_id);
+    let entry = vst3_host::find_vst3_plugin(&gui_context.model_id).ok_or_else(|| {
+        anyhow::anyhow!("VST3 plugin '{}' not found in catalog", gui_context.model_id)
+    })?;
+
+    log::debug!(
+        "VST3 editor: reusing engine controller for instance '{}' (model '{}')",
+        instance_key,
+        gui_context.model_id
+    );
     let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
     Ok(Box::new(handle))
 }

@@ -278,6 +278,7 @@ pub(crate) fn create_and_wire(
             output_chain_devices: output_chain_devices.clone(),
             vst3_editor_handles,
             vst3_sample_rate,
+            block_id: block_id.clone(),
             auto_save,
         },
     );
