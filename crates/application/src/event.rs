@@ -355,7 +355,6 @@ pub enum Event {
     },
 
     // ── I/O binding registry (#716) ───────────────────────────────────────────
-
     /// #716: the per-machine I/O binding registry in `config.yaml` was
     /// mutated (create, update, or delete). MCP/gRPC adapters that cache
     /// the registry invalidate their cache on receipt.

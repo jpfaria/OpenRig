@@ -145,10 +145,7 @@ fn all_three_io_binding_variants_round_trip_via_command_schema() {
     // a clear listing of which variants are absent.
     let names = command_variant_names();
     let required = ["CreateIoBinding", "UpdateIoBinding", "DeleteIoBinding"];
-    let missing: Vec<_> = required
-        .iter()
-        .filter(|&&r| !names.contains(&r))
-        .collect();
+    let missing: Vec<_> = required.iter().filter(|&&r| !names.contains(&r)).collect();
     assert!(
         missing.is_empty(),
         "command_variant_names() is missing io-binding variants: {missing:?}\n\

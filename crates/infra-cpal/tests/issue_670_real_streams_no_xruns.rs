@@ -13,9 +13,7 @@
 mod hw_harness;
 
 use domain::ids::{BlockId, ChainId};
-use hw_harness::{
-    device_guard, hw_tests_enabled, init_registry, load_di, rig_project, BUFFER,
-};
+use hw_harness::{device_guard, hw_tests_enabled, init_registry, load_di, rig_project, BUFFER};
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
@@ -45,7 +43,9 @@ fn real_streams_beat_it_di_loop_no_xruns() {
     // Model A (#716): install the per-machine binding registry, then re-sync so
     // the streams resolve to the real devices.
     controller.set_io_bindings(registry);
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
     let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di));
 
@@ -98,7 +98,9 @@ fn rebuild_while_playing_keeps_the_cushion() {
         rig_project("barao_vermelho_bete_balanco.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry);
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
     let di = load_di(
         "phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav",
         controller.sample_rate(),
@@ -208,7 +210,9 @@ fn adding_a_cab_live_does_not_spiral() {
     }
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry);
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
     let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 

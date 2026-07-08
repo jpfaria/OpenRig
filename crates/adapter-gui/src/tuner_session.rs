@@ -10,9 +10,9 @@
 
 use std::sync::Arc;
 
+use domain::io_binding::IoBinding;
 use engine::spsc::SpscRing;
 use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE};
-use domain::io_binding::IoBinding;
 use infra_cpal::ProjectRuntimeController;
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
@@ -80,8 +80,7 @@ fn project_input_fingerprint(project: &Project, registry: &[IoBinding]) -> Strin
         s.push('@');
         // #716: device endpoints resolve from the binding registry, not from
         // block `entries`.
-        let (resolved_inputs, _) =
-            engine::runtime_endpoints::resolve_chain_io(chain, registry);
+        let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
         for (input_index, entry) in resolved_inputs.iter().enumerate() {
             s.push_str(&format!("[{}/{}/", input_index, entry.device_id.0));
             for ch in &entry.channels {
@@ -123,8 +122,7 @@ impl TunerSession {
             // #716: the chain's input endpoints resolve from the binding
             // registry, not from block `entries`. The enumeration index is the
             // engine's per-input runtime index (`subscribe_input_tap`).
-            let (resolved_inputs, _) =
-                engine::runtime_endpoints::resolve_chain_io(chain, registry);
+            let (resolved_inputs, _) = engine::runtime_endpoints::resolve_chain_io(chain, registry);
 
             let sample_rate = resolved_inputs
                 .first()

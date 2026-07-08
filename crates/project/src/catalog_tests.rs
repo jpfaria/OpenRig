@@ -333,7 +333,6 @@ fn model_stream_kind_non_utility_returns_empty() {
     assert_eq!(super::model_stream_kind("preamp", "american_clean"), "");
 }
 
-
 // --- model_knob_layout tests ---
 
 #[test]

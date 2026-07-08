@@ -113,8 +113,7 @@ fn issue_581_save_audio_settings_persists_into_config_yaml() {
         // `config.yaml` from disk fresh — this is what
         // `load_project_session` does in `adapter-gui/src/project_ops.rs`
         // before populating `project.device_settings`.
-        let config =
-            FilesystemStorage::load_app_config().expect("load_app_config from fresh HOME");
+        let config = FilesystemStorage::load_app_config().expect("load_app_config from fresh HOME");
 
         // The picked device must round-trip into the durable config so
         // `project_ops::build_device_settings_from_gui` can rebuild it

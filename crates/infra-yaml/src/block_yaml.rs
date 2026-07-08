@@ -288,11 +288,7 @@ impl AudioBlockYaml {
                     endpoint,
                 }),
             }),
-            AudioBlockYaml::Insert {
-                enabled,
-                model,
-                io,
-            } => Ok(AudioBlock {
+            AudioBlockYaml::Insert { enabled, model, io } => Ok(AudioBlock {
                 id: generated_id,
                 enabled,
                 kind: AudioBlockKind::Insert(InsertBlock { model, io }),

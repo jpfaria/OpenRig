@@ -109,7 +109,11 @@ fn midi_flag_absent_is_none() {
 #[test]
 fn resolve_mcp_cli_present_wins_over_config() {
     let cli = Some("0.0.0.0:9000".parse().unwrap());
-    assert_eq!(resolve_mcp_addr(cli, false), cli, "CLI addr overrides config");
+    assert_eq!(
+        resolve_mcp_addr(cli, false),
+        cli,
+        "CLI addr overrides config"
+    );
 }
 
 #[test]

@@ -195,3 +195,36 @@ fn t20_catalog_vst3_surfaces_in_the_vst3_model_list() {
         "the catalog ChowCentaur must appear in the VST3 block model list"
     );
 }
+
+#[test]
+fn t22_catalog_vst3_appears_exactly_once_not_duplicated_by_the_manifest() {
+    // #776 added `BlockType::Vst3` so the `type: vst3` manifest parses. The block
+    // itself comes from DISCOVERY (vst3:<stem>:<class>), so the plugin-loader
+    // package (id `vst3_chow_centaur`) must NOT also surface — the block must
+    // appear exactly once. This loads BOTH the registry (parsing the manifest)
+    // and the discovery catalog, like the app.
+    if chow_model_id().is_none() {
+        return; // discovery init'd inside chow_model_id()
+    }
+    let vst3_dir = std::env::var_os("OPENRIG_TEST_VST3_DIR")
+        .map(PathBuf::from)
+        .unwrap();
+    // `<plugins_root>/vst3/<id>/manifest.yaml` — the root is the parent of vst3/.
+    let plugins_root = vst3_dir.parent().unwrap().to_path_buf();
+    plugin_loader::registry::reload(&[plugins_root]);
+
+    let models = project::catalog::supported_block_models(block_core::EFFECT_TYPE_VST3)
+        .expect("vst3 model list");
+    let chow = models
+        .iter()
+        .filter(|m| m.display_name == "ChowCentaur")
+        .count();
+    assert_eq!(
+        chow, 1,
+        "ChowCentaur must appear exactly once in the vst3 block list, got {chow}"
+    );
+    assert!(
+        !models.iter().any(|m| m.model_id == "vst3_chow_centaur"),
+        "the manifest package id must not surface as a vst3 block (discovery owns it)"
+    );
+}

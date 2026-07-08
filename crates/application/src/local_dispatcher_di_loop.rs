@@ -44,8 +44,8 @@ impl LocalDispatcher {
                 // Cheap sync validation (one stat): a missing file still
                 // errors immediately — MCP/GUI callers keep the Err
                 // contract. Only the decode is deferred.
-                let path = crate::di_loader::resolve_path(&source)
-                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                let path =
+                    crate::di_loader::resolve_path(&source).map_err(|e| anyhow::anyhow!("{e}"))?;
                 if !path.exists() {
                     return Err(anyhow::anyhow!("DI loop file not found: {path:?}"));
                 }

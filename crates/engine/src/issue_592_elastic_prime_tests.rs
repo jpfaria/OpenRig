@@ -84,8 +84,8 @@ fn chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
 }
 
 fn first_output_buffer_len(chain: &Chain, buffer: usize) -> usize {
-    let rt = build_chain_runtime_state(chain, SR, &[buffer], &registry())
-        .expect("chain runtime builds");
+    let rt =
+        build_chain_runtime_state(chain, SR, &[buffer], &registry()).expect("chain runtime builds");
     rt.output_routes.load()[0].buffer.len()
 }
 

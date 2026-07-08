@@ -48,9 +48,9 @@ pub(crate) fn wire(
             };
             chain.id.clone()
         }; // session_borrow + proj dropped here
-        // Synchronous native file dialog — acceptable in this module
-        // (see module doc). Blocks the Slint event loop until the OS
-        // dialog closes, same as pick_block_parameter_file.
+           // Synchronous native file dialog — acceptable in this module
+           // (see module doc). Blocks the Slint event loop until the OS
+           // dialog closes, same as pick_block_parameter_file.
         let Some(path) = FileDialog::new()
             .add_filter("WAV audio", &["wav"])
             .pick_file()

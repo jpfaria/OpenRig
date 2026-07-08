@@ -49,9 +49,7 @@ pub fn load_di_loop(source: &DiLoopSource) -> Result<Arc<DiPcm>, String> {
     let wav = read_wav(&path).map_err(|e| format!("DI loop read error for {path:?}: {e}"))?;
 
     if wav.samples.is_empty() {
-        return Err(format!(
-            "DI loop file {path:?} contains no samples"
-        ));
+        return Err(format!("DI loop file {path:?} contains no samples"));
     }
 
     Ok(Arc::new(DiPcm::new(
@@ -67,11 +65,12 @@ pub(crate) fn resolve_path(source: &DiLoopSource) -> Result<PathBuf, String> {
         DiLoopSource::File(p) => Ok(p.clone()),
         DiLoopSource::Bundled(id) => {
             let root = infra_filesystem::detect_data_root();
-            let path = root.join("assets").join("di-loops").join(format!("{id}.wav"));
+            let path = root
+                .join("assets")
+                .join("di-loops")
+                .join(format!("{id}.wav"));
             if !path.exists() {
-                return Err(format!(
-                    "bundled DI loop '{id}' not found at {path:?}"
-                ));
+                return Err(format!("bundled DI loop '{id}' not found at {path:?}"));
             }
             Ok(path)
         }
