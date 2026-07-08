@@ -62,6 +62,33 @@ impl Drop for Vst3EditorHandle {
     }
 }
 
+/// #780: register the host `IComponentHandler` on `controller` and THEN create
+/// the editor view. The ordering is load-bearing: the plugin's editor captures
+/// the controller's handler when the view is created, so a handler set *after*
+/// `createView` is ignored — `performEdit` from the native GUI then targets a
+/// null handler and knob moves never reach the audio processor (silent edits,
+/// no dirty flag). Returns the raw view pointer (may be null) and the handler
+/// wrapper to keep alive. Extracted so the order is covered by a headless test.
+#[cfg(target_os = "macos")]
+pub(crate) fn register_handler_then_create_view(
+    controller: &ComPtr<vst3::Steinberg::Vst::IEditController>,
+    param_channel: crate::param_channel::Vst3ParamChannel,
+) -> (
+    *mut vst3::Steinberg::IPlugView,
+    vst3::ComWrapper<ComponentHandler>,
+) {
+    use vst3::Steinberg::Vst::IComponentHandler;
+    let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
+    unsafe {
+        if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+            let _ = controller.setComponentHandler(com_ref.as_ptr());
+            log::debug!("VST3 editor: IComponentHandler registered (pre-createView)");
+        }
+    }
+    let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
+    (view_ptr, wrapper)
+}
+
 /// Open the native editor window for the VST3 plugin, reusing the existing
 /// `IEditController` from the audio processor.
 ///
@@ -81,29 +108,14 @@ pub fn open_vst3_editor_window(
         let library = gui_context.library;
         let param_channel = gui_context.param_channel;
 
-        // #780: register the host IComponentHandler BEFORE creating the view.
-        // The plugin's editor captures the controller's handler when the view
-        // is created; if it is set afterwards, `performEdit` from the native GUI
-        // targets a null handler, so knob moves never reach the audio processor
-        // (silent edits) nor mark the project dirty. VST3 hosts must set the
-        // handler before `createView`.
-        let component_handler = {
-            let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
-            unsafe {
-                use vst3::Steinberg::Vst::IComponentHandler;
-                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
-                    let _ = controller.setComponentHandler(com_ref.as_ptr());
-                    log::debug!("VST3 editor: IComponentHandler registered (pre-createView)");
-                }
-            }
-            Some(wrapper)
-        };
-
-        // Now create the view — it picks up the handler registered above.
-        let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
+        // #780: register the handler THEN create the view (order is load-bearing;
+        // see `register_handler_then_create_view`). Covered by a headless test.
+        let (view_ptr, component_handler) =
+            register_handler_then_create_view(&controller, param_channel);
         if view_ptr.is_null() {
             bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
         }
+        let component_handler = Some(component_handler);
         let view: ComPtr<vst3::Steinberg::IPlugView> =
             unsafe { ComPtr::from_raw_unchecked(view_ptr) };
 

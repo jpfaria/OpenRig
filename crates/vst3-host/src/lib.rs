@@ -25,6 +25,8 @@ pub mod catalog;
 pub mod component_handler;
 pub mod discovery;
 pub mod editor;
+#[cfg(all(test, target_os = "macos"))]
+mod editor_order_tests;
 mod host;
 pub mod host_application;
 mod host_factory;
