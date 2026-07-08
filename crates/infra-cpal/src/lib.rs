@@ -75,8 +75,6 @@ mod controller_block_toggle;
 mod controller_taps;
 mod device_enum;
 mod di_playback;
-#[doc(hidden)]
-pub use di_playback::{MIX_POPPED, MIX_WANTED};
 mod di_stream;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_enum::jack_is_running;
