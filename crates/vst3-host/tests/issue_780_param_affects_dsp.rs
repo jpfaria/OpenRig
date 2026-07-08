@@ -55,7 +55,8 @@ fn some_parameter_audibly_changes_the_output() {
     // For each parameter, drive a fresh instance to min then max and compare the
     // output RMS. At least one non-bypass param MUST change the sound — if none
     // does, plugin-level param application is broken (the user's symptom).
-    let probe = vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
+    let probe =
+        vst3_host::Vst3Plugin::load(&entry.info.bundle_path, &uid, SR, 2, 512, &[]).unwrap();
     let ids: Vec<u32> = (0..probe.param_count())
         .filter_map(|i| probe.param_info(i).ok())
         .filter(|pi| !pi.title.to_lowercase().contains("bypass"))

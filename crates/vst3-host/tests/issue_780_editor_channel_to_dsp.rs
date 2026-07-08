@@ -69,7 +69,8 @@ fn process_via_channel(
     edit: Option<(u32, f64)>,
 ) -> f32 {
     let key = format!("io:{:?}", edit.map(|e| e.0)); // unique key per instance
-    let plugin = vst3_host::Vst3Plugin::load(&entry.info.bundle_path, uid, SR, 2, 512, &[]).unwrap();
+    let plugin =
+        vst3_host::Vst3Plugin::load(&entry.info.bundle_path, uid, SR, 2, 512, &[]).unwrap();
     let controller = plugin.controller_clone();
     let channel = vst3_host::register_vst3_gui_context(
         &key,
