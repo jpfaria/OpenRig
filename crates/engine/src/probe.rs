@@ -47,11 +47,11 @@ pub fn measure_chain_dsp_latency_ms(chain: &Chain, sample_rate: f32, buffer_fram
     if buffer_frames == 0 {
         return 0.0;
     }
-    let runtime = match build_chain_runtime_state(chain, sample_rate, &[DEFAULT_ELASTIC_TARGET], &[])
-    {
-        Ok(rt) => Arc::new(rt),
-        Err(_) => return 0.0,
-    };
+    let runtime =
+        match build_chain_runtime_state(chain, sample_rate, &[DEFAULT_ELASTIC_TARGET], &[]) {
+            Ok(rt) => Arc::new(rt),
+            Err(_) => return 0.0,
+        };
 
     let mut data = vec![0.0_f32; buffer_frames * PROBE_BUFFER_CHANNELS];
     let beep_frames = PROBE_BEEP_FRAMES.min(buffer_frames);

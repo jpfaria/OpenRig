@@ -7,9 +7,7 @@ use super::{
     load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
 };
 use domain::ids::{BlockId, ChainId, DeviceId};
-use project::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock, SelectBlock,
-};
+use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock, SelectBlock};
 use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;

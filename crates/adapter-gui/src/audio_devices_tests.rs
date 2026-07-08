@@ -15,7 +15,13 @@ use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use infra_filesystem::GuiAudioDeviceSettings;
 
-fn gui_dev(id: &str, name: &str, sample_rate: u32, buffer: u32, depth: u32) -> GuiAudioDeviceSettings {
+fn gui_dev(
+    id: &str,
+    name: &str,
+    sample_rate: u32,
+    buffer: u32,
+    depth: u32,
+) -> GuiAudioDeviceSettings {
     GuiAudioDeviceSettings {
         device_id: id.into(),
         name: name.into(),
@@ -55,11 +61,13 @@ fn boot_preselects_devices_persisted_in_global_config() {
     let rows = build_project_device_rows(&live_inputs, &live_outputs, &device_settings);
 
     assert!(
-        rows.iter().any(|r| r.device_id.as_str() == "mic" && r.selected),
+        rows.iter()
+            .any(|r| r.device_id.as_str() == "mic" && r.selected),
         "input device persisted in global config must stay selected on reopen"
     );
     assert!(
-        rows.iter().any(|r| r.device_id.as_str() == "speaker" && r.selected),
+        rows.iter()
+            .any(|r| r.device_id.as_str() == "speaker" && r.selected),
         "output device persisted in global config must stay selected on reopen"
     );
 }

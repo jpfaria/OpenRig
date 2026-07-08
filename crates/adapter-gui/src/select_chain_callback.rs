@@ -33,7 +33,11 @@ pub(crate) fn wire(
         };
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
-            set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
+            set_status_error(
+                &window,
+                &toast_timer,
+                &rust_i18n::t!("error-no-project-loaded"),
+            );
             return;
         };
         let chain_id = {

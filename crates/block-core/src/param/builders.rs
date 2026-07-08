@@ -60,7 +60,6 @@ pub fn bool_parameter(
 pub fn file_path_parameter(
     path: &str,
     label: &str,
-    group: Option<&str>,
     default_value: Option<ParameterValue>,
     extensions: &[&str],
     optional: bool,
@@ -68,7 +67,9 @@ pub fn file_path_parameter(
     ParameterSpec {
         path: path.to_string(),
         label: label.to_string(),
-        group: group.map(ToString::to_string),
+        // File pickers are never UI-grouped; add a `group` back here if that
+        // ever changes rather than threading an always-`None` argument.
+        group: None,
         widget: ParameterWidget::FilePicker,
         unit: ParameterUnit::None,
         domain: ParameterDomain::FilePath {

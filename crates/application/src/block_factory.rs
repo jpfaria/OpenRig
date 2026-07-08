@@ -237,5 +237,6 @@ fn block_type_to_effect_type(block_type: plugin_loader::manifest::BlockType) -> 
         BlockType::Wah => EFFECT_TYPE_WAH,
         BlockType::Pitch => EFFECT_TYPE_PITCH,
         BlockType::Util => EFFECT_TYPE_UTILITY,
+        BlockType::Vst3 => EFFECT_TYPE_VST3,
     }
 }

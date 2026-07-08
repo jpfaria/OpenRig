@@ -103,10 +103,7 @@ fn two_bindings_at_44k_and_48k_activate_both_streams_no_xruns() {
 
     // The same chain, two bindings, two rates. Model A (#716): the device
     // endpoints live in the binding registry, not in block entries.
-    let registry = vec![
-        binding("io-a", in_a, out_a),
-        binding("io-b", in_b, out_b),
-    ];
+    let registry = vec![binding("io-a", in_a, out_a), binding("io-b", in_b, out_b)];
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")
         .join("beat_it_michael_jackson_rhythm.yaml");

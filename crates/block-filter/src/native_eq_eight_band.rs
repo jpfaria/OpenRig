@@ -6,7 +6,7 @@ use block_core::param::{
     required_f32, required_string, CurveEditorRole, ModelParameterSchema, ParameterSet,
     ParameterUnit,
 };
-use block_core::{db_to_lin, BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor};
+use block_core::{db_to_lin, BiquadDesign, BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "eq_eight_band_parametric";
 pub const DISPLAY_NAME: &str = "8-Band Parametric EQ";
@@ -209,7 +209,13 @@ impl MonoProcessor for EightBandParametricEq {
             let Ok(kind) = parse_band_kind(&band_type) else {
                 return false;
             };
-            self.filters[i].update_coefficients(kind, freq, gain, q, sample_rate);
+            self.filters[i].update_coefficients(BiquadDesign {
+                kind,
+                freq_hz: freq,
+                gain_db: gain,
+                q,
+                sample_rate,
+            });
             self.enabled[i] = en;
         }
         let Ok(output_db) = required_f32(params, "output_db") else {

@@ -109,8 +109,16 @@ fn issue_607_all_three_overrides_survive_whole_config_resave() {
         FilesystemStorage::save_app_config(&in_memory).expect("whole-config re-save");
 
         let reloaded = FilesystemStorage::load_app_config().expect("reload");
-        assert_eq!(reloaded.paths.presets_path, Some(presets), "presets clobbered");
-        assert_eq!(reloaded.paths.plugins_path, Some(plugins), "plugins clobbered");
+        assert_eq!(
+            reloaded.paths.presets_path,
+            Some(presets),
+            "presets clobbered"
+        );
+        assert_eq!(
+            reloaded.paths.plugins_path,
+            Some(plugins),
+            "plugins clobbered"
+        );
         assert_eq!(
             reloaded.paths.evaluations_path,
             Some(evals),

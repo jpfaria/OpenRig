@@ -148,7 +148,7 @@ pub fn run_desktop_app(
     // catalog, so by the time `packages()` is read everything lives in
     // one place.
     engine::native_registry::register_all_natives();
-    plugin_loader::registry::init_many(&[bundled_root, user_root]);
+    plugin_loader::registry::init_many(&[bundled_root.clone(), user_root.clone()]);
     log::info!(
         "plugin catalog ready: {} plugin(s) loaded ({} native, {} disk package(s))",
         plugin_loader::registry::len(),
@@ -167,7 +167,7 @@ pub fn run_desktop_app(
         .map(|d| d.sample_rate)
         .unwrap_or(48_000) as f64;
     std::thread::spawn(move || {
-        project::vst3_editor::init_vst3_catalog(vst3_sample_rate);
+        project::vst3_editor::init_vst3_catalog(vst3_sample_rate, &[bundled_root, user_root]);
     });
     let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
@@ -778,11 +778,7 @@ pub fn run_desktop_app(
     );
     // #614: DI loop file picker — separate module because chain_row_wiring
     // is forbidden from using rfd:: (issue #511).
-    crate::di_loop_chooser_wiring::wire(
-        &window,
-        project_session.clone(),
-        toast_timer.clone(),
-    );
+    crate::di_loop_chooser_wiring::wire(&window, project_session.clone(), toast_timer.clone());
     crate::chain_rig_nav_wiring::wire(
         &window,
         crate::chain_rig_nav_wiring::ChainRigNavCtx {

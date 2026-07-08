@@ -240,7 +240,10 @@ fn load_chain_preset_rejects_instrument_mismatch() {
     );
     // Chain must be unchanged
     let blocks_after = project.borrow().chains[0].blocks.len();
-    assert_eq!(blocks_after, 1, "chain must not be mutated on mismatch reject");
+    assert_eq!(
+        blocks_after, 1,
+        "chain must not be mutated on mismatch reject"
+    );
 }
 
 /// #627: loading a preset with matching instrument succeeds.

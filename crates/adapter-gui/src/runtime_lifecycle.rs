@@ -221,7 +221,16 @@ pub(crate) fn sync_block_toggle(
     let fast_path = {
         let borrow = project_runtime.borrow();
         match borrow.as_ref() {
-            Some(runtime) => runtime.set_block_enabled(chain_id, block_id, enabled),
+            // #522 fast toggle + re-render the monitored DI (issue #717/#771): the
+            // fast path only flips the guitar runtime, so a block disabled while
+            // monitoring the DI would keep sounding without the re-arm.
+            Some(runtime) => {
+                let project = session.project.borrow();
+                match project.chains.iter().find(|c| &c.id == chain_id) {
+                    Some(chain) => runtime.toggle_block_enabled_live(chain, block_id, enabled),
+                    None => runtime.set_block_enabled(chain_id, block_id, enabled),
+                }
+            }
             None => Err(anyhow::anyhow!("runtime not started")),
         }
     };

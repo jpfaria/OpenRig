@@ -103,7 +103,11 @@ fn downsample_48k_to_44k1_length_matches_ratio() {
     let samples: Vec<f32> = (0..1000).map(|i| (i as f32 * 0.001).fract()).collect();
     let di = DiLoop::from_samples(&samples, 48_000, 1, 44_100, 0);
     let expected = (1000.0_f64 * 44_100.0 / 48_000.0).round() as usize; // 919
-    assert_eq!(di.len(), expected, "downsampled length must scale by 44100/48000");
+    assert_eq!(
+        di.len(),
+        expected,
+        "downsampled length must scale by 44100/48000"
+    );
 }
 
 #[test]
@@ -114,7 +118,9 @@ fn identity_rate_preserves_every_sample() {
     assert_eq!(di.len(), samples.len());
     for (i, &expected) in samples.iter().enumerate() {
         match di.frame_at(i) {
-            DiFrame::Mono(v) => assert!((v - expected).abs() < 1e-6, "frame {i}: {v} != {expected}"),
+            DiFrame::Mono(v) => {
+                assert!((v - expected).abs() < 1e-6, "frame {i}: {v} != {expected}")
+            }
             _ => unreachable!(),
         }
     }

@@ -45,14 +45,12 @@ pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
             "model_path",
             "Model",
             None,
-            None,
             &["nam"],
             false,
         ));
         parameters.push(file_path_parameter(
             "ir_path",
             "Impulse Response",
-            None,
             Some(ParameterValue::Null),
             &["wav"],
             true,

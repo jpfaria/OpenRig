@@ -38,7 +38,7 @@ fn sine_input(frames: usize) -> Vec<[f32; 2]> {
 
 #[test]
 fn vst3_reverb_processes_audio_in_render_chain() {
-    vst3_host::init_vst3_catalog(SR as f64);
+    vst3_host::init_vst3_catalog(SR as f64, &[]);
     if vst3_host::find_vst3_plugin(MODEL_ID).is_none() {
         eprintln!("ValhallaSupermassive not installed — skipping VST3-in-chain repro");
         return;

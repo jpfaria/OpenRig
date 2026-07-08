@@ -5,8 +5,8 @@
 //! correct dependency boundary for the adapter layer.
 
 use anyhow::Result;
-use std::collections::HashMap;
 pub use block_core::PluginEditorHandle;
+use std::collections::HashMap;
 
 /// Tracks the open native editor windows, keyed by `model_id`.
 ///
@@ -48,11 +48,29 @@ impl Vst3EditorRegistry {
     }
 }
 
-/// Initialise the VST3 plugin catalog by scanning standard system paths.
+/// Initialise the VST3 plugin catalog by scanning standard system paths plus
+/// the `vst3/` sub-directory of each configured plugin root (issue #776), so a
+/// catalog VST3 shipped in the OpenRig plugins folder is discovered exactly
+/// like a system-installed one.
 ///
 /// Safe to call from a background thread. Subsequent calls are no-ops.
-pub fn init_vst3_catalog(sample_rate: f64) {
-    vst3_host::init_vst3_catalog(sample_rate);
+pub fn init_vst3_catalog(sample_rate: f64, plugin_roots: &[std::path::PathBuf]) {
+    let extra_dirs: Vec<std::path::PathBuf> =
+        plugin_roots.iter().map(|root| root.join("vst3")).collect();
+    vst3_host::init_vst3_catalog(sample_rate, &extra_dirs);
+}
+
+/// Record the UI thread as the main/AppKit thread (issue #778). Call once on the
+/// UI thread at startup so VST3 teardown that lands on the control worker is
+/// marshaled back here instead of crashing off the main thread.
+pub fn mark_main_thread() {
+    vst3_host::mark_main_thread();
+}
+
+/// Run any VST3 plugin teardown deferred from a non-main thread (issue #778).
+/// Call on the frontend tick, on the main thread.
+pub fn drain_deferred_vst3_teardowns() {
+    vst3_host::drain_main_thread_deferred();
 }
 
 /// The native editor may only open by reusing the engine's plugin instance.
@@ -139,7 +157,15 @@ mod tests {
 
         // The second open must NOT build a new instance — it re-focuses the
         // existing one (a new createInstance would fail with result=-1).
-        assert_eq!(opens.load(Ordering::SeqCst), 1, "instance created exactly once");
-        assert_eq!(focuses.load(Ordering::SeqCst), 1, "existing editor re-focused");
+        assert_eq!(
+            opens.load(Ordering::SeqCst),
+            1,
+            "instance created exactly once"
+        );
+        assert_eq!(
+            focuses.load(Ordering::SeqCst),
+            1,
+            "existing editor re-focused"
+        );
     }
 }

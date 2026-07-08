@@ -15,7 +15,8 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 fn click_id(w: &impl ComponentHandle, id: &str, nth: usize) -> bool {
-    let Some(el) = i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).nth(nth) else {
+    let Some(el) = i_slint_backend_testing::ElementHandle::find_by_element_id(w, id).nth(nth)
+    else {
         return false;
     };
     let pos = el.absolute_position();
@@ -73,7 +74,10 @@ fn di_panel_full_flow_select_expands_pick_collapses_play_fires() {
     );
 
     // 2. Click the select → options expand.
-    assert!(click_id(&w, "DiLoopPanel::sel-ta", 0), "select field must be hittable");
+    assert!(
+        click_id(&w, "DiLoopPanel::sel-ta", 0),
+        "select field must be hittable"
+    );
     assert!(
         count_id(&w, "DiLoopPanel::row-ta") >= 3,
         "clicking the select must expand the options (got {})",
@@ -81,7 +85,10 @@ fn di_panel_full_flow_select_expands_pick_collapses_play_fires() {
     );
 
     // 3. Pick the 2nd option → it fires AND the options collapse.
-    assert!(click_id(&w, "DiLoopPanel::row-ta", 1), "an option row must be hittable");
+    assert!(
+        click_id(&w, "DiLoopPanel::row-ta", 1),
+        "an option row must be hittable"
+    );
     assert_eq!(
         picked.borrow().clone(),
         Some((1, "fabiano-antunes-strato-clean".to_string())),
@@ -95,6 +102,9 @@ fn di_panel_full_flow_select_expands_pick_collapses_play_fires() {
 
     // 4. With a source selected, the play button shows and fires.
     w.set_selected_index(1);
-    assert!(click_id(&w, "DiLoopPanel::play-ta", 0), "play must be hittable once selected");
+    assert!(
+        click_id(&w, "DiLoopPanel::play-ta", 0),
+        "play must be hittable once selected"
+    );
     assert!(played.get(), "clicking play must fire the play callback");
 }

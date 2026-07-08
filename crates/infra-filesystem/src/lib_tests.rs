@@ -234,8 +234,14 @@ fn app_config_midi_mcp_master_switch_default_false() {
     // A fresh / legacy config (no keys) must default both subsystems OFF
     // — the packaged app stays quiet until the user opts in.
     let config: AppConfig = serde_yaml::from_str("{}").unwrap();
-    assert!(!config.midi_enabled, "MIDI master switch must default to false");
-    assert!(!config.mcp_enabled, "MCP master switch must default to false");
+    assert!(
+        !config.midi_enabled,
+        "MIDI master switch must default to false"
+    );
+    assert!(
+        !config.mcp_enabled,
+        "MCP master switch must default to false"
+    );
 }
 
 #[test]

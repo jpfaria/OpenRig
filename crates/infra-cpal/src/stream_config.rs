@@ -33,7 +33,6 @@ use cpal::SupportedStreamConfigRange;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::{BufferSize, StreamConfig, SupportedStreamConfig};
 
-
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::ResolvedInputDevice;
 use crate::resolved::ResolvedOutputDevice;
@@ -299,11 +298,8 @@ mod unify_rate_tests {
     #[test]
     fn single_binding_matches_legacy_unify() {
         // One binding with all the chain's I/O → identical to whole-chain unify.
-        let rate = resolve_binding_sample_rates(
-            "c",
-            &[(vec![44_100, 44_100], vec![44_100])],
-        )
-        .unwrap();
+        let rate =
+            resolve_binding_sample_rates("c", &[(vec![44_100, 44_100], vec![44_100])]).unwrap();
         assert_eq!(rate, 44_100.0);
     }
 

@@ -49,10 +49,7 @@ fn schedules_a_multi_input_chain_off_thread() {
     let registry = vec![IoBinding {
         id: "io".into(),
         name: "IO".into(),
-        inputs: vec![
-            input_endpoint("inA", "devA"),
-            input_endpoint("inB", "devB"),
-        ],
+        inputs: vec![input_endpoint("inA", "devA"), input_endpoint("inB", "devB")],
         outputs: vec![IoEndpoint {
             name: "out0".into(),
             device_id: DeviceId("out".into()),

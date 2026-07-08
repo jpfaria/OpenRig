@@ -205,6 +205,7 @@ fn block_type_label(bt: &plugin_loader::manifest::BlockType) -> &'static str {
         Wah => "wah",
         Pitch => "pitch",
         Util => "util",
+        Vst3 => "vst3",
     }
 }
 

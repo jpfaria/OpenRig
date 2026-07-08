@@ -126,7 +126,10 @@ fn amplitude_cov(sig: &[f32]) -> f32 {
 fn early_fill(sig: &[f32], window_ms: f32) -> f32 {
     let w = (0.001 * SR) as usize;
     let end = ((window_ms / 1000.0) * SR) as usize;
-    let blocks: Vec<f32> = sig[..end.min(sig.len())].chunks(w.max(1)).map(rms).collect();
+    let blocks: Vec<f32> = sig[..end.min(sig.len())]
+        .chunks(w.max(1))
+        .map(rms)
+        .collect();
     let peak = blocks.iter().cloned().fold(0.0f32, f32::max);
     if peak <= 0.0 {
         return 0.0;
@@ -269,7 +272,10 @@ fn shimmer_adds_octave_up_content() {
 
 #[test]
 fn modulated_lush_tail_is_not_static() {
-    let lush = run_mono(&mut build_wet_mono("modulated_lush", &[]), &sine(440.0, at(3.0)));
+    let lush = run_mono(
+        &mut build_wet_mono("modulated_lush", &[]),
+        &sine(440.0, at(3.0)),
+    );
     let flat = run_mono(&mut build_wet_mono("fdn_jot", &[]), &sine(440.0, at(3.0)));
     let cov_lush = amplitude_cov(&lush[at(1.0)..]);
     let cov_flat = amplitude_cov(&flat[at(1.0)..]);
@@ -292,7 +298,10 @@ fn gated_tail_collapses_after_release() {
     let out = run_mono(&mut build_wet_mono("gated", &[]), &input);
     let during = rms(&out[at(0.15)..at(0.35)]);
     let after = rms(&out[at(1.2)..at(1.4)]);
-    assert!(during > 1e-4, "gated produced no in-gate signal to begin with");
+    assert!(
+        during > 1e-4,
+        "gated produced no in-gate signal to begin with"
+    );
     assert!(
         after < during * 0.05,
         "gated tail did not collapse: after={after:.5} vs during={during:.5}"

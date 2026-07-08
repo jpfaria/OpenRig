@@ -105,8 +105,7 @@ fn chain_io_chip_label_unbound() {
 fn compact_configure_io_routes_to_picker() {
     use std::path::PathBuf;
 
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
     let src =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 

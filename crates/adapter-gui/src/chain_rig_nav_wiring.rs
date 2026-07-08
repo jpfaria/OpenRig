@@ -215,7 +215,7 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         &session.project.borrow(),
         &ctx.input_chain_devices.borrow(),
         &ctx.output_chain_devices.borrow(),
-            &[]
+        &[],
     );
     refresh_chain_rig_nav(window, session);
     // #591: keep the on-screen chain/block markers in lock-step with the

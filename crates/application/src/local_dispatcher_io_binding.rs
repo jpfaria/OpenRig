@@ -213,7 +213,11 @@ impl LocalDispatcher {
             };
             let mut config = load_config_at(&path);
             if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
-                let existing = if is_input { b.inputs.len() } else { b.outputs.len() };
+                let existing = if is_input {
+                    b.inputs.len()
+                } else {
+                    b.outputs.len()
+                };
                 let endpoint = IoEndpoint {
                     name: next_endpoint_name(existing, is_input),
                     device_id: DeviceId(device_id),

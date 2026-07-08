@@ -284,7 +284,7 @@ impl Rotor {
         self.lfo.set_rate(self.rate_hz);
 
         // Band-limited LFO, bipolar [-1, 1].
-        let lfo_sin = self.lfo.next();
+        let lfo_sin = self.lfo.next_bipolar();
 
         // Write input.
         self.buffer[self.write_idx] = input;

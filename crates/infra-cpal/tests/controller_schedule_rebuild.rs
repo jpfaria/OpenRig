@@ -54,7 +54,8 @@ fn schedule_then_poll_publishes_a_new_runtime_offthread() {
     let chain = bound_chain(&chain_id.0);
     let registry = io_registry();
 
-    let initial = Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[1024], &registry).unwrap());
+    let initial =
+        Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[1024], &registry).unwrap());
     let mut chains = HashMap::new();
     chains.insert((chain_id.clone(), 0_usize), Arc::clone(&initial));
     let graph = RuntimeGraph { chains };
@@ -70,7 +71,12 @@ fn schedule_then_poll_publishes_a_new_runtime_offthread() {
     assert!(Arc::ptr_eq(&before, &initial));
 
     // Enqueue the rebuild — must return immediately (no build on this thread).
-    controller.schedule_chain_rebuild(&chain, 48_000.0, std::collections::HashMap::new(), vec![1024]);
+    controller.schedule_chain_rebuild(
+        &chain,
+        48_000.0,
+        std::collections::HashMap::new(),
+        vec![1024],
+    );
 
     // The frontend tick drains finished builds; spin the poll until applied.
     let mut applied = 0;

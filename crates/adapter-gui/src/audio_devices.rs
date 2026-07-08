@@ -43,15 +43,13 @@ pub(crate) fn check_bindings_after_refresh(
     bindings
         .iter()
         .map(|b| {
-            let unresolved = b.inputs.iter().any(|ep| {
-                !live_inputs
+            let unresolved = b
+                .inputs
+                .iter()
+                .any(|ep| !live_inputs.iter().any(|d| d.id == ep.device_id.0))
+                || b.outputs
                     .iter()
-                    .any(|d| d.id == ep.device_id.0)
-            }) || b.outputs.iter().any(|ep| {
-                !live_outputs
-                    .iter()
-                    .any(|d| d.id == ep.device_id.0)
-            });
+                    .any(|ep| !live_outputs.iter().any(|d| d.id == ep.device_id.0));
             BindingStatus {
                 binding: b.clone(),
                 unresolved,
