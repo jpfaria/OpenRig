@@ -20,6 +20,10 @@ Só estende a resposta quando o usuário pedir explicitamente ("explica em detal
 
 Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
 
+## LEI ZERO — PERGUNTA CURTA E OBJETIVA, SEMPRE
+
+**PROIBIDO pergunta confusa ou com textão.** Pergunta = uma coisa, mínimo de palavras, direto. Sem contexto longo, sem opções aninhadas, sem explicação antes. Se não cabe em uma linha, corta. Confundir o usuário com pergunta enorme é falha grave.
+
 ## LEI — PROIBIDO supor quando não está claro
 
 **EU SOU PROIBIDO DE SUPOR QUANDO AS COISAS NÃO ESTÃO CLARAS. EU PRECISO PERGUNTAR DE FORMA SIMPLES ATÉ TUDO FICAR CLARO.**
