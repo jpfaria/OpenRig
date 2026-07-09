@@ -12,6 +12,8 @@ use vst3::ComPtr;
 use vst3::Steinberg::kResultOk;
 use vst3::Steinberg::Vst::{IEditController, IEditControllerTrait, ParameterInfo};
 
+use crate::host::Vst3ParamInfo;
+use crate::host_utils::char16_array_to_string;
 use crate::param_channel::{vst3_param_channel, Vst3ParamChannel};
 
 /// Everything the GUI needs to open and drive the native editor window without
@@ -126,4 +128,39 @@ pub fn capture_vst3_params(instance_key: &str) -> Option<Vec<(u32, f64)>> {
         }
     }
     Some(out)
+}
+
+/// Read a controller's full parameter metadata (id, title, default, …).
+///
+/// Main-thread only (walks the COM controller under the registry lock).
+fn read_controller_params(controller: &ComPtr<IEditController>) -> Vec<Vst3ParamInfo> {
+    let count = unsafe { controller.getParameterCount() };
+    let mut out = Vec::with_capacity(count.max(0) as usize);
+    for i in 0..count {
+        let mut info: ParameterInfo = unsafe { std::mem::zeroed() };
+        if unsafe { controller.getParameterInfo(i, &mut info) } != kResultOk {
+            continue;
+        }
+        out.push(Vst3ParamInfo {
+            id: info.id,
+            title: char16_array_to_string(&info.title),
+            short_title: char16_array_to_string(&info.shortTitle),
+            units: char16_array_to_string(&info.units),
+            step_count: info.stepCount,
+            default_normalized: info.defaultNormalizedValue,
+        });
+    }
+    out
+}
+
+/// The parameter metadata of any LIVE instance of `model_id` (from the first
+/// registered context that matches), or `None` when no instance is loaded.
+///
+/// Reading from a live instance avoids loading a SECOND instance of a model
+/// whose first is streaming — that concurrent `createInstance` vs `process()`
+/// is the #779 crash. Used by the catalog to synthesise OpenRig knobs (#780).
+pub fn live_params_for_model(model_id: &str) -> Option<Vec<Vst3ParamInfo>> {
+    let guard = registry().read().expect("vst3 param registry poisoned");
+    let ctx = guard.values().find(|c| c.model_id == model_id)?;
+    Some(read_controller_params(&ctx.controller))
 }

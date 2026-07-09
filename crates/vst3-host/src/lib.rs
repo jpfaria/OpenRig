@@ -39,8 +39,8 @@ mod processor;
 mod stereo;
 
 pub use catalog::{
-    find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model, vst3_catalog,
-    vst3_model_ids, vst3_model_visual, Vst3CatalogEntry,
+    catalog_params, find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model,
+    vst3_catalog, vst3_model_ids, vst3_model_visual, Vst3CatalogEntry,
 };
 pub use discovery::{
     resolve_vst3_bundle, scan_system_vst3, scan_vst3_bundle, scan_vst3_bundle_light,

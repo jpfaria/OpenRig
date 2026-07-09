@@ -424,10 +424,9 @@ fn schema_for_block_model_legacy(
         x if x == block_core::EFFECT_TYPE_VST3 => {
             let entry = vst3_host::find_vst3_plugin(model)
                 .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
-            // Build a float parameter for each discovered VST3 parameter (normalized 0–100%).
-            let parameters = entry
-                .info
-                .params
+            // #780: light scan leaves entry.info.params empty; read the real
+            // params from the controller (cached) → one OpenRig knob (0–100%) each.
+            let parameters = vst3_host::catalog_params(model)
                 .iter()
                 .map(|p| {
                     let path = format!("p{}", p.id);
