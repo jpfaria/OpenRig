@@ -14,14 +14,13 @@ pub(crate) fn wire(
     vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     vst3_sample_rate: f64,
 ) {
-    window.on_open_vst3_editor(move |model_id| {
-        let res = vst3_editor_handles
-            .borrow_mut()
-            .open_or_focus(model_id.as_str(), || {
-                project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sample_rate)
-            });
+    window.on_open_vst3_editor(move |key| {
+        let key = key.to_string();
+        let res = vst3_editor_handles.borrow_mut().open_or_focus(&key, || {
+            project::vst3_editor::open_vst3_editor(&key, &key, vst3_sample_rate)
+        });
         if let Err(e) = res {
-            log::error!("VST3 editor: failed to open '{}': {}", model_id, e);
+            log::error!("VST3 editor: failed to open '{}': {}", key, e);
         }
     });
 }

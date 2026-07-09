@@ -285,8 +285,13 @@ pub(crate) fn wire(
             // (chain built); if not, stay silent — the user opens it once live.
             let instance_key = block_id_for_editor.0.clone();
             if project::vst3_editor::has_engine_context(&instance_key) {
+                let model_id = model_id.clone();
                 let res = vst3_editor_handles.borrow_mut().open_or_focus(&instance_key, || {
-                    project::vst3_editor::open_vst3_editor(&instance_key, vst3_sample_rate)
+                    project::vst3_editor::open_vst3_editor(
+                        &instance_key,
+                        &model_id,
+                        vst3_sample_rate,
+                    )
                 });
                 if let Err(e) = res {
                     set_status_error(

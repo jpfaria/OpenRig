@@ -173,6 +173,8 @@ pub fn open_vst3_editor_window(
 /// running, but single-instance plugins (Cloud Seed, Cocoa Delay, …) work
 /// fine before the engine starts.
 pub fn open_vst3_editor_window_standalone(
+    instance_key: &str,
+    model_id: &str,
     bundle_path: &Path,
     uid: &[u8; 16],
     plugin_name: &str,
@@ -192,6 +194,16 @@ pub fn open_vst3_editor_window_standalone(
             }
         }
     }
+
+    // #780: register this standalone instance under the block key so the save
+    // path (`capture_vst3_params`) can read the values the user tweaks offline,
+    // and a re-open reuses this same instance instead of loading another.
+    let _channel = crate::param_registry::register_vst3_gui_context(
+        instance_key,
+        model_id,
+        plugin.controller_clone(),
+        plugin.library_arc(),
+    );
 
     let controller = plugin.controller_clone();
 

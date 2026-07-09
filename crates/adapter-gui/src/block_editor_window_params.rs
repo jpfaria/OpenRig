@@ -438,13 +438,14 @@ pub(crate) fn wire(
     {
         let vst3_handles = vst3_editor_handles.clone();
         let vst3_sr = vst3_sample_rate;
-        // The editor addresses this window's block instance, not the model — two
-        // blocks of the same plugin open their own instance (#780). The Slint
-        // `model-id` argument is ignored in favour of the block key.
+        // The editor addresses this window's block instance (#780). The block
+        // key selects the live engine instance; the model id is the fallback for
+        // opening a standalone instance when the chain isn't running.
         let instance_key = block_id.0.clone();
-        win.on_open_vst3_editor(move |_model_id| {
+        win.on_open_vst3_editor(move |model_id| {
+            let model_id = model_id.to_string();
             let res = vst3_handles.borrow_mut().open_or_focus(&instance_key, || {
-                project::vst3_editor::open_vst3_editor(&instance_key, vst3_sr)
+                project::vst3_editor::open_vst3_editor(&instance_key, &model_id, vst3_sr)
             });
             if let Err(e) = res {
                 log::error!("VST3 editor: failed '{}': {}", instance_key, e);

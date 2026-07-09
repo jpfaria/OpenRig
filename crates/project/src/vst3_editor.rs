@@ -124,25 +124,48 @@ pub fn require_engine_context(has_engine_context: bool) -> Result<()> {
 /// Must be called on the main/UI thread (macOS AppKit requirement).
 pub fn open_vst3_editor(
     instance_key: &str,
-    _sample_rate: f64,
+    model_id: &str,
+    sample_rate: f64,
 ) -> Result<Box<dyn PluginEditorHandle>> {
-    let gui_context = vst3_host::lookup_vst3_gui_context(instance_key);
-    require_engine_context(gui_context.is_some())?;
-    let gui_context = gui_context.expect("engine context present after require_engine_context");
-
-    let entry = vst3_host::find_vst3_plugin(&gui_context.model_id).ok_or_else(|| {
-        anyhow::anyhow!(
-            "VST3 plugin '{}' not found in catalog",
+    // Chain live: reuse the engine's instance (never load a second one while it
+    // runs — that is the real multi-instance hazard).
+    if let Some(gui_context) = vst3_host::lookup_vst3_gui_context(instance_key) {
+        let entry = vst3_host::find_vst3_plugin(&gui_context.model_id).ok_or_else(|| {
+            anyhow::anyhow!(
+                "VST3 plugin '{}' not found in catalog",
+                gui_context.model_id
+            )
+        })?;
+        log::info!(
+            "VST3 editor: reusing engine controller for instance '{}' (model '{}')",
+            instance_key,
             gui_context.model_id
-        )
-    })?;
+        );
+        let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
+        return Ok(Box::new(handle));
+    }
 
+    // Chain off: no engine instance exists, so load a standalone one JUST for the
+    // editor (#780). The old refusal was from #251, whose real cause (a wrong
+    // class uid) is fixed in `resolve_uid_for_model` — a single instance loads
+    // fine. It registers under the block key so offline tweaks persist on save.
+    let entry = vst3_host::find_vst3_plugin(model_id)
+        .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
+    let uid = vst3_host::resolve_uid_for_model(model_id)
+        .map_err(|e| anyhow::anyhow!("VST3 UID resolution failed for '{}': {}", model_id, e))?;
     log::info!(
-        "VST3 editor: reusing engine controller for instance '{}' (model '{}')",
+        "VST3 editor: loading standalone instance '{}' (model '{}') — chain not live",
         instance_key,
-        gui_context.model_id
+        model_id
     );
-    let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
+    let handle = vst3_host::open_vst3_editor_window_standalone(
+        instance_key,
+        model_id,
+        &entry.info.bundle_path,
+        &uid,
+        entry.display_name,
+        sample_rate,
+    )?;
     Ok(Box::new(handle))
 }
 
