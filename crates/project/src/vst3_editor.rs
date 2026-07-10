@@ -46,6 +46,14 @@ impl Vst3EditorRegistry {
         self.open.insert(model_id.to_string(), handle);
         Ok(())
     }
+
+    /// Close (drop) the editor window held for `key`, if any. Called by the GUI
+    /// when the engine rebuilt that block's VST3 instance (#780): the open window
+    /// is bound to the now-dead old controller, so it must be dismissed before
+    /// the old instance is torn down and a re-open binds to the new instance.
+    pub fn close(&mut self, key: &str) {
+        self.open.remove(key);
+    }
 }
 
 /// Initialise the VST3 plugin catalog by scanning standard system paths plus
@@ -71,6 +79,13 @@ pub fn mark_main_thread() {
 /// Call on the frontend tick, on the main thread.
 pub fn drain_deferred_vst3_teardowns() {
     vst3_host::drain_main_thread_deferred();
+}
+
+/// Block keys whose engine VST3 instance was rebuilt since the last call (#780).
+/// The GUI closes each one's editor window (it drives a dead instance) before
+/// `drain_deferred_vst3_teardowns` tears the old instance down.
+pub fn take_replaced_vst3_instances() -> Vec<String> {
+    vst3_host::take_replaced_instances()
 }
 
 /// The native editor may only open by reusing the engine's plugin instance.

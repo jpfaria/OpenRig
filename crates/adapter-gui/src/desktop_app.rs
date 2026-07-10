@@ -390,6 +390,7 @@ pub fn run_desktop_app(
         toast_timer.clone(),
         project_runtime.clone(),
         project_session.clone(),
+        vst3_editor_handles.clone(),
     );
 
     // Issue #496 / #32 / #36: per-chain IN/OUT dBFS meter polling.

@@ -6,8 +6,8 @@
 //! instead of creating a second plugin instance (which fails for plugins like
 //! ValhallaSupermassive that reject multiple instances).
 
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use vst3::ComPtr;
 use vst3::Steinberg::kResultOk;
 use vst3::Steinberg::Vst::{IEditController, IEditControllerTrait, ParameterInfo};
@@ -46,6 +46,23 @@ fn registry() -> &'static RwLock<HashMap<String, Vst3GuiContext>> {
     REGISTRY.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
+/// Block keys whose context was REPLACED by a later `register_vst3_gui_context`
+/// (the engine rebuilt that block's VST3 instance). Drained by the GUI tick,
+/// which closes each stale editor window before the old instance is torn down.
+static REPLACED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+fn replaced() -> &'static Mutex<HashSet<String>> {
+    REPLACED.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+/// Drain the set of block keys whose engine instance was rebuilt (context
+/// replaced) since the last call. The GUI closes each one's editor window so it
+/// never drives a dead instance (#780).
+pub fn take_replaced_instances() -> Vec<String> {
+    let mut guard = replaced().lock().expect("vst3 replaced set poisoned");
+    guard.drain().collect()
+}
+
 /// Register a GUI context under `instance_key`, replacing any previous entry.
 ///
 /// `instance_key` is a per-block identity (the `BlockId`, #780) so two blocks
@@ -62,7 +79,7 @@ pub fn register_vst3_gui_context(
     library: Arc<libloading::Library>,
 ) -> Vst3ParamChannel {
     let channel = vst3_param_channel();
-    registry()
+    let previous = registry()
         .write()
         .expect("vst3 param registry poisoned")
         .insert(
@@ -74,6 +91,14 @@ pub fn register_vst3_gui_context(
                 model_id: model_id.to_string(),
             },
         );
+    // A replacement means the engine rebuilt this block's instance; its open
+    // editor window now drives a dead controller and must be closed (#780).
+    if previous.is_some() {
+        replaced()
+            .lock()
+            .expect("vst3 replaced set poisoned")
+            .insert(instance_key.to_string());
+    }
     log::info!(
         "VST3 registry: registered context for instance '{}' (model '{}')",
         instance_key,

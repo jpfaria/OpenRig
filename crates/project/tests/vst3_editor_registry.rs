@@ -39,3 +39,44 @@ fn reopening_same_model_reuses_the_open_editor() {
         "re-opening the same model must reuse the open editor, not create a new instance"
     );
 }
+
+/// A handle that records when it is dropped (i.e. its window is closed).
+struct DropCountingHandle(Arc<AtomicUsize>);
+impl PluginEditorHandle for DropCountingHandle {}
+impl Drop for DropCountingHandle {
+    fn drop(&mut self) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn close_drops_the_window_so_reopen_rebuilds() {
+    // #780: after the engine rebuilds a block's instance, the GUI closes its
+    // stale editor. Closing drops the handle (its window), and the next open
+    // must build a fresh editor on the new instance instead of re-focusing.
+    let opens = Arc::new(AtomicUsize::new(0));
+    let drops = Arc::new(AtomicUsize::new(0));
+    let mut reg = Vst3EditorRegistry::new();
+
+    let drops_for_open = drops.clone();
+    let opens_for_open = opens.clone();
+    let opener = move || -> Result<Box<dyn PluginEditorHandle>> {
+        opens_for_open.fetch_add(1, Ordering::SeqCst);
+        Ok(Box::new(DropCountingHandle(drops_for_open.clone())) as Box<dyn PluginEditorHandle>)
+    };
+
+    reg.open_or_focus("rig:g:block:0", &opener).expect("open");
+    reg.close("rig:g:block:0");
+    assert_eq!(
+        drops.load(Ordering::SeqCst),
+        1,
+        "close must drop the handle (closing the stale window)"
+    );
+
+    reg.open_or_focus("rig:g:block:0", &opener).expect("reopen");
+    assert_eq!(
+        opens.load(Ordering::SeqCst),
+        2,
+        "after close, re-open must build a fresh editor on the new instance"
+    );
+}

@@ -32,6 +32,7 @@ pub(crate) fn start(
     toast_timer: Rc<Timer>,
     project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
+    vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
 ) {
     // Issue #778: this is the UI/AppKit (main) thread. Record it so a VST3 plugin
     // whose native editor is open, when dropped on the control worker, has its
@@ -42,6 +43,7 @@ pub(crate) fn start(
         let weak_window = window.as_weak();
         let toast_timer_for_errors = toast_timer.clone();
         let project_runtime_for_errors = project_runtime.clone();
+        let vst3_handles_for_errors = vst3_editor_handles.clone();
         let error_poll_timer = Timer::default();
         error_poll_timer.start(
             slint::TimerMode::Repeated,
@@ -58,6 +60,14 @@ pub(crate) fn start(
                 // control worker — swaps the live runtime in on the frontend tick
                 // so the heavy build never blocked the UI.
                 rt.poll_pending_rebuilds();
+                // Issue #780: close the editor window of any block whose VST3
+                // instance was just rebuilt — it drives the now-dead controller.
+                // MUST run before the teardown drain below so `view.removed()`
+                // still sees the old-but-alive instance (the teardown is what
+                // terminates it), and before a reopen binds to the new instance.
+                for key in project::vst3_editor::take_replaced_vst3_instances() {
+                    vst3_handles_for_errors.borrow_mut().close(&key);
+                }
                 // Issue #778: run any VST3 teardown the control worker deferred to
                 // the main thread (dropping a plugin editor off-main crashes).
                 project::vst3_editor::drain_deferred_vst3_teardowns();
