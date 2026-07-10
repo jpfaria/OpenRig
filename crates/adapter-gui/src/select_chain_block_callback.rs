@@ -269,40 +269,13 @@ pub(crate) fn wire(
         window.set_block_drawer_enabled(enabled);
         window.set_block_drawer_status_message("".into());
         window.set_show_block_type_picker(false);
-        // Clone block_id before dropping session_borrow (needed by window editor stream timer)
+        // Clone block_id before dropping session_borrow (needed by the window
+        // editor stream timer below).
         let block_id_for_editor = block.id.clone();
-        let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
         drop(session_borrow);
-        // VST3 blocks: the block is now selected and will process audio in the
-        // chain. Only auto-open the native GUI when the engine already holds the
-        // instance (reuse it); if it isn't running yet, stay silent — the user
-        // opens the editor later, once the chain is live, and it reuses that
-        // instance. Never load a standalone one (it corrupts the plugin, #251).
-        if is_vst3_block && !model_id.is_empty() {
-            // VST3 runs in-process (#251). The engine registers the GUI context
-            // (controller + library) when it builds the block, so the native
-            // editor reuses that instance. Only auto-open when it's registered
-            // (chain built); if not, stay silent — the user opens it once live.
-            let instance_key = block_id_for_editor.0.clone();
-            if project::vst3_editor::has_engine_context(&instance_key) {
-                let model_id = model_id.clone();
-                let res = vst3_editor_handles.borrow_mut().open_or_focus(&instance_key, || {
-                    project::vst3_editor::open_vst3_editor(
-                        &instance_key,
-                        &model_id,
-                        vst3_sample_rate,
-                    )
-                });
-                if let Err(e) = res {
-                    set_status_error(
-                        &window,
-                        &toast_timer,
-                        &rust_i18n::t!("error-vst3-open", err = e).to_string(),
-                    );
-                }
-            }
-            return;
-        }
+        // #780: VST3 blocks open the SAME OpenRig knob editor as every other
+        // block (LV2/NAM/…) — no native plugin GUI. The knobs are synthesised
+        // from the plugin's own parameters (`catalog_params`).
         if use_inline_block_editor(&window) {
             let param_items_vec = block_parameter_items_for_editor(&editor_data);
             let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
