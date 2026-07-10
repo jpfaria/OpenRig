@@ -75,11 +75,9 @@ pub(crate) struct CompactChainCallbacksCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub toast_timer: Rc<Timer>,
     pub open_compact_window: Rc<RefCell<Option<(usize, Weak<CompactChainViewWindow>)>>>,
-    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub fullscreen: bool,
     pub auto_save: bool,
-    pub vst3_sample_rate: f64,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
@@ -93,11 +91,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         project_dirty,
         toast_timer,
         open_compact_window,
-        vst3_editor_handles,
         block_editor_draft,
         fullscreen,
         auto_save,
-        vst3_sample_rate,
     } = ctx;
 
     let weak_window = window.as_weak();
@@ -675,20 +671,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                     main_win.invoke_configure_chain_output(ci);
                 } else {
                     log::warn!("[compact] main_win upgrade FAILED");
-                }
-            });
-        }
-
-        {
-            let vst3_handles = vst3_editor_handles.clone();
-            let vst3_sr = vst3_sample_rate;
-            compact_win.on_open_plugin(move |key| {
-                // #780: BlockId in; "" model ⇒ reuse the live engine instance.
-                let res = vst3_handles.borrow_mut().open_or_focus(key.as_str(), || {
-                    project::vst3_editor::open_vst3_editor(key.as_str(), "", vst3_sr)
-                });
-                if let Err(e) = res {
-                    log::error!("[compact] open VST3 editor '{}': {}", key, e)
                 }
             });
         }

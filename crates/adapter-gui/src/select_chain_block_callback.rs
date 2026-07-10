@@ -82,8 +82,6 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
-    pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
 
@@ -119,8 +117,6 @@ pub(crate) fn wire(
         inline_stream_timer,
         toast_timer,
         plugin_info_window,
-        vst3_editor_handles,
-        vst3_sample_rate,
         auto_save,
     } = ctx;
 
@@ -369,8 +365,6 @@ pub(crate) fn wire(
                 selected_block: selected_block.clone(),
                 open_block_windows: open_block_windows.clone(),
                 plugin_info_window: plugin_info_window.clone(),
-                vst3_editor_handles: vst3_editor_handles.clone(),
-                vst3_sample_rate,
                 auto_save,
             };
             let (win, block_stream_timer) = match block_editor_window_setup::create_and_wire(

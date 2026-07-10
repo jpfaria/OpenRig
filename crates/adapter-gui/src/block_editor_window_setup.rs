@@ -61,8 +61,6 @@ pub(crate) struct BlockEditorWindowSetupCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
-    pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
 
@@ -89,8 +87,6 @@ pub(crate) fn create_and_wire(
         selected_block,
         open_block_windows,
         plugin_info_window,
-        vst3_editor_handles,
-        vst3_sample_rate,
         auto_save,
     } = ctx;
 
@@ -276,9 +272,6 @@ pub(crate) fn create_and_wire(
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
-            vst3_editor_handles,
-            vst3_sample_rate,
-            block_id: block_id.clone(),
             auto_save,
         },
     );

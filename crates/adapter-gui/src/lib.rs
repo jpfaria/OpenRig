@@ -99,7 +99,6 @@ mod tuner_session;
 mod tuner_wiring;
 pub mod ui_stall;
 mod virtual_keyboard_wiring;
-mod vst3_editor_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
