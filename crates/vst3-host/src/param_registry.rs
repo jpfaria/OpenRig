@@ -1,13 +1,12 @@
-//! Global registry that maps VST3 `model_id` → `Vst3GuiContext`.
+//! Global registry that maps a VST3 block-instance key → `Vst3GuiContext`.
 //!
 //! The engine registers a context (param channel + shared controller + library
-//! Arc) when it builds a `Vst3Processor`. When the GUI opens the native editor
-//! it looks up the same context so the editor reuses the existing controller
-//! instead of creating a second plugin instance (which fails for plugins like
-//! ValhallaSupermassive that reject multiple instances).
+//! Arc) when it builds a `Vst3Processor`. The catalog reads a live instance's
+//! parameter metadata from here (`live_params_for_model`) to synthesise OpenRig
+//! knobs without loading a second instance of a streaming plugin (#780).
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock, RwLock};
 use vst3::ComPtr;
 use vst3::Steinberg::kResultOk;
 use vst3::Steinberg::Vst::{IEditController, IEditControllerTrait, ParameterInfo};
@@ -16,27 +15,23 @@ use crate::host::Vst3ParamInfo;
 use crate::host_utils::char16_array_to_string;
 use crate::param_channel::{vst3_param_channel, Vst3ParamChannel};
 
-/// Everything the GUI needs to open and drive the native editor window without
-/// creating a second plugin instance.
+/// A live VST3 instance's shared handles, kept so the catalog can read its
+/// parameter metadata (for OpenRig knobs) without a second load.
 pub struct Vst3GuiContext {
-    /// Lock-free queue shared between the GUI and the audio processor.
+    /// Lock-free queue shared with the audio processor (drained each block).
     pub param_channel: Vst3ParamChannel,
-    /// Reference-counted pointer to the controller already held by the audio
-    /// processor. The GUI uses it to call `createView` and register
-    /// `IComponentHandler`.
+    /// Reference-counted pointer to the controller held by the audio processor,
+    /// used to read parameter metadata.
     pub controller: ComPtr<IEditController>,
-    /// Keeps the plugin dylib alive while the editor window is open, even if
-    /// the audio processor is dropped first.
+    /// Keeps the plugin dylib alive alongside the audio processor instance.
     pub library: Arc<libloading::Library>,
     /// The plugin's catalog model id. The registry is keyed by a per-block
-    /// instance key (#780), so this carries the model needed to resolve the
-    /// catalog entry (display name) when the GUI opens the editor.
+    /// instance key (#780); this carries the model for `live_params_for_model`.
     pub model_id: String,
 }
 
-// SAFETY: `ComPtr<IEditController>` is a reference-counted COM pointer. The
-// controller is only ever used on the main/UI thread from the editor side.
-// `Arc<libloading::Library>` is inherently Send+Sync.
+// SAFETY: `ComPtr<IEditController>` is a reference-counted COM pointer, only
+// used on the main thread. `Arc<libloading::Library>` is inherently Send+Sync.
 unsafe impl Send for Vst3GuiContext {}
 unsafe impl Sync for Vst3GuiContext {}
 
@@ -44,23 +39,6 @@ static REGISTRY: OnceLock<RwLock<HashMap<String, Vst3GuiContext>>> = OnceLock::n
 
 fn registry() -> &'static RwLock<HashMap<String, Vst3GuiContext>> {
     REGISTRY.get_or_init(|| RwLock::new(HashMap::new()))
-}
-
-/// Block keys whose context was REPLACED by a later `register_vst3_gui_context`
-/// (the engine rebuilt that block's VST3 instance). Drained by the GUI tick,
-/// which closes each stale editor window before the old instance is torn down.
-static REPLACED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-
-fn replaced() -> &'static Mutex<HashSet<String>> {
-    REPLACED.get_or_init(|| Mutex::new(HashSet::new()))
-}
-
-/// Drain the set of block keys whose engine instance was rebuilt (context
-/// replaced) since the last call. The GUI closes each one's editor window so it
-/// never drives a dead instance (#780).
-pub fn take_replaced_instances() -> Vec<String> {
-    let mut guard = replaced().lock().expect("vst3 replaced set poisoned");
-    guard.drain().collect()
 }
 
 /// Register a GUI context under `instance_key`, replacing any previous entry.
@@ -79,7 +57,7 @@ pub fn register_vst3_gui_context(
     library: Arc<libloading::Library>,
 ) -> Vst3ParamChannel {
     let channel = vst3_param_channel();
-    let previous = registry()
+    registry()
         .write()
         .expect("vst3 param registry poisoned")
         .insert(
@@ -91,14 +69,6 @@ pub fn register_vst3_gui_context(
                 model_id: model_id.to_string(),
             },
         );
-    // A replacement means the engine rebuilt this block's instance; its open
-    // editor window now drives a dead controller and must be closed (#780).
-    if previous.is_some() {
-        replaced()
-            .lock()
-            .expect("vst3 replaced set poisoned")
-            .insert(instance_key.to_string());
-    }
     log::info!(
         "VST3 registry: registered context for instance '{}' (model '{}')",
         instance_key,
@@ -127,32 +97,6 @@ pub fn lookup_vst3_gui_context(instance_key: &str) -> Option<Vst3GuiContext> {
 /// Used by `Vst3Processor` to drain the parameter queue each audio block.
 pub fn lookup_vst3_channel(instance_key: &str) -> Option<Vst3ParamChannel> {
     lookup_vst3_gui_context(instance_key).map(|c| c.param_channel)
-}
-
-/// Read the current normalized value of every parameter whose value differs
-/// from its controller default (> 1e-6), for the instance registered under
-/// `instance_key`. Returns `None` when no context is registered (the plugin is
-/// not live). Persisted by the save path as `p{id}` percent so native-editor
-/// edits survive save + reload (#780).
-///
-/// Main/save-thread only — reads the controller under the registry lock; never
-/// call from the audio thread.
-pub fn capture_vst3_params(instance_key: &str) -> Option<Vec<(u32, f64)>> {
-    let guard = registry().read().expect("vst3 param registry poisoned");
-    let ctx = guard.get(instance_key)?;
-    let count = unsafe { ctx.controller.getParameterCount() };
-    let mut out = Vec::new();
-    for i in 0..count {
-        let mut info: ParameterInfo = unsafe { std::mem::zeroed() };
-        if unsafe { ctx.controller.getParameterInfo(i, &mut info) } != kResultOk {
-            continue;
-        }
-        let current = unsafe { ctx.controller.getParamNormalized(info.id) };
-        if (current - info.defaultNormalizedValue).abs() > 1e-6 {
-            out.push((info.id, current));
-        }
-    }
-    Some(out)
 }
 
 /// Read a controller's full parameter metadata (id, title, default, …).

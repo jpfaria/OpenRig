@@ -155,8 +155,6 @@ pub fn run_desktop_app(
         plugin_loader::registry::native_count(),
         plugin_loader::registry::len() - plugin_loader::registry::native_count(),
     );
-    // Open VST3 editor handles (kept alive so the OS window stays open).
-    Rc::new(RefCell::new(project::vst3_editor::Vst3EditorRegistry::new()));
     // Scan system VST3 paths in a background thread so startup isn't blocked.
     // The catalog is available before any project is opened.
     let vst3_sample_rate = settings

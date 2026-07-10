@@ -22,11 +22,7 @@
 //! interchangeably.
 
 pub mod catalog;
-pub mod component_handler;
 pub mod discovery;
-pub mod editor;
-#[cfg(all(test, target_os = "macos"))]
-mod editor_order_tests;
 mod host;
 pub mod host_application;
 mod host_factory;
@@ -46,13 +42,12 @@ pub use discovery::{
     resolve_vst3_bundle, scan_system_vst3, scan_vst3_bundle, scan_vst3_bundle_light,
     scan_vst3_dirs, system_vst3_paths, Vst3PluginInfo,
 };
-pub use editor::{open_vst3_editor_window, open_vst3_editor_window_standalone, Vst3EditorHandle};
 pub use host::{Vst3ParamInfo, Vst3Plugin, Vst3PluginClass};
 pub use main_thread::{drain_main_thread_deferred, mark_main_thread};
 pub use param_channel::{vst3_param_channel, Vst3ParamChannel, Vst3ParamUpdate};
 pub use param_registry::{
-    capture_vst3_params, live_params_for_model, lookup_vst3_channel, lookup_vst3_gui_context,
-    register_vst3_gui_context, take_replaced_instances, Vst3GuiContext,
+    live_params_for_model, lookup_vst3_channel, lookup_vst3_gui_context, register_vst3_gui_context,
+    Vst3GuiContext,
 };
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;

@@ -343,7 +343,9 @@ mod imp {
     }
 
     pub(crate) fn ensure_joined_output(bound: Option<&str>) {
-        std::mem::forget(OUTPUT_ATTEMPTED.with(|a| join(bound, DEFAULT_OUTPUT_DEVICE, "output", a)));
+        std::mem::forget(
+            OUTPUT_ATTEMPTED.with(|a| join(bound, DEFAULT_OUTPUT_DEVICE, "output", a)),
+        );
     }
 }
 

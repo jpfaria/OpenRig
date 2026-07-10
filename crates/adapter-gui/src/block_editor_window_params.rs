@@ -13,7 +13,6 @@
 //! * `on_select_block_parameter_option` — enum dropdown.
 //! * `on_pick_block_parameter_file` — opens a file picker filtered by the
 //!   parameter's allowed extensions.
-//! * `on_open_vst3_editor` — opens the native VST3 plugin GUI.
 //!
 //! Each writes through to per-window models and schedules a debounced
 //! persist via `schedule_block_editor_persist_for_block_win`. Wired once per

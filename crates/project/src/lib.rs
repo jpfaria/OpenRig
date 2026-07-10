@@ -25,7 +25,6 @@ pub mod rig;
 pub mod rig_command;
 pub mod rig_methods;
 pub mod rig_sync;
-pub mod vst3_capture;
 pub mod vst3_editor;
 
 #[cfg(test)]

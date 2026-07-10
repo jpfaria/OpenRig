@@ -186,7 +186,6 @@ export component DesktopMain inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
     // Fullscreen inline project settings callbacks
@@ -362,7 +361,6 @@ export component DesktopMain inherits Rectangle {
             update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-            open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         }
 
         // Fullscreen inline settings

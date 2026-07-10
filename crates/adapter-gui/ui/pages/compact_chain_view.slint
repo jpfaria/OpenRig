@@ -64,7 +64,6 @@ export component CompactChainViewPage inherits Rectangle {
     callback close-compact-view();
     callback choose-block-type(int, int, int); // chain_index, before_index, type_index
     callback remove-block(int, int); // chain_index, block_index
-    callback open-plugin(string); // model-id, for VST3 blocks
 
     // I/O device configuration (reuses the chain list's configure flow)
     callback configure-input(int); // chain_index
@@ -214,7 +213,6 @@ export component CompactChainViewPage inherits Rectangle {
                 }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
                 remove-block(ci, bi2) => { root.remove-block(ci, bi2); }
-                open-plugin(model-id) => { root.open-plugin(model-id); }
             }
 
             // Drag handle — visible grip on left edge
