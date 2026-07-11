@@ -16,6 +16,7 @@ pub mod manifest_labels;
 pub mod methods;
 pub mod param_writer;
 pub mod types;
+pub mod vst3_schema;
 
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};
 pub use types::{

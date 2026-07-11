@@ -157,9 +157,7 @@ fn load_and_read_params(model_id: &str) -> Vec<crate::host::Vst3ParamInfo> {
         return Vec::new();
     };
     match Vst3Plugin::load(&entry.info.bundle_path, &uid, 48_000.0, 2, 512, &[]) {
-        Ok(plugin) => (0..plugin.param_count())
-            .filter_map(|i| plugin.param_info(i).ok())
-            .collect(),
+        Ok(plugin) => crate::param_registry::read_controller_params(plugin.controller()),
         Err(e) => {
             log::warn!("VST3 catalog_params: load '{}' failed: {}", model_id, e);
             Vec::new()

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 use vst3::ComPtr;
 use vst3::Steinberg::kResultOk;
-use vst3::Steinberg::Vst::{IEditController, IEditControllerTrait, ParameterInfo};
+use vst3::Steinberg::Vst::{IEditController, IEditControllerTrait, ParameterInfo, String128};
 
 use crate::host::Vst3ParamInfo;
 use crate::host_utils::char16_array_to_string;
@@ -99,10 +99,12 @@ pub fn lookup_vst3_channel(instance_key: &str) -> Option<Vst3ParamChannel> {
     lookup_vst3_gui_context(instance_key).map(|c| c.param_channel)
 }
 
-/// Read a controller's full parameter metadata (id, title, default, …).
+/// Read a controller's full parameter metadata (id, title, default, and — for
+/// discrete `step_count >= 2` selects — the per-step `(value_percent, label)`
+/// options read via `getParamStringByValue`).
 ///
-/// Main-thread only (walks the COM controller under the registry lock).
-fn read_controller_params(controller: &ComPtr<IEditController>) -> Vec<Vst3ParamInfo> {
+/// Main-thread only (walks the COM controller).
+pub(crate) fn read_controller_params(controller: &ComPtr<IEditController>) -> Vec<Vst3ParamInfo> {
     let count = unsafe { controller.getParameterCount() };
     let mut out = Vec::with_capacity(count.max(0) as usize);
     for i in 0..count {
@@ -110,6 +112,11 @@ fn read_controller_params(controller: &ComPtr<IEditController>) -> Vec<Vst3Param
         if unsafe { controller.getParameterInfo(i, &mut info) } != kResultOk {
             continue;
         }
+        let enum_options = if info.stepCount >= 2 {
+            read_enum_options(controller, info.id, info.stepCount)
+        } else {
+            Vec::new()
+        };
         out.push(Vst3ParamInfo {
             id: info.id,
             title: char16_array_to_string(&info.title),
@@ -117,9 +124,41 @@ fn read_controller_params(controller: &ComPtr<IEditController>) -> Vec<Vst3Param
             units: char16_array_to_string(&info.units),
             step_count: info.stepCount,
             default_normalized: info.defaultNormalizedValue,
+            enum_options,
         });
     }
     out
+}
+
+/// For a discrete parameter, ask the controller for each step's display string.
+/// Step `k` maps to normalized `k / step_count`; its stored value is that
+/// normalized value as a percent string so the engine's `p{id}` percent → VST3
+/// normalized conversion applies uniformly (#780).
+fn read_enum_options(
+    controller: &ComPtr<IEditController>,
+    id: u32,
+    step_count: i32,
+) -> Vec<(String, String)> {
+    (0..=step_count)
+        .map(|k| {
+            let normalized = k as f64 / step_count as f64;
+            let mut buf: String128 = [0; 128];
+            let label = if unsafe {
+                controller.getParamStringByValue(id, normalized, &mut buf as *mut String128)
+            } == kResultOk
+            {
+                char16_array_to_string(&buf)
+            } else {
+                String::new()
+            };
+            let label = if label.is_empty() {
+                format!("{k}")
+            } else {
+                label
+            };
+            (format!("{}", normalized * 100.0), label)
+        })
+        .collect()
 }
 
 /// The parameter metadata of any LIVE instance of `model_id` (from the first

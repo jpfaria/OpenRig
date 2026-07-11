@@ -55,6 +55,30 @@ pub use stereo::StereoVst3Processor;
 use anyhow::Result;
 use block_core::{AudioChannelLayout, BlockProcessor};
 use std::path::Path;
+
+/// Convert a stored block-parameter value to a VST3 normalized value (0.0..=1.0).
+///
+/// #780: a VST3 block stores every parameter under `p{id}`, but the widget type
+/// varies — a continuous knob stores a `Float` percent (0–100), an on/off
+/// toggle stores a `Bool`, and a select stores the chosen option's percent as a
+/// `String`. All three map to a single VST3 normalized value here so both the
+/// live in-place update and the load path apply them uniformly.
+pub fn param_value_to_normalized(value: &domain::value_objects::ParameterValue) -> Option<f64> {
+    let normalized = if let Some(pct) = value.as_f32() {
+        pct as f64 / 100.0
+    } else if let Some(b) = value.as_bool() {
+        if b {
+            1.0
+        } else {
+            0.0
+        }
+    } else if let Some(s) = value.as_str() {
+        s.parse::<f64>().ok()? / 100.0
+    } else {
+        return None;
+    };
+    Some(normalized.clamp(0.0, 1.0))
+}
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Total VST3 instances created this process — incremented on each successful

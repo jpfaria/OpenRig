@@ -40,6 +40,34 @@ fn vst3_block_gets_openrig_knobs() {
             .parameters
             .iter()
             .all(|p| p.path.starts_with('p') && p.path[1..].chars().all(|c| c.is_ascii_digit())),
-        "every VST3 knob path must be p{{id}} so the engine's in-place update applies it"
+        "every VST3 param path must be p{{id}} so the engine's in-place update applies it"
     );
+
+    // #780: the widget follows the plugin's step_count — ChowCentaur exposes
+    // continuous params (Gain/Treble/Level) AND on/off toggles (Bypass/Mono), so
+    // the schema must contain a Bool and a knob, not all knobs.
+    use block_core::param::schema::ParameterDomain;
+    assert!(
+        schema
+            .parameters
+            .iter()
+            .any(|p| matches!(p.domain, ParameterDomain::Bool)),
+        "on/off params (Bypass/Mono) must render as a toggle, not a knob"
+    );
+    assert!(
+        schema
+            .parameters
+            .iter()
+            .any(|p| matches!(p.domain, ParameterDomain::FloatRange { .. })),
+        "continuous params must render as knobs"
+    );
+    for p in &schema.parameters {
+        if let ParameterDomain::Enum { options } = &p.domain {
+            assert!(
+                !options.is_empty(),
+                "a VST3 select ({}) needs options",
+                p.path
+            );
+        }
+    }
 }
