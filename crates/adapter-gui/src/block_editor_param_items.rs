@@ -22,6 +22,23 @@ use crate::block_editor_values::unit_label;
 use crate::state::BlockEditorData;
 use crate::{BlockParameterItem, SELECT_SELECTED_BLOCK_ID};
 
+/// Keep only the parameter rows whose label contains `query` (case-insensitive).
+/// An empty/whitespace query returns everything. Drives the block editor's
+/// parameter search so a plugin with hundreds of knobs stays navigable (#780).
+pub(crate) fn filter_param_items(
+    items: Vec<BlockParameterItem>,
+    query: &str,
+) -> Vec<BlockParameterItem> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return items;
+    }
+    items
+        .into_iter()
+        .filter(|it| it.label.to_lowercase().contains(&q))
+        .collect()
+}
+
 pub(crate) fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParameterItem> {
     let mut items = Vec::new();
     if !data.select_options.is_empty() {
@@ -213,4 +230,40 @@ pub(crate) fn block_parameter_items_for_model(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::filter_param_items;
+    use crate::BlockParameterItem;
+
+    fn item(label: &str) -> BlockParameterItem {
+        BlockParameterItem {
+            label: label.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn filters_by_case_insensitive_label_substring() {
+        let items = vec![
+            item("GAIN"),
+            item("Treble"),
+            item("Output Level"),
+            item("Mode"),
+        ];
+        let out = filter_param_items(items, "le");
+        let labels: Vec<String> = out.iter().map(|i| i.label.to_string()).collect();
+        // "Treble" and "Output Level" contain "le"; "GAIN"/"Mode" do not.
+        assert_eq!(
+            labels,
+            vec!["Treble".to_string(), "Output Level".to_string()]
+        );
+    }
+
+    #[test]
+    fn empty_query_returns_all() {
+        let items = vec![item("A"), item("B")];
+        assert_eq!(filter_param_items(items, "   ").len(), 2);
+    }
 }
