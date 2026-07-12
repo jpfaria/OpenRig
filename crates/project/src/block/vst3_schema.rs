@@ -24,6 +24,7 @@ use block_core::param::{bool_parameter, enum_parameter, float_parameter, Paramet
 pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
     vst3_host::catalog_params(model)
         .iter()
+        .filter(|p| !is_placeholder(&p.title, &p.short_title))
         .map(|p| {
             let path = format!("p{}", p.id);
             let label = if p.title.is_empty() {
@@ -56,6 +57,19 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
             }
         })
         .collect()
+}
+
+/// A parameter with no usable name is a placeholder slot, not a real control.
+/// Modular JUCE plugins (e.g. BYOD, ChowMatrix) pre-allocate hundreds/thousands
+/// of empty "Blank" params for modules the user hasn't added — those must not
+/// become knobs (#780).
+fn is_placeholder(title: &str, short_title: &str) -> bool {
+    let label = if title.trim().is_empty() {
+        short_title.trim()
+    } else {
+        title.trim()
+    };
+    label.is_empty() || label.eq_ignore_ascii_case("blank")
 }
 
 /// Heuristic: does a 2-state parameter read as an on/off switch (→ toggle)
@@ -96,7 +110,17 @@ fn looks_like_on_off(title: &str, options: &[(String, String)]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::looks_like_on_off;
+    use super::{is_placeholder, looks_like_on_off};
+
+    #[test]
+    fn placeholder_params_are_dropped() {
+        assert!(is_placeholder("", ""));
+        assert!(is_placeholder("Blank", ""));
+        assert!(is_placeholder("  blank ", ""));
+        assert!(is_placeholder("", "  ")); // both empty
+        assert!(!is_placeholder("Gain", ""));
+        assert!(!is_placeholder("", "Drv")); // falls back to short_title
+    }
 
     fn opts(a: &str, b: &str) -> Vec<(String, String)> {
         vec![("0".into(), a.to_string()), ("100".into(), b.to_string())]
