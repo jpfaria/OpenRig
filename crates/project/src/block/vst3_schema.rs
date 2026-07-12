@@ -6,8 +6,10 @@
 //! control chosen by its `step_count`:
 //!
 //! * `0`  → continuous knob (0–100 %),
-//! * `1`  → on/off toggle,
-//! * `>=2`→ select, with one option per step (labels read from the plugin).
+//! * `1`  → on/off toggle when it reads like a switch (name/labels), otherwise a
+//!          2-position selector,
+//! * `>=2`→ selector, with one option per step (labels read from the plugin;
+//!          the UI renders <=4 options as a rotary switch, more as a dropdown).
 //!
 //! Every parameter is stored under `p{id}`; the engine converts each value back
 //! to a VST3 normalized 0..1 (`stereo::try_in_place_update` /
@@ -29,9 +31,10 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
             } else {
                 p.title.clone()
             };
-            if p.step_count == 1 {
+            let is_toggle = p.step_count == 1 && looks_like_on_off(&p.title, &p.enum_options);
+            if is_toggle {
                 bool_parameter(&path, &label, None, Some(p.default_normalized >= 0.5))
-            } else if p.step_count >= 2 {
+            } else if p.step_count >= 1 {
                 let options: Vec<(&str, &str)> = p
                     .enum_options
                     .iter()
@@ -53,4 +56,71 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
             }
         })
         .collect()
+}
+
+/// Heuristic: does a 2-state parameter read as an on/off switch (→ toggle)
+/// rather than a 2-way selector? Uses the parameter title and its two step
+/// labels. Deliberately conservative and name-based (#780); when unsure it
+/// falls back to a selector so a real mode switch (e.g. "Mode 1"/"Mode 2") is
+/// never flattened into on/off.
+fn looks_like_on_off(title: &str, options: &[(String, String)]) -> bool {
+    const ON_OFF_NAMES: &[&str] = &[
+        "bypass", "enable", "enabled", "mute", "mono", "power", "on/off", "active",
+    ];
+    let t = title.to_lowercase();
+    if ON_OFF_NAMES.iter().any(|w| t.contains(w)) {
+        return true;
+    }
+    // Label-based: empty/numeric labels, or a recognised on/off pair.
+    let labels: Vec<String> = options
+        .iter()
+        .map(|(_, l)| l.trim().to_lowercase())
+        .collect();
+    if labels
+        .iter()
+        .all(|l| l.is_empty() || l.chars().all(|c| c.is_ascii_digit()))
+    {
+        return true;
+    }
+    const ON_OFF_PAIRS: &[[&str; 2]] = &[
+        ["off", "on"],
+        ["no", "yes"],
+        ["false", "true"],
+        ["disabled", "enabled"],
+    ];
+    let set: std::collections::HashSet<&str> = labels.iter().map(String::as_str).collect();
+    ON_OFF_PAIRS
+        .iter()
+        .any(|pair| pair.iter().all(|x| set.contains(x)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::looks_like_on_off;
+
+    fn opts(a: &str, b: &str) -> Vec<(String, String)> {
+        vec![("0".into(), a.to_string()), ("100".into(), b.to_string())]
+    }
+
+    #[test]
+    fn on_off_by_name() {
+        assert!(looks_like_on_off("Bypass", &opts("A", "B")));
+        assert!(looks_like_on_off("Mono", &opts("A", "B")));
+        assert!(looks_like_on_off("Gate Enable", &opts("A", "B")));
+    }
+
+    #[test]
+    fn on_off_by_labels() {
+        assert!(looks_like_on_off("Foo", &opts("Off", "On")));
+        assert!(looks_like_on_off("Foo", &opts("No", "Yes")));
+        assert!(looks_like_on_off("Foo", &opts("", ""))); // empty labels
+        assert!(looks_like_on_off("Foo", &opts("0", "1"))); // numeric labels
+    }
+
+    #[test]
+    fn real_mode_switch_stays_a_selector() {
+        // Distinct, meaningful labels → NOT on/off → a 2-way selector.
+        assert!(!looks_like_on_off("Mode", &opts("Sunlion", "Germanium")));
+        assert!(!looks_like_on_off("Voicing", &opts("Vintage", "Modern")));
+    }
 }
