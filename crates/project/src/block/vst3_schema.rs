@@ -27,20 +27,37 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
     let group_map = vst3_host::find_vst3_plugin(model)
         .map(|entry| plugin_loader::vst3_group_map_for_bundle(&entry.info.bundle_path))
         .unwrap_or_default();
-    vst3_host::catalog_params(model)
+    let params = vst3_host::catalog_params(model);
+    let visible: Vec<_> = params
         .iter()
         .filter(|p| !is_unlabeled(&p.title, &p.short_title))
+        .collect();
+    let labels: Vec<String> = visible
+        .iter()
         .map(|p| {
-            let path = format!("p{}", p.id);
-            let label = if p.title.is_empty() {
+            if p.title.is_empty() {
                 p.short_title.clone()
             } else {
                 p.title.clone()
-            };
-            let group = group_map.get(&p.id).map(String::as_str);
+            }
+        })
+        .collect();
+    // Manifest groups win; the dynamic grouping fills the gaps for any plugin
+    // (or param) that declares none.
+    let dynamic = dynamic_group_for(&labels);
+    visible
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let path = format!("p{}", p.id);
+            let label = &labels[i];
+            let group = group_map
+                .get(&p.id)
+                .map(String::as_str)
+                .or(dynamic[i].as_deref());
             let is_toggle = p.step_count == 1 && looks_like_on_off(&p.title, &p.enum_options);
             if is_toggle {
-                bool_parameter(&path, &label, group, Some(p.default_normalized >= 0.5))
+                bool_parameter(&path, label, group, Some(p.default_normalized >= 0.5))
             } else if p.step_count >= 1 {
                 let options: Vec<(&str, &str)> = p
                     .enum_options
@@ -48,11 +65,11 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
                     .map(|(v, l)| (v.as_str(), l.as_str()))
                     .collect();
                 let default_val = format!("{}", p.default_normalized * 100.0);
-                enum_parameter(&path, &label, group, Some(&default_val), &options)
+                enum_parameter(&path, label, group, Some(&default_val), &options)
             } else {
                 float_parameter(
                     &path,
-                    &label,
+                    label,
                     group,
                     Some((p.default_normalized * 100.0) as f32),
                     0.0,
@@ -70,6 +87,39 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
 /// plugin-agnostic: OpenRig never hardcodes any plugin's naming (#780).
 fn is_unlabeled(title: &str, short_title: &str) -> bool {
     title.trim().is_empty() && short_title.trim().is_empty()
+}
+
+/// Minimum parameters that must share a leading word before it becomes a tab.
+/// Below this, the params stay ungrouped (a single default tab) rather than
+/// spawning a swarm of two-knob tabs.
+const MIN_DYNAMIC_GROUP: usize = 3;
+
+/// Dynamic fallback grouping for a plugin that declares no manifest groups
+/// (#780): a parameter is grouped under its leading word when at least
+/// `MIN_DYNAMIC_GROUP` parameters share that word, otherwise `None` (the app
+/// renders those in a single default tab). Plugin-agnostic — it reads only the
+/// plugin's own parameter titles, never any hardcoded plugin name. Returns one
+/// entry per input title, in order.
+fn dynamic_group_for(titles: &[String]) -> Vec<Option<String>> {
+    let leading = |t: &str| t.split_whitespace().next().unwrap_or("").to_string();
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for t in titles {
+        let word = leading(t);
+        if !word.is_empty() {
+            *counts.entry(word).or_insert(0) += 1;
+        }
+    }
+    titles
+        .iter()
+        .map(|t| {
+            let word = leading(t);
+            if !word.is_empty() && counts.get(&word).copied().unwrap_or(0) >= MIN_DYNAMIC_GROUP {
+                Some(word)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// Heuristic: does a 2-state parameter read as an on/off switch (→ toggle)
@@ -110,7 +160,32 @@ fn looks_like_on_off(title: &str, options: &[(String, String)]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_unlabeled, looks_like_on_off};
+    use super::{dynamic_group_for, is_unlabeled, looks_like_on_off};
+
+    #[test]
+    fn dynamic_grouping_buckets_shared_leading_word() {
+        let titles: Vec<String> = [
+            "Gain Boost",
+            "Gain Drive",
+            "Gain Tone",
+            "Delay Time",
+            "Delay Feedback",
+            "Level",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let groups = dynamic_group_for(&titles);
+        // "Gain" is shared by 3 params (>= MIN_DYNAMIC_GROUP) → a tab.
+        assert_eq!(groups[0].as_deref(), Some("Gain"));
+        assert_eq!(groups[1].as_deref(), Some("Gain"));
+        assert_eq!(groups[2].as_deref(), Some("Gain"));
+        // "Delay" is shared by only 2 (< MIN) → ungrouped.
+        assert_eq!(groups[3], None);
+        assert_eq!(groups[4], None);
+        // Unique word → ungrouped.
+        assert_eq!(groups[5], None);
+    }
 
     #[test]
     fn unlabeled_params_are_dropped() {
