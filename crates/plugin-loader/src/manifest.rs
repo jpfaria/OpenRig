@@ -144,6 +144,23 @@ pub struct PluginManifest {
     pub backend: Backend,
 }
 
+impl PluginManifest {
+    /// Map of VST3 numeric parameter id → author-declared tab group, for a
+    /// `backend: vst3` manifest. Only parameters that declare a `group` are
+    /// included; a non-VST3 manifest yields an empty map. The block editor
+    /// overlays this onto the live parameters by `vst3_id` to render tabs
+    /// (#780).
+    pub fn vst3_group_map(&self) -> BTreeMap<u32, String> {
+        match &self.backend {
+            Backend::Vst3 { parameters, .. } => parameters
+                .iter()
+                .filter_map(|p| p.group.clone().map(|g| (p.vst3_id, g)))
+                .collect(),
+            _ => BTreeMap::new(),
+        }
+    }
+}
+
 /// NAM model architecture family (issue #650).
 ///
 /// - [`A1`](NamArchitecture::A1) — NAM "v1": WaveNet / LSTM / ConvNet
@@ -265,6 +282,12 @@ pub struct Vst3Parameter {
     /// Free-form unit hint shown next to the value (percent, db, hz, ms).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// Tab this parameter belongs to in the block editor. Plugins with
+    /// hundreds of flat parameters (JUCE "Root Unit") declare groups so
+    /// the editor renders one tab per group instead of one long knob wall
+    /// (#780). `None` → the app groups the parameter dynamically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 /// A single value on a capture-grid axis.
