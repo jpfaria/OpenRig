@@ -1,0 +1,25 @@
+// #780 TEST-ONLY harness: hosts ParamTabBar in a real Window so the headless
+// interaction test (i-slint-backend-testing) can dispatch a real pointer event
+// at a tab and prove the tap lands + fires `select(i)`. The tabs are plain
+// TouchAreas (no PopupWindow), so these are REAL, hittable pointer events.
+// Imported by app-window.slint purely so slint-build emits the Rust type;
+// never shown in the running app.
+import { ParamTabBar } from "param_tab_bar.slint";
+
+export component ParamTabBarHarness inherits Window {
+    width: 700px;
+    height: 80px;
+    in property <[string]> groups;
+    in property <int> active: 0;
+    callback select(int);
+
+    ParamTabBar {
+        x: 0;
+        y: 20px;
+        width: 100%;
+        height: 40px;
+        groups: root.groups;
+        active: root.active;
+        select(i) => { root.select(i); }
+    }
+}

@@ -24,6 +24,8 @@ export component BlockEditorWindow inherits Window {
     in-out property <string> block-model-search-text;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[string]> block-parameter-groups;
+    in property <int> active-parameter-group: 0;
     in property <[MultiSliderPoint]> multi-slider-points;
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
@@ -51,6 +53,7 @@ export component BlockEditorWindow inherits Window {
     callback update-block-parameter-number-text(string, string);
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
+    callback select-parameter-group(int);
     callback pick-block-parameter-file(string);
 
     // Realtime data stream from engine (tuner, meter, analyzer, etc.)
@@ -144,6 +147,8 @@ export component BlockEditorWindow inherits Window {
         block-drawer-enabled: root.block-drawer-enabled;
         block-knob-overlays: root.block-knob-overlays;
         block-parameter-items: root.block-parameter-items;
+        block-parameter-groups: root.block-parameter-groups;
+        active-parameter-group: root.active-parameter-group;
         multi-slider-points: root.multi-slider-points;
         curve-editor-points: root.curve-editor-points;
         eq-total-curve: root.eq-total-curve;
@@ -165,6 +170,7 @@ export component BlockEditorWindow inherits Window {
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
+        select-parameter-group(i) => { root.select-parameter-group(i); }
     }
 
     // Other block types: existing form-based editor

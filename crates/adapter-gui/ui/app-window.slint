@@ -8,10 +8,10 @@ import { DiPanel } from "components/di_panel_globals.slint";
 import { DiLoopPanel } from "components/di_loop_panel.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
-// #749 test-only: exposes DiLoopHarness as a Rust type for headless DI popup
-// interaction tests. Never instantiated in the running UI.
+// #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
 import { DiLoopHarness } from "components/di_loop_test_harness.slint";
-export { DiLoopHarness }
+import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
+export { DiLoopHarness, ParamTabBarHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";

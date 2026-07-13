@@ -93,7 +93,7 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
         has_eq_widget,
     });
     win.set_panel_knob_window_width(dims.window_width_px);
-    win.set_panel_knob_window_height(dims.window_height_px);
+    win.set_panel_knob_window_height(dims.window_height_px + if win.get_block_parameter_groups().row_count() > 1 { 40.0 } else { 0.0 });
     win.set_panel_knob_inner_height(dims.inner_panel_height_px);
     win.set_panel_grid_cols(dims.grid_cols as i32);
     win.set_panel_grid_rows(dims.grid_rows as i32);
