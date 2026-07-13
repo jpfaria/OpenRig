@@ -22,6 +22,38 @@ use crate::block_editor_values::unit_label;
 use crate::state::BlockEditorData;
 use crate::{BlockParameterItem, SELECT_SELECTED_BLOCK_ID};
 
+/// Fallback tab label for parameters that declare no group.
+pub(crate) const DEFAULT_PARAM_GROUP: &str = "Main";
+
+/// Ordered, de-duplicated tab labels across `items`, in first-appearance
+/// order. Parameters with an empty group collapse under [`DEFAULT_PARAM_GROUP`].
+/// One label (or none) means the block needs no tab bar (#780).
+pub(crate) fn parameter_groups(items: &[BlockParameterItem]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for it in items {
+        let g = it.group.as_str();
+        let label = if g.is_empty() { DEFAULT_PARAM_GROUP } else { g };
+        if !out.iter().any(|existing| existing == label) {
+            out.push(label.to_string());
+        }
+    }
+    out
+}
+
+/// The subset of `items` whose group matches `group` (an empty group matches
+/// [`DEFAULT_PARAM_GROUP`]), preserving order (#780).
+pub(crate) fn items_in_group(items: &[BlockParameterItem], group: &str) -> Vec<BlockParameterItem> {
+    items
+        .iter()
+        .filter(|it| {
+            let g = it.group.as_str();
+            let label = if g.is_empty() { DEFAULT_PARAM_GROUP } else { g };
+            label == group
+        })
+        .cloned()
+        .collect()
+}
+
 pub(crate) fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParameterItem> {
     let mut items = Vec::new();
     if !data.select_options.is_empty() {
@@ -213,4 +245,50 @@ pub(crate) fn block_parameter_items_for_model(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn item(label: &str, group: &str) -> BlockParameterItem {
+        BlockParameterItem {
+            label: label.into(),
+            group: group.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn groups_are_distinct_first_appearance_with_default_fallback() {
+        let items = vec![
+            item("Gain", "Tone"),
+            item("Level", "Tone"),
+            item("Mode", "Voicing"),
+            item("Mix", ""), // ungrouped → Main
+        ];
+        assert_eq!(
+            parameter_groups(&items),
+            vec![
+                "Tone".to_string(),
+                "Voicing".to_string(),
+                "Main".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn items_in_group_filters_and_default_matches_empty() {
+        let items = vec![item("Gain", "Tone"), item("Mix", ""), item("Level", "Tone")];
+        let tone: Vec<String> = items_in_group(&items, "Tone")
+            .iter()
+            .map(|i| i.label.to_string())
+            .collect();
+        assert_eq!(tone, vec!["Gain".to_string(), "Level".to_string()]);
+        let main: Vec<String> = items_in_group(&items, "Main")
+            .iter()
+            .map(|i| i.label.to_string())
+            .collect();
+        assert_eq!(main, vec!["Mix".to_string()]);
+    }
 }
