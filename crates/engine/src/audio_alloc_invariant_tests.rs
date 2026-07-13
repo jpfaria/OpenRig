@@ -473,3 +473,162 @@ fn audio_callback_does_not_allocate_with_ir_cab() {
          much worse with an IR in the chain."
     );
 }
+
+// ── Issue #781: the RESIDUAL underrun on the user's real two-interface rig.
+// After the #743 stream-isolation fix removed the 12800 flood, the user still
+// hears 128-192 sporadic underruns "em qualquer situação" (even ONE chain, one
+// worker, on an idle M4) with the VST3 DEACTIVATED. The worker trace shows the
+// stall is OFF-CPU (low thread-cpu, high wall) DURING a block's process — the
+// hallmark of a per-callback allocation grabbing the process allocator lock
+// (the exact mechanism the #670 tests above pin, and the user's own words:
+// "openrig engasgando por algum processo síncrono"). The existing battery
+// covers eq8, ir_cab, and eq+NAM+limiter — but NOT the blocks that are actually
+// in the user's rig:input-1: gate_basic, TWO NAM instances, and eq8 TOGETHER.
+// These tests close that gap: any RED here IS the synchronous off-CPU cause.
+
+fn p781_gate() -> AudioBlock {
+    p670_core(
+        "gate",
+        "dynamics",
+        "gate_basic",
+        p670_floats(&[
+            ("threshold", -60.0),
+            ("attack_ms", 1.0),
+            ("release_ms", 100.0),
+            ("hold_ms", 150.0),
+            ("hysteresis_db", 6.0),
+        ]),
+    )
+}
+
+#[test]
+#[ignore = "issue #781: run serially in release — `cargo test -p engine \
+ --release --lib audio_callback_does_not_allocate -- --ignored --test-threads=1`"]
+fn audio_callback_does_not_allocate_with_gate_basic() {
+    p670_init_registry();
+    let runtime = std::sync::Arc::new(
+        build_chain_runtime_state(
+            &p670_isolated(p781_gate()),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry_mono_in_stereo_out(),
+        )
+        .expect("gate runtime should build"),
+    );
+    let input_buf = vec![0.3_f32; 64];
+    let mut output_buf = vec![0.0_f32; 64 * 2];
+    for _ in 0..256 {
+        process_input_f32(&runtime, 0, &input_buf, 1);
+        process_output_f32(&runtime, 0, &mut output_buf, 2);
+    }
+    let allocs = measure_allocs(|| {
+        for _ in 0..1_000 {
+            process_input_f32(&runtime, 0, &input_buf, 1);
+            process_output_f32(&runtime, 0, &mut output_buf, 2);
+        }
+    });
+    eprintln!("[#781 alloc] gate_basic @64: {allocs} allocations / 1000 callbacks");
+    assert_eq!(
+        allocs, 0,
+        "BUG #781: gate_basic allocates {allocs}x on the audio thread — grabs the \
+         allocator lock and stalls the worker off-CPU (the residual underrun)."
+    );
+}
+
+#[test]
+#[ignore = "issue #781: run serially in release"]
+fn audio_callback_does_not_allocate_with_two_nam_instances() {
+    p670_init_registry();
+    let chain = Chain {
+        id: ChainId("issue781-two-nam".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![
+            p670_nam("amp1", "nam_marshall_plexi", "angus"),
+            p670_nam("amp2", "nam_marshall_plexi", "angus"),
+        ],
+        di_output: None,
+    };
+    let runtime = std::sync::Arc::new(
+        build_chain_runtime_state(
+            &chain,
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry_mono_in_stereo_out(),
+        )
+        .expect("two-NAM runtime should build"),
+    );
+    let input_buf = vec![0.3_f32; 64];
+    let mut output_buf = vec![0.0_f32; 64 * 2];
+    for _ in 0..256 {
+        process_input_f32(&runtime, 0, &input_buf, 1);
+        process_output_f32(&runtime, 0, &mut output_buf, 2);
+    }
+    let allocs = measure_allocs(|| {
+        for _ in 0..1_000 {
+            process_input_f32(&runtime, 0, &input_buf, 1);
+            process_output_f32(&runtime, 0, &mut output_buf, 2);
+        }
+    });
+    eprintln!("[#781 alloc] two NAM instances @64: {allocs} allocations / 1000 callbacks");
+    assert_eq!(
+        allocs, 0,
+        "BUG #781: two NAM instances allocate {allocs}x on the audio thread in \
+         1000 callbacks — the second instance's process path is not alloc-free."
+    );
+}
+
+#[test]
+#[ignore = "issue #781: run serially in release"]
+fn audio_callback_does_not_allocate_with_user_rig_input1() {
+    p670_init_registry();
+    let chain = Chain {
+        id: ChainId("issue781-rig-input1".into()),
+        description: Some("issue #781 user's real rig:input-1 chain".into()),
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![
+            p781_gate(),
+            p670_nam("amp1", "nam_marshall_plexi", "angus"),
+            p670_nam("amp2", "nam_marshall_plexi", "angus"),
+            p670_eq8(),
+        ],
+        di_output: None,
+    };
+    let runtime = std::sync::Arc::new(
+        build_chain_runtime_state(
+            &chain,
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry_mono_in_stereo_out(),
+        )
+        .expect("user rig:input-1 runtime should build"),
+    );
+    let input_buf = vec![0.3_f32; 64];
+    let mut output_buf = vec![0.0_f32; 64 * 2];
+    for _ in 0..256 {
+        process_input_f32(&runtime, 0, &input_buf, 1);
+        process_output_f32(&runtime, 0, &mut output_buf, 2);
+    }
+    let allocs = measure_allocs(|| {
+        for _ in 0..1_000 {
+            process_input_f32(&runtime, 0, &input_buf, 1);
+            process_output_f32(&runtime, 0, &mut output_buf, 2);
+        }
+    });
+    eprintln!(
+        "[#781 alloc] user rig:input-1 (gate + 2 NAM + eq8) @64: {allocs} allocations / 1000 callbacks"
+    );
+    assert_eq!(
+        allocs, 0,
+        "BUG #781: the user's real rig:input-1 chain allocates {allocs}x on the \
+         audio thread in 1000 callbacks — an allocation grabs the process \
+         allocator lock and stalls the worker off-CPU. This is the residual \
+         underrun 'em qualquer situação' (synchronous, even single-chain)."
+    );
+}
