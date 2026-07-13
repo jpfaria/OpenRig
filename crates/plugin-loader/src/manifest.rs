@@ -161,6 +161,29 @@ impl PluginManifest {
     }
 }
 
+/// Find the OpenRig package manifest that owns a scanned VST3 `bundle_path`
+/// and return its `vst3_id → group` map. The catalog scans the raw `.vst3`
+/// folder (e.g. `<plugins>/vst3/<id>/bundles/<name>.vst3`), so this walks up
+/// a few levels looking for the sibling `manifest.yaml`. Returns an empty map
+/// when the bundle ships no OpenRig manifest — the caller then groups the
+/// parameters dynamically (#780).
+pub fn vst3_group_map_for_bundle(bundle_path: &std::path::Path) -> BTreeMap<u32, String> {
+    let mut dir = bundle_path.parent();
+    for _ in 0..4 {
+        let Some(d) = dir else { break };
+        let candidate = d.join("manifest.yaml");
+        if candidate.is_file() {
+            if let Ok(text) = std::fs::read_to_string(&candidate) {
+                if let Ok(manifest) = serde_yaml::from_str::<PluginManifest>(&text) {
+                    return manifest.vst3_group_map();
+                }
+            }
+        }
+        dir = d.parent();
+    }
+    BTreeMap::new()
+}
+
 /// NAM model architecture family (issue #650).
 ///
 /// - [`A1`](NamArchitecture::A1) — NAM "v1": WaveNet / LSTM / ConvNet

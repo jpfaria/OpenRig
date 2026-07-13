@@ -22,6 +22,11 @@ use block_core::param::{bool_parameter, enum_parameter, float_parameter, Paramet
 /// Build the parameter specs for a VST3 `model`, or an empty vec if the plugin
 /// exposes none / cannot be read.
 pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
+    // Author-declared tab groups from the plugin's OpenRig package manifest
+    // (empty when it ships none — the group then comes from dynamic grouping).
+    let group_map = vst3_host::find_vst3_plugin(model)
+        .map(|entry| plugin_loader::vst3_group_map_for_bundle(&entry.info.bundle_path))
+        .unwrap_or_default();
     vst3_host::catalog_params(model)
         .iter()
         .filter(|p| !is_unlabeled(&p.title, &p.short_title))
@@ -32,9 +37,10 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
             } else {
                 p.title.clone()
             };
+            let group = group_map.get(&p.id).map(String::as_str);
             let is_toggle = p.step_count == 1 && looks_like_on_off(&p.title, &p.enum_options);
             if is_toggle {
-                bool_parameter(&path, &label, None, Some(p.default_normalized >= 0.5))
+                bool_parameter(&path, &label, group, Some(p.default_normalized >= 0.5))
             } else if p.step_count >= 1 {
                 let options: Vec<(&str, &str)> = p
                     .enum_options
@@ -42,12 +48,12 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
                     .map(|(v, l)| (v.as_str(), l.as_str()))
                     .collect();
                 let default_val = format!("{}", p.default_normalized * 100.0);
-                enum_parameter(&path, &label, None, Some(&default_val), &options)
+                enum_parameter(&path, &label, group, Some(&default_val), &options)
             } else {
                 float_parameter(
                     &path,
                     &label,
-                    None,
+                    group,
                     Some((p.default_normalized * 100.0) as f32),
                     0.0,
                     100.0,
