@@ -88,8 +88,14 @@ fn thread_cpu_us() -> u128 {
     const THREAD_BASIC_INFO: i32 = 3;
     const COUNT: u32 = (std::mem::size_of::<ThreadBasicInfo>() / std::mem::size_of::<i32>()) as u32;
     let mut info = ThreadBasicInfo {
-        user_time: TimeValue { seconds: 0, microseconds: 0 },
-        system_time: TimeValue { seconds: 0, microseconds: 0 },
+        user_time: TimeValue {
+            seconds: 0,
+            microseconds: 0,
+        },
+        system_time: TimeValue {
+            seconds: 0,
+            microseconds: 0,
+        },
         cpu_usage: 0,
         policy: 0,
         run_state: 0,
@@ -202,7 +208,10 @@ fn nam(id: &str, model: &str, preset: &str) -> AudioBlock {
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
-        kind: AudioBlockKind::Nam(NamBlock { model: model.into(), params: p }),
+        kind: AudioBlockKind::Nam(NamBlock {
+            model: model.into(),
+            params: p,
+        }),
     }
 }
 
@@ -213,7 +222,10 @@ fn eq8() -> AudioBlock {
         p.insert(format!("band{b}_freq"), ParameterValue::Float(1000.0));
         p.insert(format!("band{b}_gain"), ParameterValue::Float(0.0));
         p.insert(format!("band{b}_q"), ParameterValue::Float(1.0));
-        p.insert(format!("band{b}_type"), ParameterValue::String("peak".into()));
+        p.insert(
+            format!("band{b}_type"),
+            ParameterValue::String("peak".into()),
+        );
     }
     p.insert("output_db", ParameterValue::Float(0.0));
     core("eq8", "filter", "eq_eight_band_parametric", p)
@@ -250,7 +262,9 @@ fn build() -> Arc<ChainRuntimeState> {
         ],
         di_output: None,
     };
-    Arc::new(build_chain_runtime_state(&chain, SR, &[BUFFER], &registry()).expect("build rig chain"))
+    Arc::new(
+        build_chain_runtime_state(&chain, SR, &[BUFFER], &registry()).expect("build rig chain"),
+    )
 }
 
 #[test]
@@ -318,14 +332,43 @@ fn residual_underrun_is_offcpu_or_oncpu_on_the_real_rig() {
 
     let cold_late = cold_wall.iter().filter(|&&w| w > PERIOD_US).count();
 
+    // ── Pass C: REAL CADENCE but BUSY-SPIN the gap (unrelated scalar math in
+    // registers — the worker's current #670 spin, which does NOT touch the NAM
+    // weight memory). If keeping the core on our thread this way holds the
+    // weights in cache, compute stays at the hot floor → the fix is "spin the
+    // gap". If compute STILL inflates like Pass B, a core-busy spin does not
+    // warm the WEIGHTS and the fix must prefetch the weight memory specifically.
+    let mut spin_cpu: Vec<u128> = Vec::with_capacity(ITERS);
+    let mut next = Instant::now();
+    for _ in 0..ITERS {
+        let c0 = thread_cpu_us();
+        process_input_f32(&rt, 0, &input, 1);
+        process_output_f32(&rt, 0, &mut out, 2);
+        spin_cpu.push(thread_cpu_us().saturating_sub(c0));
+        next += period;
+        let mut x = 0.0001_f64;
+        while Instant::now() < next {
+            for _ in 0..64 {
+                x = (x.sin().cos() + 1.0001).sqrt();
+            }
+            std::hint::black_box(x);
+        }
+    }
+    spin_cpu.sort_unstable();
+
     eprintln!("[#781 offcpu] period={PERIOD_US}us  iters={ITERS}  (single-thread, NO contention)");
     eprintln!(
         "[#781 offcpu] A) HOT tight loop     compute: median={}us  p99={}us  p999={}us",
-        p(&hot, 50), p(&hot, 99), p(&hot, 999 / 10)
+        p(&hot, 50),
+        p(&hot, 99),
+        p(&hot, 999 / 10)
     );
     eprintln!(
         "[#781 offcpu] B) REAL cadence       compute: median={}us  p99={}us  p999={}us  MAX={}us",
-        p(&cold_cpu, 50), p(&cold_cpu, 99), p(&cold_cpu, 999 / 10), cold_cpu[cold_cpu.len() - 1]
+        p(&cold_cpu, 50),
+        p(&cold_cpu, 99),
+        p(&cold_cpu, 999 / 10),
+        cold_cpu[cold_cpu.len() - 1]
     );
     eprintln!(
         "[#781 offcpu] B) REAL cadence       wall   : median={}us  p99={}us  MAX={}us  late(>period)={cold_late}",
@@ -333,11 +376,21 @@ fn residual_underrun_is_offcpu_or_oncpu_on_the_real_rig() {
     );
     eprintln!(
         "[#781 offcpu] B) REAL cadence      off-cpu : median={}us  p99={}us  MAX={}us",
-        p(&cold_off, 50), p(&cold_off, 99), cold_off[cold_off.len() - 1]
+        p(&cold_off, 50),
+        p(&cold_off, 99),
+        cold_off[cold_off.len() - 1]
     );
     eprintln!(
-        "[#781 offcpu] cold/hot compute p99 ratio = {:.1}x   pageins Δ={}  csw Δ={}",
+        "[#781 offcpu] C) cadence + BUSY-SPIN compute: median={}us  p99={}us  p999={}us  MAX={}us",
+        p(&spin_cpu, 50),
+        p(&spin_cpu, 99),
+        p(&spin_cpu, 999 / 10),
+        spin_cpu[spin_cpu.len() - 1]
+    );
+    eprintln!(
+        "[#781 offcpu] cold/hot p99 = {:.1}x   spin/hot p99 = {:.1}x   pageins Δ={}  csw Δ={}",
         p(&cold_cpu, 99) as f64 / p(&hot, 99).max(1) as f64,
+        p(&spin_cpu, 99) as f64 / p(&hot, 99).max(1) as f64,
         pageins1 - pageins0,
         csw1 - csw0
     );

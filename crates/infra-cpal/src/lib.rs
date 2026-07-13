@@ -111,6 +111,8 @@ mod dsp_worker;
 mod dsp_worker_recovery_tests;
 mod stream_builder;
 mod stream_config;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod worker_spin;
 pub use stream_builder::build_streams_for_project;
 
 // Cross-module helpers — these used to live in lib.rs and are referenced
