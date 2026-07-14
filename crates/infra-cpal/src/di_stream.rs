@@ -2,28 +2,30 @@
 //! runtime, output-clocked via ring backpressure, never injected into the
 //! guitar's runtime.
 //!
+//! This module owns the controller-side lifecycle: arm, disarm, re-arm and the
+//! queries the UI reads. The render thread itself lives in `di_stream_worker`.
+//!
 //! Arming resolves the chain's persisted output choice (`Chain.di_output`),
 //! builds a fresh routed copy of the chain's block graph on a `di-stream`
 //! worker and parks a ring-backed playback in the CHOSEN output's
-//! [`DiPlaybackCell`] immediately (a 75 s loop starts in milliseconds — the
-//! full pre-render tried first took minutes before the first sample). The
-//! worker only produces what the output callback consumed (ring
-//! backpressure), so the output device clock IS the DI clock: no drift by
-//! construction (the sleep-paced worker tried in #717 drifted and was
-//! reverted, `f1131725e`), and no DSP ever runs in the callback. The guitar
-//! runtime is never touched (invariant #4).
+//! [`DiPlaybackCell`] (a 75 s loop starts in milliseconds — the full pre-render
+//! tried first took minutes before the first sample).
 //!
-//! Lifecycle rules (review findings, #771):
-//! - The render thread parks ONLY under the handle's `armed` lock, and
-//!   disarm flips it under the same lock — a disarm ALWAYS wins over an
-//!   in-flight render (no zombie playback). The lock lives entirely off the
-//!   audio thread.
-//! - A retired playback is never dropped by the audio callback: disarm swaps
-//!   it out and parks it in `di_retired`; the entry is freed on a LATER
-//!   disarm/arm cycle, long after any in-flight callback guard is gone.
-//! - A failed render flips the handle's `failed` flag; `di_stream_active`
-//!   then reports NOT playing (the meter poll resets the UI) instead of an
-//!   eternal silent "playing".
+//! Lifecycle rules (review findings, #771; hand-off, #785):
+//! - The render thread parks ONLY under an `armed` lock, and a disarm flips it
+//!   under the same lock — a disarm ALWAYS wins over an in-flight render (no
+//!   zombie playback). The lock lives entirely off the audio thread.
+//! - A retired playback is never dropped by the audio callback: it is parked in
+//!   `di_retired` and freed on a LATER cycle, long after any in-flight callback
+//!   guard is gone.
+//! - A failed render flips the handle's `failed` flag; `di_stream_active` then
+//!   reports NOT playing (the meter poll resets the UI) instead of an eternal
+//!   silent "playing".
+//! - A live edit re-arms GAPLESSLY: the outgoing playback keeps sounding while
+//!   the incoming render builds and pre-rolls, and the incoming worker takes
+//!   the cell over mid-loop. The handle therefore tracks EVERY live worker of
+//!   the chain, so the one that takes over stops all it supersedes and a disarm
+//!   stops whatever is left.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -32,13 +34,12 @@ use anyhow::Result;
 
 use domain::ids::ChainId;
 use engine::di_output_resolve::resolve_di_output_index;
-use engine::di_render::build_routed_di_runtime;
-use engine::runtime::{process_input_f32, process_output_f32};
 use engine::runtime_endpoints::resolve_chain_io;
 use engine::DiPcm;
 use project::chain::Chain;
 
 use crate::di_playback::{DiPlayback, DiPlaybackCell};
+use crate::di_stream_worker::{self, DiHandoff, DiWorkerSpec};
 use crate::ProjectRuntimeController;
 
 /// Bookkeeping for one armed DI. Dropping the handle disarms (safety net);
@@ -47,26 +48,38 @@ use crate::ProjectRuntimeController;
 pub(crate) struct DiStreamHandle {
     output_index: usize,
     cell: DiPlaybackCell,
-    /// `true` while this arm owns the cell. The render thread parks only
-    /// under this lock; disarm flips it under the same lock.
+    /// `true` while this arm's render thread should keep running.
     armed: Arc<Mutex<bool>>,
+    /// #785: the arm flags of EVERY render thread still alive for this chain —
+    /// this arm's plus any it superseded. Edits arrive faster than a render
+    /// builds, so a hand-off can find several workers in flight; the one that
+    /// takes over stops all of them. Tracking only the latest left the worker
+    /// feeding the playback the listener was hearing running forever.
+    workers: Vec<Arc<Mutex<bool>>>,
     /// The source, kept so the controller can re-arm after a rebuild
     /// without a dispatcher round-trip.
     pcm: Arc<DiPcm>,
     /// Set by the render thread on failure; surfaces through
     /// [`ProjectRuntimeController::di_stream_active`].
     failed: Arc<AtomicBool>,
-    /// #785: a gapless re-arm hands this handle's playback over to the
-    /// incoming render, which stops the old worker and retires the old
-    /// playback itself. Dropping the superseded handle must NOT empty the
-    /// cell — that is exactly the teardown the listener heard as a cut.
+    /// #785: a gapless re-arm supersedes this handle while its playback is
+    /// still sounding — the incoming worker owns stopping it. Dropping a
+    /// superseded handle must NOT empty the cell; that is exactly the teardown
+    /// the listener heard as a cut.
     superseded: bool,
+}
+
+/// Stop every render thread in `workers` (idempotent).
+fn stop_workers(workers: &[Arc<Mutex<bool>>]) {
+    for worker in workers {
+        let mut armed = worker.lock().unwrap_or_else(|e| e.into_inner());
+        *armed = false;
+    }
 }
 
 impl DiStreamHandle {
     fn disarm(&self) -> Option<Arc<DiPlayback>> {
-        let mut armed = self.armed.lock().unwrap_or_else(|e| e.into_inner());
-        *armed = false;
+        stop_workers(&self.workers);
         self.cell.swap(None)
     }
 }
@@ -80,32 +93,6 @@ impl Drop for DiStreamHandle {
         // swapped-out playback drops here, on a non-audio thread.
         let _ = self.disarm();
     }
-}
-
-/// What a gapless re-arm (#785) hands to the incoming render: the playback the
-/// listener is hearing, and the outgoing worker's arm flag, so the incoming
-/// render can line itself up with it and stop it at the hand-off.
-struct DiHandoff {
-    prev: Arc<DiPlayback>,
-    prev_armed: Arc<Mutex<bool>>,
-}
-
-/// Frames the incoming render pre-rolls before it can take over. The outgoing
-/// playback keeps sounding until the listener reaches this position, so the
-/// hand-off is both gapless and continuous in the loop — no restart, no jump.
-const HANDOFF_PREROLL_FRAMES: usize = 8192;
-
-/// A stalled output (no callback consuming) would never reach the hand-off
-/// position. After this long, the incoming render takes over anyway.
-const HANDOFF_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
-
-/// Has the outgoing playback reached the loop position the incoming render
-/// starts from (within one worker block)? `tol` also absorbs the callback
-/// overshooting the exact frame — the position may land just PAST `start_pos`.
-fn handoff_reached(prev: &DiPlayback, start_pos: usize, loop_len: usize, tol: usize) -> bool {
-    let loop_len = loop_len.max(1);
-    let ahead = (start_pos + loop_len - prev.play_pos() % loop_len) % loop_len;
-    ahead <= tol || ahead >= loop_len.saturating_sub(tol)
 }
 
 impl ProjectRuntimeController {
@@ -139,8 +126,8 @@ impl ProjectRuntimeController {
     /// runtime off-thread and stream the loop into that output's cell. The
     /// guitar runtime is NEVER touched.
     pub fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
-        // Re-arm replaces any previous playback (and retires it off the
-        // audio thread).
+        // A fresh arm replaces any previous playback (and retires it off the
+        // audio thread) — the listener asked for this one.
         self.disarm_di_stream(&chain.id);
         self.spawn_di_stream(chain, pcm, None)
     }
@@ -169,192 +156,35 @@ impl ProjectRuntimeController {
         let armed = Arc::new(Mutex::new(true));
         let failed = Arc::new(AtomicBool::new(false));
         let handoff_pending = handoff.is_some();
-        {
-            let cell = cell.clone();
-            let armed = Arc::clone(&armed);
-            let failed = Arc::clone(&failed);
-            let chain = chain.clone();
-            let registry = self.io_bindings.clone();
-            let pcm = Arc::clone(&pcm);
-            let retired = Arc::clone(&self.di_retired);
-            std::thread::Builder::new()
-                .name("di-stream".into())
-                .spawn(move || {
-                    // Build the routed isolated runtime (heavy: NAM/IR loads)
-                    // OFF the frontend; the loop is fed through the CHOSEN
-                    // output's own binding (#716/#699 — a flat render on a
-                    // multi-binding chain was silent for any binding but the
-                    // first: the owner's "no sound").
-                    let routed = match build_routed_di_runtime(
-                        &chain,
-                        &registry,
-                        chain.di_output.as_ref(),
-                        output_rate,
-                        &pcm,
-                    ) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            failed.store(true, Ordering::Relaxed);
-                            log::error!("di-stream build failed for chain '{}': {e:#}", chain.id.0);
-                            return;
-                        }
-                    };
-                    // Raw (pre-chain) loop for the DI IN meter.
-                    let raw = pcm.to_loop_at(output_rate);
-                    let raw_len = raw.len().max(1);
+        // Every worker the incoming one supersedes, plus itself: whoever takes
+        // the cell over stops the others, and a disarm stops the survivors.
+        let mut workers: Vec<Arc<Mutex<bool>>> = handoff
+            .as_ref()
+            .map(|h| h.prev_workers.clone())
+            .unwrap_or_default();
+        workers.push(Arc::clone(&armed));
 
-                    // Parked below only after a ~100 ms pre-buffer, so
-                    // playback starts with a cushion instead of racing the
-                    // worker from frame one (still well under a second for a
-                    // 75 s loop — the pre-render took minutes).
-                    //
-                    // #785: on a gapless re-arm the outgoing playback is still
-                    // sounding, so this render starts where the listener WILL
-                    // be once the pre-roll is ready — not at the top of the
-                    // loop. It then waits for the listener to reach exactly
-                    // that position before taking the cell over, so the edit
-                    // lands with neither a silent gap nor a jump in the loop.
-                    let loop_len = routed.loop_len.max(1);
-                    let start_pos = handoff
-                        .as_ref()
-                        .map(|h| (h.prev.play_pos() + HANDOFF_PREROLL_FRAMES) % loop_len)
-                        .unwrap_or(0);
-                    let playback = Arc::new(DiPlayback::starting_at(
-                        dest_left,
-                        dest_right,
-                        routed.loop_len,
-                        start_pos,
-                    ));
-                    let ring = playback.ring();
-                    let mut parked = false;
-                    let handoff_deadline = std::time::Instant::now() + HANDOFF_TIMEOUT;
-                    routed.runtime.set_di_loop_pos(start_pos);
+        di_stream_worker::spawn(DiWorkerSpec {
+            chain: chain.clone(),
+            registry: self.io_bindings.clone(),
+            pcm: Arc::clone(&pcm),
+            output_rate,
+            dest_left,
+            dest_right,
+            cell: cell.clone(),
+            armed: Arc::clone(&armed),
+            failed: Arc::clone(&failed),
+            retired: Arc::clone(&self.di_retired),
+            handoff,
+        });
 
-                    // Stream the DI: paced by RING BACKPRESSURE — the worker
-                    // only produces what the output consumed, so the output
-                    // device clock IS the DI clock (no drift by construction;
-                    // the sleep-paced worker tried in #717 drifted and was
-                    // reverted, f1131725e). All DSP runs HERE, never in the
-                    // callback (invariant #8).
-                    const BLOCK: usize = 256;
-                    // Scheduling shape matters more than raw priority here
-                    // (#698 lesson, re-measured live on the owner's rig):
-                    // - normal priority + continuous burn → 71-88% fill
-                    //   (preempted by the GUI + the guitar's RT worker);
-                    // - RT class + continuous burn → 38% fill (the kernel
-                    //   demotes a time-constraint thread that blows through
-                    //   its declared computation budget for seconds).
-                    // The guitar's dsp_worker sustains the SAME chain cost
-                    // in debug because it works in SHORT BURSTS. Mirror it:
-                    // one block per iteration, a breath every few blocks,
-                    // and an honest RT declaration sized to that cadence.
-                    let period_ns = (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
-                    crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns * 3 / 5);
-                    let silence = vec![0.0f32; BLOCK];
-                    let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
-                    let mut pos: usize = start_pos;
-                    // Catch-up bursts are capped: after every few back-to-back
-                    // blocks the worker yields, so it never presents the
-                    // scheduler with a multi-second monolithic burn (that is
-                    // what collapsed throughput to 38%).
-                    let mut burst: u32 = 0;
-                    loop {
-                        {
-                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
-                            if !*armed {
-                                return;
-                            }
-                        }
-                        // Park BEFORE the backpressure check: a gapless re-arm
-                        // waits, with a full ring, for the listener to reach
-                        // the hand-off position — the take-over must still be
-                        // evaluated while the worker is resting.
-                        let park_fill = match handoff {
-                            Some(_) => HANDOFF_PREROLL_FRAMES * 2,
-                            None => BLOCK * 2 * 16,
-                        };
-                        if !parked && ring.len() >= park_fill {
-                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
-                            if !*armed {
-                                return;
-                            }
-                            match handoff.as_ref() {
-                                // Cold arm: nothing is sounding, park at once.
-                                None => {
-                                    cell.store(Some(Arc::clone(&playback)));
-                                    parked = true;
-                                }
-                                // Gapless re-arm (#785): the outgoing playback
-                                // keeps sounding until the listener reaches the
-                                // position this render started from. Then, under
-                                // the outgoing arm lock, stop the old worker and
-                                // swap the cell — no teardown, no silence, no
-                                // jump in the loop.
-                                Some(h) => {
-                                    if handoff_reached(&h.prev, start_pos, loop_len, BLOCK)
-                                        || std::time::Instant::now() >= handoff_deadline
-                                    {
-                                        let mut prev_armed =
-                                            h.prev_armed.lock().unwrap_or_else(|e| e.into_inner());
-                                        *prev_armed = false;
-                                        cell.store(Some(Arc::clone(&playback)));
-                                        // An in-flight callback may still hold a
-                                        // guard on the outgoing playback: retire
-                                        // it instead of dropping it here, so the
-                                        // audio thread never frees it (#8).
-                                        retired
-                                            .lock()
-                                            .unwrap_or_else(|e| e.into_inner())
-                                            .push(Arc::clone(&h.prev));
-                                        parked = true;
-                                    }
-                                }
-                            }
-                        }
-                        let free = ring.capacity() - ring.len();
-                        if free < BLOCK * 2 {
-                            // Ring topped up: rest half a block period.
-                            burst = 0;
-                            std::thread::sleep(std::time::Duration::from_nanos(period_ns / 2));
-                            continue;
-                        }
-                        if burst >= 4 {
-                            burst = 0;
-                            std::thread::sleep(std::time::Duration::from_millis(1));
-                            continue;
-                        }
-                        burst += 1;
-                        process_input_f32(&routed.runtime, 0, &silence, 1);
-                        process_output_f32(
-                            &routed.runtime,
-                            routed.output_index,
-                            &mut drain,
-                            routed.drain_width,
-                        );
-                        for frame in drain.chunks(routed.drain_width) {
-                            let _ = ring.push(frame[routed.drain_left]);
-                            let _ = ring.push(frame[routed.drain_right]);
-                        }
-                        let mut in_peak = 0.0f32;
-                        for i in 0..BLOCK {
-                            let f = match raw.frame_at((pos + i) % raw_len) {
-                                engine::DiFrame::Mono(s) => s.abs(),
-                                engine::DiFrame::Stereo([a, b]) => a.abs().max(b.abs()),
-                            };
-                            in_peak = in_peak.max(f);
-                        }
-                        pos = (pos + BLOCK) % raw_len;
-                        playback.set_in_peak(in_peak);
-                    }
-                })
-                .expect("spawn di-stream thread");
-        }
         let superseded = self.di_streams.borrow_mut().insert(
             chain.id.clone(),
             DiStreamHandle {
                 output_index,
                 cell,
                 armed,
+                workers,
                 pcm,
                 failed,
                 superseded: false,
@@ -369,9 +199,9 @@ impl ProjectRuntimeController {
         Ok(())
     }
 
-    /// Disarm the chain's DI: the in-flight render (if any) is neutralized
-    /// under the handle's lock, and the parked playback is RETIRED — freed on
-    /// a later cycle, never by the audio callback (invariant #8).
+    /// Disarm the chain's DI: every live render thread is stopped under its arm
+    /// lock, and the parked playback is RETIRED — freed on a later cycle, never
+    /// by the audio callback (invariant #8).
     pub fn disarm_di_stream(&self, chain_id: &ChainId) {
         // Free the previous cycle's retirees first: by now any callback
         // guard that referenced them (a µs-scale window) is long gone.
@@ -404,7 +234,7 @@ impl ProjectRuntimeController {
                     Arc::clone(&h.pcm),
                     h.cell.load_full().map(|prev| DiHandoff {
                         prev,
-                        prev_armed: Arc::clone(&h.armed),
+                        prev_workers: h.workers.clone(),
                     }),
                 )
             })

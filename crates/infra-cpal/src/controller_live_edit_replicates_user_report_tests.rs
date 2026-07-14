@@ -493,6 +493,76 @@ fn a_live_block_toggle_must_not_interrupt_the_monitored_di() {
     );
 }
 
+/// #785: the OLD DI render must die. A hand-off leaves the outgoing worker
+/// running on purpose (it feeds the playback the listener still hears) — the
+/// incoming one stops it when it takes over. Edits arrive faster than a render
+/// builds, so several workers can be in flight at once; when the dust settles
+/// exactly ONE may be left. A worker left behind renders a whole chain into a
+/// ring nobody plays, forever.
+#[test]
+fn rapid_live_edits_leave_exactly_one_di_worker_alive() {
+    init_registry();
+    let mut controller = controller_with_active_chain(&gain_chain(100.0));
+
+    let pcm = Arc::new(engine::DiPcm::new(vec![0.6; 48_000 * 4], 48_000, 1));
+    controller
+        .arm_di_stream(&gain_chain(100.0), Arc::clone(&pcm))
+        .expect("arm DI");
+    wait_for_di_render(&controller);
+    let cell = controller.di_playback_cell(&ChainId(CHAIN_ID.into()), 0);
+
+    // Five edits back to back, as fast as the GUI can dispatch them — each one
+    // re-arms while the previous render may still be building.
+    for volume in [90.0, 80.0, 70.0, 60.0, 50.0] {
+        let edited = gain_chain(volume);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![edited.clone()],
+            midi: None,
+        };
+        controller
+            .request_offthread_rebuild_if_live(&project, &edited)
+            .expect("live rebuild request");
+        // Keep the output consuming so a hand-off can actually land.
+        di_max_silence_run_while(&cell, 0.15, || {
+            controller.poll_pending_rebuilds();
+        });
+    }
+
+    // Let every hand-off settle (and every superseded worker notice).
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed) > 1
+        && Instant::now() < deadline
+    {
+        di_max_silence_run_while(&cell, 0.1, || {
+            controller.poll_pending_rebuilds();
+        });
+    }
+
+    let alive =
+        crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed);
+    assert_eq!(
+        alive, 1,
+        "#785: {alive} di-stream workers still alive after the edits settled — a \
+         superseded render was left behind, burning a core rendering the chain \
+         into a ring nobody plays."
+    );
+
+    controller.disarm_di_stream(&ChainId(CHAIN_ID.into()));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed) > 0
+        && Instant::now() < deadline
+    {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert_eq!(
+        crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed),
+        0,
+        "#785: disarm must stop every DI render thread"
+    );
+}
+
 /// The owner's SECOND report, on the DI monitor: "I disable a block and the
 /// effect keeps going." The #522 fast toggle flips only the guitar runtime, so
 /// the dedicated DI pre-render must be re-rendered for the disable to be heard
