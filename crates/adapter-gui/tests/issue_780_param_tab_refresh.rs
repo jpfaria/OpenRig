@@ -43,6 +43,18 @@ fn switching_models_rebuilds_the_tabs_and_resets_active() {
         2,
         "plugin A must expose two tabs"
     );
+    // win_param_items must stay FULL (all 3 params, both tabs) so a save
+    // (OverwriteBlock) never drops the non-active tab's params. Only the
+    // active tab (Tone: 2) is visible via tab_slot >= 0.
+    assert_eq!(
+        items.row_count(),
+        3,
+        "win_param_items must keep every tab's params for persistence"
+    );
+    let visible = (0..items.row_count())
+        .filter(|&i| items.row_data(i).map(|it| it.tab_slot >= 0).unwrap_or(false))
+        .count();
+    assert_eq!(visible, 2, "only the active tab's params are shown (tab_slot >= 0)");
     // Move to the second tab, as a user would.
     win.set_active_parameter_group(1);
 
@@ -63,10 +75,10 @@ fn switching_models_rebuilds_the_tabs_and_resets_active() {
         0,
         "switching plugins must reset to the first tab"
     );
-    // The state now reflects plugin B, so tab selection filters B's params.
+    // win_param_items now holds plugin B's full params (both would be saved).
     assert_eq!(
-        state.borrow().full.len(),
+        items.row_count(),
         2,
-        "the live state must hold plugin B's params, not A's"
+        "win_param_items now holds plugin B's params (full), not A's"
     );
 }

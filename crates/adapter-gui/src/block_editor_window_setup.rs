@@ -159,12 +159,13 @@ pub(crate) fn create_and_wire(
         let tab_state = tab_state.clone();
         let weak = win.as_weak();
         win.on_select_parameter_group(move |i| {
-            win_param_items.set_vec(crate::block_editor_param_tabs::visible_rows_for_group(
-                &tab_state.borrow(),
-                i,
-            ));
             if let Some(w) = weak.upgrade() {
-                w.set_active_parameter_group(i);
+                crate::block_editor_param_tabs::select_param_tab(
+                    &w,
+                    &win_param_items,
+                    &tab_state,
+                    i,
+                );
                 crate::block_editor_window_lifecycle::apply_panel_dimensions(&w);
             }
         });

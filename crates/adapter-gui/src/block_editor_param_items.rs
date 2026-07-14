@@ -40,19 +40,9 @@ pub(crate) fn parameter_groups(items: &[BlockParameterItem]) -> Vec<String> {
     out
 }
 
-/// The subset of `items` whose group matches `group` (an empty group matches
-/// [`DEFAULT_PARAM_GROUP`]), preserving order (#780).
-pub(crate) fn items_in_group(items: &[BlockParameterItem], group: &str) -> Vec<BlockParameterItem> {
-    items
-        .iter()
-        .filter(|it| {
-            let g = it.group.as_str();
-            let label = if g.is_empty() { DEFAULT_PARAM_GROUP } else { g };
-            label == group
-        })
-        .cloned()
-        .collect()
-}
+// Per-tab filtering now lives in `block_editor_param_tabs::retag_for_group`,
+// which tags each row's `tab_slot` instead of dropping rows — the model must
+// stay full so a save never loses a non-active tab's params (#780).
 
 pub(crate) fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParameterItem> {
     let mut items = Vec::new();
@@ -100,6 +90,7 @@ pub(crate) fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<Bl
             file_extensions: ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
             optional: false,
             allow_empty: false,
+            tab_slot: 0,
         });
     }
     items.extend(block_parameter_items_for_model(
@@ -242,6 +233,7 @@ pub(crate) fn block_parameter_items_for_model(
                 file_extensions,
                 optional: spec.optional,
                 allow_empty: spec.allow_empty,
+                tab_slot: 0,
             }
         })
         .collect()
@@ -277,18 +269,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn items_in_group_filters_and_default_matches_empty() {
-        let items = vec![item("Gain", "Tone"), item("Mix", ""), item("Level", "Tone")];
-        let tone: Vec<String> = items_in_group(&items, "Tone")
-            .iter()
-            .map(|i| i.label.to_string())
-            .collect();
-        assert_eq!(tone, vec!["Gain".to_string(), "Level".to_string()]);
-        let main: Vec<String> = items_in_group(&items, "Main")
-            .iter()
-            .map(|i| i.label.to_string())
-            .collect();
-        assert_eq!(main, vec!["Mix".to_string()]);
-    }
 }

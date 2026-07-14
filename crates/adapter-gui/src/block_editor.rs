@@ -17,8 +17,7 @@ use crate::state::{BlockEditorData, SelectOptionEditorItem};
 use crate::{BlockKnobOverlay, BlockParameterItem};
 
 pub(crate) use crate::block_editor_param_items::{
-    block_parameter_items_for_editor, block_parameter_items_for_model, items_in_group,
-    parameter_groups,
+    block_parameter_items_for_editor, block_parameter_items_for_model, parameter_groups,
 };
 pub(crate) use crate::block_editor_persist::{
     persist_block_editor_draft, schedule_block_editor_persist,

@@ -62,7 +62,7 @@ use crate::{
 pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     use slint::Model;
     let overlay_count = win.get_block_knob_overlays().row_count();
-    let param_count = win.get_block_parameter_items().row_count();
+    let param_count = crate::block_editor_param_tabs::visible_param_count(win);
     // Slint hides the param grid when overlays are present
     // (`block-knob-overlays.length == 0` gates `params-visible`), so
     // the count that drives layout is whichever source actually renders.
