@@ -207,6 +207,8 @@ export struct BlockKnobOverlay {
     min_val: float,
     max_val: float,
     step: float,
+    // #787: line of the compact row's strip this overlay wraps onto.
+    strip_line: int,
 }
 
 export struct BlockParameterItem {
@@ -317,6 +319,17 @@ export struct CompactBlockItem {
     filtered_models: [BlockModelPickerItem],
     stream_data: BlockStreamData,
     has_external_gui: bool,
+    // #787: tab labels of this block's parameters (0 or 1 → no tab bar) and the
+    // one being shown.
+    parameter_groups: [string],
+    active_parameter_group: int,
+    // #787: how many 90px lines the active tab's parameter strip wraps onto, the
+    // resulting row height, and the row's absolute y inside the flickable. All
+    // computed in Rust (`compact_block_layout`) because Slint has no flow layout
+    // and the page positions rows — and hit-tests drags — by absolute y.
+    strip_line_count: int,
+    row_height: length,
+    row_y: length,
 }
 
 export struct RecentProjectItem {

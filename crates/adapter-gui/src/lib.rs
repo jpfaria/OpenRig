@@ -43,6 +43,8 @@ mod chain_row_wiring;
 mod chain_save_cancel_callbacks;
 mod cli;
 mod compact_block_layout;
+mod compact_block_tabs;
+mod compact_block_view;
 mod compact_chain_block_handlers;
 pub mod compact_chain_callbacks;
 mod compact_chain_param_handlers;

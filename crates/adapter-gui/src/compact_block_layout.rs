@@ -7,7 +7,7 @@
 
 use slint::Model;
 
-use crate::BlockParameterItem;
+use crate::{BlockKnobOverlay, BlockParameterItem};
 
 /// Height of one strip line — a parameter cell is 90px tall.
 pub(crate) const LINE_HEIGHT_PX: f32 = 90.0;
@@ -23,6 +23,8 @@ pub(crate) const ROW_PADDING_PX: f32 = 10.0;
 const STRIP_BUDGET_PX: f32 = 720.0;
 /// Spacing between cells, mirroring `compact_block_param_strip.slint`.
 const CELL_SPACING_PX: f32 = 4.0;
+/// Width of a knob cell — the widest kind a curated `knob_layout` produces.
+const KNOB_CELL_WIDTH_PX: f32 = 62.0;
 
 /// Cell widths mirror the `preferred-width` of the Slint strip cells. A narrow
 /// window shrinks cells to their `min-width` instead of re-wrapping, which keeps
@@ -34,7 +36,7 @@ fn cell_width_px(it: &BlockParameterItem) -> f32 {
         // (wider) dropdown.
         "enum" if it.option_labels.row_count() <= 4 => 110.0,
         "enum" => 140.0,
-        _ => 62.0,
+        _ => KNOB_CELL_WIDTH_PX,
     }
 }
 
@@ -64,6 +66,16 @@ pub(crate) fn assign_strip_lines(items: &mut [BlockParameterItem]) -> i32 {
     } else {
         0
     }
+}
+
+/// Same wrap for the curated knob overlays a model's `knob_layout` declares:
+/// they replace the generic strip, and every overlay is a knob cell.
+pub(crate) fn assign_overlay_lines(overlays: &mut [BlockKnobOverlay]) -> i32 {
+    let per_line = (STRIP_BUDGET_PX / (KNOB_CELL_WIDTH_PX + CELL_SPACING_PX)) as usize;
+    for (i, knob) in overlays.iter_mut().enumerate() {
+        knob.strip_line = (i / per_line) as i32;
+    }
+    overlays.len().div_ceil(per_line) as i32
 }
 
 /// Height of a row whose active tab needs `line_count` strip lines.

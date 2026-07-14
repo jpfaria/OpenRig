@@ -29,7 +29,8 @@ use application::di_loader::DiLoopSource;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
 use crate::helpers::{set_status_error, show_child_window};
-use crate::project_view::{block_type_picker_items, build_compact_blocks, real_block_index_to_ui};
+use crate::compact_block_view::build_compact_blocks;
+use crate::project_view::{block_type_picker_items, real_block_index_to_ui};
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockStreamData, BlockStreamEntry, CompactChainViewWindow, ProjectChainItem,

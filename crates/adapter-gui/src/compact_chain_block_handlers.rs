@@ -22,7 +22,8 @@ use crate::helpers::set_status_error;
 #[cfg(target_os = "linux")]
 use crate::helpers::set_status_info;
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{block_model_picker_items, build_compact_blocks, replace_project_chains};
+use crate::compact_block_view::build_compact_blocks;
+use crate::project_view::{block_model_picker_items, replace_project_chains};
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};

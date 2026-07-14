@@ -108,6 +108,28 @@ fn an_empty_strip_has_no_lines() {
 }
 
 #[test]
+fn curated_knob_overlays_wrap_like_the_generic_strip() {
+    let overlay = |i: usize| crate::BlockKnobOverlay {
+        path: format!("k{i}").into(),
+        strip_line: -1,
+        ..Default::default()
+    };
+
+    // The curated layouts are small (a real amp declares ~7 knobs), so they stay
+    // on one line and those blocks keep the height they have today.
+    let mut seven: Vec<_> = (0..7).map(overlay).collect();
+    assert_eq!(assign_overlay_lines(&mut seven), 1);
+    assert!(seven.iter().all(|k| k.strip_line == 0));
+
+    // A layout wider than the budget wraps like any other strip: an overlay is a
+    // knob cell (62px + 4px spacing), so 10 fill a line.
+    let mut twelve: Vec<_> = (0..12).map(overlay).collect();
+    assert_eq!(assign_overlay_lines(&mut twelve), 2);
+    assert_eq!(twelve[9].strip_line, 0);
+    assert_eq!(twelve[10].strip_line, 1);
+}
+
+#[test]
 fn a_block_that_fits_keeps_the_current_row_height() {
     assert_eq!(row_height_px(1, false), BASE_ROW_HEIGHT_PX);
     assert_eq!(row_height_px(0, false), BASE_ROW_HEIGHT_PX);

@@ -20,7 +20,8 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{build_compact_blocks, replace_project_chains};
+use crate::compact_block_view::build_compact_blocks;
+use crate::project_view::{replace_project_chains};
 use crate::state::ProjectSession;
 use crate::sync_live_chain_runtime;
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
