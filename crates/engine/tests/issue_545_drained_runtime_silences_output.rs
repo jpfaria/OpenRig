@@ -84,9 +84,9 @@ fn drive_capture_peak(
     let mut out_buf = vec![0.0_f32; FRAMES];
     let mut peak = 0.0_f32;
     for cb in 0..callbacks {
-        for i in 0..FRAMES {
+        for (i, slot) in in_buf.iter_mut().enumerate() {
             let n = (phase_offset + cb * FRAMES + i) as f32;
-            in_buf[i] = 0.5 * (2.0 * std::f32::consts::PI * 220.0 * n / SR).sin();
+            *slot = 0.5 * (2.0 * std::f32::consts::PI * 220.0 * n / SR).sin();
         }
         engine::runtime::process_input_f32(runtime, 0, &in_buf, 1);
         engine::runtime::process_output_f32(runtime, 0, &mut out_buf, 1);

@@ -51,8 +51,8 @@ fn parameter_set_get_i64_success() {
 #[test]
 fn parameter_set_get_f32_from_float() {
     let mut ps = ParameterSet::default();
-    ps.insert("gain", ParameterValue::Float(3.14));
-    assert!((ps.get_f32("gain").unwrap() - 3.14).abs() < 1e-4);
+    ps.insert("gain", ParameterValue::Float(2.5));
+    assert!((ps.get_f32("gain").unwrap() - 2.5).abs() < 1e-4);
 }
 
 #[test]
@@ -828,7 +828,7 @@ fn required_f32_wrong_type_fails() {
 fn required_bool_success() {
     let mut ps = ParameterSet::default();
     ps.insert("mute", ParameterValue::Bool(false));
-    assert_eq!(required_bool(&ps, "mute").unwrap(), false);
+    assert!(!required_bool(&ps, "mute").unwrap());
 }
 
 #[test]

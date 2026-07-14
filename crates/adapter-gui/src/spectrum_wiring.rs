@@ -265,8 +265,8 @@ fn wire_power(
         }
     };
     let cloned = on_toggle_enabled.clone();
-    window.on_toggle_spectrum_enabled(move |e| cloned(e));
-    spectrum_window.on_toggle_enabled(move |e| on_toggle_enabled(e));
+    window.on_toggle_spectrum_enabled(cloned);
+    spectrum_window.on_toggle_enabled(on_toggle_enabled);
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────
@@ -279,7 +279,7 @@ fn build_session(
     let rt = project_runtime.borrow();
     match (pj.as_ref(), rt.as_ref()) {
         (Some(session), Some(runtime)) => Some(SpectrumSession::build(
-            &*session.project.borrow(),
+            &session.project.borrow(),
             runtime,
             &session.io_bindings.borrow(),
         )),
@@ -327,7 +327,7 @@ fn start_polling_timer(
             let session = spectrum_session.borrow();
             match (pj.as_ref(), session.as_ref()) {
                 (Some(s), Some(sess)) => {
-                    sess.needs_rebuild(&*s.project.borrow(), &s.io_bindings.borrow())
+                    sess.needs_rebuild(&s.project.borrow(), &s.io_bindings.borrow())
                 }
                 (Some(_), None) => true,
                 _ => false,
@@ -339,7 +339,7 @@ fn start_polling_timer(
             match (pj.as_ref(), rt.as_ref()) {
                 (Some(s), Some(rt)) => {
                     let new_session =
-                        SpectrumSession::build(&*s.project.borrow(), rt, &s.io_bindings.borrow());
+                        SpectrumSession::build(&s.project.borrow(), rt, &s.io_bindings.borrow());
                     let rows = new_session.rows_model_rc();
                     if let Some(sw) = spectrum_window_weak.upgrade() {
                         sw.set_spectrum_rows(rows.clone());

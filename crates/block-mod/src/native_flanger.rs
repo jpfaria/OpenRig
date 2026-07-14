@@ -148,36 +148,31 @@ pub struct Flanger {
 impl Flanger {
     pub fn new(rate_hz: f32, depth: f32, feedback: f32, mix: f32, sample_rate: f32) -> Self {
         Self::with_tuning(
-            rate_hz,
-            depth,
-            feedback,
-            mix,
+            FlangerParams {
+                rate_hz,
+                depth,
+                feedback,
+                mix,
+            },
             sample_rate,
             FlangerTuning::CLASSIC,
         )
     }
 
-    pub fn with_tuning(
-        rate_hz: f32,
-        depth: f32,
-        feedback: f32,
-        mix: f32,
-        sample_rate: f32,
-        tuning: FlangerTuning,
-    ) -> Self {
+    pub fn with_tuning(params: FlangerParams, sample_rate: f32, tuning: FlangerTuning) -> Self {
         let max_samples = ((tuning.max_ms / 1000.0) * sample_rate).ceil() as usize + 8;
         let base_samples = (tuning.base_ms / 1000.0) * sample_rate;
         let sweep_samples = ((tuning.max_ms - tuning.base_ms) / 1000.0) * sample_rate;
         let fb_clamp = tuning.feedback_clamp.clamp(0.0, 0.99);
         Self {
-            depth: depth.clamp(0.0, 1.0),
-            feedback: feedback.clamp(-fb_clamp, fb_clamp),
-            mix: mix.clamp(0.0, 1.0),
+            depth: params.depth.clamp(0.0, 1.0),
+            feedback: params.feedback.clamp(-fb_clamp, fb_clamp),
+            mix: params.mix.clamp(0.0, 1.0),
             base_samples,
             sweep_samples,
             buffer: vec![0.0; max_samples],
             write_idx: 0,
-            lfo: Lfo::new(LfoShape::Sine, rate_hz, sample_rate),
+            lfo: Lfo::new(LfoShape::Sine, params.rate_hz, sample_rate),
             feedback_dc_blocker: DcBlocker::new(5.0, sample_rate),
         }
     }
@@ -225,8 +220,7 @@ impl MonoProcessor for Flanger {
         let delayed = self.read_cubic(delay);
 
         // Feedback path: DC-block, denormal-flush, write to ring.
-        let feedback_in =
-            flush_denormal(self.feedback_dc_blocker.process(self.feedback * delayed));
+        let feedback_in = flush_denormal(self.feedback_dc_blocker.process(self.feedback * delayed));
         let to_buffer = input + feedback_in;
         self.buffer[self.write_idx] = to_buffer;
         self.write_idx = (self.write_idx + 1) % self.buffer.len();
@@ -286,10 +280,12 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoFlanger {
-                left: build_processor(params, sample_rate)?,
-                right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
-            })))
+            Ok(block_core::BlockProcessor::Stereo(Box::new(
+                StereoFlanger {
+                    left: build_processor(params, sample_rate)?,
+                    right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
+                },
+            )))
         }
     }
 }

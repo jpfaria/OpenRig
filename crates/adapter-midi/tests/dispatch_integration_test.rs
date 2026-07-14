@@ -55,8 +55,10 @@ bindings:
     )
     .unwrap();
 
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("rig:guitar".to_string());
+    let sel = SelectionState {
+        active_chain: Some("rig:guitar".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     let msg = IncomingMessage::ProgramChange {
@@ -88,8 +90,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("g".to_string());
+    let sel = SelectionState {
+        active_chain: Some("g".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     let msg = IncomingMessage::ProgramChange {
@@ -124,8 +128,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("g".to_string());
+    let sel = SelectionState {
+        active_chain: Some("g".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     dispatch_midi_message(
@@ -153,8 +159,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("g".to_string());
+    let sel = SelectionState {
+        active_chain: Some("g".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     dispatch_midi_message(

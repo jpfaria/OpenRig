@@ -47,6 +47,11 @@ impl<T: Copy> SpscRing<T> {
         head.wrapping_sub(tail)
     }
 
+    #[allow(dead_code)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Push a value. Returns `false` if the ring was full and the value was
     /// dropped. Must only be called from the single producer thread.
     pub fn push(&self, value: T) -> bool {

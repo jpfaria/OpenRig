@@ -605,13 +605,15 @@ fn build_chain_streams(
 
     let mut output_streams = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
-        // #743: mix only the runtimes clocked at THIS output's rate. A runtime
-        // at another input device's rate (the owner's 44.1/48 mixed rig) would
-        // be consumed here at the wrong rate — a continuous route under/overflow
-        // that starves the output on almost every pop (invariant #4). A
-        // single-rate chain is unaffected (every runtime matches the one rate).
-        let out_rate = resolved_output_sample_rate(&resolved_output) as f32;
-        let out_slots = crate::slot_processing::slots_for_output_stream(&slots, out_rate);
+        // LAW (stream isolation): this output mixes ONLY the runtimes whose
+        // binding feeds THIS device (by input cpal index) — never all runtimes
+        // at its rate (the #743 rate-filter was a leaky proxy that flooded
+        // underruns: same-rate runtimes that don't feed this device pop empty).
+        let out_slots = crate::slot_processing::slots_for_output_stream(
+            &slots,
+            &resolved.output_devices_by_input_cpal,
+            &resolved_output.device_id,
+        );
         // #771: this output's DI playback cell — the callback mixes whatever
         // pre-rendered loop is parked there. Callers with no controller (the
         // bulk/console path) pass no cells; an empty default stays silent.

@@ -76,7 +76,7 @@ fn binding_named(id: &str, name: &str) -> IoBindingModel {
 fn nth_abs_y(w: &ProjectSettingsWindow, id: &str, n: usize) -> Option<f32> {
     i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
         .nth(n)
-        .map(|el| el.absolute_position().y as f32)
+        .map(|el| el.absolute_position().y)
 }
 
 #[test]
@@ -120,6 +120,14 @@ fn io_bindings_ui_interactions() {
             },
         ];
         w.set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
+
+        // Expand the binding so its input editor materialises — a collapsed
+        // binding only shows the In/Out count badges (the add-input button and
+        // channel cells live under `if expanded-binding-id == binding.id`).
+        assert!(
+            click_element(&w, "SectionSystemIoBindings::chev-ta"),
+            "binding expand chevron not found"
+        );
 
         // Open the add-input form so the channel cells materialise.
         assert!(
@@ -207,6 +215,14 @@ fn io_bindings_ui_interactions() {
             vec![binding_named("b1", "First"), binding_named("b2", "Second")],
             1100.0,
             420.0,
+        );
+
+        // Expand the first binding so its editor makes the content taller than
+        // the short panel (two COLLAPSED headers would both fit — only one
+        // binding can be expanded at a time, `expanded-binding-id` is scalar).
+        assert!(
+            click_element(&w, "SectionSystemIoBindings::chev-ta"),
+            "binding expand chevron not found"
         );
 
         // First card is on-screen; the second overflows the short panel and is
@@ -331,6 +347,13 @@ fn io_bindings_ui_interactions() {
             Rc::new(RefCell::new(None)),
         );
         psw.show().unwrap();
+
+        // Expand the binding so its input editor materialises (collapsed shows
+        // only the count badges).
+        assert!(
+            click_element(&psw, "SectionSystemIoBindings::chev-ta"),
+            "binding expand chevron not found"
+        );
 
         // Open the add-input form.
         assert!(

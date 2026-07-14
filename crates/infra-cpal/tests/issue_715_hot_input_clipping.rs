@@ -165,7 +165,7 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
         );
         if worst
             .as_ref()
-            .map_or(true, |(_, w)| s.rail_run_max > w.rail_run_max)
+            .is_none_or(|(_, w)| s.rail_run_max > w.rail_run_max)
         {
             worst = Some((chain.id.0.clone(), s));
         }

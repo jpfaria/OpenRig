@@ -963,7 +963,12 @@ fn build_device_settings_deduplicates_same_device_id() {
         sample_rate: 48000,
         buffer_size_frames: 64,
         bit_depth: 16,
-        ..GuiAudioDeviceSettings::default()
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }];
     let output = vec![GuiAudioDeviceSettings {
         device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
@@ -971,7 +976,12 @@ fn build_device_settings_deduplicates_same_device_id() {
         sample_rate: 48000,
         buffer_size_frames: 64,
         bit_depth: 16,
-        ..GuiAudioDeviceSettings::default()
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }];
     let result = build_device_settings_from_gui(&input, &output);
     assert_eq!(
@@ -991,7 +1001,12 @@ fn build_device_settings_keeps_distinct_devices() {
         sample_rate: 48000,
         buffer_size_frames: 64,
         bit_depth: 16,
-        ..GuiAudioDeviceSettings::default()
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }];
     let output = vec![GuiAudioDeviceSettings {
         device_id: "alsa:hw:CARD=hdmi0,DEV=0".into(),
@@ -999,7 +1014,12 @@ fn build_device_settings_keeps_distinct_devices() {
         sample_rate: 48000,
         buffer_size_frames: 128,
         bit_depth: 24,
-        ..GuiAudioDeviceSettings::default()
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }];
     let result = build_device_settings_from_gui(&input, &output);
     assert_eq!(
@@ -1018,7 +1038,12 @@ fn build_device_settings_input_takes_precedence_on_duplicate() {
         sample_rate: 48000,
         buffer_size_frames: 128,
         bit_depth: 24,
-        ..GuiAudioDeviceSettings::default()
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }];
     let output = vec![GuiAudioDeviceSettings {
         device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
@@ -1026,7 +1051,12 @@ fn build_device_settings_input_takes_precedence_on_duplicate() {
         sample_rate: 44100,
         buffer_size_frames: 64,
         bit_depth: 16,
-        ..GuiAudioDeviceSettings::default()
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }];
     let result = build_device_settings_from_gui(&input, &output);
     assert_eq!(result.len(), 1);

@@ -121,6 +121,7 @@ pub(crate) fn jack_resolve_chain_config(
         outputs: Vec::new(),
         sample_rate,
         by_device: std::collections::HashMap::new(),
+        output_devices_by_input_cpal: Vec::new(),
         stream_signature: ChainStreamSignature {
             inputs: input_sigs,
             outputs: output_sigs,

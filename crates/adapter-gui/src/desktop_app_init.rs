@@ -85,8 +85,8 @@ pub(crate) fn populate_initial_window_state(
         &settings.output_devices,
     );
     let project_devices = Rc::new(VecModel::from(build_project_device_rows(
-        &*input_chain_devices.borrow(),
-        &*output_chain_devices.borrow(),
+        &input_chain_devices.borrow(),
+        &output_chain_devices.borrow(),
         &persisted_device_settings,
     )));
     window.set_input_devices(ModelRc::from(input_devices.clone()));

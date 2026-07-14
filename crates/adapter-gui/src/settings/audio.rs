@@ -358,7 +358,7 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &*session.project.borrow(),
+                        &session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
                         &[],
@@ -366,7 +366,7 @@ pub(crate) fn wire(
                     window.set_project_title(
                         project_title_for_path(
                             session.project_path.as_ref(),
-                            &*session.project.borrow(),
+                            &session.project.borrow(),
                         )
                         .into(),
                     );
@@ -513,7 +513,7 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &*session.project.borrow(),
+                        &session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
                         &[],
@@ -521,7 +521,7 @@ pub(crate) fn wire(
                     window.set_project_title(
                         project_title_for_path(
                             session.project_path.as_ref(),
-                            &*session.project.borrow(),
+                            &session.project.borrow(),
                         )
                         .into(),
                     );

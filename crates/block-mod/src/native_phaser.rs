@@ -161,29 +161,24 @@ pub struct Phaser {
 impl Phaser {
     pub fn new(rate_hz: f32, depth: f32, feedback: f32, mix: f32, sample_rate: f32) -> Self {
         Self::with_tuning(
-            rate_hz,
-            depth,
-            feedback,
-            mix,
+            PhaserParams {
+                rate_hz,
+                depth,
+                feedback,
+                mix,
+            },
             sample_rate,
             PhaserTuning::CLASSIC,
         )
     }
 
-    pub fn with_tuning(
-        rate_hz: f32,
-        depth: f32,
-        feedback: f32,
-        mix: f32,
-        sample_rate: f32,
-        tuning: PhaserTuning,
-    ) -> Self {
+    pub fn with_tuning(params: PhaserParams, sample_rate: f32, tuning: PhaserTuning) -> Self {
         Self {
-            depth: depth.clamp(0.0, 1.0),
-            feedback: feedback.clamp(-0.95, 0.95),
-            mix: mix.clamp(0.0, 1.0),
+            depth: params.depth.clamp(0.0, 1.0),
+            feedback: params.feedback.clamp(-0.95, 0.95),
+            mix: params.mix.clamp(0.0, 1.0),
             sample_rate,
-            lfo: Lfo::new(LfoShape::Sine, rate_hz, sample_rate),
+            lfo: Lfo::new(LfoShape::Sine, params.rate_hz, sample_rate),
             stage_z: vec![0.0; tuning.stages.max(1)],
             feedback_z: 0.0,
             feedback_dc_blocker: DcBlocker::new(5.0, sample_rate),

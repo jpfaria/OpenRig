@@ -2,7 +2,7 @@
 //! "Phase 45 / clean / pre-amp" voice. Same engine as
 //! `native_phaser.rs`; only the hidden tuning differs.
 
-use crate::registry::native_phaser::{Phaser, PhaserTuning};
+use crate::registry::native_phaser::{Phaser, PhaserParams, PhaserTuning};
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
 use anyhow::{Error, Result};
@@ -103,10 +103,12 @@ fn schema() -> Result<ModelParameterSchema> {
 fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
     let p = parse(params)?;
     Ok(Box::new(Phaser::with_tuning(
-        p.rate_hz,
-        p.depth,
-        p.feedback,
-        p.mix,
+        PhaserParams {
+            rate_hz: p.rate_hz,
+            depth: p.depth,
+            feedback: p.feedback,
+            mix: p.mix,
+        },
         sample_rate,
         TUNING,
     )))
@@ -119,10 +121,12 @@ fn build_processor_with_phase(
 ) -> Result<Box<dyn MonoProcessor>> {
     let p = parse(params)?;
     let mut ph = Phaser::with_tuning(
-        p.rate_hz,
-        p.depth,
-        p.feedback,
-        p.mix,
+        PhaserParams {
+            rate_hz: p.rate_hz,
+            depth: p.depth,
+            feedback: p.feedback,
+            mix: p.mix,
+        },
         sample_rate,
         TUNING,
     );

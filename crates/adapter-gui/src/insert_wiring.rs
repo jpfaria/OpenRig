@@ -242,7 +242,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],
@@ -309,7 +309,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],
@@ -389,7 +389,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],

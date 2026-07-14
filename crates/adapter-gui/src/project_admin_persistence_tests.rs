@@ -138,7 +138,7 @@ fn chain_descriptions(s: &ProjectSession) -> Vec<Option<String>> {
         .collect()
 }
 
-fn find_chain<'a>(s: &'a ProjectSession, desc: &str) -> Option<Chain> {
+fn find_chain(s: &ProjectSession, desc: &str) -> Option<Chain> {
     s.project
         .borrow()
         .chains
@@ -892,7 +892,7 @@ fn issue_606_nam_backed_gain_block_survives_load() {
     // Populate the process-global catalog so `nam_maxon_od808` is a known
     // disk-package gain model — isolates the routing bug from any
     // catalog-not-loaded effect.
-    plugin_loader::registry::init_many(&[plugins_root.clone()]);
+    plugin_loader::registry::init_many(std::slice::from_ref(&plugins_root));
 
     let s = Sandbox::new();
     let session = s.new_session();
@@ -961,7 +961,7 @@ fn issue_606_uninstalled_model_block_is_disabled_on_load() {
         "issue #606 repro requires OpenRig-plugins/plugins/source on disk"
     );
     // Catalog loaded, but the block's `nam_` pack is deliberately absent.
-    plugin_loader::registry::init_many(&[plugins_root.clone()]);
+    plugin_loader::registry::init_many(std::slice::from_ref(&plugins_root));
 
     let s = Sandbox::new();
     let session = s.new_session();

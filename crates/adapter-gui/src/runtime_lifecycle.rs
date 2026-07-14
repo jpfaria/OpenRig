@@ -50,8 +50,8 @@ pub(crate) fn sync_project_runtime(
     {
         let mut borrow = project_runtime.borrow_mut();
         if let Some(runtime) = borrow.as_mut() {
-            validate_project(&*proj)?;
-            runtime.sync_project(&*proj)?;
+            validate_project(&proj)?;
+            runtime.sync_project(&proj)?;
         }
     }
     // #669: keep the dispatcher's engine sample rate in lock-step with the
@@ -116,7 +116,7 @@ pub(crate) fn sync_live_chain_runtime(
             // chain bails "no input blocks". Sourced from the session's mirror
             // of `AppConfig.io_bindings`.
             let controller = ProjectRuntimeController::start_with_io_bindings(
-                &*proj,
+                &proj,
                 session.io_bindings.borrow().clone(),
             )?;
             *borrow = Some(controller);
@@ -142,7 +142,7 @@ pub(crate) fn sync_live_chain_runtime(
             // the session's live mirror of `AppConfig.io_bindings` on EVERY
             // sync, not just at start, so a just-created binding takes effect.
             runtime.set_io_bindings(session.io_bindings.borrow().clone());
-            validate_project(&*proj)?;
+            validate_project(&proj)?;
             // #743: plan the action BEFORE resolving anything. A disable must
             // pause immediately (drain → output silent) and must NOT run
             // `chain_io_changed` — that synchronous CoreAudio resolve costs
@@ -152,7 +152,7 @@ pub(crate) fn sync_live_chain_runtime(
             // off). The IO-change re-bind check belongs only to an enable.
             let action = plan_live_sync(chain.is_some(), chain_enabled, || {
                 let chain = chain.expect("io_changed is only queried for a present, enabled chain");
-                runtime.chain_io_changed(&*proj, chain)
+                runtime.chain_io_changed(&proj, chain)
             })?;
             match action {
                 LiveSyncAction::Remove => runtime.remove_chain(chain_id),
@@ -160,7 +160,7 @@ pub(crate) fn sync_live_chain_runtime(
                     // upsert_chain's !enabled path pauses (keeps streams alive,
                     // drains to silence) in O(1) — no device queries.
                     let chain = chain.expect("Pause implies the chain is present");
-                    runtime.upsert_chain(&*proj, chain)?;
+                    runtime.upsert_chain(&proj, chain)?;
                 }
                 LiveSyncAction::Enable { io_changed } => {
                     // Issue #672/#693: a cold activation builds the runtime off the
@@ -178,10 +178,10 @@ pub(crate) fn sync_live_chain_runtime(
                     if io_changed {
                         runtime.remove_chain(&chain.id);
                     }
-                    if !runtime.schedule_chain_activation(&*proj, chain)?
-                        && !runtime.request_offthread_rebuild_if_live(&*proj, chain)?
+                    if !runtime.schedule_chain_activation(&proj, chain)?
+                        && !runtime.request_offthread_rebuild_if_live(&proj, chain)?
                     {
-                        runtime.upsert_chain(&*proj, chain)?;
+                        runtime.upsert_chain(&proj, chain)?;
                     }
                 }
             }

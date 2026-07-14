@@ -95,7 +95,7 @@ fn measure_nam_loudness_and_clip() {
     nam::register_builder();
     eprintln!("\n=== NAM marshall_plexi @ DI peak 0.3 (≈ -10 dBFS) ===");
     measure("1. raw model (no calibration)", None);
-    measure("2. live target (+8.93 dB)", Some(8.931_892_4));
+    measure("2. live target (+8.93 dB)", Some(8.931_892));
     measure("3. hot worst case (+18.68 dB)", Some(18.68));
     eprintln!("=== peak > 0 dBFS = digital clip; rms = loudness ===\n");
 }

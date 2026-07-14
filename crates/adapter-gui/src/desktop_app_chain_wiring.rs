@@ -47,7 +47,7 @@ pub(crate) struct ChainWiringDeps<'a> {
 pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
     // --- Chain CRUD callbacks (extracted to chain_crud_wiring) ---
     crate::chain_crud_wiring::wire(
-        &deps.window,
+        deps.window,
         crate::chain_crud_wiring::ChainCrudCtx {
             project_session: deps.project_session.clone(),
             chain_draft: deps.chain_draft.clone(),
@@ -66,7 +66,7 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
     );
     // --- on_open_compact_chain_view (extracted to compact_chain_callbacks) ---
     crate::compact_chain_callbacks::wire(
-        &deps.window,
+        deps.window,
         crate::compact_chain_callbacks::CompactChainCallbacksCtx {
             project_session: deps.project_session.clone(),
             project_runtime: deps.project_runtime.clone(),
@@ -83,5 +83,5 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
         },
     );
     // --- Chain name edit callback (extracted to chain_name_wiring) ---
-    crate::chain_name_wiring::wire(&deps.window, deps.chain_draft.clone());
+    crate::chain_name_wiring::wire(deps.window, deps.chain_draft.clone());
 }

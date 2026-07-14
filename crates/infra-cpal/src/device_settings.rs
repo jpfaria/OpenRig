@@ -203,6 +203,6 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
             // Invalidate device cache since supported configs may have changed
             invalidate_device_cache();
         }
-        return Ok(());
+        Ok(())
     }
 }

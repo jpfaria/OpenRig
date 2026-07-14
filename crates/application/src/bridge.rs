@@ -316,7 +316,7 @@ mod tests {
         // it only returns a count and the events are lost.
         let dispatcher = LocalDispatcher::new(test_project());
         let (bridge, drain) = channel();
-        let _ = bridge.submit(Command::SaveProject);
+        let _rx = bridge.submit(Command::SaveProject);
 
         let events = drain.drain(&dispatcher, 16);
 
@@ -331,7 +331,7 @@ mod tests {
         let dispatcher = LocalDispatcher::new(test_project());
         let (bridge, drain) = channel();
         for _ in 0..5 {
-            let _ = bridge.submit(Command::SaveProject);
+            let _rx = bridge.submit(Command::SaveProject);
         }
         // SaveProject yields exactly one ProjectSaved, so the event count
         // tracks the command count: cap=2 ⇒ 2 handled, then the remaining 3.

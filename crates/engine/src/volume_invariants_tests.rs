@@ -1745,8 +1745,7 @@ lufs_test!(m35_lufs_buf_2048, 2048);
 fn max_lr_drift(chain: &Chain, registry: &[IoBinding], sig: &[f32], buffer: usize) -> f32 {
     let runtime = build_runtime(chain, registry);
     let mut max_drift = 0.0_f32;
-    let mut callback_idx = 0;
-    for chunk in sig.chunks(buffer) {
+    for (callback_idx, chunk) in sig.chunks(buffer).enumerate() {
         process_input_f32(&runtime, 0, chunk, 1);
         let mut out = vec![0.0_f32; chunk.len() * 2];
         process_output_f32(&runtime, 0, &mut out, 2);
@@ -1759,7 +1758,6 @@ fn max_lr_drift(chain: &Chain, registry: &[IoBinding], sig: &[f32], buffer: usiz
                 }
             }
         }
-        callback_idx += 1;
     }
     max_drift
 }
@@ -1825,9 +1823,7 @@ bcast_signal_test!(
 );
 bcast_signal_test!(
     n19_b_ramp_up,
-    (0..(SR as usize))
-        .map(|i| 0.8 * (i as f32 / SR as f32))
-        .collect(),
+    (0..(SR as usize)).map(|i| 0.8 * (i as f32 / SR)).collect(),
     256
 );
 bcast_signal_test!(
@@ -2057,7 +2053,7 @@ fn p09_i16_clamps_below_minus_unity() {
 fn p10_i16_to_f32_bound() {
     for v in [-32768i16, -1, 0, 1, 32767] {
         let x = i16_to_f32(v);
-        assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}");
+        assert!((-1.001..=1.001).contains(&x), "v={v} x={x}");
     }
 }
 
@@ -2100,7 +2096,7 @@ fn p18_u16_clamps_below_minus_unity() {
 fn p19_u16_to_f32_bound() {
     for v in [0u16, 1, u16::MAX / 2, u16::MAX] {
         let x = u16_to_f32(v);
-        assert!(x >= -1.001 && x <= 1.001);
+        assert!((-1.001..=1.001).contains(&x));
     }
 }
 #[test]
@@ -2137,7 +2133,7 @@ fn p25_i32_clamps_below_minus_unity() {
 fn p26_i32_to_f32_bound() {
     for v in [i32::MIN, -1, 0, 1, i32::MAX] {
         let x = i32_to_f32(v);
-        assert!(x >= -1.001 && x <= 1.001, "v={v} x={x}");
+        assert!((-1.001..=1.001).contains(&x), "v={v} x={x}");
     }
 }
 #[test]
