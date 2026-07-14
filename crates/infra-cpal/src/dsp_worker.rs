@@ -13,11 +13,11 @@
 //! (microseconds, never overruns the cycle) and returns. A dedicated worker
 //! thread per input stream drains the ring and runs the chain DSP
 //! (`process_input_buffer`): preemptible realtime with a realistic
-//! computation budget, spinning a bounded window (~35% of the period) before
-//! sleeping when idle — the spin keeps the model weights hot through the
-//! short inter-buffer gaps (killing the ~1.5 ms cold tail, measured), while
-//! staying inside the declared RT budget so the kernel never demotes the
-//! thread. Sound > CPU (trade-off hierarchy).
+//! computation budget, and when the ring is empty it SLEEPS (yields the
+//! P-core) instead of busy-spinning: a spin HELD the core and starved the
+//! CoreAudio HAL + sibling RT workers + VST3 audio threads, oversubscribing
+//! the realtime band on a multi-interface rig and preempting the workers
+//! OFF-CPU (#781 — 34x fewer off-cpu late buffers on the real-streams repro).
 //!
 //! RT-safety: the callback does one bounds-checked copy + one Release store.
 //! No allocation, no lock, no syscall (invariant #8).
@@ -442,8 +442,6 @@ pub(crate) fn spawn(
             // device's UID, the worker co-schedules with the device it serves.
             let _workgroup = crate::audio_workgroup::join_input(device_uid.as_deref()); // #779: leave on thread exit
             let mut local = vec![0.0_f32; max_buffer_samples];
-            let spin_budget = std::time::Duration::from_nanos(period_ns * 35 / 100);
-            let mut idle_since: Option<std::time::Instant> = None;
             // ~43 ms of pinned backlog at 64 frames before declaring the
             // death spiral and recovering.
             let mut recovery = SaturationRecovery::new(32);
@@ -454,15 +452,14 @@ pub(crate) fn spawn(
                 let w = worker_inner.write.load(Ordering::Acquire);
                 let mut r = worker_inner.read.load(Ordering::Relaxed);
                 if r == w {
-                    let since = *idle_since.get_or_insert_with(std::time::Instant::now);
-                    if since.elapsed() < spin_budget {
-                        std::hint::spin_loop();
-                    } else {
-                        std::thread::sleep(std::time::Duration::from_micros(100));
-                    }
+                    // #781: ring empty — sleep to YIELD the P-core; never busy-spin
+                    // the gap. The old 35% spin held the core, starving the CoreAudio
+                    // HAL + sibling RT workers + VST3 audio threads -> RT-band
+                    // oversubscription on 5 P-cores -> workers preempted OFF-CPU (the
+                    // #781 flood). Measured (H4): same latency, ~1/3 the CPU.
+                    std::thread::sleep(std::time::Duration::from_micros(100));
                     continue;
                 }
-                idle_since = None;
                 // Overflow: jump past slots the callback may be overwriting.
                 let saturated = w - r > RING_SLOTS - 2;
                 if saturated {

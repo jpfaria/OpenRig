@@ -263,7 +263,7 @@ fn grid_parameter_to_spec(
             ParameterValue::Bool(b) => Some(*b),
             _ => None,
         });
-        return block_core::param::bool_parameter(&parameter.name, &label, None, default);
+        block_core::param::bool_parameter(&parameter.name, &label, None, default)
     } else {
         // (raw_value, sanitised_label) pairs — the value is the lookup
         // key into `captures[].values` and the user's persisted

@@ -317,12 +317,12 @@ pub fn run_desktop_app(
         project_runtime.clone(),
     );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
-        &*input_chain_devices.borrow(),
+        &input_chain_devices.borrow(),
         &settings.input_devices,
     )));
     mark_unselected_devices(&input_devices, &settings.input_devices);
     let output_devices = Rc::new(VecModel::from(build_device_selection_items(
-        &*output_chain_devices.borrow(),
+        &output_chain_devices.borrow(),
         &settings.output_devices,
     )));
     mark_unselected_devices(&output_devices, &settings.output_devices);

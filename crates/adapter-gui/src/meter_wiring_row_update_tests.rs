@@ -43,11 +43,13 @@ fn reading(in_dbfs: f32, out_dbfs: f32) -> StreamMeterReading {
 /// guards against regressing back to a fast meter refresh.
 #[test]
 fn meter_poll_is_not_faster_than_20hz() {
-    assert!(
-        METER_POLL_TICK_MS >= 50,
-        "meter poll tick {METER_POLL_TICK_MS}ms is faster than 20 Hz — its memory \
-         traffic evicts the audio worker's NAM weights (issue #715 crackle)"
-    );
+    const {
+        assert!(
+            METER_POLL_TICK_MS >= 50,
+            "meter poll tick is faster than 20 Hz — its memory \
+             traffic evicts the audio worker's NAM weights (issue #715 crackle)"
+        )
+    };
 }
 
 #[test]

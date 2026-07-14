@@ -150,7 +150,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 block_type_picker_items(&chain.instrument),
             ))));
         }
-        let blocks = build_compact_blocks(&*session.project.borrow(), ci);
+        let blocks = build_compact_blocks(&session.project.borrow(), ci);
         let compact_blocks = Rc::new(VecModel::from(blocks));
         compact_win.set_compact_blocks(ModelRc::from(compact_blocks.clone()));
         drop(session_borrow);
@@ -458,7 +458,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 crate::runtime_lifecycle::remove_live_chain_runtime(&project_runtime, &chain_id);
                 crate::project_view::replace_project_chains(
                     &project_chains,
-                    &*session.project.borrow(),
+                    &session.project.borrow(),
                     &input_chain_devices.borrow(),
                     &output_chain_devices.borrow(),
                     &[],

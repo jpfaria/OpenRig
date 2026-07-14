@@ -31,6 +31,10 @@ pub(crate) struct ResolvedInputDevice {
 #[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct ResolvedOutputDevice {
+    /// Logical device id of the binding output endpoint this was resolved from
+    /// — the same id the isolation map keys on, so an output stream mixes only
+    /// the runtimes whose binding feeds THIS device.
+    pub(crate) device_id: String,
     pub(crate) settings: Option<DeviceSettings>,
     pub(crate) device: cpal::Device,
     pub(crate) supported: SupportedStreamConfig,
@@ -127,5 +131,13 @@ pub(crate) struct ResolvedChainAudioConfig {
     /// `sample_rate` above is only the representative (first binding) rate for
     /// legacy single-rate consumers.
     pub(crate) by_device: std::collections::HashMap<domain::ids::DeviceId, f32>,
+    /// Per input cpal index (= Nth distinct input device, first-seen over the
+    /// resolved input order), the output device id(s) of its OWN binding. LAW:
+    /// streams are fully isolated — an output device's stream mixes ONLY the
+    /// runtimes that feed THAT device, never "all runtimes at the same rate".
+    /// Mixing a runtime that does not write this device pops its empty elastic
+    /// buffer every callback = the underrun flood ("N streams at 44 kHz are N
+    /// separate pipelines, not one"). Empty on the JACK path.
+    pub(crate) output_devices_by_input_cpal: Vec<Vec<String>>,
     pub(crate) stream_signature: ChainStreamSignature,
 }

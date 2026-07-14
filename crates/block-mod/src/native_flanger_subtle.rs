@@ -2,7 +2,7 @@
 //! feedback. Sits behind a clean tone without dominating. Same engine
 //! as `native_flanger.rs`; only the hidden tuning differs.
 
-use crate::registry::native_flanger::{Flanger, FlangerTuning};
+use crate::registry::native_flanger::{Flanger, FlangerParams, FlangerTuning};
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
 use anyhow::{Error, Result};
@@ -102,10 +102,12 @@ fn schema() -> Result<ModelParameterSchema> {
 fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
     let p = parse(params)?;
     Ok(Box::new(Flanger::with_tuning(
-        p.rate_hz,
-        p.depth,
-        p.feedback,
-        p.mix,
+        FlangerParams {
+            rate_hz: p.rate_hz,
+            depth: p.depth,
+            feedback: p.feedback,
+            mix: p.mix,
+        },
         sample_rate,
         TUNING,
     )))
@@ -118,10 +120,12 @@ fn build_processor_with_phase(
 ) -> Result<Box<dyn MonoProcessor>> {
     let p = parse(params)?;
     let mut f = Flanger::with_tuning(
-        p.rate_hz,
-        p.depth,
-        p.feedback,
-        p.mix,
+        FlangerParams {
+            rate_hz: p.rate_hz,
+            depth: p.depth,
+            feedback: p.feedback,
+            mix: p.mix,
+        },
         sample_rate,
         TUNING,
     );
@@ -153,10 +157,12 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoFlanger {
-                left: build_processor(params, sample_rate)?,
-                right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
-            })))
+            Ok(block_core::BlockProcessor::Stereo(Box::new(
+                StereoFlanger {
+                    left: build_processor(params, sample_rate)?,
+                    right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
+                },
+            )))
         }
     }
 }

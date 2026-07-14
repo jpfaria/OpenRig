@@ -98,8 +98,8 @@ pub fn resolve_project_chain_sample_rates(
             if !chain.enabled {
                 continue;
             }
-            let inputs = resolve_chain_inputs(&host, project, chain, registry)?;
-            let outputs = resolve_chain_outputs(&host, project, chain, registry)?;
+            let inputs = resolve_chain_inputs(host, project, chain, registry)?;
+            let outputs = resolve_chain_outputs(host, project, chain, registry)?;
             let (logical_inputs, logical_outputs) =
                 engine::runtime_endpoints::resolve_chain_io(chain, registry);
             let mut by_device: std::collections::HashMap<domain::ids::DeviceId, u32> =
@@ -260,6 +260,7 @@ pub(crate) fn resolve_output_device_for_chain_output(
         }
     }
     Ok(ResolvedOutputDevice {
+        device_id: output.device_id.0.clone(),
         settings,
         device,
         supported,
@@ -439,11 +440,42 @@ pub(crate) fn resolve_chain_audio_config(
     let stream_signature: ChainStreamSignature =
         crate::build_chain_stream_signature_multi(chain, &inputs, &outputs, registry);
 
+    // LAW (stream isolation): each output device's stream mixes ONLY the
+    // runtimes whose OWN binding outputs to that device — never all runtimes at
+    // the same rate. Map each input cpal index (Nth distinct input device,
+    // first-seen over the resolved input order — the same order the engine
+    // assigns cpal indices) to its binding's output device id(s).
+    let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
+    for lin in &logical_inputs {
+        let next = device_to_cpal.len();
+        device_to_cpal
+            .entry(lin.device_id.0.clone())
+            .or_insert(next);
+    }
+    let mut output_devices_by_input_cpal: Vec<Vec<String>> = vec![Vec::new(); device_to_cpal.len()];
+    for group in resolve_chain_io_by_binding(chain, registry) {
+        let out_devs: Vec<String> = group
+            .outputs
+            .iter()
+            .map(|o| o.device_id.0.clone())
+            .collect();
+        for inp in &group.inputs {
+            if let Some(&ci) = device_to_cpal.get(&inp.device_id.0) {
+                for d in &out_devs {
+                    if !output_devices_by_input_cpal[ci].contains(d) {
+                        output_devices_by_input_cpal[ci].push(d.clone());
+                    }
+                }
+            }
+        }
+    }
+
     Ok(ResolvedChainAudioConfig {
         inputs,
         outputs,
         sample_rate,
         by_device,
+        output_devices_by_input_cpal,
         stream_signature,
     })
 }

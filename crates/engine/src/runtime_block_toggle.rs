@@ -46,6 +46,7 @@
 //!     (needs a full rebuild — message starts with "needs full rebuild").
 //!   - the block id is not present in any input runtime of the chain
 //!     (caller bug — message starts with "not found").
+//!
 //! The only synchronous error that survives is "the toggle queue is
 //! full", which in practice means the audio thread has stalled and the
 //! GUI is faster than the drain — a louder bug than a dropped toggle.

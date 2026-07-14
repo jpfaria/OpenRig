@@ -44,7 +44,7 @@ pub(crate) fn reseed_ir_output_db(block: &mut AudioBlock, changed_path: &str) {
         if model.effect_type != block_core::EFFECT_TYPE_IR {
             return;
         }
-        let Some(pkg) = plugin_loader::registry::find(&model.model) else {
+        let Some(pkg) = plugin_loader::registry::find(model.model) else {
             return;
         };
         let Backend::Ir {
@@ -58,7 +58,7 @@ pub(crate) fn reseed_ir_output_db(block: &mut AudioBlock, changed_path: &str) {
             parameters,
             captures,
             pkg.manifest.output_gain_db,
-            &model.params,
+            model.params,
             changed_path,
         )
     };

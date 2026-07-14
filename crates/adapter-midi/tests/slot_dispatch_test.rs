@@ -131,8 +131,10 @@ fn prev_next_block_1_and_2_emit_select_active_block_relative() {
 
 #[test]
 fn toggle_compact_view_inverts_selection_flag() {
-    let mut sel = SelectionState::default();
-    sel.compact_view_enabled = false;
+    let mut sel = SelectionState {
+        compact_view_enabled: false,
+        ..Default::default()
+    };
     let cmd = slot_to_command("toggle_compact_view", &pc(1, 0), &sel).unwrap();
     if let Command::SetCompactViewEnabled { enabled } = cmd {
         assert!(enabled, "off → on");

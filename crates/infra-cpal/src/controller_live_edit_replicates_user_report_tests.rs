@@ -12,6 +12,7 @@
 //!   * `set_block_enabled` (issue #522 fast path, `sync_block_toggle`), and
 //!   * `request_offthread_rebuild_if_live` + `poll_pending_rebuilds`
 //!     (the live param/config edit path, `sync_live_chain_runtime`)
+//!
 //! — and MEASURE the audio the callback would actually emit by driving
 //! `controller.chain_runtime(&id)` (the live slot). If the edit does not reach
 //! that runtime, the sound never changes and the test fails, reproducing the

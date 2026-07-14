@@ -14,8 +14,8 @@ impl LocalDispatcher {
     /// `Command::SetLanguage` — records the language-change intent and
     /// signals it via `Event::LanguageChanged`. The actual persistence
     /// + live i18n swap is the adapter's job (the `SaveProject`
-    /// precedent: "File I/O happens in the adapter ... the dispatcher
-    /// signals completion via events only").
+    ///   precedent: "File I/O happens in the adapter ... the dispatcher
+    ///   signals completion via events only").
     pub(crate) fn handle_set_language(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             Command::SetLanguage { language } => Ok(vec![Event::LanguageChanged { language }]),

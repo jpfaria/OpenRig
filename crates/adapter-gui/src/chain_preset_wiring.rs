@@ -3,9 +3,9 @@
 //! Owns the 5 callbacks driving preset save/load and the touch-mode picker:
 //!
 //! - `on_save_chain_preset`     — touch-mode auto-saves to the presets dir,
-//!                                desktop opens a save dialog.
+//!   desktop opens a save dialog.
 //! - `on_configure_chain_preset` — touch-mode shows the in-app picker (lists
-//!                                 the presets dir), desktop opens a load dialog.
+//!   the presets dir), desktop opens a load dialog.
 //! - `on_preset_picker_confirm` — touch picker → load + replace blocks.
 //! - `on_preset_picker_cancel`  — closes the touch picker.
 //! - `on_preset_picker_delete`  — touch picker → delete preset file.
@@ -233,7 +233,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         }
                         replace_project_chains(
                             &project_chains,
-                            &*session.project.borrow(),
+                            &session.project.borrow(),
                             &input_chain_devices.borrow(),
                             &output_chain_devices.borrow(),
                             &[],

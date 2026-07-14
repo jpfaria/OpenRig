@@ -4,13 +4,13 @@ use super::*;
 fn guard_is_above_subnormal_threshold() {
     // f32::MIN_POSITIVE is the smallest *normal* positive — anything
     // below it is subnormal.
-    assert!(DENORMAL_GUARD > f32::MIN_POSITIVE);
+    const { assert!(DENORMAL_GUARD > f32::MIN_POSITIVE) };
 }
 
 #[test]
 fn guard_is_far_below_audio_noise_floor() {
     // -96 dBFS ≈ 1.5e-5 — even 24-bit signal shouldn't notice.
-    assert!(DENORMAL_GUARD < 1.0e-10);
+    const { assert!(DENORMAL_GUARD < 1.0e-10) };
 }
 
 #[test]

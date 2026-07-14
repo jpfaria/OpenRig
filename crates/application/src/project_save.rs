@@ -11,7 +11,7 @@ use anyhow::Result;
 
 use project::chain::Chain;
 use project::project::Project;
-use project::rig::{RigPreset, RigProject, RigScene};
+use project::rig::{RigPreset, RigProject};
 
 /// Snapshot the project as a string the GUI compares against to decide
 /// whether the user has unsaved edits. The rig is part of the dirty
@@ -125,7 +125,7 @@ pub fn build_rig_for_save(project: &Project, current_rig: Option<&RigProject>) -
         preset.name = Some("Preset 1".to_string());
         // Make scene 1 an addressable slot so the user can edit it
         // without a "create scene" step.
-        preset.scenes.entry(1).or_insert_with(RigScene::default);
+        preset.scenes.entry(1).or_default();
 
         rig_out.inputs.insert(new_input_name.clone(), input);
         rig_out.presets.insert(final_preset_key, preset);

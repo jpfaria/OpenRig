@@ -49,9 +49,11 @@ fn slot_returns_command_for_neighbor_when_chain_and_block_active() {
     // lives in the dispatcher when it handles the resulting Command;
     // here we just prove the slot reaches the dispatch path with an
     // active block present.
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("rig:guitar".to_string());
-    sel.active_block = Some("blk_a".to_string());
+    let sel = SelectionState {
+        active_chain: Some("rig:guitar".to_string()),
+        active_block: Some("blk_a".to_string()),
+        ..Default::default()
+    };
     let msg = IncomingMessage::ProgramChange {
         channel: 1,
         program: 0,
