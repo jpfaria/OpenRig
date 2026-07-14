@@ -54,11 +54,9 @@ pub(crate) type DiPlaybackCell = Arc<ArcSwapOption<DiPlayback>>;
 pub(crate) type DiRetired = Arc<std::sync::Mutex<Vec<Arc<DiPlayback>>>>;
 
 impl DiPlayback {
-    pub(crate) fn new(dest_left: usize, dest_right: usize, loop_len: usize) -> Self {
-        Self::starting_at(dest_left, dest_right, loop_len, 0)
-    }
-
-    /// A playback whose first frame is loop position `start_pos` (#785).
+    /// A playback whose first frame is loop position `start_pos`. A cold arm
+    /// starts at 0; a gapless re-arm (#785) starts where the listener will be
+    /// when it takes over.
     pub(crate) fn starting_at(
         dest_left: usize,
         dest_right: usize,
@@ -177,7 +175,7 @@ mod tests {
 
     #[test]
     fn mix_pops_frames_onto_dest_channels() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.03125, -0.03125], [0.0625, -0.0625]]);
         let mut out = vec![0.0f32; 2 * 2];
         mix_di_playback(&cell, &mut out, 2);
@@ -186,7 +184,7 @@ mod tests {
 
     #[test]
     fn underfilled_ring_leaves_remaining_frames_untouched() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.25, 0.25]]);
         let mut out = vec![0.0f32; 3 * 2];
         mix_di_playback(&cell, &mut out, 2);
@@ -199,7 +197,7 @@ mod tests {
 
     #[test]
     fn mix_targets_only_its_dest_channels() {
-        let (cell, ring) = cell_with(DiPlayback::new(2, 3, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(2, 3, 8, 0));
         push_frames(&ring, &[[0.03125, -0.03125]]);
         let mut out = vec![0.0f32; 4];
         mix_di_playback(&cell, &mut out, 4);
@@ -208,7 +206,7 @@ mod tests {
 
     #[test]
     fn mix_sums_over_existing_signal_with_the_output_limiter() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.9, 0.9]; 4]);
         let mut out = vec![0.9f32; 4 * 2];
         mix_di_playback(&cell, &mut out, 2);
@@ -223,7 +221,7 @@ mod tests {
     /// twice (+6 dB vs the chain's own rendering).
     #[test]
     fn mono_dest_is_written_once_not_summed_twice() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 0, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 0, 8, 0));
         push_frames(&ring, &[[0.25, 0.25]]);
         let mut out = vec![0.0f32; 1];
         mix_di_playback(&cell, &mut out, 1);
@@ -240,7 +238,7 @@ mod tests {
 
     #[test]
     fn peaks_reflect_the_last_mixed_window() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.25, -0.125], [0.0625, 0.0]]);
         let mut out = vec![0.0f32; 2 * 2];
         mix_di_playback(&cell, &mut out, 2);

@@ -48,13 +48,12 @@ use crate::ProjectRuntimeController;
 pub(crate) struct DiStreamHandle {
     output_index: usize,
     cell: DiPlaybackCell,
-    /// `true` while this arm's render thread should keep running.
-    armed: Arc<Mutex<bool>>,
     /// #785: the arm flags of EVERY render thread still alive for this chain —
-    /// this arm's plus any it superseded. Edits arrive faster than a render
-    /// builds, so a hand-off can find several workers in flight; the one that
-    /// takes over stops all of them. Tracking only the latest left the worker
-    /// feeding the playback the listener was hearing running forever.
+    /// this arm's (last) plus any it superseded. Each thread runs while its own
+    /// flag is `true`. Edits arrive faster than a render builds, so a hand-off
+    /// can find several workers in flight; the one that takes over stops all of
+    /// them, and a disarm stops the survivors. Tracking only the latest left the
+    /// worker feeding the playback the listener was hearing running forever.
     workers: Vec<Arc<Mutex<bool>>>,
     /// The source, kept so the controller can re-arm after a rebuild
     /// without a dispatcher round-trip.
@@ -183,7 +182,6 @@ impl ProjectRuntimeController {
             DiStreamHandle {
                 output_index,
                 cell,
-                armed,
                 workers,
                 pcm,
                 failed,
