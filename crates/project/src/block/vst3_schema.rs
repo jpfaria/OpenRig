@@ -101,25 +101,48 @@ const MIN_DYNAMIC_GROUP: usize = 3;
 /// plugin's own parameter titles, never any hardcoded plugin name. Returns one
 /// entry per input title, in order.
 fn dynamic_group_for(titles: &[String]) -> Vec<Option<String>> {
+    use std::collections::HashMap;
     let leading = |t: &str| t.split_whitespace().next().unwrap_or("").to_string();
-    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for t in titles {
+    // Cluster the parameter indices by their leading word.
+    let mut clusters: HashMap<String, Vec<usize>> = HashMap::new();
+    for (i, t) in titles.iter().enumerate() {
         let word = leading(t);
         if !word.is_empty() {
-            *counts.entry(word).or_insert(0) += 1;
+            clusters.entry(word).or_default().push(i);
+        }
+    }
+    // A cluster with enough members becomes a tab, labelled by the longest
+    // leading-token prefix its members share ("Input EQ", not "Input").
+    let mut label_for: HashMap<String, String> = HashMap::new();
+    for (word, idxs) in &clusters {
+        if idxs.len() >= MIN_DYNAMIC_GROUP {
+            let members: Vec<&str> = idxs.iter().map(|&i| titles[i].as_str()).collect();
+            label_for.insert(word.clone(), common_token_prefix(&members));
         }
     }
     titles
         .iter()
-        .map(|t| {
-            let word = leading(t);
-            if !word.is_empty() && counts.get(&word).copied().unwrap_or(0) >= MIN_DYNAMIC_GROUP {
-                Some(word)
-            } else {
-                None
-            }
-        })
+        .map(|t| label_for.get(&leading(t)).cloned())
         .collect()
+}
+
+/// The longest leading run of whitespace-separated tokens shared by every
+/// title (at least the first token, since callers cluster by it).
+fn common_token_prefix(titles: &[&str]) -> String {
+    let tokens: Vec<Vec<&str>> = titles
+        .iter()
+        .map(|t| t.split_whitespace().collect())
+        .collect();
+    let first = &tokens[0];
+    let mut len = first.len();
+    for toks in &tokens[1..] {
+        let mut k = 0;
+        while k < len && toks.get(k) == first.get(k) {
+            k += 1;
+        }
+        len = k;
+    }
+    first[..len.max(1)].join(" ")
 }
 
 /// Heuristic: does a 2-state parameter read as an on/off switch (→ toggle)
@@ -161,6 +184,31 @@ fn looks_like_on_off(title: &str, options: &[(String, String)]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{dynamic_group_for, is_unlabeled, looks_like_on_off};
+
+    #[test]
+    fn dynamic_grouping_labels_by_longest_common_prefix() {
+        // Real QDelay sections: params share more than the first word, so the
+        // tab label should be the longest common leading-token prefix, not just
+        // the first token ("Input EQ", not "Input").
+        let titles: Vec<String> = [
+            "Input EQ Band1 Freq",
+            "Input EQ Band2 Gain",
+            "Input EQ Band3 Q",
+            "Saturation Pre",
+            "Saturation Post",
+            "Saturation Drive",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let g = dynamic_group_for(&titles);
+        assert_eq!(g[0].as_deref(), Some("Input EQ"));
+        assert_eq!(g[1].as_deref(), Some("Input EQ"));
+        assert_eq!(g[2].as_deref(), Some("Input EQ"));
+        // Saturation members diverge at token 2 → prefix collapses to "Saturation".
+        assert_eq!(g[3].as_deref(), Some("Saturation"));
+        assert_eq!(g[5].as_deref(), Some("Saturation"));
+    }
 
     #[test]
     fn dynamic_grouping_buckets_shared_leading_word() {
