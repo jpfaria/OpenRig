@@ -10,9 +10,11 @@ fn start_midi_profiles_signature_exists() {
     use std::sync::{Arc, RwLock};
     use std::thread::JoinHandle;
 
-    let _f: fn(
+    type StartMidiProfilesFn = fn(
         application::bridge::CommandBridge,
         Arc<RwLock<application::SelectionState>>,
         Arc<adapter_midi::learn::LearnState>,
-    ) -> JoinHandle<anyhow::Result<()>> = adapter_gui::start_midi_profiles;
+    ) -> JoinHandle<anyhow::Result<()>>;
+
+    let _f: StartMidiProfilesFn = adapter_gui::start_midi_profiles;
 }

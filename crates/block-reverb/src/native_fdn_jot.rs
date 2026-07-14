@@ -20,7 +20,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -60,10 +62,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
-            float_parameter("decay", "Decay", None, Some(d.decay_pct), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(d.damping), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("pre_delay_ms", "Pre-delay", None, Some(d.pre_delay_ms), 0.0, 100.0, 1.0, ParameterUnit::Milliseconds),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "decay",
+                "Decay",
+                None,
+                Some(d.decay_pct),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(d.damping),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "pre_delay_ms",
+                "Pre-delay",
+                None,
+                Some(d.pre_delay_ms),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Milliseconds,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -144,7 +182,10 @@ struct OnePoleLpf {
 
 impl OnePoleLpf {
     fn new() -> Self {
-        Self { state: 0.0, coeff: 0.0 }
+        Self {
+            state: 0.0,
+            coeff: 0.0,
+        }
     }
     /// `damping` 0..1 → cutoff drops as damping grows. coeff = damping^0.5
     /// roughly maps to a useful range without exposing cutoff Hz.
@@ -209,17 +250,17 @@ impl StereoProcessor for FdnReverb {
         let wet_r = (s[1] + s[3] + s[5] + s[7]) * 0.25;
 
         // Damping inside the loop.
-        for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]) * self.feedback;
+        for (i, s_i) in s.iter_mut().enumerate() {
+            *s_i = self.lpfs[i].process(*s_i) * self.feedback;
         }
 
         // Hadamard mixing matrix.
         hadamard8(&mut s);
 
         // Inject pre-delayed input across all lines and write back.
-        for i in 0..N {
+        for (i, &s_i) in s.iter().enumerate() {
             let inject = pre * 0.25;
-            self.delays[i].write(s[i] + inject);
+            self.delays[i].write(s_i + inject);
         }
 
         let dry = 1.0 - self.params.mix;
@@ -250,8 +291,14 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(FdnReverb::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(FdnAsMono(FdnReverb::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(FdnReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(FdnAsMono(FdnReverb::new(
+            p,
+            sample_rate,
+        ))))),
     }
 }
 

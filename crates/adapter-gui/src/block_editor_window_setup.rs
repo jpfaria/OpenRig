@@ -246,7 +246,7 @@ pub(crate) fn create_and_wire(
                 let kind: slint::SharedString = "stream".into();
                 let Some(runtime) = runtime_borrow.as_ref() else {
                     poll_count += 1;
-                    if poll_count % 40 == 0 {
+                    if poll_count.is_multiple_of(40) {
                         log::debug!("[block-editor-stream] runtime not available (poll #{})", poll_count);
                     }
                     return;
@@ -269,7 +269,7 @@ pub(crate) fn create_and_wire(
                     });
                 } else {
                     poll_count += 1;
-                    if poll_count % 40 == 0 {
+                    if poll_count.is_multiple_of(40) {
                         log::debug!("[block-editor-stream] poll #{}: no entries (silence or no runtime handle)", poll_count);
                     }
                     win.set_block_stream_data(BlockStreamData {

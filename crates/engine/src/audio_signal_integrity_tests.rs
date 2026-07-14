@@ -513,8 +513,8 @@ fn eq_eight_band_at_defaults_silent_input_silent_output() {
 fn eq_with_one_band_boosted(band_index: usize, freq_hz: f32, gain_db: f32) -> ParameterSet {
     let mut params = neutral_params("filter", "eq_eight_band_parametric");
     let n = band_index + 1;
-    params.insert(&format!("band{n}_freq"), ParameterValue::Float(freq_hz));
-    params.insert(&format!("band{n}_gain"), ParameterValue::Float(gain_db));
+    params.insert(format!("band{n}_freq"), ParameterValue::Float(freq_hz));
+    params.insert(format!("band{n}_gain"), ParameterValue::Float(gain_db));
     params
 }
 

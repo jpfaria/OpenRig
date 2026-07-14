@@ -353,9 +353,9 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
                 &[],
             );
             sync_project_dirty(
@@ -406,8 +406,8 @@ pub(crate) fn wire(
                 &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
                 true,
                 auto_save,
             ) {
@@ -524,9 +524,9 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
                 &[],
             );
             sync_project_dirty(

@@ -13,7 +13,7 @@
 mod hw_harness;
 
 use domain::ids::{BlockId, ChainId};
-use hw_harness::{device_guard, hw_tests_enabled, init_registry, load_di, rig_project, BUFFER};
+use hw_harness::{device_guard, hw_tests_enabled, init_registry, load_di_pcm, rig_project, BUFFER};
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
@@ -46,7 +46,7 @@ fn real_streams_beat_it_di_loop_no_xruns() {
     controller
         .sync_project(&project)
         .expect("resync with bindings");
-    let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
+    let di = load_di_pcm("phil-STRATO-green_day.wav");
     controller.set_chain_di_loop(&chain_id, Some(di));
 
     // Let it settle, then measure a full minute of playback.
@@ -101,10 +101,7 @@ fn rebuild_while_playing_keeps_the_cushion() {
     controller
         .sync_project(&project)
         .expect("resync with bindings");
-    let di = load_di(
-        "phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav",
-        controller.sample_rate(),
-    );
+    let di = load_di_pcm("phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav");
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -213,7 +210,7 @@ fn adding_a_cab_live_does_not_spiral() {
     controller
         .sync_project(&project)
         .expect("resync with bindings");
-    let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
+    let di = load_di_pcm("phil-STRATO-green_day.wav");
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 
     std::thread::sleep(std::time::Duration::from_secs(10));

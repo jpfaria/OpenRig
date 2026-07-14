@@ -23,9 +23,11 @@ fn selection_state_default_is_empty() {
 
 #[test]
 fn clearing_active_chain_also_clears_active_block() {
-    let mut s = SelectionState::default();
-    s.active_chain = Some("rig:guitar".to_string());
-    s.active_block = Some("blk_1".to_string());
+    let mut s = SelectionState {
+        active_chain: Some("rig:guitar".to_string()),
+        active_block: Some("blk_1".to_string()),
+        ..Default::default()
+    };
 
     s.clear_chain();
 
@@ -41,9 +43,11 @@ fn clearing_active_chain_also_clears_active_block() {
 
 #[test]
 fn clearing_block_does_not_clear_chain() {
-    let mut s = SelectionState::default();
-    s.active_chain = Some("rig:guitar".to_string());
-    s.active_block = Some("blk_1".to_string());
+    let mut s = SelectionState {
+        active_chain: Some("rig:guitar".to_string()),
+        active_block: Some("blk_1".to_string()),
+        ..Default::default()
+    };
 
     s.clear_block();
 

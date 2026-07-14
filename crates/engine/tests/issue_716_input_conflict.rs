@@ -85,7 +85,7 @@ fn second_chain_sharing_an_input_tap_is_skipped_first_wins() {
         binding("io_a", "scarlett", 0),
         binding("io_b", "scarlett", 0),
     ];
-    let chains = vec![chain("a", "io_a"), chain("b", "io_b")];
+    let chains = [chain("a", "io_a"), chain("b", "io_b")];
     let skip = input_conflicting_chains(chains.iter(), &registry);
     assert_eq!(
         skip,
@@ -100,6 +100,6 @@ fn distinct_input_channels_activate_both() {
         binding("io_a", "scarlett", 0),
         binding("io_b", "scarlett", 1),
     ];
-    let chains = vec![chain("a", "io_a"), chain("b", "io_b")];
+    let chains = [chain("a", "io_a"), chain("b", "io_b")];
     assert!(input_conflicting_chains(chains.iter(), &registry).is_empty());
 }

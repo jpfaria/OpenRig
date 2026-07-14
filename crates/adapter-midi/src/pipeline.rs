@@ -149,7 +149,9 @@ pub fn dispatch_midi_message_to_bridge(
         match slot_to_command(&hit.slot, &hit.message, selection) {
             Some(cmd) => {
                 log::info!("MIDI hit slot={:?} -> dispatching {:?}", hit.slot, cmd);
-                let _ = bridge.submit(cmd);
+                // Fire-and-forget: the command is enqueued inside `submit`; we
+                // deliberately drop the reply receiver (nothing awaits it here).
+                let _rx = bridge.submit(cmd);
             }
             None => {
                 log::info!(

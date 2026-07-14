@@ -21,7 +21,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -36,7 +38,7 @@ const DELAY_MS: [f32; N] = [42.0, 47.0, 53.0, 59.0, 67.0, 73.0, 81.0, 89.0];
 struct Params {
     decay_pct: f32,
     damping: f32,
-    shimmer_amount: f32,  // 0..1 — how much of the wet feedback is pitch-shifted
+    shimmer_amount: f32, // 0..1 — how much of the wet feedback is pitch-shifted
     mix: f32,
 }
 
@@ -59,10 +61,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
-            float_parameter("decay", "Decay", None, Some(d.decay_pct), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(d.damping), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("shimmer_amount", "Shimmer", None, Some(d.shimmer_amount), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "decay",
+                "Decay",
+                None,
+                Some(d.decay_pct),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(d.damping),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "shimmer_amount",
+                "Shimmer",
+                None,
+                Some(d.shimmer_amount),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -149,19 +187,34 @@ struct DelayLine {
 }
 impl DelayLine {
     fn new(samples: usize) -> Self {
-        Self { buf: vec![0.0; samples.max(1)], write_idx: 0 }
+        Self {
+            buf: vec![0.0; samples.max(1)],
+            write_idx: 0,
+        }
     }
-    fn read(&self) -> f32 { self.buf[self.write_idx] }
+    fn read(&self) -> f32 {
+        self.buf[self.write_idx]
+    }
     fn write(&mut self, v: f32) {
         self.buf[self.write_idx] = v;
         self.write_idx = (self.write_idx + 1) % self.buf.len();
     }
 }
 
-struct OnePoleLpf { state: f32, coeff: f32 }
+struct OnePoleLpf {
+    state: f32,
+    coeff: f32,
+}
 impl OnePoleLpf {
-    fn new() -> Self { Self { state: 0.0, coeff: 0.0 } }
-    fn set_damping(&mut self, d: f32) { self.coeff = d.clamp(0.0, 1.0).sqrt(); }
+    fn new() -> Self {
+        Self {
+            state: 0.0,
+            coeff: 0.0,
+        }
+    }
+    fn set_damping(&mut self, d: f32) {
+        self.coeff = d.clamp(0.0, 1.0).sqrt();
+    }
     fn process(&mut self, x: f32) -> f32 {
         self.state = (1.0 - self.coeff).mul_add(x, self.coeff * self.state);
         self.state
@@ -170,21 +223,31 @@ impl OnePoleLpf {
 
 fn hadamard8(x: &mut [f32; N]) {
     for i in (0..N).step_by(2) {
-        let a = x[i]; let b = x[i + 1];
-        x[i] = a + b; x[i + 1] = a - b;
+        let a = x[i];
+        let b = x[i + 1];
+        x[i] = a + b;
+        x[i + 1] = a - b;
     }
     for base in (0..N).step_by(4) {
-        let a0 = x[base]; let a1 = x[base + 1];
-        let a2 = x[base + 2]; let a3 = x[base + 3];
-        x[base] = a0 + a2; x[base + 1] = a1 + a3;
-        x[base + 2] = a0 - a2; x[base + 3] = a1 - a3;
+        let a0 = x[base];
+        let a1 = x[base + 1];
+        let a2 = x[base + 2];
+        let a3 = x[base + 3];
+        x[base] = a0 + a2;
+        x[base + 1] = a1 + a3;
+        x[base + 2] = a0 - a2;
+        x[base + 3] = a1 - a3;
     }
     for i in 0..4 {
-        let a = x[i]; let b = x[i + 4];
-        x[i] = a + b; x[i + 4] = a - b;
+        let a = x[i];
+        let b = x[i + 4];
+        x[i] = a + b;
+        x[i + 4] = a - b;
     }
     let inv = 1.0 / (N as f32).sqrt();
-    for v in x.iter_mut() { *v *= inv; }
+    for v in x.iter_mut() {
+        *v *= inv;
+    }
 }
 
 struct ShimmerReverb {
@@ -216,7 +279,14 @@ impl ShimmerReverb {
         let pitch_l = OctaveUp::new(pitch_window);
         let pitch_r = OctaveUp::new(pitch_window);
 
-        Self { params, delays, lpfs, feedback, pitch_l, pitch_r }
+        Self {
+            params,
+            delays,
+            lpfs,
+            feedback,
+            pitch_l,
+            pitch_r,
+        }
     }
 }
 
@@ -236,18 +306,18 @@ impl StereoProcessor for ShimmerReverb {
         let pitched_l = self.pitch_l.step(wet_l);
         let pitched_r = self.pitch_r.step(wet_r);
 
-        for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]);
+        for (i, s_i) in s.iter_mut().enumerate() {
+            *s_i = self.lpfs[i].process(*s_i);
         }
         hadamard8(&mut s);
 
         let sa = self.params.shimmer_amount;
-        for i in 0..N {
+        for (i, &s_i) in s.iter().enumerate() {
             // Crossfade the recirculated signal between the plain reverberant
             // tail and its octave-shifted twin. At sa=0 this is a clean FDN;
             // as sa rises, more of the loop energy climbs an octave each pass.
             let pitched = if i % 2 == 0 { pitched_l } else { pitched_r };
-            let recirc = self.feedback * ((1.0 - sa) * s[i] + sa * pitched);
+            let recirc = self.feedback * ((1.0 - sa) * s_i + sa * pitched);
             self.delays[i].write(recirc + in_mono * 0.25);
         }
 
@@ -279,8 +349,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(ShimmerReverb::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(ShimmerAsMono(ShimmerReverb::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(ShimmerReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(ShimmerAsMono(
+            ShimmerReverb::new(p, sample_rate),
+        )))),
     }
 }
 

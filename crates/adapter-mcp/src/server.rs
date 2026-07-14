@@ -5,7 +5,6 @@
 //! dispatcher; `PublishingDispatcher` fans the resulting events to the
 //! `EventSink` so GUI- and MCP-originated changes are observable alike.
 
-use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -48,70 +47,64 @@ impl ServerHandler for OpenRigMcp {
         .with_instructions("OpenRig: every Command is a tool; project/devices are resources.")
     }
 
-    fn list_tools(
+    async fn list_tools(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<ListToolsResult, ErrorData>> + Send + '_ {
-        async move { Ok(ListToolsResult::with_all_items(tools::tools())) }
+    ) -> Result<ListToolsResult, ErrorData> {
+        Ok(ListToolsResult::with_all_items(tools::tools()))
     }
 
-    fn call_tool(
+    async fn call_tool(
         &self,
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<CallToolResult, ErrorData>> + Send + '_ {
-        async move {
-            let args = request.arguments.map(Value::Object).unwrap_or(Value::Null);
-            match tools::dispatch_tool(&self.bridge, &request.name, args).await {
-                Ok(events) => {
-                    let json = serde_json::to_string(&events)
-                        .unwrap_or_else(|e| format!("<events serialize error: {e}>"));
-                    Ok(CallToolResult::success(vec![Content::text(json)]))
-                }
-                Err(e) => Ok(CallToolResult::error(vec![Content::text(e.to_string())])),
+    ) -> Result<CallToolResult, ErrorData> {
+        let args = request.arguments.map(Value::Object).unwrap_or(Value::Null);
+        match tools::dispatch_tool(&self.bridge, &request.name, args).await {
+            Ok(events) => {
+                let json = serde_json::to_string(&events)
+                    .unwrap_or_else(|e| format!("<events serialize error: {e}>"));
+                Ok(CallToolResult::success(vec![Content::text(json)]))
             }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e.to_string())])),
         }
     }
 
-    fn list_resources(
+    async fn list_resources(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<ListResourcesResult, ErrorData>> + Send + '_ {
-        async move { Ok(ListResourcesResult::with_all_items(resources::resources())) }
+    ) -> Result<ListResourcesResult, ErrorData> {
+        Ok(ListResourcesResult::with_all_items(resources::resources()))
     }
 
-    fn read_resource(
+    async fn read_resource(
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<ReadResourceResult, ErrorData>> + Send + '_ {
-        async move {
-            resources::read(&self.bridge, &request.uri)
-                .await
-                .map_err(|e| ErrorData::internal_error(e.to_string(), None))
-        }
+    ) -> Result<ReadResourceResult, ErrorData> {
+        resources::read(&self.bridge, &request.uri)
+            .await
+            .map_err(|e| ErrorData::internal_error(e.to_string(), None))
     }
 
-    fn list_prompts(
+    async fn list_prompts(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<ListPromptsResult, ErrorData>> + Send + '_ {
-        async move { Ok(ListPromptsResult::with_all_items(prompts::prompts())) }
+    ) -> Result<ListPromptsResult, ErrorData> {
+        Ok(ListPromptsResult::with_all_items(prompts::prompts()))
     }
 
-    fn get_prompt(
+    async fn get_prompt(
         &self,
         request: GetPromptRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<GetPromptResult, ErrorData>> + Send + '_ {
-        async move {
-            prompts::get(&request.name).ok_or_else(|| {
-                ErrorData::invalid_params(format!("unknown prompt: {}", request.name), None)
-            })
-        }
+    ) -> Result<GetPromptResult, ErrorData> {
+        prompts::get(&request.name).ok_or_else(|| {
+            ErrorData::invalid_params(format!("unknown prompt: {}", request.name), None)
+        })
     }
 }
 

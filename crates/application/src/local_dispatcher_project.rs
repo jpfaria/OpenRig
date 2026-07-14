@@ -157,6 +157,7 @@ impl LocalDispatcher {
     ///    pointer (currently a hardcoded `./presets`).
     /// 4. The sibling `presets/` directory so the chain-preset save
     ///    path has somewhere to write.
+    ///
     /// #693: serialization stays on the dispatching thread (cheap,
     /// in-memory, needs the `Rc` state); every disk touch is queued to
     /// the persist worker so the caller — in practice the GUI thread —

@@ -244,8 +244,8 @@ fn main() -> Result<()> {
 }
 
 fn parse_mcp_addr() -> Option<SocketAddr> {
-    let mut args = env::args().skip(1);
-    while let Some(arg) = args.next() {
+    let args = env::args().skip(1);
+    for arg in args {
         if arg == "--mcp" {
             return Some("127.0.0.1:4123".parse().expect("default mcp addr"));
         }
@@ -268,8 +268,8 @@ enum MidiMapArg {
 }
 
 fn parse_midi_map() -> Option<MidiMapArg> {
-    let mut args = env::args().skip(1);
-    while let Some(arg) = args.next() {
+    let args = env::args().skip(1);
+    for arg in args {
         if arg == "--midi" {
             return Some(MidiMapArg::Default);
         }

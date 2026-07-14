@@ -156,7 +156,7 @@ impl PitchDetector {
             return None;
         }
         let freq = self.sample_rate as f32 / refined_tau;
-        if freq < MIN_FREQ || freq > MAX_FREQ {
+        if !(MIN_FREQ..=MAX_FREQ).contains(&freq) {
             None
         } else {
             Some(freq)
@@ -171,7 +171,7 @@ impl PitchDetector {
             }
             Some(prev) => {
                 let ratio = raw_freq / prev;
-                if ratio > SNAP_RATIO || ratio < 1.0 / SNAP_RATIO {
+                if !(1.0 / SNAP_RATIO..=SNAP_RATIO).contains(&ratio) {
                     self.smoothed_freq = Some(raw_freq);
                     raw_freq
                 } else {
@@ -239,9 +239,9 @@ fn yin_find_tau(d_prime: &[f32], min_tau: usize, max_tau: usize) -> Option<(usiz
     }
     let mut best_tau = None;
     let mut best_val = f32::MAX;
-    for tau in min_tau..upper {
-        if d_prime[tau] < best_val {
-            best_val = d_prime[tau];
+    for (tau, &val) in d_prime.iter().enumerate().take(upper).skip(min_tau) {
+        if val < best_val {
+            best_val = val;
             best_tau = Some(tau);
         }
     }

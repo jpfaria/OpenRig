@@ -1,6 +1,6 @@
-use anyhow::{Error, Result};
 use crate::registry::DynModelDefinition;
 use crate::DynBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
@@ -127,21 +127,13 @@ pub struct StudioCleanCompressor {
 }
 
 impl StudioCleanCompressor {
-    pub fn new(
-        threshold_db: f32,
-        ratio: f32,
-        attack_ms: f32,
-        release_ms: f32,
-        makeup_gain_db: f32,
-        mix: f32,
-        sample_rate: f32,
-    ) -> Self {
+    pub fn new(params: &CompressorParams, sample_rate: f32) -> Self {
         Self {
-            threshold: db_to_lin(threshold_db),
-            ratio,
-            makeup: db_to_lin(makeup_gain_db),
-            mix: mix.clamp(0.0, 1.0),
-            envelope: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
+            threshold: db_to_lin(params.threshold),
+            ratio: params.ratio,
+            makeup: db_to_lin(params.makeup_gain),
+            mix: params.mix.clamp(0.0, 1.0),
+            envelope: EnvelopeFollower::from_ms(params.attack_ms, params.release_ms, sample_rate),
         }
     }
 }
@@ -164,15 +156,7 @@ impl MonoProcessor for StudioCleanCompressor {
 
 pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
     let params = params_from_set(params)?;
-    Ok(Box::new(StudioCleanCompressor::new(
-        params.threshold,
-        params.ratio,
-        params.attack_ms,
-        params.release_ms,
-        params.makeup_gain,
-        params.mix,
-        sample_rate,
-    )))
+    Ok(Box::new(StudioCleanCompressor::new(&params, sample_rate)))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -185,9 +169,9 @@ fn build(
     layout: block_core::AudioChannelLayout,
 ) -> Result<block_core::BlockProcessor> {
     match layout {
-        block_core::AudioChannelLayout::Mono => {
-            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(
+            build_processor(params, sample_rate)?,
+        )),
         block_core::AudioChannelLayout::Stereo => anyhow::bail!(
             "compressor model '{}' is mono-only and cannot build native stereo processing",
             MODEL_ID

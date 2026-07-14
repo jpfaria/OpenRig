@@ -21,7 +21,7 @@ pub fn tools() -> Vec<Tool> {
         .iter()
         .map(|variant| {
             let schema = command_variant_schema(variant);
-            let obj: Map<String, Value> = schema.as_object().cloned().unwrap_or_else(|| Map::new());
+            let obj: Map<String, Value> = schema.as_object().cloned().unwrap_or_else(Map::new);
             Tool::new(
                 tool_name(variant),
                 format!("OpenRig command: {variant}"),

@@ -79,7 +79,7 @@ unsafe fn msg1i(obj: *mut c_void, sel: &[u8], arg: i64) -> *mut c_void {
 
 fn nsapp() -> *mut c_void {
     unsafe {
-        let cls = objc_getClass(b"NSApplication\0".as_ptr() as *const i8);
+        let cls = objc_getClass(c"NSApplication".as_ptr());
         msg0(cls, b"sharedApplication\0")
     }
 }

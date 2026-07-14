@@ -20,12 +20,14 @@ fn dispatch_midi_message_to_bridge_signature() {
 fn run_blocking_with_profiles_signature() {
     use std::sync::{Arc, RwLock};
 
-    let _f: fn(
+    type RunBlockingWithProfilesFn = fn(
         application::bridge::CommandBridge,
         Vec<adapter_midi::profile::MidiProfile>,
         Arc<RwLock<application::SelectionState>>,
         Arc<adapter_midi::learn::LearnState>,
-    ) -> anyhow::Result<()> = adapter_midi::run_blocking_with_profiles;
+    ) -> anyhow::Result<()>;
+
+    let _f: RunBlockingWithProfilesFn = adapter_midi::run_blocking_with_profiles;
 }
 
 #[test]
@@ -34,11 +36,13 @@ fn spawn_with_profiles_from_signature() {
     use std::sync::{Arc, RwLock};
     use std::thread::JoinHandle;
 
-    let _f: fn(
+    type SpawnWithProfilesFromFn = fn(
         &Path,
         &Path,
         application::bridge::CommandBridge,
         Arc<RwLock<application::SelectionState>>,
         Arc<adapter_midi::learn::LearnState>,
-    ) -> JoinHandle<anyhow::Result<()>> = adapter_midi::spawn_with_profiles_from;
+    ) -> JoinHandle<anyhow::Result<()>>;
+
+    let _f: SpawnWithProfilesFromFn = adapter_midi::spawn_with_profiles_from;
 }

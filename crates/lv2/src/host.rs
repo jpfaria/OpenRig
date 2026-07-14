@@ -557,7 +557,7 @@ impl Lv2Plugin {
         })
     }
 
-    pub unsafe fn connect_port(&self, port_index: u32, data: *mut c_void) {
+    pub(crate) unsafe fn connect_port(&self, port_index: u32, data: *mut c_void) {
         if let Some(connect) = unsafe { (*self.descriptor).connect_port } {
             unsafe { connect(self.handle, port_index, data) };
         }

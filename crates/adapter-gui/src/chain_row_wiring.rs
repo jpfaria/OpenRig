@@ -236,7 +236,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             remove_live_chain_runtime(&project_runtime, &chain_id);
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],
@@ -311,7 +311,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],
@@ -368,7 +368,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],
@@ -411,7 +411,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             };
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],
@@ -470,7 +470,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             };
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 &[],

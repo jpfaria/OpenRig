@@ -71,8 +71,8 @@ pub(crate) struct BlockWiringDeps<'a> {
 pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     // --- on_select_chain_block (extracted to select_chain_block_callback + block_editor_window_*) ---
     crate::select_chain_block_callback::wire(
-        &deps.window,
-        &deps.chain_insert_window,
+        deps.window,
+        deps.chain_insert_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -105,14 +105,14 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- on_select_chain (#591: chain-level selection drives the footswitch's active chain) ---
     crate::select_chain_callback::wire(
-        &deps.window,
+        deps.window,
         deps.project_session.clone(),
         deps.toast_timer.clone(),
     );
     // --- Chain block CRUD callbacks (extracted to chain_block_crud_wiring) ---
     crate::chain_block_crud_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::chain_block_crud_wiring::ChainBlockCrudCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -138,8 +138,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- on_start_block_insert + on_choose_block_model (extracted to block_insert_callbacks) ---
     crate::block_insert_callbacks::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_insert_callbacks::BlockInsertCallbacksCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -164,9 +164,9 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- on_choose_block_type (extracted to block_choose_type_callback) ---
     crate::block_choose_type_callback::wire(
-        &deps.window,
-        &deps.block_editor_window,
-        &deps.chain_insert_window,
+        deps.window,
+        deps.block_editor_window,
+        deps.chain_insert_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),
@@ -193,15 +193,15 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block model search callbacks (extracted to block_model_search_wiring) ---
     crate::block_model_search_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         deps.block_model_options.clone(),
         deps.filtered_block_model_options.clone(),
     );
     // --- Block picker cancel callback (extracted to block_picker_wiring) ---
     crate::block_picker_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_picker_wiring::BlockPickerCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
             block_model_options: deps.block_model_options.clone(),
@@ -216,8 +216,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block drawer close (extracted to block_drawer_close_wiring) ---
     crate::block_drawer_close_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_drawer_close_wiring::BlockDrawerCloseCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -234,8 +234,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block parameter callbacks (extracted to block_parameter_wiring) ---
     crate::block_parameter_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_parameter_wiring::BlockParameterCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
             block_parameter_items: deps.block_parameter_items.clone(),
@@ -255,8 +255,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block drawer save+delete callbacks (extracted to block_drawer_save_delete_wiring) ---
     crate::block_drawer_save_delete_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_drawer_save_delete_wiring::BlockDrawerSaveDeleteCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -281,8 +281,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block delete confirm/cancel callbacks (extracted to block_delete_wiring) ---
     crate::block_delete_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_delete_wiring::BlockDeleteCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
