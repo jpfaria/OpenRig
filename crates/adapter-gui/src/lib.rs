@@ -47,6 +47,8 @@ mod compact_block_tabs;
 mod compact_block_view;
 mod compact_chain_block_handlers;
 pub mod compact_chain_callbacks;
+mod compact_chain_delete_wiring;
+mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
 mod device_settings_wiring;

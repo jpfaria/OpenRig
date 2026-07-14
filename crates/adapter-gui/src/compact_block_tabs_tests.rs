@@ -63,10 +63,7 @@ fn every_compact_block_carries_its_geometry() {
         "the second row stacks below the first, gap included"
     );
     assert!(
-        items[0]
-            .parameter_items
-            .iter()
-            .all(|p| p.strip_line >= 0),
+        items[0].parameter_items.iter().all(|p| p.strip_line >= 0),
         "a single-group block lays every parameter out"
     );
 }

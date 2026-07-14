@@ -25,8 +25,7 @@ fn boolean(path: &str) -> BlockParameterItem {
 }
 
 fn enum_with(path: &str, options: usize) -> BlockParameterItem {
-    let labels: Vec<slint::SharedString> =
-        (0..options).map(|i| format!("opt{i}").into()).collect();
+    let labels: Vec<slint::SharedString> = (0..options).map(|i| format!("opt{i}").into()).collect();
     BlockParameterItem {
         path: path.into(),
         widget_kind: "enum".into(),
@@ -85,12 +84,7 @@ fn enum_and_bool_cells_use_their_own_widths() {
 
 #[test]
 fn parameters_hidden_by_the_tab_filter_take_no_space_and_no_line() {
-    let mut items = vec![
-        knob("a"),
-        hidden(knob("b")),
-        hidden(knob("c")),
-        knob("d"),
-    ];
+    let mut items = vec![knob("a"), hidden(knob("b")), hidden(knob("c")), knob("d")];
 
     let lines = assign_strip_lines(&mut items);
 
@@ -159,18 +153,68 @@ fn rows_stack_with_the_gap_between_them() {
 
     let ys = row_y_offsets(&heights);
 
-    assert_eq!(ys[0], ROW_GAP_PX, "the first row sits below the insert slot");
+    assert_eq!(
+        ys[0], ROW_GAP_PX,
+        "the first row sits below the insert slot"
+    );
     assert_eq!(ys[1], ROW_GAP_PX + 100.0 + ROW_GAP_PX);
     assert_eq!(ys[2], ROW_GAP_PX + 100.0 + ROW_GAP_PX + 190.0 + ROW_GAP_PX);
 }
 
 #[test]
-fn the_viewport_covers_every_row_plus_the_trailing_slot() {
-    let heights = [100.0_f32, 190.0];
+fn the_drop_slot_is_the_row_boundary_the_pointer_has_passed() {
+    // Rows of different heights, so the old "divide the drag by a 112px stride"
+    // maths cannot work: y=12..112, y=124..314, y=326..454.
+    let heights = [100.0_f32, 190.0, 128.0];
 
     assert_eq!(
-        viewport_height_px(&heights),
+        slot_index_at(&heights, 20.0),
+        0,
+        "above the first row's middle"
+    );
+    assert_eq!(
+        slot_index_at(&heights, 90.0),
+        1,
+        "past the first row's middle"
+    );
+    assert_eq!(
+        slot_index_at(&heights, 200.0),
+        1,
+        "still above the tall row's middle"
+    );
+    assert_eq!(
+        slot_index_at(&heights, 260.0),
+        2,
+        "past the tall row's middle"
+    );
+    assert_eq!(
+        slot_index_at(&heights, 999.0),
+        3,
+        "below every row — drop at the end"
+    );
+}
+
+#[test]
+fn the_drop_indicator_sits_on_the_gap_of_its_slot() {
+    let heights = [100.0_f32, 190.0];
+    let ys = row_y_offsets(&heights);
+
+    assert_eq!(slot_y(&heights, 0), ys[0], "slot 0 is the gap above row 0");
+    assert_eq!(slot_y(&heights, 1), ys[1], "slot 1 is the gap above row 1");
+    assert_eq!(
+        slot_y(&heights, 2),
+        ys[1] + 190.0 + ROW_GAP_PX,
+        "the last slot sits below the last row"
+    );
+}
+
+#[test]
+fn the_trailing_slot_is_the_viewport_bottom() {
+    // The flickable's viewport is exactly the last slot: every row, every gap,
+    // plus the trailing insert slot.
+    assert_eq!(
+        slot_y(&[100.0, 190.0], 2),
         ROW_GAP_PX + 100.0 + ROW_GAP_PX + 190.0 + ROW_GAP_PX
     );
-    assert_eq!(viewport_height_px(&[]), ROW_GAP_PX);
+    assert_eq!(slot_y(&[], 0), ROW_GAP_PX, "an empty chain keeps the slot");
 }

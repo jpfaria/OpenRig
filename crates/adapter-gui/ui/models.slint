@@ -293,6 +293,18 @@ export struct BlockStreamData {
     entries: [BlockStreamEntry],  // arbitrary key-value pairs
 }
 
+// #787: one line of a compact row's parameter strip. Slint has no flow layout
+// and cannot filter inside a `for`, so the wrap is done in Rust
+// (`compact_block_layout`) and the strip renders one HorizontalLayout per line.
+export struct CompactParamLine {
+    cells: [BlockParameterItem],
+}
+
+// #787: one line of a compact row's curated knob overlays.
+export struct CompactOverlayLine {
+    knobs: [BlockKnobOverlay],
+}
+
 export struct CompactBlockItem {
     chain_index: int,
     block_index: int,
@@ -323,11 +335,13 @@ export struct CompactBlockItem {
     // one being shown.
     parameter_groups: [string],
     active_parameter_group: int,
-    // #787: how many 90px lines the active tab's parameter strip wraps onto, the
-    // resulting row height, and the row's absolute y inside the flickable. All
-    // computed in Rust (`compact_block_layout`) because Slint has no flow layout
-    // and the page positions rows — and hit-tests drags — by absolute y.
-    strip_line_count: int,
+    // #787: the active tab's parameters (and the curated overlays), already
+    // wrapped into the lines the row renders. `parameter_items` above stays FULL
+    // — every tab's rows — because that is what a save reads (#780).
+    parameter_lines: [CompactParamLine],
+    overlay_lines: [CompactOverlayLine],
+    // #787: the row's height and its absolute y inside the flickable. Computed in
+    // Rust because the page positions rows — and hit-tests drags — by absolute y.
     row_height: length,
     row_y: length,
 }

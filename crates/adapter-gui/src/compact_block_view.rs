@@ -23,7 +23,40 @@ use crate::compact_block_layout::{
 use crate::compact_block_tabs::active_group_index;
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::project_view::block_model_picker_items;
-use crate::{BlockParameterItem, CompactBlockItem, SELECT_SELECTED_BLOCK_ID};
+use crate::{
+    BlockKnobOverlay, BlockParameterItem, CompactBlockItem, CompactOverlayLine, CompactParamLine,
+    SELECT_SELECTED_BLOCK_ID,
+};
+
+/// Group the laid-out cells by their `strip_line` — Slint cannot filter inside a
+/// `for`, so it renders one `HorizontalLayout` per line of this model.
+fn param_lines(params: &[BlockParameterItem], lines: i32) -> Vec<CompactParamLine> {
+    (0..lines)
+        .map(|line| CompactParamLine {
+            cells: ModelRc::from(Rc::new(VecModel::from(
+                params
+                    .iter()
+                    .filter(|it| it.strip_line == line)
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            ))),
+        })
+        .collect()
+}
+
+fn overlay_lines(overlays: &[BlockKnobOverlay], lines: i32) -> Vec<CompactOverlayLine> {
+    (0..lines)
+        .map(|line| CompactOverlayLine {
+            knobs: ModelRc::from(Rc::new(VecModel::from(
+                overlays
+                    .iter()
+                    .filter(|k| k.strip_line == line)
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            ))),
+        })
+        .collect()
+}
 
 /// Tab labels of a block's parameters, in first-appearance order. The synthetic
 /// model-picker row is pinned to every tab, so it is never a group of its own
@@ -87,6 +120,9 @@ pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec
             let visual = project::catalog::supported_block_models(&effect_type)
                 .ok()
                 .and_then(|models| models.into_iter().find(|m| m.model_id == model_id));
+
+            let cell_lines = param_lines(&params, lines);
+            let knob_lines = overlay_lines(&overlays, lines);
 
             Some(CompactBlockItem {
                 chain_index: chain_index as i32,
@@ -169,7 +205,8 @@ pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec
                         .collect::<Vec<_>>(),
                 ))),
                 active_parameter_group: active_index as i32,
-                strip_line_count: lines,
+                parameter_lines: ModelRc::from(Rc::new(VecModel::from(cell_lines))),
+                overlay_lines: ModelRc::from(Rc::new(VecModel::from(knob_lines))),
                 row_height: row_height_px(lines, has_tabs),
                 row_y: 0.0,
             })

@@ -99,10 +99,29 @@ pub(crate) fn row_y_offsets(heights: &[f32]) -> Vec<f32> {
         .collect()
 }
 
-/// Total height of the flickable viewport: every row, every gap, plus the
-/// trailing insert slot.
-pub(crate) fn viewport_height_px(heights: &[f32]) -> f32 {
-    ROW_GAP_PX + heights.iter().map(|h| h + ROW_GAP_PX).sum::<f32>()
+/// The drop slot a drag at `y` (viewport coordinates) targets: the number of
+/// rows whose middle the pointer has passed. Replaces the old "divide the drag
+/// delta by a fixed 112px stride", which variable row heights broke.
+pub(crate) fn slot_index_at(heights: &[f32], y: f32) -> i32 {
+    row_y_offsets(heights)
+        .iter()
+        .zip(heights)
+        .filter(|(top, h)| y > **top + **h / 2.0)
+        .count() as i32
+}
+
+/// `y` of the drop indicator for `slot`: the gap above that row, or below the
+/// last row for the trailing slot.
+pub(crate) fn slot_y(heights: &[f32], slot: usize) -> f32 {
+    let tops = row_y_offsets(heights);
+    match tops.get(slot) {
+        Some(top) => *top,
+        None => tops
+            .last()
+            .zip(heights.last())
+            .map(|(top, h)| top + h + ROW_GAP_PX)
+            .unwrap_or(ROW_GAP_PX),
+    }
 }
 
 #[cfg(test)]

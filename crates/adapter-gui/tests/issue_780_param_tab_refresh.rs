@@ -52,9 +52,17 @@ fn switching_models_rebuilds_the_tabs_and_resets_active() {
         "win_param_items must keep every tab's params for persistence"
     );
     let visible = (0..items.row_count())
-        .filter(|&i| items.row_data(i).map(|it| it.tab_slot >= 0).unwrap_or(false))
+        .filter(|&i| {
+            items
+                .row_data(i)
+                .map(|it| it.tab_slot >= 0)
+                .unwrap_or(false)
+        })
         .count();
-    assert_eq!(visible, 2, "only the active tab's params are shown (tab_slot >= 0)");
+    assert_eq!(
+        visible, 2,
+        "only the active tab's params are shown (tab_slot >= 0)"
+    );
     // Move to the second tab, as a user would.
     win.set_active_parameter_group(1);
 
