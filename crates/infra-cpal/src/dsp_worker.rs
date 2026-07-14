@@ -442,6 +442,7 @@ pub(crate) fn spawn(
             // device's UID, the worker co-schedules with the device it serves.
             crate::audio_workgroup::ensure_joined_input(device_uid.as_deref());
             let mut local = vec![0.0_f32; max_buffer_samples];
+            let spin_budget = std::time::Duration::from_nanos(period_ns * 35 / 100);
             let mut idle_since: Option<std::time::Instant> = None;
             // ~43 ms of pinned backlog at 64 frames before declaring the
             // death spiral and recovering.
@@ -453,7 +454,12 @@ pub(crate) fn spawn(
                 let w = worker_inner.write.load(Ordering::Acquire);
                 let mut r = worker_inner.read.load(Ordering::Relaxed);
                 if r == w {
-                    crate::worker_spin::worker_wait(&mut idle_since, period_ns);
+                    let since = *idle_since.get_or_insert_with(std::time::Instant::now);
+                    if since.elapsed() < spin_budget {
+                        std::hint::spin_loop();
+                    } else {
+                        std::thread::sleep(std::time::Duration::from_micros(100));
+                    }
                     continue;
                 }
                 idle_since = None;
