@@ -28,9 +28,8 @@ use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::param::ParameterSet;
 
-use crate::block_editor::{
-    block_parameter_items_for_editor, build_knob_overlays, items_in_group, parameter_groups,
-};
+use crate::block_editor::{block_parameter_items_for_editor, build_knob_overlays};
+use crate::BlockParameterItem;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
@@ -113,27 +112,13 @@ pub(crate) fn create_and_wire(
         project::catalog::model_knob_layout(&effect_type, &model_id),
         &win_param_items_vec,
     )));
-    // #780 parameter tabs: distinct group labels + the params of the active
-    // group. With <= 1 group there is no tab bar and every param shows, exactly
-    // as before. The synthetic model-picker row (select blocks) is NOT a group;
-    // it is pinned to every tab so it never spawns a spurious "Select" tab. The
-    // full set is kept so switching tabs re-models in place.
-    let (pinned_rows, groupable_rows): (Vec<_>, Vec<_>) = win_param_items_vec
-        .into_iter()
-        .partition(|it| it.path.as_str() == crate::SELECT_SELECTED_BLOCK_ID);
-    let win_param_groups = parameter_groups(&groupable_rows);
-    let pinned_rows = Rc::new(pinned_rows);
-    let win_full_params = Rc::new(groupable_rows);
-    let initial_params = {
-        let mut v = (*pinned_rows).clone();
-        if win_param_groups.len() > 1 {
-            v.extend(items_in_group(&win_full_params, &win_param_groups[0]));
-        } else {
-            v.extend((*win_full_params).clone());
-        }
-        v
-    };
-    let win_param_items = Rc::new(VecModel::from(initial_params));
+    // #780 parameter tabs: apply_param_tabs (below) fills this model with the
+    // active tab's params and publishes the group labels; tab_state holds the
+    // full/pinned split so tab switching AND plugin switching re-model in place.
+    let win_param_items = Rc::new(VecModel::<BlockParameterItem>::default());
+    let tab_state = Rc::new(RefCell::new(
+        crate::block_editor_param_tabs::TabState::default(),
+    ));
     let win_draft = Rc::new(RefCell::new(Some(BlockEditorDraft {
         chain_index,
         block_index: Some(block_index),
@@ -162,27 +147,22 @@ pub(crate) fn create_and_wire(
     );
     win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
     win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
-    // #780 parameter tabs: publish the group labels + wire tab switching.
-    win.set_block_parameter_groups(ModelRc::from(Rc::new(VecModel::from(
-        win_param_groups
-            .iter()
-            .map(|g| slint::SharedString::from(g.as_str()))
-            .collect::<Vec<_>>(),
-    ))));
-    win.set_active_parameter_group(0);
+    // #780 parameter tabs: build the tab bar + first tab from the full params.
+    crate::block_editor_param_tabs::apply_param_tabs(
+        &win,
+        &win_param_items,
+        &tab_state,
+        win_param_items_vec,
+    );
     {
         let win_param_items = win_param_items.clone();
-        let pinned = pinned_rows.clone();
-        let full = win_full_params.clone();
-        let groups = win_param_groups.clone();
+        let tab_state = tab_state.clone();
         let weak = win.as_weak();
         win.on_select_parameter_group(move |i| {
-            let Some(group) = usize::try_from(i).ok().and_then(|idx| groups.get(idx)) else {
-                return;
-            };
-            let mut v = (*pinned).clone();
-            v.extend(items_in_group(&full, group));
-            win_param_items.set_vec(v);
+            win_param_items.set_vec(crate::block_editor_param_tabs::visible_rows_for_group(
+                &tab_state.borrow(),
+                i,
+            ));
             if let Some(w) = weak.upgrade() {
                 w.set_active_parameter_group(i);
                 crate::block_editor_window_lifecycle::apply_panel_dimensions(&w);
@@ -331,6 +311,7 @@ pub(crate) fn create_and_wire(
         block_editor_window_lifecycle::BlockEditorWindowLifecycleCtx {
             win_draft,
             win_param_items,
+            tab_state,
             win_knob_overlays,
             win_multi_slider_pts,
             win_curve_editor_pts,

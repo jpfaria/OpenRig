@@ -16,6 +16,7 @@ mod block_choose_type_callback;
 mod block_delete_wiring;
 mod block_drawer_close_wiring;
 mod block_drawer_save_delete_wiring;
+pub mod block_editor_param_tabs;
 mod block_editor_window_lifecycle;
 mod block_editor_window_params;
 mod block_editor_window_setup;
