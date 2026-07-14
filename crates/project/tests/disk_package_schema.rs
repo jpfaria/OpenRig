@@ -160,6 +160,8 @@ binaries:
     for (path, group) in &amp_groups {
         let expected = match *path {
             "gain" | "volume" => "Capture",
+            p if p.starts_with("noise_gate.") => "Noise Gate",
+            p if p.starts_with("eq.") => "EQ",
             _ => "Amp",
         };
         assert_eq!(

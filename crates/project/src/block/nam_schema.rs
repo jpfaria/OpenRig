@@ -7,16 +7,15 @@
 //! - **Capture** — the manifest `parameters:` axes. They pick which
 //!   `.nam` capture is loaded (channel, gain, mic, …), and they are the
 //!   only thing a manifest declares.
-//! - **Amp** — the engine defaults every NAM block has regardless of the
-//!   capture: input / output makeup, noise gate, EQ, and (A2 only) the
-//!   slimmable size lever.
+//! - the engine defaults every NAM block has regardless of the capture —
+//!   input / output makeup (+ the A2 slim lever), the noise gate and the EQ.
+//!   They carry their own tabs (`Amp` / `Noise Gate` / `EQ`), declared once
+//!   with the specs in `nam::params` since they are the same for every NAM.
 
 use super::grid_schema::grid_parameter_to_spec;
 
 /// Editor tab holding the manifest capture-selection axes.
 pub(crate) const NAM_CAPTURE_GROUP: &str = "Capture";
-/// Editor tab holding the NAM engine defaults (same set for every NAM).
-pub(crate) const NAM_AMP_GROUP: &str = "Amp";
 
 pub(crate) fn nam_parameters(
     package: &plugin_loader::LoadedPackage,
@@ -55,13 +54,6 @@ pub(crate) fn nam_parameters(
     // (issue #650).
     if package.manifest.architecture == Some(plugin_loader::manifest::NamArchitecture::A2) {
         specs.push(nam::processor::slim_parameter_spec());
-    }
-    // The engine defaults carry their own sub-grouping (Noise Gate, EQ) for
-    // the legacy file-picker NAM block; in a NAM package they are all the
-    // same "everything that isn't a capture axis" layer, so they collapse
-    // into the single Amp tab (issue #786).
-    for spec in specs.iter_mut().skip(axes.len()) {
-        spec.group = Some(NAM_AMP_GROUP.to_string());
     }
     specs
 }
@@ -185,21 +177,21 @@ mod tests {
             Some(NAM_CAPTURE_GROUP),
             "a manifest axis belongs to the Capture tab"
         );
-        for engine in [
-            "input_db",
-            "output_db",
-            "noise_gate.enabled",
-            "noise_gate.threshold_db",
-            "eq.enabled",
-            "eq.bass",
-            "eq.middle",
-            "eq.treble",
-            "slim",
+        for (engine, tab) in [
+            ("input_db", nam::params::AMP_GROUP),
+            ("output_db", nam::params::AMP_GROUP),
+            ("slim", nam::params::AMP_GROUP),
+            ("noise_gate.enabled", nam::params::NOISE_GATE_GROUP),
+            ("noise_gate.threshold_db", nam::params::NOISE_GATE_GROUP),
+            ("eq.enabled", nam::params::EQ_GROUP),
+            ("eq.bass", nam::params::EQ_GROUP),
+            ("eq.middle", nam::params::EQ_GROUP),
+            ("eq.treble", nam::params::EQ_GROUP),
         ] {
             assert_eq!(
                 group_of(&specs, engine),
-                Some(NAM_AMP_GROUP),
-                "engine default `{engine}` belongs to the Amp tab"
+                Some(tab),
+                "engine default `{engine}` belongs to the {tab} tab"
             );
         }
         let tabs = specs.iter().fold(Vec::new(), |mut acc, spec| {
@@ -211,8 +203,13 @@ mod tests {
         });
         assert_eq!(
             tabs,
-            vec![NAM_CAPTURE_GROUP, NAM_AMP_GROUP],
-            "a NAM block renders exactly two tabs"
+            vec![
+                NAM_CAPTURE_GROUP,
+                nam::params::AMP_GROUP,
+                nam::params::NOISE_GATE_GROUP,
+                nam::params::EQ_GROUP,
+            ],
+            "a NAM block renders the capture tab plus the engine's own tabs"
         );
     }
 
@@ -224,8 +221,8 @@ mod tests {
         assert!(
             specs
                 .iter()
-                .all(|s| s.group.as_deref() == Some(NAM_AMP_GROUP)),
-            "engine-only NAM has the Amp group alone; got: {:?}",
+                .all(|s| s.group.as_deref() != Some(NAM_CAPTURE_GROUP)),
+            "engine-only NAM has no Capture tab; got: {:?}",
             specs
                 .iter()
                 .map(|s| (&s.path, &s.group))
