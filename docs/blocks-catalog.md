@@ -81,6 +81,26 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   persist independently. Surfacing the discovered params as OpenRig FORM knobs
   (so the standard `SetBlockParameter*` path also persists) is a follow-up.
 
+### NAM block editor tabs — Capture + Amp (#786)
+
+A NAM block's controls have two always-known origins, so the block editor splits
+them into two tabs with no per-plugin authoring:
+
+- **Capture** — the axes the manifest declares under `parameters:` (`channel`,
+  `gain`, `mic`, …). They pick which `.nam` capture is loaded; the `captures:`
+  list maps each combination to a file. A NAM whose axes are all dead (dropped by
+  the #649 filter) or that declares none has no Capture tab, and with a single
+  group the editor renders no tab bar at all.
+- **Amp** — everything else: the engine defaults every NAM block has regardless
+  of the capture (`input_db`, `output_db`, `noise_gate.*`, `eq.*`, and the A2-only
+  `slim`). Same set for **A1 and A2** — the only difference is the `slim` knob,
+  which the A2 branch appends and which lands in this tab like any other engine
+  control.
+
+The split is done when the schema is synthesized (`project::block::nam_schema`),
+where the group of a spec IS the editor tab (the generic tab machinery of #780
+renders one tab per group). IR/LV2 params stay ungrouped: one flat grid.
+
 ### Native cab voicing (#620)
 
 The native cabinets (`brit_4x12`, `vintage_1x12`, `american_2x12`) are a
