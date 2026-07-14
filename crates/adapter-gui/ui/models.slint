@@ -228,6 +228,10 @@ export struct BlockParameterItem {
     file_extensions: [string],
     optional: bool,
     allow_empty: bool,
+    // #780: 0-based slot within the active parameter tab, or -1 when hidden by
+    // the tab filter. Only consulted when the block has >1 group (has-param-tabs);
+    // otherwise the grid positions by loop index and every param shows.
+    tab_slot: int,
 }
 
 // Point in a MultiSlider widget (one vertical slider per point)

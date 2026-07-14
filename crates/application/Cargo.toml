@@ -28,3 +28,5 @@ block-reverb = { path = "../block-reverb" }
 hound = "3.5"
 serde_yaml.workspace = true
 tempfile = "3"
+# #780 end-to-end test: drive a real VST3 controller + register its context.
+vst3-host = { path = "../vst3-host" }

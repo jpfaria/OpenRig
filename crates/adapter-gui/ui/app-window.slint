@@ -8,10 +8,10 @@ import { DiPanel } from "components/di_panel_globals.slint";
 import { DiLoopPanel } from "components/di_loop_panel.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
-// #749 test-only: exposes DiLoopHarness as a Rust type for headless DI popup
-// interaction tests. Never instantiated in the running UI.
+// #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
 import { DiLoopHarness } from "components/di_loop_test_harness.slint";
-export { DiLoopHarness }
+import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
+export { DiLoopHarness, ParamTabBarHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -232,7 +232,6 @@ export component AppWindow inherits Window {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
     // Fullscreen inline project settings callbacks
@@ -505,7 +504,6 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
@@ -718,7 +716,6 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }

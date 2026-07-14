@@ -107,3 +107,26 @@ Requirements: macOS, a real input/output interface connected (the suite
 looks for the Scarlett by name), an idle machine, and ~12 minutes. The
 tests serialize access to the physical device across processes via a lock
 file.
+
+## Real-plugin VST3 battery (issues #776 / #780)
+
+Tests that load a real catalog VST3 (ChowCentaur) are gated on
+`OPENRIG_TEST_VST3_DIR` — the plugins `vst3/` dir (e.g.
+`<OpenRig-plugins>/plugins/source/vst3`) — and skip cleanly when it is unset,
+so CI and the parallel suite stay green. They must run single-threaded
+(`--test-threads=1`): JUCE plugins refuse *concurrent* instantiation.
+
+- `crates/vst3-host/tests/issue_776_catalog_vst3.rs` — discovery + processing.
+- `crates/vst3-host/tests/issue_780_capture_params.rs` — `capture_vst3_params`
+  reads live controller values; two same-model instances don't collide.
+- `crates/project/tests/vst3_editor_open_policy.rs` — editor open resolves by
+  block instance key, not model id.
+- `crates/application/tests/issue_780_vst3_persist.rs` — end-to-end: a
+  native-editor param change persists via `CaptureRigEdits`.
+
+```sh
+OPENRIG_TEST_VST3_DIR=<OpenRig-plugins>/plugins/source/vst3 \
+    cargo test -p vst3-host -p project -p application \
+    --test issue_780_capture_params --test vst3_editor_open_policy \
+    --test issue_780_vst3_persist -- --test-threads=1
+```

@@ -424,31 +424,10 @@ fn schema_for_block_model_legacy(
         x if x == block_core::EFFECT_TYPE_VST3 => {
             let entry = vst3_host::find_vst3_plugin(model)
                 .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
-            // Build a float parameter for each discovered VST3 parameter (normalized 0–100%).
-            let parameters = entry
-                .info
-                .params
-                .iter()
-                .map(|p| {
-                    let path = format!("p{}", p.id);
-                    let label = if p.title.is_empty() {
-                        p.short_title.clone()
-                    } else {
-                        p.title.clone()
-                    };
-                    let default_pct = (p.default_normalized * 100.0) as f32;
-                    block_core::param::float_parameter(
-                        &path,
-                        &label,
-                        None,
-                        Some(default_pct),
-                        0.0,
-                        100.0,
-                        1.0,
-                        block_core::param::ParameterUnit::Percent,
-                    )
-                })
-                .collect();
+            // #780: light scan leaves entry.info.params empty; synthesise the
+            // schema from the plugin's real parameters (knob / toggle / select
+            // per step_count). See `block::vst3_schema`.
+            let parameters = crate::block::vst3_schema::vst3_parameters(model);
             Ok(ModelParameterSchema {
                 effect_type: block_core::EFFECT_TYPE_VST3.to_string(),
                 model: model.to_string(),

@@ -18,6 +18,7 @@
 mod imp {
     use std::cell::Cell;
     use std::os::raw::c_void;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     #[repr(C)]
     struct AudioObjectPropertyAddress {
@@ -32,8 +33,14 @@ mod imp {
     /// `os_workgroup_join_token_s` is 4× u64; oversize here so a join can never
     /// write past the allocation even if the SDK layout grows.
     #[repr(C)]
-    struct JoinToken {
+    pub(crate) struct JoinToken {
         _opaque: [u64; 8],
+    }
+
+    impl JoinToken {
+        pub(crate) fn zeroed() -> Self {
+            Self { _opaque: [0; 8] }
+        }
     }
 
     #[link(name = "CoreAudio", kind = "framework")]
@@ -50,6 +57,7 @@ mod imp {
 
     extern "C" {
         fn os_workgroup_join(workgroup: OsWorkgroup, token: *mut JoinToken) -> i32;
+        fn os_workgroup_leave(workgroup: OsWorkgroup, token: *mut JoinToken);
     }
 
     const SYSTEM_OBJECT: u32 = 1; // kAudioObjectSystemObject
@@ -206,13 +214,74 @@ mod imp {
             .find(|&d| device_uid(d).as_deref() == Some(uid))
     }
 
+    /// Number of OS-workgroup leaves this process has performed — the balancing
+    /// half of each successful join. A thread that joined but exits WITHOUT
+    /// leaving is the #779 crash (`_os_workgroup_tsd_cleanup` runs on the dying
+    /// thread and SIGSEGVs), so every worker we own must leave before its thread
+    /// exits. Written on each leave; read by the lifecycle tests.
+    pub(crate) static LEAVE_COUNT: AtomicU64 = AtomicU64::new(0);
+
+    /// RAII guard for a thread's membership in a device OS workgroup (#779).
+    ///
+    /// While `active`, the thread that created the guard MUST leave the
+    /// workgroup before it exits; dropping the guard does exactly that. A no-op
+    /// join (skipped, or a non-zero `os_workgroup_join` result) is inactive and
+    /// leaves nothing.
+    pub(crate) struct WorkgroupMembership {
+        active: Option<(OsWorkgroup, Box<JoinToken>)>,
+    }
+
+    impl WorkgroupMembership {
+        fn none() -> Self {
+            Self { active: None }
+        }
+
+        /// Build the guard from an `os_workgroup_join` result: `rc == 0` took a
+        /// real membership that must be left before the thread exits; any other
+        /// rc (failure, or already-a-member) took nothing to leave.
+        pub(crate) fn from_join(rc: i32, workgroup: OsWorkgroup, token: Box<JoinToken>) -> Self {
+            Self {
+                active: (rc == 0).then_some((workgroup, token)),
+            }
+        }
+
+        /// Whether this thread owes an `os_workgroup_leave` before it exits.
+        #[cfg(test)]
+        pub(crate) fn owes_leave(&self) -> bool {
+            self.active.is_some()
+        }
+    }
+
+    impl Drop for WorkgroupMembership {
+        fn drop(&mut self) {
+            let Some((workgroup, mut token)) = self.active.take() else {
+                return;
+            };
+            LEAVE_COUNT.fetch_add(1, Ordering::Relaxed);
+            // A real membership always has a live workgroup; a null one only
+            // occurs in the headless lifecycle tests, where the FFI must be
+            // skipped (there is no OS workgroup to leave).
+            if workgroup.is_null() {
+                return;
+            }
+            unsafe { os_workgroup_leave(workgroup, &mut *token as *mut JoinToken) };
+        }
+    }
+
     /// Join the current thread to the OS workgroup of the device the callback
     /// actually serves (`bound`), falling back to `default_selector` only when
     /// no bound device is known. `attempted` is a per-thread guard so it runs
-    /// at most once (#760).
-    fn join(bound: Option<&str>, default_selector: u32, label: &str, attempted: &Cell<bool>) {
+    /// at most once (#760). Returns the membership guard: a thread we own (the
+    /// dsp-worker) holds it and leaves on exit (#779); a cpal HAL callback
+    /// thread, whose exit we do not control, forgets it (see `ensure_joined_*`).
+    fn join(
+        bound: Option<&str>,
+        default_selector: u32,
+        label: &str,
+        attempted: &Cell<bool>,
+    ) -> WorkgroupMembership {
         if attempted.get() {
-            return;
+            return WorkgroupMembership::none();
         }
         attempted.set(true); // try at most once per thread, whatever happens
 
@@ -224,7 +293,7 @@ mod imp {
                         "[#760] workgroup: no CoreAudio device matches bound uid '{uid}' — \
                          {label} thread runs un-coscheduled (skipping join)"
                     );
-                    return;
+                    return WorkgroupMembership::none();
                 }
             },
             super::WorkgroupTarget::SystemDefault => {
@@ -232,19 +301,17 @@ mod imp {
                     Some(d) => d,
                     None => {
                         log::warn!("workgroup: no default {label} device (skipping join)");
-                        return;
+                        return WorkgroupMembership::none();
                     }
                 }
             }
         };
         let Some(workgroup) = device_workgroup(device) else {
             log::warn!("workgroup: {label} device {device} has no OS workgroup (skipping)");
-            return;
+            return WorkgroupMembership::none();
         };
-        // The thread never leaves the workgroup, so the join token must outlive
-        // it — leak it (one tiny allocation per audio thread).
-        let token = Box::leak(Box::new(JoinToken { _opaque: [0; 8] }));
-        let rc = unsafe { os_workgroup_join(workgroup, token) };
+        let mut token = Box::new(JoinToken::zeroed());
+        let rc = unsafe { os_workgroup_join(workgroup, &mut *token as *mut JoinToken) };
         if rc == 0 {
             log::info!("audio {label} callback thread joined the device OS workgroup");
         } else {
@@ -253,6 +320,7 @@ mod imp {
                  (EALREADY/already-a-member is harmless)"
             );
         }
+        WorkgroupMembership::from_join(rc, workgroup, token)
     }
 
     thread_local! {
@@ -260,19 +328,41 @@ mod imp {
         static OUTPUT_ATTEMPTED: Cell<bool> = const { Cell::new(false) };
     }
 
+    /// Join the current INPUT thread to its device's OS workgroup and RETURN the
+    /// membership guard. A thread we own (the dsp-worker) holds it for the
+    /// thread's lifetime and leaves the workgroup when the guard drops on thread
+    /// exit (#779).
+    pub(crate) fn join_input(bound: Option<&str>) -> WorkgroupMembership {
+        INPUT_ATTEMPTED.with(|a| join(bound, DEFAULT_INPUT_DEVICE, "input", a))
+    }
+
     pub(crate) fn ensure_joined_input(bound: Option<&str>) {
-        INPUT_ATTEMPTED.with(|a| join(bound, DEFAULT_INPUT_DEVICE, "input", a));
+        // cpal HAL callback thread: C-owned, so we cannot control its exit and
+        // cannot leave the workgroup from another thread. Keep the membership
+        // for the process lifetime (forget the guard → the token leaks, as
+        // before #779). Only the dsp-worker (a Rust thread we own) leaves
+        // explicitly, via `join_input`.
+        std::mem::forget(join_input(bound));
     }
 
     pub(crate) fn ensure_joined_output(bound: Option<&str>) {
-        OUTPUT_ATTEMPTED.with(|a| join(bound, DEFAULT_OUTPUT_DEVICE, "output", a));
+        std::mem::forget(
+            OUTPUT_ATTEMPTED.with(|a| join(bound, DEFAULT_OUTPUT_DEVICE, "output", a)),
+        );
     }
 }
 
 #[cfg(not(target_os = "macos"))]
 mod imp {
+    /// No OS workgroups off macOS — a zero-cost no-op guard so the shared
+    /// worker code can hold a `WorkgroupMembership` unconditionally (#779).
+    pub(crate) struct WorkgroupMembership;
+
     pub(crate) fn ensure_joined_input(_bound: Option<&str>) {}
     pub(crate) fn ensure_joined_output(_bound: Option<&str>) {}
+    pub(crate) fn join_input(_bound: Option<&str>) -> WorkgroupMembership {
+        WorkgroupMembership
+    }
 }
 
 /// Join the current INPUT-callback thread to the input device's OS workgroup
@@ -307,6 +397,16 @@ pub(crate) fn workgroup_join_target(bound_device: Option<&str>) -> WorkgroupTarg
 #[cfg(test)]
 #[path = "audio_workgroup_tests.rs"]
 mod audio_workgroup_tests;
+
+pub(crate) use imp::WorkgroupMembership;
+
+/// Join the current INPUT thread to its device's OS workgroup and return the
+/// membership guard. The caller (the dsp-worker, a thread we own) MUST hold the
+/// guard for the thread's lifetime so it leaves the workgroup before exiting
+/// (#779). See module docs.
+pub(crate) fn join_input(bound: Option<&str>) -> WorkgroupMembership {
+    imp::join_input(bound)
+}
 
 pub(crate) fn ensure_joined_input(bound: Option<&str>) {
     imp::ensure_joined_input(bound);

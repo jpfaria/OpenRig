@@ -440,7 +440,7 @@ pub(crate) fn spawn(
             // multi-device rig the worker joined the wrong device's workgroup
             // and was mis-scheduled. Now that the join resolves the bound
             // device's UID, the worker co-schedules with the device it serves.
-            crate::audio_workgroup::ensure_joined_input(device_uid.as_deref());
+            let _workgroup = crate::audio_workgroup::join_input(device_uid.as_deref()); // #779: leave on thread exit
             let mut local = vec![0.0_f32; max_buffer_samples];
             // ~43 ms of pinned backlog at 64 frames before declaring the
             // death spiral and recovering.

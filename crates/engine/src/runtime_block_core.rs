@@ -290,15 +290,15 @@ pub(crate) fn build_core_block_runtime_node(
             // Resolve UID lazily if not available from moduleinfo.json.
             let uid = vst3_host::resolve_uid_for_model(model)
                 .map_err(|e| anyhow!("VST3 UID resolution failed for '{}': {}", model, e))?;
-            // Convert stored params (path="p{id}", value=0–100%) to VST3 normalized pairs.
+            // Convert stored params (path="p{id}") to VST3 normalized pairs.
+            // Each value maps by widget type — knob(Float %)/toggle(Bool)/
+            // select(String %) — via `param_value_to_normalized` (#780).
             let vst3_params: Vec<(u32, f64)> = params
                 .values
                 .iter()
                 .filter_map(|(path, value)| {
-                    let id_str = path.strip_prefix('p')?;
-                    let id: u32 = id_str.parse().ok()?;
-                    let pct = value.as_f32()?;
-                    Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
+                    let id: u32 = path.strip_prefix('p')?.parse().ok()?;
+                    Some((id, vst3_host::param_value_to_normalized(value)?))
                 })
                 .collect();
             // VST3 loads IN-PROCESS, like LV2. The `createInstance -1` that once
@@ -323,6 +323,7 @@ pub(crate) fn build_core_block_runtime_node(
             )
             .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
             let param_channel = vst3_host::register_vst3_gui_context(
+                &block.id.0,
                 model,
                 plugin.controller_clone(),
                 plugin.library_arc(),

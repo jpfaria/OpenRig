@@ -63,11 +63,8 @@ pub(crate) struct BlockWiringDeps<'a> {
     pub open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
-    pub vst3_editor_handles_for_on_open: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
     pub block_editor_persist_timer: Rc<Timer>,
 
-    pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
 
@@ -103,8 +100,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             inline_stream_timer: deps.inline_stream_timer.clone(),
             toast_timer: deps.toast_timer.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
-            vst3_editor_handles: deps.vst3_editor_handles.clone(),
-            vst3_sample_rate: deps.vst3_sample_rate,
             auto_save: deps.auto_save,
         },
     );
@@ -257,12 +252,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             output_chain_devices: deps.output_chain_devices.clone(),
             auto_save: deps.auto_save,
         },
-    );
-    // --- VST3 editor open (extracted to vst3_editor_wiring) ---
-    crate::vst3_editor_wiring::wire(
-        deps.window,
-        deps.vst3_editor_handles_for_on_open.clone(),
-        deps.vst3_sample_rate,
     );
     // --- Block drawer save+delete callbacks (extracted to block_drawer_save_delete_wiring) ---
     crate::block_drawer_save_delete_wiring::wire(

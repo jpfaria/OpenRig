@@ -362,6 +362,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
+ "vst3-host",
 ]
 
 [[package]]
@@ -3250,6 +3251,7 @@ dependencies = [
  "nam",
  "plugin-loader",
  "project",
+ "vst3-host",
 ]
 
 [[package]]

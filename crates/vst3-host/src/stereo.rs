@@ -46,6 +46,9 @@ impl StereoVst3Processor {
             param_channel,
             controller: self.plugin.controller_clone(),
             library: self.plugin.library_arc(),
+            // Legacy out-of-process editor path (currently unused); the model id
+            // is not threaded here. Registered contexts (engine path) carry it.
+            model_id: String::new(),
         })
     }
 
@@ -80,13 +83,14 @@ impl StereoProcessor for StereoVst3Processor {
         _sample_rate: f32,
     ) -> bool {
         // Apply the new params to the LIVE plugin instead of reloading it.
-        // Paths are "p{id}", values are 0..100 (%) → VST3 normalized 0.0..=1.0.
+        // Paths are "p{id}"; values map to a VST3 normalized 0.0..=1.0 (#780).
         for (path, value) in params.values.iter() {
             let Some(id) = path.strip_prefix('p').and_then(|s| s.parse::<u32>().ok()) else {
                 continue;
             };
-            let Some(pct) = value.as_f32() else { continue };
-            let normalized = (pct / 100.0).clamp(0.0, 1.0) as f64;
+            let Some(normalized) = crate::param_value_to_normalized(value) else {
+                continue;
+            };
             let _ = self.plugin.set_param(id, normalized);
         }
         true

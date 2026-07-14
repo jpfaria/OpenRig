@@ -1,0 +1,56 @@
+// #780 — parameter tab bar for the block editor. One tab per parameter group
+// (VST3 plugins with many params, grouped from the manifest or dynamically).
+// A horizontal Flickable so a plugin with many groups scrolls sideways; plain
+// TouchAreas (no PopupWindow) so the taps always land.
+import { Theme } from "../theme.slint";
+
+export component ParamTabBar inherits Rectangle {
+    in property <[string]> groups;
+    in property <int> active: 0;
+    callback select(int);
+
+    background: #0a0a0e;
+    clip: true;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        viewport-width: max(self.width, tabs.preferred-width);
+        viewport-height: self.height;
+
+        tabs := HorizontalLayout {
+            x: 0; y: 0;
+            height: root.height;
+            padding-left: 8px;
+            padding-right: 8px;
+            spacing: 4px;
+            alignment: start;
+
+            for group[i] in root.groups : Rectangle {
+                vertical-stretch: 0;
+                min-width: label.preferred-width + 24px;
+                background: i == root.active
+                    ? Theme.palette.accent-end
+                    : (tab-ta.has-hover ? #1b2230 : transparent);
+                border-radius: 5px;
+                animate background { duration: 120ms; }
+
+                label := Text {
+                    text: group;
+                    color: i == root.active ? #ffffff : #9aa4b2;
+                    font-size: 15px;
+                    font-weight: i == root.active ? 800 : 600;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+
+                tab-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.select(i); }
+                }
+                accessible-role: button;
+                accessible-label: group;
+            }
+        }
+    }
+}
