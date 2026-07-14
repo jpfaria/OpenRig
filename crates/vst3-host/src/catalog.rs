@@ -136,8 +136,10 @@ pub fn catalog_params(model_id: &str) -> Vec<crate::host::Vst3ParamInfo> {
     {
         return cached.clone();
     }
-    let params = crate::param_registry::live_params_for_model(model_id)
-        .unwrap_or_else(|| load_and_read_params(model_id));
+    let params = resolve_params(
+        crate::param_registry::live_params_for_model(model_id),
+        || load_and_read_params(model_id),
+    );
     if !params.is_empty() {
         cache
             .lock()
@@ -145,6 +147,18 @@ pub fn catalog_params(model_id: &str) -> Vec<crate::host::Vst3ParamInfo> {
             .insert(model_id.to_string(), params.clone());
     }
     params
+}
+
+/// Pick the parameter list: prefer a NON-EMPTY live read, otherwise fall back to
+/// the loader. A live instance whose controller reads EMPTY (registered but not
+/// yet reporting params) must NOT shadow the throw-away load — otherwise the
+/// compact view, built while that live read is empty, shows a VST3 block with no
+/// knobs while the detached editor (opened later) has them (#780).
+fn resolve_params<T, F: FnOnce() -> Vec<T>>(live: Option<Vec<T>>, load: F) -> Vec<T> {
+    match live {
+        Some(params) if !params.is_empty() => params,
+        _ => load(),
+    }
 }
 
 /// Load a throw-away instance of `model_id` and read its parameter metadata.
@@ -268,4 +282,31 @@ pub fn resolve_uid_for_model(model_id: &str) -> anyhow::Result<[u8; 16]> {
                 .join(", ")
         )
     })
+}
+
+#[cfg(test)]
+mod resolve_params_tests {
+    use super::resolve_params;
+
+    #[test]
+    fn empty_live_read_falls_back_to_loader() {
+        // A registered-but-empty live read must NOT shadow the throw-away load,
+        // or the compact view shows a VST3 block with no params (#780).
+        let loaded = resolve_params(Some(Vec::<i32>::new()), || vec![1, 2, 3]);
+        assert_eq!(loaded, vec![1, 2, 3], "empty live → fall back to loader");
+    }
+
+    #[test]
+    fn non_empty_live_read_wins() {
+        let live = resolve_params(Some(vec![9]), || {
+            panic!("must not load when live has params")
+        });
+        assert_eq!(live, vec![9]);
+    }
+
+    #[test]
+    fn no_live_uses_loader() {
+        let loaded = resolve_params(None, || vec![7]);
+        assert_eq!(loaded, vec![7]);
+    }
 }
