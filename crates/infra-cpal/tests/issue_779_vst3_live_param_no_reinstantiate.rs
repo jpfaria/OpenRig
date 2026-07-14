@@ -191,7 +191,8 @@ fn changing_a_vst3_param_on_a_live_chain_does_not_reinstantiate_it() {
 
     let after = vst3_host::instantiation_count();
     assert_eq!(
-        after, before,
+        after,
+        before,
         "a live VST3 param change must retune the instance IN PLACE, not re-instantiate it \
          (#779): a fresh createInstance on the worker thread runs concurrently with the audio \
          thread's process() on the old instance → SIGSEGV. Instantiations during the edit: {}",

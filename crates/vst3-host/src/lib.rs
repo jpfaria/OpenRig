@@ -22,9 +22,7 @@
 //! interchangeably.
 
 pub mod catalog;
-pub mod component_handler;
 pub mod discovery;
-pub mod editor;
 mod host;
 pub mod host_application;
 mod host_factory;
@@ -37,19 +35,19 @@ mod processor;
 mod stereo;
 
 pub use catalog::{
-    find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model, vst3_catalog,
-    vst3_model_ids, vst3_model_visual, Vst3CatalogEntry,
+    catalog_params, find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model,
+    vst3_catalog, vst3_model_ids, vst3_model_visual, Vst3CatalogEntry,
 };
 pub use discovery::{
     resolve_vst3_bundle, scan_system_vst3, scan_vst3_bundle, scan_vst3_bundle_light,
     scan_vst3_dirs, system_vst3_paths, Vst3PluginInfo,
 };
-pub use editor::{open_vst3_editor_window, open_vst3_editor_window_standalone, Vst3EditorHandle};
 pub use host::{Vst3ParamInfo, Vst3Plugin, Vst3PluginClass};
 pub use main_thread::{drain_main_thread_deferred, mark_main_thread};
 pub use param_channel::{vst3_param_channel, Vst3ParamChannel, Vst3ParamUpdate};
 pub use param_registry::{
-    lookup_vst3_channel, lookup_vst3_gui_context, register_vst3_gui_context, Vst3GuiContext,
+    live_params_for_model, lookup_vst3_channel, lookup_vst3_gui_context, register_vst3_gui_context,
+    Vst3GuiContext,
 };
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;
@@ -57,6 +55,30 @@ pub use stereo::StereoVst3Processor;
 use anyhow::Result;
 use block_core::{AudioChannelLayout, BlockProcessor};
 use std::path::Path;
+
+/// Convert a stored block-parameter value to a VST3 normalized value (0.0..=1.0).
+///
+/// #780: a VST3 block stores every parameter under `p{id}`, but the widget type
+/// varies — a continuous knob stores a `Float` percent (0–100), an on/off
+/// toggle stores a `Bool`, and a select stores the chosen option's percent as a
+/// `String`. All three map to a single VST3 normalized value here so both the
+/// live in-place update and the load path apply them uniformly.
+pub fn param_value_to_normalized(value: &domain::value_objects::ParameterValue) -> Option<f64> {
+    let normalized = if let Some(pct) = value.as_f32() {
+        pct as f64 / 100.0
+    } else if let Some(b) = value.as_bool() {
+        if b {
+            1.0
+        } else {
+            0.0
+        }
+    } else if let Some(s) = value.as_str() {
+        s.parse::<f64>().ok()? / 100.0
+    } else {
+        return None;
+    };
+    Some(normalized.clamp(0.0, 1.0))
+}
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Total VST3 instances created this process — incremented on each successful

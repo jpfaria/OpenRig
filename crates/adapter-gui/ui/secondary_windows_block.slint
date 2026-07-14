@@ -24,6 +24,8 @@ export component BlockEditorWindow inherits Window {
     in-out property <string> block-model-search-text;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[string]> block-parameter-groups;
+    in property <int> active-parameter-group: 0;
     in property <[MultiSliderPoint]> multi-slider-points;
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
@@ -51,8 +53,8 @@ export component BlockEditorWindow inherits Window {
     callback update-block-parameter-number-text(string, string);
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
+    callback select-parameter-group(int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
 
     // Realtime data stream from engine (tuner, meter, analyzer, etc.)
     in property <BlockStreamData> block-stream-data;
@@ -145,6 +147,8 @@ export component BlockEditorWindow inherits Window {
         block-drawer-enabled: root.block-drawer-enabled;
         block-knob-overlays: root.block-knob-overlays;
         block-parameter-items: root.block-parameter-items;
+        block-parameter-groups: root.block-parameter-groups;
+        active-parameter-group: root.active-parameter-group;
         multi-slider-points: root.multi-slider-points;
         curve-editor-points: root.curve-editor-points;
         eq-total-curve: root.eq-total-curve;
@@ -166,6 +170,7 @@ export component BlockEditorWindow inherits Window {
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
+        select-parameter-group(i) => { root.select-parameter-group(i); }
     }
 
     // Other block types: existing form-based editor
@@ -202,7 +207,6 @@ export component BlockEditorWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
     }
 
     in-out property <string> toast-message;
@@ -296,7 +300,6 @@ export component CompactChainViewWindow inherits Window {
     callback close-compact-view();
     callback choose-block-type(int, int, int);
     callback remove-block(int, int);
-    callback open-plugin(string); // model-id, for VST3 blocks
     // Preset / chain admin callbacks — same shape `chain_row` exposes
     // so the same wiring on the Rust side serves both views.
     callback switch-chain-preset(int);
@@ -360,7 +363,6 @@ export component CompactChainViewWindow inherits Window {
         close-compact-view => { root.close-compact-view(); }
         choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
         remove-block(ci, bi) => { root.remove-block(ci, bi); }
-        open-plugin(model-id) => { root.open-plugin(model-id); }
         switch-chain-preset(slot) => { root.switch-chain-preset(slot); }
         switch-chain-scene(s) => { root.switch-chain-scene(s); }
         rename-chain-preset(name) => { root.rename-chain-preset(name); }

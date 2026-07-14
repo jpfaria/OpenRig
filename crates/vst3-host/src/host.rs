@@ -150,6 +150,10 @@ pub struct Vst3ParamInfo {
     pub units: String,
     pub step_count: i32,
     pub default_normalized: f64,
+    /// For a discrete parameter with `step_count >= 2` (a select), one
+    /// `(value_percent, label)` per step read from the controller; empty for
+    /// continuous knobs and on/off toggles (#780).
+    pub enum_options: Vec<(String, String)>,
 }
 
 /// A plugin class found in a factory.
@@ -375,6 +379,7 @@ impl Vst3Plugin {
             units: char16_array_to_string(&info.units),
             step_count: info.stepCount,
             default_normalized: info.defaultNormalizedValue,
+            enum_options: Vec::new(),
         })
     }
 

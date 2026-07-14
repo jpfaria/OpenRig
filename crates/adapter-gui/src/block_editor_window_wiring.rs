@@ -196,13 +196,4 @@ pub(crate) fn wire(
             }
         });
     }
-    // VST3 editor opener — forwarder.
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_open_vst3_editor(move |model_id| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_open_vst3_editor(model_id);
-            }
-        });
-    }
 }

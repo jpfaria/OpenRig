@@ -611,3 +611,50 @@ fn resolve_noise_gate_is_none_when_neither_sets_a_field() {
     assert_eq!(enabled, None);
     assert_eq!(threshold, None);
 }
+
+#[test]
+fn vst3_manifest_exposes_group_map_keyed_by_vst3_id() {
+    // #780: a VST3 package declares which tab each parameter belongs to.
+    // The app overlays these onto the live parameters by `vst3_id`.
+    let yaml = r#"
+manifest_version: 1
+id: chow_centaur
+display_name: Chow Centaur
+type: vst3
+backend: vst3
+bundle: ChowCentaur.vst3
+parameters:
+  - name: gain
+    vst3_id: 0
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    group: Tone
+  - name: level
+    vst3_id: 1
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    group: Tone
+  - name: mode
+    vst3_id: 5
+    min: 0.0
+    max: 100.0
+    default: 0.0
+    group: Voicing
+  - name: bypass
+    vst3_id: 9
+    min: 0.0
+    max: 1.0
+    default: 0.0
+"#;
+    let manifest = parse(yaml);
+    let map = manifest.vst3_group_map();
+    assert_eq!(map.get(&0).map(String::as_str), Some("Tone"));
+    assert_eq!(map.get(&1).map(String::as_str), Some("Tone"));
+    assert_eq!(map.get(&5).map(String::as_str), Some("Voicing"));
+    // A parameter with no declared group is absent — the app groups it
+    // dynamically, it does not land in the manifest map.
+    assert!(!map.contains_key(&9));
+    assert_eq!(map.len(), 3);
+}

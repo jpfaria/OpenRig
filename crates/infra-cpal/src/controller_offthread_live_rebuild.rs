@@ -208,9 +208,7 @@ fn block_contains_vst3(block: &project::block::AudioBlock) -> bool {
     use project::block::AudioBlockKind;
     match &block.kind {
         AudioBlockKind::Core(core) => core.effect_type == block_core::EFFECT_TYPE_VST3,
-        AudioBlockKind::Select(select) => {
-            select.options.iter().any(block_contains_vst3)
-        }
+        AudioBlockKind::Select(select) => select.options.iter().any(block_contains_vst3),
         _ => false,
     }
 }

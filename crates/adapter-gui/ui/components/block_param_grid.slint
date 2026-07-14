@@ -20,6 +20,10 @@ export component BlockParamGrid inherits ScrollView {
     in property <[BlockParameterItem]> param-items;
     in property <bool> show-overlays;
     in property <bool> show-params;
+    // #780: when the block has parameter tabs, render only the active tab's
+    // rows (tab_slot >= 0), positioned by tab_slot; otherwise every row shows,
+    // positioned by loop index (unchanged behaviour).
+    in property <bool> has-param-tabs;
     in property <length> grid-area-x;
     in property <length> grid-cell-w;
     in property <int> grid-cols;
@@ -66,9 +70,9 @@ export component BlockParamGrid inherits ScrollView {
     }
 
     for param[pi] in root.param-items : BlockPanelParameterItem {
-        visible: root.show-params;
-        x: root.grid-area-x + mod(pi, root.grid-cols) * root.grid-cell-w;
-        y: root.grid-base-y + Math.floor(pi / root.grid-cols) * root.grid-row-stride;
+        visible: root.show-params && (!root.has-param-tabs || param.tab_slot >= 0);
+        x: root.grid-area-x + mod(root.has-param-tabs ? param.tab_slot : pi, root.grid-cols) * root.grid-cell-w;
+        y: root.grid-base-y + Math.floor((root.has-param-tabs ? param.tab_slot : pi) / root.grid-cols) * root.grid-row-stride;
         width: root.grid-cell-w;
         height: 90px;
         param: param;

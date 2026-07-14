@@ -29,6 +29,7 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::param::ParameterSet;
 
 use crate::block_editor::{block_parameter_items_for_editor, build_knob_overlays};
+use crate::BlockParameterItem;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
@@ -61,8 +62,6 @@ pub(crate) struct BlockEditorWindowSetupCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>>,
-    pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
 
@@ -89,8 +88,6 @@ pub(crate) fn create_and_wire(
         selected_block,
         open_block_windows,
         plugin_info_window,
-        vst3_editor_handles,
-        vst3_sample_rate,
         auto_save,
     } = ctx;
 
@@ -115,7 +112,13 @@ pub(crate) fn create_and_wire(
         project::catalog::model_knob_layout(&effect_type, &model_id),
         &win_param_items_vec,
     )));
-    let win_param_items = Rc::new(VecModel::from(win_param_items_vec));
+    // #780 parameter tabs: apply_param_tabs (below) fills this model with the
+    // active tab's params and publishes the group labels; tab_state holds the
+    // full/pinned split so tab switching AND plugin switching re-model in place.
+    let win_param_items = Rc::new(VecModel::<BlockParameterItem>::default());
+    let tab_state = Rc::new(RefCell::new(
+        crate::block_editor_param_tabs::TabState::default(),
+    ));
     let win_draft = Rc::new(RefCell::new(Some(BlockEditorDraft {
         chain_index,
         block_index: Some(block_index),
@@ -144,6 +147,29 @@ pub(crate) fn create_and_wire(
     );
     win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
     win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
+    // #780 parameter tabs: build the tab bar + first tab from the full params.
+    crate::block_editor_param_tabs::apply_param_tabs(
+        &win,
+        &win_param_items,
+        &tab_state,
+        win_param_items_vec,
+    );
+    {
+        let win_param_items = win_param_items.clone();
+        let tab_state = tab_state.clone();
+        let weak = win.as_weak();
+        win.on_select_parameter_group(move |i| {
+            if let Some(w) = weak.upgrade() {
+                crate::block_editor_param_tabs::select_param_tab(
+                    &w,
+                    &win_param_items,
+                    &tab_state,
+                    i,
+                );
+                crate::block_editor_window_lifecycle::apply_panel_dimensions(&w);
+            }
+        });
+    }
     let win_multi_slider_pts = Rc::new(VecModel::from(build_multi_slider_points(
         &effect_type,
         &model_id,
@@ -276,8 +302,6 @@ pub(crate) fn create_and_wire(
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
-            vst3_editor_handles,
-            vst3_sample_rate,
             auto_save,
         },
     );
@@ -288,6 +312,7 @@ pub(crate) fn create_and_wire(
         block_editor_window_lifecycle::BlockEditorWindowLifecycleCtx {
             win_draft,
             win_param_items,
+            tab_state,
             win_knob_overlays,
             win_multi_slider_pts,
             win_curve_editor_pts,

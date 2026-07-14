@@ -22,7 +22,10 @@ pub mod validate;
 pub use config::{plugins_root_from_config, PluginPathsConfig, PluginPathsSection};
 pub use discover::{discover, DiscoveryError, LoadedPackage};
 pub use install::{extract_bundle_if_needed, has_extracted_packages};
-pub use manifest::{Backend, BlockType, GridCapture, GridParameter, Lv2Slot, PluginManifest};
+pub use manifest::{
+    vst3_group_map_for_bundle, Backend, BlockType, GridCapture, GridParameter, Lv2Slot,
+    PluginManifest,
+};
 pub use native_runtimes::{NativeBuildFn, NativeRuntime, NativeSchemaFn, NativeValidateFn};
 pub use package::{current_platform_slot, validate_package, PackageError};
 pub use validate::{validate_manifest, ValidationError, MAX_SUPPORTED_VERSION};
