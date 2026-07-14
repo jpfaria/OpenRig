@@ -59,7 +59,7 @@ pub(crate) fn start(
                 // so the heavy build never blocked the UI.
                 rt.poll_pending_rebuilds();
                 // Issue #778: run any VST3 teardown the control worker deferred to
-                // the main thread (dropping a plugin editor off-main crashes).
+                // the main thread (dropping a plugin off-main crashes).
                 project::vst3_editor::drain_deferred_vst3_teardowns();
                 let errors = rt.poll_errors();
                 if let Some(first) = errors.first() {

@@ -581,11 +581,11 @@ pub fn model_knob_layout(
     }
 }
 
-/// Returns true when a block type opens its own native editor window,
-/// meaning the compact view should show an "open editor" action instead
-/// of rendering inline parameter controls.
-pub fn block_has_external_gui(effect_type: &str) -> bool {
-    effect_type == block_core::EFFECT_TYPE_VST3
+/// True when a block opens its own native editor (compact view then shows an
+/// "open editor" action instead of inline knobs). None do since #780 removed the
+/// native VST3 editor — VST3 params are OpenRig knobs now (was hiding its strip).
+pub fn block_has_external_gui(_effect_type: &str) -> bool {
+    false
 }
 
 pub fn build_block_kind(

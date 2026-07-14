@@ -155,10 +155,6 @@ pub fn run_desktop_app(
         plugin_loader::registry::native_count(),
         plugin_loader::registry::len() - plugin_loader::registry::native_count(),
     );
-    // Open VST3 editor handles (kept alive so the OS window stays open).
-    let vst3_editor_handles: Rc<RefCell<project::vst3_editor::Vst3EditorRegistry>> =
-        Rc::new(RefCell::new(project::vst3_editor::Vst3EditorRegistry::new()));
-    let vst3_editor_handles_for_on_open = vst3_editor_handles.clone();
     // Scan system VST3 paths in a background thread so startup isn't blocked.
     // The catalog is available before any project is opened.
     let vst3_sample_rate = settings
@@ -696,10 +692,8 @@ pub fn run_desktop_app(
         chain_output_device_options: chain_output_device_options.clone(),
         chain_editor_window: chain_editor_window.clone(),
         open_compact_window: open_compact_window.clone(),
-        vst3_editor_handles: vst3_editor_handles.clone(),
         toast_timer: toast_timer.clone(),
         app_config: app_config.clone(),
-        vst3_sample_rate,
         fullscreen,
         auto_save,
     });
@@ -735,10 +729,7 @@ pub fn run_desktop_app(
         open_compact_window: open_compact_window.clone(),
         toast_timer: toast_timer.clone(),
         plugin_info_window: plugin_info_window.clone(),
-        vst3_editor_handles: vst3_editor_handles.clone(),
-        vst3_editor_handles_for_on_open: vst3_editor_handles_for_on_open.clone(),
         block_editor_persist_timer: block_editor_persist_timer.clone(),
-        vst3_sample_rate,
         auto_save,
     });
     // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
