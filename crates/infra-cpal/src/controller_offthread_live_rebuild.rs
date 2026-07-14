@@ -66,6 +66,45 @@ impl ProjectRuntimeController {
             (sample_rate, device_sample_rates, out_buffers)
         };
         let elastic_targets = crate::elastic::elastic_targets_from_output_buffers(&out_buffers);
+        // #779: a chain containing a VST3 must NOT be rebuilt fresh off-thread.
+        // A fresh build calls `createInstance` on the control worker while the
+        // audio thread is inside the old instance's `process()` — a concurrent
+        // JUCE op that SIGSEGVs (the pairing #778's lock cannot cover, since
+        // `process()` runs RT and must not lock). Update the LIVE runtime IN
+        // PLACE instead: `update_chain_runtime_state` reuses the existing VST3
+        // instance (a param change becomes `setParameter`, never a reload) and
+        // mutates under the runtime's processing lock, so it is RT-safe and the
+        // cpal callbacks keep the same `Arc`. Chains with no VST3 keep the
+        // off-thread fresh rebuild (safe: re-instantiating a NAM/native block
+        // touches no shared JUCE state).
+        if chain_contains_vst3(chain) {
+            let groups: Vec<usize> = self
+                .runtime_graph
+                .chains
+                .keys()
+                .filter(|(cid, _)| cid == &chain.id)
+                .map(|(_, g)| *g)
+                .collect();
+            for group in groups {
+                if let Some(runtime) = self.runtime_graph.chains.get(&(chain.id.clone(), group)) {
+                    let group_rate = device_sample_rates
+                        .values()
+                        .next()
+                        .copied()
+                        .unwrap_or(sample_rate);
+                    engine::runtime::update_chain_runtime_state(
+                        runtime,
+                        chain,
+                        group_rate,
+                        false,
+                        &elastic_targets,
+                        &self.io_bindings,
+                    )?;
+                }
+            }
+            self.rearm_di_stream_after_rebuild(chain);
+            return Ok(true);
+        }
         self.schedule_chain_rebuild(chain, sample_rate, device_sample_rates, elastic_targets);
         // A monitored DI is a dedicated pre-render built from the chain's DSP at
         // arm time (issue #717/#771). The synchronous `upsert_chain` and the
@@ -153,5 +192,25 @@ impl ProjectRuntimeController {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     pub fn chain_io_changed(&self, _project: &Project, _chain: &Chain) -> Result<bool> {
         Ok(false)
+    }
+}
+
+/// Whether any block in the chain is a VST3 — its live rebuild must reuse the
+/// instance in place rather than re-instantiate it (#779). Recurses into
+/// `Select` sub-chains so a VST3 nested inside one is covered too.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn chain_contains_vst3(chain: &Chain) -> bool {
+    chain.blocks.iter().any(block_contains_vst3)
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn block_contains_vst3(block: &project::block::AudioBlock) -> bool {
+    use project::block::AudioBlockKind;
+    match &block.kind {
+        AudioBlockKind::Core(core) => core.effect_type == block_core::EFFECT_TYPE_VST3,
+        AudioBlockKind::Select(select) => {
+            select.options.iter().any(block_contains_vst3)
+        }
+        _ => false,
     }
 }

@@ -38,6 +38,7 @@ block-delay = { path = "../block-delay" }
 block-mod = { path = "../block-mod" }
 block-pitch = { path = "../block-pitch" }
 plugin-loader = { path = "../plugin-loader" }
+vst3-host = { path = "../vst3-host" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
