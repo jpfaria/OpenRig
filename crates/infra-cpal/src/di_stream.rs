@@ -56,6 +56,11 @@ pub(crate) struct DiStreamHandle {
     /// Set by the render thread on failure; surfaces through
     /// [`ProjectRuntimeController::di_stream_active`].
     failed: Arc<AtomicBool>,
+    /// #785: a gapless re-arm hands this handle's playback over to the
+    /// incoming render, which stops the old worker and retires the old
+    /// playback itself. Dropping the superseded handle must NOT empty the
+    /// cell — that is exactly the teardown the listener heard as a cut.
+    superseded: bool,
 }
 
 impl DiStreamHandle {
@@ -68,10 +73,39 @@ impl DiStreamHandle {
 
 impl Drop for DiStreamHandle {
     fn drop(&mut self) {
+        if self.superseded {
+            return;
+        }
         // Safety net for non-controller drops (controller teardown). The
         // swapped-out playback drops here, on a non-audio thread.
         let _ = self.disarm();
     }
+}
+
+/// What a gapless re-arm (#785) hands to the incoming render: the playback the
+/// listener is hearing, and the outgoing worker's arm flag, so the incoming
+/// render can line itself up with it and stop it at the hand-off.
+struct DiHandoff {
+    prev: Arc<DiPlayback>,
+    prev_armed: Arc<Mutex<bool>>,
+}
+
+/// Frames the incoming render pre-rolls before it can take over. The outgoing
+/// playback keeps sounding until the listener reaches this position, so the
+/// hand-off is both gapless and continuous in the loop — no restart, no jump.
+const HANDOFF_PREROLL_FRAMES: usize = 8192;
+
+/// A stalled output (no callback consuming) would never reach the hand-off
+/// position. After this long, the incoming render takes over anyway.
+const HANDOFF_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Has the outgoing playback reached the loop position the incoming render
+/// starts from (within one worker block)? `tol` also absorbs the callback
+/// overshooting the exact frame — the position may land just PAST `start_pos`.
+fn handoff_reached(prev: &DiPlayback, start_pos: usize, loop_len: usize, tol: usize) -> bool {
+    let loop_len = loop_len.max(1);
+    let ahead = (start_pos + loop_len - prev.play_pos() % loop_len) % loop_len;
+    ahead <= tol || ahead >= loop_len.saturating_sub(tol)
 }
 
 impl ProjectRuntimeController {
@@ -108,7 +142,18 @@ impl ProjectRuntimeController {
         // Re-arm replaces any previous playback (and retires it off the
         // audio thread).
         self.disarm_di_stream(&chain.id);
+        self.spawn_di_stream(chain, pcm, None)
+    }
 
+    /// Spawn the render worker for `chain`. With a `handoff`, the incoming
+    /// render takes over from the playback that is sounding (#785) instead of
+    /// the cell being emptied first.
+    fn spawn_di_stream(
+        &self,
+        chain: &Chain,
+        pcm: Arc<DiPcm>,
+        handoff: Option<DiHandoff>,
+    ) -> Result<()> {
         let output_index =
             resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
         let output_rate = self.di_output_rate(&chain.id, output_index);
@@ -123,6 +168,7 @@ impl ProjectRuntimeController {
         let cell = self.di_playback_cell(&chain.id, output_index);
         let armed = Arc::new(Mutex::new(true));
         let failed = Arc::new(AtomicBool::new(false));
+        let handoff_pending = handoff.is_some();
         {
             let cell = cell.clone();
             let armed = Arc::clone(&armed);
@@ -130,6 +176,7 @@ impl ProjectRuntimeController {
             let chain = chain.clone();
             let registry = self.io_bindings.clone();
             let pcm = Arc::clone(&pcm);
+            let retired = Arc::clone(&self.di_retired);
             std::thread::Builder::new()
                 .name("di-stream".into())
                 .spawn(move || {
@@ -160,10 +207,28 @@ impl ProjectRuntimeController {
                     // playback starts with a cushion instead of racing the
                     // worker from frame one (still well under a second for a
                     // 75 s loop — the pre-render took minutes).
-                    let playback =
-                        Arc::new(DiPlayback::new(dest_left, dest_right, routed.loop_len));
+                    //
+                    // #785: on a gapless re-arm the outgoing playback is still
+                    // sounding, so this render starts where the listener WILL
+                    // be once the pre-roll is ready — not at the top of the
+                    // loop. It then waits for the listener to reach exactly
+                    // that position before taking the cell over, so the edit
+                    // lands with neither a silent gap nor a jump in the loop.
+                    let loop_len = routed.loop_len.max(1);
+                    let start_pos = handoff
+                        .as_ref()
+                        .map(|h| (h.prev.play_pos() + HANDOFF_PREROLL_FRAMES) % loop_len)
+                        .unwrap_or(0);
+                    let playback = Arc::new(DiPlayback::starting_at(
+                        dest_left,
+                        dest_right,
+                        routed.loop_len,
+                        start_pos,
+                    ));
                     let ring = playback.ring();
                     let mut parked = false;
+                    let handoff_deadline = std::time::Instant::now() + HANDOFF_TIMEOUT;
+                    routed.runtime.set_di_loop_pos(start_pos);
 
                     // Stream the DI: paced by RING BACKPRESSURE — the worker
                     // only produces what the output consumed, so the output
@@ -187,7 +252,7 @@ impl ProjectRuntimeController {
                     crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns * 3 / 5);
                     let silence = vec![0.0f32; BLOCK];
                     let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
-                    let mut pos: usize = 0;
+                    let mut pos: usize = start_pos;
                     // Catch-up bursts are capped: after every few back-to-back
                     // blocks the worker yields, so it never presents the
                     // scheduler with a multi-second monolithic burn (that is
@@ -198,6 +263,52 @@ impl ProjectRuntimeController {
                             let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
                             if !*armed {
                                 return;
+                            }
+                        }
+                        // Park BEFORE the backpressure check: a gapless re-arm
+                        // waits, with a full ring, for the listener to reach
+                        // the hand-off position — the take-over must still be
+                        // evaluated while the worker is resting.
+                        let park_fill = match handoff {
+                            Some(_) => HANDOFF_PREROLL_FRAMES * 2,
+                            None => BLOCK * 2 * 16,
+                        };
+                        if !parked && ring.len() >= park_fill {
+                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
+                            if !*armed {
+                                return;
+                            }
+                            match handoff.as_ref() {
+                                // Cold arm: nothing is sounding, park at once.
+                                None => {
+                                    cell.store(Some(Arc::clone(&playback)));
+                                    parked = true;
+                                }
+                                // Gapless re-arm (#785): the outgoing playback
+                                // keeps sounding until the listener reaches the
+                                // position this render started from. Then, under
+                                // the outgoing arm lock, stop the old worker and
+                                // swap the cell — no teardown, no silence, no
+                                // jump in the loop.
+                                Some(h) => {
+                                    if handoff_reached(&h.prev, start_pos, loop_len, BLOCK)
+                                        || std::time::Instant::now() >= handoff_deadline
+                                    {
+                                        let mut prev_armed =
+                                            h.prev_armed.lock().unwrap_or_else(|e| e.into_inner());
+                                        *prev_armed = false;
+                                        cell.store(Some(Arc::clone(&playback)));
+                                        // An in-flight callback may still hold a
+                                        // guard on the outgoing playback: retire
+                                        // it instead of dropping it here, so the
+                                        // audio thread never frees it (#8).
+                                        retired
+                                            .lock()
+                                            .unwrap_or_else(|e| e.into_inner())
+                                            .push(Arc::clone(&h.prev));
+                                        parked = true;
+                                    }
+                                }
                             }
                         }
                         let free = ring.capacity() - ring.len();
@@ -213,14 +324,6 @@ impl ProjectRuntimeController {
                             continue;
                         }
                         burst += 1;
-                        if !parked && ring.len() >= BLOCK * 2 * 16 {
-                            let armed = armed.lock().unwrap_or_else(|e| e.into_inner());
-                            if !*armed {
-                                return;
-                            }
-                            cell.store(Some(Arc::clone(&playback)));
-                            parked = true;
-                        }
                         process_input_f32(&routed.runtime, 0, &silence, 1);
                         process_output_f32(
                             &routed.runtime,
@@ -246,7 +349,7 @@ impl ProjectRuntimeController {
                 })
                 .expect("spawn di-stream thread");
         }
-        self.di_streams.borrow_mut().insert(
+        let superseded = self.di_streams.borrow_mut().insert(
             chain.id.clone(),
             DiStreamHandle {
                 output_index,
@@ -254,8 +357,15 @@ impl ProjectRuntimeController {
                 armed,
                 pcm,
                 failed,
+                superseded: false,
             },
         );
+        // A hand-off replaces the handle while its playback is still sounding:
+        // the incoming worker owns stopping it. Dropping it as-is would empty
+        // the cell — the very cut #785 is about.
+        if let Some(mut old) = superseded {
+            old.superseded = handoff_pending;
+        }
         Ok(())
     }
 
@@ -265,25 +375,52 @@ impl ProjectRuntimeController {
     pub fn disarm_di_stream(&self, chain_id: &ChainId) {
         // Free the previous cycle's retirees first: by now any callback
         // guard that referenced them (a µs-scale window) is long gone.
-        self.di_retired.borrow_mut().clear();
+        self.retired().clear();
         if let Some(handle) = self.di_streams.borrow_mut().remove(chain_id) {
             if let Some(old) = handle.disarm() {
-                self.di_retired.borrow_mut().push(old);
+                self.retired().push(old);
             }
         }
+    }
+
+    fn retired(&self) -> std::sync::MutexGuard<'_, Vec<Arc<DiPlayback>>> {
+        self.di_retired.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Controller-side re-arm after a stream/runtime rebuild: re-resolves the
     /// chosen output (index, rate, dest channels may all have changed) and
     /// re-renders from the source stored at arm time. No-op when not armed.
+    ///
+    /// #785: GAPLESS. The playback the listener is hearing keeps sounding while
+    /// the new render is built and pre-rolled off-thread; the incoming worker
+    /// takes the cell over mid-loop, at the position the listener reaches. The
+    /// old teardown-then-rebuild cut the DI on EVERY live edit — a param change
+    /// or a block toggle — while the guitar chain kept sounding.
     pub fn rearm_di_stream_after_rebuild(&self, chain: &Chain) {
-        let pcm = self
-            .di_streams
-            .borrow()
-            .get(&chain.id)
-            .map(|h| Arc::clone(&h.pcm));
-        if let Some(pcm) = pcm {
-            let _ = self.arm_di_stream(chain, pcm);
+        let armed_now = {
+            let streams = self.di_streams.borrow();
+            streams.get(&chain.id).map(|h| {
+                (
+                    Arc::clone(&h.pcm),
+                    h.cell.load_full().map(|prev| DiHandoff {
+                        prev,
+                        prev_armed: Arc::clone(&h.armed),
+                    }),
+                )
+            })
+        };
+        let Some((pcm, handoff)) = armed_now else {
+            return; // not armed — nothing to re-render
+        };
+        match handoff {
+            // Nothing parked yet (the first render is still building): there is
+            // no playback to preserve, so a plain re-arm is already gapless.
+            None => {
+                let _ = self.arm_di_stream(chain, pcm);
+            }
+            Some(handoff) => {
+                let _ = self.spawn_di_stream(chain, pcm, Some(handoff));
+            }
         }
     }
 
