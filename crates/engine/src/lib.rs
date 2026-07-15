@@ -14,6 +14,7 @@ pub mod di_render;
 pub mod elastic_prime;
 pub mod input_tap;
 pub mod native_registry;
+pub mod chain_quality;
 pub mod offline;
 pub mod tone_doctor;
 pub mod tone_doctor_suggestion;
