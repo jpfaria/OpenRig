@@ -1843,6 +1843,7 @@ dependencies = [
  "crossbeam-queue",
  "domain",
  "ebur128",
+ "feature-dsp",
  "hound",
  "infra-yaml",
  "ir",
