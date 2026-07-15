@@ -75,10 +75,31 @@ Everything runs offline and reuses the existing deterministic render path:
 - Deterministic (#9): the same samples always yield the same descriptors, so
   the tests pin behaviour with synthetic fixtures of known spectral content.
 
+## Symptom → parameter suggestion (`engine::tone_doctor_suggestion`)
+
+`suggest(chain, &diagnosis) -> Option<Suggestion>` maps the diagnosed symptom
+and culprit block to a concrete knob and a proposed value — the "what do I
+turn" half. It walks a per-symptom priority list of parameter paths (fizz →
+`presence`/`treble`/`tone`…, mud → `mids`/`bass`…, clipping →
+`level`/`master`…), picks the first float-range parameter the culprit actually
+exposes, and nudges it toward health by a quarter of its range, clamped to the
+valid range. It never invents a parameter a block lacks; NAM/Insert/Select
+blocks yield no suggestion. Applying is the caller's job — a
+`SetBlockParameterNumber` command with the suggestion's block, path and value.
+
+## Transport parity — objective report query
+
+Layer 3 is exposed read-side for every transport via
+`QueryKind::ChainQualityReport { chain }`, resolved off-frontend from the
+published snapshot (`application::query_chain_quality::chain_quality_report`).
+MCP serves it at `openrig://chains/{chain}/quality` as a JSON envelope
+(`{"quality": { thd_n, noise_floor_dbfs, peak_dbfs, rms_dbfs,
+dynamic_range_db, clip_fraction }}`). The GUI and console adapters resolve the
+same query against their own project, so all transports see identical numbers.
+
 ## Not yet built (tracked in #791)
 
 - Layer 1 live traffic light reading the existing output tap.
-- The symptom → parameter suggestion and its `Apply` `Command`.
-- The `Query`/`QueryKind` for GUI/MCP/gRPC parity.
-- Layer 3 objective quality report (THD+N/SNR/frequency response; was #609).
+- A `Query`/`Command` surface for the DI-driven diagnosis + apply (Layer 2 is
+  engine-side only so far; the report query above covers Layer 3).
 - The chain-header button and overlay panel.
