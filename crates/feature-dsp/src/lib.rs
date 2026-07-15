@@ -5,3 +5,4 @@
 
 pub mod pitch_yin;
 pub mod spectrum_fft;
+pub mod tone_descriptors;

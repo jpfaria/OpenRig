@@ -15,6 +15,7 @@ pub mod elastic_prime;
 pub mod input_tap;
 pub mod native_registry;
 pub mod offline;
+pub mod tone_doctor;
 pub mod output_meter;
 pub mod probe;
 pub mod rig_runtime;
