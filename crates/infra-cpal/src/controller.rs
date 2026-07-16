@@ -119,10 +119,10 @@ pub struct ProjectRuntimeController {
     /// created on demand and survive stream rebuilds.
     pub(crate) di_playback_cells:
         RefCell<HashMap<(ChainId, usize), crate::di_playback::DiPlaybackCell>>,
-    /// Issue #771: playbacks swapped out by disarm, freed on a LATER cycle so
-    /// the audio callback is never the last owner of a multi-MB render
-    /// buffer (invariant #8).
-    pub(crate) di_retired: RefCell<Vec<std::sync::Arc<crate::di_playback::DiPlayback>>>,
+    /// Issue #771/#785: playbacks swapped out by a disarm or a gapless hand-off,
+    /// freed on a LATER cycle so the audio callback is never the last owner of a
+    /// multi-MB render buffer (invariant #8).
+    pub(crate) di_retired: crate::di_playback::DiRetired,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -159,7 +159,7 @@ impl ProjectRuntimeController {
             io_bindings: Vec::new(),
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
-            di_retired: RefCell::new(Vec::new()),
+            di_retired: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -197,7 +197,7 @@ impl ProjectRuntimeController {
             io_bindings,
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
-            di_retired: RefCell::new(Vec::new()),
+            di_retired: Default::default(),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
