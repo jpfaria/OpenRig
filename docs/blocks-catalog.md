@@ -81,6 +81,27 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   persist independently. Surfacing the discovered params as OpenRig FORM knobs
   (so the standard `SetBlockParameter*` path also persists) is a follow-up.
 
+### NAM block editor tabs (#786)
+
+A NAM block's controls have always-known origins, so the block editor tabs them
+with no per-plugin authoring:
+
+- **Capture** — the axes the manifest declares under `parameters:` (`channel`,
+  `gain`, `mic`, …). They pick which `.nam` capture is loaded; the `captures:`
+  list maps each combination to a file. A NAM whose axes are all dead (dropped by
+  the #649 filter) or that declares none simply has no Capture tab. Tagged in
+  `project::block::nam_schema`, the only layer that knows about the manifest.
+- **Amp** — `input_db`, `output_db` and the A2-only `slim`.
+- **Noise Gate** — `noise_gate.enabled` + `noise_gate.threshold_db`.
+- **EQ** — `eq.enabled` + `eq.bass` / `eq.middle` / `eq.treble`.
+
+The last three are the engine controls **every** NAM has (a plugin package or the
+generic `neural_amp_modeler` loader), identical for A1 and A2 apart from `slim`,
+so their tabs are declared once with the specs themselves in `nam::params` — a
+manifest never repeats them. The group of a `ParameterSpec` IS the tab, and the
+generic tab machinery of #780 renders one tab per group. IR/LV2 params stay
+ungrouped: one flat grid.
+
 ### Native cab voicing (#620)
 
 The native cabinets (`brit_4x12`, `vintage_1x12`, `american_2x12`) are a
