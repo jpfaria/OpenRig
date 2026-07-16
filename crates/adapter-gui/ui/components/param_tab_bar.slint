@@ -11,6 +11,11 @@ export component ParamTabBar inherits Rectangle {
 
     background: #0a0a0e;
     clip: true;
+    // #787: inside a layout (the compact row's strip) the bar would collapse to
+    // zero width — it scrolls its own content, so nothing pushes it open. Its
+    // natural width is the tabs it holds; a caller that positions it absolutely
+    // (the block editor) still overrides this with an explicit width.
+    min-width: min(tabs.preferred-width, 420px);
 
     Flickable {
         width: 100%;

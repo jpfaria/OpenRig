@@ -1,0 +1,246 @@
+import { BlockParameterItem } from "../models.slint";
+import { PanelKnob } from "../components/panel_knob.slint";
+import { ToggleSwitch } from "../components/toggle_switch.slint";
+import { SelectorKnob } from "../components/selector_knob.slint";
+
+import "../fonts/BebasNeue.ttf";
+
+// One parameter cell of a compact block row: the generic widget for a single
+// parameter (knob/stepper/slider, enum selector, dropdown, bool toggle).
+// Extracted from `compact_block_param_strip.slint` (#787) so the strip can
+// repeat it across as many lines as the parameters need — the strip lays the
+// cells out, the cell only knows its own parameter.
+export component CompactBlockParamCell inherits Rectangle {
+    in property <BlockParameterItem> param;
+    in property <color> panel-text;
+    in property <int> chain-index;
+    in property <int> block-index;
+    callback update-parameter-number(int, int, string, float);
+    callback update-parameter-bool(int, int, string, bool);
+    callback select-parameter-option(int, int, string, int);
+
+    visible: root.param.widget_kind != "";
+    min-width: root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 ? 100px
+        : root.param.widget_kind == "bool" ? 44px
+        : 56px;
+    preferred-width: root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 ? 110px
+        : root.param.widget_kind == "enum" && root.param.option_labels.length > 4 ? 140px
+        : root.param.widget_kind == "bool" ? 48px
+        : 62px;
+    height: 90px;
+
+    // Label
+    Text {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: 14px;
+        text: root.param.label;
+        color: root.panel-text;
+        font-family: "Bebas Neue";
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        horizontal-alignment: center;
+        overflow: elide;
+    }
+
+    // ── Numeric knob/stepper/slider ──
+    if root.param.widget_kind == "stepper" || root.param.widget_kind == "slider" || root.param.widget_kind == "knob" : PanelKnob {
+        x: 2px; y: 28px;
+        width: 38px; height: 52px;
+        value: root.param.numeric_value;
+        min-val: root.param.numeric_min;
+        max-val: root.param.numeric_max;
+        step: root.param.numeric_step;
+        path: root.param.path;
+        changed(p, v) => { root.update-parameter-number(root.chain-index, root.block-index, p, v); }
+    }
+
+    // ── Enum ≤4 options (selector knob + inline labels) ──
+    if root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 : Rectangle {
+        x: 0; y: 14px;
+        width: parent.width; height: 76px;
+        background: transparent;
+
+        property <length> ks: 38px;
+        property <length> cx: self.width / 2;
+        property <length> top-row: 4px;
+        property <length> knob-y: 16px;
+        property <length> bot-row: self.knob-y + self.ks + 2px;
+        property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
+        property <int> n: root.param.option_labels.length;
+        property <int> sel: root.param.selected_option_index;
+        property <color> tc: root.panel-text;
+
+        SelectorKnob {
+            x: parent.cx - parent.ks / 2;
+            y: parent.knob-y;
+            width: parent.ks; height: parent.ks;
+            num-options: parent.n;
+            selected-index: parent.sel;
+            select(i) => { root.select-parameter-option(root.chain-index, root.block-index, root.param.path, i); }
+        }
+
+        // ── Bottom-left label (7h) — option 0 ──
+        Text {
+            visible: parent.n >= 2;
+            x: 0; y: parent.bot-row;
+            width: parent.lw; height: 14px;
+            text: root.param.option_labels.length > 0 ? root.param.option_labels[0] : "";
+            color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            font-size: 11px;
+            font-weight: 0 == parent.sel ? 700 : 400;
+            horizontal-alignment: right;
+            overflow: elide;
+        }
+        TouchArea {
+            visible: parent.n >= 2;
+            x: 0; y: parent.bot-row;
+            width: parent.lw; height: 14px;
+            mouse-cursor: pointer;
+            clicked => { root.select-parameter-option(root.chain-index, root.block-index, root.param.path, 0); }
+        }
+
+        // ── Bottom-right label (5h) — last option ──
+        Text {
+            visible: parent.n >= 2;
+            x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
+            width: parent.lw; height: 14px;
+            text: parent.n == 2 ? (root.param.option_labels.length > 1 ? root.param.option_labels[1] : "")
+                : parent.n == 3 ? (root.param.option_labels.length > 2 ? root.param.option_labels[2] : "")
+                : (root.param.option_labels.length > 3 ? root.param.option_labels[3] : "");
+            color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
+                ? #ffaa44 : parent.tc.with-alpha(0.7);
+            font-size: 11px;
+            font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
+            horizontal-alignment: left;
+            overflow: elide;
+        }
+        TouchArea {
+            visible: parent.n >= 2;
+            x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
+            width: parent.lw; height: 14px;
+            mouse-cursor: pointer;
+            clicked => { root.select-parameter-option(root.chain-index, root.block-index, root.param.path, parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3); }
+        }
+
+        // ── Top-center label (12h) — option 1 for 3-opt ──
+        Text {
+            visible: parent.n == 3;
+            x: parent.cx - 55px; y: parent.top-row;
+            width: 110px; height: 14px;
+            text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
+            color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            font-size: 11px;
+            font-weight: 1 == parent.sel ? 700 : 400;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        TouchArea {
+            visible: parent.n == 3;
+            x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
+            mouse-cursor: pointer;
+            clicked => { root.select-parameter-option(root.chain-index, root.block-index, root.param.path, 1); }
+        }
+
+        // ── Upper-left label (10h) — option 1 for 4-opt ──
+        Text {
+            visible: parent.n == 4;
+            x: 0; y: parent.top-row;
+            width: parent.lw; height: 14px;
+            text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
+            color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            font-size: 11px;
+            font-weight: 1 == parent.sel ? 700 : 400;
+            horizontal-alignment: right;
+            overflow: elide;
+        }
+        TouchArea {
+            visible: parent.n == 4;
+            x: 0; y: parent.top-row; width: parent.lw; height: 14px;
+            mouse-cursor: pointer;
+            clicked => { root.select-parameter-option(root.chain-index, root.block-index, root.param.path, 1); }
+        }
+
+        // ── Upper-right label (2h) — option 2 for 4-opt ──
+        Text {
+            visible: parent.n == 4;
+            x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
+            width: parent.lw; height: 14px;
+            text: root.param.option_labels.length > 2 ? root.param.option_labels[2] : "";
+            color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+            font-size: 11px;
+            font-weight: 2 == parent.sel ? 700 : 400;
+            horizontal-alignment: left;
+            overflow: elide;
+        }
+        TouchArea {
+            visible: parent.n == 4;
+            x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
+            mouse-cursor: pointer;
+            clicked => { root.select-parameter-option(root.chain-index, root.block-index, root.param.path, 2); }
+        }
+    }
+
+    // ── Enum 5+ options (dropdown) ──
+    if root.param.widget_kind == "enum" && root.param.option_labels.length > 4 : Rectangle {
+        x: 0; y: 14px;
+        width: parent.width; height: 28px;
+        background: #060610;
+        border-width: 1px; border-color: #252538; border-radius: 5px;
+
+        Text {
+            x: 8px; width: parent.width - 24px; height: parent.height;
+            text: root.param.selected_option_index >= 0 && root.param.selected_option_index < root.param.option_labels.length
+                ? root.param.option_labels[root.param.selected_option_index] : "";
+            color: #d8e0ff; font-size: 11px; font-weight: 600;
+            vertical-alignment: center; overflow: elide;
+        }
+        Text {
+            x: parent.width - 18px; width: 14px; height: parent.height;
+            text: @tr("\u{25BC}"); color: #ffffff; font-size: 9px;
+            vertical-alignment: center; horizontal-alignment: center;
+        }
+        dd-ta2 := TouchArea { mouse-cursor: pointer; clicked => { dd-popup2.show(); } }
+        dd-popup2 := PopupWindow {
+            property <length> list-h: Math.min(root.param.option_labels.length * 30px + 6px, 200px);
+            x: 0; y: -self.list-h - 4px; width: parent.width; height: self.list-h;
+            Rectangle {
+                width: 100%; height: 100%;
+                background: #08080e; border-width: 1px; border-color: #2a2a40;
+                border-radius: 5px; clip: true;
+                drop-shadow-blur: 12px; drop-shadow-color: #000000a0;
+                Flickable {
+                    width: parent.width; height: parent.height;
+                    viewport-height: root.param.option_labels.length * 30px + 6px;
+                    for option[oi] in root.param.option_labels : Rectangle {
+                        x: 3px; y: 3px + oi * 30px;
+                        width: parent.width - 6px; height: 28px;
+                        border-radius: 4px;
+                        background: oi == root.param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
+                        Text {
+                            x: 8px; width: parent.width - 16px; height: parent.height;
+                            text: option;
+                            color: oi == root.param.selected_option_index ? #7788ff : #b0bce0;
+                            font-size: 11px; font-weight: oi == root.param.selected_option_index ? 600 : 400;
+                            vertical-alignment: center; overflow: elide;
+                        }
+                        opt-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.select-parameter-option(root.chain-index, root.block-index, root.param.path, oi); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Bool toggle (sprite) ──
+    if root.param.widget_kind == "bool" : ToggleSwitch {
+        x: (parent.width - 28px) / 2; y: 28px;
+        width: 28px; height: 50px;
+        checked: root.param.bool_value;
+        toggled => { root.update-parameter-bool(root.chain-index, root.block-index, root.param.path, !root.param.bool_value); }
+    }
+}

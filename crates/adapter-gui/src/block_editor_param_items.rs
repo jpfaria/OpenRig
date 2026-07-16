@@ -91,6 +91,7 @@ pub(crate) fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<Bl
             optional: false,
             allow_empty: false,
             tab_slot: 0,
+            strip_line: -1,
         });
     }
     items.extend(block_parameter_items_for_model(
@@ -234,6 +235,7 @@ pub(crate) fn block_parameter_items_for_model(
                 optional: spec.optional,
                 allow_empty: spec.allow_empty,
                 tab_slot: 0,
+                strip_line: -1,
             }
         })
         .collect()
