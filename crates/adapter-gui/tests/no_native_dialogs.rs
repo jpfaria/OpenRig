@@ -63,7 +63,8 @@ fn compact_view_block_delete_is_gated_by_overlay() {
 
 #[test]
 fn compact_view_chain_delete_is_gated_by_overlay() {
-    let src = read_src("compact_chain_callbacks.rs");
+    // The wiring moved to its own module (#787, file-size cap).
+    let src = read_src("compact_chain_delete_wiring.rs");
     assert!(
         src.contains("set_show_confirm_delete_chain"),
         "issue #360: compact view must raise its OWN in-window chain-delete \

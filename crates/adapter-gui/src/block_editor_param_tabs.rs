@@ -106,7 +106,10 @@ pub fn select_param_tab(
 ) {
     let group = {
         let st = state.borrow();
-        usize::try_from(i).ok().and_then(|idx| st.groups.get(idx)).cloned()
+        usize::try_from(i)
+            .ok()
+            .and_then(|idx| st.groups.get(idx))
+            .cloned()
     };
     let Some(group) = group else {
         return;
@@ -125,6 +128,11 @@ pub fn visible_param_count(win: &BlockEditorWindow) -> usize {
         return items.row_count();
     }
     (0..items.row_count())
-        .filter(|&i| items.row_data(i).map(|it| it.tab_slot >= 0).unwrap_or(false))
+        .filter(|&i| {
+            items
+                .row_data(i)
+                .map(|it| it.tab_slot >= 0)
+                .unwrap_or(false)
+        })
         .count()
 }

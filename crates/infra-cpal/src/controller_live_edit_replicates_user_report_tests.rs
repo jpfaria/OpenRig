@@ -174,7 +174,7 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
         io_bindings: registry(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
-        di_retired: std::cell::RefCell::new(Vec::new()),
+        di_retired: Default::default(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -314,6 +314,40 @@ fn di_render_peak(controller: &ProjectRuntimeController) -> f32 {
     peak
 }
 
+/// Consume `seconds` of DI playback through the cell the output callback holds
+/// and return the LONGEST run of consecutive silent frames, in frames. The DI
+/// source is DC, so a rendered DI is never silent: any silent run is playback
+/// the listener does not hear.
+fn di_max_silence_run(cell: &crate::di_playback::DiPlaybackCell, seconds: f32) -> usize {
+    di_max_silence_run_while(cell, seconds, || {})
+}
+
+/// Same, running `tick` once per simulated callback — the frontend's rebuild
+/// poll keeps turning while the output callback keeps consuming, as in the app.
+fn di_max_silence_run_while(
+    cell: &crate::di_playback::DiPlaybackCell,
+    seconds: f32,
+    mut tick: impl FnMut(),
+) -> usize {
+    let mut buf = vec![0.0f32; BUF * 2];
+    let (mut worst, mut run) = (0usize, 0usize);
+    for _ in 0..((SR * seconds) as usize / BUF) {
+        tick();
+        buf.iter_mut().for_each(|s| *s = 0.0);
+        crate::di_playback::mix_di_playback(cell, &mut buf, 2);
+        for frame in buf.chunks_exact(2) {
+            if frame[0].abs() < 1e-6 && frame[1].abs() < 1e-6 {
+                run += 1;
+                worst = worst.max(run);
+            } else {
+                run = 0;
+            }
+        }
+        std::thread::sleep(Duration::from_micros(300));
+    }
+    worst
+}
+
 fn wait_for_di_render(controller: &ProjectRuntimeController) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while controller
@@ -370,6 +404,163 @@ fn a_live_config_edit_re_renders_the_monitored_di() {
          peak stayed quiet={peak_quiet:.4} open={peak_open:.4}. The DI keeps \
          playing the stale render — exactly the owner's 'I play a DI and change \
          the config and NOTHING changes'."
+    );
+}
+
+/// #785: the DI re-render must be GAPLESS. The owner monitors a DI and every
+/// live edit — a param change or a block toggle — interrupts the DI playback
+/// for a moment, while the guitar chain keeps sounding. The re-arm tears the
+/// live DI stream down and rebuilds it, so the playback drops a chunk. The DI
+/// must keep playing across the edit: no silent run beyond the callback-sized
+/// jitter the ring already absorbs.
+#[test]
+fn a_live_config_edit_must_not_interrupt_the_monitored_di() {
+    init_registry();
+    let mut controller = controller_with_active_chain(&gain_chain(100.0));
+
+    // DC source at unity gain: the rendered DI is a constant, never silent.
+    let pcm = Arc::new(engine::DiPcm::new(vec![0.6; 48_000 * 4], 48_000, 1));
+    controller
+        .arm_di_stream(&gain_chain(100.0), Arc::clone(&pcm))
+        .expect("arm DI");
+    wait_for_di_render(&controller);
+
+    // The cell the output callback captured at stream-build time.
+    let cell = controller.di_playback_cell(&ChainId(CHAIN_ID.into()), 0);
+    let baseline = di_max_silence_run(&cell, 0.4);
+
+    // Edit a param through the live off-thread rebuild path the GUI uses.
+    let edited = gain_chain(60.0);
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![edited.clone()],
+        midi: None,
+    };
+    assert!(
+        controller
+            .request_offthread_rebuild_if_live(&project, &edited)
+            .expect("live rebuild request"),
+        "a live param edit must schedule an off-thread rebuild"
+    );
+
+    // Keep the output callback consuming WHILE the frontend polls the rebuild
+    // in — the DI must stay audible across the whole edit, not just after it.
+    let during_edit = di_max_silence_run_while(&cell, 1.0, || {
+        controller.poll_pending_rebuilds();
+    });
+
+    let tolerated = baseline.max(BUF * 2);
+    assert!(
+        during_edit <= tolerated,
+        "#785: the live param edit interrupted the monitored DI — longest silent \
+         run went from {baseline} frames (idle) to {during_edit} frames across the \
+         edit (tolerated {tolerated}). The re-arm tears the DI stream down instead \
+         of swapping the new render in gaplessly."
+    );
+}
+
+/// #785, same gap through the block-toggle path: enabling/disabling a block
+/// re-arms the DI too, so the monitored DI cuts out on every toggle.
+#[test]
+fn a_live_block_toggle_must_not_interrupt_the_monitored_di() {
+    init_registry();
+    let controller = controller_with_active_chain(&gain_chain(100.0));
+
+    let pcm = Arc::new(engine::DiPcm::new(vec![0.6; 48_000 * 4], 48_000, 1));
+    controller
+        .arm_di_stream(&gain_chain(100.0), Arc::clone(&pcm))
+        .expect("arm DI");
+    wait_for_di_render(&controller);
+
+    let cell = controller.di_playback_cell(&ChainId(CHAIN_ID.into()), 0);
+    let baseline = di_max_silence_run(&cell, 0.4);
+
+    let mut edited = gain_chain(100.0);
+    edited.blocks[0].enabled = false;
+    controller
+        .toggle_block_enabled_live(&edited, &BlockId(GAIN_BLOCK_ID.into()), false)
+        .expect("live block toggle must apply");
+
+    let during_toggle = di_max_silence_run(&cell, 1.0);
+
+    let tolerated = baseline.max(BUF * 2);
+    assert!(
+        during_toggle <= tolerated,
+        "#785: the live block toggle interrupted the monitored DI — longest silent \
+         run went from {baseline} frames (idle) to {during_toggle} frames across the \
+         toggle (tolerated {tolerated}). The re-arm tears the DI stream down instead \
+         of swapping the new render in gaplessly."
+    );
+}
+
+/// #785: the OLD DI render must die. A hand-off leaves the outgoing worker
+/// running on purpose (it feeds the playback the listener still hears) — the
+/// incoming one stops it when it takes over. Edits arrive faster than a render
+/// builds, so several workers can be in flight at once; when the dust settles
+/// exactly ONE may be left. A worker left behind renders a whole chain into a
+/// ring nobody plays, forever.
+#[test]
+fn rapid_live_edits_leave_exactly_one_di_worker_alive() {
+    init_registry();
+    let mut controller = controller_with_active_chain(&gain_chain(100.0));
+
+    let pcm = Arc::new(engine::DiPcm::new(vec![0.6; 48_000 * 4], 48_000, 1));
+    controller
+        .arm_di_stream(&gain_chain(100.0), Arc::clone(&pcm))
+        .expect("arm DI");
+    wait_for_di_render(&controller);
+    let cell = controller.di_playback_cell(&ChainId(CHAIN_ID.into()), 0);
+
+    // Five edits back to back, as fast as the GUI can dispatch them — each one
+    // re-arms while the previous render may still be building.
+    for volume in [90.0, 80.0, 70.0, 60.0, 50.0] {
+        let edited = gain_chain(volume);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![edited.clone()],
+            midi: None,
+        };
+        controller
+            .request_offthread_rebuild_if_live(&project, &edited)
+            .expect("live rebuild request");
+        // Keep the output consuming so a hand-off can actually land.
+        di_max_silence_run_while(&cell, 0.15, || {
+            controller.poll_pending_rebuilds();
+        });
+    }
+
+    // Let every hand-off settle (and every superseded worker notice).
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed) > 1
+        && Instant::now() < deadline
+    {
+        di_max_silence_run_while(&cell, 0.1, || {
+            controller.poll_pending_rebuilds();
+        });
+    }
+
+    let alive =
+        crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed);
+    assert_eq!(
+        alive, 1,
+        "#785: {alive} di-stream workers still alive after the edits settled — a \
+         superseded render was left behind, burning a core rendering the chain \
+         into a ring nobody plays."
+    );
+
+    controller.disarm_di_stream(&ChainId(CHAIN_ID.into()));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed) > 0
+        && Instant::now() < deadline
+    {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert_eq!(
+        crate::di_stream_worker::DI_WORKERS_ALIVE.load(std::sync::atomic::Ordering::Relaxed),
+        0,
+        "#785: disarm must stop every DI render thread"
     );
 }
 

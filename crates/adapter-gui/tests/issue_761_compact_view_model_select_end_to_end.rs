@@ -58,6 +58,11 @@ fn reverb_block(chain_index: i32, block_index: i32) -> CompactBlockItem {
         models: ModelRc::from(Rc::new(VecModel::from(models.clone()))),
         filtered_models: ModelRc::from(Rc::new(VecModel::from(models))),
         enabled: true,
+        // #787: the row sizes itself from the geometry `build_compact_blocks`
+        // computes — without it the row would be 0px tall and nothing in it is
+        // hittable.
+        row_height: 100.0,
+        row_y: 12.0,
         ..Default::default()
     }
 }

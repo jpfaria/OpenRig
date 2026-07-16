@@ -93,7 +93,14 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
         has_eq_widget,
     });
     win.set_panel_knob_window_width(dims.window_width_px);
-    win.set_panel_knob_window_height(dims.window_height_px + if win.get_block_parameter_groups().row_count() > 1 { 40.0 } else { 0.0 });
+    win.set_panel_knob_window_height(
+        dims.window_height_px
+            + if win.get_block_parameter_groups().row_count() > 1 {
+                40.0
+            } else {
+                0.0
+            },
+    );
     win.set_panel_knob_inner_height(dims.inner_panel_height_px);
     win.set_panel_grid_cols(dims.grid_cols as i32);
     win.set_panel_grid_rows(dims.grid_rows as i32);
@@ -110,7 +117,8 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
 
 pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub win_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
-    pub win_param_items: Rc<VecModel<BlockParameterItem>>, pub tab_state: Rc<RefCell<crate::block_editor_param_tabs::TabState>>,
+    pub win_param_items: Rc<VecModel<BlockParameterItem>>,
+    pub tab_state: Rc<RefCell<crate::block_editor_param_tabs::TabState>>,
     pub win_knob_overlays: Rc<VecModel<BlockKnobOverlay>>,
     pub win_multi_slider_pts: Rc<VecModel<MultiSliderPoint>>,
     pub win_curve_editor_pts: Rc<VecModel<CurveEditorPoint>>,
@@ -138,7 +146,8 @@ pub(crate) fn wire(
 ) {
     let BlockEditorWindowLifecycleCtx {
         win_draft,
-        win_param_items, tab_state,
+        win_param_items,
+        tab_state,
         win_knob_overlays,
         win_multi_slider_pts,
         win_curve_editor_pts,
@@ -162,7 +171,8 @@ pub(crate) fn wire(
     // on_choose_block_model
     {
         let win_draft = win_draft.clone();
-        let win_param_items = win_param_items.clone(); let tab_state = tab_state.clone();
+        let win_param_items = win_param_items.clone();
+        let tab_state = tab_state.clone();
         let win_knob_overlays = win_knob_overlays.clone();
         let win_multi_slider_pts = win_multi_slider_pts.clone();
         let win_curve_editor_pts = win_curve_editor_pts.clone();
@@ -205,7 +215,12 @@ pub(crate) fn wire(
                 &new_params,
             );
             win_knob_overlays.set_vec(overlays);
-            crate::block_editor_param_tabs::apply_param_tabs(&win, &win_param_items, &tab_state, new_params);
+            crate::block_editor_param_tabs::apply_param_tabs(
+                &win,
+                &win_param_items,
+                &tab_state,
+                new_params,
+            );
             // Update EQ widgets for the new model
             let default_params = build_params_from_items(&win_param_items);
             win_multi_slider_pts.set_vec(build_multi_slider_points(

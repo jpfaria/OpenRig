@@ -7,7 +7,7 @@
 //! callback pops frames and sums them into its buffer. Zero alloc/lock in
 //! the callback: an `ArcSwapOption` load, SPSC pops and relaxed atomics.
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
@@ -31,6 +31,14 @@ pub(crate) struct DiPlayback {
     dest_right: usize,
     /// One loop period at the stream's rate, in frames (UI info).
     loop_len: usize,
+    /// Loop position of this playback's FIRST frame. A gapless re-arm (#785)
+    /// starts its render mid-loop, where the outgoing playback will be at
+    /// hand-off time.
+    start_pos: usize,
+    /// Frames the callback has popped (Relaxed, incremented in the mix). With
+    /// `start_pos` this gives the loop position the listener is hearing —
+    /// what the incoming render of a gapless re-arm has to line up with.
+    consumed: AtomicU64,
     /// f32 bits of the last window's peaks (Relaxed). `in` is published by
     /// the worker (raw loop), `out` by the callback (mixed frames).
     in_peak_bits: AtomicU32,
@@ -40,16 +48,38 @@ pub(crate) struct DiPlayback {
 /// Per-output-stream slot the callback loads wait-free. `None` = no DI parked.
 pub(crate) type DiPlaybackCell = Arc<ArcSwapOption<DiPlayback>>;
 
+/// Playbacks swapped out by a disarm or a gapless hand-off (#785), freed on a
+/// LATER cycle. Shared with the DI worker, which retires the outgoing playback
+/// itself when it takes the cell over.
+pub(crate) type DiRetired = Arc<std::sync::Mutex<Vec<Arc<DiPlayback>>>>;
+
 impl DiPlayback {
-    pub(crate) fn new(dest_left: usize, dest_right: usize, loop_len: usize) -> Self {
+    /// A playback whose first frame is loop position `start_pos`. A cold arm
+    /// starts at 0; a gapless re-arm (#785) starts where the listener will be
+    /// when it takes over.
+    pub(crate) fn starting_at(
+        dest_left: usize,
+        dest_right: usize,
+        loop_len: usize,
+        start_pos: usize,
+    ) -> Self {
         Self {
             ring: Arc::new(SpscRing::new(DI_RING_FRAMES * 2, 0.0)),
             dest_left,
             dest_right,
             loop_len,
+            start_pos,
+            consumed: AtomicU64::new(0),
             in_peak_bits: AtomicU32::new(0),
             out_peak_bits: AtomicU32::new(0),
         }
+    }
+
+    /// The loop position the listener is currently hearing.
+    pub(crate) fn play_pos(&self) -> usize {
+        let loop_len = self.loop_len.max(1) as u64;
+        let consumed = self.consumed.load(Ordering::Relaxed);
+        ((self.start_pos as u64 + consumed) % loop_len) as usize
     }
 
     /// The worker's handle to the ring (producer side).
@@ -93,6 +123,7 @@ pub(crate) fn mix_di_playback(
         return;
     }
     let mut out_peak = 0.0f32;
+    let mut popped = 0u64;
     for frame in out.chunks_mut(output_total_channels) {
         // A whole frame (2 samples) or stop — the producer pushes whole
         // frames, so fewer than 2 readable samples means "mid-push"; leave
@@ -104,6 +135,7 @@ pub(crate) fn mix_di_playback(
             break;
         };
         out_peak = out_peak.max(l.abs()).max(r.abs());
+        popped += 1;
         if let Some(s) = frame.get_mut(playback.dest_left) {
             *s = output_limiter(*s + l);
         }
@@ -115,6 +147,7 @@ pub(crate) fn mix_di_playback(
             }
         }
     }
+    playback.consumed.fetch_add(popped, Ordering::Relaxed);
     playback
         .out_peak_bits
         .store(out_peak.to_bits(), Ordering::Relaxed);
@@ -142,7 +175,7 @@ mod tests {
 
     #[test]
     fn mix_pops_frames_onto_dest_channels() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.03125, -0.03125], [0.0625, -0.0625]]);
         let mut out = vec![0.0f32; 2 * 2];
         mix_di_playback(&cell, &mut out, 2);
@@ -151,7 +184,7 @@ mod tests {
 
     #[test]
     fn underfilled_ring_leaves_remaining_frames_untouched() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.25, 0.25]]);
         let mut out = vec![0.0f32; 3 * 2];
         mix_di_playback(&cell, &mut out, 2);
@@ -164,7 +197,7 @@ mod tests {
 
     #[test]
     fn mix_targets_only_its_dest_channels() {
-        let (cell, ring) = cell_with(DiPlayback::new(2, 3, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(2, 3, 8, 0));
         push_frames(&ring, &[[0.03125, -0.03125]]);
         let mut out = vec![0.0f32; 4];
         mix_di_playback(&cell, &mut out, 4);
@@ -173,7 +206,7 @@ mod tests {
 
     #[test]
     fn mix_sums_over_existing_signal_with_the_output_limiter() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.9, 0.9]; 4]);
         let mut out = vec![0.9f32; 4 * 2];
         mix_di_playback(&cell, &mut out, 2);
@@ -188,7 +221,7 @@ mod tests {
     /// twice (+6 dB vs the chain's own rendering).
     #[test]
     fn mono_dest_is_written_once_not_summed_twice() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 0, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 0, 8, 0));
         push_frames(&ring, &[[0.25, 0.25]]);
         let mut out = vec![0.0f32; 1];
         mix_di_playback(&cell, &mut out, 1);
@@ -205,7 +238,7 @@ mod tests {
 
     #[test]
     fn peaks_reflect_the_last_mixed_window() {
-        let (cell, ring) = cell_with(DiPlayback::new(0, 1, 8));
+        let (cell, ring) = cell_with(DiPlayback::starting_at(0, 1, 8, 0));
         push_frames(&ring, &[[0.25, -0.125], [0.0625, 0.0]]);
         let mut out = vec![0.0f32; 2 * 2];
         mix_di_playback(&cell, &mut out, 2);
