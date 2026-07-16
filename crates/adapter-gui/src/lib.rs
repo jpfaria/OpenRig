@@ -54,7 +54,10 @@ mod di_loop_chooser_wiring;
 /// chain-tile DI loop ComboBox (Task 7).
 pub mod di_loop_ui_sources;
 /// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
+pub mod compact_chain_di_callbacks;
 pub mod di_loop_wiring;
+pub mod tone_doctor_compact_wiring;
+pub mod tone_doctor_wiring;
 /// #771: DI meter row values from the isolated playback's own peaks.
 pub mod di_meter;
 /// #771: pure option list + index mapping for the DI panel's output select.

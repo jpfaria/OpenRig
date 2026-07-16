@@ -1,0 +1,197 @@
+// #791 — the Tone Doctor "janela": a panel (opened by the stethoscope icon)
+// that runs the offline blame-by-ablation on the chain's DI and shows the
+// verdict — a symptom traffic light, the guilty block, and a one-click fix.
+//
+// INLINE (inherits Rectangle), NOT a PopupWindow — same reasoning as
+// DiLoopPanel: the host renders it at the window root (never clipped by the
+// chain list) and every click is a normal in-tree TouchArea so the headless
+// interaction test can actuate it.
+
+export component ToneDoctorPanel inherits Rectangle {
+    // 0 = healthy (green), 1 = warn (amber), 2 = unhealthy (red).
+    in property <int> symptom-level;
+    in property <string> symptom-text;
+    in property <string> culprit-label;
+    in property <string> suggestion-text;
+    in property <bool> has-suggestion;
+    in property <bool> has-result;
+    in property <bool> running;
+
+    callback run-diagnosis();
+    callback apply-suggestion();
+
+    private property <color> light-color:
+        root.symptom-level >= 2 ? #ff5c5c
+        : root.symptom-level == 1 ? #f5a623
+        : #3ecf8e;
+
+    width: 360px;
+    height: root.has-result ? (root.has-suggestion ? 220px : 176px) : 116px;
+    border-radius: 8px;
+    background: #11141af2;
+    border-width: 1px;
+    border-color: #3b4250;
+    clip: true;
+
+    // ── header ────────────────────────────────────────────────────────────
+    Image {
+        x: 12px;
+        y: 12px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("../assets/stethoscope.svg");
+        colorize: #8aa0ff;
+    }
+    Text {
+        x: 38px;
+        y: 12px;
+        height: 18px;
+        text: @tr("tone-doctor-title");
+        color: #f1f4f8;
+        font-size: 15px;
+        font-weight: 700;
+        vertical-alignment: center;
+    }
+
+    // ── the diagnose button ────────────────────────────────────────────────
+    diagnose-btn := Rectangle {
+        x: 12px;
+        y: 42px;
+        width: 336px;
+        height: 34px;
+        border-radius: 6px;
+        background: root.running ? #2b3340
+                    : diag-ta.has-hover ? #33406a
+                    : #26304d;
+        border-width: 1px;
+        border-color: #4d5868;
+        animate background { duration: 150ms; }
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            text: root.running ? @tr("tone-doctor-diagnosing")
+                  : root.has-result ? @tr("tone-doctor-rerun")
+                  : @tr("tone-doctor-diagnose");
+            color: root.running ? #8a94a2 : #dfe6f2;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        diag-ta := TouchArea {
+            mouse-cursor: root.running ? default : pointer;
+            clicked => {
+                if (!root.running) {
+                    root.run-diagnosis();
+                }
+            }
+        }
+        accessible-role: button;
+        accessible-label: @tr("tone-doctor-diagnose");
+    }
+
+    // ── result: symptom light + culprit ────────────────────────────────────
+    if root.has-result : Rectangle {
+        x: 12px;
+        y: 84px;
+        width: 336px;
+        height: 48px;
+        border-radius: 6px;
+        background: #0a0d12;
+        border-width: 1px;
+        border-color: #2b3340;
+
+        // traffic light dot
+        Rectangle {
+            x: 12px;
+            y: parent.height / 2 - 7px;
+            width: 14px;
+            height: 14px;
+            border-radius: 7px;
+            background: root.light-color;
+        }
+        VerticalLayout {
+            x: 36px;
+            y: 8px;
+            width: parent.width - 48px;
+            height: parent.height - 16px;
+            spacing: 2px;
+            Text {
+                text: root.symptom-text;
+                color: root.light-color;
+                font-size: 14px;
+                font-weight: 700;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Text {
+                text: root.culprit-label;
+                color: #aab4c2;
+                font-size: 12px;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+    }
+
+    // ── suggestion + apply ─────────────────────────────────────────────────
+    if root.has-result && root.has-suggestion : Rectangle {
+        x: 12px;
+        y: 140px;
+        width: 336px;
+        height: 64px;
+        border-radius: 6px;
+        background: #0a0d12;
+        border-width: 1px;
+        border-color: #2b3340;
+
+        Text {
+            x: 12px;
+            y: 10px;
+            width: parent.width - 24px;
+            height: 18px;
+            text: @tr("tone-doctor-suggestion");
+            color: #8a94a2;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        Text {
+            x: 12px;
+            y: 28px;
+            width: parent.width - 96px;
+            height: 24px;
+            text: root.suggestion-text;
+            color: #f1f4f8;
+            font-size: 15px;
+            font-weight: 700;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        apply-btn := Rectangle {
+            x: parent.width - 84px;
+            y: 16px;
+            width: 72px;
+            height: 32px;
+            border-radius: 6px;
+            background: apply-ta.has-hover ? #3ecf8e : #2f9e6e;
+            animate background { duration: 150ms; }
+            Text {
+                width: parent.width;
+                height: parent.height;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                text: @tr("tone-doctor-apply");
+                color: #06110b;
+                font-size: 13px;
+                font-weight: 700;
+            }
+            apply-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.apply-suggestion(); }
+            }
+            accessible-role: button;
+            accessible-label: @tr("tone-doctor-apply");
+        }
+    }
+}

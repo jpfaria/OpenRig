@@ -170,3 +170,16 @@ fn crossfade_shortens_the_loop_by_the_fade_length() {
     let di = DiLoop::from_samples(&samples, 48_000, 1, 48_000, xfade);
     assert_eq!(di.len(), n - xfade);
 }
+
+#[test]
+fn di_pcm_stereo_frames_broadcasts_mono() {
+    let pcm = DiPcm::new(vec![0.1, 0.2, 0.3], 48_000, 1);
+    assert_eq!(pcm.stereo_frames(), vec![[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]]);
+    assert_eq!(pcm.src_sr(), 48_000);
+}
+
+#[test]
+fn di_pcm_stereo_frames_deinterleaves_stereo() {
+    let pcm = DiPcm::new(vec![0.1, 0.9, 0.2, 0.8], 44_100, 2);
+    assert_eq!(pcm.stereo_frames(), vec![[0.1, 0.9], [0.2, 0.8]]);
+}

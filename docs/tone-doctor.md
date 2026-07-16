@@ -97,9 +97,29 @@ MCP serves it at `openrig://chains/{chain}/quality` as a JSON envelope
 dynamic_range_db, clip_fraction }}`). The GUI and console adapters resolve the
 same query against their own project, so all transports see identical numbers.
 
+## UI (`adapter-gui`)
+
+A stethoscope button sits in every chain header (`chain_row.slint` main page +
+`compact_chain_view_header.slint`), left of the DI fone. Clicking it seeds the
+`ToneDoctorState` global and opens an inline overlay panel (`tone_doctor_panel`
+via `tone_doctor_overlay`, rendered at the window root — never a `PopupWindow`,
+per #749/#761), scoped to that chain.
+
+The panel's **Diagnose** button runs the offline ablation over the chain's
+selected DI (`di_loop_source_for_chain` → `di_loader::load_di_loop` →
+`DiPcm::stereo_frames`), then shows a symptom traffic light, the culprit block,
+and the suggested fix as `Tone 70 → 45` with an **Apply** button that dispatches
+the existing `SetBlockParameterNumber` command. When no DI is selected it shows
+an amber "select a DI" line. The glue lives in `tone_doctor_compact_wiring`
+(both the main page and the compact window reuse it); the diagnosis→view and
+suggestion→command mapping is the pure, unit-tested `tone_doctor_wiring`.
+
+Strings are translated across all nine locales. The dynamic symptom words
+(Fizz/Mud/Clipping/OK) are the descriptor names, kept as-is for now.
+
 ## Not yet built (tracked in #791)
 
-- Layer 1 live traffic light reading the existing output tap.
-- A `Query`/`Command` surface for the DI-driven diagnosis + apply (Layer 2 is
-  engine-side only so far; the report query above covers Layer 3).
-- The chain-header button and overlay panel.
+- Layer 1 *live* traffic light reading the output tap while playing (today the
+  light updates on an explicit Diagnose run, not continuously).
+- An interaction test (`i-slint-backend-testing`) driving the button → panel →
+  Apply click path headlessly.

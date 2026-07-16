@@ -1,0 +1,58 @@
+// #791 — the Tone Doctor trigger in a chain header: a stethoscope icon.
+// Clicking it opens the diagnosis panel at the window root via the
+// `ToneDoctorState` global, seeded with this chain's index and the icon's
+// absolute position. The panel (ToneDoctorPanel) lives in app-window's root
+// overlay so it is never clipped by the chain list — same pattern as the DI
+// fone button (ChainDiLoopButton).
+
+import { ToneDoctorState } from "tone_doctor_globals.slint";
+
+export component ChainToneDoctorButton inherits Rectangle {
+    in property <int> chain-index;
+    // reflects whether this chain's panel is the one currently open.
+    private property <bool> active:
+        ToneDoctorState.open && ToneDoctorState.chain-index == root.chain-index;
+
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    background: root.active ? #6e8aff28
+                : ta.has-hover ? #ffffff10
+                : transparent;
+    animate background { duration: 150ms; }
+
+    Image {
+        x: 5px;
+        y: 5px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("../assets/stethoscope.svg");
+        image-fit: contain;
+        colorize: root.active ? #6e8aff
+                  : ta.has-hover ? #ffffff
+                  : #8a94a2;
+        animate colorize { duration: 150ms; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            ToneDoctorState.chain-index = root.chain-index;
+            // reset the result so the panel opens clean for this chain.
+            ToneDoctorState.running = false;
+            ToneDoctorState.has-result = false;
+            ToneDoctorState.symptom-level = 0;
+            ToneDoctorState.symptom-text = "";
+            ToneDoctorState.culprit-label = "";
+            ToneDoctorState.suggestion-text = "";
+            ToneDoctorState.has-suggestion = false;
+            // Open below the icon, the panel's right edge near it.
+            ToneDoctorState.x = root.absolute-position.x - 332px;
+            ToneDoctorState.y = root.absolute-position.y + 32px;
+            ToneDoctorState.open = true;
+        }
+    }
+
+    accessible-role: button;
+    accessible-label: @tr("tone-doctor-button-label");
+}

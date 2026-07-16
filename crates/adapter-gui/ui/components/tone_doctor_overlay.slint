@@ -1,0 +1,30 @@
+// #791 — the Tone Doctor panel as a root overlay (mirrors DiLoopOverlay). The
+// stethoscope in a chain row flips `ToneDoctorState.open` and seeds its
+// position + chain-index; Rust fills the result fields after the offline run.
+// Instantiating this in AppWindow also makes `ToneDoctorState` a public global
+// so the Rust side can write those fields.
+
+import { ToneDoctorState } from "tone_doctor_globals.slint";
+import { ToneDoctorPanel } from "tone_doctor_panel.slint";
+
+export component ToneDoctorOverlay inherits Rectangle {
+    callback run-diagnosis(int);
+    callback apply-suggestion(int);
+
+    x: 0; y: 0;
+    visible: ToneDoctorState.open;
+    TouchArea { clicked => { ToneDoctorState.open = false; } }
+    if ToneDoctorState.open : ToneDoctorPanel {
+        x: ToneDoctorState.x;
+        y: ToneDoctorState.y;
+        running: ToneDoctorState.running;
+        has-result: ToneDoctorState.has-result;
+        symptom-level: ToneDoctorState.symptom-level;
+        symptom-text: ToneDoctorState.symptom-text;
+        culprit-label: ToneDoctorState.culprit-label;
+        suggestion-text: ToneDoctorState.suggestion-text;
+        has-suggestion: ToneDoctorState.has-suggestion;
+        run-diagnosis => { root.run-diagnosis(ToneDoctorState.chain-index); }
+        apply-suggestion => { root.apply-suggestion(ToneDoctorState.chain-index); }
+    }
+}
