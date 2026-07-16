@@ -74,7 +74,7 @@ fn median_block_ns(proc: &mut MonoIrProcessor, fz: bool) -> u128 {
 
 #[test]
 fn ir_convolution_does_not_denormal_stall_when_flush_to_zero_is_off() {
-    let mut proc = MonoIrProcessor::new(cabinet_ir(8192));
+    let mut proc = MonoIrProcessor::new(cabinet_ir(8192)).unwrap();
 
     let with_fz = median_block_ns(&mut proc, true);
     let without_fz = median_block_ns(&mut proc, false);

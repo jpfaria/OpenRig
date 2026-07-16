@@ -277,7 +277,7 @@ fn lanczos_kernel_positive_near_zero_returns_positive() {
 fn mono_ir_processor_impulse_response_reproduces_ir() {
     // Convolving with a delta should reproduce the IR
     let ir = vec![0.5, 0.3, 0.1];
-    let mut proc = MonoIrProcessor::new(ir.clone());
+    let mut proc = MonoIrProcessor::new(ir.clone()).unwrap();
     // Feed an impulse followed by zeros
     let _impulse = proc.process_sample(1.0);
     let _s1 = proc.process_sample(0.0);
@@ -288,7 +288,7 @@ fn mono_ir_processor_impulse_response_reproduces_ir() {
     // produces non-silent output eventually.
     let mut buf = vec![0.0; 1024];
     buf[0] = 1.0;
-    let mut proc2 = MonoIrProcessor::new(ir.clone());
+    let mut proc2 = MonoIrProcessor::new(ir.clone()).unwrap();
     proc2.process_block(&mut buf);
     let energy: f32 = buf.iter().map(|s| s * s).sum();
     assert!(energy > 0.0, "convolver should produce non-zero output");
@@ -297,8 +297,8 @@ fn mono_ir_processor_impulse_response_reproduces_ir() {
 #[test]
 fn mono_ir_processor_process_block_matches_sample_by_sample() {
     let ir = vec![1.0, 0.0, 0.0, 0.0];
-    let mut proc_block = MonoIrProcessor::new(ir.clone());
-    let mut proc_sample = MonoIrProcessor::new(ir);
+    let mut proc_block = MonoIrProcessor::new(ir.clone()).unwrap();
+    let mut proc_sample = MonoIrProcessor::new(ir).unwrap();
 
     let mut block = vec![0.1, 0.2, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0];
     let block_copy = block.clone();
@@ -323,7 +323,7 @@ fn mono_ir_processor_process_block_matches_sample_by_sample() {
 #[test]
 fn mono_ir_processor_silence_in_produces_silence_out() {
     let ir = vec![1.0, 0.5, 0.25];
-    let mut proc = MonoIrProcessor::new(ir);
+    let mut proc = MonoIrProcessor::new(ir).unwrap();
     let mut buf = vec![0.0; 512];
     proc.process_block(&mut buf);
     assert!(buf.iter().all(|&s| s == 0.0));
@@ -335,7 +335,7 @@ fn mono_ir_processor_silence_in_produces_silence_out() {
 fn stereo_ir_processor_silence_in_produces_silence_out() {
     let left_ir = vec![1.0, 0.5];
     let right_ir = vec![0.8, 0.3];
-    let mut proc = StereoIrProcessor::new(left_ir, right_ir);
+    let mut proc = StereoIrProcessor::new(left_ir, right_ir).unwrap();
     let mut buf = vec![[0.0f32; 2]; 512];
     proc.process_block(&mut buf);
     assert!(buf.iter().all(|frame| frame[0] == 0.0 && frame[1] == 0.0));
@@ -345,7 +345,7 @@ fn stereo_ir_processor_silence_in_produces_silence_out() {
 fn stereo_ir_processor_process_block_produces_output() {
     let left_ir = vec![1.0; 4];
     let right_ir = vec![0.5; 4];
-    let mut proc = StereoIrProcessor::new(left_ir, right_ir);
+    let mut proc = StereoIrProcessor::new(left_ir, right_ir).unwrap();
     let mut buf = vec![[0.0f32; 2]; 1024];
     buf[0] = [1.0, 1.0];
     proc.process_block(&mut buf);
@@ -357,8 +357,8 @@ fn stereo_ir_processor_process_block_produces_output() {
 fn stereo_ir_processor_frame_matches_block() {
     let left_ir = vec![1.0, 0.0, 0.0, 0.0];
     let right_ir = vec![1.0, 0.0, 0.0, 0.0];
-    let mut proc_frame = StereoIrProcessor::new(left_ir.clone(), right_ir.clone());
-    let mut proc_block = StereoIrProcessor::new(left_ir, right_ir);
+    let mut proc_frame = StereoIrProcessor::new(left_ir.clone(), right_ir.clone()).unwrap();
+    let mut proc_block = StereoIrProcessor::new(left_ir, right_ir).unwrap();
 
     let input = [[0.5, 0.3], [0.2, 0.1], [0.0, 0.0], [0.0, 0.0]];
     let frame_results: Vec<[f32; 2]> = input.iter().map(|&f| proc_frame.process_frame(f)).collect();

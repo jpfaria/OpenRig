@@ -61,7 +61,7 @@ fn median_ns(proc: &mut MonoIrProcessor, pollute: &mut [u8]) -> u128 {
 
 #[test]
 fn ir_convolution_is_not_cache_bound() {
-    let mut proc = MonoIrProcessor::new(cabinet_ir(8192));
+    let mut proc = MonoIrProcessor::new(cabinet_ir(8192)).unwrap();
     for _ in 0..128 {
         let mut b = vec![0.1f32; 64];
         proc.process_block(&mut b);
