@@ -62,7 +62,6 @@ crates/adapter-gui/src/project_ops.rs
 crates/adapter-gui/src/project_view.rs
 crates/application/src/command.rs
 crates/application/src/local_dispatcher_tests.rs
-crates/application/src/local_dispatcher.rs
 crates/block-core/src/param_tests.rs
 crates/block-mod/src/lib_tests.rs
 crates/engine/src/audio_alloc_invariant_tests.rs
