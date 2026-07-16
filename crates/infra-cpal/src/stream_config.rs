@@ -26,7 +26,10 @@
 
 #[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 use anyhow::bail;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
+// `#[cfg(test)]` helpers below (e.g. resolve_chain_runtime_sample_rate,
+// max_supported_channels) use `Result`/`anyhow!` under Linux+JACK+test, so the
+// import must reach `test` too — same gate as `bail` above.
+#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
 use anyhow::{anyhow, Result};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::SupportedStreamConfigRange;
