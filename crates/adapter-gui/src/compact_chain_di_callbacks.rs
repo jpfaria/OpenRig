@@ -11,7 +11,7 @@ use std::rc::Rc;
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
-use slint::{ComponentHandle, Weak};
+use slint::Weak;
 
 use crate::compact_chain_callbacks::{compact_chain_di_loop_play, compact_chain_di_loop_stop};
 use crate::helpers::set_status_error;

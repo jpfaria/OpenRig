@@ -22,9 +22,6 @@ use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
 use domain::ids::BlockId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use application::dispatcher::CommandDispatcher;
-
-
 use crate::compact_block_view::build_compact_blocks;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
