@@ -130,20 +130,28 @@ fn a_block_that_fits_keeps_the_current_row_height() {
 }
 
 #[test]
-fn each_extra_line_grows_the_row() {
-    assert_eq!(row_height_px(2, false), 10.0 + 2.0 * LINE_HEIGHT_PX);
-    assert_eq!(row_height_px(3, false), 10.0 + 3.0 * LINE_HEIGHT_PX);
+fn each_extra_line_grows_the_row_with_a_gap_between_lines() {
+    // Two lines carry one inter-line gap; three carry two.
+    assert_eq!(
+        row_height_px(2, false),
+        10.0 + 2.0 * LINE_HEIGHT_PX + LINE_GAP_PX
+    );
+    assert_eq!(
+        row_height_px(3, false),
+        10.0 + 3.0 * LINE_HEIGHT_PX + 2.0 * LINE_GAP_PX
+    );
 }
 
 #[test]
-fn a_tab_bar_adds_its_own_height() {
+fn a_tab_bar_adds_its_own_height_plus_a_gap() {
+    // The tab bar sits above the strip with a gap so it never touches the knobs.
     assert_eq!(
         row_height_px(1, true),
-        10.0 + TAB_BAR_HEIGHT_PX + LINE_HEIGHT_PX
+        10.0 + TAB_BAR_HEIGHT_PX + LINE_GAP_PX + LINE_HEIGHT_PX
     );
     assert_eq!(
         row_height_px(2, true),
-        10.0 + TAB_BAR_HEIGHT_PX + 2.0 * LINE_HEIGHT_PX
+        10.0 + TAB_BAR_HEIGHT_PX + LINE_GAP_PX + 2.0 * LINE_HEIGHT_PX + LINE_GAP_PX
     );
 }
 

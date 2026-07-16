@@ -20,7 +20,9 @@ export component CompactBlockParamStrip inherits VerticalLayout {
 
     private property <bool> has-tabs: root.block-data.parameter-groups.length > 1;
 
-    spacing: 0;
+    // Breathing room between the tab bar and the first line, and between wrapped
+    // lines — matches `compact_block_layout::LINE_GAP_PX`.
+    spacing: 12px;
 
     if root.has-tabs : HorizontalLayout {
         alignment: end;

@@ -19,6 +19,10 @@ pub(crate) const TAB_BAR_HEIGHT_PX: f32 = 28.0;
 pub(crate) const ROW_GAP_PX: f32 = 12.0;
 /// Vertical padding above/below the strip inside the row.
 pub(crate) const ROW_PADDING_PX: f32 = 10.0;
+/// Breathing room between two wrapped strip lines, and between the tab bar and
+/// the strip below it — otherwise the second row of knobs and the tabs read as
+/// glued to the line above (Tufte: white space as separator).
+pub(crate) const LINE_GAP_PX: f32 = 12.0;
 /// Nominal width available to one strip line.
 const STRIP_BUDGET_PX: f32 = 720.0;
 /// Spacing between cells, mirroring `compact_block_param_strip.slint`.
@@ -78,11 +82,21 @@ pub(crate) fn assign_overlay_lines(overlays: &mut [BlockKnobOverlay]) -> i32 {
     overlays.len().div_ceil(per_line) as i32
 }
 
-/// Height of a row whose active tab needs `line_count` strip lines.
+/// Height of a row whose active tab needs `line_count` strip lines. The tab bar
+/// (when shown) and each extra line carry a [`LINE_GAP_PX`] of breathing room.
 pub(crate) fn row_height_px(line_count: i32, has_tabs: bool) -> f32 {
-    let tabs = if has_tabs { TAB_BAR_HEIGHT_PX } else { 0.0 };
-    let strip = ROW_PADDING_PX + tabs + line_count.max(0) as f32 * LINE_HEIGHT_PX;
-    strip.max(BASE_ROW_HEIGHT_PX)
+    let tabs = if has_tabs {
+        TAB_BAR_HEIGHT_PX + LINE_GAP_PX
+    } else {
+        0.0
+    };
+    let n = line_count.max(0) as f32;
+    let strip = if n > 0.0 {
+        n * LINE_HEIGHT_PX + (n - 1.0) * LINE_GAP_PX
+    } else {
+        0.0
+    };
+    (ROW_PADDING_PX + tabs + strip).max(BASE_ROW_HEIGHT_PX)
 }
 
 /// Absolute `y` of each row inside the flickable viewport: rows are separated by

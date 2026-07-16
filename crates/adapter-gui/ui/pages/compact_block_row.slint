@@ -174,10 +174,11 @@ export component CompactBlockRow inherits Rectangle {
     VerticalLayout {
         visible: root.block-data.knob-overlays.length > 0;
         x: 0;
-        y: (root.header-height - 90px) / 2;
+        y: 5px;
         width: parent.width;
-        height: root.block-data.overlay-lines.length * 90px;
-        spacing: 0;
+        height: root.block-data.overlay-lines.length * 90px
+            + (root.block-data.overlay-lines.length - 1) * 12px;
+        spacing: 12px;
 
         for line[li] in root.block-data.overlay-lines : HorizontalLayout {
         alignment: end;
@@ -249,10 +250,13 @@ export component CompactBlockRow inherits Rectangle {
             && !root.block-data.has-external-gui
             && !root.has-eq;
         x: 0;
-        y: root.has-param-tabs ? 5px : (root.header-height - 90px) / 2;
+        y: 5px;
         width: parent.width;
-        height: (root.has-param-tabs ? 28px : 0px)
-            + root.block-data.parameter-lines.length * 90px;
+        // tab bar (+ gap) when present, plus one 90px line per row with a 12px
+        // gap between lines — matches `compact_block_layout::row_height_px`.
+        height: (root.has-param-tabs ? 40px : 0px)
+            + root.block-data.parameter-lines.length * 90px
+            + (root.block-data.parameter-lines.length - 1) * 12px;
         block-data: root.block-data;
         update-parameter-number(ci, bi, p, v) => { root.update-parameter-number(ci, bi, p, v); }
         update-parameter-bool(ci, bi, p, v) => { root.update-parameter-bool(ci, bi, p, v); }
