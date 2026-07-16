@@ -27,6 +27,31 @@ use tempfile::TempDir;
 // Helpers
 // ────────────────────────────────────────────────────────────────────
 
+/// The owner's private capture tree, resolved from `OPENRIG_OWNER_PLUGINS` or
+/// the sibling `OpenRig-plugins` checkout. `None` when neither is present — the
+/// #606 repro then skips (it needs the real disk packages, not a fixture).
+fn owner_plugins_root() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("OPENRIG_OWNER_PLUGINS") {
+        let p = PathBuf::from(p);
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    // Walk up from the crate dir; accept the first ancestor with a sibling
+    // `OpenRig-plugins/plugins/source` (author's main checkout or a .solvers
+    // clone, at any depth). None on CI, where the tree is absent.
+    let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let cand = dir.join("OpenRig-plugins/plugins/source");
+        if cand.is_dir() {
+            return Some(cand);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
 struct Sandbox {
     _tmp: TempDir,
     path: PathBuf,
@@ -882,13 +907,12 @@ fn nam_gain_block(id: &str) -> AudioBlock {
 
 #[test]
 fn issue_606_nam_backed_gain_block_survives_load() {
-    let plugins_root = PathBuf::from(
-        "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
-    );
-    assert!(
-        plugins_root.is_dir(),
-        "issue #606 repro requires OpenRig-plugins/plugins/source on disk"
-    );
+    let Some(plugins_root) = owner_plugins_root() else {
+        eprintln!(
+            "[#606] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
+        return;
+    };
     // Populate the process-global catalog so `nam_maxon_od808` is a known
     // disk-package gain model — isolates the routing bug from any
     // catalog-not-loaded effect.
@@ -953,13 +977,12 @@ fn uninstalled_nam_gain_block(id: &str) -> AudioBlock {
 
 #[test]
 fn issue_606_uninstalled_model_block_is_disabled_on_load() {
-    let plugins_root = PathBuf::from(
-        "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
-    );
-    assert!(
-        plugins_root.is_dir(),
-        "issue #606 repro requires OpenRig-plugins/plugins/source on disk"
-    );
+    let Some(plugins_root) = owner_plugins_root() else {
+        eprintln!(
+            "[#606] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
+        return;
+    };
     // Catalog loaded, but the block's `nam_` pack is deliberately absent.
     plugin_loader::registry::init_many(std::slice::from_ref(&plugins_root));
 

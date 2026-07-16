@@ -20,12 +20,34 @@ use hw_harness::init_registry_with_root;
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 
-fn real_plugins_root() -> PathBuf {
-    PathBuf::from("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source")
+/// The owner's private capture tree, from `OPENRIG_OWNER_PLUGINS` or a sibling
+/// `OpenRig-plugins` checkout at any depth. `None` when absent (the test skips).
+fn owner_plugins_root() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("OPENRIG_OWNER_PLUGINS") {
+        let p = PathBuf::from(p);
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let cand = dir.join("OpenRig-plugins/plugins/source");
+        if cand.is_dir() {
+            return Some(cand);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
 }
 
-fn user_project_path() -> PathBuf {
-    PathBuf::from("/Users/joao.faria/.openrig/project.yaml")
+/// The owner's real rig, from `OPENRIG_OWNER_PROJECT`. This diagnostic renders
+/// the owner's ACTUAL chains, so the project is opt-in and never read from a
+/// hardcoded live path — `None` (skip) unless the owner points it explicitly.
+fn owner_project_path() -> Option<PathBuf> {
+    std::env::var_os("OPENRIG_OWNER_PROJECT")
+        .map(PathBuf::from)
+        .filter(|p| p.is_file())
 }
 
 fn di_path() -> PathBuf {
@@ -104,14 +126,17 @@ fn scan(samples: &[[f32; 2]]) -> Scan {
 
 #[test]
 fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
-    let root = real_plugins_root();
-    if !root.exists() {
-        eprintln!("[#715-clip] real plugins not found at {root:?} — skipping");
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#715-clip] owner plugins tree not present (set OPENRIG_OWNER_PLUGINS) — skipping");
         return;
-    }
+    };
     init_registry_with_root(&root);
 
-    let rig = infra_yaml::load_project_any(&user_project_path()).expect("load user project");
+    let Some(project_path) = owner_project_path() else {
+        eprintln!("[#715-clip] owner project not set (OPENRIG_OWNER_PROJECT=<project.yaml>) — skipping");
+        return;
+    };
+    let rig = infra_yaml::load_project_any(&project_path).expect("load owner project");
     let enabled: std::collections::BTreeSet<String> = rig.inputs.keys().cloned().collect();
     let project = engine::rig_runtime::rig_to_legacy_project(&rig, &enabled);
 
@@ -126,7 +151,7 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
     // the VST3 catalog, which the live app builds at startup; without this the
     // blocks fault "not found in catalog", every guitar chain is skipped, and
     // the test can't measure clipping at all. Initialise it the same way.
-    project::vst3_editor::init_vst3_catalog(di_sr as f64, &[real_plugins_root()]);
+    project::vst3_editor::init_vst3_catalog(di_sr as f64, &[root.clone()]);
 
     let mut worst: Option<(String, Scan)> = None;
     for chain in project.chains.into_iter().filter(is_guitar) {

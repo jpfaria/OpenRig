@@ -17,14 +17,21 @@ fn init_plugins() {
     use std::sync::Once;
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        let candidates = [
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../../../../OpenRig-plugins/plugins/source"),
-            PathBuf::from(
-                "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
-            ),
-        ];
-        let roots: Vec<PathBuf> = candidates.into_iter().filter(|p| p.is_dir()).collect();
+        // Owner's private capture tree, from OPENRIG_OWNER_PLUGINS or the sibling
+        // OpenRig-plugins checkout. Absent (e.g. CI) → no disk packages loaded;
+        // the assertions below hold vacuously on the native-only catalog.
+        let mut roots: Vec<PathBuf> = Vec::new();
+        if let Some(p) = std::env::var_os("OPENRIG_OWNER_PLUGINS") {
+            let p = PathBuf::from(p);
+            if p.is_dir() {
+                roots.push(p);
+            }
+        }
+        let sibling = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../../../OpenRig-plugins/plugins/source");
+        if roots.is_empty() && sibling.is_dir() {
+            roots.push(sibling);
+        }
         if !roots.is_empty() {
             plugin_loader::registry::init_many(&roots);
         }
