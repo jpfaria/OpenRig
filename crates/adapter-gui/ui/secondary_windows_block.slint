@@ -291,6 +291,11 @@ export component CompactChainViewWindow inherits Window {
     callback update-block-parameter-number(int, int, string, float);
     callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
+    // #787: switch the parameter tab a compact block shows, and the row geometry
+    // the drag/drop indicator needs (rows no longer share a fixed stride).
+    callback select-block-parameter-group(int, int, int);
+    pure callback slot-at(length) -> int;
+    pure callback slot-y(int) -> length;
     callback choose-block-model(int, int, int);
     callback choose-block-model-by-id(int, int, string);
     callback search-block-model(int, int, string);
@@ -354,6 +359,9 @@ export component CompactChainViewWindow inherits Window {
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
         update-block-parameter-bool(ci, bi, p, v) => { root.update-block-parameter-bool(ci, bi, p, v); }
         select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
+        select-block-parameter-group(ci, bi, gi) => { root.select-block-parameter-group(ci, bi, gi); }
+        slot-at(y) => { root.slot-at(y) }
+        slot-y(i) => { root.slot-y(i) }
         choose-block-model(ci, bi, mi) => { root.choose-block-model(ci, bi, mi); }
         choose-block-model-by-id(ci, bi, mid) => { root.choose-block-model-by-id(ci, bi, mid); }
         search-block-model(ci, bi, text) => { root.search-block-model(ci, bi, text); }

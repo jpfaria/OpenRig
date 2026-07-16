@@ -55,6 +55,13 @@ export component CompactChainViewPage inherits Rectangle {
     callback update-block-parameter-number(int, int, string, float);
     callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
+    // #787: switch the parameter tab a compact block shows (chain, block, group).
+    callback select-block-parameter-group(int, int, int);
+    // #787: rows have their own heights, so the drop slot and its indicator come
+    // from Rust (`compact_block_layout`) instead of a fixed 112px stride.
+    pure callback slot-at(length) -> int;
+    pure callback slot-y(int) -> length;
+    private property <length> drag-pointer-y;
     callback choose-block-model(int, int, int);
     callback choose-block-model-by-id(int, int, string);
     callback search-block-model(int, int, string);
@@ -149,7 +156,9 @@ export component CompactChainViewPage inherits Rectangle {
         width: parent.width;
         // Leave room at the bottom for the per-stream IN/OUT meter rows.
         height: parent.height - 66px - root.meter-footer-height;
-        viewport-height: root.compact-blocks.length * 112px + 24px;
+        // #787: rows have their own heights now — the viewport is exactly the
+        // trailing insert slot (the same geometry the drop indicator uses).
+        viewport-height: root.slot-y(root.compact-blocks.length);
         interactive: false;
 
         // Insert slot before first block (invisible until hover)
@@ -185,15 +194,15 @@ export component CompactChainViewPage inherits Rectangle {
         }
 
         for block-item[bi] in root.compact-blocks : Rectangle {
-            y: 12px + bi * 112px;
+            y: block-item.row-y;
             width: parent.width;
-            height: 100px;
+            height: block-item.row-height;
             // Dim the row being dragged
             opacity: root.drag-active && root.dragging-block-index == bi ? 0.3 : 1.0;
 
             CompactBlockRow {
                 width: parent.width;
-                height: 100px;
+                height: block-item.row-height;
                 block-data: block-item;
                 toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
                 update-parameter-number(ci, bi2, p, v) => { root.update-block-parameter-number(ci, bi2, p, v); }
@@ -213,6 +222,7 @@ export component CompactChainViewPage inherits Rectangle {
                 }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
                 remove-block(ci, bi2) => { root.remove-block(ci, bi2); }
+                select-parameter-group(ci, bi2, gi) => { root.select-block-parameter-group(ci, bi2, gi); }
             }
 
             // Drag handle — visible grip on left edge
@@ -260,13 +270,12 @@ export component CompactChainViewPage inherits Rectangle {
                             root.drag-active = true;
                         }
                         if root.drag-active {
-                            // Calculate target slot from drag delta
-                            // Each row is 112px. Delta of +112 = move down 1 slot.
-                            let delta-slots = Math.round(delta / 112.0);
-                            let target = root.dragging-block-index + delta-slots;
-                            // Clamp: if moving down, target is "before" index (0..length)
-                            let clamped = target < 0 ? 0 : (target > root.compact-blocks.length ? root.compact-blocks.length : target);
-                            root.drag-hover-before-index = clamped;
+                            // #787: rows have different heights, so the target slot
+                            // comes from where the pointer sits, not from a fixed
+                            // stride: count the rows whose middle it has passed.
+                            root.drag-pointer-y = block-item.row-y + block-item.row-height / 2
+                                + delta * 1px;
+                            root.drag-hover-before-index = root.slot-at(root.drag-pointer-y);
                         }
                     }
                 }
@@ -278,7 +287,7 @@ export component CompactChainViewPage inherits Rectangle {
             && root.drag-hover-before-index != root.dragging-block-index
             && root.drag-hover-before-index != root.dragging-block-index + 1 : Rectangle {
             x: 8px;
-            y: root.drag-hover-before-index * 112px + 12px - 1px;
+            y: root.slot-y(root.drag-hover-before-index) - 1px;
             width: parent.width - 16px;
             height: 3px;
             border-radius: 1.5px;
@@ -287,7 +296,7 @@ export component CompactChainViewPage inherits Rectangle {
 
         // Insert slots after each block
         for block-item[bi] in root.compact-blocks : Rectangle {
-            x: 0; y: 12px + bi * 112px + 100px;
+            x: 0; y: block-item.row-y + block-item.row-height;
             width: parent.width; height: 12px;
             visible: !root.drag-active;
 
