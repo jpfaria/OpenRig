@@ -210,10 +210,17 @@ impl LocalDispatcher {
             .borrow()
             .clone()
             .unwrap_or_else(|| parent_dir.join("config.yaml"));
-        let config_yaml = "presets_path: ./presets\n";
+        #[derive(serde::Serialize)]
+        struct SidecarConfig<'a> {
+            presets_path: &'a str,
+        }
+        let config_yaml = serde_yaml::to_string(&SidecarConfig {
+            presets_path: "./presets",
+        })
+        .map_err(|e| anyhow!("failed to serialize sidecar config for {project_path:?}: {e}"))?;
         crate::persist_worker::enqueue(crate::persist_worker::PersistJob::WriteFile(
             config_path,
-            config_yaml.as_bytes().to_vec(),
+            config_yaml.into_bytes(),
         ));
         crate::persist_worker::enqueue(crate::persist_worker::PersistJob::EnsureDir(
             parent_dir.join("presets"),

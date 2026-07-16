@@ -31,7 +31,7 @@ use project::rig::RigProject;
 
 use crate::command::Command;
 use crate::di_loader::DiLoopSource;
-use crate::dispatcher::{CommandDispatcher, EventStream};
+use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::selection_state::SelectionState;
 
@@ -362,10 +362,6 @@ impl CommandDispatcher for LocalDispatcher {
                 endpoint_name,
             } => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
         }
-    }
-
-    fn subscribe(&self) -> EventStream {
-        // Phase 2 will return a real event stream. For now this is a no-op.
     }
 
     /// #693: install completed off-thread DI decodes and emit their
