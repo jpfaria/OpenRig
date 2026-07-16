@@ -48,11 +48,6 @@ pub struct LocalDispatcher {
     /// `None` for non-rig sessions (legacy projects) — set via
     /// [`Self::attach_rig`] at project load.
     pub(crate) rig: RefCell<Option<Rc<RefCell<RigProject>>>>,
-    /// #436: block selection used to be GUI-only state, so MIDI/MCP
-    /// could not "click a block". It now lives here, set by
-    /// `Command::SelectChainBlock`. Keyed by `ChainId` (works for
-    /// `rig:<input>` and real ids); absent ⇒ nothing selected.
-    pub(crate) selection: RefCell<HashMap<ChainId, usize>>,
     /// #555: filesystem directory where preset YAMLs live. Used by
     /// `Command::SaveChainPreset` / `DeleteChainPreset` so the
     /// dispatcher (not the GUI) owns the `fs::write` / `fs::remove_file`
@@ -127,7 +122,6 @@ impl LocalDispatcher {
         Self {
             project,
             rig: RefCell::new(None),
-            selection: RefCell::new(HashMap::new()),
             presets_path: RefCell::new(None),
             project_path: RefCell::new(None),
             config_path: RefCell::new(None),
@@ -253,14 +247,10 @@ impl CommandDispatcher for LocalDispatcher {
             Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
 
             Command::SelectChainBlock { chain, block_index } => {
-                // Legacy per-chain selection map (kept for the old GUI
-                // wiring that hasn't migrated yet).
-                self.selection
-                    .borrow_mut()
-                    .insert(chain.clone(), block_index);
-                // #548: mirror the click into the GUI selection state
-                // the MIDI daemon reads. Resolve the block id from the
-                // index inside the project — slots address blocks by id.
+                // #548: record the click in the GUI selection state that
+                // MIDI/MCP/gRPC read (`QueryKind::Selection`). Resolve the
+                // block id from the index inside the project — slots address
+                // blocks by id.
                 {
                     let project = self.project.borrow();
                     let block_id = project

@@ -14,12 +14,6 @@ use crate::local_dispatcher::LocalDispatcher;
 use crate::selection_state::SelectionState;
 
 impl LocalDispatcher {
-    /// The block index currently selected on `chain` (dispatcher-owned;
-    /// the GUI renders this, MIDI/MCP can set it). `None` if unset.
-    pub fn selected_block(&self, chain: &ChainId) -> Option<usize> {
-        self.selection.borrow().get(chain).copied()
-    }
-
     /// Shared handle to the GUI selection state. `Arc<RwLock<…>>` so
     /// the MIDI daemon thread can read the same state the GUI thread
     /// mutates; `Rc<RefCell<…>>` was tried first but `RefCell` is
