@@ -14,7 +14,7 @@
 //!
 //! ## Test isolation
 //!
-//! Every test uses `TempDir` + `attach_config_path`. No `set_var("HOME")`.
+//! Every test uses `TempDir` + `attach_io_config_path`. No `set_var("HOME")`.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -149,7 +149,7 @@ fn save_input_endpoints_sets_reference() {
 
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     dispatcher.attach_rig(Rc::clone(&rig));
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     // Dispatch the NEW-shape command.
     let res = dispatcher.dispatch(Command::SaveChainInputEndpoints {
@@ -261,7 +261,7 @@ fn save_output_endpoints_sets_reference() {
 
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     dispatcher.attach_rig(Rc::clone(&rig));
-    dispatcher.attach_config_path(Some(cfg_path));
+    dispatcher.attach_io_config_path(Some(cfg_path));
 
     let res = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
         chain: domain::ids::ChainId(chain_id_str.to_string()),
@@ -341,7 +341,7 @@ fn delete_referenced_binding_rejected() {
     let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     // Create the binding first.
     dispatcher
@@ -376,7 +376,7 @@ fn delete_referenced_binding_rejected() {
         midi: None,
     }));
     let dispatcher2 = LocalDispatcher::new(Rc::clone(&project_with_ref));
-    dispatcher2.attach_config_path(Some(cfg_path.clone()));
+    dispatcher2.attach_io_config_path(Some(cfg_path.clone()));
 
     // Also pre-seed the binding so it exists in config.
     dispatcher2
@@ -448,7 +448,7 @@ fn delete_unreferenced_binding_ok() {
         midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project_with_ref));
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
         .dispatch(Command::CreateIoBinding {

@@ -7,14 +7,14 @@
 //!
 //! ## Path resolution
 //!
-//! Every handler reads `self.config_path` (set via `attach_config_path`)
-//! to determine where to persist. When no path is attached, falls back to
+//! Every handler reads `self.io_config_path` (set via `attach_io_config_path`)
+//! — the per-machine SYSTEM config, NOT the project sidecar `config_path`
+//! (#792/ADR-0003: opening a project must not redirect the registry into the
+//! project's `config.yaml`). When no path is attached, falls back to
 //! `FilesystemStorage::app_config_path()` — the same resolution the global
-//! `load_app_config` / `save_app_config` helpers use. This mirrors the
-//! pattern in `local_dispatcher_project.rs` `save_project_to_disk` (lines
-//! that read `self.config_path.borrow().clone().unwrap_or_else(…)`).
+//! `load_app_config` / `save_app_config` helpers use.
 //!
-//! Tests attach a temp-dir path via `attach_config_path` so no global OS
+//! Tests attach a temp-dir path via `attach_io_config_path` so no global OS
 //! path (e.g. `~/Library/Application Support/OpenRig/config.yaml`) is ever
 //! touched.
 //!
@@ -111,7 +111,7 @@ impl LocalDispatcher {
     ) -> Result<Vec<Event>> {
         // Resolve the path on the dispatching thread (no Send requirement on
         // the RefCell borrow), then move it into the closure.
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!(
@@ -160,7 +160,7 @@ impl LocalDispatcher {
             ));
         }
 
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!(
@@ -179,7 +179,7 @@ impl LocalDispatcher {
     /// Handle `Command::RenameIoBinding`: rename the entry whose `id` matches
     /// and persist. No-op when the id is absent.
     pub(crate) fn handle_rename_io_binding(&self, id: String, name: String) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!("io_binding rename: config path unresolvable");
@@ -205,7 +205,7 @@ impl LocalDispatcher {
         channels: Vec<usize>,
         mode: ChannelMode,
     ) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!("io_binding add endpoint: config path unresolvable");
@@ -243,7 +243,7 @@ impl LocalDispatcher {
         is_input: bool,
         endpoint_name: String,
     ) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!("io_binding remove endpoint: config path unresolvable");

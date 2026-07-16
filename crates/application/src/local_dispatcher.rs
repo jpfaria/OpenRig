@@ -72,6 +72,12 @@ pub struct LocalDispatcher {
     /// the dispatcher now owns the resolution. `None` ⇒ derive from
     /// `project_path.parent().join("config.yaml")` at save time.
     pub(crate) config_path: RefCell<Option<PathBuf>>,
+    /// #792 / ADR-0003: the per-machine SYSTEM config path — where the I/O
+    /// binding registry persists. SEPARATE from `config_path` (the project
+    /// sidecar): opening a project sets `config_path` to `<project>/config.yaml`,
+    /// and the per-machine registry must NOT follow it there. `None` ⇒
+    /// `FilesystemStorage::app_config_path()`; tests attach a temp path.
+    pub(crate) io_config_path: RefCell<Option<PathBuf>>,
     /// #548: which chain / block the user has active on the Chains
     /// screen, plus snapshots of the toggle states. MIDI slots and the
     /// GUI both mutate this through `Command`s; `QueryKind::Selection`
@@ -125,6 +131,7 @@ impl LocalDispatcher {
             presets_path: RefCell::new(None),
             project_path: RefCell::new(None),
             config_path: RefCell::new(None),
+            io_config_path: RefCell::new(None),
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(48_000),

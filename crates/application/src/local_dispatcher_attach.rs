@@ -42,6 +42,16 @@ impl LocalDispatcher {
         *self.config_path.borrow_mut() = path;
     }
 
+    /// #792 / ADR-0003: override the per-machine SYSTEM config path (where the
+    /// I/O binding registry persists). `None` ⇒ `FilesystemStorage::
+    /// app_config_path()`. Production leaves this unset (the registry lands in
+    /// the real OS config); tests attach a temp path so they never touch it.
+    /// SEPARATE from `attach_config_path` — the project sidecar must never
+    /// receive the per-machine registry.
+    pub fn attach_io_config_path(&self, path: Option<PathBuf>) {
+        *self.io_config_path.borrow_mut() = path;
+    }
+
     /// #614/#669: inform the dispatcher of the engine sample rate so DI loop
     /// decoding resamples to the correct target. Call this once the audio
     /// stream is running and whenever the device rate changes. Defaults to
