@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use infra_filesystem::{AppConfig, FilesystemStorage};
+use infra_filesystem::FilesystemStorage;
 use project::block::AudioBlockKind;
 
 use crate::event::Event;
@@ -40,61 +40,6 @@ use crate::local_dispatcher::LocalDispatcher;
 /// itself fails (unresolvable HOME / XDG).
 fn resolve_config_path(attached: Option<PathBuf>) -> Option<PathBuf> {
     attached.or_else(|| FilesystemStorage::app_config_path().ok())
-}
-
-/// Load `AppConfig` from `path`. Returns `Default::default()` on any error,
-/// logging it so a corrupt config is never silently wiped.
-fn load_config_at(path: &PathBuf) -> AppConfig {
-    if !path.exists() {
-        return AppConfig::default();
-    }
-    match std::fs::read_to_string(path) {
-        Ok(raw) => match serde_yaml::from_str::<AppConfig>(&raw) {
-            Ok(cfg) => cfg,
-            Err(e) => {
-                log::error!(
-                    "io_binding: failed to parse config at {}: {e} — \
-                     proceeding with default (existing data may be lost)",
-                    path.display()
-                );
-                AppConfig::default()
-            }
-        },
-        Err(e) => {
-            log::error!(
-                "io_binding: failed to read config at {}: {e} — \
-                 proceeding with default (existing data may be lost)",
-                path.display()
-            );
-            AppConfig::default()
-        }
-    }
-}
-
-/// Persist `config` to `path`, creating parent directories as needed.
-fn save_config_at(path: &PathBuf, config: &AppConfig) {
-    if let Some(parent) = path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            log::error!(
-                "io_binding: failed to create config dir {}: {e}",
-                parent.display()
-            );
-            return;
-        }
-    }
-    match serde_yaml::to_string(config) {
-        Ok(raw) => {
-            if let Err(e) = std::fs::write(path, raw) {
-                log::error!(
-                    "io_binding: failed to write config to {}: {e}",
-                    path.display()
-                );
-            }
-        }
-        Err(e) => {
-            log::error!("io_binding: failed to serialize AppConfig: {e}");
-        }
-    }
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -120,13 +65,15 @@ impl LocalDispatcher {
                 );
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(pos) = config.io_bindings.iter().position(|b| b.id == binding.id) {
-                config.io_bindings[pos] = binding;
-            } else {
-                config.io_bindings.push(binding);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(pos) = config.io_bindings.iter().position(|b| b.id == binding.id) {
+                    config.io_bindings[pos] = binding;
+                } else {
+                    config.io_bindings.push(binding);
+                }
+            }) {
+                log::error!("io_binding create/update: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -169,9 +116,11 @@ impl LocalDispatcher {
                 );
                 return;
             };
-            let mut config = load_config_at(&path);
-            config.io_bindings.retain(|b| b.id != id);
-            save_config_at(&path, &config);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                config.io_bindings.retain(|b| b.id != id);
+            }) {
+                log::error!("io_binding delete: persist failed: {e}");
+            }
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -185,11 +134,13 @@ impl LocalDispatcher {
                 log::error!("io_binding rename: config path unresolvable");
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
-                b.name = name;
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
+                    b.name = name;
+                }
+            }) {
+                log::error!("io_binding rename: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -211,26 +162,28 @@ impl LocalDispatcher {
                 log::error!("io_binding add endpoint: config path unresolvable");
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
-                let existing = if is_input {
-                    b.inputs.len()
-                } else {
-                    b.outputs.len()
-                };
-                let endpoint = IoEndpoint {
-                    name: next_endpoint_name(existing, is_input),
-                    device_id: DeviceId(device_id),
-                    mode,
-                    channels,
-                };
-                if is_input {
-                    b.inputs.push(endpoint);
-                } else {
-                    b.outputs.push(endpoint);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
+                    let existing = if is_input {
+                        b.inputs.len()
+                    } else {
+                        b.outputs.len()
+                    };
+                    let endpoint = IoEndpoint {
+                        name: next_endpoint_name(existing, is_input),
+                        device_id: DeviceId(device_id),
+                        mode,
+                        channels,
+                    };
+                    if is_input {
+                        b.inputs.push(endpoint);
+                    } else {
+                        b.outputs.push(endpoint);
+                    }
                 }
+            }) {
+                log::error!("io_binding add endpoint: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -249,15 +202,17 @@ impl LocalDispatcher {
                 log::error!("io_binding remove endpoint: config path unresolvable");
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
-                if is_input {
-                    b.inputs.retain(|e| e.name != endpoint_name);
-                } else {
-                    b.outputs.retain(|e| e.name != endpoint_name);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
+                    if is_input {
+                        b.inputs.retain(|e| e.name != endpoint_name);
+                    } else {
+                        b.outputs.retain(|e| e.name != endpoint_name);
+                    }
                 }
+            }) {
+                log::error!("io_binding remove endpoint: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
