@@ -29,7 +29,6 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::param::ParameterSet;
 
 use crate::block_editor::{block_parameter_items_for_editor, build_knob_overlays};
-use crate::BlockParameterItem;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
@@ -38,6 +37,7 @@ use crate::project_view::{
     block_type_index, block_type_picker_items,
 };
 use crate::state::{BlockEditorData, BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
+use crate::BlockParameterItem;
 use crate::{
     block_editor_window_lifecycle, block_editor_window_params, AppWindow, BlockEditorWindow,
     BlockStreamData, BlockStreamEntry, PluginInfoWindow, ProjectChainItem,

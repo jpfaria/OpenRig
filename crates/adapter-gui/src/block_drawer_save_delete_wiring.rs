@@ -13,7 +13,8 @@ use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::block_editor::persist_block_editor_draft;
-use crate::project_view::{build_compact_blocks, set_selected_block};
+use crate::compact_block_view::build_compact_blocks;
+use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CompactChainViewWindow,
