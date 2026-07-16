@@ -486,22 +486,22 @@ msgctxt "CompactBlockParamStrip"
 msgid "▼"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:100
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:109
 msgctxt "CompactChainViewHeader"
 msgid "tooltip-measure-latency"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:127
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:136
 msgctxt "CompactChainViewHeader"
 msgid "label-lat"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:156
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:165
 msgctxt "CompactChainViewHeader"
 msgid "tooltip-configure"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:167
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:176
 msgctxt "CompactChainViewHeader"
 msgid "tooltip-delete"
 msgstr ""
@@ -1013,12 +1013,12 @@ msgctxt "TunerWindow"
 msgid "title-window-tuner"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:34
+#: crates/adapter-gui/ui/secondary_windows_block.slint:36
 msgctxt "BlockEditorWindow"
 msgid "title-window-block-editor"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:237
+#: crates/adapter-gui/ui/secondary_windows_block.slint:239
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr ""

@@ -479,22 +479,22 @@ msgctxt "CompactBlockParamStrip"
 msgid "▼"
 msgstr "▼"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:100
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:109
 msgctxt "CompactChainViewHeader"
 msgid "tooltip-measure-latency"
 msgstr "지연시간 측정 (삑 소리가 납니다)"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:127
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:136
 msgctxt "CompactChainViewHeader"
 msgid "label-lat"
 msgstr "LAT"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:156
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:165
 msgctxt "CompactChainViewHeader"
 msgid "tooltip-configure"
 msgstr "구성"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:167
+#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:176
 msgctxt "CompactChainViewHeader"
 msgid "tooltip-delete"
 msgstr "삭제"
@@ -981,12 +981,12 @@ msgctxt "TunerWindow"
 msgid "title-window-tuner"
 msgstr "OpenRig · Tuner"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:34
+#: crates/adapter-gui/ui/secondary_windows_block.slint:36
 msgctxt "BlockEditorWindow"
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:237
+#: crates/adapter-gui/ui/secondary_windows_block.slint:239
 msgctxt "CompactChainViewWindow"
 msgid "title-window-chain-view"
 msgstr "OpenRig · 체인"
