@@ -27,10 +27,9 @@ fn write(path: &Path, contents: &[u8]) {
     fs::write(path, contents).expect("write file");
 }
 
-#[test]
-fn disk_packages_synthesize_schema_parameters_from_manifest() {
-    let root = tmp_root("synth");
-
+/// Writes the NAM/IR/LV2 disk packages under `root`. All must exist before
+/// `plugin_loader::registry::init` (OnceLock freezes the catalog on first call).
+fn write_fixtures(root: &Path) {
     // NAM with two numeric grid axes.
     let nam = root.join("nam_test_amp");
     write(
@@ -123,6 +122,12 @@ binaries:
             .join("chorus.dylib"),
         b"fake-bin",
     );
+}
+
+#[test]
+fn disk_packages_synthesize_schema_parameters_from_manifest() {
+    let root = tmp_root("synth");
+    write_fixtures(&root);
 
     // ALL fixtures must exist before init() — OnceLock freezes the
     // catalog on the first call.
