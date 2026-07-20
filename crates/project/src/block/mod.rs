@@ -12,8 +12,12 @@
 //! working unchanged.
 
 pub mod dispatch;
+mod grid_schema;
+mod ir_schema;
+mod lv2_schema;
 pub mod manifest_labels;
 pub mod methods;
+mod nam_schema;
 pub mod param_writer;
 pub mod types;
 pub mod vst3_schema;

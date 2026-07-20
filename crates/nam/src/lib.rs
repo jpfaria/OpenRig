@@ -2,6 +2,7 @@ pub mod baked_loudness;
 pub mod from_package;
 pub mod gain_offsets;
 pub mod loudness_probe;
+pub mod params;
 pub mod processor;
 
 pub use from_package::{build_from_package, register_builder};
