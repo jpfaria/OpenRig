@@ -6,6 +6,8 @@ import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
 import { DiLoopPanel } from "components/di_loop_panel.slint";
 import { DiPanel } from "components/di_panel_globals.slint";
+import { ToneDoctorPanel } from "components/tone_doctor_panel.slint";
+import { ToneDoctorState } from "components/tone_doctor_globals.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -285,6 +287,9 @@ export component CompactChainViewWindow inherits Window {
     callback di-loop-stop();
     // #771: an output endpoint was picked (index into di-loop-outputs).
     callback di-loop-output-selected(int);
+    // #791: Tone Doctor — run the offline diagnosis / apply its suggested fix.
+    callback tone-doctor-run(int);
+    callback tone-doctor-apply(int);
 
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
@@ -435,6 +440,37 @@ export component CompactChainViewWindow inherits Window {
                 DiPanel.output-selected-index = i;
                 root.di-loop-output-selected(i);
             }
+        }
+    }
+
+    // #791: Tone Doctor panel overlay for the detached compact window. The
+    // stethoscope (ChainToneDoctorButton) sets `ToneDoctorState.open`; Rust
+    // fills the result fields after the offline run.
+    if ToneDoctorState.open : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        TouchArea { clicked => { ToneDoctorState.open = false; } }
+        ToneDoctorPanel {
+            x: ToneDoctorState.x;
+            y: ToneDoctorState.y;
+            running: ToneDoctorState.running;
+            has-result: ToneDoctorState.has-result;
+            symptom-level: ToneDoctorState.symptom-level;
+            symptom-text: ToneDoctorState.symptom-text;
+            culprit-label: ToneDoctorState.culprit-label;
+            suggestion-text: ToneDoctorState.suggestion-text;
+            has-suggestion: ToneDoctorState.has-suggestion;
+            fizz-value: ToneDoctorState.fizz-value;
+            fizz-limit: ToneDoctorState.fizz-limit;
+            mud-value: ToneDoctorState.mud-value;
+            mud-limit: ToneDoctorState.mud-limit;
+            clip-value: ToneDoctorState.clip-value;
+            clip-limit: ToneDoctorState.clip-limit;
+            analyze-seconds: ToneDoctorState.analyze-seconds;
+            can-diagnose: ToneDoctorState.can-diagnose;
+            seconds-picked(s) => { ToneDoctorState.analyze-seconds = s; }
+            run-diagnosis => { root.tone-doctor-run(ToneDoctorState.chain-index); }
+            apply-suggestion => { root.tone-doctor-apply(ToneDoctorState.chain-index); }
         }
     }
 }

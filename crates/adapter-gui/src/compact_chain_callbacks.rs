@@ -22,10 +22,6 @@ use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
 use domain::ids::BlockId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use application::dispatcher::CommandDispatcher;
-
-use application::di_loader::DiLoopSource;
-
 use crate::compact_block_view::build_compact_blocks;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
@@ -447,148 +443,25 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             });
         }
 
-        // ── #614: DI loop callbacks (compact view) ───────────────────────────
-        // The compact view exposes a ChainDiLoopButton next to the volume
-        // control. Its 4 callbacks target the focused chain (`chain_index`
-        // captured from the outer closure).  All delegate to the same helpers
-        // the chains-screen tile wiring uses — no duplicate dispatch path.
-
-        // on_di_loop_source_selected: user picked a bundled source.
-        {
-            let project_session = project_session.clone();
-            let weak_window = window.as_weak();
-            let toast_timer = toast_timer.clone();
-            compact_win.on_di_loop_source_selected(move |source_str| {
-                let chain_id = {
-                    let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else {
-                        return;
-                    };
-                    let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else {
-                        return;
-                    };
-                    chain.id.clone()
-                };
-                let source = DiLoopSource::Bundled(source_str.to_string());
-                let cmds = crate::di_loop_wiring::di_loop_commands(
-                    chain_id,
-                    crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
-                );
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                for cmd in cmds {
-                    if let Err(err) = session.dispatcher.dispatch(cmd) {
-                        if let Some(main_win) = weak_window.upgrade() {
-                            set_status_error(&main_win, &toast_timer, &err.to_string());
-                        }
-                        return;
-                    }
-                }
-            });
-        }
-
-        // #771 on_di_loop_output_selected: user picked an output endpoint.
-        crate::di_output_select_wiring::wire_compact(
+        // #614/#771: DI loop callbacks — extracted to a focused module.
+        crate::compact_chain_di_callbacks::wire(
             &compact_win,
-            chain_index,
             project_session.clone(),
             project_runtime.clone(),
+            window.as_weak(),
+            toast_timer.clone(),
+            chain_index,
         );
 
-        // on_di_loop_choose_file: user picked "Choose file…" — open native dialog.
-        {
-            let project_session = project_session.clone();
-            let weak_window = window.as_weak();
-            let toast_timer = toast_timer.clone();
-            compact_win.on_di_loop_choose_file(move || {
-                let chain_id = {
-                    let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else {
-                        return;
-                    };
-                    let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else {
-                        return;
-                    };
-                    chain.id.clone()
-                };
-                let Some(path) = rfd::FileDialog::new()
-                    .add_filter("WAV audio", &["wav"])
-                    .pick_file()
-                else {
-                    return; // user cancelled
-                };
-                let cmds = crate::di_loop_wiring::di_loop_commands(
-                    chain_id,
-                    crate::di_loop_wiring::DiLoopIntent::SelectSource {
-                        source: DiLoopSource::File(path),
-                    },
-                );
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                for cmd in cmds {
-                    if let Err(err) = session.dispatcher.dispatch(cmd) {
-                        if let Some(main_win) = weak_window.upgrade() {
-                            set_status_error(&main_win, &toast_timer, &err.to_string());
-                        }
-                        return;
-                    }
-                }
-            });
-        }
-
-        // on_di_loop_play: user pressed ▶ in the compact view.
-        {
-            let project_session = project_session.clone();
-            let project_runtime = project_runtime.clone();
-            compact_win.on_di_loop_play(move || {
-                let chain_id = {
-                    let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else {
-                        return;
-                    };
-                    let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else {
-                        return;
-                    };
-                    chain.id.clone()
-                };
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                compact_chain_di_loop_play(&project_runtime, &session.dispatcher, &chain_id);
-            });
-        }
-
-        // on_di_loop_stop: user pressed ■ in the compact view.
-        {
-            let project_session = project_session.clone();
-            let project_runtime = project_runtime.clone();
-            compact_win.on_di_loop_stop(move || {
-                let chain_id = {
-                    let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else {
-                        return;
-                    };
-                    let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index as usize) else {
-                        return;
-                    };
-                    chain.id.clone()
-                };
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                compact_chain_di_loop_stop(&project_runtime, &session.dispatcher, &chain_id);
-            });
-        }
+        // #791: Tone Doctor run/apply closures — also a focused module.
+        crate::tone_doctor_compact_wiring::wire(
+            &compact_win,
+            project_session.clone(),
+            project_runtime.clone(),
+            chain_index,
+            window.as_weak(),
+            toast_timer.clone(),
+        );
 
         show_child_window(window.window(), compact_win.window());
     });

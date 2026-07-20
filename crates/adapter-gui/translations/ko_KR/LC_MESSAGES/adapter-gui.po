@@ -750,3 +750,34 @@ msgstr "DI 스트림"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint
 msgid "di-output-select-label"
 msgstr "DI 출력"
+
+
+msgid "tone-doctor-button-label"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-title"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-diagnose"
+msgstr "진단"
+
+msgid "tone-doctor-rerun"
+msgstr "다시 진단"
+
+msgid "tone-doctor-diagnosing"
+msgstr "진단 중…"
+
+msgid "tone-doctor-suggestion"
+msgstr "권장 수정"
+
+msgid "tone-doctor-apply"
+msgstr "적용"
+
+msgid "tone-doctor-no-di"
+msgstr "먼저 DI 소스를 선택하세요"
+
+msgid "tone-doctor-analyze"
+msgstr "분석"
+
+msgid "tone-doctor-no-signal"
+msgstr "DI를 재생하거나 체인을 활성화하세요"

@@ -117,6 +117,27 @@ impl DiPcm {
         self.samples.is_empty()
     }
 
+    /// Source sample rate of the decoded PCM (no resample applied).
+    pub fn src_sr(&self) -> u32 {
+        self.src_sr
+    }
+
+    /// Deinterleave the source PCM into stereo frames, without resampling:
+    /// mono broadcasts to both channels, stereo maps L/R directly, and >2
+    /// channels keep the first two. Used by the Tone Doctor to feed a chain's
+    /// own DI through the offline diagnosis at `src_sr()` (#791).
+    pub fn stereo_frames(&self) -> Vec<[f32; 2]> {
+        let ch = self.channels.max(1);
+        self.samples
+            .chunks(ch)
+            .map(|frame| match frame {
+                [] => [0.0, 0.0],
+                [m] => [*m, *m],
+                [l, r, ..] => [*l, *r],
+            })
+            .collect()
+    }
+
     /// Build a [`DiLoop`] resampled to `target_sr`, with a ~10 ms seam
     /// crossfade (rate-relative, so the seam stays ~10 ms at any rate — the
     /// old fixed 480-frame constant was exactly 10 ms only at 48 kHz).

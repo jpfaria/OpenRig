@@ -157,9 +157,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         pending_delete_chain_id,
     } = ctx;
 
-    // ── on_remove_chain (trash icon) ─────────────────────────────────────────
-    // Issue #511: just resolves the chain and opens the in-app overlay;
-    // the actual dispatch lives in on_confirm_delete_chain below.
+    // #791: Tone Doctor run/apply for the main chains page.
+    crate::tone_doctor_compact_wiring::wire_main(window, project_session.clone(), project_runtime.clone(), toast_timer.clone());
+    // #511 on_remove_chain (trash): opens the delete overlay; dispatch below.
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();

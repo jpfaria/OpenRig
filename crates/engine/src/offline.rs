@@ -124,6 +124,87 @@ pub fn render_chain(
     })
 }
 
+/// Build the offline processing nodes for a chain ONCE (loads NAM etc.), so the
+/// Tone Doctor's ablation can re-render many variants without rebuilding every
+/// block and reloading the NAM from disk on each pass (#791 perf). Nodes align
+/// 1:1 with `chain.blocks` in order.
+pub(crate) fn build_offline_nodes(
+    chain: &Chain,
+    sample_rate: f32,
+) -> Result<Vec<BlockRuntimeNode>> {
+    let (nodes, _layout) =
+        build_runtime_block_nodes(chain, AudioChannelLayout::Stereo, false, sample_rate, None, None)?;
+    Ok(nodes)
+}
+
+/// Render `chain` reusing `base` nodes where the block is unchanged — only a
+/// block whose snapshot differs (e.g. the one param the correction search is
+/// sweeping) is rebuilt, so an unrelated NAM keeps its loaded model instead of
+/// reloading from disk on every trial (#791 perf). Returns the samples + the
+/// nodes to thread into the next call.
+pub(crate) fn render_reusing(
+    chain: &Chain,
+    sample_rate: f32,
+    input: &[[f32; 2]],
+    block_size: usize,
+    tail_frames: usize,
+    base: Option<Vec<BlockRuntimeNode>>,
+) -> Result<(Vec<[f32; 2]>, Vec<BlockRuntimeNode>)> {
+    let (mut nodes, _layout) =
+        build_runtime_block_nodes(chain, AudioChannelLayout::Stereo, false, sample_rate, base, None)?;
+    let mask: Vec<bool> = chain.blocks.iter().map(|b| b.enabled).collect();
+    let out = render_nodes_masked(&mut nodes, input, block_size, tail_frames, &mask);
+    Ok((out, nodes))
+}
+
+/// Render pre-built `nodes` over `input`, processing only the nodes whose
+/// `enabled[i]` is true (falling back to the node's own snapshot flag when the
+/// mask is shorter). Reuses the loaded processors — the NAM is NOT reloaded.
+///
+/// Nodes keep their DSP state across calls; for the Welch-averaged descriptors
+/// the sub-100 ms warmup carry-over is negligible against a multi-second window.
+pub(crate) fn render_nodes_masked(
+    nodes: &mut [BlockRuntimeNode],
+    input: &[[f32; 2]],
+    block_size: usize,
+    tail_frames: usize,
+    enabled: &[bool],
+) -> Vec<[f32; 2]> {
+    let total_frames = input.len() + tail_frames;
+    let mut output: Vec<[f32; 2]> = Vec::with_capacity(total_frames);
+    let mut chunk_buf: Vec<AudioFrame> = Vec::with_capacity(block_size);
+    let mut frame_idx = 0_usize;
+    while frame_idx < total_frames {
+        let chunk_size = block_size.min(total_frames - frame_idx);
+        chunk_buf.clear();
+        for i in 0..chunk_size {
+            let g = frame_idx + i;
+            let pair = if g < input.len() {
+                input[g]
+            } else {
+                [0.0_f32, 0.0_f32]
+            };
+            chunk_buf.push(AudioFrame::Stereo(pair));
+        }
+        for (i, node) in nodes.iter_mut().enumerate() {
+            let on = enabled.get(i).copied().unwrap_or(node.block_snapshot.enabled);
+            if !on {
+                continue;
+            }
+            apply_block_offline(node, &mut chunk_buf);
+        }
+        for frame in chunk_buf.iter() {
+            let pair = match frame {
+                AudioFrame::Stereo([l, r]) => [*l, *r],
+                AudioFrame::Mono(s) => [*s, *s],
+            };
+            output.push(pair);
+        }
+        frame_idx += chunk_size;
+    }
+    output
+}
+
 fn collect_faulted_blocks(nodes: &[BlockRuntimeNode]) -> Vec<FaultedBlock> {
     nodes
         .iter()
