@@ -76,7 +76,6 @@ crates/engine/tests/issue_670_beat_it_real_rig.rs
 crates/infra-cpal/src/controller_live_edit_replicates_user_report_tests.rs
 crates/infra-cpal/src/controller_taps.rs
 crates/infra-cpal/src/controller.rs
-crates/infra-cpal/src/dsp_worker.rs
 crates/infra-cpal/src/jack_supervisor/live_backend.rs
 crates/infra-cpal/src/jack_supervisor/supervisor_tests.rs
 crates/infra-cpal/src/jack_supervisor/supervisor.rs
