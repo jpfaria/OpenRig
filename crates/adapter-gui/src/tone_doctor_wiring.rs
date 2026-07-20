@@ -107,8 +107,8 @@ pub fn diagnose_to_view(
 fn symptom_level(s: Symptom) -> i32 {
     match s {
         Symptom::Ok => 0,
-        Symptom::Mud => 1,
-        Symptom::Fizz | Symptom::Clipping => 2,
+        Symptom::Mud | Symptom::Boomy => 1,
+        Symptom::Fizz | Symptom::Harsh | Symptom::Clipping => 2,
     }
 }
 
@@ -119,6 +119,8 @@ fn symptom_text(s: Symptom) -> &'static str {
         Symptom::Ok => "OK",
         Symptom::Fizz => "Fizz",
         Symptom::Mud => "Mud",
+        Symptom::Harsh => "Harsh",
+        Symptom::Boomy => "Boomy",
         Symptom::Clipping => "Clipping",
     }
 }

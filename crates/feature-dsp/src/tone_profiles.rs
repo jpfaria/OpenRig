@@ -34,6 +34,8 @@ pub struct GenreProfile {
     pub mud_limit: f32,
     pub fizz_limit: f32,
     pub clip_limit: f32,
+    pub harsh_limit: f32,
+    pub boom_limit: f32,
     /// Stems that contributed to this genre.
     pub n: usize,
     pub confidence: Confidence,
@@ -52,25 +54,40 @@ pub fn calibrate(samples: &[(String, ToneDescriptors)], percentile: f32) -> Vec<
         cols.mud.push(d.mud_ratio);
         cols.fizz.push(d.fizz_ratio);
         cols.clip.push(d.clip_fraction);
+        cols.harsh.push(d.harsh_ratio);
+        cols.boom.push(d.boom_ratio);
     }
 
     by_genre
         .into_iter()
-        .map(|(genre, MetricColumns { mud, fizz, clip })| {
-            let n = mud.len();
-            GenreProfile {
-                genre: genre.to_string(),
-                mud_limit: percentile_of(mud, percentile),
-                fizz_limit: percentile_of(fizz, percentile),
-                clip_limit: percentile_of(clip, percentile),
-                n,
-                confidence: if n >= MIN_CONFIDENT_SAMPLES {
-                    Confidence::Trusted
-                } else {
-                    Confidence::Provisional
+        .map(
+            |(
+                genre,
+                MetricColumns {
+                    mud,
+                    fizz,
+                    clip,
+                    harsh,
+                    boom,
                 },
-            }
-        })
+            )| {
+                let n = mud.len();
+                GenreProfile {
+                    genre: genre.to_string(),
+                    mud_limit: percentile_of(mud, percentile),
+                    fizz_limit: percentile_of(fizz, percentile),
+                    clip_limit: percentile_of(clip, percentile),
+                    harsh_limit: percentile_of(harsh, percentile),
+                    boom_limit: percentile_of(boom, percentile),
+                    n,
+                    confidence: if n >= MIN_CONFIDENT_SAMPLES {
+                        Confidence::Trusted
+                    } else {
+                        Confidence::Provisional
+                    },
+                }
+            },
+        )
         .collect()
 }
 
@@ -80,6 +97,8 @@ struct MetricColumns {
     mud: Vec<f32>,
     fizz: Vec<f32>,
     clip: Vec<f32>,
+    harsh: Vec<f32>,
+    boom: Vec<f32>,
 }
 
 /// The `percentile` (0.0..=1.0) of `values`, by linear interpolation between the

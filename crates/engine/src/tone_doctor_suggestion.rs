@@ -53,6 +53,10 @@ pub(crate) fn priority_paths(symptom: Symptom) -> &'static [&'static str] {
         ],
         // Cut the low-mids / body.
         Symptom::Mud => &["mids", "mid", "bass", "low", "lows", "body"],
+        // Cut the brilliance / ice-pick highs above the presence band.
+        Symptom::Harsh => &["presence", "treble", "highs", "high", "tone", "bright", "air"],
+        // Cut the sub / low-end rumble.
+        Symptom::Boomy => &["bass", "low", "lows", "body", "sub"],
         // Pull the block's output down off the rail.
         Symptom::Clipping => &[
             "level", "master", "output", "output_level", "volume", "makeup_gain", "gain",
@@ -116,6 +120,12 @@ pub(crate) fn rationale(symptom: Symptom, model_name: &str, param_label: &str) -
         }
         Symptom::Mud => {
             format!("Mud traced to {model_name}; lowering '{param_label}' clears the low-mids")
+        }
+        Symptom::Harsh => {
+            format!("Harshness traced to {model_name}; lowering '{param_label}' tames the brilliance band")
+        }
+        Symptom::Boomy => {
+            format!("Boom traced to {model_name}; lowering '{param_label}' tightens the low end")
         }
         Symptom::Clipping => {
             format!("Clipping traced to {model_name}; lowering '{param_label}' pulls it off the rail")

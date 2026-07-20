@@ -19,7 +19,8 @@
 
 use anyhow::Result;
 use feature_dsp::tone_descriptors::{
-    analyze, Symptom, ToneDescriptors, CLIP_FRACTION_LIMIT, FIZZ_RATIO_LIMIT, MUD_RATIO_LIMIT,
+    analyze, Symptom, ToneDescriptors, BOOM_RATIO_LIMIT, CLIP_FRACTION_LIMIT, FIZZ_RATIO_LIMIT,
+    HARSH_RATIO_LIMIT, MUD_RATIO_LIMIT,
 };
 use project::block::AudioBlockKind;
 use project::chain::Chain;
@@ -62,6 +63,8 @@ pub(crate) fn symptom_metric(symptom: Symptom, d: &ToneDescriptors) -> Option<(f
     match symptom {
         Symptom::Fizz => Some((d.fizz_ratio, FIZZ_RATIO_LIMIT)),
         Symptom::Mud => Some((d.mud_ratio, MUD_RATIO_LIMIT)),
+        Symptom::Harsh => Some((d.harsh_ratio, HARSH_RATIO_LIMIT)),
+        Symptom::Boomy => Some((d.boom_ratio, BOOM_RATIO_LIMIT)),
         Symptom::Clipping => Some((d.clip_fraction, CLIP_FRACTION_LIMIT)),
         Symptom::Ok => None,
     }

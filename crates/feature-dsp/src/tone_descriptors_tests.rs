@@ -31,7 +31,11 @@ fn multitone(components: &[(f32, f32)]) -> Vec<f32> {
 #[test]
 fn clean_1khz_sine_is_ok() {
     let d = analyze_mono(&sine(1_000.0, 0.5), SR);
-    assert_eq!(d.symptom(), Symptom::Ok, "a clean 1 kHz sine is healthy: {d:?}");
+    assert_eq!(
+        d.symptom(),
+        Symptom::Ok,
+        "a clean 1 kHz sine is healthy: {d:?}"
+    );
 }
 
 #[test]
@@ -61,7 +65,10 @@ fn low_mid_heavy_signal_reads_as_mud() {
 #[test]
 fn clipped_signal_reads_as_clipping() {
     // Overdriven sine clamped hard at the rail.
-    let clipped: Vec<f32> = sine(1_000.0, 2.0).iter().map(|s| s.clamp(-1.0, 1.0)).collect();
+    let clipped: Vec<f32> = sine(1_000.0, 2.0)
+        .iter()
+        .map(|s| s.clamp(-1.0, 1.0))
+        .collect();
     let d = analyze_mono(&clipped, SR);
     assert!(
         d.clip_fraction > CLIP_FRACTION_LIMIT,
@@ -113,11 +120,47 @@ fn analyze_stereo_collapses_to_mono() {
     let stereo: Vec<[f32; 2]> = mono.iter().map(|&s| [s, s]).collect();
     let dm = analyze_mono(&mono, SR);
     let ds = analyze(&stereo, SR);
-    assert!((dm.peak_dbfs - ds.peak_dbfs).abs() < 1e-3, "{dm:?} vs {ds:?}");
+    assert!(
+        (dm.peak_dbfs - ds.peak_dbfs).abs() < 1e-3,
+        "{dm:?} vs {ds:?}"
+    );
 }
 
 #[test]
 fn descriptors_are_deterministic() {
     let sig = multitone(&[(1_000.0, 0.3), (5_000.0, 0.2)]);
     assert_eq!(analyze_mono(&sig, SR), analyze_mono(&sig, SR));
+}
+
+#[test]
+fn brilliance_heavy_signal_reads_as_harsh() {
+    // Body note at 1 kHz plus a loud 11 kHz "ice-pick" in the brilliance band,
+    // with no comparable 3-8 kHz presence, so harsh must beat fizz.
+    let d = analyze_mono(&multitone(&[(1_000.0, 0.2), (11_000.0, 0.6)]), SR);
+    assert_eq!(
+        d.symptom(),
+        Symptom::Harsh,
+        "brilliance-heavy is harsh: {d:?}"
+    );
+}
+
+#[test]
+fn low_end_heavy_signal_reads_as_boomy() {
+    // Body note at 1 kHz plus a dominant 60 Hz rumble in the boom band, kept
+    // below the rail so it reads as boom, not clipping.
+    let d = analyze_mono(&multitone(&[(1_000.0, 0.1), (60.0, 0.5)]), SR);
+    assert_eq!(d.symptom(), Symptom::Boomy, "low-end-heavy is boomy: {d:?}");
+}
+
+#[test]
+fn clean_1khz_sine_has_no_harsh_or_boom() {
+    let d = analyze_mono(&sine(1_000.0, 0.5), SR);
+    assert!(
+        d.harsh_ratio < HARSH_RATIO_LIMIT,
+        "clean tone not harsh: {d:?}"
+    );
+    assert!(
+        d.boom_ratio < BOOM_RATIO_LIMIT,
+        "clean tone not boomy: {d:?}"
+    );
 }

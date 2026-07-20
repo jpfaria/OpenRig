@@ -7,10 +7,14 @@
 //!
 //! The descriptors answer "is this tone healthy?" without a reference:
 //!
-//! - **fizz / harsh** — too much energy in the presence band (~3–8 kHz)
-//!   relative to the note body (~200 Hz–2 kHz).
+//! - **fizz** — too much energy in the presence band (~3–8 kHz) relative to the
+//!   note body (~200 Hz–2 kHz).
+//! - **harsh** — too much energy in the brilliance band (~8–16 kHz, ice-pick
+//!   highs) relative to the note body.
 //! - **mud / boxy** — too much energy in the low-mid band (~160–500 Hz)
 //!   relative to the whole signal.
+//! - **boomy** — too much energy in the low end (~40–120 Hz) relative to the
+//!   whole signal.
 //! - **clipping** — samples pinned at the ±1.0 rail.
 //!
 //! Band energy is measured with a Welch-averaged power spectrum (Hann window,
@@ -35,6 +39,12 @@ const BODY_HI_HZ: f32 = 2_000.0;
 /// Low-mid / "mud" band edges (Hz).
 const MUD_LO_HZ: f32 = 160.0;
 const MUD_HI_HZ: f32 = 500.0;
+/// Brilliance / "harsh" band edges (Hz) — ice-pick highs above the fizz band.
+const HARSH_LO_HZ: f32 = 8_000.0;
+const HARSH_HI_HZ: f32 = 16_000.0;
+/// Low-end / "boomy" band edges (Hz) — rumble/boom below the mud band.
+const BOOM_LO_HZ: f32 = 40.0;
+const BOOM_HI_HZ: f32 = 120.0;
 
 /// A reference-free description of a rendered buffer's tonal health.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -52,6 +62,10 @@ pub struct ToneDescriptors {
     pub fizz_ratio: f32,
     /// Low-mid power divided by total power (linear). Higher = muddier.
     pub mud_ratio: f32,
+    /// Brilliance-band power divided by body-band power (linear). Higher = harsher.
+    pub harsh_ratio: f32,
+    /// Low-end power divided by total power (linear). Higher = boomier.
+    pub boom_ratio: f32,
 }
 
 /// The dominant tonal problem in a buffer, if any.
@@ -60,6 +74,8 @@ pub enum Symptom {
     Ok,
     Fizz,
     Mud,
+    Harsh,
+    Boomy,
     Clipping,
 }
 
@@ -77,6 +93,8 @@ pub enum Symptom {
 pub const FIZZ_RATIO_LIMIT: f32 = 0.05;
 pub const MUD_RATIO_LIMIT: f32 = 0.55;
 pub const CLIP_FRACTION_LIMIT: f32 = 0.001;
+pub const HARSH_RATIO_LIMIT: f32 = 0.02;
+pub const BOOM_RATIO_LIMIT: f32 = 0.30;
 
 impl ToneDescriptors {
     /// Classify the dominant symptom. Clipping wins over spectral tilt because
@@ -86,17 +104,22 @@ impl ToneDescriptors {
         if self.clip_fraction > CLIP_FRACTION_LIMIT {
             return Symptom::Clipping;
         }
-        let fizz_excess = self.fizz_ratio - FIZZ_RATIO_LIMIT;
-        let mud_excess = self.mud_ratio - MUD_RATIO_LIMIT;
-        if fizz_excess <= 0.0 && mud_excess <= 0.0 {
-            return Symptom::Ok;
-        }
-        // Normalise each excess by its limit so the two bands compare fairly.
-        if fizz_excess / FIZZ_RATIO_LIMIT >= mud_excess / MUD_RATIO_LIMIT {
-            Symptom::Fizz
-        } else {
-            Symptom::Mud
-        }
+        // Each spectral symptom scored by how far its ratio sits above its limit,
+        // normalised by the limit so bands with different scales compare fairly.
+        // The largest positive excess wins; none positive → healthy.
+        let candidates = [
+            (Symptom::Fizz, self.fizz_ratio, FIZZ_RATIO_LIMIT),
+            (Symptom::Mud, self.mud_ratio, MUD_RATIO_LIMIT),
+            (Symptom::Harsh, self.harsh_ratio, HARSH_RATIO_LIMIT),
+            (Symptom::Boomy, self.boom_ratio, BOOM_RATIO_LIMIT),
+        ];
+        candidates
+            .into_iter()
+            .map(|(sym, value, limit)| (sym, (value - limit) / limit))
+            .filter(|&(_, excess)| excess > 0.0)
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(sym, _)| sym)
+            .unwrap_or(Symptom::Ok)
     }
 }
 
@@ -116,6 +139,8 @@ pub fn analyze_mono(samples: &[f32], sample_rate: f32) -> ToneDescriptors {
             clip_fraction: 0.0,
             fizz_ratio: 0.0,
             mud_ratio: 0.0,
+            harsh_ratio: 0.0,
+            boom_ratio: 0.0,
         };
     }
 
@@ -138,6 +163,8 @@ pub fn analyze_mono(samples: &[f32], sample_rate: f32) -> ToneDescriptors {
     let fizz = band_power(&power, sample_rate, FIZZ_LO_HZ, FIZZ_HI_HZ);
     let body = band_power(&power, sample_rate, BODY_LO_HZ, BODY_HI_HZ);
     let mud = band_power(&power, sample_rate, MUD_LO_HZ, MUD_HI_HZ);
+    let harsh = band_power(&power, sample_rate, HARSH_LO_HZ, HARSH_HI_HZ);
+    let boom = band_power(&power, sample_rate, BOOM_LO_HZ, BOOM_HI_HZ);
     let total: f32 = power.iter().sum();
 
     let peak_dbfs = lin_to_dbfs(peak);
@@ -150,6 +177,8 @@ pub fn analyze_mono(samples: &[f32], sample_rate: f32) -> ToneDescriptors {
         clip_fraction: clipped as f32 / samples.len() as f32,
         fizz_ratio: safe_ratio(fizz, body),
         mud_ratio: safe_ratio(mud, total),
+        harsh_ratio: safe_ratio(harsh, body),
+        boom_ratio: safe_ratio(boom, total),
     }
 }
 

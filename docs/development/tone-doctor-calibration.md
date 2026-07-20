@@ -1,8 +1,25 @@
 # Tone Doctor — genre calibration (#809)
 
-The Tone Doctor (#791) classifies `mud` / `fizz` / `clip` against limits. Those
-limits are genre-dependent: a grunge tone is *meant* to be buzzy (high presence
-energy), a blues tone is dark. A single fixed threshold misfires across styles.
+The Tone Doctor (#791) classifies tonal symptoms against limits. Those limits are
+genre-dependent: a grunge tone is *meant* to be buzzy (high presence energy), a
+blues tone is dark. A single fixed threshold misfires across styles.
+
+## Symptoms measured
+
+Every symptom is a reference-free ratio the analyzer reads off a Welch power
+spectrum (or the raw samples, for clip):
+
+| Symptom | Ratio | Meaning |
+|---|---|---|
+| `mud` | low-mid (160–500 Hz) / total | boxy / muddy |
+| `fizz` | presence (3–8 kHz) / body | buzzy / fizzy |
+| `harsh` | brilliance (8–16 kHz) / body | ice-pick highs |
+| `boom` | low-end (40–120 Hz) / total | rumble / boom |
+| `clip` | fraction of rail-pinned samples | clipping |
+
+All five are calibrated identically (each is an "excess above the limit"
+metric). Dynamics (crest) and low-end *deficit* (thinness) are measured or
+future — they need a below-limit direction the excess model doesn't cover yet.
 
 This tool derives **measured, per-genre limits** from real isolated-guitar
 reference stems instead of guessing them.
@@ -51,12 +68,16 @@ grunge:
   mud: 0.537
   fizz: 0.473        # buzzy by nature — a fixed 0.05 limit would false-flag it
   clip: 0.0
+  harsh: 0.00002
+  boom: 0.117
   n: 7
   confidence: trusted
 metal:
   mud: 0.554
   fizz: 0.343
   clip: 0.0
+  harsh: 0.00002
+  boom: 0.100
   n: 2
   confidence: provisional   # too few stems — treat as a best guess
 ```

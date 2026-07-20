@@ -41,6 +41,8 @@ fn symptom_keywords(symptom: Symptom) -> &'static [&'static str] {
     match symptom {
         Symptom::Fizz => &["presence", "treble", "tone", "bright", "high", "fuzz", "drive", "gain"],
         Symptom::Mud => &["bass", "low", "body", "middle", "mid"],
+        Symptom::Harsh => &["presence", "treble", "high", "tone", "bright", "air"],
+        Symptom::Boomy => &["bass", "low", "body", "sub"],
         Symptom::Clipping => &["output", "level", "master", "volume", "makeup", "gain"],
         Symptom::Ok => &[],
     }

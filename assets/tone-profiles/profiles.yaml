@@ -2,65 +2,87 @@ alternative-rock:
   mud: 0.275176
   fizz: 0.34563446
   clip: 0.0
+  harsh: 0.000013950539
+  boom: 0.05597835
   n: 4
   confidence: provisional
 blues:
   mud: 0.7367217
   fizz: 0.016181048
   clip: 0.0
+  harsh: 0.0000100701145
+  boom: 0.046957083
   n: 8
   confidence: trusted
 brazilian-rock:
   mud: 0.60412765
   fizz: 0.15584338
   clip: 0.0
+  harsh: 0.0010611638
+  boom: 0.07721129
   n: 5
   confidence: provisional
 classic-rock:
   mud: 0.56040454
   fizz: 0.23017247
   clip: 0.0
+  harsh: 0.000106430016
+  boom: 0.043573923
   n: 4
   confidence: provisional
 clean:
   mud: 0.717441
   fizz: 0.205052
   clip: 0.0
+  harsh: 0.0003587286
+  boom: 0.054340333
   n: 8
   confidence: trusted
 grunge:
   mud: 0.5373455
   fizz: 0.47330508
   clip: 0.0
+  harsh: 0.000019169935
+  boom: 0.11666717
   n: 7
   confidence: trusted
 hard-rock:
   mud: 0.4685593
   fizz: 0.09450982
   clip: 0.0
+  harsh: 0.00011911274
+  boom: 0.016551811
   n: 2
   confidence: provisional
 jazz:
   mud: 0.117869236
   fizz: 0.050525364
   clip: 0.0
+  harsh: 0.0000058382825
+  boom: 0.00075697066
   n: 1
   confidence: provisional
 metal:
   mud: 0.553513
   fizz: 0.3432836
   clip: 0.0
+  harsh: 0.000017388957
+  boom: 0.10027512
   n: 2
   confidence: provisional
 pop-rock:
   mud: 0.4164946
   fizz: 0.03385331
   clip: 0.0
+  harsh: 0.0000012909157
+  boom: 0.005729341
   n: 1
   confidence: provisional
 punk:
   mud: 0.512023
   fizz: 0.20604321
   clip: 0.0
+  harsh: 0.0000053954245
+  boom: 0.09207831
   n: 6
   confidence: trusted

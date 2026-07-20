@@ -37,13 +37,15 @@ fn write_song(root: &Path, song: &str, components: &[(f32, f32)]) {
     }
 }
 
-fn corpus_root() -> PathBuf {
-    Path::new(env!("CARGO_TARGET_TMPDIR")).join("corpus_calibration")
+/// A unique on-disk root per test, so parallel tests never wipe each other's
+/// tree (each test owns its subdir under `CARGO_TARGET_TMPDIR`).
+fn corpus_root(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_TARGET_TMPDIR")).join(name)
 }
 
 #[test]
 fn calibrates_one_profile_per_genre_from_disk() {
-    let root = corpus_root();
+    let root = corpus_root("corpus_two_genres");
     let _ = std::fs::remove_dir_all(&root);
 
     // Two "bright" songs and one "dark" song — distinct spectra so the two
@@ -61,7 +63,11 @@ fn calibrates_one_profile_per_genre_from_disk() {
     let profiles = calibrate_corpus(&root, &manifest, 0.9).unwrap();
 
     let genres: Vec<&str> = profiles.iter().map(|p| p.genre.as_str()).collect();
-    assert_eq!(genres, vec!["bright", "dark"], "one profile per genre: {profiles:?}");
+    assert_eq!(
+        genres,
+        vec!["bright", "dark"],
+        "one profile per genre: {profiles:?}"
+    );
 
     let bright = profiles.iter().find(|p| p.genre == "bright").unwrap();
     let dark = profiles.iter().find(|p| p.genre == "dark").unwrap();
@@ -79,7 +85,7 @@ fn calibrates_one_profile_per_genre_from_disk() {
 
 #[test]
 fn missing_stems_are_skipped_not_fatal() {
-    let root = corpus_root().join("partial");
+    let root = corpus_root("corpus_partial");
     let _ = std::fs::remove_dir_all(&root);
     // Only the lead stem exists; rhythm is absent.
     write_stem(
@@ -87,10 +93,13 @@ fn missing_stems_are_skipped_not_fatal() {
         &[(1_000.0, 0.3)],
     );
 
-    let manifest: Manifest =
-        BTreeMap::from([("solo-song".to_string(), "test".to_string())]);
+    let manifest: Manifest = BTreeMap::from([("solo-song".to_string(), "test".to_string())]);
 
     let profiles = calibrate_corpus(&root, &manifest, 0.9).unwrap();
     assert_eq!(profiles.len(), 1);
-    assert_eq!(profiles[0].n, 1, "only the present stem counts: {:?}", profiles[0]);
+    assert_eq!(
+        profiles[0].n, 1,
+        "only the present stem counts: {:?}",
+        profiles[0]
+    );
 }

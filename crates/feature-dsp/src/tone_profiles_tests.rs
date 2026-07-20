@@ -15,6 +15,17 @@ fn desc(mud: f32, fizz: f32, clip: f32) -> ToneDescriptors {
         clip_fraction: clip,
         fizz_ratio: fizz,
         mud_ratio: mud,
+        harsh_ratio: 0.0,
+        boom_ratio: 0.0,
+    }
+}
+
+/// Like [`desc`] but with the brilliance/low-end ratios set too.
+fn desc_full(mud: f32, fizz: f32, clip: f32, harsh: f32, boom: f32) -> ToneDescriptors {
+    ToneDescriptors {
+        harsh_ratio: harsh,
+        boom_ratio: boom,
+        ..desc(mud, fizz, clip)
     }
 }
 
@@ -88,6 +99,22 @@ fn single_sample_returns_that_value_and_is_provisional() {
     assert!((p.clip_limit - 0.002).abs() < 1e-6, "{p:?}");
     assert_eq!(p.confidence, Confidence::Provisional);
     assert_eq!(p.n, 1);
+}
+
+#[test]
+fn harsh_and_boom_limits_are_calibrated_too() {
+    let samples = repeat("prog", desc_full(0.4, 0.1, 0.0, 0.08, 0.25), 3);
+    let profiles = calibrate(&samples, DEFAULT_PERCENTILE);
+    assert_eq!(profiles.len(), 1);
+    let p = &profiles[0];
+    assert!(
+        (p.harsh_limit - 0.08).abs() < 1e-6,
+        "harsh limit calibrated: {p:?}"
+    );
+    assert!(
+        (p.boom_limit - 0.25).abs() < 1e-6,
+        "boom limit calibrated: {p:?}"
+    );
 }
 
 #[test]
