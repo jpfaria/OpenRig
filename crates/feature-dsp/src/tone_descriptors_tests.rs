@@ -153,6 +153,31 @@ fn low_end_heavy_signal_reads_as_boomy() {
 }
 
 #[test]
+fn symptom_with_limits_reclassifies_under_a_stricter_genre() {
+    // A mild-presence signal: fizz just under the default 0.05 → healthy by the
+    // global bar, but a dark genre (blues-like) sets a tighter fizz limit, so
+    // the same tone must read as Fizz for that genre.
+    let d = analyze_mono(&multitone(&[(1_000.0, 0.3), (5_000.0, 0.06)]), SR);
+    assert_eq!(d.symptom(), Symptom::Ok, "healthy by default bar: {d:?}");
+
+    let strict = SymptomLimits {
+        fizz: 0.001,
+        ..SymptomLimits::DEFAULT
+    };
+    assert_eq!(
+        d.symptom_with_limits(&strict),
+        Symptom::Fizz,
+        "the tighter genre limit must flag it: {d:?}"
+    );
+}
+
+#[test]
+fn symptom_with_limits_default_matches_symptom() {
+    let d = analyze_mono(&multitone(&[(1_000.0, 0.2), (5_000.0, 0.5)]), SR);
+    assert_eq!(d.symptom(), d.symptom_with_limits(&SymptomLimits::DEFAULT));
+}
+
+#[test]
 fn clean_1khz_sine_has_no_harsh_or_boom() {
     let d = analyze_mono(&sine(1_000.0, 0.5), SR);
     assert!(

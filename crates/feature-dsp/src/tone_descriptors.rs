@@ -96,22 +96,56 @@ pub const CLIP_FRACTION_LIMIT: f32 = 0.001;
 pub const HARSH_RATIO_LIMIT: f32 = 0.02;
 pub const BOOM_RATIO_LIMIT: f32 = 0.30;
 
+/// The per-symptom cut-offs a classification runs against. Defaults to the
+/// global constants; a genre-calibrated profile (#809) supplies its own so the
+/// same tone is judged by its style's standards, not one fixed bar.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SymptomLimits {
+    pub mud: f32,
+    pub fizz: f32,
+    pub harsh: f32,
+    pub boom: f32,
+    pub clip: f32,
+}
+
+impl SymptomLimits {
+    /// The provisional global defaults — used when no genre is selected.
+    pub const DEFAULT: SymptomLimits = SymptomLimits {
+        mud: MUD_RATIO_LIMIT,
+        fizz: FIZZ_RATIO_LIMIT,
+        harsh: HARSH_RATIO_LIMIT,
+        boom: BOOM_RATIO_LIMIT,
+        clip: CLIP_FRACTION_LIMIT,
+    };
+}
+
+impl Default for SymptomLimits {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl ToneDescriptors {
     /// Classify the dominant symptom. Clipping wins over spectral tilt because
     /// it is the most audible failure; otherwise the band with the largest
     /// relative excess is reported.
     pub fn symptom(&self) -> Symptom {
-        if self.clip_fraction > CLIP_FRACTION_LIMIT {
+        self.symptom_with_limits(&SymptomLimits::DEFAULT)
+    }
+
+    /// Classify against explicit limits (e.g. a genre-calibrated profile).
+    pub fn symptom_with_limits(&self, limits: &SymptomLimits) -> Symptom {
+        if self.clip_fraction > limits.clip {
             return Symptom::Clipping;
         }
         // Each spectral symptom scored by how far its ratio sits above its limit,
         // normalised by the limit so bands with different scales compare fairly.
         // The largest positive excess wins; none positive → healthy.
         let candidates = [
-            (Symptom::Fizz, self.fizz_ratio, FIZZ_RATIO_LIMIT),
-            (Symptom::Mud, self.mud_ratio, MUD_RATIO_LIMIT),
-            (Symptom::Harsh, self.harsh_ratio, HARSH_RATIO_LIMIT),
-            (Symptom::Boomy, self.boom_ratio, BOOM_RATIO_LIMIT),
+            (Symptom::Fizz, self.fizz_ratio, limits.fizz),
+            (Symptom::Mud, self.mud_ratio, limits.mud),
+            (Symptom::Harsh, self.harsh_ratio, limits.harsh),
+            (Symptom::Boomy, self.boom_ratio, limits.boom),
         ];
         candidates
             .into_iter()
