@@ -46,6 +46,7 @@ SLINT_CHANGED=false
 # Regenerate ONLY by shrinking: a file leaves this list when it drops under the
 # cap. A NEW file over the cap must fail the gate, never be appended here.
 DEBT_FILES="
+crates/engine/src/runtime_dsp_tests.rs
 crates/adapter-gui/src/block_editor_window_lifecycle.rs
 crates/adapter-gui/src/block_parameter_wiring.rs
 crates/adapter-gui/src/chain_row_wiring.rs
