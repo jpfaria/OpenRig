@@ -24,7 +24,6 @@ use feature_dsp::tone_descriptors::{
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 
-use crate::offline::render_chain;
 
 /// Tail (in frames) appended to each render so time-based blocks flush.
 const DIAGNOSE_TAIL_FRAMES: usize = 4_096;
@@ -82,25 +81,32 @@ fn enabled_processing_blocks(chain: &Chain) -> Vec<usize> {
         .collect()
 }
 
-/// Render `chain` over `input` and return its descriptors.
-pub(crate) fn render_and_analyze(
-    chain: &Chain,
-    sample_rate: f32,
-    input: &[[f32; 2]],
-    block_size: usize,
-) -> Result<ToneDescriptors> {
-    let outcome = render_chain(chain, sample_rate, input, block_size, DIAGNOSE_TAIL_FRAMES)?;
-    Ok(analyze(&outcome.samples, sample_rate))
-}
-
 /// Diagnose a chain against a slice of the player's own DI.
+///
+/// Builds the chain's processors ONCE and re-renders each ablation variant with
+/// an enabled-mask, so the NAM is loaded a single time instead of once per pass
+/// (#791 perf — the ablation only toggles which blocks run, never their params).
 pub fn diagnose(
     chain: &Chain,
     sample_rate: f32,
     input: &[[f32; 2]],
     block_size: usize,
 ) -> Result<Diagnosis> {
-    let full_descriptors = render_and_analyze(chain, sample_rate, input, block_size)?;
+    let mut nodes = crate::offline::build_offline_nodes(chain, sample_rate)?;
+    let render = |nodes: &mut Vec<_>, mask: &[bool]| {
+        let out = crate::offline::render_nodes_masked(
+            nodes,
+            input,
+            block_size,
+            DIAGNOSE_TAIL_FRAMES,
+            mask,
+        );
+        analyze(&out, sample_rate)
+    };
+
+    // The chain as-is (respecting the user's enabled flags).
+    let full_mask: Vec<bool> = chain.blocks.iter().map(|b| b.enabled).collect();
+    let full_descriptors = render(&mut nodes, &full_mask);
     let full_symptom = full_descriptors.symptom();
 
     // A healthy chain has nothing to blame — skip the expensive ablation.
@@ -119,18 +125,17 @@ pub fn diagnose(
 
     let stages = enabled_processing_blocks(chain);
 
-    // Growth curve: render with the enabled processing blocks turned on one at
-    // a time, in order. Stage `p` keeps the first `p+1` of them on and forces
-    // the rest off, so the offending descriptor is measured as each block joins.
+    // Growth curve: turn the enabled processing blocks on one at a time, in
+    // order. Stage `p` keeps the first `p+1` on and forces the rest off.
     let mut curve = Vec::with_capacity(stages.len());
     for (p, &block_index) in stages.iter().enumerate() {
-        let mut variant = chain.clone();
+        let mut mask = full_mask.clone();
         for (later_pos, &later_index) in stages.iter().enumerate() {
             if later_pos > p {
-                variant.blocks[later_index].enabled = false;
+                mask[later_index] = false;
             }
         }
-        let descriptors = render_and_analyze(&variant, sample_rate, input, block_size)?;
+        let descriptors = render(&mut nodes, &mask);
         curve.push(GrowthStage {
             block_index,
             label: chain.blocks[block_index].kind.model_identity(),
@@ -147,14 +152,11 @@ pub fn diagnose(
     });
     let culprit = culprit_stage.map(|p| stages[p]);
 
-    // Bypass confirmation: re-render the full chain with just the culprit off.
-    // If the symptom clears, the blame is causal; otherwise it is a cross-block
-    // interaction and the caller reports it as unresolved.
+    // Bypass confirmation: re-render with just the culprit off.
     let bypass_resolved = if let Some(culprit_index) = culprit {
-        let mut variant = chain.clone();
-        variant.blocks[culprit_index].enabled = false;
-        let after = render_and_analyze(&variant, sample_rate, input, block_size)?;
-        after.symptom() != full_symptom
+        let mut mask = full_mask.clone();
+        mask[culprit_index] = false;
+        render(&mut nodes, &mask).symptom() != full_symptom
     } else {
         false
     };

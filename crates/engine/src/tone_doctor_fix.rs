@@ -18,17 +18,21 @@ use project::block::schema_for_block_model;
 use project::chain::Chain;
 use project::param::{ModelParameterSchema, ParameterDomain};
 
-use crate::tone_doctor::{render_and_analyze, symptom_metric, Diagnosis};
+use crate::tone_doctor::{symptom_metric, Diagnosis};
 use crate::tone_doctor_suggestion::{rationale, Suggestion};
+
+/// Tail frames appended to each render (matches the diagnosis path).
+const DIAGNOSE_TAIL_FRAMES: usize = 4_096;
 
 /// Reduction fractions to try, gentlest first, of the way from the current
 /// value toward the parameter's minimum. The first one that reaches health is
-/// suggested — the smallest change that fixes the tone.
-const SWEEP_FRACTIONS: [f32; 6] = [0.15, 0.30, 0.45, 0.60, 0.80, 1.0];
+/// suggested — the smallest change that fixes the tone. Kept coarse (3 steps)
+/// because each render rebuilds every block and reloads the NAM from disk, so
+/// the whole diagnosis has to stay within a handful of passes.
+const SWEEP_FRACTIONS: [f32; 4] = [0.25, 0.5, 0.75, 1.0];
 
-/// Cap on re-renders so a pathological chain can't run away (each render
-/// rebuilds every block; NAM reloads from disk).
-const MAX_RENDERS: usize = 16;
+/// Cap on re-renders so a heavy NAM chain can't run for minutes.
+const MAX_RENDERS: usize = 8;
 
 /// Keywords, most-relevant first, whose param path OR label marks a knob as a
 /// candidate for correcting a symptom. Fuzzy so it matches `eq.treble` /
@@ -124,6 +128,9 @@ pub fn measure_fix(
     let cands = candidates(&schema, model.params, symptom);
 
     let mut renders = 0usize;
+    // Reuse the built processors across trials: only the culprit block (whose
+    // one param we sweep) rebuilds; an unrelated NAM keeps its loaded model.
+    let mut base = None;
     for cand in &cands {
         for &frac in &SWEEP_FRACTIONS {
             if renders >= MAX_RENDERS {
@@ -141,7 +148,16 @@ pub fn measure_fix(
             }
             set_parameter_number(block, &cand.path, value as f64)?;
 
-            let desc = render_and_analyze(&variant, sample_rate, input, block_size)?;
+            let (samples, nodes) = crate::offline::render_reusing(
+                &variant,
+                sample_rate,
+                input,
+                block_size,
+                DIAGNOSE_TAIL_FRAMES,
+                base.take(),
+            )?;
+            base = Some(nodes);
+            let desc = feature_dsp::tone_descriptors::analyze(&samples, sample_rate);
             renders += 1;
             let healthy = symptom_metric(symptom, &desc)
                 .map(|(v, _)| v < limit)
