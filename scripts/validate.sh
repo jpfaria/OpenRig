@@ -58,7 +58,6 @@ crates/adapter-gui/src/meter_wiring_tests.rs
 crates/adapter-gui/src/meter_wiring.rs
 crates/adapter-gui/src/project_admin_persistence_tests.rs
 crates/adapter-gui/src/project_ops_persistence_tests.rs
-crates/adapter-gui/src/project_ops.rs
 crates/adapter-gui/src/project_view.rs
 crates/application/src/command.rs
 crates/application/src/local_dispatcher_tests.rs
