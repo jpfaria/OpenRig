@@ -83,7 +83,6 @@ crates/infra-cpal/tests/issue_670_cab_swap.rs
 crates/infra-filesystem/src/lib_tests.rs
 crates/infra-yaml/src/lib_tests.rs
 crates/lv2/src/host.rs
-crates/plugin-loader/src/dispatch.rs
 crates/plugin-loader/src/manifest_tests.rs
 crates/project/src/block_tests.rs
 crates/project/src/block/dispatch.rs
