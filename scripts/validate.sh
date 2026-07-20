@@ -85,10 +85,8 @@ crates/infra-cpal/src/tests_regression.rs
 crates/infra-cpal/src/tests.rs
 crates/infra-cpal/tests/issue_670_cab_swap.rs
 crates/infra-filesystem/src/lib_tests.rs
-crates/infra-yaml/src/block_yaml.rs
 crates/infra-yaml/src/lib_tests.rs
 crates/lv2/src/host.rs
-crates/nam/src/processor.rs
 crates/plugin-loader/src/dispatch.rs
 crates/plugin-loader/src/manifest_tests.rs
 crates/project/src/block_tests.rs
