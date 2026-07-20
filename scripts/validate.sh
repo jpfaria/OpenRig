@@ -68,7 +68,6 @@ crates/engine/src/audio_alloc_invariant_tests.rs
 crates/engine/src/audio_signal_integrity_tests.rs
 crates/engine/src/rig_runtime_tests.rs
 crates/engine/src/runtime_tests.rs
-crates/engine/src/runtime.rs
 crates/engine/src/stream_isolation_tests.rs
 crates/engine/src/volume_invariants_tests.rs
 crates/engine/tests/issue_670_beat_it_real_rig.rs

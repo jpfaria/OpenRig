@@ -34,6 +34,7 @@ pub mod runtime_io;
 pub mod runtime_layout;
 pub mod runtime_load;
 pub mod runtime_probe;
+mod runtime_process_segment;
 pub mod runtime_segments;
 pub mod runtime_state;
 mod runtime_processor_model;
