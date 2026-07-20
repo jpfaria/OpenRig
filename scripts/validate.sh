@@ -87,7 +87,6 @@ crates/plugin-loader/src/dispatch.rs
 crates/plugin-loader/src/manifest_tests.rs
 crates/project/src/block_tests.rs
 crates/project/src/block/dispatch.rs
-crates/project/src/catalog.rs
 crates/project/src/rig_tests.rs
 crates/adapter-gui/ui/app-window.slint
 crates/adapter-gui/ui/desktop_main.slint
