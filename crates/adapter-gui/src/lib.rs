@@ -143,6 +143,7 @@ mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod meter_wiring;
+mod meter_wiring_poll;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;

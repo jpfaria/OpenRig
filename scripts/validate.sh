@@ -55,7 +55,6 @@ crates/adapter-gui/src/desktop_app.rs
 crates/adapter-gui/src/i18n_tests.rs
 crates/adapter-gui/src/lib_tests.rs
 crates/adapter-gui/src/meter_wiring_tests.rs
-crates/adapter-gui/src/meter_wiring.rs
 crates/adapter-gui/src/project_admin_persistence_tests.rs
 crates/adapter-gui/src/project_ops_persistence_tests.rs
 crates/adapter-gui/src/project_view.rs
