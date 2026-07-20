@@ -467,6 +467,7 @@ fn two_device_inputs_each_wire_their_own_runtime() {
 // a missing binding is a silent guitar.
 /// Fixture: a chain with two `InputBlock`s on the SAME physical device
 /// (channels 0 and 1), both feeding one stereo `OutputBlock`.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn same_device_chain() -> project::chain::Chain {
     use domain::ids::ChainId;
     use project::chain::Chain;
@@ -488,6 +489,7 @@ fn same_device_chain() -> project::chain::Chain {
 /// Registry mirroring `same_device_chain`: two mono inputs on one device
 /// (channels 0 and 1) — two RAW endpoints, NOT one split-mono endpoint, so the
 /// engine yields two isolated per-entry runtimes — + one stereo output.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn same_device_registry() -> Vec<domain::io_binding::IoBinding> {
     use domain::ids::DeviceId;
     use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
