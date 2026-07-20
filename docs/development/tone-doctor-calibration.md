@@ -86,6 +86,47 @@ A genre with fewer than `MIN_CONFIDENT_SAMPLES` (6) contributing stems is marked
 `provisional` so small-sample fragility stays visible rather than hidden. Fine
 genre labels mean several genres will be thin until the corpus grows.
 
+## Derived numbers (current corpus)
+
+Calibration over 28 songs (each `lead` + `rhythm` isolated stem), p90:
+
+| Genre | mud | fizz | harsh | boom | n | confidence |
+|---|---:|---:|---:|---:|---:|---|
+| blues | 0.737 | **0.016** | ~0 | 0.047 | 8 | trusted |
+| clean | 0.717 | 0.205 | ~0 | — | 8 | trusted |
+| grunge | 0.537 | **0.473** | ~0 | 0.117 | 7 | trusted |
+| punk | 0.512 | 0.206 | ~0 | — | 6 | trusted |
+| metal | 0.554 | 0.343 | ~0 | 0.100 | 2 | provisional |
+| classic-rock | 0.560 | 0.230 | — | — | 4 | provisional |
+| alternative-rock | 0.275 | 0.346 | — | — | 4 | provisional |
+| hard-rock | 0.469 | 0.095 | — | — | 2 | provisional |
+| brazilian-rock | 0.604 | 0.156 | — | — | 5 | provisional |
+| jazz | 0.118 | 0.051 | — | — | 1 | provisional |
+| pop-rock | 0.416 | 0.034 | — | — | 1 | provisional |
+
+### Why this proves the premise
+
+Look at `fizz`: **grunge 0.473** vs **blues 0.016** — a 30× spread. The old fixed
+`FIZZ_RATIO_LIMIT = 0.05` would flag *every* grunge tone as fizzy (0.47 ≫ 0.05)
+while treating blues as already at the edge. Per-genre limits judge each style by
+its own standard: grunge is only "too fizzy" past *its* 0.47, not a universal
+0.05. That is the difference between measuring physics and respecting musical
+intent.
+
+### Honest caveats
+
+- **Small N.** Genres with 1–2 songs (jazz, metal, pop-rock) come out
+  `provisional` — the number exists but is not trustworthy until the corpus
+  grows. The flag keeps that in the open.
+- **`harsh` ≈ 0 everywhere.** The reference stems carry little 8–16 kHz content
+  (dark / band-limited masters), so the brilliance limit lands near zero. It will
+  fill out with brighter stems.
+- **Genre labels are subjective.** Silverchair's "Shade" is acoustic, not grunge;
+  each such call is the owner's by ear — the manifest is a seed, not law.
+- **Missing axes.** Dynamics (compression / squash) and thinness (low-end
+  *deficit*) need a below-limit direction the current excess model does not
+  cover — deferred.
+
 ## Constants (single source of truth)
 
 `crates/feature-dsp/src/tone_profiles.rs`:
