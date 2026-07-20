@@ -8,6 +8,8 @@ Pedalboard/rig virtual para guitarra em Rust + Slint. Cross-platform: macOS, Win
 
 **O agente trabalha SOMENTE em `.solvers/issue-N/`** — um clone isolado da branch. Edita ali, commita ali, dá push dali. A entrega termina no push; o usuário puxa a branch na pasta dele por conta própria.
 
+**A única primitiva de isolamento é `git clone` — `git worktree` é PROIBIDO, sempre, mesmo mirando `.solvers/`.** Um worktree compartilha o `.git` do repo principal: registra em `.git/worktrees` e cria a branch no repo principal, então o `git checkout <branch>` do usuário na pasta dele ABORTA com `'<branch>' is already used by worktree at …`. Um clone de verdade tem `.git` como DIRETÓRIO próprio (não um arquivo `.git` apontando de volta) — confira `.solvers/issue-N/.git` ser um dir antes de trabalhar. O guard `main-folder-guard.sh` agora BLOQUEIA `git worktree` (issue #804); mesmo assim: clone, nunca worktree.
+
 **Why:** o usuário roda vários agents em paralelo, cada um na sua branch, e usa a pasta principal pra rodar/testar o app. Um agent mexendo lá sobrescreve trabalho não-commitado do usuário e de outros agents, corrompe o estado de git da pasta e quebra a confiança — já aconteceu repetidas vezes. Regra escrita não basta: depende do agent lembrar.
 
 **How to apply:** se a tua sessão não está enraizada em `.solvers/issue-N/`, você está no lugar errado — clone a branch pra lá e trabalhe lá. Guard determinístico: o hook `main-folder-guard.sh` (PreToolUse) BLOQUEIA `Edit`/`Write`/`git` de qualquer sessão cuja raiz não esteja sob `.solvers/`. O bloqueio não depende do agent obedecer — a harness força.
