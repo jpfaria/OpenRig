@@ -1,0 +1,39 @@
+# Tone Doctor genre calibration manifest (#809).
+#
+# Maps each reference-stem song folder (~/.openrig/evaluations/<song>/refs/) to a
+# genre. The genre is NOT on disk — the calibration tool
+# (`openrig-tone-calibrate`) reads this map to group stems and derive per-genre
+# `mud` / `fizz` / `clip` limits from the healthy distribution.
+#
+# SEED ONLY: labels below are the agent's first pass from song identity; the
+# owner refines them by ear. Fine genre means several genres have very few
+# stems — the generated table flags those as `provisional`.
+
+another-brick-in-the-wall-pt-2: classic-rock
+barao-vermelho-beth-balanco: brazilian-rock
+basket-case-green-day: punk
+beat-it-michael-jackson: hard-rock
+charlie-brown-jr-lugar-ao-sol: brazilian-rock
+chris-isaak-wicked-game: clean
+coldplay-clocks: clean
+cpm-22-um-minuto-para-o-fim-do-mundo: punk
+foo-fighters-everlong: alternative-rock
+gravity-john-mayer: blues
+green-day-basket-case: punk
+green-day-when-i-come-around: punk
+john-mayer-gravity: blues
+john-mayer-heartbreak-warfare: blues
+john-mayer-slow-dancing-in-a-burning-room: blues
+john-mayer-xo: clean
+lynyrd-skynyrd-simple-man: classic-rock
+metallica-enter-sandman: metal
+nirvana-smells-like-teen-spirit: grunge
+pitty-na-sua-estante: brazilian-rock
+radiohead-creep: alternative-rock
+segredos-torcuato-mariano: jazz
+silverchair-freak: grunge
+silverchair-israels-son: grunge
+silverchair-pure-massacre: grunge
+silverchair-shade: clean
+where-the-streets-have-no-name-u2: clean
+your-love-the-outfield: pop-rock

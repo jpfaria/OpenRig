@@ -6570,6 +6570,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f17aaa1c6e3dc22b1da4b6bba97d066e354c7945cac2f7852d4e4e7ca7a6b56d"
 
 [[package]]
+name = "tone-calibrate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "feature-dsp",
+ "hound",
+ "serde",
+ "serde_yaml",
+]
+
+[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
