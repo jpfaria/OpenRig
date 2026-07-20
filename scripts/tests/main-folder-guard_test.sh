@@ -44,6 +44,13 @@ allow "harmless ls from main cwd"     "{\"tool_name\":\"Bash\",\"tool_input\":{\
 allow "Bash references sibling -plugins" "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"ls $TMP/OpenRig-plugins/plugins/source\"}}" "$MAIN"
 allow "Edit into sibling -plugins"    "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$TMP/OpenRig-plugins/x.yaml\"}}" "$MAIN"
 deny  "cd into main then mutate"      "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $MAIN && rm x\"}}"             "$MAIN"
+# worktree is FORBIDDEN everywhere: it shares the parent .git and locks the branch,
+# so the user's `git checkout <branch>` in the main folder aborts. Isolation is
+# clone-only. The .solvers/ target must NOT buy it an exemption (issue #804).
+deny  "worktree add targeting .solvers"  "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$VC worktree add -b bugfix/x $MAIN/.solvers/issue-3 origin/develop\"}}" "$MAIN"
+deny  "worktree add from .solvers cwd"    "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$VC worktree add ../issue-9 develop\"}}"                              "$MAIN/.solvers/issue-1"
+# The word "worktree" inside a commit message is NOT a worktree command.
+allow "commit msg mentioning worktree"    "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$VC commit -m 'drop worktree note'\"}}"                                "$MAIN/.solvers/issue-1"
 
 echo ""
 if [ "$FAILURES" -gt 0 ]; then echo "$FAILURES failure(s)" >&2; exit 1; fi
