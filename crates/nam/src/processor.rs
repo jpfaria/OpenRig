@@ -1,11 +1,7 @@
 use crate::GENERIC_NAM_MODEL_ID;
 use anyhow::{bail, Result};
-use block_core::param::{
-    bool_parameter, file_path_parameter, float_parameter, optional_string, required_string,
-    ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
-};
-use block_core::{ModelAudioMode, MonoProcessor};
-use domain::value_objects::ParameterValue;
+use block_core::param::{optional_string, required_string, ParameterSet};
+use block_core::MonoProcessor;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int, c_void};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -37,132 +33,10 @@ pub fn supports_model(model: &str) -> bool {
     model == GENERIC_NAM_MODEL_ID
 }
 
-pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
-    let mut parameters = Vec::new();
-
-    if include_file_params {
-        parameters.push(file_path_parameter(
-            "model_path",
-            "Model",
-            None,
-            &["nam"],
-            false,
-        ));
-        parameters.push(file_path_parameter(
-            "ir_path",
-            "Impulse Response",
-            Some(ParameterValue::Null),
-            &["wav"],
-            true,
-        ));
-    }
-
-    parameters.extend(plugin_parameter_specs());
-
-    ModelParameterSchema {
-        effect_type: "nam".to_string(),
-        model: GENERIC_NAM_MODEL_ID.to_string(),
-        display_name: "Neural Amp Modeler".to_string(),
-        audio_mode: ModelAudioMode::DualMono,
-        parameters,
-    }
-}
-
-pub fn plugin_parameter_specs() -> Vec<ParameterSpec> {
-    plugin_parameter_specs_with_defaults(DEFAULT_PLUGIN_PARAMS)
-}
-
-/// User-facing `slim` knob for A2 SlimmableContainer models (issue #657):
-/// a 0..100 % size, where 100 % is the full model and lower values pick a
-/// smaller submodel via `SetSlimmableSize` (trading fidelity for CPU).
-///
-/// Exposed ONLY for NAM/A2 packages — A1 models are not slimmable, so the
-/// knob would be inert. The caller (`synthesize_parameters_from_manifest`)
-/// appends it based on the manifest's declared architecture.
-pub fn slim_parameter_spec() -> ParameterSpec {
-    float_parameter(
-        "slim",
-        "Slim",
-        None,
-        Some(SLIM_PERCENT_FULL),
-        0.0,
-        SLIM_PERCENT_FULL,
-        1.0,
-        ParameterUnit::Percent,
-    )
-}
-
-pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<ParameterSpec> {
-    vec![
-        float_parameter(
-            "input_db",
-            "Input",
-            None,
-            Some(defaults.input_level_db),
-            -24.0,
-            24.0,
-            0.1,
-            ParameterUnit::Decibels,
-        ),
-        float_parameter(
-            "output_db",
-            "Output",
-            None,
-            Some(defaults.output_level_db),
-            -24.0,
-            24.0,
-            0.1,
-            ParameterUnit::Decibels,
-        ),
-        bool_parameter(
-            "noise_gate.enabled",
-            "Noise Gate",
-            Some("Noise Gate"),
-            Some(defaults.noise_gate_enabled),
-        ),
-        float_parameter(
-            "noise_gate.threshold_db",
-            "Threshold",
-            Some("Noise Gate"),
-            Some(defaults.noise_gate_threshold_db),
-            -96.0,
-            0.0,
-            0.1,
-            ParameterUnit::Decibels,
-        ),
-        bool_parameter("eq.enabled", "EQ", Some("EQ"), Some(defaults.eq_enabled)),
-        float_parameter(
-            "eq.bass",
-            "Bass",
-            Some("EQ"),
-            Some(defaults.bass),
-            0.0,
-            10.0,
-            0.1,
-            ParameterUnit::None,
-        ),
-        float_parameter(
-            "eq.middle",
-            "Middle",
-            Some("EQ"),
-            Some(defaults.middle),
-            0.0,
-            10.0,
-            0.1,
-            ParameterUnit::None,
-        ),
-        float_parameter(
-            "eq.treble",
-            "Treble",
-            Some("EQ"),
-            Some(defaults.treble),
-            0.0,
-            10.0,
-            0.1,
-            ParameterUnit::None,
-        ),
-    ]
-}
+pub use crate::params::{
+    model_schema, plugin_parameter_specs, plugin_parameter_specs_with_defaults,
+    slim_parameter_spec, AMP_GROUP, EQ_GROUP, NOISE_GATE_GROUP,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct NamPluginParams {
