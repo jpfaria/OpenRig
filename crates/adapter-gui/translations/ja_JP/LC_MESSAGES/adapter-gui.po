@@ -754,3 +754,34 @@ msgstr "DIストリーム"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint
 msgid "di-output-select-label"
 msgstr "DI出力"
+
+
+msgid "tone-doctor-button-label"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-title"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-diagnose"
+msgstr "診断"
+
+msgid "tone-doctor-rerun"
+msgstr "再診断"
+
+msgid "tone-doctor-diagnosing"
+msgstr "診断中…"
+
+msgid "tone-doctor-suggestion"
+msgstr "推奨する修正"
+
+msgid "tone-doctor-apply"
+msgstr "適用"
+
+msgid "tone-doctor-no-di"
+msgstr "先に DI ソースを選択してください"
+
+msgid "tone-doctor-analyze"
+msgstr "分析"
+
+msgid "tone-doctor-no-signal"
+msgstr "DI を再生するかチェーンを有効化"

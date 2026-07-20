@@ -750,3 +750,34 @@ msgstr "DI स्ट्रीम"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint
 msgid "di-output-select-label"
 msgstr "DI आउटपुट"
+
+
+msgid "tone-doctor-button-label"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-title"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-diagnose"
+msgstr "निदान करें"
+
+msgid "tone-doctor-rerun"
+msgstr "फिर से निदान करें"
+
+msgid "tone-doctor-diagnosing"
+msgstr "निदान हो रहा है…"
+
+msgid "tone-doctor-suggestion"
+msgstr "सुझाया गया सुधार"
+
+msgid "tone-doctor-apply"
+msgstr "लागू करें"
+
+msgid "tone-doctor-no-di"
+msgstr "पहले एक DI स्रोत चुनें"
+
+msgid "tone-doctor-analyze"
+msgstr "विश्लेषण"
+
+msgid "tone-doctor-no-signal"
+msgstr "एक DI चलाएं या चेन सक्षम करें"

@@ -775,3 +775,34 @@ msgstr "Stream do DI"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint
 msgid "di-output-select-label"
 msgstr "Saída do DI"
+
+
+msgid "tone-doctor-button-label"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-title"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-diagnose"
+msgstr "Diagnosticar"
+
+msgid "tone-doctor-rerun"
+msgstr "Diagnosticar de novo"
+
+msgid "tone-doctor-diagnosing"
+msgstr "Diagnosticando…"
+
+msgid "tone-doctor-suggestion"
+msgstr "Correção sugerida"
+
+msgid "tone-doctor-apply"
+msgstr "Aplicar"
+
+msgid "tone-doctor-no-di"
+msgstr "Selecione uma fonte de DI primeiro"
+
+msgid "tone-doctor-analyze"
+msgstr "Analisar"
+
+msgid "tone-doctor-no-signal"
+msgstr "Toque um DI ou ative a chain"

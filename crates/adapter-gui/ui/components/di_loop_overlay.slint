@@ -1,0 +1,46 @@
+// #749 — the DI loop panel as a root overlay, extracted out of app-window
+// (which had grown past its line cap). The fone in a chain row flips
+// `DiPanel.open` and seeds its data + position; this renders the panel at the
+// window root with a click-outside backdrop. Callbacks bubble to the host so
+// the dispatch path is unchanged.
+
+import { DiPanel } from "di_panel_globals.slint";
+import { DiLoopPanel } from "di_loop_panel.slint";
+
+export component DiLoopOverlay inherits Rectangle {
+    callback source-selected(int, string);
+    callback choose-file(int);
+    callback play(int);
+    callback stop(int);
+    callback output-selected(int, int);
+
+    x: 0; y: 0;
+    visible: DiPanel.open;
+    TouchArea { clicked => { DiPanel.open = false; } }
+    if DiPanel.open : DiLoopPanel {
+        x: DiPanel.x;
+        y: DiPanel.y;
+        sources: DiPanel.sources;
+        selected-index: DiPanel.selected-index;
+        playing: DiPanel.playing;
+        outputs: DiPanel.outputs;
+        output-selected-index: DiPanel.output-selected-index;
+        source-picked(i, s) => {
+            DiPanel.selected-index = i;
+            root.source-selected(DiPanel.chain-index, s);
+        }
+        choose-file => { root.choose-file(DiPanel.chain-index); }
+        play => {
+            DiPanel.playing = true;
+            root.play(DiPanel.chain-index);
+        }
+        stop => {
+            DiPanel.playing = false;
+            root.stop(DiPanel.chain-index);
+        }
+        output-picked(i, s) => {
+            DiPanel.output-selected-index = i;
+            root.output-selected(DiPanel.chain-index, i);
+        }
+    }
+}
