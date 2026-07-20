@@ -12,1010 +12,769 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: crates/adapter-gui/ui/blocks/header.slint:13
-msgctxt "Header"
 msgid "OpenRig"
 msgstr "OpenRig"
 
 #: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:274
-msgctxt "BlockPanelParameterItem"
 msgid "btn-load-file"
 msgstr "Load"
 
 #: crates/adapter-gui/ui/components/block_stream_mini_display.slint:23
-msgctxt "BlockStreamMiniDisplay"
 msgid "–"
 msgstr "–"
 
 #: crates/adapter-gui/ui/components/block_value_widgets.slint:128
-msgctxt "BlockValueStepper"
 msgid "−"
 msgstr "−"
 
 #: crates/adapter-gui/ui/components/block_value_widgets.slint:194
-msgctxt "BlockValueStepper"
 msgid "+"
 msgstr "+"
 
-#: crates/adapter-gui/ui/components/chain_di_loop_button.slint:56
-msgctxt "ChainDiLoopButton"
-msgid "di-loop-button-label"
-msgstr "Boucle DI"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:87
+msgid "Preset selector"
+msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:77
-msgctxt "SceneBtn"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:170
 msgid "Scene {}"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:99
-msgctxt "SceneBar"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:192
 msgid "Add scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:108
-msgctxt "SceneBar"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:201
 msgid "Remove last scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:183
-msgctxt "ChainTitlePreset"
-msgid "tooltip-open-preset"
-msgstr "Ouvrir le preset"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:193
-msgctxt "ChainTitlePreset"
-msgid "tooltip-save-preset"
-msgstr "Enregistrer le preset"
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:203
-msgctxt "ChainTitlePreset"
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:258
 msgid "Add preset"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:213
-msgctxt "ChainTitlePreset"
-msgid "Rename preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:224
-msgctxt "ChainTitlePreset"
-msgid "Remove preset"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:316
-msgctxt "ChainTitlePreset"
-msgid "Cancel"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:337
-msgctxt "ChainTitlePreset"
-msgid "OK"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/chain_tone_doctor_button.slint:57
-msgctxt "ChainToneDoctorButton"
-msgid "tone-doctor-button-label"
-msgstr "Tone Doctor"
-
 #: crates/adapter-gui/ui/components/chain_volume_button.slint:37
-msgctxt "ChainVolumeButton"
 msgid "Volume"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:72
-msgctxt "CompactModelSelectOverlay"
-msgid "placeholder-search-models"
-msgstr "Rechercher des modèles..."
-
-#: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:105
-msgctxt "CompactModelSelectOverlay"
-msgid "status-no-models-found"
-msgstr "Aucun modèle trouvé"
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:29
-msgctxt "ConfirmDeleteChainDialog"
-msgid "title-dialog-delete-chain"
-msgstr "Supprimer la chaîne"
-
-#. text directly.
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:39
-msgctxt "ConfirmDeleteChainDialog"
-msgid "Excluir a chain \"{}\"?"
-msgstr "Supprimer la chaîne « {} » ?"
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:58
-msgctxt "ConfirmDeleteChainDialog"
-msgid "btn-cancel"
-msgstr "Annuler"
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:75
-msgctxt "ConfirmDeleteChainDialog"
-msgid "btn-delete"
-msgstr "Supprimer"
-
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "title-dialog-delete-block"
 msgstr "Supprimer le bloc"
 
 #. pt-BR source string with the placeholder.
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:36
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "Excluir \"{}\"?"
 msgstr "Supprimer \"{}\" ?"
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:55
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "btn-cancel"
 msgstr "Annuler"
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:72
-msgctxt "ConfirmDeleteBlockDialog"
 msgid "btn-delete"
 msgstr "Supprimer"
 
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:30
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "title-dialog-delete-recent-project"
-msgstr "Retirer des récents"
-
-#. Literal pt-BR source string with `{}` placeholder.
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:38
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "Remover o projeto \"{}\" dos recentes?"
-msgstr "Retirer le projet \"{}\" des récents ?"
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:57
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "btn-cancel"
-msgstr "Annuler"
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:74
-msgctxt "ConfirmDeleteRecentProjectDialog"
-msgid "btn-remove"
-msgstr "Retirer"
-
-#: crates/adapter-gui/ui/components/di_loop_panel.slint:159
-msgctxt "DiLoopPanel"
-msgid "di-output-select-label"
-msgstr "Sortie du DI"
-
 #: crates/adapter-gui/ui/components/language_selector.slint:56
-msgctxt "LanguageSelector"
 msgid "accessible-language-selector"
 msgstr "Sélecteur de langue"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:110
-msgctxt "ModelSelectWithSearch"
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:93
 msgid "▼"
 msgstr "▼"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:196
-msgctxt "ModelSelectWithSearch"
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:175
 msgid "placeholder-search-models"
 msgstr "Rechercher des modèles..."
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:230
-msgctxt "ModelSelectWithSearch"
-msgid "status-no-models-found"
-msgstr "Aucun modèle trouvé"
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:34
-msgctxt "PresetPickerOverlay"
-msgid "btn-load-preset"
-msgstr "Charger Preset"
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
-msgctxt "PresetPickerOverlay"
-msgid "preset-search-placeholder"
-msgstr "Rechercher des presets…"
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:106
-msgctxt "PresetPickerOverlay"
-msgid "btn-cancel"
-msgstr "Annuler"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
-msgctxt "PresetSaveOverlay"
-msgid "title-dialog-save-preset"
-msgstr "Enregistrer le preset"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:63
-msgctxt "PresetSaveOverlay"
-msgid "btn-cancel"
-msgstr "Annuler"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
-msgctxt "PresetSaveOverlay"
-msgid "btn-save"
-msgstr "Enregistrer"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
-msgctxt "PresetOverwriteOverlay"
-msgid "title-dialog-overwrite-preset"
-msgstr "Écraser le preset ?"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
-msgctxt "PresetOverwriteOverlay"
-msgid "msg-overwrite-preset"
-msgstr "Un preset nommé \"{}\" existe déjà. L'écraser ?"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:145
-msgctxt "PresetOverwriteOverlay"
-msgid "btn-cancel"
-msgstr "Annuler"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
-msgctxt "PresetOverwriteOverlay"
-msgid "btn-overwrite"
-msgstr "Écraser"
-
-#: crates/adapter-gui/ui/components/preset_select.slint:72
-msgctxt "PresetSelect"
-msgid "Preset selector"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/preset_select.slint:137
-msgctxt "PresetSelect"
-msgid "preset-search-placeholder"
-msgstr "Rechercher des presets…"
-
 #: crates/adapter-gui/ui/components/preset_select.slint:170
-msgctxt "PresetSelect"
 msgid "status-no-presets-found"
 msgstr "Aucun preset trouvé"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:49
-msgctxt "ToneDoctorPanel"
-msgid "tone-doctor-title"
-msgstr "Tone Doctor"
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:209
+msgid "status-no-models-found"
+msgstr "Aucun modèle trouvé"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:75
-msgctxt "ToneDoctorPanel"
-msgid "tone-doctor-diagnosing"
-msgstr "Diagnostic…"
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:32
+msgid "btn-load-preset"
+msgstr "Charger Preset"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:76
-msgctxt "ToneDoctorPanel"
-msgid "tone-doctor-rerun"
-msgstr "Diagnostiquer à nouveau"
-
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:77
-msgctxt "ToneDoctorPanel"
-msgid "tone-doctor-diagnose"
-msgstr "Diagnostiquer"
-
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:154
-msgctxt "ToneDoctorPanel"
-msgid "tone-doctor-suggestion"
-msgstr "Correction suggérée"
-
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:184
-msgctxt "ToneDoctorPanel"
-msgid "tone-doctor-apply"
-msgstr "Appliquer"
-
-#: crates/adapter-gui/ui/pages/block_editor_panel.slint:121
-msgctxt "BlockEditorPanel"
+#: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
 msgid "tooltip-delete"
 msgstr "Supprimer"
 
-#: crates/adapter-gui/ui/pages/block_editor_panel.slint:242
-msgctxt "BlockEditorPanel"
-msgid "–"
-msgstr "–"
-
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:41
-msgctxt "BlockPanelEditor"
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:36
 msgid "btn-add"
 msgstr "Ajouter"
 
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:343
-msgctxt "BlockPanelEditor"
-msgid "–"
-msgstr "–"
-
-#: crates/adapter-gui/ui/pages/chain_editor.slint:70
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:195
 msgid "instrument-guitar"
 msgstr "Guitare"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:71
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:196
 msgid "instrument-acoustic-guitar"
 msgstr "Guitare acoustique"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:72
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:197
 msgid "instrument-bass"
 msgstr "Basse"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:73
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:198
 msgid "instrument-voice"
 msgstr "Voix"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:74
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:199
 msgid "instrument-keyboard"
 msgstr "Clavier"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:75
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:200
 msgid "instrument-drums"
 msgstr "Batterie"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:76
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:201
 msgid "instrument-other"
 msgstr "Autre"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:92
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:221
 msgid "title-new-chain"
 msgstr "Nouvelle chaîne"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:92
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:221
 msgid "title-configure-chain"
 msgstr "Configurer la chaîne"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:111
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:240
 msgid "label-name"
 msgstr "Nom"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:138
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:267
 msgid "label-instrument"
 msgstr "Instrument"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:218
-msgctxt "ChainEditorPage"
-msgid "label-chain-io-bindings"
-msgstr "Liaisons d'E/S"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:345
+msgid "title-section-inputs"
+msgstr "Entrées"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:228
-msgctxt "ChainEditorPage"
-msgid "empty-no-bindings-for-chain"
-msgstr "Aucune liaison d'E/S — créez-les dans Réglages → Liaisons d'E/S"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:371
+msgid "btn-add-input"
+msgstr "+ Ajouter une entrée"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:314
-msgctxt "ChainEditorPage"
-msgid "btn-cancel"
-msgstr "Annuler"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:390
+msgid "title-section-outputs"
+msgstr "Sorties"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:321
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:416
+msgid "btn-add-output"
+msgstr "+ Ajouter une sortie"
+
+#: crates/adapter-gui/ui/pages/chain_editor.slint:450
 msgid "btn-create-chain"
 msgstr "Créer la chaîne"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:321
-msgctxt "ChainEditorPage"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:450
 msgid "btn-save-chain"
 msgstr "Enregistrer la chaîne"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:65
-msgctxt "ChannelRow"
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
 msgid "✓"
 msgstr "✓"
 
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:140
+msgid "label-device"
+msgstr "Appareil"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:170
+msgid "label-mode"
+msgstr "Mode"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:229
+msgid "label-channels"
+msgstr "Canaux"
+
+#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:275
+msgid "btn-ok"
+msgstr "OK"
+
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:99
-msgctxt "ChainInsertEditorPage"
 msgid "title-section-configure-insert"
 msgstr "Configurer Insert"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:214
-msgctxt "ChainInsertEditorPage"
 msgid "label-send"
 msgstr "Envoi"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:225
-msgctxt "ChainInsertEditorPage"
-msgid "label-device"
-msgstr "Appareil"
-
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:247
-msgctxt "ChainInsertEditorPage"
-msgid "label-mode"
-msgstr "Mode"
-
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:299
-msgctxt "ChainInsertEditorPage"
-msgid "label-channels"
-msgstr "Canaux"
-
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:344
-msgctxt "ChainInsertEditorPage"
 msgid "label-return"
 msgstr "Retour"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:469
-msgctxt "ChainInsertEditorPage"
-msgid "btn-cancel"
-msgstr "Annuler"
-
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:476
-msgctxt "ChainInsertEditorPage"
-msgid "btn-ok"
-msgstr "OK"
-
-#: crates/adapter-gui/ui/pages/chain_row.slint:240
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:140
 msgid "tooltip-expand-blocks"
 msgstr "Développer les blocs"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:248
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:148
 msgid "tooltip-measure-latency"
 msgstr "Mesurer la latence (émet un bip)"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:277
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:177
 msgid "tooltip-configure"
 msgstr "Configurer"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:285
-msgctxt "ChainRow"
-msgid "tooltip-delete"
-msgstr "Supprimer"
+#: crates/adapter-gui/ui/pages/chain_row.slint:185
+msgid "tooltip-open-preset"
+msgstr "Ouvrir le preset"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:561
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:193
+msgid "tooltip-save-preset"
+msgstr "Enregistrer le preset"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:472
 msgid "label-lat"
 msgstr "LAT"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:610
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:521
 msgid "label-input"
 msgstr "Entrée"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:656
-msgctxt "ChainRow"
+#: crates/adapter-gui/ui/pages/chain_row.slint:567
 msgid "label-output"
 msgstr "Sortie"
 
-#: crates/adapter-gui/ui/pages/compact_block_param_strip.slint:204
-msgctxt "CompactBlockParamStrip"
-msgid "▼"
-msgstr "▼"
+#: crates/adapter-gui/ui/pages/compact_block_row.slint:493
+msgid "btn-open-plugin"
+msgstr "Ouvrir Plugin"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:109
-msgctxt "CompactChainViewHeader"
-msgid "tooltip-measure-latency"
-msgstr "Mesurer la latence (émet un bip)"
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:83
+msgid "label-in"
+msgstr "IN"
 
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:136
-msgctxt "CompactChainViewHeader"
-msgid "label-lat"
-msgstr "LAT"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:165
-msgctxt "CompactChainViewHeader"
-msgid "tooltip-configure"
-msgstr "Configurer"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view_header.slint:176
-msgctxt "CompactChainViewHeader"
-msgid "tooltip-delete"
-msgstr "Supprimer"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:181
-msgctxt "CompactChainViewPage"
-msgid "+"
-msgstr "+"
+#: crates/adapter-gui/ui/pages/compact_chain_view.slint:111
+msgid "label-out"
+msgstr "OUT"
 
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:87
-msgctxt "PluginInfoPanel"
 msgid "·"
 msgstr "·"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:125
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:123
 msgid "label-description"
 msgstr "Description"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:144
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:142
 msgid "label-license"
 msgstr "License:"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:171
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:169
 msgid "↗"
 msgstr "↗"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:177
-msgctxt "PluginInfoPanel"
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:175
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:144
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:136
 msgid "tooltip-back"
 msgstr "Retour"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:152
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:144
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:160
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:152
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:168
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:160
 msgid "tooltip-project-settings"
 msgstr "Projet"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:177
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:169
 msgid "tooltip-save"
 msgstr "Enregistrer"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:185
-msgctxt "ProjectChainsPage"
+#: crates/adapter-gui/ui/pages/project_chains.slint:177
 msgid "tooltip-new-chain"
 msgstr "Nouvelle chaîne"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:184
-msgctxt "SearchField"
+#: crates/adapter-gui/ui/pages/project_launcher.slint:185
 msgid "placeholder-search-projects"
 msgstr "Rechercher des projets"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:287
-msgctxt "ProjectLauncherPage"
+#: crates/adapter-gui/ui/pages/project_launcher.slint:288
 msgid "tooltip-open-project"
 msgstr "Ouvrir un projet"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:294
-msgctxt "ProjectLauncherPage"
+#: crates/adapter-gui/ui/pages/project_launcher.slint:295
 msgid "btn-new-project"
 msgstr "Nouveau projet"
 
+#: crates/adapter-gui/ui/pages/project_settings.slint:147
+msgid "label-hz"
+msgstr "Hz"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:170
+msgid "label-buffer"
+msgstr "Buffer"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:193
+msgid "label-bits"
+msgstr "Bits"
+
+#: crates/adapter-gui/ui/pages/project_settings.slint:271
+msgid "title-section-audio-devices"
+msgstr "Périphériques audio"
+
 #: crates/adapter-gui/ui/pages/project_setup.slint:55
-msgctxt "NameInput"
 msgid "placeholder-project-name-example"
 msgstr "Ex : Guitare en direct"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:151
-msgctxt "ProjectSetupPage"
 msgid "title-new-project"
 msgstr "Nouveau Projet"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:164
-msgctxt "ProjectSetupPage"
 msgid "label-project-name"
 msgstr "Nom du projet"
 
-#: crates/adapter-gui/ui/pages/project_setup.slint:204
-msgctxt "ProjectSetupPage"
-msgid "btn-cancel"
-msgstr "Annuler"
-
 #: crates/adapter-gui/ui/pages/project_setup.slint:211
-msgctxt "ProjectSetupPage"
 msgid "btn-create-project"
 msgstr "Créer le projet"
 
-#: crates/adapter-gui/ui/pages/settings.slint:190
-msgctxt "SettingsPage"
-msgid "nav-group-system"
-msgstr "SYSTÈME"
-
-#: crates/adapter-gui/ui/pages/settings.slint:201
-msgctxt "SettingsPage"
-msgid "title-section-audio-interface"
-msgstr "Interface audio"
-
-#: crates/adapter-gui/ui/pages/settings.slint:206
-msgctxt "SettingsPage"
-msgid "title-section-language"
-msgstr "Langue"
-
-#: crates/adapter-gui/ui/pages/settings.slint:211
-msgctxt "SettingsPage"
-msgid "title-section-midi-devices"
-msgstr "Périphériques MIDI"
-
-#: crates/adapter-gui/ui/pages/settings.slint:216
-msgctxt "SettingsPage"
-msgid "title-section-paths"
-msgstr "Chemins"
-
-#: crates/adapter-gui/ui/pages/settings.slint:221
-msgctxt "SettingsPage"
-msgid "title-section-integrations"
-msgstr "Intégrations"
-
-#: crates/adapter-gui/ui/pages/settings.slint:226
-msgctxt "SettingsPage"
-msgid "title-section-io-bindings"
-msgstr "Liaisons E/S"
-
-#: crates/adapter-gui/ui/pages/settings.slint:241
-msgctxt "SettingsPage"
-msgid "nav-group-project"
-msgstr "PROJET"
-
-#: crates/adapter-gui/ui/pages/settings.slint:252
-msgctxt "SettingsPage"
-msgid "title-section-project-meta"
-msgstr "Métadonnées"
-
-#: crates/adapter-gui/ui/pages/settings.slint:393
-msgctxt "SettingsPage"
-msgid "btn-save-audio-settings"
-msgstr "Appliquer"
-
-#: crates/adapter-gui/ui/pages/settings.slint:397
-msgctxt "SettingsPage"
-msgid "btn-close"
-msgstr "Fermer"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:95
-msgctxt "IoEndpointAddRow"
-msgid "label-endpoint-device"
-msgstr "Périphérique"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:115
-msgctxt "IoEndpointAddRow"
-msgid "label-endpoint-mode"
-msgstr "Mode"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:127
-msgctxt "IoEndpointAddRow"
-msgid "mode-mono"
-msgstr "Mono"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:127
-msgctxt "IoEndpointAddRow"
-msgid "mode-stereo"
-msgstr "Stéréo"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:127
-msgctxt "IoEndpointAddRow"
-msgid "mode-dual-mono"
-msgstr "Double mono"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:138
-msgctxt "IoEndpointAddRow"
-msgid "label-endpoint-channels"
-msgstr "Canaux"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:172
-msgctxt "IoEndpointAddRow"
-msgid "btn-add-endpoint"
-msgstr "Ajouter un point d'E/S"
-
-#: crates/adapter-gui/ui/pages/settings/io_endpoint_row.slint:43
-msgctxt "IoEndpointRow"
-msgid "label-channels-prefix"
-msgstr "Canaux"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
-msgctxt "SectionSystemIoBindings"
-msgid "help-io-bindings"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
-msgctxt "SectionSystemIoBindings"
-msgid "btn-new-binding"
-msgstr "Nouvelle liaison"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:259
-msgctxt "SectionSystemIoBindings"
-msgid "empty-no-bindings"
-msgstr "Aucune liaison pour l'instant"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
-msgctxt "SectionSystemIoBindings"
-msgid "empty-no-bindings-hint"
-msgstr "Créez-en une pour regrouper l'entrée et la sortie d'une interface."
-
-#. ── Entradas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
-msgctxt "SectionSystemIoBindings"
-msgid "label-group-inputs"
-msgstr "Entrées"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
-msgctxt "SectionSystemIoBindings"
-msgid "empty-no-input-endpoints"
-msgstr "Aucune entrée pour l'instant"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:372
-msgctxt "SectionSystemIoBindings"
-msgid "btn-add-input"
-msgstr "+ Ajouter une entrée"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:378
-msgctxt "SectionSystemIoBindings"
-msgid "label-endpoint-device"
-msgstr "Périphérique"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:379
-msgctxt "SectionSystemIoBindings"
-msgid "placeholder-pick-device"
-msgstr "Sélectionnez un périphérique"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:381
-msgctxt "SectionSystemIoBindings"
-msgid "label-endpoint-mode"
-msgstr "Mode"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:382
-msgctxt "SectionSystemIoBindings"
-msgid "mode-mono"
-msgstr "Mono"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:382
-msgctxt "SectionSystemIoBindings"
-msgid "mode-stereo"
-msgstr "Stéréo"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:382
-msgctxt "SectionSystemIoBindings"
-msgid "mode-dual-mono"
-msgstr "Double mono"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:383
-msgctxt "SectionSystemIoBindings"
-msgid "label-endpoint-channels"
-msgstr "Canaux"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:391
-msgctxt "SectionSystemIoBindings"
-msgid "btn-cancel"
-msgstr "Annuler"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:392
-msgctxt "SectionSystemIoBindings"
-msgid "btn-save"
-msgstr "Enregistrer"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:392
-msgctxt "SectionSystemIoBindings"
-msgid "btn-add"
-msgstr "Ajouter"
-
-#. ── Saídas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:411
-msgctxt "SectionSystemIoBindings"
-msgid "label-group-outputs"
-msgstr "Sorties"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:412
-msgctxt "SectionSystemIoBindings"
-msgid "empty-no-output-endpoints"
-msgstr "Aucune sortie pour l'instant"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:425
-msgctxt "SectionSystemIoBindings"
-msgid "btn-add-output"
-msgstr "+ Ajouter une sortie"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:27
-msgctxt "SectionProjectMeta"
-msgid "label-name"
-msgstr "Nom"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:58
-msgctxt "SectionProjectMeta"
-msgid "label-file"
-msgstr "Fichier"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:66
-msgctxt "SectionProjectMeta"
-msgid "placeholder-project-unsaved"
-msgstr "(non enregistré)"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:83
-msgctxt "SectionProjectMeta"
-msgid "btn-save-project"
-msgstr "Enregistrer le projet"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:95
-msgctxt "AudioDeviceRow"
-msgid "label-hz"
-msgstr "Hz"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:118
-msgctxt "AudioDeviceRow"
-msgid "label-buffer"
-msgstr "Buffer"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:141
-msgctxt "AudioDeviceRow"
-msgid "label-bits"
-msgstr "Bits"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:39
-msgctxt "SectionSystemIntegrations"
-msgid "label-midi-enabled"
-msgstr "Contrôle MIDI"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:45
-msgctxt "SectionSystemIntegrations"
-msgid "desc-midi-enabled"
-msgstr "Active l'adaptateur MIDI/BLE-MIDI pour piloter OpenRig au pied"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:93
-msgctxt "SectionSystemIntegrations"
-msgid "label-mcp-enabled"
-msgstr "Serveur MCP"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:99
-msgctxt "SectionSystemIntegrations"
-msgid "desc-mcp-enabled"
-msgstr "Expose le serveur MCP sur 127.0.0.1:4123 pour les agents"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:134
-msgctxt "SectionSystemIntegrations"
-msgid "hint-restart-to-apply"
-msgstr "Prend effet au prochain démarrage."
-
-#: crates/adapter-gui/ui/pages/settings/section_system_language.slint:25
-msgctxt "SectionSystemLanguage"
-msgid "label-language"
-msgstr "Langue"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:49
-msgctxt "SectionSystemPaths"
-msgid "label-presets-path"
-msgstr "Dossier des presets"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:57
-msgctxt "SectionSystemPaths"
-msgid "placeholder-default-path"
-msgstr "(par défaut)"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:66
-msgctxt "SectionSystemPaths"
-msgid "btn-choose-path"
-msgstr "Choisir…"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:70
-msgctxt "SectionSystemPaths"
-msgid "btn-reset-path"
-msgstr "Réinitialiser"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:81
-msgctxt "SectionSystemPaths"
-msgid "label-plugins-path"
-msgstr "Dossier des plugins"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:113
-msgctxt "SectionSystemPaths"
-msgid "label-evaluations-path"
-msgstr "Dossier des évaluations"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:145
-msgctxt "SectionSystemPaths"
-msgid "label-plugin-catalog"
-msgstr "Catalogue de plugins"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:153
-msgctxt "SectionSystemPaths"
-msgid "status-plugin-catalog-idle"
-msgstr "Pas encore rechargé"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:162
-msgctxt "SectionSystemPaths"
-msgid "btn-reload-plugin-catalog"
-msgstr "Recharger"
-
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:73
-msgctxt "SpectrumCard"
 msgid "—"
 msgstr "—"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:127
-msgctxt "SpectrumCard"
 msgid "20"
 msgstr "20"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:133
-msgctxt "SpectrumCard"
 msgid "100"
 msgstr "100"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:139
-msgctxt "SpectrumCard"
 msgid "1k"
 msgstr "1k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:145
-msgctxt "SpectrumCard"
 msgid "10k"
 msgstr "10k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:151
-msgctxt "SpectrumCard"
 msgid "20k"
 msgstr "20k"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:199
-msgctxt "SpectrumPanel"
 msgid "label-spectrum"
 msgstr "SPECTRUM"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:241
-msgctxt "SpectrumPanel"
 msgid "status-no-active-outputs"
 msgstr "NO ACTIVE OUTPUTS"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:251
-msgctxt "SpectrumPanel"
 msgid "status-spectrum-empty-help"
-msgstr ""
+msgstr "Activez le spectre et activez une chaîne avec une sortie configurée."
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:279
-msgctxt "SpectrumWindow"
 msgid "title-window-spectrum"
 msgstr "OpenRig · Spectrum"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:54
-msgctxt "MuteSwitch"
 msgid "label-mute"
 msgstr "MUTE"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:316
-msgctxt "TunerPanel"
 msgid "label-tuner"
 msgstr "TUNER"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:368
-msgctxt "TunerPanel"
 msgid "status-no-active-inputs"
 msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
-msgctxt "TunerPanel"
 msgid "status-tuner-empty-help"
-msgstr ""
+msgstr "Activez une chain avec une entrée configurée pour voir ses accordeurs ici."
+"Activez une chaîne avec une entrée configurée pour voir ses accordeurs "
+"ici.Activez une chaîne avec une entrée configurée pour voir les accordeurs "
+"ici."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:406
-msgctxt "TunerWindow"
 msgid "title-window-tuner"
 msgstr "OpenRig · Tuner"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:36
-msgctxt "BlockEditorWindow"
+#: crates/adapter-gui/ui/secondary_windows_block.slint:28
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:239
-msgctxt "CompactChainViewWindow"
+#: crates/adapter-gui/ui/secondary_windows_block.slint:195
 msgid "title-window-chain-view"
 msgstr "OpenRig · Chaîne"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:82
-msgctxt "ProjectSettingsWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:23
 msgid "title-window-project-settings"
 msgstr "OpenRig · Configurer le projet"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:171
-msgctxt "ChainEditorWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:96
 msgid "title-window-chain-editor"
 msgstr "OpenRig · Configurer la chaîne"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:226
-msgctxt "ChainInsertWindow"
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:129
+msgid "title-section-input"
+msgstr "Entrée"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:147
+msgid "title-section-output"
+msgstr "Sortie"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:177
+msgid "title-window-chain-input"
+msgstr "OpenRig · Entrée de la chaîne"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:217
+msgid "title-window-chain-output"
+msgstr "OpenRig · Sortie de la chaîne"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:258
+msgid "title-window-chain-inputs"
+msgstr "OpenRig · Entrées de la chaîne"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:269
+msgid "btn-add-input-row"
+msgstr "+ Ajouter une entrée"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:299
+msgid "title-window-chain-outputs"
+msgstr "OpenRig · Sorties de la chaîne"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:310
+msgid "btn-add-output-row"
+msgstr "+ Ajouter une sortie"
+
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:355
 msgid "title-window-chain-insert"
 msgstr "OpenRig · Configurer Insert"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:236
-msgctxt "ChainInsertWindow"
-msgid "title-section-configure-insert"
-msgstr "Configurer Insert"
-
-#: crates/adapter-gui/ui/touch_main.slint:623
-msgctxt "TouchMain"
+#: crates/adapter-gui/ui/touch_main.slint:586
 msgid "⌨"
 msgstr "⌨"
 
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:27
+msgid "title-dialog-delete-chain"
+msgstr "Supprimer la chaîne"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:37
+msgid "Excluir a chain \"{}\"?"
+msgstr "Supprimer la chaîne « {} » ?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:31
+msgid "title-dialog-delete-recent-project"
+msgstr "Retirer des récents"
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:41
+msgid "Remover o projeto \"{}\" dos recentes?"
+msgstr "Retirer le projet \"{}\" des récents ?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:75
+msgid "btn-remove"
+msgstr "Retirer"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "tab-system"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "tab-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-close"
+msgstr "Fermer"
+
+#: crates/adapter-gui/ui/components/settings_section.slint
+msgid "badge-system"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/settings_section.slint
+msgid "badge-project"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
+msgid "title-section-audio-interface"
+msgstr "Interface audio"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_language.slint
+msgid "title-section-language"
+msgstr "Langue"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
+msgid "title-section-midi-devices"
+msgstr "Périphériques MIDI"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgid "title-section-project-meta"
+msgstr "Métadonnées"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
+msgid "label-file"
+msgstr "Fichier"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "title-section-midi-mapping"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "btn-add-midi-binding"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "empty-midi-mapping-explain"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
+msgid "placeholder-midi-listen"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "nav-group-system"
+msgstr "SYSTÈME"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "nav-group-project"
+msgstr "PROJET"
+
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
+msgid "preset-search-placeholder"
+msgstr "Rechercher des presets…"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
+msgid "title-dialog-save-preset"
+msgstr "Enregistrer le preset"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
+msgid "btn-save"
+msgstr "Enregistrer"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
+msgid "title-dialog-overwrite-preset"
+msgstr "Écraser le preset ?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
+msgid "msg-overwrite-preset"
+msgstr "Un preset nommé \"{}\" existe déjà. L'écraser ?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
+msgid "btn-overwrite"
+msgstr "Écraser"
+
+msgid "btn-save-audio-settings"
+msgstr "Appliquer"
+
+msgid "title-section-integrations"
+msgstr "Intégrations"
+
+msgid "label-midi-enabled"
+msgstr "Contrôle MIDI"
+
+msgid "desc-midi-enabled"
+msgstr "Active l'adaptateur MIDI/BLE-MIDI pour piloter OpenRig au pied"
+
+msgid "label-mcp-enabled"
+msgstr "Serveur MCP"
+
+msgid "desc-mcp-enabled"
+msgstr "Expose le serveur MCP sur 127.0.0.1:4123 pour les agents"
+
+msgid "hint-restart-to-apply"
+msgstr "Prend effet au prochain démarrage."
+
 # I/O Bindings UI strings (added #716)
-#~ msgid "label-io-binding"
-#~ msgstr "Liaison E/S"
+
+msgid "label-io-binding"
+msgstr "Liaison E/S"
+
+msgid "label-input-endpoint"
+msgstr "Point d'entrée"
+
+msgid "label-output-endpoint"
+msgstr "Point de sortie"
+
+msgid "label-resolved-info"
+msgstr "Informations résolues"
+
+msgid "placeholder-select-endpoint"
+msgstr "Sélectionner un point de terminaison"
+
+msgid "title-section-io-bindings"
+msgstr "Liaisons E/S"
+
+msgid "label-binding-name"
+msgstr "Nom de la liaison"
+
+msgid "label-endpoint-input"
+msgstr "Point d'entrée"
+
+msgid "label-endpoint-output"
+msgstr "Point de sortie"
+
+msgid "mode-mono"
+msgstr "Mono"
+
+msgid "mode-stereo"
+msgstr "Stéréo"
+
+msgid "mode-dual-mono"
+msgstr "Double mono"
+
+msgid "placeholder-binding-name"
+msgstr "Nom de la liaison…"
+
+msgid "label-channels-prefix"
+msgstr "Canaux"
+
+msgid "label-endpoint-device"
+msgstr "Périphérique"
+
+msgid "label-endpoint-mode"
+msgstr "Mode"
+
+msgid "label-endpoint-channels"
+msgstr "Canaux"
+
+msgid "btn-add-endpoint"
+msgstr "Ajouter un point d'E/S"
+
+msgid "label-group-inputs"
+msgstr "Entrées"
+
+msgid "label-group-outputs"
+msgstr "Sorties"
+
+msgid "empty-no-input-endpoints"
+msgstr "Aucune entrée pour l'instant"
+
+msgid "empty-no-output-endpoints"
+msgstr "Aucune sortie pour l'instant"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "help-io-bindings"
+msgstr "Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise une liaison."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "btn-new-binding"
+msgstr "Nouvelle liaison"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings"
+msgstr "Aucune liaison pour l'instant"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "empty-no-bindings-hint"
+msgstr "Créez-en une pour regrouper l'entrée et la sortie d'une interface."
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
+msgid "placeholder-pick-device"
+msgstr "Sélectionnez un périphérique"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-choose-path"
+msgstr "Choisir…"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reload-plugin-catalog"
+msgstr "Recharger"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-reset-path"
+msgstr "Réinitialiser"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "btn-save-project"
+msgstr "Enregistrer le projet"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-button-label"
+msgstr "Boucle DI"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-play-label"
+msgstr "Lire la boucle DI"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "di-loop-stop-label"
+msgstr "Arrêter la boucle DI"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-evaluations-path"
+msgstr "Dossier des évaluations"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-language"
+msgstr "Langue"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugin-catalog"
+msgstr "Catalogue de plugins"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-plugins-path"
+msgstr "Dossier des plugins"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "label-presets-path"
+msgstr "Dossier des presets"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-default-path"
+msgstr "(par défaut)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "placeholder-project-unsaved"
+msgstr "(non enregistré)"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "status-plugin-catalog-idle"
+msgstr "Pas encore rechargé"
+
+#: crates/adapter-gui/ui/pages/settings.slint
+msgid "title-section-paths"
+msgstr "Chemins"
+
+
+msgid "label-chain-io-bindings"
+msgstr "Liaisons d'E/S"
+
+msgid "empty-no-bindings-for-chain"
+msgstr "Aucune liaison d'E/S — créez-les dans Réglages → Liaisons d'E/S"
+
+msgid "warn-select-binding"
+msgstr "Sélectionnez au moins une liaison d'E/S pour cette chaîne"
+
+#: crates/adapter-gui/ui/components/di_stream_graph.slint
+msgid "di-stream-graph-title"
+msgstr "Flux DI"
+
+#: crates/adapter-gui/ui/components/di_loop_panel.slint
+msgid "di-output-select-label"
+msgstr "Sortie du DI"
+
+
+msgid "tone-doctor-button-label"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-title"
+msgstr "Tone Doctor"
+
+msgid "tone-doctor-diagnose"
+msgstr "Diagnostiquer"
+
+msgid "tone-doctor-rerun"
+msgstr "Diagnostiquer à nouveau"
+
+msgid "tone-doctor-diagnosing"
+msgstr "Diagnostic…"
+
+msgid "tone-doctor-suggestion"
+msgstr "Correction suggérée"
+
+msgid "tone-doctor-apply"
+msgstr "Appliquer"
+
+msgid "tone-doctor-no-di"
+msgstr "Sélectionnez d'abord une source DI"

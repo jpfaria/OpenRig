@@ -61,6 +61,17 @@ slint-tr-extractor \
 if [ -f "$POT" ]; then
   sed -i.bak 's/^"POT-Creation-Date:.*/"POT-Creation-Date: 2026-01-01 00:00+0000\\n"/' "$POT"
   rm -f "$POT.bak"
+  # Keep the catalog FLAT (no per-component msgctxt). The GUI compiles with
+  # slint's DefaultTranslationContext::None, so @tr(...) looks up by BARE msgid
+  # at runtime. Newer slint-tr-extractor emits `msgctxt "<Component>"` per
+  # string, which would never match the None-context lookup → the UI shows the
+  # raw key (e.g. "TONE-DOCTOR-TITLE"). Strip it so every entry stays keyed by
+  # msgid alone. A label reused in two components then collapses to duplicate
+  # msgids (UI labels are context-independent here), so msguniq folds them —
+  # otherwise msgmerge below aborts with "duplicate message definition".
+  sed -i.bak '/^msgctxt /d' "$POT"
+  rm -f "$POT.bak"
+  msguniq --use-first -o "$POT.uniq" "$POT" && mv "$POT.uniq" "$POT"
 fi
 
 echo "→ updated $POT"
