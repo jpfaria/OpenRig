@@ -457,6 +457,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         crate::tone_doctor_compact_wiring::wire(
             &compact_win,
             project_session.clone(),
+            project_runtime.clone(),
             chain_index,
             window.as_weak(),
             toast_timer.clone(),

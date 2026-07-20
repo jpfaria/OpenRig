@@ -779,3 +779,9 @@ msgstr "適用"
 
 msgid "tone-doctor-no-di"
 msgstr "先に DI ソースを選択してください"
+
+msgid "tone-doctor-analyze"
+msgstr "分析"
+
+msgid "tone-doctor-no-signal"
+msgstr "DI を再生するかチェーンを有効化"

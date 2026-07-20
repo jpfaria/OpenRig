@@ -775,3 +775,9 @@ msgstr "应用"
 
 msgid "tone-doctor-no-di"
 msgstr "请先选择 DI 源"
+
+msgid "tone-doctor-analyze"
+msgstr "分析"
+
+msgid "tone-doctor-no-signal"
+msgstr "播放 DI 或启用链"

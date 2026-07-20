@@ -466,6 +466,9 @@ export component CompactChainViewWindow inherits Window {
             mud-limit: ToneDoctorState.mud-limit;
             clip-value: ToneDoctorState.clip-value;
             clip-limit: ToneDoctorState.clip-limit;
+            analyze-seconds: ToneDoctorState.analyze-seconds;
+            can-diagnose: ToneDoctorState.can-diagnose;
+            seconds-picked(s) => { ToneDoctorState.analyze-seconds = s; }
             run-diagnosis => { root.tone-doctor-run(ToneDoctorState.chain-index); }
             apply-suggestion => { root.tone-doctor-apply(ToneDoctorState.chain-index); }
         }

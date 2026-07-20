@@ -46,6 +46,10 @@ export component ChainToneDoctorButton inherits Rectangle {
             ToneDoctorState.culprit-label = "";
             ToneDoctorState.suggestion-text = "";
             ToneDoctorState.has-suggestion = false;
+            // Optimistic: the button is clickable; the run handler downgrades to
+            // false (showing "play a DI or enable the chain") if it finds no
+            // signal. Seconds persist across opens.
+            ToneDoctorState.can-diagnose = true;
             // Open below the icon, the panel's right edge near it.
             ToneDoctorState.x = root.absolute-position.x - 332px;
             ToneDoctorState.y = root.absolute-position.y + 32px;

@@ -30,6 +30,9 @@ export component ToneDoctorOverlay inherits Rectangle {
         mud-limit: ToneDoctorState.mud-limit;
         clip-value: ToneDoctorState.clip-value;
         clip-limit: ToneDoctorState.clip-limit;
+        analyze-seconds: ToneDoctorState.analyze-seconds;
+        can-diagnose: ToneDoctorState.can-diagnose;
+        seconds-picked(s) => { ToneDoctorState.analyze-seconds = s; }
         run-diagnosis => { root.run-diagnosis(ToneDoctorState.chain-index); }
         apply-suggestion => { root.apply-suggestion(ToneDoctorState.chain-index); }
     }

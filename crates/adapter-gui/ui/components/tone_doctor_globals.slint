@@ -25,6 +25,15 @@ export global ToneDoctorState {
     in-out property <string> suggestion-text;
     in-out property <bool> has-suggestion;
 
+    // How many seconds of signal to analyse (user-chosen). Longer = more
+    // representative, slower.
+    in-out property <int> analyze-seconds: 10;
+    // Whether diagnosing is possible right now: a DI is running OR the chain is
+    // active. Set by Rust when the panel opens.
+    in-out property <bool> can-diagnose;
+    // Where the signal comes from, for the panel hint: "di" | "live" | "".
+    in-out property <string> source-kind;
+
     // ── the three measurements + their healthy limits, for the meters ──────
     // The user sees the data behind the verdict instead of a bare word.
     in-out property <float> fizz-value;

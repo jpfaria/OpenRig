@@ -158,7 +158,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     } = ctx;
 
     // #791: Tone Doctor run/apply for the main chains page.
-    crate::tone_doctor_compact_wiring::wire_main(window, project_session.clone(), toast_timer.clone());
+    crate::tone_doctor_compact_wiring::wire_main(window, project_session.clone(), project_runtime.clone(), toast_timer.clone());
     // #511 on_remove_chain (trash): opens the delete overlay; dispatch below.
     {
         let weak_window = window.as_weak();

@@ -779,3 +779,9 @@ msgstr "Apply"
 
 msgid "tone-doctor-no-di"
 msgstr "Select a DI source first"
+
+msgid "tone-doctor-analyze"
+msgstr "Analyze"
+
+msgid "tone-doctor-no-signal"
+msgstr "Play a DI or enable the chain"

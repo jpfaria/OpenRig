@@ -781,3 +781,9 @@ msgstr "Anwenden"
 
 msgid "tone-doctor-no-di"
 msgstr "Zuerst eine DI-Quelle wählen"
+
+msgid "tone-doctor-analyze"
+msgstr "Analysieren"
+
+msgid "tone-doctor-no-signal"
+msgstr "DI abspielen oder Chain aktivieren"

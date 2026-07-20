@@ -754,3 +754,9 @@ msgstr ""
 
 msgid "tone-doctor-no-di"
 msgstr ""
+
+msgid "tone-doctor-analyze"
+msgstr ""
+
+msgid "tone-doctor-no-signal"
+msgstr ""

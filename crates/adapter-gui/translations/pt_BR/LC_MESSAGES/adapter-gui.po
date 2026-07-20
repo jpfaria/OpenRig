@@ -800,3 +800,9 @@ msgstr "Aplicar"
 
 msgid "tone-doctor-no-di"
 msgstr "Selecione uma fonte de DI primeiro"
+
+msgid "tone-doctor-analyze"
+msgstr "Analisar"
+
+msgid "tone-doctor-no-signal"
+msgstr "Toque um DI ou ative a chain"

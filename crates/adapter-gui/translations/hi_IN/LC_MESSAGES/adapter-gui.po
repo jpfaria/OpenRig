@@ -775,3 +775,9 @@ msgstr "लागू करें"
 
 msgid "tone-doctor-no-di"
 msgstr "पहले एक DI स्रोत चुनें"
+
+msgid "tone-doctor-analyze"
+msgstr "विश्लेषण"
+
+msgid "tone-doctor-no-signal"
+msgstr "एक DI चलाएं या चेन सक्षम करें"
