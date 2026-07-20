@@ -50,14 +50,12 @@ crates/adapter-gui/src/block_editor_window_lifecycle.rs
 crates/adapter-gui/src/block_parameter_wiring.rs
 crates/adapter-gui/src/chain_row_wiring.rs
 crates/adapter-gui/src/compact_chain_block_handlers.rs
-crates/adapter-gui/src/compact_chain_callbacks.rs
 crates/adapter-gui/src/desktop_app.rs
 crates/adapter-gui/src/i18n_tests.rs
 crates/adapter-gui/src/lib_tests.rs
 crates/adapter-gui/src/meter_wiring_tests.rs
 crates/adapter-gui/src/project_admin_persistence_tests.rs
 crates/adapter-gui/src/project_ops_persistence_tests.rs
-crates/adapter-gui/src/project_view.rs
 crates/application/src/command.rs
 crates/application/src/local_dispatcher_tests.rs
 crates/block-core/src/param_tests.rs
@@ -83,7 +81,6 @@ crates/infra-yaml/src/lib_tests.rs
 crates/lv2/src/host.rs
 crates/plugin-loader/src/manifest_tests.rs
 crates/project/src/block_tests.rs
-crates/project/src/block/dispatch.rs
 crates/project/src/rig_tests.rs
 crates/adapter-gui/ui/app-window.slint
 crates/adapter-gui/ui/desktop_main.slint
