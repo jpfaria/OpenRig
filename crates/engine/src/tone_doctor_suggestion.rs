@@ -35,13 +35,17 @@ pub struct Suggestion {
     pub current: f32,
     /// Proposed value.
     pub suggested: f32,
+    /// A gating bool that must be turned on for `param_path` to take effect
+    /// (e.g. `eq.enabled` for a NAM's `eq.treble`). `None` when the knob is
+    /// always live. The caller enables it before setting the number.
+    pub enable_path: Option<String>,
     /// Why, in one line.
     pub rationale: String,
 }
 
 /// Parameter paths to try, in order, for each symptom. Lowering the first one
 /// the block exposes moves the tone toward health.
-fn priority_paths(symptom: Symptom) -> &'static [&'static str] {
+pub(crate) fn priority_paths(symptom: Symptom) -> &'static [&'static str] {
     match symptom {
         // Cut the highs: a dedicated presence/treble/tone first, drive last.
         Symptom::Fizz => &[
@@ -97,6 +101,7 @@ pub fn suggest(chain: &Chain, diagnosis: &Diagnosis) -> Option<Suggestion> {
             param_label: spec.label.clone(),
             current,
             suggested,
+            enable_path: None,
             rationale: rationale(symptom, &schema.display_name, &spec.label),
         });
     }
@@ -104,7 +109,7 @@ pub fn suggest(chain: &Chain, diagnosis: &Diagnosis) -> Option<Suggestion> {
 }
 
 /// One-line explanation for the UI.
-fn rationale(symptom: Symptom, model_name: &str, param_label: &str) -> String {
+pub(crate) fn rationale(symptom: Symptom, model_name: &str, param_label: &str) -> String {
     match symptom {
         Symptom::Fizz => {
             format!("Fizz traced to {model_name}; lowering '{param_label}' cuts presence-band energy")

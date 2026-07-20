@@ -460,6 +460,12 @@ export component CompactChainViewWindow inherits Window {
             culprit-label: ToneDoctorState.culprit-label;
             suggestion-text: ToneDoctorState.suggestion-text;
             has-suggestion: ToneDoctorState.has-suggestion;
+            fizz-value: ToneDoctorState.fizz-value;
+            fizz-limit: ToneDoctorState.fizz-limit;
+            mud-value: ToneDoctorState.mud-value;
+            mud-limit: ToneDoctorState.mud-limit;
+            clip-value: ToneDoctorState.clip-value;
+            clip-limit: ToneDoctorState.clip-limit;
             run-diagnosis => { root.tone-doctor-run(ToneDoctorState.chain-index); }
             apply-suggestion => { root.tone-doctor-apply(ToneDoctorState.chain-index); }
         }

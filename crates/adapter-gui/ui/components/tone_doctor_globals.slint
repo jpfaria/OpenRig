@@ -24,4 +24,13 @@ export global ToneDoctorState {
     // e.g. "Presence 7.2 → 5.0", empty when there is nothing to change.
     in-out property <string> suggestion-text;
     in-out property <bool> has-suggestion;
+
+    // ── the three measurements + their healthy limits, for the meters ──────
+    // The user sees the data behind the verdict instead of a bare word.
+    in-out property <float> fizz-value;
+    in-out property <float> fizz-limit;
+    in-out property <float> mud-value;
+    in-out property <float> mud-limit;
+    in-out property <float> clip-value;
+    in-out property <float> clip-limit;
 }

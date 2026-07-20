@@ -24,6 +24,12 @@ export component ToneDoctorOverlay inherits Rectangle {
         culprit-label: ToneDoctorState.culprit-label;
         suggestion-text: ToneDoctorState.suggestion-text;
         has-suggestion: ToneDoctorState.has-suggestion;
+        fizz-value: ToneDoctorState.fizz-value;
+        fizz-limit: ToneDoctorState.fizz-limit;
+        mud-value: ToneDoctorState.mud-value;
+        mud-limit: ToneDoctorState.mud-limit;
+        clip-value: ToneDoctorState.clip-value;
+        clip-limit: ToneDoctorState.clip-limit;
         run-diagnosis => { root.run-diagnosis(ToneDoctorState.chain-index); }
         apply-suggestion => { root.apply-suggestion(ToneDoctorState.chain-index); }
     }

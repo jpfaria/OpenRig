@@ -76,10 +76,16 @@ fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
     assert_eq!(view.symptom_text, "Fizz", "{view:?}");
     assert_eq!(view.culprit_label, "gain:fuzz_si", "{view:?}");
     assert!(view.has_suggestion, "{view:?}");
-    assert!(view.suggestion_text.contains("Tone"), "shows the knob + move: {view:?}");
+    assert!(!view.suggestion_text.is_empty(), "shows the measured move: {view:?}");
+    // The measurements travel to the panel meters.
+    assert!(view.fizz_value > view.fizz_limit, "fizz over its limit: {view:?}");
+    assert_eq!(view.fizz_limit, feature_dsp::tone_descriptors::FIZZ_RATIO_LIMIT);
+    // Measured, not guessed: the fix targets the culprit and lowers a knob.
+    // (Which knob is whichever measurably clears the fizz — proven in engine's
+    // tone_doctor_fix tests.)
     let s = suggestion.expect("a suggestion is cached for Apply");
-    assert_eq!(s.block_index, 1);
-    assert_eq!(s.param_path, "tone");
+    assert_eq!(s.block_index, 1, "targets the fuzz");
+    assert!(s.suggested < s.current, "lowers it: {s:?}");
 }
 
 #[test]
@@ -105,13 +111,15 @@ fn apply_command_targets_the_culprit_block() {
     ]);
     let (_view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF);
     let s = suggestion.expect("suggestion");
-    let cmd = apply_command(&c, &c.id, &s).expect("command");
-    match cmd {
+    let cmds = apply_commands(&c, &c.id, &s);
+    // A native fuzz knob is always live (no enable gate) → a single command.
+    assert_eq!(cmds.len(), 1, "{cmds:?}");
+    match &cmds[0] {
         Command::SetBlockParameterNumber { chain, block, path, value } => {
-            assert_eq!(chain, c.id);
-            assert_eq!(block, BlockId("fz".into()));
-            assert_eq!(path, "tone");
-            assert!(value < 70.0, "lowers the tone: {value}");
+            assert_eq!(*chain, c.id);
+            assert_eq!(*block, BlockId("fz".into()), "targets the fuzz");
+            assert_eq!(path, &s.param_path);
+            assert!((*value as f32) < s.current, "lowers the knob: {value}");
         }
         other => panic!("wrong command: {other:?}"),
     }

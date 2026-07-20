@@ -59,7 +59,7 @@ pub struct Diagnosis {
 }
 
 /// The scalar the culprit search follows for a given symptom.
-fn symptom_metric(symptom: Symptom, d: &ToneDescriptors) -> Option<(f32, f32)> {
+pub(crate) fn symptom_metric(symptom: Symptom, d: &ToneDescriptors) -> Option<(f32, f32)> {
     match symptom {
         Symptom::Fizz => Some((d.fizz_ratio, FIZZ_RATIO_LIMIT)),
         Symptom::Mud => Some((d.mud_ratio, MUD_RATIO_LIMIT)),
@@ -83,7 +83,7 @@ fn enabled_processing_blocks(chain: &Chain) -> Vec<usize> {
 }
 
 /// Render `chain` over `input` and return its descriptors.
-fn render_and_analyze(
+pub(crate) fn render_and_analyze(
     chain: &Chain,
     sample_rate: f32,
     input: &[[f32; 2]],

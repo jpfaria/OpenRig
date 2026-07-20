@@ -10,11 +10,16 @@
 use application::command::Command;
 use domain::ids::ChainId;
 use engine::tone_doctor::diagnose;
-use engine::tone_doctor_suggestion::{suggest, Suggestion};
-use feature_dsp::tone_descriptors::Symptom;
+use engine::tone_doctor_fix::measure_fix;
+use engine::tone_doctor_suggestion::Suggestion;
+use feature_dsp::tone_descriptors::{
+    Symptom, CLIP_FRACTION_LIMIT, FIZZ_RATIO_LIMIT, MUD_RATIO_LIMIT,
+};
 use project::chain::Chain;
 
-/// The panel's result fields, mirroring `ToneDoctorState` in Slint.
+/// The panel's result fields, mirroring `ToneDoctorState` in Slint. Carries the
+/// three raw measurements + their healthy limits so the panel can show the
+/// meters (the user sees the data behind the verdict), not just a word.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ToneDoctorView {
     pub running: bool,
@@ -24,10 +29,18 @@ pub struct ToneDoctorView {
     pub culprit_label: String,
     pub suggestion_text: String,
     pub has_suggestion: bool,
+    // Measurements (value, limit) for the three meters.
+    pub fizz_value: f32,
+    pub fizz_limit: f32,
+    pub mud_value: f32,
+    pub mud_limit: f32,
+    pub clip_value: f32,
+    pub clip_limit: f32,
 }
 
 /// Run the offline diagnosis over `input` and produce the panel view plus the
-/// suggestion to cache for a later Apply. Pure — no window, no I/O.
+/// measured correction to cache for a later Apply. Renders (via `diagnose` +
+/// `measure_fix`), so run it off the GUI thread.
 pub fn diagnose_to_view(
     chain: &Chain,
     input: &[[f32; 2]],
@@ -38,7 +51,10 @@ pub fn diagnose_to_view(
         Ok(d) => d,
         Err(_) => return (ToneDoctorView::default(), None),
     };
-    let suggestion = suggest(chain, &diagnosis);
+    // Measured, not guessed: prove the fix actually clears the symptom.
+    let suggestion = measure_fix(chain, sample_rate, input, block_size, &diagnosis)
+        .ok()
+        .flatten();
 
     // A readable "effect:model" label (e.g. "gain:fuzz_si"), not the internal
     // model_identity ("core:gain/fuzz_si").
@@ -52,8 +68,15 @@ pub fn diagnose_to_view(
     let suggestion_text = suggestion
         .as_ref()
         .map(|s| {
+            // Prefix the gate we turn on, e.g. "EQ on · Treble 7 → 4".
+            let gate = s
+                .enable_path
+                .as_deref()
+                .and_then(|p| p.strip_suffix(".enabled"))
+                .map(|g| format!("{} on · ", g.to_uppercase()))
+                .unwrap_or_default();
             format!(
-                "{} {} → {}",
+                "{gate}{} {} → {}",
                 s.param_label,
                 trim_num(s.current),
                 trim_num(s.suggested)
@@ -61,6 +84,7 @@ pub fn diagnose_to_view(
         })
         .unwrap_or_default();
 
+    let d = &diagnosis.full_descriptors;
     let view = ToneDoctorView {
         running: false,
         has_result: true,
@@ -69,6 +93,12 @@ pub fn diagnose_to_view(
         culprit_label,
         has_suggestion: suggestion.is_some(),
         suggestion_text,
+        fizz_value: d.fizz_ratio,
+        fizz_limit: FIZZ_RATIO_LIMIT,
+        mud_value: d.mud_ratio,
+        mud_limit: MUD_RATIO_LIMIT,
+        clip_value: d.clip_fraction,
+        clip_limit: CLIP_FRACTION_LIMIT,
     };
     (view, suggestion)
 }
@@ -103,16 +133,29 @@ fn trim_num(v: f32) -> String {
     }
 }
 
-/// The `Command` that applies a suggestion to its block, or `None` if the block
-/// index is stale.
-pub fn apply_command(chain: &Chain, chain_id: &ChainId, suggestion: &Suggestion) -> Option<Command> {
-    let block = chain.blocks.get(suggestion.block_index)?;
-    Some(Command::SetBlockParameterNumber {
+/// The `Command`s that apply a suggestion to its block: enable the gating bool
+/// first (e.g. `eq.enabled` for a NAM's `eq.treble`) when present, then set the
+/// number. Empty when the block index is stale.
+pub fn apply_commands(chain: &Chain, chain_id: &ChainId, suggestion: &Suggestion) -> Vec<Command> {
+    let Some(block) = chain.blocks.get(suggestion.block_index) else {
+        return Vec::new();
+    };
+    let mut cmds = Vec::new();
+    if let Some(enable) = &suggestion.enable_path {
+        cmds.push(Command::SetBlockParameterBool {
+            chain: chain_id.clone(),
+            block: block.id.clone(),
+            path: enable.clone(),
+            value: true,
+        });
+    }
+    cmds.push(Command::SetBlockParameterNumber {
         chain: chain_id.clone(),
         block: block.id.clone(),
         path: suggestion.param_path.clone(),
         value: suggestion.suggested as f64,
-    })
+    });
+    cmds
 }
 
 #[cfg(test)]

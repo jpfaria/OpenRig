@@ -43,6 +43,12 @@ fn apply_view(st: &ToneDoctorState, view: &crate::tone_doctor_wiring::ToneDoctor
     st.set_culprit_label(view.culprit_label.clone().into());
     st.set_has_suggestion(view.has_suggestion);
     st.set_suggestion_text(view.suggestion_text.clone().into());
+    st.set_fizz_value(view.fizz_value);
+    st.set_fizz_limit(view.fizz_limit);
+    st.set_mud_value(view.mud_value);
+    st.set_mud_limit(view.mud_limit);
+    st.set_clip_value(view.clip_value);
+    st.set_clip_limit(view.clip_limit);
 }
 
 /// Start a diagnosis off the GUI thread. `chain` + `source` are already
@@ -127,12 +133,12 @@ fn apply_suggestion(
     }) else {
         return;
     };
-    if let Some(cmd) = crate::tone_doctor_wiring::apply_command(&chain_clone, &chain_id, &suggestion)
-    {
+    for cmd in crate::tone_doctor_wiring::apply_commands(&chain_clone, &chain_id, &suggestion) {
         if let Err(err) = session.dispatcher.dispatch(cmd) {
             if let Some(main_win) = main_weak.upgrade() {
                 set_status_error(&main_win, toast_timer, &err.to_string());
             }
+            return;
         }
     }
 }
