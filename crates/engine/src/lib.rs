@@ -33,6 +33,7 @@ pub mod runtime_load;
 pub mod runtime_probe;
 pub mod runtime_segments;
 pub mod runtime_state;
+mod runtime_processor_model;
 mod runtime_state_taps;
 pub mod spsc;
 pub mod stream_tap;
