@@ -67,7 +67,6 @@ crates/block-mod/src/lib_tests.rs
 crates/engine/src/audio_alloc_invariant_tests.rs
 crates/engine/src/audio_signal_integrity_tests.rs
 crates/engine/src/rig_runtime_tests.rs
-crates/engine/src/runtime_audio_frame.rs
 crates/engine/src/runtime_block_builders.rs
 crates/engine/src/runtime_dsp.rs
 crates/engine/src/runtime_graph.rs
