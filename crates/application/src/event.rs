@@ -336,10 +336,10 @@ pub enum Event {
     /// #614: the DI loop playback state changed for a chain.
     ///
     /// Ephemeral — not persisted. `enabled: true` means the pre-loaded
-    /// `Arc<DiPcm>` source should be armed on the chain's chosen output stream
-    /// (#771: `arm_di_stream`, an isolated pre-rendered per-output-stream DI);
-    /// the adapter-gui wiring retrieves it via `LocalDispatcher::di_loop_for_chain`.
-    /// `enabled: false` disarms the chain's DI stream.
+    /// `Arc<DiPcm>` source should be armed on the chain's runtimes, resampled
+    /// per output-stream rate (#749); the adapter-gui wiring (Task 6) retrieves
+    /// it via `LocalDispatcher::di_loop_for_chain` and forwards it to
+    /// `set_chain_di_loop`. `enabled: false` disarms every runtime.
     ChainDiLoopEnabledChanged {
         chain: ChainId,
         enabled: bool,
