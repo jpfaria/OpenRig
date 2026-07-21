@@ -54,7 +54,6 @@ crates/adapter-gui/src/desktop_app.rs
 crates/application/src/command.rs
 crates/engine/src/audio_alloc_invariant_tests.rs
 crates/engine/src/runtime_tests.rs
-crates/engine/src/volume_invariants_tests.rs
 crates/engine/tests/issue_670_beat_it_real_rig.rs
 crates/infra-cpal/src/controller_live_edit_replicates_user_report_tests.rs
 crates/infra-cpal/src/controller.rs

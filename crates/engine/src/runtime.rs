@@ -464,6 +464,26 @@ mod stream_isolation_same_device;
 mod volume_invariants;
 
 #[cfg(test)]
+#[path = "volume_chain_tests.rs"]
+mod vol_chain;
+
+#[cfg(test)]
+#[path = "volume_splitmono_preset_tests.rs"]
+mod vol_splitmono_preset;
+
+#[cfg(test)]
+#[path = "volume_spectral_audit_tests.rs"]
+mod vol_spectral;
+
+#[cfg(test)]
+#[path = "volume_elastic_ring_tests.rs"]
+mod vol_elastic;
+
+#[cfg(test)]
+#[path = "volume_broadcast_format_tests.rs"]
+mod vol_broadcast_format;
+
+#[cfg(test)]
 #[path = "rig_spillover_tests.rs"]
 mod rig_spillover;
 
