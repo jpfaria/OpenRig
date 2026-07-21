@@ -463,6 +463,10 @@ mod project_ops_persistence_more;
 mod project_admin_persistence_tests;
 
 #[cfg(test)]
+#[path = "project_admin_nam_tests.rs"]
+mod project_admin_nam;
+
+#[cfg(test)]
 #[path = "project_rig_persistence_tests.rs"]
 mod project_rig_persistence_tests;
 
