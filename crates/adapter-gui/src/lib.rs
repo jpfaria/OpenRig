@@ -191,6 +191,10 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 mod tests;
 
 #[cfg(test)]
+#[path = "lib_recent_tests.rs"]
+mod lib_recent_tests;
+
+#[cfg(test)]
 mod compact_block_search_wiring_tests;
 
 #[cfg(test)]
