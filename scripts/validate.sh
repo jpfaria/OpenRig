@@ -73,7 +73,6 @@ crates/infra-cpal/src/tests.rs
 crates/infra-cpal/tests/issue_670_cab_swap.rs
 crates/infra-yaml/src/lib_tests.rs
 crates/lv2/src/host.rs
-crates/project/src/block_tests.rs
 crates/adapter-gui/ui/app-window.slint
 crates/adapter-gui/ui/desktop_main.slint
 crates/adapter-gui/ui/pages/block_panel_editor.slint
