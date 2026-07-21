@@ -551,7 +551,7 @@ fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
-    _di_cells: &[crate::di_playback::DiPlaybackCell], // #808: chain output is DI-free now
+    di_cells: &[crate::di_playback::DiPlaybackCell],
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
     // Flat list (group order) for the backend output mix. Issue #672: the
     // callbacks read each slot live so a worker-published rebuild takes
@@ -614,9 +614,10 @@ fn build_chain_streams(
             &resolved.output_devices_by_input_cpal,
             &resolved_output.device_id,
         );
-        // #808: chain output NEVER drains the DI cell — the DI has its OWN
-        // isolated stream (invariant #4; the shared cell was the "picotando").
-        let di_cell = crate::di_playback::DiPlaybackCell::default();
+        // #771: this output's DI playback cell — the callback mixes whatever
+        // pre-rendered loop is parked there. Callers with no controller (the
+        // bulk/console path) pass no cells; an empty default stays silent.
+        let di_cell = di_cells.get(j).cloned().unwrap_or_default();
         let stream =
             build_output_stream_for_output(chain_id, j, resolved_output, out_slots, di_cell)?;
         output_streams.push(stream);
