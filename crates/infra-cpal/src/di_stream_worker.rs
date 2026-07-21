@@ -71,6 +71,10 @@ pub(crate) struct DiWorkerSpec {
     /// #808: the interface's output buffer (frames). The worker leads by a few
     /// of these — the DI buffers like a normal stream, not a hardcoded 32k ring.
     pub(crate) buffer_frames: u32,
+    /// #808: where the render thread parks the runtime it swaps OUT on a live
+    /// edit — never dropped here (a NAM C++ destructor on the render thread
+    /// stalls/kills the DI); the control worker frees it.
+    pub(crate) graveyard: Arc<Mutex<Vec<Arc<engine::runtime::ChainRuntimeState>>>>,
 }
 
 /// Spawn the render thread for one armed DI.
@@ -109,6 +113,7 @@ fn run(spec: DiWorkerSpec) {
         handoff,
         live_runtime,
         buffer_frames,
+        graveyard,
     } = spec;
 
     // Build the routed isolated runtime (heavy: NAM/IR loads) OFF the frontend;
@@ -233,7 +238,13 @@ fn run(spec: DiWorkerSpec) {
         if let Some(swapped) = live_runtime.load_full() {
             if !Arc::ptr_eq(&swapped, &active_rt) {
                 swapped.set_di_loop_pos(active_rt.di_loop_pos());
-                active_rt = swapped;
+                // #808: hand the outgoing runtime to the graveyard — NEVER drop
+                // it here (NAM C++ destructor on the render thread stalls/kills
+                // the DI); the control worker frees it.
+                let old = std::mem::replace(&mut active_rt, swapped);
+                if let Ok(mut g) = graveyard.lock() {
+                    g.push(old);
+                }
             }
         }
         process_input_f32(&active_rt, 0, &silence, 1);

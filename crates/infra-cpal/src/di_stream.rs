@@ -81,6 +81,12 @@ pub(crate) struct DiStreamHandle {
     /// changes gaplessly with NO worker/stream respawn — the same wait-free swap
     /// the guitar path uses. Kept in the handle so re-arms carry it forward.
     live_runtime: Arc<arc_swap::ArcSwapOption<engine::runtime::ChainRuntimeState>>,
+    /// #808: runtimes the render thread retired on a live swap. A (NAM) runtime
+    /// must NEVER be dropped on the render thread (its C++ destructor there
+    /// stalls/kills the DI — invariant #8; the guitar rebuild drops off-thread
+    /// too). The render thread pushes the outgoing runtime here; the control
+    /// worker drains and frees it.
+    graveyard: Arc<Mutex<Vec<Arc<engine::runtime::ChainRuntimeState>>>>,
 }
 
 /// Stop every render thread in `workers` (idempotent).
@@ -255,6 +261,8 @@ impl ProjectRuntimeController {
         // #808: the worker publishes its runtime here after building; a param
         // edit swaps a fresh one in (update_di_runtime) with no respawn.
         let live_runtime = Arc::new(arc_swap::ArcSwapOption::from(None));
+        let graveyard: Arc<Mutex<Vec<Arc<engine::runtime::ChainRuntimeState>>>> =
+            Arc::new(Mutex::new(Vec::new()));
         let handoff_pending = handoff.is_some();
         // Every worker the incoming one supersedes, plus itself: whoever takes
         // the cell over stops the others, and a disarm stops the survivors.
@@ -278,6 +286,7 @@ impl ProjectRuntimeController {
             handoff,
             live_runtime: Arc::clone(&live_runtime),
             buffer_frames,
+            graveyard: Arc::clone(&graveyard),
         });
 
         self.di_streams.borrow_mut().insert(
@@ -291,6 +300,7 @@ impl ProjectRuntimeController {
                 superseded: false,
                 output_stream,
                 live_runtime,
+                graveyard,
             },
         );
         // A hand-off replaces the handle while its playback is still sounding:
@@ -371,14 +381,19 @@ impl ProjectRuntimeController {
                 Arc::clone(&h.live_runtime),
                 Arc::clone(&h.pcm),
                 h.output_index,
+                h.output_stream.as_ref().map(|(_, r, _)| *r),
+                Arc::clone(&h.graveyard),
             )
         });
-        let Some((live_runtime, pcm, output_index)) = armed else {
+        let Some((live_runtime, pcm, output_index, stream_rate, graveyard)) = armed else {
             return; // not armed — nothing to update
         };
         let chain = chain.clone();
         let registry = self.io_bindings.clone();
-        let output_rate = self.di_output_rate(&chain.id, output_index);
+        // Build at the rate the DI's OWN output stream consumes (the device
+        // rate), not the fallback — a mismatch renders the loop at the wrong
+        // speed/position (silence/garbage after the swap).
+        let output_rate = stream_rate.unwrap_or_else(|| self.di_output_rate(&chain.id, output_index));
         // Heavy (NAM/IR) build off the frontend; the swap itself is wait-free.
         let _ = self.worker.submit(move || -> Result<()> {
             match engine::di_render::build_routed_di_runtime(
@@ -391,6 +406,15 @@ impl ProjectRuntimeController {
                 Ok(routed) => live_runtime.store(Some(routed.runtime)),
                 Err(e) => log::error!("di update build failed for '{}': {e:#}", chain.id.0),
             }
+            // #808: free the runtimes the render thread retired on its swap —
+            // here, on the control worker, NEVER on the render thread (NAM C++
+            // destructor there stalls/kills the DI).
+            let retired: Vec<_> = graveyard
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .drain(..)
+                .collect();
+            drop(retired);
             Ok(())
         });
     }
