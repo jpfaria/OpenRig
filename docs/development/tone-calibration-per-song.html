@@ -1,110 +1,94 @@
 <title>Tone Doctor — per-song measurements</title>
 <style>
   :root {
-    --bg: #faf9f7; --panel: #ffffff; --line: #e7e4de; --line-soft: #f0ede7;
-    --ink: #17171a; --ink-2: #5c584f; --ink-3: #8b867a;
-    --mud: #2a78d6; --fizz: #eb6834; --boom: #1baf7a;
-    --track: #efece6; --badge-prov: #b26a00; --badge-prov-bg: #fbf0dd;
-    --badge-trust: #1baf7a; --badge-trust-bg: #e4f5ee;
-    --shadow: 0 1px 2px rgba(20,18,14,.05), 0 6px 18px rgba(20,18,14,.04);
+    --bg:#faf9f7; --panel:#fff; --line:#e7e4de; --line-soft:#f0ede7;
+    --ink:#17171a; --ink-2:#5c584f; --ink-3:#8b867a;
+    --mud:#2a78d6; --fizz:#eb6834; --boom:#1baf7a; --harsh:#eda100; --crest:#e87ba4;
+    --track:#efece6; --bad:#c0392b; --bad-bg:#fbe9e7;
+    --prov:#b26a00; --prov-bg:#fbf0dd; --trust:#158a60; --trust-bg:#e4f5ee;
+    --shadow:0 1px 2px rgba(20,18,14,.05),0 6px 18px rgba(20,18,14,.04);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #17171a; --panel: #1f1f22; --line: #34343a; --line-soft: #2a2a2f;
-      --ink: #f4f2ec; --ink-2: #b8b4a8; --ink-3: #86827a;
-      --mud: #3987e5; --fizz: #ef7a4c; --boom: #23b884;
-      --track: #2a2a30; --badge-prov: #e2a445; --badge-prov-bg: #3a2f1c;
-      --badge-trust: #23b884; --badge-trust-bg: #143028;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
-    }
-  }
-  :root[data-theme="light"] {
-    --bg: #faf9f7; --panel: #ffffff; --line: #e7e4de; --line-soft: #f0ede7;
-    --ink: #17171a; --ink-2: #5c584f; --ink-3: #8b867a;
-    --mud: #2a78d6; --fizz: #eb6834; --boom: #1baf7a;
-    --track: #efece6; --badge-prov: #b26a00; --badge-prov-bg: #fbf0dd;
-    --badge-trust: #1baf7a; --badge-trust-bg: #e4f5ee;
-    --shadow: 0 1px 2px rgba(20,18,14,.05), 0 6px 18px rgba(20,18,14,.04);
-  }
-  :root[data-theme="dark"] {
-    --bg: #17171a; --panel: #1f1f22; --line: #34343a; --line-soft: #2a2a2f;
-    --ink: #f4f2ec; --ink-2: #b8b4a8; --ink-3: #86827a;
-    --mud: #3987e5; --fizz: #ef7a4c; --boom: #23b884;
-    --track: #2a2a30; --badge-prov: #e2a445; --badge-prov-bg: #3a2f1c;
-    --badge-trust: #23b884; --badge-trust-bg: #143028;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    line-height: 1.5; -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 72px; }
-  .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
-  header h1 { font-size: clamp(26px, 4vw, 38px); margin: 0 0 6px; letter-spacing: -.02em; text-wrap: balance; }
-  header .lede { color: var(--ink-2); max-width: 66ch; margin: 0 0 4px; font-size: 15px; }
-  header .insight { color: var(--ink-2); max-width: 74ch; font-size: 14px; margin: 12px 0 0; padding-left: 14px; border-left: 3px solid var(--fizz); }
-  .insight strong { color: var(--ink); }
-  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 26px; margin: 26px 0 22px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .legend { display: flex; gap: 18px; flex-wrap: wrap; }
-  .lg { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); }
-  .sw { width: 12px; height: 12px; border-radius: 3px; }
-  .lg .desc { color: var(--ink-3); }
-  .toolbar .spacer { flex: 1 1 auto; }
-  button.toggle { font: inherit; font-size: 13px; color: var(--ink-2); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  button.toggle:hover { border-color: var(--ink-3); color: var(--ink); }
-  button.toggle:focus-visible { outline: 2px solid var(--fizz); outline-offset: 2px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
-  .phead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 14px 16px 10px; border-bottom: 1px solid var(--line-soft); }
-  .phead .gname { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
-  .phead .gmeta { font-size: 12px; color: var(--ink-3); margin-left: auto; }
-  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; letter-spacing: .02em; }
-  .badge.trusted { color: var(--badge-trust); background: var(--badge-trust-bg); }
-  .badge.provisional { color: var(--badge-prov); background: var(--badge-prov-bg); }
-  .limits { padding: 8px 16px 4px; font-size: 11.5px; color: var(--ink-3); display: flex; gap: 14px; }
-  .limits b { color: var(--ink-2); font-weight: 600; }
-  .rows { padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
-  .row { position: relative; }
-  .row .rlabel { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink); margin-bottom: 5px; }
-  .row .rlabel .stem { color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
-  .bars { display: flex; flex-direction: column; gap: 3px; }
-  .bar { display: grid; grid-template-columns: 34px 1fr 46px; align-items: center; gap: 8px; }
-  .bar .bname { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
-  .track { height: 9px; background: var(--track); border-radius: 5px; overflow: hidden; }
-  .fill { height: 100%; border-radius: 5px; }
-  .fill.mud { background: var(--mud); } .fill.fizz { background: var(--fizz); } .fill.boom { background: var(--boom); }
-  .bar .bval { font-size: 11.5px; color: var(--ink-2); text-align: right; }
-  .row:hover { }
-  .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 9px 11px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.28); opacity: 0; transition: opacity .1s; max-width: 260px; }
-  .tip.on { opacity: 1; }
-  .tip .th { font-weight: 650; margin-bottom: 5px; }
-  .tip .tr { display: flex; justify-content: space-between; gap: 18px; }
-  .tip .tk { color: color-mix(in oklab, var(--bg) 65%, var(--ink)); }
-  table.tv { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  table.tv th, table.tv td { border-bottom: 1px solid var(--line-soft); padding: 6px 10px; text-align: right; }
-  table.tv th:first-child, table.tv td:first-child, table.tv th:nth-child(2), table.tv td:nth-child(2) { text-align: left; }
-  table.tv thead th { color: var(--ink-2); font-weight: 600; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); }
-  table.tv tbody tr:hover { background: var(--line-soft); }
-  .tvwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
-  .hidden { display: none; }
-  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 12px; }
-  footer code { font-family: ui-monospace, monospace; color: var(--ink-2); }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#17171a; --panel:#1f1f22; --line:#34343a; --line-soft:#2a2a2f;
+    --ink:#f4f2ec; --ink-2:#b8b4a8; --ink-3:#86827a;
+    --mud:#3987e5; --fizz:#ef7a4c; --boom:#23b884; --harsh:#c98500; --crest:#d55181;
+    --track:#2a2a30; --bad:#ff6b5e; --bad-bg:#3a201c;
+    --prov:#e2a445; --prov-bg:#3a2f1c; --trust:#23b884; --trust-bg:#143028;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+  }}
+  :root[data-theme="light"]{--bg:#faf9f7;--panel:#fff;--line:#e7e4de;--line-soft:#f0ede7;--ink:#17171a;--ink-2:#5c584f;--ink-3:#8b867a;--mud:#2a78d6;--fizz:#eb6834;--boom:#1baf7a;--harsh:#eda100;--crest:#e87ba4;--track:#efece6;--bad:#c0392b;--bad-bg:#fbe9e7;--prov:#b26a00;--prov-bg:#fbf0dd;--trust:#158a60;--trust-bg:#e4f5ee;--shadow:0 1px 2px rgba(20,18,14,.05),0 6px 18px rgba(20,18,14,.04);}
+  :root[data-theme="dark"]{--bg:#17171a;--panel:#1f1f22;--line:#34343a;--line-soft:#2a2a2f;--ink:#f4f2ec;--ink-2:#b8b4a8;--ink-3:#86827a;--mud:#3987e5;--fizz:#ef7a4c;--boom:#23b884;--harsh:#c98500;--crest:#d55181;--track:#2a2a30;--bad:#ff6b5e;--bad-bg:#3a201c;--prov:#e2a445;--prov-bg:#3a2f1c;--trust:#23b884;--trust-bg:#143028;--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1240px;margin:0 auto;padding:40px 24px 72px;}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  h1{font-size:clamp(26px,4vw,38px);margin:0 0 6px;letter-spacing:-.02em;text-wrap:balance;}
+  .lede{color:var(--ink-2);max-width:70ch;margin:0;font-size:15px;}
+  .insight{color:var(--ink-2);max-width:76ch;font-size:14px;margin:12px 0 0;padding-left:14px;border-left:3px solid var(--fizz);}
+  .insight strong{color:var(--ink);}
+  .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;margin:26px 0 22px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;}
+  .lg{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);}
+  .sw{width:11px;height:11px;border-radius:3px;}
+  .lg .u{color:var(--ink-3);font-size:11px;}
+  .spacer{flex:1 1 auto;}
+  button.toggle{font:inherit;font-size:13px;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;}
+  button.toggle:hover{border-color:var(--ink-3);color:var(--ink);}
+  button.toggle:focus-visible{outline:2px solid var(--fizz);outline-offset:2px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:18px;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;}
+  .phead{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;padding:14px 16px 8px;}
+  .gname{font-size:16px;font-weight:650;letter-spacing:-.01em;}
+  .gmeta{font-size:12px;color:var(--ink-3);margin-left:auto;}
+  .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;}
+  .badge.trusted{color:var(--trust);background:var(--trust-bg);}
+  .badge.provisional{color:var(--prov);background:var(--prov-bg);}
+  .limits{padding:0 16px 8px;font-size:11px;color:var(--ink-3);display:flex;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line-soft);}
+  .limits b{color:var(--ink-2);font-weight:600;}
+  .rows{padding:6px 16px 16px;display:flex;flex-direction:column;gap:11px;}
+  .row .rl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;}
+  .row .song{font-size:12.5px;}
+  .row .stem{color:var(--ink-3);font-size:10px;text-transform:uppercase;letter-spacing:.05em;}
+  .tags{display:flex;gap:4px;flex-wrap:wrap;margin:2px 0 4px;}
+  .tag{font-size:9.5px;font-weight:600;padding:1px 6px;border-radius:999px;color:#fff;letter-spacing:.02em;}
+  .healthy{font-size:9.5px;color:var(--trust);}
+  .bars{display:flex;flex-direction:column;gap:2px;}
+  .bar{display:grid;grid-template-columns:34px 1fr 52px;align-items:center;gap:8px;}
+  .bn{font-size:9.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.03em;}
+  .track{height:8px;background:var(--track);border-radius:5px;overflow:hidden;}
+  .fill{height:100%;border-radius:5px;}
+  .bv{font-size:11px;color:var(--ink-2);text-align:right;}
+  .bv.trip{color:var(--bad);font-weight:700;}
+  .tip{position:fixed;z-index:20;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:9px 11px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transition:opacity .1s;max-width:260px;}
+  .tip.on{opacity:1;}
+  .tip .th{font-weight:650;margin-bottom:5px;}
+  .tip .tr{display:flex;justify-content:space-between;gap:18px;}
+  .tip .tk{color:color-mix(in oklab,var(--bg) 65%,var(--ink));}
+  table.tv{width:100%;border-collapse:collapse;font-size:12px;}
+  table.tv th,table.tv td{border-bottom:1px solid var(--line-soft);padding:6px 9px;text-align:right;}
+  table.tv th:first-child,table.tv td:first-child,table.tv th:nth-child(2),table.tv td:nth-child(2),table.tv th:nth-child(3),table.tv td:nth-child(3){text-align:left;}
+  table.tv thead th{color:var(--ink-2);font-weight:600;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);}
+  table.tv td.trip{color:var(--bad);font-weight:700;}
+  .tvwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;}
+  .hidden{display:none;}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12px;}
+  footer code{font-family:ui-monospace,monospace;color:var(--ink-2);}
 </style>
 
 <div class="wrap">
   <header>
     <h1>Tone Doctor — every song we measured</h1>
-    <p class="lede">The genre limits are a p90 summary; this is the raw material behind them. Each reference stem (isolated guitar, lead &amp; rhythm) measured by OpenRig's own analyzer, grouped by the genre it was labeled as.</p>
-    <p class="insight"><strong>Read it this way:</strong> the spread <em>within</em> a genre is the story the summary hides — e.g. how far apart grunge's fizz-heavy takes sit, or whether a song labeled "clean" actually measures dark. <strong>harsh</strong> and <strong>clip</strong> are ~0 across this corpus (dark, non-clipping masters), so the bars show <strong>mud</strong>, <strong>fizz</strong> and <strong>boom</strong>; every value is in the hover and the table.</p>
+    <p class="lede">The raw material behind the p90 genre limits: each reference stem (isolated guitar, lead &amp; rhythm) measured by OpenRig's own analyzer. Every number the Tone Doctor reads is here.</p>
+    <p class="insight"><strong>What each song trips:</strong> a value in <span style="color:var(--bad);font-weight:700">red</span> crosses its genre's limit — an excess above (mud / fizz / harsh / boom) or a deficit below the floor (mud &lt; thin floor → <em>Thin</em>; crest &lt; squash floor → <em>Squash</em>). The tags on each row are exactly the symptoms that stem would raise for its style. Bars: mud / fizz / harsh / boom on a shared 0–0.8 scale; crest on its own 0–30 dB scale. Clip is 0 across the corpus.</p>
   </header>
 
   <div class="toolbar">
     <div class="legend">
-      <span class="lg"><span class="sw" style="background:var(--mud)"></span> mud <span class="desc">low-mid / total</span></span>
-      <span class="lg"><span class="sw" style="background:var(--fizz)"></span> fizz <span class="desc">presence / body</span></span>
-      <span class="lg"><span class="sw" style="background:var(--boom)"></span> boom <span class="desc">low-end / total</span></span>
+      <span class="lg"><span class="sw" style="background:var(--mud)"></span> mud <span class="u">low-mid/total</span></span>
+      <span class="lg"><span class="sw" style="background:var(--fizz)"></span> fizz <span class="u">presence/body</span></span>
+      <span class="lg"><span class="sw" style="background:var(--harsh)"></span> harsh <span class="u">brilliance/body</span></span>
+      <span class="lg"><span class="sw" style="background:var(--boom)"></span> boom <span class="u">low-end/total</span></span>
+      <span class="lg"><span class="sw" style="background:var(--crest)"></span> crest <span class="u">dB, dynamics</span></span>
     </div>
     <span class="spacer"></span>
     <button class="toggle" id="toggleView" aria-pressed="false">Show as table</button>
@@ -114,151 +98,137 @@
   <div id="tableView" class="tvwrap hidden"></div>
 
   <footer>
-    Source: <code>openrig-tone-calibrate measure</code> over <code>~/.openrig/evaluations/*/refs</code> · 28 songs, 48 stems · axis 0–0.8 (linear), shared across metrics. Genre limits are the p90 in <code>assets/tone-profiles/profiles.yaml</code> (#809).
+    Source: <code>openrig-tone-calibrate measure</code> over <code>~/.openrig/evaluations/*/refs</code> · 28 songs, 48 stems. Genre limits (p90 excess, p10 deficit floors) from <code>assets/tone-profiles/profiles.yaml</code> (#809).
   </footer>
 </div>
 
 <div class="tip" id="tip" role="tooltip"></div>
 
 <script>
-const DATA = [
-["another-brick-in-the-wall-pt-2","classic-rock","lead",0.3451,0.0282,0.0000,0.0166,0,-35.5,22.9],
-["another-brick-in-the-wall-pt-2","classic-rock","rhythm",0.5459,0.0379,0.0001,0.0198,0,-39.9,21.4],
-["barao-vermelho-beth-balanco","brazilian-rock","rhythm",0.1881,0.1933,0.0001,0.0006,0,-25.6,21.6],
-["basket-case-green-day","punk","rhythm",0.3651,0.1528,0.0000,0.0528,0,-18.3,15.4],
-["beat-it-michael-jackson","hard-rock","lead",0.1967,0.0988,0.0001,0.0170,0,-30.0,21.7],
-["beat-it-michael-jackson","hard-rock","rhythm",0.4988,0.0558,0.0000,0.0126,0,-28.2,20.4],
-["charlie-brown-jr-lugar-ao-sol","brazilian-rock","lead",0.2112,0.0632,0.0000,0.0018,0,-31.8,23.6],
-["charlie-brown-jr-lugar-ao-sol","brazilian-rock","rhythm",0.4210,0.0729,0.0013,0.1103,0,-21.1,16.3],
-["chris-isaak-wicked-game","clean","lead",0.5976,0.0412,0.0000,0.0001,0,-26.6,22.5],
-["chris-isaak-wicked-game","clean","rhythm",0.7340,0.0190,0.0003,0.0066,0,-22.5,18.5],
-["coldplay-clocks","clean","lead",0.3502,0.0050,0.0000,0.0002,0,-24.1,18.8],
-["coldplay-clocks","clean","rhythm",0.6232,0.0012,0.0000,0.0279,0,-21.8,18.6],
-["cpm-22-um-minuto-para-o-fim-do-mundo","punk","lead",0.0793,0.2593,0.0000,0.0027,0,-24.9,21.1],
-["cpm-22-um-minuto-para-o-fim-do-mundo","punk","rhythm",0.5281,0.1279,0.0000,0.0737,0,-18.1,18.1],
-["foo-fighters-everlong","alternative-rock","lead",0.1597,0.0453,0.0000,0.0003,0,-33.1,26.7],
-["foo-fighters-everlong","alternative-rock","rhythm",0.2728,0.1337,0.0000,0.0538,0,-18.1,15.8],
-["gravity-john-mayer","blues","lead",0.4873,0.0088,0.0000,0.0001,0,-27.8,25.8],
-["gravity-john-mayer","blues","rhythm",0.7367,0.0013,0.0000,0.0330,0,-25.0,23.7],
-["green-day-basket-case","punk","rhythm",0.3651,0.1528,0.0000,0.0528,0,-18.3,15.4],
-["green-day-when-i-come-around","punk","lead",0.0942,0.0460,0.0000,0.0019,0,-32.5,24.8],
-["green-day-when-i-come-around","punk","rhythm",0.4959,0.1023,0.0000,0.1104,0,-18.6,14.8],
-["john-mayer-gravity","blues","lead",0.4873,0.0088,0.0000,0.0001,0,-27.8,25.8],
-["john-mayer-gravity","blues","rhythm",0.7367,0.0013,0.0000,0.0330,0,-25.0,23.7],
-["john-mayer-heartbreak-warfare","blues","lead",0.3629,0.0167,0.0000,0.0002,0,-27.6,23.3],
-["john-mayer-heartbreak-warfare","blues","rhythm",0.6110,0.0091,0.0000,0.0517,0,-22.2,18.3],
-["john-mayer-slow-dancing-in-a-burning-room","blues","lead",0.4713,0.0159,0.0000,0.0002,0,-22.2,20.6],
-["john-mayer-slow-dancing-in-a-burning-room","blues","rhythm",0.6779,0.0124,0.0000,0.0449,0,-20.3,20.0],
-["lynyrd-skynyrd-simple-man","classic-rock","lead",0.2437,0.3126,0.0001,0.0316,0,-26.6,23.8],
-["lynyrd-skynyrd-simple-man","classic-rock","rhythm",0.5666,0.0378,0.0000,0.0487,0,-23.8,19.6],
-["metallica-enter-sandman","metal","lead",0.1572,0.3487,0.0000,0.0061,0,-29.7,21.4],
-["metallica-enter-sandman","metal","rhythm",0.5975,0.2943,0.0000,0.1107,0,-24.9,18.3],
-["nirvana-smells-like-teen-spirit","grunge","lead",0.2943,0.1936,0.0000,0.0002,0,-29.5,26.1],
-["nirvana-smells-like-teen-spirit","grunge","rhythm",0.2178,0.6626,0.0000,0.0148,0,-20.9,17.9],
-["pitty-na-sua-estante","brazilian-rock","lead",0.6765,0.0178,0.0000,0.0002,0,-33.3,23.8],
-["pitty-na-sua-estante","brazilian-rock","rhythm",0.4955,0.0996,0.0008,0.0275,0,-21.9,14.3],
-["radiohead-creep","alternative-rock","lead",0.1073,0.3829,0.0000,0.0064,0,-28.3,24.5],
-["radiohead-creep","alternative-rock","rhythm",0.2762,0.2586,0.0000,0.0569,0,-27.6,23.9],
-["segredos-torcuato-mariano","jazz","lead",0.1179,0.0505,0.0000,0.0008,0,-23.0,17.0],
-["silverchair-freak","grunge","lead",0.5620,0.0651,0.0000,0.0270,0,-29.8,23.4],
-["silverchair-freak","grunge","rhythm",0.5209,0.0713,0.0000,0.1531,0,-21.7,15.8],
-["silverchair-israels-son","grunge","rhythm",0.3435,0.2060,0.0000,0.0924,0,-16.6,15.6],
-["silverchair-pure-massacre","grunge","lead",0.4447,0.3471,0.0000,0.0010,0,-33.6,21.4],
-["silverchair-pure-massacre","grunge","rhythm",0.3342,0.2711,0.0000,0.0645,0,-21.0,16.0],
-["silverchair-shade","clean","lead",0.7103,0.0010,0.0000,0.0010,0,-28.2,24.8],
-["silverchair-shade","clean","rhythm",0.3942,0.0373,0.0006,0.1160,0,-19.6,17.7],
-["where-the-streets-have-no-name-u2","clean","lead",0.3472,0.1230,0.0000,0.0001,0,-31.9,24.1],
-["where-the-streets-have-no-name-u2","clean","rhythm",0.1486,0.3964,0.0000,0.0011,0,-21.8,17.3],
-["your-love-the-outfield","pop-rock","rhythm",0.4165,0.0339,0.0000,0.0057,0,-31.5,19.9]
+// [song, genre, stem, mud, fizz, harsh, boom, crest_db]
+const DATA=[
+["another-brick-in-the-wall-pt-2","classic-rock","lead",0.345,0.028,0.0000,0.017,22.9],
+["another-brick-in-the-wall-pt-2","classic-rock","rhythm",0.546,0.038,0.0001,0.020,21.4],
+["barao-vermelho-beth-balanco","brazilian-rock","rhythm",0.188,0.193,0.0001,0.001,21.6],
+["basket-case-green-day","punk","rhythm",0.365,0.153,0.0000,0.053,15.4],
+["beat-it-michael-jackson","hard-rock","lead",0.197,0.099,0.0001,0.017,21.7],
+["beat-it-michael-jackson","hard-rock","rhythm",0.499,0.056,0.0000,0.013,20.4],
+["charlie-brown-jr-lugar-ao-sol","brazilian-rock","lead",0.211,0.063,0.0000,0.002,23.6],
+["charlie-brown-jr-lugar-ao-sol","brazilian-rock","rhythm",0.421,0.073,0.0013,0.110,16.3],
+["chris-isaak-wicked-game","clean","lead",0.598,0.041,0.0000,0.000,22.5],
+["chris-isaak-wicked-game","clean","rhythm",0.734,0.019,0.0003,0.007,18.5],
+["coldplay-clocks","clean","lead",0.350,0.005,0.0000,0.000,18.8],
+["coldplay-clocks","clean","rhythm",0.623,0.001,0.0000,0.028,18.6],
+["cpm-22-um-minuto-para-o-fim-do-mundo","punk","lead",0.079,0.259,0.0000,0.003,21.1],
+["cpm-22-um-minuto-para-o-fim-do-mundo","punk","rhythm",0.528,0.128,0.0000,0.074,18.1],
+["foo-fighters-everlong","alternative-rock","lead",0.160,0.045,0.0000,0.000,26.7],
+["foo-fighters-everlong","alternative-rock","rhythm",0.273,0.134,0.0000,0.054,15.8],
+["gravity-john-mayer","blues","lead",0.487,0.009,0.0000,0.000,25.8],
+["gravity-john-mayer","blues","rhythm",0.737,0.001,0.0000,0.033,23.7],
+["green-day-basket-case","punk","rhythm",0.365,0.153,0.0000,0.053,15.4],
+["green-day-when-i-come-around","punk","lead",0.094,0.046,0.0000,0.002,24.8],
+["green-day-when-i-come-around","punk","rhythm",0.496,0.102,0.0000,0.110,14.8],
+["john-mayer-gravity","blues","lead",0.487,0.009,0.0000,0.000,25.8],
+["john-mayer-gravity","blues","rhythm",0.737,0.001,0.0000,0.033,23.7],
+["john-mayer-heartbreak-warfare","blues","lead",0.363,0.017,0.0000,0.000,23.3],
+["john-mayer-heartbreak-warfare","blues","rhythm",0.611,0.009,0.0000,0.052,18.3],
+["john-mayer-slow-dancing-in-a-burning-room","blues","lead",0.471,0.016,0.0000,0.000,20.6],
+["john-mayer-slow-dancing-in-a-burning-room","blues","rhythm",0.678,0.012,0.0000,0.045,20.0],
+["lynyrd-skynyrd-simple-man","classic-rock","lead",0.244,0.313,0.0001,0.032,23.8],
+["lynyrd-skynyrd-simple-man","classic-rock","rhythm",0.567,0.038,0.0000,0.049,19.6],
+["metallica-enter-sandman","metal","lead",0.157,0.349,0.0000,0.006,21.4],
+["metallica-enter-sandman","metal","rhythm",0.598,0.294,0.0000,0.111,18.3],
+["nirvana-smells-like-teen-spirit","grunge","lead",0.294,0.194,0.0000,0.000,26.1],
+["nirvana-smells-like-teen-spirit","grunge","rhythm",0.218,0.663,0.0000,0.015,17.9],
+["pitty-na-sua-estante","brazilian-rock","lead",0.677,0.018,0.0000,0.000,23.8],
+["pitty-na-sua-estante","brazilian-rock","rhythm",0.496,0.100,0.0008,0.028,14.3],
+["radiohead-creep","alternative-rock","lead",0.107,0.383,0.0000,0.006,24.5],
+["radiohead-creep","alternative-rock","rhythm",0.276,0.259,0.0000,0.057,23.9],
+["segredos-torcuato-mariano","jazz","lead",0.118,0.051,0.0000,0.001,17.0],
+["silverchair-freak","grunge","lead",0.562,0.065,0.0000,0.027,23.4],
+["silverchair-freak","grunge","rhythm",0.521,0.071,0.0000,0.153,15.8],
+["silverchair-israels-son","grunge","rhythm",0.343,0.206,0.0000,0.092,15.6],
+["silverchair-pure-massacre","grunge","lead",0.445,0.347,0.0000,0.001,21.4],
+["silverchair-pure-massacre","grunge","rhythm",0.334,0.271,0.0000,0.065,16.0],
+["silverchair-shade","clean","lead",0.710,0.001,0.0000,0.001,24.8],
+["silverchair-shade","clean","rhythm",0.394,0.037,0.0006,0.116,17.7],
+["where-the-streets-have-no-name-u2","clean","lead",0.347,0.123,0.0000,0.000,24.1],
+["where-the-streets-have-no-name-u2","clean","rhythm",0.149,0.396,0.0000,0.001,17.3],
+["your-love-the-outfield","pop-rock","rhythm",0.416,0.034,0.0000,0.006,19.9]
 ];
-// Genre calibrated limits (p90) + confidence, from profiles.yaml.
-const GEN = {
-  "blues":{mud:0.737,fizz:0.016,n:8,c:"trusted"},
-  "clean":{mud:0.717,fizz:0.205,n:8,c:"trusted"},
-  "grunge":{mud:0.537,fizz:0.473,n:7,c:"trusted"},
-  "punk":{mud:0.512,fizz:0.206,n:6,c:"trusted"},
-  "metal":{mud:0.554,fizz:0.343,n:2,c:"provisional"},
-  "classic-rock":{mud:0.560,fizz:0.230,n:4,c:"provisional"},
-  "alternative-rock":{mud:0.275,fizz:0.346,n:4,c:"provisional"},
-  "brazilian-rock":{mud:0.604,fizz:0.156,n:5,c:"provisional"},
-  "hard-rock":{mud:0.469,fizz:0.095,n:2,c:"provisional"},
-  "jazz":{mud:0.118,fizz:0.051,n:1,c:"provisional"},
-  "pop-rock":{mud:0.416,fizz:0.034,n:1,c:"provisional"}
-};
-const AXIS = 0.8;
-const order = Object.keys(GEN).sort((a,b) => {
-  const ta = GEN[a].c==="trusted", tb = GEN[b].c==="trusted";
-  if (ta !== tb) return ta ? -1 : 1;
-  return GEN[b].n - GEN[a].n;
-});
-const prettySong = s => s.replace(/-/g," ").replace(/\b\w/g, c => c.toUpperCase());
-const pct = v => (Math.min(v, AXIS) / AXIS * 100).toFixed(1) + "%";
+const GEN={"alternative-rock":{mud:0.275,fizz:0.346,harsh:0.00001,boom:0.056,thin:0.123,squash:18.3,n:4,c:"provisional"},"blues":{mud:0.737,fizz:0.016,harsh:0.00001,boom:0.047,thin:0.439,squash:19.5,n:8,c:"trusted"},"brazilian-rock":{mud:0.604,fizz:0.156,harsh:0.00106,boom:0.077,thin:0.197,squash:15.1,n:5,c:"provisional"},"classic-rock":{mud:0.560,fizz:0.230,harsh:0.00011,boom:0.044,thin:0.274,squash:20.2,n:4,c:"provisional"},"clean":{mud:0.717,fizz:0.205,harsh:0.00036,boom:0.054,thin:0.288,squash:17.6,n:8,c:"trusted"},"grunge":{mud:0.537,fizz:0.473,harsh:0.00002,boom:0.117,thin:0.264,squash:15.7,n:7,c:"trusted"},"hard-rock":{mud:0.469,fizz:0.095,harsh:0.00012,boom:0.017,thin:0.227,squash:20.5,n:2,c:"provisional"},"jazz":{mud:0.118,fizz:0.051,harsh:0.00001,boom:0.001,thin:0.118,squash:17.0,n:1,c:"provisional"},"metal":{mud:0.554,fizz:0.343,harsh:0.00002,boom:0.100,thin:0.201,squash:18.6,n:2,c:"provisional"},"pop-rock":{mud:0.416,fizz:0.034,harsh:0.00000,boom:0.006,thin:0.416,squash:19.9,n:1,c:"provisional"},"punk":{mud:0.512,fizz:0.206,harsh:0.00001,boom:0.092,thin:0.087,squash:15.1,n:6,c:"trusted"}};
 
-const chart = document.getElementById("chart");
-for (const g of order) {
-  const rows = DATA.filter(r => r[1] === g);
-  const meta = GEN[g];
-  const panel = document.createElement("div");
-  panel.className = "panel";
-  panel.innerHTML =
-    `<div class="phead"><span class="gname">${g}</span>`
-    + `<span class="badge ${meta.c}">${meta.c}</span>`
-    + `<span class="gmeta mono">n=${meta.n} · ${rows.length} stems</span></div>`
-    + `<div class="limits"><span>fizz limit <b class="mono">${meta.fizz.toFixed(3)}</b></span>`
-    + `<span>mud limit <b class="mono">${meta.mud.toFixed(3)}</b></span></div>`
-    + `<div class="rows"></div>`;
-  const rc = panel.querySelector(".rows");
-  for (const r of rows) {
-    const [song,,stem,mud,fizz,harsh,boom,clip,rms,crest] = r;
-    const row = document.createElement("div");
-    row.className = "row";
-    row.innerHTML =
-      `<div class="rlabel"><span>${prettySong(song)}</span><span class="stem">${stem}</span></div>`
-      + `<div class="bars">`
-      + bar("mud",mud) + bar("fizz",fizz) + bar("boom",boom)
-      + `</div>`;
-    row.addEventListener("pointermove", e => showTip(e, r));
-    row.addEventListener("pointerleave", hideTip);
+const RAT=0.8, CREST=30;
+const COL={mud:"var(--mud)",fizz:"var(--fizz)",harsh:"var(--harsh)",boom:"var(--boom)",crest:"var(--crest)"};
+const TAGC={Mud:"var(--mud)",Fizz:"var(--fizz)",Harsh:"var(--harsh)",Boom:"var(--boom)",Thin:"var(--crest)",Squash:"var(--crest)"};
+const order=Object.keys(GEN).sort((a,b)=>{const ta=GEN[a].c==="trusted",tb=GEN[b].c==="trusted";if(ta!==tb)return ta?-1:1;return GEN[b].n-GEN[a].n;});
+const pretty=s=>s.replace(/-/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+
+// Which symptoms a stem trips vs its genre limits (mirrors the Rust classifier).
+function trips(r){
+  const [,g,,mud,fizz,harsh,boom,crest]=r, L=GEN[g], t=[];
+  if(mud>L.mud) t.push("Mud"); if(fizz>L.fizz) t.push("Fizz");
+  if(harsh>L.harsh) t.push("Harsh"); if(boom>L.boom) t.push("Boom");
+  if(mud<L.thin) t.push("Thin"); if(crest<L.squash) t.push("Squash");
+  return t;
+}
+const chart=document.getElementById("chart");
+for(const g of order){
+  const rows=DATA.filter(r=>r[1]===g), m=GEN[g];
+  const p=document.createElement("div"); p.className="panel";
+  p.innerHTML=`<div class="phead"><span class="gname">${g}</span>`
+    +`<span class="badge ${m.c}">${m.c}</span><span class="gmeta mono">n=${m.n} · ${rows.length} stems</span></div>`
+    +`<div class="limits"><span>fizz&gt;<b class="mono">${m.fizz.toFixed(3)}</b></span><span>mud&gt;<b class="mono">${m.mud.toFixed(3)}</b></span>`
+    +`<span>thin&lt;<b class="mono">${m.thin.toFixed(3)}</b></span><span>squash&lt;<b class="mono">${m.squash.toFixed(1)}</b>dB</span></div>`
+    +`<div class="rows"></div>`;
+  const rc=p.querySelector(".rows");
+  for(const r of rows){
+    const [song,,stem,mud,fizz,harsh,boom,crest]=r, L=GEN[g], t=trips(r);
+    const tags=t.length?t.map(x=>`<span class="tag" style="background:${TAGC[x]}">${x}</span>`).join("")
+                       :`<span class="healthy">✓ healthy for ${g}</span>`;
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML=`<div class="rl"><span class="song">${pretty(song)}</span><span class="stem">${stem}</span></div>`
+      +`<div class="tags">${tags}</div><div class="bars">`
+      +barR("mud",mud,mud>L.mud||mud<L.thin)+barR("fizz",fizz,fizz>L.fizz)
+      +barR("harsh",harsh,harsh>L.harsh)+barR("boom",boom,boom>L.boom)
+      +barC("crest",crest,crest<L.squash)+`</div>`;
+    row.addEventListener("pointermove",e=>tip(e,r,t));
+    row.addEventListener("pointerleave",()=>TIP.classList.remove("on"));
     rc.appendChild(row);
   }
-  chart.appendChild(panel);
+  chart.appendChild(p);
 }
-function bar(name, v) {
-  return `<div class="bar"><span class="bname">${name}</span>`
-    + `<span class="track"><span class="fill ${name}" style="width:${pct(v)}"></span></span>`
-    + `<span class="bval mono">${v.toFixed(3)}</span></div>`;
+function barR(n,v,trip){return bar(n,v,(Math.min(v,RAT)/RAT*100),v.toFixed(3),trip);}
+function barC(n,v,trip){return bar(n,v,(Math.min(v,CREST)/CREST*100),v.toFixed(1)+" dB",trip);}
+function bar(n,v,w,lab,trip){
+  return `<div class="bar"><span class="bn">${n}</span>`
+    +`<span class="track"><span class="fill" style="width:${w.toFixed(1)}%;background:${COL[n]}"></span></span>`
+    +`<span class="bv mono${trip?" trip":""}">${lab}</span></div>`;
 }
-
-const tip = document.getElementById("tip");
-function showTip(e, r) {
-  const [song,g,stem,mud,fizz,harsh,boom,clip,rms,crest] = r;
-  tip.innerHTML = `<div class="th">${prettySong(song)} · ${stem}</div>`
-    + trow("mud",mud) + trow("fizz",fizz) + trow("harsh",harsh)
-    + trow("boom",boom) + trow("clip",clip)
-    + trow("rms dBFS",rms) + trow("crest dB",crest);
-  tip.classList.add("on");
-  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
-  let x = e.clientX + pad, y = e.clientY + pad;
-  if (x + w > innerWidth) x = e.clientX - w - pad;
-  if (y + h > innerHeight) y = e.clientY - h - pad;
-  tip.style.left = x + "px"; tip.style.top = y + "px";
+const TIP=document.getElementById("tip");
+function tip(e,r,t){
+  const [song,g,stem,mud,fizz,harsh,boom,crest]=r;
+  TIP.innerHTML=`<div class="th">${pretty(song)} · ${stem} · ${g}</div>`
+    +row2("mud",mud)+row2("fizz",fizz)+row2("harsh",harsh.toFixed(4))+row2("boom",boom)
+    +row2("crest",crest+" dB")+`<div class="tr"><span class="tk">trips</span><span>${t.join(", ")||"none"}</span></div>`;
+  TIP.classList.add("on");
+  const pad=14,w=TIP.offsetWidth,h=TIP.offsetHeight;
+  let x=e.clientX+pad,y=e.clientY+pad;
+  if(x+w>innerWidth)x=e.clientX-w-pad; if(y+h>innerHeight)y=e.clientY-h-pad;
+  TIP.style.left=x+"px"; TIP.style.top=y+"px";
 }
-const trow = (k,v) => `<div class="tr"><span class="tk">${k}</span><span class="mono">${v.toFixed ? v.toFixed(4).replace(/0+$/,"").replace(/\.$/,"") : v}</span></div>`;
-function hideTip() { tip.classList.remove("on"); }
+const row2=(k,v)=>`<div class="tr"><span class="tk">${k}</span><span class="mono">${v}</span></div>`;
 
-// Table view
-const tv = document.getElementById("tableView");
-tv.innerHTML = `<table class="tv"><thead><tr>
-  <th>Song</th><th>Genre</th><th>Stem</th><th>mud</th><th>fizz</th><th>harsh</th><th>boom</th><th>clip</th><th>rms</th><th>crest</th>
-  </tr></thead><tbody>${DATA.map(r =>
-    `<tr><td>${prettySong(r[0])}</td><td>${r[1]}</td><td>${r[2]}</td>`
-    + [3,4,5,6,7,8,9].map(i => `<td class="mono">${r[i]}</td>`).join("") + `</tr>`).join("")}</tbody></table>`;
+const tv=document.getElementById("tableView");
+tv.innerHTML=`<table class="tv"><thead><tr><th>Song</th><th>Genre</th><th>Stem</th><th>mud</th><th>fizz</th><th>harsh</th><th>boom</th><th>crest</th><th>trips</th></tr></thead><tbody>`
+ +DATA.map(r=>{const [song,g,stem,mud,fizz,harsh,boom,crest]=r,L=GEN[g],t=trips(r);
+   const c=(v,bad)=>`<td class="mono${bad?" trip":""}">${v}</td>`;
+   return `<tr><td>${pretty(song)}</td><td>${g}</td><td>${stem}</td>`
+     +c(mud.toFixed(3),mud>L.mud||mud<L.thin)+c(fizz.toFixed(3),fizz>L.fizz)+c(harsh.toFixed(4),harsh>L.harsh)
+     +c(boom.toFixed(3),boom>L.boom)+c(crest.toFixed(1),crest<L.squash)+`<td>${t.join(", ")}</td></tr>`;
+ }).join("")+`</tbody></table>`;
 
-const btn = document.getElementById("toggleView");
-btn.addEventListener("click", () => {
-  const showTable = chart.classList.toggle("hidden");
-  tv.classList.toggle("hidden", !showTable);
-  btn.setAttribute("aria-pressed", String(showTable));
-  btn.textContent = showTable ? "Show as charts" : "Show as table";
-});
+const btn=document.getElementById("toggleView");
+btn.addEventListener("click",()=>{const s=chart.classList.toggle("hidden");tv.classList.toggle("hidden",!s);
+  btn.setAttribute("aria-pressed",String(s));btn.textContent=s?"Show as charts":"Show as table";});
 </script>
