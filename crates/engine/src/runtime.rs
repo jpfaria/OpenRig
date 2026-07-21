@@ -504,6 +504,10 @@ mod audio_under_gui_pressure;
 mod audio_alloc_invariant;
 
 #[cfg(test)]
+#[path = "audio_alloc_real_rig_tests.rs"]
+mod aa_real_rig;
+
+#[cfg(test)]
 #[path = "audio_under_block_toggle_tests.rs"]
 mod audio_under_block_toggle;
 
