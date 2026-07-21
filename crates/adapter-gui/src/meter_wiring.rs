@@ -404,3 +404,7 @@ pub(crate) const METER_POLL_TICK_MS: u64 = 66; // ~15 Hz
 #[cfg(test)]
 #[path = "meter_wiring_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "meter_wiring_signature_tests.rs"]
+mod signature_tests;
