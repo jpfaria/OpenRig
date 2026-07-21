@@ -58,7 +58,6 @@ crates/adapter-gui/src/project_admin_persistence_tests.rs
 crates/adapter-gui/src/project_ops_persistence_tests.rs
 crates/application/src/command.rs
 crates/application/src/local_dispatcher_tests.rs
-crates/block-core/src/param_tests.rs
 crates/engine/src/audio_alloc_invariant_tests.rs
 crates/engine/src/runtime_tests.rs
 crates/engine/src/volume_invariants_tests.rs

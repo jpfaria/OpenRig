@@ -36,3 +36,7 @@ pub(crate) use domain::value_objects::ParameterValue;
 #[cfg(test)]
 #[path = "../param_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../param_tests_more.rs"]
+mod tests_more;
