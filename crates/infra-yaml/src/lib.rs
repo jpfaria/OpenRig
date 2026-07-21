@@ -530,3 +530,11 @@ pub(crate) fn default_instrument() -> String {
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "lib_roundtrip_tests.rs"]
+mod roundtrip_tests;
+
+#[cfg(test)]
+#[path = "lib_misc_tests.rs"]
+mod misc_tests;
