@@ -464,6 +464,10 @@ mod audio_under_block_toggle;
 mod audio_signal_integrity;
 
 #[cfg(test)]
+#[path = "audio_signal_integrity_eq_tests.rs"]
+mod audio_signal_integrity_eq;
+
+#[cfg(test)]
 #[path = "stereo_image_tests.rs"]
 mod stereo_image;
 

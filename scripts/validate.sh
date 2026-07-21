@@ -61,7 +61,6 @@ crates/application/src/local_dispatcher_tests.rs
 crates/block-core/src/param_tests.rs
 crates/block-mod/src/lib_tests.rs
 crates/engine/src/audio_alloc_invariant_tests.rs
-crates/engine/src/audio_signal_integrity_tests.rs
 crates/engine/src/runtime_tests.rs
 crates/engine/src/volume_invariants_tests.rs
 crates/engine/tests/issue_670_beat_it_real_rig.rs
