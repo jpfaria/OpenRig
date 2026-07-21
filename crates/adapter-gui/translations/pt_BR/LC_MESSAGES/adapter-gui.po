@@ -509,8 +509,7 @@ msgstr "Canais"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."
+msgstr "Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -692,10 +691,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr ""
-"Ative uma chain com entrada configurada para ver os afinadores aqui.Habilite "
-"uma chain com entrada configurada para ver os afinadores aqui.Habilite uma "
-"chain com entrada configurada para ver os afinadores aqui."
+msgstr "Ative uma chain com entrada configurada para ver os afinadores aqui."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:406
 msgid "title-window-tuner"
