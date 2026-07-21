@@ -298,6 +298,11 @@ Caps concretos por linguagem:
 ✅ crates/adapter-gui/src/chain.rs — only chain editing
 ```
 
+**CI gate mechanics (#793) — o gate PRECISA poder reprovar:**
+- `.github/workflows/test.yml` roda `cargo test --workspace` em PR/push pra develop **sem `|| true`** — teste vermelho reprova o job. (Antes: `workflow_dispatch` + `|| true` = decorativo, nada reprovava.) Cobertura (llvm-cov/codecov) continua non-blocking de propósito — é relatório, não gate.
+- `scripts/validate.sh` roda no **repo inteiro** no CI (`VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates` — só os checks estáticos: tamanho + inline-test; fmt/clippy/slint são do gate compartilhado). O `DEBT_FILES` é a lista **congelada** dos oversize atuais e **só encolhe**: um arquivo sai quando cai abaixo do cap; um arquivo novo acima do cap **reprova**, nunca é adicionado à lista. Vendored (`*/modules/*`) é excluído.
+- A lista de débito não pode apodrecer: entrada apontando pra arquivo inexistente é sujeira (removida em #793). Se você dividir um god file abaixo do cap, **remova-o** do `DEBT_FILES`.
+
 ---
 
 ## Test Coverage — OpenRig specifics
@@ -306,6 +311,7 @@ Caps concretos por linguagem:
 
 - Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`).
 - **Builds que dependem de assets externos**: bundlar fixture mínimo dentro de `crates/<x>/tests/fixtures/` (ver `engine/tests/fixtures/plugins/source/nam/` em #413). Test passa SEMPRE.
+- **Teste que precisa da árvore de captura PRIVADA do dono** (a lib real NAM/IR/LV2, grande demais pra bundlar): resolve o root por `OPENRIG_OWNER_PLUGINS` **ou** subindo do `CARGO_MANIFEST_DIR` até achar um sibling `OpenRig-plugins/plugins/source` (walk-up robusto a qualquer profundidade — main checkout ou `.solvers/`), e faz **skip alto** (`eprintln!` + `return`) quando `None`. Rig real do dono = opt-in por `OPENRIG_OWNER_PROJECT`. **PROIBIDO** path absoluto `/Users/<nome>/…` e **PROIBIDO** ler o `~/.openrig/project.yaml` ao vivo (muda de resultado quando o dono edita o rig; hard-fail em qualquer outra máquina). No CI (sem a árvore) o teste pula, nunca reprova (#793). Isto complementa a regra do fixture: fixture pra asset pequeno; env-var+skip pra árvore grande do dono.
 - **Registry tests**: iterar sobre TODOS os modelos via registry (schema, validate, build).
 - Helpers de teste no próprio módulo — sem crate de test-utils separado. Sem `mockall` ou frameworks de mock — testar código real.
 
@@ -321,7 +327,7 @@ Razões "razoáveis" que NÃO são exceção:
 | "precisa --release pra timing" | Vire benchmark (`cargo bench`) ou aumente tolerância em debug. Não ignore. |
 | "pending issue #X — comportamento atual está errado" | Test asserta o SINTOMA ATUAL ou descreve a regressão; quebra quando fixar #X. Não ignore. |
 | "depende de FFI/dylib externo" | `build.rs` copia dylib pro `target/`; ou skip por plataforma com `#[cfg(target_os = "...")]`. Cfg-skip é OK; ignore não é. |
-| "paths absolutos da máquina do dev" | COPIE pra dentro do repo (ver `engine/tests/fixtures/`). |
+| "paths absolutos da máquina do dev" | Asset pequeno: COPIE pro repo (`engine/tests/fixtures/`). Árvore grande do dono: `OPENRIG_OWNER_PLUGINS`/walk-up + skip alto (#793). NUNCA `/Users/<nome>/…` nem ler `~/.openrig/project.yaml` vivo. |
 | "demora demais no CI" | Cobertura unitária equivalente + um path sample no integration. Não ignore. |
 
 Validação: `cargo test --workspace 2>&1 \| grep "ignored" \| grep -v "0 ignored"` deve retornar VAZIO. Qualquer `ignored > 0` é débito a fixar antes de merge.

@@ -21,7 +21,7 @@ fn cabinet_ir(len: usize) -> Vec<f32> {
 fn ir_output_decays_to_silence_on_silent_input() {
     for &ir_len in &[2048usize, 4096, 8192] {
         for &block in &[64usize, 32, 128, 96, 100] {
-            let mut proc = MonoIrProcessor::new(cabinet_ir(ir_len));
+            let mut proc = MonoIrProcessor::new(cabinet_ir(ir_len)).unwrap();
 
             // Drive a loud tone burst to fill the convolver's state.
             let mut peak_driven = 0.0f32;

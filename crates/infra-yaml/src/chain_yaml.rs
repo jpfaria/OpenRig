@@ -8,7 +8,8 @@ use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
-use crate::block_yaml::{load_audio_block_value, AudioBlockYaml};
+use crate::block_yaml::AudioBlockYaml;
+use crate::block_yaml_load::load_audio_block_value;
 use crate::{default_instrument, generated_chain_id};
 
 pub(crate) fn default_io_yaml_model() -> String {
