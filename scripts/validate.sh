@@ -48,7 +48,6 @@ SLINT_CHANGED=false
 DEBT_FILES="
 crates/adapter-gui/src/block_editor_window_lifecycle.rs
 crates/adapter-gui/src/block_parameter_wiring.rs
-crates/adapter-gui/src/chain_row_wiring.rs
 crates/adapter-gui/src/compact_chain_block_handlers.rs
 crates/adapter-gui/src/desktop_app.rs
 crates/application/src/command.rs

@@ -40,6 +40,7 @@ mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;
 mod chain_row_wiring;
+mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
 mod cli;
 mod compact_block_layout;
