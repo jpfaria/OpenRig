@@ -13,6 +13,13 @@
 //!   bg-nsapp        background thread, NSApp initialised, NO run loop
 //!   bg-nsapp-loop   background thread, NSApp + main run loop running (app-like)
 
+// The whole harness links Apple frameworks (CoreFoundation) and drives an
+// NSApplication run loop, so it only compiles/runs on macOS. Gate it behind a
+// module and give the other platforms a no-op `main`, so `cargo build
+// --examples` (CI Test Suite) succeeds on Linux instead of hitting
+// `error[E0455]: link kind framework is only supported on Apple targets`.
+#[cfg(target_os = "macos")]
+mod mac {
 use std::ffi::c_void;
 use std::sync::mpsc;
 
@@ -95,7 +102,7 @@ fn nsapp_full() -> *mut c_void {
     }
 }
 
-fn main() {
+pub fn run() {
     let mode = std::env::args().nth(1).unwrap_or_else(|| "baseline".into());
     match mode.as_str() {
         "baseline" => load_once("baseline main"),
@@ -278,4 +285,18 @@ fn main() {
         }
         other => println!("unknown mode: {other}"),
     }
+}
+} // mod mac
+
+#[cfg(target_os = "macos")]
+fn main() {
+    mac::run();
+}
+
+#[cfg(not(target_os = "macos"))]
+fn main() {
+    eprintln!(
+        "repro_251 is a macOS-only VST3/NSApplication reproduction harness; \
+         nothing to run on this platform."
+    );
 }
