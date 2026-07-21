@@ -2,9 +2,10 @@
 //!
 //! The static `tone_doctor_suggestion::suggest` guesses a knob + a fixed 25 %
 //! nudge without checking the result. This module instead PROVES the fix: for
-//! the culprit block it sweeps each candidate parameter downward, re-renders
+//! the culprit block it sweeps each candidate parameter both ways, re-renders
 //! the chain, and measures the offending descriptor. It returns the gentlest
-//! value that actually brings the symptom back under its healthy limit.
+//! value that actually brings the symptom back to health — under an excess
+//! limit, or above a deficit floor (thin / squash).
 //!
 //! If no parameter on the culprit can — e.g. mud baked into a fixed NAM capture
 //! has no knob that removes it — it returns `None`. That honest "no fix on this
@@ -12,13 +13,13 @@
 
 use anyhow::Result;
 
-use feature_dsp::tone_descriptors::Symptom;
+use feature_dsp::tone_descriptors::{Symptom, SymptomLimits};
 use project::block::param_writer::{set_parameter_bool, set_parameter_number};
 use project::block::schema_for_block_model;
 use project::chain::Chain;
 use project::param::{ModelParameterSchema, ParameterDomain};
 
-use crate::tone_doctor::{symptom_metric, Diagnosis};
+use crate::tone_doctor::{is_healthy, metric, Diagnosis};
 use crate::tone_doctor_suggestion::{rationale, Suggestion};
 
 /// Tail frames appended to each render (matches the diagnosis path).
@@ -41,6 +42,12 @@ fn symptom_keywords(symptom: Symptom) -> &'static [&'static str] {
     match symptom {
         Symptom::Fizz => &["presence", "treble", "tone", "bright", "high", "fuzz", "drive", "gain"],
         Symptom::Mud => &["bass", "low", "body", "middle", "mid"],
+        Symptom::Boomy => &["bass", "low", "body", "sub"],
+        // Deficit: the sweep tries BOTH directions, so these just name the knobs
+        // that move body / dynamics — thin is cured by more low-mid (raise a
+        // bass/body, or lower a tone/tilt), squash by less compression.
+        Symptom::Thin => &["bass", "low", "body", "mids", "mid", "tone"],
+        Symptom::Squash => &["ratio", "amount", "compression", "comp", "sustain", "drive", "gain"],
         Symptom::Clipping => &["output", "level", "master", "volume", "makeup", "gain"],
         Symptom::Ok => &[],
     }
@@ -52,6 +59,7 @@ struct Candidate {
     path: String,
     label: String,
     min: f32,
+    max: f32,
     current: f32,
     enable_path: Option<String>,
 }
@@ -67,7 +75,7 @@ fn candidates(
     let keywords = symptom_keywords(symptom);
     let mut scored: Vec<(usize, Candidate)> = Vec::new();
     for spec in &schema.parameters {
-        let ParameterDomain::FloatRange { min, .. } = spec.domain else {
+        let ParameterDomain::FloatRange { min, max, .. } = spec.domain else {
             continue;
         };
         let hay = format!("{} {}", spec.path, spec.label).to_lowercase();
@@ -93,6 +101,7 @@ fn candidates(
                 path: spec.path.clone(),
                 label: spec.label.clone(),
                 min,
+                max,
                 current,
                 enable_path,
             },
@@ -111,11 +120,37 @@ pub fn measure_fix(
     block_size: usize,
     diagnosis: &Diagnosis,
 ) -> Result<Option<Suggestion>> {
+    measure_fix_with_limits(
+        chain,
+        sample_rate,
+        input,
+        block_size,
+        diagnosis,
+        &SymptomLimits::DEFAULT,
+    )
+}
+
+/// [`measure_fix`] against explicit limits (a genre-calibrated profile).
+///
+/// The sweep is **bidirectional**: each candidate knob is tried both toward its
+/// minimum and toward its maximum, gentlest step first, and the first move that
+/// renders healthy wins. That way an *excess* symptom is cured by whichever
+/// direction removes the excess and a *deficit* (thin / squash) by whichever
+/// direction restores body / dynamics — the knob's polarity is discovered by
+/// measurement, never assumed.
+pub fn measure_fix_with_limits(
+    chain: &Chain,
+    sample_rate: f32,
+    input: &[[f32; 2]],
+    block_size: usize,
+    diagnosis: &Diagnosis,
+    limits: &SymptomLimits,
+) -> Result<Option<Suggestion>> {
     let symptom = diagnosis.full_symptom;
     let Some(culprit) = diagnosis.culprit else {
         return Ok(None);
     };
-    let (_, limit) = match symptom_metric(symptom, &diagnosis.full_descriptors) {
+    let (_, limit, deficit) = match metric(symptom, &diagnosis.full_descriptors, limits) {
         Some(m) => m,
         None => return Ok(None),
     };
@@ -133,45 +168,53 @@ pub fn measure_fix(
     let mut base = None;
     for cand in &cands {
         for &frac in &SWEEP_FRACTIONS {
-            if renders >= MAX_RENDERS {
-                return Ok(None);
-            }
-            let value = cand.current - frac * (cand.current - cand.min);
-            if (value - cand.current).abs() < f32::EPSILON {
-                continue;
-            }
-            // Build the trial: enable the gate (if any), then lower the knob.
-            let mut variant = chain.clone();
-            let block = &mut variant.blocks[culprit];
-            if let Some(enable) = &cand.enable_path {
-                set_parameter_bool(block, enable, true)?;
-            }
-            set_parameter_number(block, &cand.path, value as f64)?;
+            // An excess is only ever cured by *lowering* the offending knob, so
+            // sweep down alone and spend the render budget well. A deficit's fix
+            // knob can go either way (more body: raise a bass, or lower a tilt),
+            // so try both, gentlest of each at this fraction first.
+            let down = cand.current - frac * (cand.current - cand.min);
+            let up = cand.current + frac * (cand.max - cand.current);
+            let trials: &[f32] = if deficit { &[down, up] } else { &[down] };
+            for &value in trials {
+                if (value - cand.current).abs() < f32::EPSILON {
+                    continue;
+                }
+                if renders >= MAX_RENDERS {
+                    return Ok(None);
+                }
+                // Build the trial: enable the gate (if any), then set the knob.
+                let mut variant = chain.clone();
+                let block = &mut variant.blocks[culprit];
+                if let Some(enable) = &cand.enable_path {
+                    set_parameter_bool(block, enable, true)?;
+                }
+                set_parameter_number(block, &cand.path, value as f64)?;
 
-            let (samples, nodes) = crate::offline::render_reusing(
-                &variant,
-                sample_rate,
-                input,
-                block_size,
-                DIAGNOSE_TAIL_FRAMES,
-                base.take(),
-            )?;
-            base = Some(nodes);
-            let desc = feature_dsp::tone_descriptors::analyze(&samples, sample_rate);
-            renders += 1;
-            let healthy = symptom_metric(symptom, &desc)
-                .map(|(v, _)| v < limit)
-                .unwrap_or(false);
-            if healthy {
-                return Ok(Some(Suggestion {
-                    block_index: culprit,
-                    param_path: cand.path.clone(),
-                    param_label: cand.label.clone(),
-                    current: cand.current,
-                    suggested: value,
-                    enable_path: cand.enable_path.clone(),
-                    rationale: rationale(symptom, &schema.display_name, &cand.label),
-                }));
+                let (samples, nodes) = crate::offline::render_reusing(
+                    &variant,
+                    sample_rate,
+                    input,
+                    block_size,
+                    DIAGNOSE_TAIL_FRAMES,
+                    base.take(),
+                )?;
+                base = Some(nodes);
+                let desc = feature_dsp::tone_descriptors::analyze(&samples, sample_rate);
+                renders += 1;
+                let healthy = metric(symptom, &desc, limits)
+                    .map(|(v, _, _)| is_healthy(v, limit, deficit))
+                    .unwrap_or(false);
+                if healthy {
+                    return Ok(Some(Suggestion {
+                        block_index: culprit,
+                        param_path: cand.path.clone(),
+                        param_label: cand.label.clone(),
+                        current: cand.current,
+                        suggested: value,
+                        enable_path: cand.enable_path.clone(),
+                        rationale: rationale(symptom, &schema.display_name, &cand.label),
+                    }));
+                }
             }
         }
     }

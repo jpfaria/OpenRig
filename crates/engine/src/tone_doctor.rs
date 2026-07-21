@@ -18,9 +18,7 @@
 //! preserved by construction (each render sees only this chain).
 
 use anyhow::Result;
-use feature_dsp::tone_descriptors::{
-    analyze, Symptom, ToneDescriptors, CLIP_FRACTION_LIMIT, FIZZ_RATIO_LIMIT, MUD_RATIO_LIMIT,
-};
+use feature_dsp::tone_descriptors::{analyze, Symptom, SymptomLimits, ToneDescriptors};
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 
@@ -57,13 +55,35 @@ pub struct Diagnosis {
     pub bypass_resolved: bool,
 }
 
-/// The scalar the culprit search follows for a given symptom.
-pub(crate) fn symptom_metric(symptom: Symptom, d: &ToneDescriptors) -> Option<(f32, f32)> {
+/// The scalar the culprit search and the fix follow for a symptom, against the
+/// active limits: `(value, limit, is_deficit)`. `is_deficit` is `true` for the
+/// below-floor symptoms (`Thin`/`Squash`) — there "healthy" means value ABOVE
+/// the limit — and `false` for the excess symptoms. `None` when the symptom has
+/// no metric (healthy, or a disabled deficit floor).
+pub(crate) fn metric(
+    symptom: Symptom,
+    d: &ToneDescriptors,
+    limits: &SymptomLimits,
+) -> Option<(f32, f32, bool)> {
     match symptom {
-        Symptom::Fizz => Some((d.fizz_ratio, FIZZ_RATIO_LIMIT)),
-        Symptom::Mud => Some((d.mud_ratio, MUD_RATIO_LIMIT)),
-        Symptom::Clipping => Some((d.clip_fraction, CLIP_FRACTION_LIMIT)),
-        Symptom::Ok => None,
+        Symptom::Fizz => Some((d.fizz_ratio, limits.fizz, false)),
+        Symptom::Mud => Some((d.mud_ratio, limits.mud, false)),
+        Symptom::Boomy => Some((d.boom_ratio, limits.boom, false)),
+        Symptom::Clipping => Some((d.clip_fraction, limits.clip, false)),
+        // Deficit: value below the floor is bad, so the floor must be enabled.
+        Symptom::Thin if limits.thin > 0.0 => Some((d.mud_ratio, limits.thin, true)),
+        Symptom::Squash if limits.squash > 0.0 => Some((d.crest_db, limits.squash, true)),
+        Symptom::Thin | Symptom::Squash | Symptom::Ok => None,
+    }
+}
+
+/// Whether `value` sits on the healthy side of `limit`. Excess symptoms are
+/// healthy below the limit; deficit symptoms are healthy above the floor.
+pub(crate) fn is_healthy(value: f32, limit: f32, is_deficit: bool) -> bool {
+    if is_deficit {
+        value >= limit
+    } else {
+        value < limit
     }
 }
 
@@ -92,6 +112,18 @@ pub fn diagnose(
     input: &[[f32; 2]],
     block_size: usize,
 ) -> Result<Diagnosis> {
+    diagnose_with_limits(chain, sample_rate, input, block_size, &SymptomLimits::DEFAULT)
+}
+
+/// Diagnose against explicit limits (a genre-calibrated profile). [`diagnose`]
+/// is this with [`SymptomLimits::DEFAULT`].
+pub fn diagnose_with_limits(
+    chain: &Chain,
+    sample_rate: f32,
+    input: &[[f32; 2]],
+    block_size: usize,
+    limits: &SymptomLimits,
+) -> Result<Diagnosis> {
     let mut nodes = crate::offline::build_offline_nodes(chain, sample_rate)?;
     let render = |nodes: &mut Vec<_>, mask: &[bool]| {
         let out = crate::offline::render_nodes_masked(
@@ -107,10 +139,10 @@ pub fn diagnose(
     // The chain as-is (respecting the user's enabled flags).
     let full_mask: Vec<bool> = chain.blocks.iter().map(|b| b.enabled).collect();
     let full_descriptors = render(&mut nodes, &full_mask);
-    let full_symptom = full_descriptors.symptom();
+    let full_symptom = full_descriptors.symptom_with_limits(limits);
 
     // A healthy chain has nothing to blame — skip the expensive ablation.
-    let metric = match symptom_metric(full_symptom, &full_descriptors) {
+    let full_metric = match metric(full_symptom, &full_descriptors, limits) {
         Some(m) => m,
         None => {
             return Ok(Diagnosis {
@@ -143,11 +175,12 @@ pub fn diagnose(
         });
     }
 
-    // The symptom is born at the first stage whose metric crosses the limit.
-    let (_, limit) = metric;
+    // The symptom is born at the first stage that first reads unhealthy (value
+    // crosses above an excess limit, or drops below a deficit floor).
+    let (_, limit, deficit) = full_metric;
     let culprit_stage = curve.iter().position(|s| {
-        symptom_metric(full_symptom, &s.descriptors)
-            .map(|(value, _)| value > limit)
+        metric(full_symptom, &s.descriptors, limits)
+            .map(|(value, _, _)| !is_healthy(value, limit, deficit))
             .unwrap_or(false)
     });
     let culprit = culprit_stage.map(|p| stages[p]);
@@ -156,7 +189,7 @@ pub fn diagnose(
     let bypass_resolved = if let Some(culprit_index) = culprit {
         let mut mask = full_mask.clone();
         mask[culprit_index] = false;
-        render(&mut nodes, &mask).symptom() != full_symptom
+        render(&mut nodes, &mask).symptom_with_limits(limits) != full_symptom
     } else {
         false
     };

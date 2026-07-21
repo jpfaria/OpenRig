@@ -17,6 +17,7 @@ pub mod native_registry;
 pub mod chain_quality;
 pub mod offline;
 pub mod tone_doctor;
+pub mod tone_profile_table;
 pub mod tone_doctor_fix;
 pub mod tone_doctor_suggestion;
 pub mod output_meter;

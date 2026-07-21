@@ -31,7 +31,11 @@ fn multitone(components: &[(f32, f32)]) -> Vec<f32> {
 #[test]
 fn clean_1khz_sine_is_ok() {
     let d = analyze_mono(&sine(1_000.0, 0.5), SR);
-    assert_eq!(d.symptom(), Symptom::Ok, "a clean 1 kHz sine is healthy: {d:?}");
+    assert_eq!(
+        d.symptom(),
+        Symptom::Ok,
+        "a clean 1 kHz sine is healthy: {d:?}"
+    );
 }
 
 #[test]
@@ -61,7 +65,10 @@ fn low_mid_heavy_signal_reads_as_mud() {
 #[test]
 fn clipped_signal_reads_as_clipping() {
     // Overdriven sine clamped hard at the rail.
-    let clipped: Vec<f32> = sine(1_000.0, 2.0).iter().map(|s| s.clamp(-1.0, 1.0)).collect();
+    let clipped: Vec<f32> = sine(1_000.0, 2.0)
+        .iter()
+        .map(|s| s.clamp(-1.0, 1.0))
+        .collect();
     let d = analyze_mono(&clipped, SR);
     assert!(
         d.clip_fraction > CLIP_FRACTION_LIMIT,
@@ -113,11 +120,102 @@ fn analyze_stereo_collapses_to_mono() {
     let stereo: Vec<[f32; 2]> = mono.iter().map(|&s| [s, s]).collect();
     let dm = analyze_mono(&mono, SR);
     let ds = analyze(&stereo, SR);
-    assert!((dm.peak_dbfs - ds.peak_dbfs).abs() < 1e-3, "{dm:?} vs {ds:?}");
+    assert!(
+        (dm.peak_dbfs - ds.peak_dbfs).abs() < 1e-3,
+        "{dm:?} vs {ds:?}"
+    );
 }
 
 #[test]
 fn descriptors_are_deterministic() {
     let sig = multitone(&[(1_000.0, 0.3), (5_000.0, 0.2)]);
     assert_eq!(analyze_mono(&sig, SR), analyze_mono(&sig, SR));
+}
+
+#[test]
+fn low_end_heavy_signal_reads_as_boomy() {
+    // Body note at 1 kHz plus a dominant 60 Hz rumble in the boom band, kept
+    // below the rail so it reads as boom, not clipping.
+    let d = analyze_mono(&multitone(&[(1_000.0, 0.1), (60.0, 0.5)]), SR);
+    assert_eq!(d.symptom(), Symptom::Boomy, "low-end-heavy is boomy: {d:?}");
+}
+
+#[test]
+fn symptom_with_limits_reclassifies_under_a_stricter_genre() {
+    // A mild-presence signal: fizz just under the default 0.05 → healthy by the
+    // global bar, but a dark genre (blues-like) sets a tighter fizz limit, so
+    // the same tone must read as Fizz for that genre.
+    let d = analyze_mono(&multitone(&[(1_000.0, 0.3), (5_000.0, 0.06)]), SR);
+    assert_eq!(d.symptom(), Symptom::Ok, "healthy by default bar: {d:?}");
+
+    let strict = SymptomLimits {
+        fizz: 0.001,
+        ..SymptomLimits::DEFAULT
+    };
+    assert_eq!(
+        d.symptom_with_limits(&strict),
+        Symptom::Fizz,
+        "the tighter genre limit must flag it: {d:?}"
+    );
+}
+
+#[test]
+fn thin_fires_only_when_the_genre_supplies_a_floor() {
+    // A 1 kHz sine has almost no 160–500 Hz low-mid → mud_ratio ~0. That is
+    // "thin" only against a genre that expects body; with the deficit floor off
+    // (the default) it is not flagged.
+    let d = analyze_mono(&sine(1_000.0, 0.5), SR);
+    assert!(d.mud_ratio < 0.1, "sine carries little low-mid: {d:?}");
+    assert_ne!(
+        d.symptom_with_limits(&SymptomLimits::DEFAULT),
+        Symptom::Thin,
+        "deficit disabled by default: {d:?}"
+    );
+    let with_body = SymptomLimits {
+        thin: 0.2,
+        ..SymptomLimits::DEFAULT
+    };
+    assert_eq!(
+        d.symptom_with_limits(&with_body),
+        Symptom::Thin,
+        "below the genre's low-mid floor → thin: {d:?}"
+    );
+}
+
+#[test]
+fn squash_fires_only_when_the_genre_supplies_a_floor() {
+    // A pure sine has a low crest factor (~3 dB) — maximally "squashed"
+    // dynamically. Off by default; flagged against a genre that expects
+    // transient life.
+    let d = analyze_mono(&sine(1_000.0, 0.5), SR);
+    assert!(d.crest_db < 6.0, "sine crest is low: {d:?}");
+    assert_ne!(
+        d.symptom_with_limits(&SymptomLimits::DEFAULT),
+        Symptom::Squash,
+        "deficit disabled by default: {d:?}"
+    );
+    let dynamic = SymptomLimits {
+        squash: 10.0,
+        ..SymptomLimits::DEFAULT
+    };
+    assert_eq!(
+        d.symptom_with_limits(&dynamic),
+        Symptom::Squash,
+        "below the genre's crest floor → squash: {d:?}"
+    );
+}
+
+#[test]
+fn symptom_with_limits_default_matches_symptom() {
+    let d = analyze_mono(&multitone(&[(1_000.0, 0.2), (5_000.0, 0.5)]), SR);
+    assert_eq!(d.symptom(), d.symptom_with_limits(&SymptomLimits::DEFAULT));
+}
+
+#[test]
+fn clean_1khz_sine_has_no_boom() {
+    let d = analyze_mono(&sine(1_000.0, 0.5), SR);
+    assert!(
+        d.boom_ratio < BOOM_RATIO_LIMIT,
+        "clean tone not boomy: {d:?}"
+    );
 }

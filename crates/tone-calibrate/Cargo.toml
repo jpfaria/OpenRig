@@ -1,0 +1,21 @@
+[package]
+name = "tone-calibrate"
+version.workspace = true
+edition.workspace = true
+
+# Offline dev tool (#809): reads genre-labeled isolated-guitar stems and writes
+# the Tone Doctor's per-genre limit table. Never runs in the app / audio thread.
+
+[dependencies]
+anyhow.workspace = true
+serde = { workspace = true }
+serde_yaml.workspace = true
+hound = "3.5"
+feature-dsp = { path = "../feature-dsp" }
+
+[[bin]]
+name = "openrig-tone-calibrate"
+path = "src/main.rs"
+
+[dev-dependencies]
+hound = "3.5"

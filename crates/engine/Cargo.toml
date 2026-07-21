@@ -13,6 +13,8 @@ jack = []
 log.workspace = true
 anyhow.workspace = true
 arc-swap.workspace = true
+serde = { workspace = true }
+serde_yaml.workspace = true
 crossbeam-queue.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }

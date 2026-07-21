@@ -31,29 +31,82 @@ msgstr "−"
 msgid "+"
 msgstr "+"
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:87
-msgid "Preset selector"
-msgstr ""
+#: crates/adapter-gui/ui/components/chain_di_loop_button.slint:56
+msgid "di-loop-button-label"
+msgstr "DI लूप"
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:170
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:77
 msgid "Scene {}"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:192
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:99
 msgid "Add scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:201
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:108
 msgid "Remove last scene"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/chain_title_preset.slint:258
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:183
+msgid "tooltip-open-preset"
+msgstr "प्रीसेट खोलें"
+
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:193
+msgid "tooltip-save-preset"
+msgstr "प्रीसेट सहेजें"
+
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:203
 msgid "Add preset"
 msgstr ""
+
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:213
+msgid "Rename preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:224
+msgid "Remove preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:316
+msgid "Cancel"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/chain_title_preset.slint:337
+msgid "OK"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/chain_tone_doctor_button.slint:61
+msgid "tone-doctor-button-label"
+msgstr "Tone Doctor"
 
 #: crates/adapter-gui/ui/components/chain_volume_button.slint:37
 msgid "Volume"
 msgstr ""
+
+#: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:72
+msgid "placeholder-search-models"
+msgstr "मॉडल खोजें..."
+
+#: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:105
+msgid "status-no-models-found"
+msgstr "कोई मॉडल नहीं मिला"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:29
+msgid "title-dialog-delete-chain"
+msgstr "चेन हटाएं"
+
+#. text directly.
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:39
+msgid "Excluir a chain \"{}\"?"
+msgstr "चेन \"{}\" हटाएं?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:58
+msgid "btn-cancel"
+msgstr "रद्द करें"
+
+#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:75
+msgid "btn-delete"
+msgstr "हटाएं"
 
 #: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:27
 msgid "title-dialog-delete-block"
@@ -64,133 +117,186 @@ msgstr "ब्लॉक हटाएं"
 msgid "Excluir \"{}\"?"
 msgstr "\"{}\" हटाएं?"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:55
-msgid "btn-cancel"
-msgstr "रद्द करें"
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:30
+msgid "title-dialog-delete-recent-project"
+msgstr "हाल से हटाएं"
 
-#: crates/adapter-gui/ui/components/confirm_delete_dialog.slint:72
-msgid "btn-delete"
+#. Literal pt-BR source string with `{}` placeholder.
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:38
+msgid "Remover o projeto \"{}\" dos recentes?"
+msgstr "क्या प्रोजेक्ट \"{}\" को हाल से हटाएं?"
+
+#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:74
+msgid "btn-remove"
 msgstr "हटाएं"
+
+#: crates/adapter-gui/ui/components/di_loop_panel.slint:159
+msgid "di-output-select-label"
+msgstr "DI आउटपुट"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:56
 msgid "accessible-language-selector"
 msgstr "भाषा चयनकर्ता"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:93
+#: crates/adapter-gui/ui/components/model_select_with_search.slint:110
 msgid "▼"
 msgstr "▼"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:175
-msgid "placeholder-search-models"
-msgstr "मॉडल खोजें..."
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:34
+msgid "btn-load-preset"
+msgstr "प्रीसेट लोड करें"
+
+#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
+msgid "preset-search-placeholder"
+msgstr "प्रीसेट खोजें…"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
+msgid "title-dialog-save-preset"
+msgstr "प्रीसेट सहेजें"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
+msgid "btn-save"
+msgstr "सहेजें"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
+msgid "title-dialog-overwrite-preset"
+msgstr "प्रीसेट अधिलेखित करें?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
+msgid "msg-overwrite-preset"
+msgstr "\"{}\" नाम का प्रीसेट पहले से मौजूद है। अधिलेखित करें?"
+
+#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
+msgid "btn-overwrite"
+msgstr "अधिलेखित करें"
+
+#: crates/adapter-gui/ui/components/preset_select.slint:72
+msgid "Preset selector"
+msgstr ""
 
 #: crates/adapter-gui/ui/components/preset_select.slint:170
 msgid "status-no-presets-found"
 msgstr "कोई प्रीसेट नहीं मिला"
 
-#: crates/adapter-gui/ui/components/model_select_with_search.slint:209
-msgid "status-no-models-found"
-msgstr "कोई मॉडल नहीं मिला"
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:106
+msgid "tone-doctor-title"
+msgstr "Tone Doctor"
 
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:32
-msgid "btn-load-preset"
-msgstr "प्रीसेट लोड करें"
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:112
+msgid "tone-doctor-analyze"
+msgstr "विश्लेषण"
 
-#: crates/adapter-gui/ui/pages/block_editor_panel.slint:122
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:126
+msgid "tone-doctor-genre"
+msgstr "शैली"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:134
+msgid "tone-doctor-genre-default"
+msgstr "डिफ़ॉल्ट"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:135
+msgid "tone-doctor-genre-search"
+msgstr "शैली खोजें…"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
+msgid "tone-doctor-genre-none"
+msgstr "कोई शैली नहीं"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:156
+msgid "tone-doctor-no-signal"
+msgstr "एक DI चलाएं या चेन सक्षम करें"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:157
+msgid "tone-doctor-diagnosing"
+msgstr "निदान हो रहा है…"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
+msgid "tone-doctor-rerun"
+msgstr "फिर से निदान करें"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
+msgid "tone-doctor-diagnose"
+msgstr "निदान करें"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:215
+msgid "tone-doctor-suggestion"
+msgstr "सुझाया गया सुधार"
+
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:229
+msgid "tone-doctor-apply"
+msgstr "लागू करें"
+
+#: crates/adapter-gui/ui/pages/block_editor_panel.slint:121
 msgid "tooltip-delete"
 msgstr "हटाएं"
 
-#: crates/adapter-gui/ui/pages/block_panel_editor.slint:36
+#: crates/adapter-gui/ui/pages/block_panel_editor.slint:41
 msgid "btn-add"
 msgstr "जोड़ें"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:195
+#: crates/adapter-gui/ui/pages/chain_editor.slint:70
 msgid "instrument-guitar"
 msgstr "गिटार"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:196
+#: crates/adapter-gui/ui/pages/chain_editor.slint:71
 msgid "instrument-acoustic-guitar"
 msgstr "ध्वनिक गिटार"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:197
+#: crates/adapter-gui/ui/pages/chain_editor.slint:72
 msgid "instrument-bass"
 msgstr "बास"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:198
+#: crates/adapter-gui/ui/pages/chain_editor.slint:73
 msgid "instrument-voice"
 msgstr "आवाज़"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:199
+#: crates/adapter-gui/ui/pages/chain_editor.slint:74
 msgid "instrument-keyboard"
 msgstr "कीबोर्ड"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:200
+#: crates/adapter-gui/ui/pages/chain_editor.slint:75
 msgid "instrument-drums"
 msgstr "ड्रम"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:201
+#: crates/adapter-gui/ui/pages/chain_editor.slint:76
 msgid "instrument-other"
 msgstr "अन्य"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:221
+#: crates/adapter-gui/ui/pages/chain_editor.slint:92
 msgid "title-new-chain"
 msgstr "नई चेन"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:221
+#: crates/adapter-gui/ui/pages/chain_editor.slint:92
 msgid "title-configure-chain"
 msgstr "चेन कॉन्फ़िगर करें"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:240
+#: crates/adapter-gui/ui/pages/chain_editor.slint:111
 msgid "label-name"
 msgstr "नाम"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:267
+#: crates/adapter-gui/ui/pages/chain_editor.slint:138
 msgid "label-instrument"
 msgstr "वाद्य यंत्र"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:345
-msgid "title-section-inputs"
-msgstr "इनपुट"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:218
+msgid "label-chain-io-bindings"
+msgstr "I/O बाइंडिंग"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:371
-msgid "btn-add-input"
-msgstr "+ इनपुट जोड़ें"
+#: crates/adapter-gui/ui/pages/chain_editor.slint:228
+msgid "empty-no-bindings-for-chain"
+msgstr "अभी तक कोई I/O बाइंडिंग नहीं — सेटिंग्स → I/O बाइंडिंग में बनाएँ"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:390
-msgid "title-section-outputs"
-msgstr "आउटपुट"
-
-#: crates/adapter-gui/ui/pages/chain_editor.slint:416
-msgid "btn-add-output"
-msgstr "+ आउटपुट जोड़ें"
-
-#: crates/adapter-gui/ui/pages/chain_editor.slint:450
+#: crates/adapter-gui/ui/pages/chain_editor.slint:321
 msgid "btn-create-chain"
 msgstr "चेन बनाएं"
 
-#: crates/adapter-gui/ui/pages/chain_editor.slint:450
+#: crates/adapter-gui/ui/pages/chain_editor.slint:321
 msgid "btn-save-chain"
 msgstr "चेन सहेजें"
 
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:66
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:65
 msgid "✓"
 msgstr "✓"
-
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:140
-msgid "label-device"
-msgstr "डिवाइस"
-
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:170
-msgid "label-mode"
-msgstr "मोड"
-
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:229
-msgid "label-channels"
-msgstr "चैनल"
-
-#: crates/adapter-gui/ui/pages/chain_endpoint_editor.slint:275
-msgid "btn-ok"
-msgstr "ठीक है"
 
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:99
 msgid "title-section-configure-insert"
@@ -200,125 +306,105 @@ msgstr "Insert कॉन्फ़िगर करें"
 msgid "label-send"
 msgstr "सेंड"
 
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:225
+msgid "label-device"
+msgstr "डिवाइस"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:247
+msgid "label-mode"
+msgstr "मोड"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:299
+msgid "label-channels"
+msgstr "चैनल"
+
 #: crates/adapter-gui/ui/pages/chain_insert_editor.slint:344
 msgid "label-return"
 msgstr "रिटर्न"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:140
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:476
+msgid "btn-ok"
+msgstr "ठीक है"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:240
 msgid "tooltip-expand-blocks"
 msgstr "ब्लॉक विस्तृत करें"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:148
+#: crates/adapter-gui/ui/pages/chain_row.slint:248
 msgid "tooltip-measure-latency"
 msgstr "विलंबता मापें (बीप करता है)"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:177
+#: crates/adapter-gui/ui/pages/chain_row.slint:277
 msgid "tooltip-configure"
 msgstr "कॉन्फ़िगर करें"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:185
-msgid "tooltip-open-preset"
-msgstr "प्रीसेट खोलें"
-
-#: crates/adapter-gui/ui/pages/chain_row.slint:193
-msgid "tooltip-save-preset"
-msgstr "प्रीसेट सहेजें"
-
-#: crates/adapter-gui/ui/pages/chain_row.slint:472
+#: crates/adapter-gui/ui/pages/chain_row.slint:561
 msgid "label-lat"
 msgstr "LAT"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:521
+#: crates/adapter-gui/ui/pages/chain_row.slint:610
 msgid "label-input"
 msgstr "इनपुट"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:567
+#: crates/adapter-gui/ui/pages/chain_row.slint:656
 msgid "label-output"
 msgstr "आउटपुट"
-
-#: crates/adapter-gui/ui/pages/compact_block_row.slint:493
-msgid "btn-open-plugin"
-msgstr "प्लगइन खोलें"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:83
-msgid "label-in"
-msgstr "IN"
-
-#: crates/adapter-gui/ui/pages/compact_chain_view.slint:111
-msgid "label-out"
-msgstr "OUT"
 
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:87
 msgid "·"
 msgstr "·"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:123
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:125
 msgid "label-description"
 msgstr "Description"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:142
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:144
 msgid "label-license"
 msgstr "License:"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:169
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:171
 msgid "↗"
 msgstr "↗"
 
-#: crates/adapter-gui/ui/pages/plugin_info_window.slint:175
+#: crates/adapter-gui/ui/pages/plugin_info_window.slint:177
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:136
+#: crates/adapter-gui/ui/pages/project_chains.slint:144
 msgid "tooltip-back"
 msgstr "वापस"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:144
+#: crates/adapter-gui/ui/pages/project_chains.slint:152
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:152
+#: crates/adapter-gui/ui/pages/project_chains.slint:160
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:160
+#: crates/adapter-gui/ui/pages/project_chains.slint:168
 msgid "tooltip-project-settings"
 msgstr "प्रोजेक्ट"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:169
+#: crates/adapter-gui/ui/pages/project_chains.slint:177
 msgid "tooltip-save"
 msgstr "सहेजें"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:177
+#: crates/adapter-gui/ui/pages/project_chains.slint:185
 msgid "tooltip-new-chain"
 msgstr "नई चेन"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:185
+#: crates/adapter-gui/ui/pages/project_launcher.slint:184
 msgid "placeholder-search-projects"
 msgstr "प्रोजेक्ट खोजें"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:288
+#: crates/adapter-gui/ui/pages/project_launcher.slint:287
 msgid "tooltip-open-project"
 msgstr "प्रोजेक्ट खोलें"
 
-#: crates/adapter-gui/ui/pages/project_launcher.slint:295
+#: crates/adapter-gui/ui/pages/project_launcher.slint:294
 msgid "btn-new-project"
 msgstr "नया प्रोजेक्ट"
-
-#: crates/adapter-gui/ui/pages/project_settings.slint:147
-msgid "label-hz"
-msgstr "Hz"
-
-#: crates/adapter-gui/ui/pages/project_settings.slint:170
-msgid "label-buffer"
-msgstr "Buffer"
-
-#: crates/adapter-gui/ui/pages/project_settings.slint:193
-msgid "label-bits"
-msgstr "Bits"
-
-#: crates/adapter-gui/ui/pages/project_settings.slint:271
-msgid "title-section-audio-devices"
-msgstr "ऑडियो डिवाइस"
 
 #: crates/adapter-gui/ui/pages/project_setup.slint:55
 msgid "placeholder-project-name-example"
@@ -335,6 +421,213 @@ msgstr "प्रोजेक्ट नाम"
 #: crates/adapter-gui/ui/pages/project_setup.slint:211
 msgid "btn-create-project"
 msgstr "प्रोजेक्ट बनाएं"
+
+#: crates/adapter-gui/ui/pages/settings.slint:190
+msgid "nav-group-system"
+msgstr "सिस्टम"
+
+#: crates/adapter-gui/ui/pages/settings.slint:201
+msgid "title-section-audio-interface"
+msgstr "ऑडियो इंटरफ़ेस"
+
+#: crates/adapter-gui/ui/pages/settings.slint:206
+msgid "title-section-language"
+msgstr "भाषा"
+
+#: crates/adapter-gui/ui/pages/settings.slint:211
+msgid "title-section-midi-devices"
+msgstr "MIDI डिवाइस"
+
+#: crates/adapter-gui/ui/pages/settings.slint:216
+msgid "title-section-paths"
+msgstr "पथ"
+
+#: crates/adapter-gui/ui/pages/settings.slint:221
+msgid "title-section-integrations"
+msgstr "एकीकरण"
+
+#: crates/adapter-gui/ui/pages/settings.slint:226
+msgid "title-section-io-bindings"
+msgstr "इनपुट/आउटपुट बाइंडिंग"
+
+#: crates/adapter-gui/ui/pages/settings.slint:241
+msgid "nav-group-project"
+msgstr "प्रोजेक्ट"
+
+#: crates/adapter-gui/ui/pages/settings.slint:252
+msgid "title-section-project-meta"
+msgstr "मेटाडेटा"
+
+#: crates/adapter-gui/ui/pages/settings.slint:393
+msgid "btn-save-audio-settings"
+msgstr "लागू करें"
+
+#: crates/adapter-gui/ui/pages/settings.slint:397
+msgid "btn-close"
+msgstr "बंद करें"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:95
+msgid "label-endpoint-device"
+msgstr "डिवाइस"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:115
+msgid "label-endpoint-mode"
+msgstr "मोड"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:127
+msgid "mode-mono"
+msgstr "मोनो"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:127
+msgid "mode-stereo"
+msgstr "स्टीरियो"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:127
+msgid "mode-dual-mono"
+msgstr "दोहरा मोनो"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:138
+msgid "label-endpoint-channels"
+msgstr "चैनल"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:172
+msgid "btn-add-endpoint"
+msgstr "एंडपॉइंट जोड़ें"
+
+#: crates/adapter-gui/ui/pages/settings/io_endpoint_row.slint:43
+msgid "label-channels-prefix"
+msgstr "चैनल"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
+msgid "help-io-bindings"
+msgstr ""
+"एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
+msgid "btn-new-binding"
+msgstr "नई बाइंडिंग"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:259
+msgid "empty-no-bindings"
+msgstr "अभी तक कोई बाइंडिंग नहीं"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
+msgid "empty-no-bindings-hint"
+msgstr "किसी इंटरफ़ेस के इनपुट और आउटपुट को समूहित करने के लिए एक बनाएँ।"
+
+#. ── Entradas ──
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
+msgid "label-group-inputs"
+msgstr "इनपुट"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
+msgid "empty-no-input-endpoints"
+msgstr "अभी कोई इनपुट नहीं"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:372
+msgid "btn-add-input"
+msgstr "+ इनपुट जोड़ें"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:379
+msgid "placeholder-pick-device"
+msgstr "डिवाइस चुनें"
+
+#. ── Saídas ──
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:411
+msgid "label-group-outputs"
+msgstr "आउटपुट"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:412
+msgid "empty-no-output-endpoints"
+msgstr "अभी कोई आउटपुट नहीं"
+
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:425
+msgid "btn-add-output"
+msgstr "+ आउटपुट जोड़ें"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:58
+msgid "label-file"
+msgstr "फ़ाइल"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:66
+msgid "placeholder-project-unsaved"
+msgstr "(असहेजा)"
+
+#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint:83
+msgid "btn-save-project"
+msgstr "प्रोजेक्ट सहेजें"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:95
+msgid "label-hz"
+msgstr "Hz"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:118
+msgid "label-buffer"
+msgstr "Buffer"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint:141
+msgid "label-bits"
+msgstr "Bits"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:39
+msgid "label-midi-enabled"
+msgstr "MIDI नियंत्रण"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:45
+msgid "desc-midi-enabled"
+msgstr "MIDI/BLE-MIDI एडाप्टर चालू करें ताकि फुटस्विच OpenRig को नियंत्रित करें"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:93
+msgid "label-mcp-enabled"
+msgstr "MCP सर्वर"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:99
+msgid "desc-mcp-enabled"
+msgstr "एजेंट के लिए MCP सर्वर को 127.0.0.1:4123 पर उपलब्ध कराएं"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:134
+msgid "hint-restart-to-apply"
+msgstr "अगली बार शुरू करने पर लागू होगा।"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_language.slint:25
+msgid "label-language"
+msgstr "भाषा"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:49
+msgid "label-presets-path"
+msgstr "प्रीसेट फ़ोल्डर"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:57
+msgid "placeholder-default-path"
+msgstr "(डिफ़ॉल्ट)"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:66
+msgid "btn-choose-path"
+msgstr "चुनें…"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:70
+msgid "btn-reset-path"
+msgstr "रीसेट करें"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:81
+msgid "label-plugins-path"
+msgstr "प्लगइन फ़ोल्डर"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:113
+msgid "label-evaluations-path"
+msgstr "मूल्यांकन फ़ोल्डर"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:145
+msgid "label-plugin-catalog"
+msgstr "प्लगइन कैटलॉग"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:153
+msgid "status-plugin-catalog-idle"
+msgstr "अभी तक फिर लोड नहीं किया"
+
+#: crates/adapter-gui/ui/pages/settings/section_system_paths.slint:162
+msgid "btn-reload-plugin-catalog"
+msgstr "फिर लोड करें"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:73
 msgid "—"
@@ -396,388 +689,30 @@ msgstr "यहां ट्यूनर देखने के लिए कॉ�
 msgid "title-window-tuner"
 msgstr "OpenRig · Tuner"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:28
+#: crates/adapter-gui/ui/secondary_windows_block.slint:36
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:195
+#: crates/adapter-gui/ui/secondary_windows_block.slint:239
 msgid "title-window-chain-view"
 msgstr "OpenRig · चेन"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:23
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:82
 msgid "title-window-project-settings"
 msgstr "OpenRig · प्रोजेक्ट कॉन्फ़िगर करें"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:96
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:171
 msgid "title-window-chain-editor"
 msgstr "OpenRig · चेन कॉन्फ़िगर करें"
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:129
-msgid "title-section-input"
-msgstr "इनपुट"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:147
-msgid "title-section-output"
-msgstr "आउटपुट"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:177
-msgid "title-window-chain-input"
-msgstr "OpenRig · चेन इनपुट"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:217
-msgid "title-window-chain-output"
-msgstr "OpenRig · चेन आउटपुट"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:258
-msgid "title-window-chain-inputs"
-msgstr "OpenRig · चेन इनपुट"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:269
-msgid "btn-add-input-row"
-msgstr "+ इनपुट जोड़ें"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:299
-msgid "title-window-chain-outputs"
-msgstr "OpenRig · चेन आउटपुट"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:310
-msgid "btn-add-output-row"
-msgstr "+ आउटपुट जोड़ें"
-
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:355
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:226
 msgid "title-window-chain-insert"
 msgstr "OpenRig · Insert कॉन्फ़िगर करें"
 
-#: crates/adapter-gui/ui/touch_main.slint:586
+#: crates/adapter-gui/ui/touch_main.slint:623
 msgid "⌨"
 msgstr "⌨"
 
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:27
-msgid "title-dialog-delete-chain"
-msgstr "चेन हटाएं"
-
-#: crates/adapter-gui/ui/components/confirm_delete_chain_dialog.slint:37
-msgid "Excluir a chain \"{}\"?"
-msgstr "चेन \"{}\" हटाएं?"
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:31
-msgid "title-dialog-delete-recent-project"
-msgstr "हाल से हटाएं"
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:41
-msgid "Remover o projeto \"{}\" dos recentes?"
-msgstr "क्या प्रोजेक्ट \"{}\" को हाल से हटाएं?"
-
-#: crates/adapter-gui/ui/components/confirm_delete_recent_project_dialog.slint:75
-msgid "btn-remove"
-msgstr "हटाएं"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "tab-system"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "tab-project"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "btn-close"
-msgstr "बंद करें"
-
-#: crates/adapter-gui/ui/components/settings_section.slint
-msgid "badge-system"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/settings_section.slint
-msgid "badge-project"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings/section_system_audio.slint
-msgid "title-section-audio-interface"
-msgstr "ऑडियो इंटरफ़ेस"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_language.slint
-msgid "title-section-language"
-msgstr "भाषा"
-
-#: crates/adapter-gui/ui/pages/settings/section_system_midi_devices.slint
-msgid "title-section-midi-devices"
-msgstr "MIDI डिवाइस"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
-msgid "title-section-project-meta"
-msgstr "मेटाडेटा"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_meta.slint
-msgid "label-file"
-msgstr "फ़ाइल"
-
-#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
-msgid "title-section-midi-mapping"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
-msgid "btn-add-midi-binding"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
-msgid "empty-midi-mapping-explain"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings/section_project_midi_mapping.slint
-msgid "placeholder-midi-listen"
-msgstr ""
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "nav-group-system"
-msgstr "सिस्टम"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "nav-group-project"
-msgstr "प्रोजेक्ट"
-
-#: crates/adapter-gui/ui/components/preset_picker_overlay.slint:40
-msgid "preset-search-placeholder"
-msgstr "प्रीसेट खोजें…"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:38
-msgid "title-dialog-save-preset"
-msgstr "प्रीसेट सहेजें"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:82
-msgid "btn-save"
-msgstr "सहेजें"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:119
-msgid "title-dialog-overwrite-preset"
-msgstr "प्रीसेट अधिलेखित करें?"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:126
-msgid "msg-overwrite-preset"
-msgstr "\"{}\" नाम का प्रीसेट पहले से मौजूद है। अधिलेखित करें?"
-
-#: crates/adapter-gui/ui/components/preset_save_overlay.slint:162
-msgid "btn-overwrite"
-msgstr "अधिलेखित करें"
-
-msgid "btn-save-audio-settings"
-msgstr "लागू करें"
-
-msgid "title-section-integrations"
-msgstr "एकीकरण"
-
-msgid "label-midi-enabled"
-msgstr "MIDI नियंत्रण"
-
-msgid "desc-midi-enabled"
-msgstr "MIDI/BLE-MIDI एडाप्टर चालू करें ताकि फुटस्विच OpenRig को नियंत्रित करें"
-
-msgid "label-mcp-enabled"
-msgstr "MCP सर्वर"
-
-msgid "desc-mcp-enabled"
-msgstr "एजेंट के लिए MCP सर्वर को 127.0.0.1:4123 पर उपलब्ध कराएं"
-
-msgid "hint-restart-to-apply"
-msgstr "अगली बार शुरू करने पर लागू होगा।"
-
 # I/O Bindings UI strings (added #716)
-
-msgid "label-io-binding"
-msgstr "I/O बाइंडिंग"
-
-msgid "label-input-endpoint"
-msgstr "इनपुट एंडपॉइंट"
-
-msgid "label-output-endpoint"
-msgstr "आउटपुट एंडपॉइंट"
-
-msgid "label-resolved-info"
-msgstr "हल की गई जानकारी"
-
-msgid "placeholder-select-endpoint"
-msgstr "एंडपॉइंट चुनें"
-
-msgid "title-section-io-bindings"
-msgstr "इनपुट/आउटपुट बाइंडिंग"
-
-msgid "label-binding-name"
-msgstr "बाइंडिंग नाम"
-
-msgid "label-endpoint-input"
-msgstr "इनपुट एंडपॉइंट"
-
-msgid "label-endpoint-output"
-msgstr "आउटपुट एंडपॉइंट"
-
-msgid "mode-mono"
-msgstr "मोनो"
-
-msgid "mode-stereo"
-msgstr "स्टीरियो"
-
-msgid "mode-dual-mono"
-msgstr "दोहरा मोनो"
-
-msgid "placeholder-binding-name"
-msgstr "बाइंडिंग नाम…"
-
-msgid "label-channels-prefix"
-msgstr "चैनल"
-
-msgid "label-endpoint-device"
-msgstr "डिवाइस"
-
-msgid "label-endpoint-mode"
-msgstr "मोड"
-
-msgid "label-endpoint-channels"
-msgstr "चैनल"
-
-msgid "btn-add-endpoint"
-msgstr "एंडपॉइंट जोड़ें"
-
-msgid "label-group-inputs"
-msgstr "इनपुट"
-
-msgid "label-group-outputs"
-msgstr "आउटपुट"
-
-msgid "empty-no-input-endpoints"
-msgstr "अभी कोई इनपुट नहीं"
-
-msgid "empty-no-output-endpoints"
-msgstr "अभी कोई आउटपुट नहीं"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
-msgid "help-io-bindings"
-msgstr "एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
-msgid "btn-new-binding"
-msgstr "नई बाइंडिंग"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
-msgid "empty-no-bindings"
-msgstr "अभी तक कोई बाइंडिंग नहीं"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
-msgid "empty-no-bindings-hint"
-msgstr "किसी इंटरफ़ेस के इनपुट और आउटपुट को समूहित करने के लिए एक बनाएँ।"
-
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint
-msgid "placeholder-pick-device"
-msgstr "डिवाइस चुनें"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "btn-choose-path"
-msgstr "चुनें…"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "btn-reload-plugin-catalog"
-msgstr "फिर लोड करें"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "btn-reset-path"
-msgstr "रीसेट करें"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "btn-save-project"
-msgstr "प्रोजेक्ट सहेजें"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "di-loop-button-label"
-msgstr "DI लूप"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "di-loop-play-label"
-msgstr "DI लूप चलाएँ"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "di-loop-stop-label"
-msgstr "DI लूप रोकें"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "label-evaluations-path"
-msgstr "मूल्यांकन फ़ोल्डर"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "label-language"
-msgstr "भाषा"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "label-plugin-catalog"
-msgstr "प्लगइन कैटलॉग"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "label-plugins-path"
-msgstr "प्लगइन फ़ोल्डर"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "label-presets-path"
-msgstr "प्रीसेट फ़ोल्डर"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "placeholder-default-path"
-msgstr "(डिफ़ॉल्ट)"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "placeholder-project-unsaved"
-msgstr "(असहेजा)"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "status-plugin-catalog-idle"
-msgstr "अभी तक फिर लोड नहीं किया"
-
-#: crates/adapter-gui/ui/pages/settings.slint
-msgid "title-section-paths"
-msgstr "पथ"
-
-
-msgid "label-chain-io-bindings"
-msgstr "I/O बाइंडिंग"
-
-msgid "empty-no-bindings-for-chain"
-msgstr "अभी तक कोई I/O बाइंडिंग नहीं — सेटिंग्स → I/O बाइंडिंग में बनाएँ"
-
-msgid "warn-select-binding"
-msgstr "इस chain के लिए कम से कम एक I/O बाइंडिंग चुनें"
-
-#: crates/adapter-gui/ui/components/di_stream_graph.slint
-msgid "di-stream-graph-title"
-msgstr "DI स्ट्रीम"
-
-#: crates/adapter-gui/ui/components/di_loop_panel.slint
-msgid "di-output-select-label"
-msgstr "DI आउटपुट"
-
-
-msgid "tone-doctor-button-label"
-msgstr "Tone Doctor"
-
-msgid "tone-doctor-title"
-msgstr "Tone Doctor"
-
-msgid "tone-doctor-diagnose"
-msgstr "निदान करें"
-
-msgid "tone-doctor-rerun"
-msgstr "फिर से निदान करें"
-
-msgid "tone-doctor-diagnosing"
-msgstr "निदान हो रहा है…"
-
-msgid "tone-doctor-suggestion"
-msgstr "सुझाया गया सुधार"
-
-msgid "tone-doctor-apply"
-msgstr "लागू करें"
-
-msgid "tone-doctor-no-di"
-msgstr "पहले एक DI स्रोत चुनें"
-
-msgid "tone-doctor-analyze"
-msgstr "विश्लेषण"
-
-msgid "tone-doctor-no-signal"
-msgstr "एक DI चलाएं या चेन सक्षम करें"
+#~ msgid "label-io-binding"
+#~ msgstr "I/O बाइंडिंग"
