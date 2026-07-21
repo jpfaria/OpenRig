@@ -68,6 +68,30 @@ pub mod validate;
 mod local_dispatcher_tests;
 
 #[cfg(test)]
+#[path = "ld_block2_tests.rs"]
+mod ld_block2;
+
+#[cfg(test)]
+#[path = "ld_chain_tests.rs"]
+mod ld_chain;
+
+#[cfg(test)]
+#[path = "ld_savechain_tests.rs"]
+mod ld_savechain;
+
+#[cfg(test)]
+#[path = "ld_insert_tests.rs"]
+mod ld_insert;
+
+#[cfg(test)]
+#[path = "ld_project_tests.rs"]
+mod ld_project;
+
+#[cfg(test)]
+#[path = "ld_preset_tests.rs"]
+mod ld_preset;
+
+#[cfg(test)]
 #[path = "local_dispatcher_midi_block_nav_tests.rs"]
 mod local_dispatcher_midi_block_nav_tests;
 

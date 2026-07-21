@@ -52,7 +52,6 @@ crates/adapter-gui/src/chain_row_wiring.rs
 crates/adapter-gui/src/compact_chain_block_handlers.rs
 crates/adapter-gui/src/desktop_app.rs
 crates/application/src/command.rs
-crates/application/src/local_dispatcher_tests.rs
 crates/engine/src/audio_alloc_invariant_tests.rs
 crates/engine/src/runtime_tests.rs
 crates/engine/src/volume_invariants_tests.rs
