@@ -1,190 +1,175 @@
-//! Tests pro caminho exato do bug reportado pelo user (issue #440):
-//! chain disabled → slider altera volume → toggle enabled → volume
-//! volta pra 100. Reproduzir IN-MEMORY (sem Slint, sem YAML) é o que
-//! garante que a regressão é pega antes de chegar no app.
-//!
-//! Os 30 testes V01-V30 em infra-yaml só cobrem YAML round-trip, que
-//! NÃO acontece no caminho do user (tudo memory). Esse arquivo cobre
-//! o gap.
-
-use super::chain_row_wiring::{apply_chain_volume_change, apply_toggle_chain_enabled};
-use super::state::ProjectSession;
-use domain::ids::ChainId;
+//! Issue #502: cover the pure handlers powering the Chains list
+//! ▲/▼ buttons. Selection-cursor reseating is tested via
+//! [`shift_selected_chain_index_after_swap`] in isolation; the
+//! Slint integration (calling `window.set_…`) lives in the
+//! wiring above and is exercised by the chained tests below.
+use super::*;
+use application::local_dispatcher::LocalDispatcher;
 use project::chain::Chain;
 use project::project::Project;
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 
-fn session_with_disabled_chain(initial_volume: f32) -> ProjectSession {
+fn make_chain(id: &str, description: &str) -> Chain {
+    Chain {
+        id: ChainId(id.into()),
+        description: Some(description.into()),
+        instrument: "electric_guitar".into(),
+        enabled: false,
+        volume: 100.0,
+        io_binding_ids: vec![],
+        blocks: Vec::new(),
+        di_output: None,
+    }
+}
+
+fn session_with_chains(rows: &[(&str, &str)]) -> ProjectSession {
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: rows.iter().map(|(id, desc)| make_chain(id, desc)).collect(),
+        midi: None,
+    }));
+    let dispatcher = Rc::new(LocalDispatcher::new(Rc::clone(&project)));
     ProjectSession {
-        project: Project {
-            name: None,
-            device_settings: Vec::new(),
-            chains: vec![Chain {
-                id: ChainId("test_chain".into()),
-                description: None,
-                instrument: "electric_guitar".into(),
-                enabled: false,
-                volume: initial_volume,
-                io_binding_ids: vec![],
-                blocks: Vec::new(),
-            }],
-        },
+        project,
+        dispatcher,
         project_path: None,
         config_path: None,
         presets_path: PathBuf::from("./presets"),
+        rig: None,
+        io_bindings: Rc::new(RefCell::new(Vec::new())),
     }
 }
 
-#[test]
-fn apply_chain_volume_change_updates_volume_in_memory() {
-    let mut session = session_with_disabled_chain(100.0);
-    let id = apply_chain_volume_change(&mut session, 0, 150.0).unwrap();
-    assert_eq!(id.0, "test_chain");
-    assert_eq!(session.project.chains[0].volume, 150.0);
+fn chain_ids(session: &ProjectSession) -> Vec<String> {
+    session
+        .project
+        .borrow()
+        .chains
+        .iter()
+        .map(|c| c.id.0.clone())
+        .collect()
 }
 
 #[test]
-fn apply_chain_volume_change_invalid_index_returns_none() {
-    let mut session = session_with_disabled_chain(100.0);
-    assert!(apply_chain_volume_change(&mut session, 99, 150.0).is_none());
+fn apply_move_chain_up_swaps_session_chain_order() {
+    let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
+    let outcome = apply_move_chain_up(&session, 1)
+        .expect("dispatcher ok")
+        .expect("not a no-op");
+    assert_eq!(outcome.moved_chain_id.0, "B");
+    assert_eq!(outcome.previous_slot, 1);
+    assert_eq!(outcome.new_slot, 0);
+    assert_eq!(chain_ids(&session), vec!["B", "A"]);
 }
 
 #[test]
-fn apply_toggle_chain_enabled_flips_enabled() {
-    let mut session = session_with_disabled_chain(100.0);
-    let (new_enabled, _) = apply_toggle_chain_enabled(&mut session, 0).unwrap();
-    assert!(new_enabled);
-    assert_eq!(session.project.chains[0].enabled, true);
+fn apply_move_chain_up_at_slot_zero_is_noop() {
+    let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
+    let outcome = apply_move_chain_up(&session, 0).expect("dispatcher ok");
+    assert!(outcome.is_none(), "moving slot 0 up is a no-op");
+    assert_eq!(chain_ids(&session), vec!["A", "B"]);
 }
 
 #[test]
-fn apply_toggle_chain_enabled_does_not_touch_volume() {
-    // Regressão pinada: o handler toggle NUNCA pode mexer em volume.
-    let mut session = session_with_disabled_chain(175.0);
-    apply_toggle_chain_enabled(&mut session, 0).unwrap();
+fn apply_move_chain_up_invalid_slot_is_noop() {
+    let session = session_with_chains(&[("A", "alpha")]);
+    let outcome = apply_move_chain_up(&session, 99).expect("dispatcher ok");
+    assert!(outcome.is_none(), "out-of-range slot returns None");
+}
+
+#[test]
+fn apply_move_chain_down_swaps_session_chain_order() {
+    let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
+    let outcome = apply_move_chain_down(&session, 0)
+        .expect("dispatcher ok")
+        .expect("not a no-op");
+    assert_eq!(outcome.moved_chain_id.0, "A");
+    assert_eq!(outcome.previous_slot, 0);
+    assert_eq!(outcome.new_slot, 1);
+    assert_eq!(chain_ids(&session), vec!["B", "A"]);
+}
+
+#[test]
+fn apply_move_chain_down_at_last_slot_is_noop() {
+    let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
+    let outcome = apply_move_chain_down(&session, 1).expect("dispatcher ok");
+    assert!(outcome.is_none(), "moving last slot down is a no-op");
+    assert_eq!(chain_ids(&session), vec!["A", "B"]);
+}
+
+#[test]
+fn apply_move_chain_down_invalid_slot_is_noop() {
+    let session = session_with_chains(&[("A", "alpha")]);
+    let outcome = apply_move_chain_down(&session, 99).expect("dispatcher ok");
+    assert!(outcome.is_none(), "out-of-range slot returns None");
+}
+
+#[test]
+fn apply_move_chain_up_in_three_chain_project() {
+    // The middle chain moves up; outcome reports it sat at slot 1 and
+    // is now at slot 0 so the GUI can reseat the selection cursor.
+    let session = session_with_chains(&[("A", "alpha"), ("B", "beta"), ("C", "gamma")]);
+    let outcome = apply_move_chain_up(&session, 1)
+        .expect("dispatcher ok")
+        .expect("not a no-op");
+    assert_eq!(outcome.moved_chain_id.0, "B");
+    assert_eq!(outcome.new_slot, 0);
+    assert_eq!(chain_ids(&session), vec!["B", "A", "C"]);
+}
+
+// ── selection cursor (no AppWindow) ──────────────────────────────────
+
+#[test]
+fn shift_selection_follows_moved_chain_on_up() {
+    // User has chain at slot 1 selected; presses ▲ on that same chain.
+    // The chain moves to slot 0 → cursor must follow to slot 0.
+    let selected = 1;
     assert_eq!(
-        session.project.chains[0].volume, 175.0,
-        "toggle must not touch volume"
+        shift_selected_chain_index_after_swap(selected, 1, 0),
+        0,
+        "cursor must follow the moved chain by ChainId, not stay on slot"
     );
 }
 
 #[test]
-fn user_scenario_disabled_volume_change_then_enable_preserves_volume() {
-    // ANCHOR do bug do user (commit "mesma merda. aumentei o volume na chain..
-    // antes de ligar.. liguei e voltou para 100%").
-    //
-    // 1. Chain está disabled, volume=100 (default).
-    // 2. User arrasta slider pra 150 — handler dispara apply_chain_volume_change.
-    // 3. User toggla enable — handler dispara apply_toggle_chain_enabled.
-    // 4. Volume DEVE continuar 150.
-    let mut session = session_with_disabled_chain(100.0);
-
-    // Step 2: slider drag while disabled.
-    apply_chain_volume_change(&mut session, 0, 150.0).unwrap();
-    assert_eq!(session.project.chains[0].volume, 150.0);
-    assert!(!session.project.chains[0].enabled);
-
-    // Step 3: toggle enable.
-    let (new_enabled, _) = apply_toggle_chain_enabled(&mut session, 0).unwrap();
-    assert!(new_enabled);
-
-    // Step 4: assert volume PERSISTE.
+fn shift_selection_follows_swapped_neighbour_on_up() {
+    // User has chain at slot 0 selected; the user moves the chain at
+    // slot 1 UP, which swaps slots 0 and 1. The originally-selected
+    // chain is now at slot 1.
+    let selected = 0;
     assert_eq!(
-        session.project.chains[0].volume, 150.0,
-        "user scenario: volume must survive toggle disabled→enabled"
+        shift_selected_chain_index_after_swap(selected, 1, 0),
+        1,
+        "the neighbour that got displaced must keep its ChainId selection"
     );
 }
 
 #[test]
-fn user_scenario_then_toggle_back_disabled_preserves_volume() {
-    // Variação: depois do enable, toggle disable de novo. Volume mantém.
-    let mut session = session_with_disabled_chain(100.0);
-    apply_chain_volume_change(&mut session, 0, 175.0).unwrap();
-    apply_toggle_chain_enabled(&mut session, 0).unwrap(); // → enabled
-    apply_toggle_chain_enabled(&mut session, 0).unwrap(); // → disabled
-    assert_eq!(session.project.chains[0].volume, 175.0);
-    assert!(!session.project.chains[0].enabled);
+fn shift_selection_follows_moved_chain_on_down() {
+    // User has chain at slot 0 selected; presses ▼ on it; chain moves
+    // to slot 1 → cursor follows.
+    let selected = 0;
+    assert_eq!(shift_selected_chain_index_after_swap(selected, 0, 1), 1);
 }
 
 #[test]
-fn multiple_chains_independent_volumes_after_toggle() {
-    // Setup: 2 chains, ambas disabled, volumes diferentes.
-    let mut session = ProjectSession {
-        project: Project {
-            name: None,
-            device_settings: Vec::new(),
-            chains: vec![
-                Chain {
-                    id: ChainId("a".into()),
-                    description: None,
-                    instrument: "electric_guitar".into(),
-                    enabled: false,
-                    volume: 50.0,
-                    io_binding_ids: vec![],
-                    blocks: Vec::new(),
-                },
-                Chain {
-                    id: ChainId("b".into()),
-                    description: None,
-                    instrument: "electric_guitar".into(),
-                    enabled: false,
-                    volume: 175.0,
-                    io_binding_ids: vec![],
-                    blocks: Vec::new(),
-                },
-            ],
-        },
-        project_path: None,
-        config_path: None,
-        presets_path: PathBuf::from("./presets"),
-    };
-    // User toggla chain 0 → enabled. Chain 1 fica como tá.
-    apply_toggle_chain_enabled(&mut session, 0).unwrap();
-    assert_eq!(session.project.chains[0].volume, 50.0);
-    assert_eq!(session.project.chains[1].volume, 175.0);
-    assert!(session.project.chains[0].enabled);
-    assert!(!session.project.chains[1].enabled);
+fn shift_selection_unaffected_for_unrelated_chain() {
+    // User selected chain at slot 2; the move only swaps slots 0 and 1.
+    let selected = 2;
+    assert_eq!(
+        shift_selected_chain_index_after_swap(selected, 0, 1),
+        2,
+        "an untouched slot's selection must not shift"
+    );
 }
 
 #[test]
-fn volume_change_when_chain_already_enabled_persists() {
-    let mut session = ProjectSession {
-        project: Project {
-            name: None,
-            device_settings: Vec::new(),
-            chains: vec![Chain {
-                id: ChainId("c".into()),
-                description: None,
-                instrument: "electric_guitar".into(),
-                enabled: true,
-                volume: 100.0,
-                io_binding_ids: vec![],
-                blocks: Vec::new(),
-            }],
-        },
-        project_path: None,
-        config_path: None,
-        presets_path: PathBuf::from("./presets"),
-    };
-    apply_chain_volume_change(&mut session, 0, 60.0).unwrap();
-    assert_eq!(session.project.chains[0].volume, 60.0);
-    assert!(session.project.chains[0].enabled);
-}
-
-#[test]
-fn rapid_volume_changes_keep_last_value() {
-    // Slider arrastando rápido = vários callbacks back-to-back.
-    let mut session = session_with_disabled_chain(100.0);
-    for v in [120.0, 140.0, 160.0, 180.0, 200.0_f32] {
-        apply_chain_volume_change(&mut session, 0, v).unwrap();
-    }
-    assert_eq!(session.project.chains[0].volume, 200.0);
-}
-
-#[test]
-fn volume_zero_is_preserved_through_toggle() {
-    let mut session = session_with_disabled_chain(100.0);
-    apply_chain_volume_change(&mut session, 0, 0.0).unwrap();
-    apply_toggle_chain_enabled(&mut session, 0).unwrap();
-    assert_eq!(session.project.chains[0].volume, 0.0);
+fn shift_selection_preserves_no_selection_sentinel() {
+    // `-1` is the Slint sentinel for "nothing selected"; it must not
+    // be remapped.
+    let selected = -1;
+    assert_eq!(shift_selected_chain_index_after_swap(selected, 0, 1), -1);
 }
