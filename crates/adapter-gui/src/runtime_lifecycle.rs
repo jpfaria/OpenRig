@@ -197,6 +197,37 @@ pub(crate) fn sync_live_chain_runtime(
     Ok(())
 }
 
+/// #808: ensure a runtime controller exists so the DI can play WITHOUT any
+/// chain being enabled. The DI is an independent pipeline (invariant #4) — it
+/// must not depend on a guitar stream even existing. `sync_live_chain_runtime`
+/// only lazily creates the controller when a chain is being ENABLED, so a user
+/// who opens a project and hits ▶ on the DI (no chain active) had no controller
+/// at all — the play was a silent no-op until a chain toggle created one. This
+/// mirrors that lazy creation but is NOT gated on `enabled`. No-op when a
+/// controller already exists.
+pub(crate) fn ensure_runtime(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    session: &ProjectSession,
+) -> Result<()> {
+    {
+        let borrow = project_runtime.borrow();
+        if borrow.is_some() {
+            return Ok(());
+        }
+    }
+    // #716 (AUDIO-CRITICAL): hand the I/O binding registry to the controller
+    // BEFORE start() runs its initial sync (same reason as the enable path).
+    let controller = ProjectRuntimeController::start_with_io_bindings(
+        &session.project.borrow(),
+        session.io_bindings.borrow().clone(),
+    )?;
+    *project_runtime.borrow_mut() = Some(controller);
+    // #669: keep the dispatcher's engine rate in lock-step with the real device
+    // rate start() resolved, so a DI resamples correctly.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
+    Ok(())
+}
+
 pub(crate) fn remove_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     chain_id: &ChainId,
@@ -292,3 +323,7 @@ pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> us
     // If ui_index is past all visible blocks, return end (before last output)
     last_output_idx.unwrap_or(chain.blocks.len())
 }
+
+#[cfg(test)]
+#[path = "runtime_lifecycle_di_808_tests.rs"]
+mod di_808_tests;
