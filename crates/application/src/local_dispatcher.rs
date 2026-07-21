@@ -8,16 +8,13 @@
 //! dispatcher so both sides always see the same `Project` data with no extra
 //! sync step.
 //!
-//! **Current state (Phase 1 skeleton):** every `Command` arm except
-//! `ToggleBlockEnabled` is `unimplemented!("phase-1 task pending")`.  This is
-//! intentional — no production caller dispatches those arms yet because
-//! adapter-gui migration is ongoing.  Tasks 4..N will fill the arms one by
-//! one, each accompanied by its own failing test that drives the
-//! implementation (TDD).
-//!
-//! `unimplemented!()` is acceptable here because the arms are unreachable
-//! from production code in this state.  The forbidden pattern is
-//! `unimplemented!()` on arms that live callers can reach.
+//! `dispatch` is a thin router: it groups commands by category and delegates
+//! each to the `handle_*` method that owns it — one per sibling
+//! `local_dispatcher_<feature>` module. The read accessors, the dependency-
+//! attach setters, and the shared chain/block borrow helpers live in their own
+//! sibling modules too (`local_dispatcher_queries` / `_attach` / `_access`),
+//! keeping this file to the struct definition, construction, and the router
+//! (issue #792 single-responsibility split).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -27,14 +24,14 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 
-use domain::ids::{BlockId, ChainId};
+use domain::ids::ChainId;
 use engine::DiPcm;
 use project::project::Project;
 use project::rig::RigProject;
 
 use crate::command::Command;
 use crate::di_loader::DiLoopSource;
-use crate::dispatcher::{CommandDispatcher, EventStream};
+use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::selection_state::SelectionState;
 
@@ -51,11 +48,6 @@ pub struct LocalDispatcher {
     /// `None` for non-rig sessions (legacy projects) — set via
     /// [`Self::attach_rig`] at project load.
     pub(crate) rig: RefCell<Option<Rc<RefCell<RigProject>>>>,
-    /// #436: block selection used to be GUI-only state, so MIDI/MCP
-    /// could not "click a block". It now lives here, set by
-    /// `Command::SelectChainBlock`. Keyed by `ChainId` (works for
-    /// `rig:<input>` and real ids); absent ⇒ nothing selected.
-    pub(crate) selection: RefCell<HashMap<ChainId, usize>>,
     /// #555: filesystem directory where preset YAMLs live. Used by
     /// `Command::SaveChainPreset` / `DeleteChainPreset` so the
     /// dispatcher (not the GUI) owns the `fs::write` / `fs::remove_file`
@@ -75,6 +67,12 @@ pub struct LocalDispatcher {
     /// the dispatcher now owns the resolution. `None` ⇒ derive from
     /// `project_path.parent().join("config.yaml")` at save time.
     pub(crate) config_path: RefCell<Option<PathBuf>>,
+    /// #792 / ADR-0003: the per-machine SYSTEM config path — where the I/O
+    /// binding registry persists. SEPARATE from `config_path` (the project
+    /// sidecar): opening a project sets `config_path` to `<project>/config.yaml`,
+    /// and the per-machine registry must NOT follow it there. `None` ⇒
+    /// `FilesystemStorage::app_config_path()`; tests attach a temp path.
+    pub(crate) io_config_path: RefCell<Option<PathBuf>>,
     /// #548: which chain / block the user has active on the Chains
     /// screen, plus snapshots of the toggle states. MIDI slots and the
     /// GUI both mutate this through `Command`s; `QueryKind::Selection`
@@ -124,135 +122,16 @@ impl LocalDispatcher {
         Self {
             project,
             rig: RefCell::new(None),
-            selection: RefCell::new(HashMap::new()),
             presets_path: RefCell::new(None),
             project_path: RefCell::new(None),
             config_path: RefCell::new(None),
+            io_config_path: RefCell::new(None),
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
             engine_sr: RefCell::new(48_000),
             async_done_tx,
             async_done_rx,
         }
-    }
-
-    /// The block index currently selected on `chain` (dispatcher-owned;
-    /// the GUI renders this, MIDI/MCP can set it). `None` if unset.
-    pub fn selected_block(&self, chain: &ChainId) -> Option<usize> {
-        self.selection.borrow().get(chain).copied()
-    }
-
-    /// Shared handle to the GUI selection state. `Arc<RwLock<…>>` so
-    /// the MIDI daemon thread can read the same state the GUI thread
-    /// mutates; `Rc<RefCell<…>>` was tried first but `RefCell` is
-    /// single-threaded and the daemon runs on its own midir-callback
-    /// thread.
-    pub fn selection_state(&self) -> Arc<RwLock<SelectionState>> {
-        Arc::clone(&self.selection_state)
-    }
-
-    /// Share the session's `RigProject` handle so rig-nav commands can
-    /// mutate the same allocation the GUI renders from. Idempotent.
-    pub fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
-        *self.rig.borrow_mut() = Some(rig);
-    }
-
-    /// #693: clone the current state into an immutable snapshot for
-    /// API-style reads (`crate::snapshot`). Called by
-    /// `PublishingDispatcher` after every dispatch — the cost is one
-    /// deep clone per command, paid on the writer thread, so readers
-    /// never borrow the live `Rc` state.
-    pub fn publish_state_snapshot(&self) {
-        let project = self.project.borrow().clone();
-        let rig = self.rig.borrow().as_ref().map(|rig| rig.borrow().clone());
-        crate::snapshot::publish(crate::snapshot::StateSnapshot { project, rig });
-    }
-
-    /// #555: configure the preset library directory. Called by the
-    /// session bootstrap once the resolved `presets_path` is known.
-    /// Idempotent — calling this again replaces the path.
-    pub fn attach_presets_path(&self, path: PathBuf) {
-        *self.presets_path.borrow_mut() = Some(path);
-    }
-
-    /// #555: configure where `Command::SaveProject` writes the project
-    /// file. Called by the session bootstrap and again on every "Save
-    /// As" so the dispatcher and the GUI agree on the current target.
-    pub fn attach_project_path(&self, path: PathBuf) {
-        *self.project_path.borrow_mut() = Some(path);
-    }
-
-    /// #555: optional override for the sidecar `config.yaml` path.
-    /// `None` ⇒ the dispatcher derives it from `project_path.parent()
-    /// .join("config.yaml")` at save time (matches the pre-#555
-    /// behaviour). Idempotent.
-    pub fn attach_config_path(&self, path: Option<PathBuf>) {
-        *self.config_path.borrow_mut() = path;
-    }
-
-    /// #614/#669: inform the dispatcher of the engine sample rate so DI loop
-    /// decoding resamples to the correct target. Call this once the audio
-    /// stream is running and whenever the device rate changes. Defaults to
-    /// 48 000 Hz.
-    ///
-    /// #749: DI sources are stored un-resampled (`DiPcm`) and resampled at ARM
-    /// time, per output-stream rate — so the store needs no rebuild on a rate
-    /// change. We still return every chain that has a loaded source so the
-    /// caller can re-arm any that are playing: their live runtime was rebuilt
-    /// at the new rate, and re-arming rebuilds the loop to match (a loop left
-    /// from the old rate would drag in slow motion). No-op when unchanged.
-    pub fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
-        if *self.engine_sr.borrow() == sr {
-            return Vec::new();
-        }
-        *self.engine_sr.borrow_mut() = sr;
-        self.di_loop_state.borrow().keys().cloned().collect()
-    }
-
-    /// The sample rate the live engine is currently running at, as last
-    /// synced via [`Self::attach_engine_sr`]. Authoritative fallback for any
-    /// consumer that would otherwise assume a fixed rate (issue #723).
-    pub fn engine_sr(&self) -> u32 {
-        *self.engine_sr.borrow()
-    }
-
-    /// #614: retrieve the pre-loaded DI loop arc for `chain`, if any.
-    ///
-    /// The adapter-gui wiring (Task 6) calls this from the
-    /// `ChainDiLoopEnabledChanged { enabled: true }` event handler to
-    /// forward the arc to the chain's audio runtime. Returns `None` when
-    /// no source has been loaded for this chain yet.
-    pub fn di_loop_for_chain(&self, chain: &ChainId) -> Option<Arc<DiPcm>> {
-        self.di_loop_state
-            .borrow()
-            .get(chain)
-            .map(|(_, arc)| Arc::clone(arc))
-    }
-
-    /// #717: a clone of the chain's current definition, so the runtime layer can
-    /// build the dedicated DI runtime from a copy of the chain's graph without
-    /// holding a borrow on the project.
-    pub fn chain_snapshot(&self, chain: &ChainId) -> Option<project::chain::Chain> {
-        self.project
-            .borrow()
-            .chains
-            .iter()
-            .find(|c| &c.id == chain)
-            .cloned()
-    }
-
-    /// #661: retrieve WHICH source is currently loaded for `chain`, if any.
-    ///
-    /// Parity twin of [`Self::di_loop_for_chain`]: the GUI reads this back so
-    /// the DI loop popup's ComboBox can highlight the active source when it is
-    /// reopened (the popup is re-instantiated on each show, so the selection
-    /// must be re-derived from dispatcher state rather than held in the view).
-    /// Returns `None` when no source has been loaded for this chain yet.
-    pub fn di_loop_source_for_chain(&self, chain: &ChainId) -> Option<DiLoopSource> {
-        self.di_loop_state
-            .borrow()
-            .get(chain)
-            .map(|(source, _)| source.clone())
     }
 }
 
@@ -368,14 +247,10 @@ impl CommandDispatcher for LocalDispatcher {
             Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
 
             Command::SelectChainBlock { chain, block_index } => {
-                // Legacy per-chain selection map (kept for the old GUI
-                // wiring that hasn't migrated yet).
-                self.selection
-                    .borrow_mut()
-                    .insert(chain.clone(), block_index);
-                // #548: mirror the click into the GUI selection state
-                // the MIDI daemon reads. Resolve the block id from the
-                // index inside the project — slots address blocks by id.
+                // #548: record the click in the GUI selection state that
+                // MIDI/MCP/gRPC read (`QueryKind::Selection`). Resolve the
+                // block id from the index inside the project — slots address
+                // blocks by id.
                 {
                     let project = self.project.borrow();
                     let block_id = project
@@ -479,10 +354,6 @@ impl CommandDispatcher for LocalDispatcher {
         }
     }
 
-    fn subscribe(&self) -> EventStream {
-        // Phase 2 will return a real event stream. For now this is a no-op.
-    }
-
     /// #693: install completed off-thread DI decodes and emit their
     /// events. Failures are logged (non-blocking logger) — same policy
     /// as every other async side-effect.
@@ -506,53 +377,6 @@ impl CommandDispatcher for LocalDispatcher {
     }
 }
 
-impl LocalDispatcher {
-    /// Borrow the project mutably, locate `chain` then `block`, and run `f`
-    /// against the located block. Centralises the chain-not-found /
-    /// block-not-found lookup that every block-scoped arm performed inline.
-    ///
-    /// `pub(crate)` so the per-feature `handle_*` modules
-    /// (`local_dispatcher_block_*`, `local_dispatcher_chain_*`) can share it.
-    ///
-    /// Behaviour is byte-identical to the previous inline form: same
-    /// `borrow_mut` scope, same `find` order, same error strings, same `?`
-    /// propagation point.
-    pub(crate) fn with_block<R>(
-        &self,
-        chain: &ChainId,
-        block: &BlockId,
-        f: impl FnOnce(&mut project::block::AudioBlock) -> Result<R>,
-    ) -> Result<R> {
-        let mut proj = self.project.borrow_mut();
-        let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == *chain) else {
-            return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-        };
-        let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == *block) else {
-            return Err(anyhow::anyhow!("block not found: {:?}", block));
-        };
-        f(target_block)
-    }
-
-    /// Borrow the project mutably, locate `chain`, and run `f` against it.
-    /// Centralises the chain-not-found lookup shared by chain-scoped arms.
-    ///
-    /// `pub(crate)` so the per-feature `handle_*` modules can share it.
-    ///
-    /// Behaviour is byte-identical to the previous inline form: same
-    /// `borrow_mut` scope, same `find` order, same error string.
-    pub(crate) fn with_chain<R>(
-        &self,
-        chain: &ChainId,
-        f: impl FnOnce(&mut project::chain::Chain) -> Result<R>,
-    ) -> Result<R> {
-        let mut proj = self.project.borrow_mut();
-        let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == *chain) else {
-            return Err(anyhow::anyhow!("chain not found: {:?}", chain));
-        };
-        f(target_chain)
-    }
-}
-
 // ── Per-feature handlers (file-per-feature; #436 dispatcher split) ──────────
 // This file is the thin router only. Each `handle_*` the `dispatch` match
 // calls lives in its own sibling module (declared in `lib.rs`):
@@ -567,67 +391,3 @@ impl LocalDispatcher {
 //   local_dispatcher_rig             · handle_rig_nav / capture / rename
 // Each adds an `impl LocalDispatcher` block; behaviour is byte-identical to
 // the previous single-file form (arm bodies moved verbatim).
-
-impl LocalDispatcher {
-    /// #513 / #493: system-side MIDI commands. None of these touch the
-    /// project (MIDI device selection is per-machine / ADR 0003; learn-mode
-    /// is daemon state; PublishMidiEvent is a passthrough of a raw event the
-    /// daemon submits through the existing command bridge so the publishing
-    /// dispatcher's fan-out remains the single transport). Each arm only
-    /// records the intent via an `Event` — the adapter does the actual work
-    /// (persist config.yaml, toggle learn-mode flag, route the event into
-    /// the mapping editor).
-    pub(crate) fn handle_midi_system(&self, cmd: Command) -> Result<Vec<Event>> {
-        match cmd {
-            Command::SaveMidiDevices { .. } => Ok(vec![Event::MidiDevicesSaved]),
-            Command::StartMidiLearn => Ok(vec![Event::MidiLearnStarted]),
-            Command::StopMidiLearn => Ok(vec![Event::MidiLearnStopped]),
-            Command::PublishMidiEvent { source } => Ok(vec![Event::MidiEventReceived { source }]),
-            other => {
-                unreachable!("handle_midi_system received non-midi-system command: {other:?}")
-            }
-        }
-    }
-
-    /// #513 / #540: system-level paths overrides (presets, plugins).
-    /// The command owns the persistence: write the picked path into
-    /// `config.yaml` (ADR 0003 — system setting), then emit
-    /// `Event::PathsSaved` so listeners (GUI label refresh, MCP, gRPC)
-    /// can pick up the change without re-reading from disk.
-    ///
-    /// The previous handler (#513) emitted the event only and relied on
-    /// "the adapter persists on PathsSaved" — but the event carries no
-    /// path payload and no listener was wired, so the user's pick
-    /// survived only in memory and reset to default on the next launch
-    /// (issue #540).
-    pub(crate) fn handle_paths_system(&self, cmd: Command) -> Result<Vec<Event>> {
-        match cmd {
-            // #693: path persistence runs on the persist worker — the
-            // dispatching thread never waits on disk; errors go to the
-            // non-blocking logger.
-            // #731: bind the config path at dispatch time (see app_config_persist);
-            // the worker must not re-resolve `$HOME` at write time.
-            Command::SetPresetsPath { path } => {
-                crate::app_config_persist::persist_app_config(move |config| {
-                    config.paths.presets_path = path;
-                });
-                Ok(vec![Event::PathsSaved])
-            }
-            Command::SetPluginsPath { path } => {
-                crate::app_config_persist::persist_app_config(move |config| {
-                    config.paths.plugins_path = path;
-                });
-                Ok(vec![Event::PathsSaved])
-            }
-            Command::SetEvaluationsPath { path } => {
-                crate::app_config_persist::persist_app_config(move |config| {
-                    config.paths.evaluations_path = path;
-                });
-                Ok(vec![Event::PathsSaved])
-            }
-            other => {
-                unreachable!("handle_paths_system received non-paths command: {other:?}")
-            }
-        }
-    }
-}

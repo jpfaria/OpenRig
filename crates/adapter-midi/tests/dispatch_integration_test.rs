@@ -14,7 +14,7 @@ use adapter_midi::profile::parse_profile_yaml;
 use adapter_midi::slots::IncomingMessage;
 use anyhow::Result;
 use application::command::Command;
-use application::dispatcher::{CommandDispatcher, EventStream};
+use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::SelectionState;
 
@@ -35,10 +35,6 @@ impl CommandDispatcher for SpyDispatcher {
     fn dispatch(&self, cmd: Command) -> Result<Vec<Event>> {
         self.seen.borrow_mut().push(cmd);
         Ok(vec![])
-    }
-
-    fn subscribe(&self) -> EventStream {
-        unimplemented!("not used by these tests")
     }
 }
 

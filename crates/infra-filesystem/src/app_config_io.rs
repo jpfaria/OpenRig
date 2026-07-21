@@ -201,7 +201,12 @@ impl FilesystemStorage {
         config_path: &Path,
         mutate: impl FnOnce(&mut AppConfig),
     ) -> Result<()> {
-        let mut config = Self::load_app_config_at(config_path).unwrap_or_default();
+        // #792 audit #14: propagate a parse error (`?`) instead of
+        // `.unwrap_or_default()`. `load_app_config_at` returns `Ok(default)`
+        // for a MISSING file (legitimate first write) but `Err` for an existing
+        // but corrupt one — defaulting there would overwrite the user's real
+        // config with an empty default on the next setting change.
+        let mut config = Self::load_app_config_at(config_path)?;
         mutate(&mut config);
         Self::save_app_config_at(config_path, &config)
     }

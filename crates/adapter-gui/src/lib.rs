@@ -18,6 +18,7 @@ mod block_drawer_close_wiring;
 mod block_drawer_save_delete_wiring;
 pub mod block_editor_param_tabs;
 mod block_editor_window_lifecycle;
+mod block_editor_window_delete;
 mod block_editor_window_params;
 mod block_editor_window_setup;
 mod block_editor_window_wiring;
@@ -25,6 +26,7 @@ mod block_insert_callbacks;
 mod block_model_search_wiring;
 mod block_panel_dimensions;
 mod block_parameter_wiring;
+mod block_parameter_extras;
 mod block_picker_wiring;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
@@ -40,12 +42,14 @@ mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;
 mod chain_row_wiring;
+mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
 mod cli;
 mod compact_block_layout;
 mod compact_block_tabs;
 mod compact_block_view;
 mod compact_chain_block_handlers;
+mod compact_chain_block_delete;
 pub mod compact_chain_callbacks;
 mod compact_chain_delete_wiring;
 mod compact_chain_header_wiring;
@@ -143,6 +147,7 @@ mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod meter_wiring;
+mod meter_wiring_poll;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
@@ -153,6 +158,7 @@ mod model_search;
 mod model_search_wiring;
 mod preset_search;
 mod project_ops;
+mod project_ops_recents;
 // #679: `pub` so the issue_599 integration test can reach
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
 // `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
@@ -187,6 +193,10 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "lib_recent_tests.rs"]
+mod lib_recent_tests;
 
 #[cfg(test)]
 mod compact_block_search_wiring_tests;

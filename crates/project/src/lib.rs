@@ -12,6 +12,7 @@ pub mod binding_discovery;
 pub mod block;
 pub mod catalog;
 mod catalog_label;
+mod catalog_registry;
 pub mod chain;
 pub mod channel_mode_conv;
 pub mod device;

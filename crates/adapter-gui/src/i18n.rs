@@ -517,3 +517,7 @@ pub fn init_translations(persisted_language: Option<&str>) {
 #[cfg(test)]
 #[path = "i18n_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "i18n_catalog_tests.rs"]
+mod catalog_tests;

@@ -418,7 +418,7 @@ pub(crate) fn build_output_stream_for_output(
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let di_cell = di_cell.clone();
-            let mut temp = Vec::new();
+            let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
@@ -454,7 +454,7 @@ pub(crate) fn build_output_stream_for_output(
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let di_cell = di_cell.clone();
-            let mut temp = Vec::new();
+            let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
@@ -491,7 +491,7 @@ pub(crate) fn build_output_stream_for_output(
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             let di_cell = di_cell.clone();
-            let mut temp = Vec::new();
+            let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,

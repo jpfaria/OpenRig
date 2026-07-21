@@ -144,21 +144,33 @@ pub(crate) struct ChainRowCtx {
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
-    let ChainRowCtx {
-        project_session,
-        project_chains,
-        project_runtime,
-        saved_project_snapshot,
-        project_dirty,
-        input_chain_devices,
-        output_chain_devices,
-        toast_timer,
-        auto_save,
-        pending_delete_chain_id,
-    } = ctx;
-
     // #791: Tone Doctor run/apply for the main chains page.
-    crate::tone_doctor_compact_wiring::wire_main(window, project_session.clone(), project_runtime.clone(), toast_timer.clone());
+    crate::tone_doctor_compact_wiring::wire_main(
+        window,
+        ctx.project_session.clone(),
+        ctx.project_runtime.clone(),
+        ctx.toast_timer.clone(),
+    );
+    wire_delete_flow(window, &ctx);
+    wire_chain_mutations(window, &ctx);
+    crate::chain_row_wiring_actions::wire_reorder(window, &ctx);
+    // #771 on_di_loop_output_selected
+    crate::di_output_select_wiring::wire_main(window, ctx.project_session.clone(), ctx.project_runtime.clone());
+    crate::chain_row_wiring_actions::wire_di_loop(window, &ctx);
+}
+
+fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
+    let project_session = &ctx.project_session;
+    let project_chains = &ctx.project_chains;
+    let project_runtime = &ctx.project_runtime;
+    let saved_project_snapshot = &ctx.saved_project_snapshot;
+    let project_dirty = &ctx.project_dirty;
+    let input_chain_devices = &ctx.input_chain_devices;
+    let output_chain_devices = &ctx.output_chain_devices;
+    let toast_timer = &ctx.toast_timer;
+    let pending_delete_chain_id = &ctx.pending_delete_chain_id;
+    let auto_save = ctx.auto_save;
+
     // #511 on_remove_chain (trash): opens the delete overlay; dispatch below.
     {
         let weak_window = window.as_weak();
@@ -263,6 +275,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             }
         });
     }
+}
+
+fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
+    let project_session = &ctx.project_session;
+    let project_chains = &ctx.project_chains;
+    let project_runtime = &ctx.project_runtime;
+    let saved_project_snapshot = &ctx.saved_project_snapshot;
+    let project_dirty = &ctx.project_dirty;
+    let input_chain_devices = &ctx.input_chain_devices;
+    let output_chain_devices = &ctx.output_chain_devices;
+    let toast_timer = &ctx.toast_timer;
+    let auto_save = ctx.auto_save;
+
 
     // ── on_toggle_chain_enabled ──────────────────────────────────────────────
     // Channel-conflict validation is now inside the dispatcher
@@ -382,414 +407,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             );
         });
     }
-
-    // ── on_move_chain_up ────────────────────────────────────────────────────
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_move_chain_up(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                return;
-            };
-            let outcome = match apply_move_chain_up(session, index as usize) {
-                Ok(Some(outcome)) => outcome,
-                Ok(None) => return, // no-op (already top or invalid slot)
-                Err(err) => {
-                    set_status_error(&window, &toast_timer, &err.to_string());
-                    return;
-                }
-            };
-            replace_project_chains(
-                &project_chains,
-                &session.project.borrow(),
-                &input_chain_devices.borrow(),
-                &output_chain_devices.borrow(),
-                &[],
-            );
-            // The chain-row model now reflects the new order, but the
-            // per-chain preset/scene model (`chain_rig_nav`) was still
-            // pointing at the OLD index→input mapping — so the row at
-            // the new slot kept showing the previous neighbour's
-            // preset/scene combobox until something else refreshed it.
-            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
-            let selected = window.get_selected_chain_block_chain_index();
-            let updated = shift_selected_chain_index_after_swap(
-                selected,
-                outcome.previous_slot,
-                outcome.new_slot,
-            );
-            if updated != selected {
-                window.set_selected_chain_block_chain_index(updated);
-            }
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
-            clear_status(&window, &toast_timer);
-        });
-    }
-
-    // ── on_move_chain_down ──────────────────────────────────────────────────
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_move_chain_down(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                return;
-            };
-            let outcome = match apply_move_chain_down(session, index as usize) {
-                Ok(Some(outcome)) => outcome,
-                Ok(None) => return,
-                Err(err) => {
-                    set_status_error(&window, &toast_timer, &err.to_string());
-                    return;
-                }
-            };
-            replace_project_chains(
-                &project_chains,
-                &session.project.borrow(),
-                &input_chain_devices.borrow(),
-                &output_chain_devices.borrow(),
-                &[],
-            );
-            // Mirror of `on_move_chain_up`: the preset/scene combobox
-            // model is independent from `project_chains` and would
-            // otherwise keep the previous slot's labels.
-            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
-            let selected = window.get_selected_chain_block_chain_index();
-            let updated = shift_selected_chain_index_after_swap(
-                selected,
-                outcome.previous_slot,
-                outcome.new_slot,
-            );
-            if updated != selected {
-                window.set_selected_chain_block_chain_index(updated);
-            }
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
-            clear_status(&window, &toast_timer);
-        });
-    }
-
-    // ── on_di_loop_source_selected ───────────────────────────────────────────
-    // User picked a bundled id from the ComboBox (NOT the file-picker
-    // sentinel). Dispatch SetChainDiLoopSource immediately; play is a
-    // separate action via on_di_loop_play.
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_di_loop_source_selected(move |index, source_str| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                set_status_error(
-                    &window,
-                    &toast_timer,
-                    &rust_i18n::t!("error-no-project-loaded"),
-                );
-                return;
-            };
-            let chain_id = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            // Bundled id → Bundled source; the file label of an already-loaded
-            // File (#661) → no-op (dispatcher already holds it). Sentinel is
-            // routed to choose-file by the ComboBox, never here.
-            let bundled_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
-            let bundled_refs: Vec<&str> = bundled_ids.iter().map(|s| s.as_str()).collect();
-            let Some(source) =
-                crate::di_loop_ui_sources::parse_di_loop_source(&source_str, &bundled_refs)
-            else {
-                return;
-            };
-            let cmds = crate::di_loop_wiring::di_loop_commands(
-                chain_id,
-                crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
-            );
-            for cmd in cmds {
-                if let Err(err) = session.dispatcher.dispatch(cmd) {
-                    set_status_error(&window, &toast_timer, &err.to_string());
-                    return;
-                }
-            }
-        });
-    }
-
-    // ── #771 on_di_loop_output_selected ─────────────────────────────────────
-    crate::di_output_select_wiring::wire_main(
-        window,
-        project_session.clone(),
-        project_runtime.clone(),
-    );
-
-    // ── on_di_loop_choose_file ───────────────────────────────────────────────
-    // Wired separately in di_loop_chooser_wiring.rs (uses the native file
-    // dialog crate; chain_row_wiring.rs is forbidden from that — issue #511).
-
-    // ── on_di_loop_play ─────────────────────────────────────────────────────
-    // User pressed ▶. Dispatch SetChainDiLoopEnabled { enabled: true } AND
-    // apply the arc to the chain runtime immediately (mirrors wire_mute_inline
-    // in tuner_wiring.rs — dispatch + apply in the same callback, no polling).
-    {
-        let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
-        window.on_di_loop_play(move |index| {
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            let chain_id = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            // #808: DI is independent — play with no chain enabled needs a runtime.
-            if crate::runtime_lifecycle::ensure_runtime(&project_runtime, session).is_err() {
-                return;
-            }
-            crate::di_loop_wiring::play_chain_di_loop(&project_runtime, &session.dispatcher, &chain_id);
-        });
-    }
-
-    // ── on_di_loop_stop ──────────────────────────────────────────────────────
-    // User pressed ■. Dispatch SetChainDiLoopEnabled { enabled: false } AND
-    // clear the chain runtime immediately.
-    {
-        let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
-        window.on_di_loop_stop(move |index| {
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            let chain_id = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            crate::di_loop_wiring::stop_chain_di_loop(
-                &project_runtime,
-                &session.dispatcher,
-                &chain_id,
-            );
-        });
-    }
 }
+
 
 #[cfg(test)]
-mod tests {
-    //! Issue #502: cover the pure handlers powering the Chains list
-    //! ▲/▼ buttons. Selection-cursor reseating is tested via
-    //! [`shift_selected_chain_index_after_swap`] in isolation; the
-    //! Slint integration (calling `window.set_…`) lives in the
-    //! wiring above and is exercised by the chained tests below.
-    use super::*;
-    use application::local_dispatcher::LocalDispatcher;
-    use project::chain::Chain;
-    use project::project::Project;
-    use std::cell::RefCell;
-    use std::path::PathBuf;
-    use std::rc::Rc;
-
-    fn make_chain(id: &str, description: &str) -> Chain {
-        Chain {
-            id: ChainId(id.into()),
-            description: Some(description.into()),
-            instrument: "electric_guitar".into(),
-            enabled: false,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: Vec::new(),
-            di_output: None,
-        }
-    }
-
-    fn session_with_chains(rows: &[(&str, &str)]) -> ProjectSession {
-        let project = Rc::new(RefCell::new(Project {
-            name: None,
-            device_settings: Vec::new(),
-            chains: rows.iter().map(|(id, desc)| make_chain(id, desc)).collect(),
-            midi: None,
-        }));
-        let dispatcher = Rc::new(LocalDispatcher::new(Rc::clone(&project)));
-        ProjectSession {
-            project,
-            dispatcher,
-            project_path: None,
-            config_path: None,
-            presets_path: PathBuf::from("./presets"),
-            rig: None,
-            io_bindings: Rc::new(RefCell::new(Vec::new())),
-        }
-    }
-
-    fn chain_ids(session: &ProjectSession) -> Vec<String> {
-        session
-            .project
-            .borrow()
-            .chains
-            .iter()
-            .map(|c| c.id.0.clone())
-            .collect()
-    }
-
-    #[test]
-    fn apply_move_chain_up_swaps_session_chain_order() {
-        let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
-        let outcome = apply_move_chain_up(&session, 1)
-            .expect("dispatcher ok")
-            .expect("not a no-op");
-        assert_eq!(outcome.moved_chain_id.0, "B");
-        assert_eq!(outcome.previous_slot, 1);
-        assert_eq!(outcome.new_slot, 0);
-        assert_eq!(chain_ids(&session), vec!["B", "A"]);
-    }
-
-    #[test]
-    fn apply_move_chain_up_at_slot_zero_is_noop() {
-        let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
-        let outcome = apply_move_chain_up(&session, 0).expect("dispatcher ok");
-        assert!(outcome.is_none(), "moving slot 0 up is a no-op");
-        assert_eq!(chain_ids(&session), vec!["A", "B"]);
-    }
-
-    #[test]
-    fn apply_move_chain_up_invalid_slot_is_noop() {
-        let session = session_with_chains(&[("A", "alpha")]);
-        let outcome = apply_move_chain_up(&session, 99).expect("dispatcher ok");
-        assert!(outcome.is_none(), "out-of-range slot returns None");
-    }
-
-    #[test]
-    fn apply_move_chain_down_swaps_session_chain_order() {
-        let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
-        let outcome = apply_move_chain_down(&session, 0)
-            .expect("dispatcher ok")
-            .expect("not a no-op");
-        assert_eq!(outcome.moved_chain_id.0, "A");
-        assert_eq!(outcome.previous_slot, 0);
-        assert_eq!(outcome.new_slot, 1);
-        assert_eq!(chain_ids(&session), vec!["B", "A"]);
-    }
-
-    #[test]
-    fn apply_move_chain_down_at_last_slot_is_noop() {
-        let session = session_with_chains(&[("A", "alpha"), ("B", "beta")]);
-        let outcome = apply_move_chain_down(&session, 1).expect("dispatcher ok");
-        assert!(outcome.is_none(), "moving last slot down is a no-op");
-        assert_eq!(chain_ids(&session), vec!["A", "B"]);
-    }
-
-    #[test]
-    fn apply_move_chain_down_invalid_slot_is_noop() {
-        let session = session_with_chains(&[("A", "alpha")]);
-        let outcome = apply_move_chain_down(&session, 99).expect("dispatcher ok");
-        assert!(outcome.is_none(), "out-of-range slot returns None");
-    }
-
-    #[test]
-    fn apply_move_chain_up_in_three_chain_project() {
-        // The middle chain moves up; outcome reports it sat at slot 1 and
-        // is now at slot 0 so the GUI can reseat the selection cursor.
-        let session = session_with_chains(&[("A", "alpha"), ("B", "beta"), ("C", "gamma")]);
-        let outcome = apply_move_chain_up(&session, 1)
-            .expect("dispatcher ok")
-            .expect("not a no-op");
-        assert_eq!(outcome.moved_chain_id.0, "B");
-        assert_eq!(outcome.new_slot, 0);
-        assert_eq!(chain_ids(&session), vec!["B", "A", "C"]);
-    }
-
-    // ── selection cursor (no AppWindow) ──────────────────────────────────
-
-    #[test]
-    fn shift_selection_follows_moved_chain_on_up() {
-        // User has chain at slot 1 selected; presses ▲ on that same chain.
-        // The chain moves to slot 0 → cursor must follow to slot 0.
-        let selected = 1;
-        assert_eq!(
-            shift_selected_chain_index_after_swap(selected, 1, 0),
-            0,
-            "cursor must follow the moved chain by ChainId, not stay on slot"
-        );
-    }
-
-    #[test]
-    fn shift_selection_follows_swapped_neighbour_on_up() {
-        // User has chain at slot 0 selected; the user moves the chain at
-        // slot 1 UP, which swaps slots 0 and 1. The originally-selected
-        // chain is now at slot 1.
-        let selected = 0;
-        assert_eq!(
-            shift_selected_chain_index_after_swap(selected, 1, 0),
-            1,
-            "the neighbour that got displaced must keep its ChainId selection"
-        );
-    }
-
-    #[test]
-    fn shift_selection_follows_moved_chain_on_down() {
-        // User has chain at slot 0 selected; presses ▼ on it; chain moves
-        // to slot 1 → cursor follows.
-        let selected = 0;
-        assert_eq!(shift_selected_chain_index_after_swap(selected, 0, 1), 1);
-    }
-
-    #[test]
-    fn shift_selection_unaffected_for_unrelated_chain() {
-        // User selected chain at slot 2; the move only swaps slots 0 and 1.
-        let selected = 2;
-        assert_eq!(
-            shift_selected_chain_index_after_swap(selected, 0, 1),
-            2,
-            "an untouched slot's selection must not shift"
-        );
-    }
-
-    #[test]
-    fn shift_selection_preserves_no_selection_sentinel() {
-        // `-1` is the Slint sentinel for "nothing selected"; it must not
-        // be remapped.
-        let selected = -1;
-        assert_eq!(shift_selected_chain_index_after_swap(selected, 0, 1), -1);
-    }
-}
+#[path = "chain_row_wiring_tests.rs"]
+mod tests;

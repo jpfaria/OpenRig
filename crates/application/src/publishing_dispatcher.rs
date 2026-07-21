@@ -9,7 +9,7 @@ use anyhow::Result;
 
 use crate::bridge::EventSink;
 use crate::command::Command;
-use crate::dispatcher::{CommandDispatcher, EventStream};
+use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -45,10 +45,6 @@ impl CommandDispatcher for PublishingDispatcher {
         // of hopping to this (frontend) one.
         self.inner.publish_state_snapshot();
         Ok(events)
-    }
-
-    fn subscribe(&self) -> EventStream {
-        self.inner.subscribe()
     }
 
     /// #693: async completions flow through the same fan-out a

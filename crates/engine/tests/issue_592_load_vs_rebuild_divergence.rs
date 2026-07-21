@@ -41,21 +41,32 @@ const SR: f32 = 48_000.0;
 const WARMUP: usize = 2048;
 const FRAMES: usize = 8192;
 
-fn plugins_root() -> PathBuf {
-    let candidates = [
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../../../OpenRig-plugins/plugins/source"),
-        PathBuf::from(
-            "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
-        ),
-    ];
-    candidates
-        .into_iter()
-        .find(|p| p.is_dir())
-        .expect("OpenRig-plugins/plugins/source must be present on disk for issue #592 repro")
+/// The owner's private capture tree, resolved from `OPENRIG_OWNER_PLUGINS` or
+/// the sibling `OpenRig-plugins` checkout. `None` when neither is present — the
+/// caller then skips (this repro needs the real disk packages, not a fixture).
+fn owner_plugins_root() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("OPENRIG_OWNER_PLUGINS") {
+        let p = PathBuf::from(p);
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    // Walk up from the crate dir; accept the first ancestor with a sibling
+    // `OpenRig-plugins/plugins/source` (author's main checkout or a .solvers
+    // clone, at any depth). None on CI, where the tree is absent.
+    let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let cand = dir.join("OpenRig-plugins/plugins/source");
+        if cand.is_dir() {
+            return Some(cand);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
 }
 
-fn init_registry() {
+fn init_registry(root: &std::path::Path) {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         nam::register_builder();
@@ -67,7 +78,7 @@ fn init_registry() {
         block_amp::register_natives();
         block_preamp::register_natives();
         block_cab::register_natives();
-        plugin_loader::registry::init(&plugins_root());
+        plugin_loader::registry::init(root);
     });
 }
 
@@ -425,36 +436,60 @@ fn assert_full_chain_load_matches_rebuild(name: &str, file: &str) {
 
 #[test]
 fn clean_full_chain_load_matches_rebuild() {
-    init_registry();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        return;
+    };
+    init_registry(&root);
     assert_full_chain_load_matches_rebuild("CLEAN", "clean.yaml");
 }
 
 #[test]
 fn od_full_chain_load_matches_rebuild() {
-    init_registry();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        return;
+    };
+    init_registry(&root);
     assert_full_chain_load_matches_rebuild("OD", "OD.yaml");
 }
 
 #[test]
 fn crunch_full_chain_load_matches_rebuild() {
-    init_registry();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        return;
+    };
+    init_registry(&root);
     assert_full_chain_load_matches_rebuild("CRUNCH", "Crunch.yaml");
 }
 
 #[test]
 fn clean_preset_load_matches_rebuild() {
-    init_registry();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        return;
+    };
+    init_registry(&root);
     assert_load_matches_rebuild("CLEAN", &clean_chain());
 }
 
 #[test]
 fn od_preset_load_matches_rebuild() {
-    init_registry();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        return;
+    };
+    init_registry(&root);
     assert_load_matches_rebuild("OD", &od_chain());
 }
 
 #[test]
 fn crunch_preset_load_matches_rebuild() {
-    init_registry();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        return;
+    };
+    init_registry(&root);
     assert_load_matches_rebuild("CRUNCH", &crunch_chain());
 }

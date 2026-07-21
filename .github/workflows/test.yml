@@ -1,13 +1,34 @@
 name: Test
 
 on:
-  workflow_dispatch: # manual trigger only — no automatic runs
+  pull_request:
+    branches: [develop]
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [develop]
+
+# One run per PR (or per develop push); cancel superseded runs.
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Whole-repo static gate (file-size caps + no inline test modules). Runs over
+  # every tracked file, not just the diff, so debt can't grow outside the frozen
+  # allowlist. Build-free (VALIDATE_STATIC_ONLY) — fmt/clippy/slint are the
+  # shared quality gate's job, not this one. See issue #793 / #792.
+  validate-static:
+    name: Static Checks (whole repo)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate file sizes and inline test modules
+        run: VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates
+
   test:
     name: Test Suite
     runs-on: ubuntu-latest
@@ -29,12 +50,17 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev
 
+      # The suite must be able to fail the job — no `|| true`. Tests that need
+      # the owner's private capture tree (OPENRIG_OWNER_PLUGINS) skip loudly
+      # when it is absent; they never hard-fail CI. See issue #793.
       - name: Run tests
-        run: cargo test --workspace || true
+        run: cargo test --workspace
 
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
 
+      # Coverage is reporting, not a gate: a flaky coverage run must not block a
+      # PR whose tests passed, so this step and the upload stay non-blocking.
       - name: Generate coverage report
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info || true
 

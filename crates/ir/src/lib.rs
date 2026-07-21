@@ -131,7 +131,7 @@ pub fn build_mono_ir_processor_from_wav(
     };
     let samples = truncate_with_fade(samples, path);
     let samples = resample_if_needed(samples, ir.sample_rate, runtime_sample_rate, path);
-    Ok(Box::new(MonoIrProcessor::new(samples)))
+    Ok(Box::new(MonoIrProcessor::new(samples)?))
 }
 
 pub fn build_stereo_ir_processor_from_wav(
@@ -149,7 +149,7 @@ pub fn build_stereo_ir_processor_from_wav(
     let right = truncate_with_fade(right, path);
     let left = resample_if_needed(left, ir.sample_rate, runtime_sample_rate, path);
     let right = resample_if_needed(right, ir.sample_rate, runtime_sample_rate, path);
-    Ok(Box::new(StereoIrProcessor::new(left, right)))
+    Ok(Box::new(StereoIrProcessor::new(left, right)?))
 }
 
 fn truncate_with_fade(mut samples: Vec<f32>, path: &str) -> Vec<f32> {
@@ -460,10 +460,10 @@ pub struct MonoIrProcessor {
 }
 
 impl MonoIrProcessor {
-    pub fn new(ir: Vec<f32>) -> Self {
-        Self {
-            convolver: FftBlockConvolver::new(ir).expect("IR should be valid"),
-        }
+    pub fn new(ir: Vec<f32>) -> Result<Self> {
+        Ok(Self {
+            convolver: FftBlockConvolver::new(ir)?,
+        })
     }
 }
 
@@ -485,11 +485,11 @@ pub struct StereoIrProcessor {
 }
 
 impl StereoIrProcessor {
-    pub fn new(left: Vec<f32>, right: Vec<f32>) -> Self {
-        Self {
-            left: FftBlockConvolver::new(left).expect("left IR should be valid"),
-            right: FftBlockConvolver::new(right).expect("right IR should be valid"),
-        }
+    pub fn new(left: Vec<f32>, right: Vec<f32>) -> Result<Self> {
+        Ok(Self {
+            left: FftBlockConvolver::new(left)?,
+            right: FftBlockConvolver::new(right)?,
+        })
     }
 }
 
