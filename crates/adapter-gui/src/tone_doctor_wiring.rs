@@ -9,12 +9,10 @@
 
 use application::command::Command;
 use domain::ids::ChainId;
-use engine::tone_doctor::diagnose;
-use engine::tone_doctor_fix::measure_fix;
+use engine::tone_doctor::diagnose_with_limits;
+use engine::tone_doctor_fix::measure_fix_with_limits;
 use engine::tone_doctor_suggestion::Suggestion;
-use feature_dsp::tone_descriptors::{
-    Symptom, CLIP_FRACTION_LIMIT, FIZZ_RATIO_LIMIT, MUD_RATIO_LIMIT,
-};
+use feature_dsp::tone_descriptors::{Symptom, SymptomLimits};
 use project::chain::Chain;
 
 /// The panel's result fields, mirroring `ToneDoctorState` in Slint. Carries the
@@ -46,13 +44,14 @@ pub fn diagnose_to_view(
     input: &[[f32; 2]],
     sample_rate: f32,
     block_size: usize,
+    limits: SymptomLimits,
 ) -> (ToneDoctorView, Option<Suggestion>) {
-    let diagnosis = match diagnose(chain, sample_rate, input, block_size) {
+    let diagnosis = match diagnose_with_limits(chain, sample_rate, input, block_size, &limits) {
         Ok(d) => d,
         Err(_) => return (ToneDoctorView::default(), None),
     };
     // Measured, not guessed: prove the fix actually clears the symptom.
-    let suggestion = measure_fix(chain, sample_rate, input, block_size, &diagnosis)
+    let suggestion = measure_fix_with_limits(chain, sample_rate, input, block_size, &diagnosis, &limits)
         .ok()
         .flatten();
 
@@ -94,11 +93,11 @@ pub fn diagnose_to_view(
         has_suggestion: suggestion.is_some(),
         suggestion_text,
         fizz_value: d.fizz_ratio,
-        fizz_limit: FIZZ_RATIO_LIMIT,
+        fizz_limit: limits.fizz,
         mud_value: d.mud_ratio,
-        mud_limit: MUD_RATIO_LIMIT,
+        mud_limit: limits.mud,
         clip_value: d.clip_fraction,
-        clip_limit: CLIP_FRACTION_LIMIT,
+        clip_limit: limits.clip,
     };
     (view, suggestion)
 }

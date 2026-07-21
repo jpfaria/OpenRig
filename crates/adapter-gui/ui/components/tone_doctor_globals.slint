@@ -34,6 +34,13 @@ export global ToneDoctorState {
     // Where the signal comes from, for the panel hint: "di" | "live" | "".
     in-out property <string> source-kind;
 
+    // ── #809: the player's genre, so the doctor judges the tone by that style's
+    // calibrated limits instead of the global defaults. Empty ⇒ defaults.
+    // `genres` is the catalogue for the selector, filled by Rust when the panel
+    // opens; `tone-genre` is the current choice.
+    in-out property <string> tone-genre;
+    in property <[string]> genres;
+
     // ── the three measurements + their healthy limits, for the meters ──────
     // The user sees the data behind the verdict instead of a bare word.
     in-out property <float> fizz-value;

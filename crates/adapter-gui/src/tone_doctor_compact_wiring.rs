@@ -78,8 +78,14 @@ fn record(ring: Arc<SpscRing<f32>>, sr: f32, seconds: usize) -> Vec<[f32; 2]> {
 
 /// Run the diagnosis on a background thread. `produce` yields the input frames +
 /// sample rate (DI decode or live capture — both blocking, hence off-thread).
-fn spawn<F, D>(chain: project::chain::Chain, cache: SuggestionCache, seconds: usize, produce: F, on_done: D)
-where
+fn spawn<F, D>(
+    chain: project::chain::Chain,
+    limits: feature_dsp::tone_descriptors::SymptomLimits,
+    cache: SuggestionCache,
+    seconds: usize,
+    produce: F,
+    on_done: D,
+) where
     F: FnOnce() -> Option<(Vec<[f32; 2]>, f32)> + Send + 'static,
     D: FnOnce(ToneDoctorView) + Send + 'static,
 {
@@ -91,7 +97,7 @@ where
                     input.truncate(cap);
                 }
                 let (view, suggestion) =
-                    crate::tone_doctor_wiring::diagnose_to_view(&chain, &input, sr, DIAGNOSE_BLOCK);
+                    crate::tone_doctor_wiring::diagnose_to_view(&chain, &input, sr, DIAGNOSE_BLOCK, limits);
                 if let Ok(mut c) = cache.lock() {
                     *c = suggestion;
                 }
@@ -101,6 +107,19 @@ where
         };
         let _ = slint::invoke_from_event_loop(move || on_done(view));
     });
+}
+
+/// The genre catalogue for the panel's selector, from the embedded calibrated
+/// table. A leading "" entry is the "no genre — global defaults" choice.
+fn genre_model() -> slint::ModelRc<slint::SharedString> {
+    let mut items: Vec<slint::SharedString> = vec![slint::SharedString::new()];
+    items.extend(
+        engine::tone_profile_table::ProfileTable::embedded()
+            .genres()
+            .into_iter()
+            .map(slint::SharedString::from),
+    );
+    slint::ModelRc::new(slint::VecModel::from(items))
 }
 
 /// Resolve the culprit's chain by index.
@@ -131,11 +150,17 @@ fn start_run(
         return;
     };
 
+    // The player's selected genre (empty ⇒ none) picks the calibrated limits;
+    // unknown/none falls back to the global defaults inside the table.
+    let genre = st.get_tone_genre();
+    let genre = (!genre.is_empty()).then(|| genre.to_string());
+    let limits = engine::tone_profile_table::ProfileTable::embedded().limits_for(genre.as_deref());
+
     // 1) a DI selected for the chain → render that file.
     if let Some(source) = session.dispatcher.di_loop_source_for_chain(&chain_id) {
         st.set_can_diagnose(true);
         st.set_source_kind("di".into());
-        spawn(chain, cache, seconds, move || {
+        spawn(chain, limits, cache, seconds, move || {
             load_di_loop(&source)
                 .ok()
                 .map(|di| (di.stereo_frames(), di.src_sr() as f32))
@@ -152,7 +177,7 @@ fn start_run(
     if let Some((ring, sr)) = tap {
         st.set_can_diagnose(true);
         st.set_source_kind("live".into());
-        spawn(chain, cache, seconds, move || Some((record(ring, sr, seconds), sr)), on_done);
+        spawn(chain, limits, cache, seconds, move || Some((record(ring, sr, seconds), sr)), on_done);
         return;
     }
 
@@ -196,6 +221,7 @@ pub(crate) fn wire(
     toast_timer: Rc<slint::Timer>,
 ) {
     let cache: SuggestionCache = Arc::new(Mutex::new(None));
+    compact_win.global::<ToneDoctorState>().set_genres(genre_model());
     {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();
@@ -240,6 +266,7 @@ pub(crate) fn wire_main(
 ) {
     let cache: SuggestionCache = Arc::new(Mutex::new(None));
     let main_weak = window.as_weak();
+    window.global::<ToneDoctorState>().set_genres(genre_model());
     {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();

@@ -1853,6 +1853,8 @@ dependencies = [
  "plugin-loader",
  "project",
  "rustfft",
+ "serde",
+ "serde_yaml",
  "vst3-host",
 ]
 

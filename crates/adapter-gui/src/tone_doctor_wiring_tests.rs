@@ -68,7 +68,7 @@ fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
         core_block("vol", "volume", params("volume", &[("volume", 80.0)])),
         core_block("fz", "fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
     ]);
-    let (view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF);
+    let (view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF, feature_dsp::tone_descriptors::SymptomLimits::DEFAULT);
 
     assert!(view.has_result, "{view:?}");
     assert!(!view.running, "run completed: {view:?}");
@@ -92,7 +92,7 @@ fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
 fn healthy_chain_view_has_no_result_flag_set_but_no_culprit() {
     init();
     let c = chain(vec![core_block("vol", "volume", params("volume", &[("volume", 80.0)]))]);
-    let (view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF);
+    let (view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF, feature_dsp::tone_descriptors::SymptomLimits::DEFAULT);
 
     assert!(view.has_result, "a run happened: {view:?}");
     assert_eq!(view.symptom_level, 0, "healthy = green: {view:?}");
@@ -109,7 +109,7 @@ fn apply_command_targets_the_culprit_block() {
         core_block("vol", "volume", params("volume", &[("volume", 80.0)])),
         core_block("fz", "fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
     ]);
-    let (_view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF);
+    let (_view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF, feature_dsp::tone_descriptors::SymptomLimits::DEFAULT);
     let s = suggestion.expect("suggestion");
     let cmds = apply_commands(&c, &c.id, &s);
     // A native fuzz knob is always live (no enable gate) → a single command.
