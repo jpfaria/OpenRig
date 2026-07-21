@@ -54,7 +54,6 @@ crates/adapter-gui/src/desktop_app.rs
 crates/adapter-gui/src/i18n_tests.rs
 crates/adapter-gui/src/lib_tests.rs
 crates/adapter-gui/src/project_admin_persistence_tests.rs
-crates/adapter-gui/src/project_ops_persistence_tests.rs
 crates/application/src/command.rs
 crates/application/src/local_dispatcher_tests.rs
 crates/engine/src/audio_alloc_invariant_tests.rs

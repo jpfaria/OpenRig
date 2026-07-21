@@ -455,6 +455,10 @@ pub(crate) fn project_title_for_path(project_path: Option<&PathBuf>, project: &P
 mod project_ops_persistence_tests;
 
 #[cfg(test)]
+#[path = "project_ops_persistence_more_tests.rs"]
+mod project_ops_persistence_more;
+
+#[cfg(test)]
 #[path = "project_admin_persistence_tests.rs"]
 mod project_admin_persistence_tests;
 
