@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use tone_calibrate::{calibrate_corpus, Manifest};
+use tone_calibrate::{calibrate_corpus, measure_stems, Manifest};
 
 const SR: u32 = 48_000;
 
@@ -81,6 +81,23 @@ fn calibrates_one_profile_per_genre_from_disk() {
         bright.fizz_limit,
         dark.fizz_limit
     );
+}
+
+#[test]
+fn measure_stems_returns_one_record_per_stem_labelled() {
+    let root = corpus_root("corpus_measure");
+    let _ = std::fs::remove_dir_all(&root);
+    write_song(&root, "song-a", &[(1_000.0, 0.2), (5_000.0, 0.4)]);
+
+    let manifest: Manifest = BTreeMap::from([("song-a".to_string(), "rock".to_string())]);
+    let mut ms = measure_stems(&root, &manifest).unwrap();
+    ms.sort_by(|a, b| a.stem.cmp(&b.stem));
+
+    assert_eq!(ms.len(), 2, "one record per stem: {ms:?}");
+    assert_eq!(ms[0].stem, "lead");
+    assert_eq!(ms[1].stem, "rhythm");
+    assert!(ms.iter().all(|m| m.song == "song-a" && m.genre == "rock"));
+    assert!(ms[0].descriptors.fizz_ratio > 0.0, "measured, not empty: {:?}", ms[0]);
 }
 
 #[test]

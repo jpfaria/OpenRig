@@ -9,7 +9,7 @@
 //! The genre label is *not* on disk — it comes from a `song -> genre` manifest.
 
 use anyhow::{Context, Result};
-use feature_dsp::tone_descriptors::analyze;
+use feature_dsp::tone_descriptors::{analyze, ToneDescriptors};
 use feature_dsp::tone_profiles::{calibrate, Confidence, GenreProfile};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -29,7 +29,32 @@ pub fn calibrate_corpus(
     manifest: &Manifest,
     percentile: f32,
 ) -> Result<Vec<GenreProfile>> {
-    let mut samples: Vec<(String, feature_dsp::tone_descriptors::ToneDescriptors)> = Vec::new();
+    let samples: Vec<(String, ToneDescriptors)> = measure_stems(evaluations_root, manifest)?
+        .into_iter()
+        .map(|m| (m.genre, m.descriptors))
+        .collect();
+    Ok(calibrate(&samples, percentile))
+}
+
+/// One measured reference stem — the per-song, per-stem raw descriptors behind
+/// the aggregated table. Exposed so callers can chart the corpus, not just the
+/// genre summary.
+#[derive(Debug, Clone)]
+pub struct StemMeasurement {
+    pub song: String,
+    pub genre: String,
+    /// `lead` or `rhythm`.
+    pub stem: String,
+    pub descriptors: ToneDescriptors,
+}
+
+/// Measure every labeled stem under `evaluations_root`, one record per stem.
+/// Missing stems are skipped with a warning (a partial corpus still measures).
+pub fn measure_stems(
+    evaluations_root: &Path,
+    manifest: &Manifest,
+) -> Result<Vec<StemMeasurement>> {
+    let mut out = Vec::new();
     for (song, genre) in manifest {
         for stem in REF_STEMS {
             let path = evaluations_root.join(song).join("refs").join(stem);
@@ -39,10 +64,15 @@ pub fn calibrate_corpus(
             }
             let (frames, sample_rate) = read_wav_stereo(&path)
                 .with_context(|| format!("reading stem {}", path.display()))?;
-            samples.push((genre.clone(), analyze(&frames, sample_rate)));
+            out.push(StemMeasurement {
+                song: song.clone(),
+                genre: genre.clone(),
+                stem: stem.trim_end_matches(".wav").to_string(),
+                descriptors: analyze(&frames, sample_rate),
+            });
         }
     }
-    Ok(calibrate(&samples, percentile))
+    Ok(out)
 }
 
 /// Read a WAV file as stereo `f32` frames plus its sample rate. Mono is
@@ -87,6 +117,29 @@ fn read_interleaved(
                 .collect::<std::result::Result<Vec<_>, _>>()?)
         }
     }
+}
+
+/// Render per-stem measurements as CSV (one row per stem) for charting the raw
+/// corpus. Dependency-free; header first.
+pub fn measurements_to_csv(measurements: &[StemMeasurement]) -> String {
+    let mut out = String::from("song,genre,stem,mud,fizz,harsh,boom,clip,rms_dbfs,crest_db\n");
+    for m in measurements {
+        let d = &m.descriptors;
+        out.push_str(&format!(
+            "{},{},{},{},{},{},{},{},{},{}\n",
+            m.song,
+            m.genre,
+            m.stem,
+            d.mud_ratio,
+            d.fizz_ratio,
+            d.harsh_ratio,
+            d.boom_ratio,
+            d.clip_fraction,
+            d.rms_dbfs,
+            d.crest_db,
+        ));
+    }
+    out
 }
 
 /// Serialize the calibrated table to the versioned `profiles.yaml` form:
