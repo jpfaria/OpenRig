@@ -359,6 +359,94 @@ fn wait_for_di_render(controller: &ProjectRuntimeController) {
     }
 }
 
+/// Seed a controller whose chain has a live runtime + slot (so a DI can render
+/// against it) but is NOT in `active_chains` — the owner's "only the DI is
+/// running": the project is open and the DI monitors, but the guitar stream was
+/// never enabled. A live param edit then takes the cold-activation path, which
+/// (issue #808) forgot to re-render the monitored DI, so the timbre only
+/// changed after a block toggle. The DI is an independent pipeline (invariant
+/// #4) — editing the chain must re-render it regardless of the guitar's state.
+fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
+    let chain_id = chain.id.clone();
+    let runtime = Arc::new(
+        build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], &registry())
+            .expect("runtime should build"),
+    );
+    let mut graph = RuntimeGraph {
+        chains: std::collections::HashMap::new(),
+    };
+    graph
+        .chains
+        .insert((chain_id.clone(), 0), Arc::clone(&runtime));
+    let mut chain_slots = std::collections::HashMap::new();
+    chain_slots.insert(
+        (chain_id.clone(), 0),
+        LiveRuntimeSlot::new(Arc::clone(&runtime)),
+    );
+    ProjectRuntimeController {
+        runtime_graph: graph,
+        // The DI-only state: NO active guitar stream for this chain.
+        active_chains: std::collections::HashMap::new(),
+        chain_slots,
+        worker: crate::ControlWorker::new(),
+        pending_rebuilds: Vec::new(),
+        pending_activations: Vec::new(),
+        sample_rate: 48_000,
+        io_bindings: registry(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
+        di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
+        di_retired: Default::default(),
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        supervisor: super::jack_supervisor::JackSupervisor::new(
+            super::jack_supervisor::LiveJackBackend::new(),
+        ),
+    }
+}
+
+/// #808 (owner's follow-up): "I changed the param with ONLY the DI running and
+/// the timbre did NOT change — only when I toggled the block." With the guitar
+/// stream inactive, a live edit takes the cold-activation path; that path must
+/// STILL re-render the monitored DI (the toggle path already does). The DI keeps
+/// its own runtime, so this holds with no active guitar stream.
+#[test]
+fn a_live_edit_re_renders_the_di_when_only_the_di_is_running() {
+    init_registry();
+    let mut controller = controller_with_di_only_chain(&gain_chain(15.0));
+
+    // Arm the DI while the gain block attenuates the tone hard.
+    let pcm = Arc::new(engine::DiPcm::new(vec![0.6; 48_000], 48_000, 1));
+    controller
+        .arm_di_stream(&gain_chain(15.0), Arc::clone(&pcm))
+        .expect("arm DI");
+    wait_for_di_render(&controller);
+    let peak_quiet = di_render_peak(&controller);
+
+    // Edit the config: open the gain to unity. This chain is NOT active, so the
+    // GUI's `sync_live_chain_runtime` takes the cold-activation branch
+    // (`schedule_chain_activation`) — exactly what happens on the owner's rig.
+    let edited = gain_chain(100.0);
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![edited.clone()],
+        midi: None,
+    };
+    controller
+        .schedule_chain_activation(&project, &edited)
+        .expect("activation scheduling must not error");
+    // Give the (re-armed) DI render time to refill with the new config.
+    std::thread::sleep(Duration::from_millis(500));
+    let peak_open = di_render_peak(&controller);
+
+    assert!(
+        peak_open > peak_quiet * 2.0,
+        "editing the chain with only the DI running did NOT reach the monitored \
+         DI: rendered peak stayed quiet={peak_quiet:.4} open={peak_open:.4}. The DI \
+         kept playing the stale render — the owner's 'I change the param with only \
+         the DI running and NOTHING changes until I toggle the block'."
+    );
+}
+
 /// The owner's PRIMARY report: monitoring a DI, change the chain config →
 /// NOTHING changes. The DI must re-render through the edited chain.
 #[test]
