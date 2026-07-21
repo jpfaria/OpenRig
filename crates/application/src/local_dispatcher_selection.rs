@@ -37,20 +37,12 @@ impl LocalDispatcher {
         };
         let next_id = project.chains[next_idx].id.0.clone();
         let changed = sel.active_chain.as_deref() != Some(next_id.as_str());
-        let new_chain_id = ChainId(next_id.clone());
         sel.active_chain_enabled = project.chains[next_idx].enabled;
         sel.active_chain = Some(next_id);
         if changed {
             sel.active_block = None;
         }
-        // Drop the write guard before touching `self.selection` to avoid
-        // holding two RefCell/RwLock guards at once.
         drop(sel);
-
-        // Seed the legacy per-chain block-selection map. The existing
-        // GUI uses it to render the "current chain" highlight, so this
-        // is how a MIDI footswitch lights up the chain on screen.
-        self.selection.borrow_mut().entry(new_chain_id).or_insert(0);
 
         Ok(vec![Event::ProjectMutated])
     }
@@ -79,11 +71,6 @@ impl LocalDispatcher {
             }
         }
         drop(project);
-
-        // Seed the legacy per-chain block-selection map so the existing
-        // GUI lights up the chain on screen (same path the MIDI relative
-        // nav uses).
-        self.selection.borrow_mut().entry(chain).or_insert(0);
 
         Ok(vec![Event::ProjectMutated])
     }
@@ -187,15 +174,10 @@ impl LocalDispatcher {
             None => 0,
             Some(i) => (((i as i32 + delta) % n) + n) as usize % n as usize,
         };
-        let (real_idx, next_block) = navigable[next_pos];
+        let (_real_idx, next_block) = navigable[next_pos];
         sel.active_block = Some(next_block.id.0.clone());
         sel.active_block_enabled = next_block.enabled;
         drop(sel);
-
-        // Seed the legacy per-chain selection (uses the REAL index in
-        // the full blocks list — the GUI's compact view indexes there).
-        let chain_id = ChainId(active_chain_id);
-        self.selection.borrow_mut().insert(chain_id, real_idx);
 
         Ok(vec![Event::ProjectMutated])
     }

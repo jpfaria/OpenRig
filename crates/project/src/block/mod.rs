@@ -31,3 +31,7 @@ pub use types::{
 #[cfg(test)]
 #[path = "../block_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../block_tests_more.rs"]
+mod tests_more;

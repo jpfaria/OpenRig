@@ -8,7 +8,7 @@
 //!
 //! ## Test isolation
 //!
-//! Each test creates a `TempDir` and calls `attach_config_path` with a path
+//! Each test creates a `TempDir` and calls `attach_io_config_path` with a path
 //! inside it, so all reads and writes stay inside the temp directory.
 //! The real OS config file (`~/Library/Application Support/OpenRig/config.yaml`
 //! on macOS, `~/.config/OpenRig/config.yaml` on Linux) is never touched.
@@ -57,7 +57,7 @@ fn test_create_then_persists() {
     let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     let binding = make_binding("main", "Main");
     dispatcher
@@ -95,7 +95,7 @@ fn test_update_replaces_by_id() {
     let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     let original = make_binding("rig1", "Rig 1");
     dispatcher
@@ -176,7 +176,7 @@ fn test_delete_removes() {
     let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     let b1 = make_binding("del-me", "Delete Me");
     let b2 = make_binding("keep-me", "Keep Me");
@@ -232,7 +232,7 @@ fn test_add_input_endpoint_builds_and_persists() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let cfg_path = tmp.path().join("config.yaml");
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
         .dispatch(Command::CreateIoBinding {
@@ -272,7 +272,7 @@ fn test_remove_io_endpoint() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let cfg_path = tmp.path().join("config.yaml");
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
         .dispatch(Command::CreateIoBinding {
@@ -311,7 +311,7 @@ fn test_rename_io_binding() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let cfg_path = tmp.path().join("config.yaml");
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
         .dispatch(Command::CreateIoBinding {

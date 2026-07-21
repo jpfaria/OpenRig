@@ -258,6 +258,10 @@ impl RigPreset {
 mod rig_tests;
 
 #[cfg(test)]
+#[path = "rig_writeback_tests.rs"]
+mod rig_writeback;
+
+#[cfg(test)]
 #[path = "rig_scene_tests.rs"]
 mod rig_scene_tests;
 

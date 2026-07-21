@@ -85,6 +85,10 @@ pub fn build_modulation_processor_for_layout(
 #[path = "lib_tests.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "lib_registry_tests.rs"]
+mod registry_tests;
+
 /// Push every native model into the unified plugin-loader registry.
 /// Called by `adapter-gui` at startup before plugin discovery freezes
 /// the catalog.

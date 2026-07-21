@@ -46,13 +46,17 @@ fn midi_chain_step_seeds_legacy_selection_map_and_emits_event() {
         .dispatch(Command::SelectActiveChainRelative { delta: 1 })
         .unwrap();
 
-    // The legacy GUI looks up `selected_block(&chain)` to decide which
-    // chain to highlight — even when there is no block selected, the
-    // entry's presence is the signal.
+    // The dispatcher's SelectionState is the single source the GUI, MIDI,
+    // and MCP (`QueryKind::Selection`) all read to highlight the active chain.
     assert_eq!(
-        dispatcher.selected_block(&ChainId("chain_a".to_string())),
-        Some(0),
-        "the active chain must appear in the legacy selection map so the existing highlight kicks in"
+        dispatcher
+            .selection_state()
+            .read()
+            .unwrap()
+            .active_chain
+            .as_deref(),
+        Some("chain_a"),
+        "SelectActiveChainRelative must record the active chain in SelectionState"
     );
 
     assert!(
