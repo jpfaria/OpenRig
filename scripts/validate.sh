@@ -74,7 +74,6 @@ crates/infra-cpal/src/tests.rs
 crates/infra-cpal/tests/issue_670_cab_swap.rs
 crates/infra-yaml/src/lib_tests.rs
 crates/lv2/src/host.rs
-crates/plugin-loader/src/manifest_tests.rs
 crates/project/src/block_tests.rs
 crates/project/src/rig_tests.rs
 crates/adapter-gui/ui/app-window.slint

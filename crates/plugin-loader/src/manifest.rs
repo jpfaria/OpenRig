@@ -459,3 +459,7 @@ pub enum Lv2Slot {
 #[cfg(test)]
 #[path = "manifest_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "manifest_more_tests.rs"]
+mod manifest_more;
