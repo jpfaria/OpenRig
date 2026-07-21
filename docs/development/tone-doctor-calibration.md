@@ -64,7 +64,8 @@ cargo run -p tone-calibrate --bin openrig-tone-calibrate -- \
 
 - **evaluations root** — holds `<song>/refs/{lead,rhythm}.wav` isolated stems.
 - **manifest** — a flat `song: genre` YAML map. The genre is *not* on disk; the
-  label lives here. Seed it once, refine by ear.
+  label lives here — sourced per recording (Wikipedia / Billboard / AllMusic),
+  not guessed.
 - **out** — where the table is written; omit to print to stdout.
 
 Missing stems are skipped with a note, not treated as fatal — a partial corpus
@@ -97,41 +98,47 @@ genre labels mean several genres will be thin until the corpus grows.
 
 ## Derived numbers (current corpus)
 
-Calibration over 28 songs (each `lead` + `rhythm` isolated stem), p90:
+Calibration over 28 songs (each `lead` + `rhythm` isolated stem); genres are
+**sourced per recording** (Wikipedia / Billboard / AllMusic), not guessed. p90
+for excess limits, p10 for the deficit floors (`thin`/`squash`):
 
-| Genre | mud | fizz | harsh | boom | n | confidence |
-|---|---:|---:|---:|---:|---:|---|
-| blues | 0.737 | **0.016** | ~0 | 0.047 | 8 | trusted |
-| clean | 0.717 | 0.205 | ~0 | — | 8 | trusted |
-| grunge | 0.537 | **0.473** | ~0 | 0.117 | 7 | trusted |
-| punk | 0.512 | 0.206 | ~0 | — | 6 | trusted |
-| metal | 0.554 | 0.343 | ~0 | 0.100 | 2 | provisional |
-| classic-rock | 0.560 | 0.230 | — | — | 4 | provisional |
-| alternative-rock | 0.275 | 0.346 | — | — | 4 | provisional |
-| hard-rock | 0.469 | 0.095 | — | — | 2 | provisional |
-| brazilian-rock | 0.604 | 0.156 | — | — | 5 | provisional |
-| jazz | 0.118 | 0.051 | — | — | 1 | provisional |
-| pop-rock | 0.416 | 0.034 | — | — | 1 | provisional |
+| Genre | mud | fizz | boom | thin | squash | n | confidence |
+|---|---:|---:|---:|---:|---:|---:|---|
+| alternative-rock | 0.482 | 0.296 | 0.073 | 0.144 | 16.2 | 8 | trusted |
+| grunge | 0.537 | **0.473** | 0.117 | 0.264 | 15.7 | 7 | trusted |
+| blues-rock | 0.737 | **0.014** | 0.039 | 0.479 | 20.3 | 6 | trusted |
+| pop-punk | 0.512 | 0.206 | 0.092 | 0.087 | 15.1 | 6 | trusted |
+| hard-rock | 0.623 | 0.099 | 0.024 | 0.286 | 16.1 | 4 | provisional |
+| acoustic | 0.679 | 0.034 | 0.104 | 0.426 | 18.4 | 2 | provisional |
+| heavy-metal | 0.554 | 0.343 | 0.100 | 0.201 | 18.6 | 2 | provisional |
+| southern-rock | 0.534 | 0.285 | 0.047 | 0.276 | 20.0 | 2 | provisional |
+| soft-rock | 0.720 | 0.039 | 0.006 | 0.611 | 18.9 | 2 | provisional |
+| progressive-rock | 0.526 | 0.037 | 0.020 | 0.365 | 21.6 | 2 | provisional |
+| pop-rock | 0.586 | 0.016 | 0.047 | 0.388 | 18.8 | 2 | provisional |
+| rock | 0.327 | 0.369 | 0.001 | 0.168 | 17.9 | 2 | provisional |
+| brazilian-rock · power-pop · smooth-jazz | — | — | — | — | — | 1 | provisional |
 
 ### Why this proves the premise
 
-Look at `fizz`: **grunge 0.473** vs **blues 0.016** — a 30× spread. The old fixed
-`FIZZ_RATIO_LIMIT = 0.05` would flag *every* grunge tone as fizzy (0.47 ≫ 0.05)
-while treating blues as already at the edge. Per-genre limits judge each style by
-its own standard: grunge is only "too fizzy" past *its* 0.47, not a universal
-0.05. That is the difference between measuring physics and respecting musical
-intent.
+Look at `fizz`: **grunge 0.473** vs **blues-rock 0.014** — a 30×+ spread. The old
+fixed `FIZZ_RATIO_LIMIT = 0.05` would flag *every* grunge tone as fizzy (0.47 ≫
+0.05) while treating blues as already at the edge. Per-genre limits judge each
+style by its own standard: grunge is only "too fizzy" past *its* 0.47, not a
+universal 0.05. That is the difference between measuring physics and respecting
+musical intent.
 
 ### Honest caveats
 
-- **Small N.** Genres with 1–2 songs (jazz, metal, pop-rock) come out
-  `provisional` — the number exists but is not trustworthy until the corpus
-  grows. The flag keeps that in the open.
+- **Small N.** Genres with 1–2 songs come out `provisional` — the number exists
+  but is not trustworthy until the corpus grows. The flag keeps that in the open.
 - **`harsh` ≈ 0 everywhere.** The reference stems carry little 8–16 kHz content
   (dark / band-limited masters), so the brilliance limit lands near zero. It will
   fill out with brighter stems.
-- **Genre labels are subjective.** Silverchair's "Shade" is acoustic, not grunge;
-  each such call is the owner's by ear — the manifest is a seed, not law.
+- **Sourced genre, fine granularity.** Each label is grounded in a reference for
+  that recording (not guessed), which yields 15 genres — several with 1–2 stems.
+  Finer than the corpus can support; grouping into families (e.g. the several
+  `*-rock`) would give sturdier buckets, but that is a slicing choice, not a
+  licence to invent labels.
 - **Live activation.** Every calibrated limit — excess and deficit alike — flows
   into the doctor through `diagnose_with_limits` / `measure_fix_with_limits`.
   Wiring the *selected genre* onto the chain (so the live doctor picks a genre's
@@ -150,7 +157,7 @@ intent.
 |---|---|
 | `crates/feature-dsp/src/tone_profiles.rs` | Pure aggregation core (grouping, percentile, confidence) |
 | `crates/tone-calibrate/` | Offline binary: manifest + WAV + YAML I/O |
-| `assets/tone-profiles/genre-manifest.yaml` | `song -> genre` map (seed, owner-refined) |
+| `assets/tone-profiles/genre-manifest.yaml` | `song -> genre` map (sourced per recording) |
 | `assets/tone-profiles/profiles.yaml` | Generated per-genre limit table |
 | `assets/tone-profiles/per-song-measurements.csv` | Raw per-song, per-stem descriptors (`measure` subcommand) |
 | `docs/development/tone-calibration-per-song.html` | Self-contained chart of every song's measurements, faceted by genre |

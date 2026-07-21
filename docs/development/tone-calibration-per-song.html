@@ -106,57 +106,8 @@
 
 <script>
 // [song, genre, stem, mud, fizz, harsh, boom, crest_db]
-const DATA=[
-["another-brick-in-the-wall-pt-2","classic-rock","lead",0.345,0.028,0.0000,0.017,22.9],
-["another-brick-in-the-wall-pt-2","classic-rock","rhythm",0.546,0.038,0.0001,0.020,21.4],
-["barao-vermelho-beth-balanco","brazilian-rock","rhythm",0.188,0.193,0.0001,0.001,21.6],
-["basket-case-green-day","punk","rhythm",0.365,0.153,0.0000,0.053,15.4],
-["beat-it-michael-jackson","hard-rock","lead",0.197,0.099,0.0001,0.017,21.7],
-["beat-it-michael-jackson","hard-rock","rhythm",0.499,0.056,0.0000,0.013,20.4],
-["charlie-brown-jr-lugar-ao-sol","brazilian-rock","lead",0.211,0.063,0.0000,0.002,23.6],
-["charlie-brown-jr-lugar-ao-sol","brazilian-rock","rhythm",0.421,0.073,0.0013,0.110,16.3],
-["chris-isaak-wicked-game","clean","lead",0.598,0.041,0.0000,0.000,22.5],
-["chris-isaak-wicked-game","clean","rhythm",0.734,0.019,0.0003,0.007,18.5],
-["coldplay-clocks","clean","lead",0.350,0.005,0.0000,0.000,18.8],
-["coldplay-clocks","clean","rhythm",0.623,0.001,0.0000,0.028,18.6],
-["cpm-22-um-minuto-para-o-fim-do-mundo","punk","lead",0.079,0.259,0.0000,0.003,21.1],
-["cpm-22-um-minuto-para-o-fim-do-mundo","punk","rhythm",0.528,0.128,0.0000,0.074,18.1],
-["foo-fighters-everlong","alternative-rock","lead",0.160,0.045,0.0000,0.000,26.7],
-["foo-fighters-everlong","alternative-rock","rhythm",0.273,0.134,0.0000,0.054,15.8],
-["gravity-john-mayer","blues","lead",0.487,0.009,0.0000,0.000,25.8],
-["gravity-john-mayer","blues","rhythm",0.737,0.001,0.0000,0.033,23.7],
-["green-day-basket-case","punk","rhythm",0.365,0.153,0.0000,0.053,15.4],
-["green-day-when-i-come-around","punk","lead",0.094,0.046,0.0000,0.002,24.8],
-["green-day-when-i-come-around","punk","rhythm",0.496,0.102,0.0000,0.110,14.8],
-["john-mayer-gravity","blues","lead",0.487,0.009,0.0000,0.000,25.8],
-["john-mayer-gravity","blues","rhythm",0.737,0.001,0.0000,0.033,23.7],
-["john-mayer-heartbreak-warfare","blues","lead",0.363,0.017,0.0000,0.000,23.3],
-["john-mayer-heartbreak-warfare","blues","rhythm",0.611,0.009,0.0000,0.052,18.3],
-["john-mayer-slow-dancing-in-a-burning-room","blues","lead",0.471,0.016,0.0000,0.000,20.6],
-["john-mayer-slow-dancing-in-a-burning-room","blues","rhythm",0.678,0.012,0.0000,0.045,20.0],
-["lynyrd-skynyrd-simple-man","classic-rock","lead",0.244,0.313,0.0001,0.032,23.8],
-["lynyrd-skynyrd-simple-man","classic-rock","rhythm",0.567,0.038,0.0000,0.049,19.6],
-["metallica-enter-sandman","metal","lead",0.157,0.349,0.0000,0.006,21.4],
-["metallica-enter-sandman","metal","rhythm",0.598,0.294,0.0000,0.111,18.3],
-["nirvana-smells-like-teen-spirit","grunge","lead",0.294,0.194,0.0000,0.000,26.1],
-["nirvana-smells-like-teen-spirit","grunge","rhythm",0.218,0.663,0.0000,0.015,17.9],
-["pitty-na-sua-estante","brazilian-rock","lead",0.677,0.018,0.0000,0.000,23.8],
-["pitty-na-sua-estante","brazilian-rock","rhythm",0.496,0.100,0.0008,0.028,14.3],
-["radiohead-creep","alternative-rock","lead",0.107,0.383,0.0000,0.006,24.5],
-["radiohead-creep","alternative-rock","rhythm",0.276,0.259,0.0000,0.057,23.9],
-["segredos-torcuato-mariano","jazz","lead",0.118,0.051,0.0000,0.001,17.0],
-["silverchair-freak","grunge","lead",0.562,0.065,0.0000,0.027,23.4],
-["silverchair-freak","grunge","rhythm",0.521,0.071,0.0000,0.153,15.8],
-["silverchair-israels-son","grunge","rhythm",0.343,0.206,0.0000,0.092,15.6],
-["silverchair-pure-massacre","grunge","lead",0.445,0.347,0.0000,0.001,21.4],
-["silverchair-pure-massacre","grunge","rhythm",0.334,0.271,0.0000,0.065,16.0],
-["silverchair-shade","clean","lead",0.710,0.001,0.0000,0.001,24.8],
-["silverchair-shade","clean","rhythm",0.394,0.037,0.0006,0.116,17.7],
-["where-the-streets-have-no-name-u2","clean","lead",0.347,0.123,0.0000,0.000,24.1],
-["where-the-streets-have-no-name-u2","clean","rhythm",0.149,0.396,0.0000,0.001,17.3],
-["your-love-the-outfield","pop-rock","rhythm",0.416,0.034,0.0000,0.006,19.9]
-];
-const GEN={"alternative-rock":{mud:0.275,fizz:0.346,harsh:0.00001,boom:0.056,thin:0.123,squash:18.3,n:4,c:"provisional"},"blues":{mud:0.737,fizz:0.016,harsh:0.00001,boom:0.047,thin:0.439,squash:19.5,n:8,c:"trusted"},"brazilian-rock":{mud:0.604,fizz:0.156,harsh:0.00106,boom:0.077,thin:0.197,squash:15.1,n:5,c:"provisional"},"classic-rock":{mud:0.560,fizz:0.230,harsh:0.00011,boom:0.044,thin:0.274,squash:20.2,n:4,c:"provisional"},"clean":{mud:0.717,fizz:0.205,harsh:0.00036,boom:0.054,thin:0.288,squash:17.6,n:8,c:"trusted"},"grunge":{mud:0.537,fizz:0.473,harsh:0.00002,boom:0.117,thin:0.264,squash:15.7,n:7,c:"trusted"},"hard-rock":{mud:0.469,fizz:0.095,harsh:0.00012,boom:0.017,thin:0.227,squash:20.5,n:2,c:"provisional"},"jazz":{mud:0.118,fizz:0.051,harsh:0.00001,boom:0.001,thin:0.118,squash:17.0,n:1,c:"provisional"},"metal":{mud:0.554,fizz:0.343,harsh:0.00002,boom:0.100,thin:0.201,squash:18.6,n:2,c:"provisional"},"pop-rock":{mud:0.416,fizz:0.034,harsh:0.00000,boom:0.006,thin:0.416,squash:19.9,n:1,c:"provisional"},"punk":{mud:0.512,fizz:0.206,harsh:0.00001,boom:0.092,thin:0.087,squash:15.1,n:6,c:"trusted"}};
+const DATA=[["another-brick-in-the-wall-pt-2","progressive-rock","lead",0.345,0.028,0.0000,0.017,22.9],["another-brick-in-the-wall-pt-2","progressive-rock","rhythm",0.546,0.038,0.0001,0.020,21.4],["barao-vermelho-beth-balanco","brazilian-rock","rhythm",0.188,0.193,0.0001,0.001,21.6],["basket-case-green-day","pop-punk","rhythm",0.365,0.153,0.0000,0.053,15.4],["beat-it-michael-jackson","hard-rock","lead",0.197,0.099,0.0001,0.017,21.7],["beat-it-michael-jackson","hard-rock","rhythm",0.499,0.056,0.0000,0.013,20.4],["charlie-brown-jr-lugar-ao-sol","alternative-rock","lead",0.211,0.063,0.0000,0.002,23.6],["charlie-brown-jr-lugar-ao-sol","alternative-rock","rhythm",0.421,0.073,0.0013,0.110,16.3],["chris-isaak-wicked-game","soft-rock","lead",0.598,0.041,0.0000,0.000,22.5],["chris-isaak-wicked-game","soft-rock","rhythm",0.734,0.019,0.0003,0.007,18.5],["coldplay-clocks","alternative-rock","lead",0.350,0.005,0.0000,0.000,18.8],["coldplay-clocks","alternative-rock","rhythm",0.623,0.001,0.0000,0.028,18.6],["cpm-22-um-minuto-para-o-fim-do-mundo","pop-punk","lead",0.079,0.259,0.0000,0.003,21.1],["cpm-22-um-minuto-para-o-fim-do-mundo","pop-punk","rhythm",0.528,0.128,0.0000,0.074,18.1],["foo-fighters-everlong","alternative-rock","lead",0.160,0.045,0.0000,0.000,26.7],["foo-fighters-everlong","alternative-rock","rhythm",0.273,0.134,0.0000,0.054,15.8],["gravity-john-mayer","blues-rock","lead",0.487,0.009,0.0000,0.000,25.8],["gravity-john-mayer","blues-rock","rhythm",0.737,0.001,0.0000,0.033,23.7],["green-day-basket-case","pop-punk","rhythm",0.365,0.153,0.0000,0.053,15.4],["green-day-when-i-come-around","pop-punk","lead",0.094,0.046,0.0000,0.002,24.8],["green-day-when-i-come-around","pop-punk","rhythm",0.496,0.102,0.0000,0.110,14.8],["john-mayer-gravity","blues-rock","lead",0.487,0.009,0.0000,0.000,25.8],["john-mayer-gravity","blues-rock","rhythm",0.737,0.001,0.0000,0.033,23.7],["john-mayer-heartbreak-warfare","pop-rock","lead",0.363,0.017,0.0000,0.000,23.3],["john-mayer-heartbreak-warfare","pop-rock","rhythm",0.611,0.009,0.0000,0.052,18.3],["john-mayer-slow-dancing-in-a-burning-room","blues-rock","lead",0.471,0.016,0.0000,0.000,20.6],["john-mayer-slow-dancing-in-a-burning-room","blues-rock","rhythm",0.678,0.012,0.0000,0.045,20.0],["lynyrd-skynyrd-simple-man","southern-rock","lead",0.244,0.313,0.0001,0.032,23.8],["lynyrd-skynyrd-simple-man","southern-rock","rhythm",0.567,0.038,0.0000,0.049,19.6],["metallica-enter-sandman","heavy-metal","lead",0.157,0.349,0.0000,0.006,21.4],["metallica-enter-sandman","heavy-metal","rhythm",0.598,0.294,0.0000,0.111,18.3],["nirvana-smells-like-teen-spirit","grunge","lead",0.294,0.194,0.0000,0.000,26.1],["nirvana-smells-like-teen-spirit","grunge","rhythm",0.218,0.663,0.0000,0.015,17.9],["pitty-na-sua-estante","hard-rock","lead",0.677,0.018,0.0000,0.000,23.8],["pitty-na-sua-estante","hard-rock","rhythm",0.496,0.100,0.0008,0.028,14.3],["radiohead-creep","alternative-rock","lead",0.107,0.383,0.0000,0.006,24.5],["radiohead-creep","alternative-rock","rhythm",0.276,0.259,0.0000,0.057,23.9],["segredos-torcuato-mariano","smooth-jazz","lead",0.118,0.051,0.0000,0.001,17.0],["silverchair-freak","grunge","lead",0.562,0.065,0.0000,0.027,23.4],["silverchair-freak","grunge","rhythm",0.521,0.071,0.0000,0.153,15.8],["silverchair-israels-son","grunge","rhythm",0.343,0.206,0.0000,0.092,15.6],["silverchair-pure-massacre","grunge","lead",0.445,0.347,0.0000,0.001,21.4],["silverchair-pure-massacre","grunge","rhythm",0.334,0.271,0.0000,0.065,16.0],["silverchair-shade","acoustic","lead",0.710,0.001,0.0000,0.001,24.8],["silverchair-shade","acoustic","rhythm",0.394,0.037,0.0006,0.116,17.7],["where-the-streets-have-no-name-u2","rock","lead",0.347,0.123,0.0000,0.000,24.1],["where-the-streets-have-no-name-u2","rock","rhythm",0.149,0.396,0.0000,0.001,17.3],["your-love-the-outfield","power-pop","rhythm",0.416,0.034,0.0000,0.006,19.9]];
+const GEN={"acoustic":{mud:0.679,fizz:0.034,harsh:0.00055,boom:0.104,thin:0.426,squash:18.4,n:2,c:"provisional"},"alternative-rock":{mud:0.482,fizz:0.296,harsh:0.00039,boom:0.073,thin:0.144,squash:16.2,n:8,c:"trusted"},"blues-rock":{mud:0.737,fizz:0.014,harsh:0.00002,boom:0.039,thin:0.479,squash:20.3,n:6,c:"trusted"},"brazilian-rock":{mud:0.188,fizz:0.193,harsh:0.00006,boom:0.001,thin:0.188,squash:21.6,n:1,c:"provisional"},"grunge":{mud:0.537,fizz:0.473,harsh:0.00002,boom:0.117,thin:0.264,squash:15.7,n:7,c:"trusted"},"hard-rock":{mud:0.623,fizz:0.099,harsh:0.00058,boom:0.024,thin:0.286,squash:16.1,n:4,c:"provisional"},"heavy-metal":{mud:0.554,fizz:0.343,harsh:0.00002,boom:0.100,thin:0.201,squash:18.6,n:2,c:"provisional"},"pop-punk":{mud:0.512,fizz:0.206,harsh:0.00001,boom:0.092,thin:0.087,squash:15.1,n:6,c:"trusted"},"pop-rock":{mud:0.586,fizz:0.016,harsh:0.00000,boom:0.047,thin:0.388,squash:18.8,n:2,c:"provisional"},"power-pop":{mud:0.416,fizz:0.034,harsh:0.00000,boom:0.006,thin:0.416,squash:19.9,n:1,c:"provisional"},"progressive-rock":{mud:0.526,fizz:0.037,harsh:0.00010,boom:0.020,thin:0.365,squash:21.6,n:2,c:"provisional"},"rock":{mud:0.327,fizz:0.369,harsh:0.00003,boom:0.001,thin:0.168,squash:17.9,n:2,c:"provisional"},"smooth-jazz":{mud:0.118,fizz:0.051,harsh:0.00001,boom:0.001,thin:0.118,squash:17.0,n:1,c:"provisional"},"soft-rock":{mud:0.720,fizz:0.039,harsh:0.00023,boom:0.006,thin:0.611,squash:18.9,n:2,c:"provisional"},"southern-rock":{mud:0.534,fizz:0.285,harsh:0.00009,boom:0.047,thin:0.276,squash:20.0,n:2,c:"provisional"}};
 
 const RAT=0.8, CREST=30;
 const COL={mud:"var(--mud)",fizz:"var(--fizz)",harsh:"var(--harsh)",boom:"var(--boom)",crest:"var(--crest)"};

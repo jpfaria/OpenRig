@@ -1,53 +1,43 @@
-alternative-rock:
-  mud: 0.275176
-  fizz: 0.34563446
+acoustic:
+  mud: 0.67872477
+  fizz: 0.03369541
   clip: 0.0
-  harsh: 0.000013950539
-  boom: 0.05597835
-  thin: 0.12303696
-  squash: 18.269627
-  n: 4
+  harsh: 0.00054982916
+  boom: 0.10447008
+  thin: 0.42578906
+  squash: 18.397703
+  n: 2
   confidence: provisional
-blues:
-  mud: 0.7367217
-  fizz: 0.016181048
+alternative-rock:
+  mud: 0.4816703
+  fizz: 0.29591918
   clip: 0.0
-  harsh: 0.0000100701145
-  boom: 0.046957083
-  thin: 0.43874073
-  squash: 19.465609
+  harsh: 0.00038975067
+  boom: 0.07292919
+  thin: 0.14397362
+  squash: 16.167461
   n: 8
+  confidence: trusted
+blues-rock:
+  mud: 0.7367217
+  fizz: 0.014184529
+  clip: 0.0
+  harsh: 0.000015622478
+  boom: 0.038946055
+  thin: 0.4792564
+  squash: 20.308338
+  n: 6
   confidence: trusted
 brazilian-rock:
-  mud: 0.60412765
-  fizz: 0.15584338
+  mud: 0.18813632
+  fizz: 0.19331299
   clip: 0.0
-  harsh: 0.0010611638
-  boom: 0.07721129
-  thin: 0.19734669
-  squash: 15.081365
-  n: 5
+  harsh: 0.00006367652
+  boom: 0.000592858
+  thin: 0.18813632
+  squash: 21.60456
+  n: 1
   confidence: provisional
-classic-rock:
-  mud: 0.56040454
-  fizz: 0.23017247
-  clip: 0.0
-  harsh: 0.000106430016
-  boom: 0.043573923
-  thin: 0.27410182
-  squash: 20.152529
-  n: 4
-  confidence: provisional
-clean:
-  mud: 0.717441
-  fizz: 0.205052
-  clip: 0.0
-  harsh: 0.0003587286
-  boom: 0.054340333
-  thin: 0.28763962
-  squash: 17.555935
-  n: 8
-  confidence: trusted
 grunge:
   mud: 0.5373455
   fizz: 0.47330508
@@ -59,26 +49,16 @@ grunge:
   n: 7
   confidence: trusted
 hard-rock:
-  mud: 0.4685593
-  fizz: 0.09450982
+  mud: 0.62320834
+  fizz: 0.099389754
   clip: 0.0
-  harsh: 0.00011911274
-  boom: 0.016551811
-  thin: 0.22691129
-  squash: 20.531422
-  n: 2
+  harsh: 0.00057931204
+  boom: 0.024356982
+  thin: 0.28634596
+  squash: 16.103752
+  n: 4
   confidence: provisional
-jazz:
-  mud: 0.117869236
-  fizz: 0.050525364
-  clip: 0.0
-  harsh: 0.0000058382825
-  boom: 0.00075697066
-  thin: 0.117869236
-  squash: 16.993328
-  n: 1
-  confidence: provisional
-metal:
+heavy-metal:
   mud: 0.553513
   fizz: 0.3432836
   clip: 0.0
@@ -88,17 +68,7 @@ metal:
   squash: 18.5934
   n: 2
   confidence: provisional
-pop-rock:
-  mud: 0.4164946
-  fizz: 0.03385331
-  clip: 0.0
-  harsh: 0.0000012909157
-  boom: 0.005729341
-  thin: 0.4164946
-  squash: 19.919384
-  n: 1
-  confidence: provisional
-punk:
+pop-punk:
   mud: 0.512023
   fizz: 0.20604321
   clip: 0.0
@@ -108,3 +78,73 @@ punk:
   squash: 15.14772
   n: 6
   confidence: trusted
+pop-rock:
+  mud: 0.58614695
+  fizz: 0.015981063
+  clip: 0.0
+  harsh: 0.0000012298822
+  boom: 0.046517473
+  thin: 0.38767433
+  squash: 18.76584
+  n: 2
+  confidence: provisional
+power-pop:
+  mud: 0.4164946
+  fizz: 0.03385331
+  clip: 0.0
+  harsh: 0.0000012909157
+  boom: 0.005729341
+  thin: 0.4164946
+  squash: 19.919384
+  n: 1
+  confidence: provisional
+progressive-rock:
+  mud: 0.5258338
+  fizz: 0.036966212
+  clip: 0.0
+  harsh: 0.00009875251
+  boom: 0.019519787
+  thin: 0.365183
+  squash: 21.590334
+  n: 2
+  confidence: provisional
+rock:
+  mud: 0.3273614
+  fizz: 0.36910647
+  clip: 0.0
+  harsh: 0.000029838095
+  boom: 0.0010385112
+  thin: 0.16847415
+  squash: 17.943949
+  n: 2
+  confidence: provisional
+smooth-jazz:
+  mud: 0.117869236
+  fizz: 0.050525364
+  clip: 0.0
+  harsh: 0.0000058382825
+  boom: 0.00075697066
+  thin: 0.117869236
+  squash: 16.993328
+  n: 1
+  confidence: provisional
+soft-rock:
+  mud: 0.7203641
+  fizz: 0.038983658
+  clip: 0.0
+  harsh: 0.00022558904
+  boom: 0.0059786066
+  thin: 0.6112268
+  squash: 18.866568
+  n: 2
+  confidence: provisional
+southern-rock:
+  mud: 0.53432024
+  fizz: 0.2850824
+  clip: 0.0
+  harsh: 0.00009295384
+  boom: 0.04699488
+  thin: 0.27596742
+  squash: 20.025324
+  n: 2
+  confidence: provisional
