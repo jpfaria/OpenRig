@@ -441,3 +441,7 @@ mod app_config_io;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "lib_settings_tests.rs"]
+mod settings_tests;
