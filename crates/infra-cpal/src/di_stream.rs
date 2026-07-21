@@ -72,9 +72,10 @@ pub(crate) struct DiStreamHandle {
     /// device). Present whenever the DI is armed, so it plays with or without
     /// an active guitar stream. `None` on the JACK build (Orange Pi keeps the
     /// port-mix path) and when a re-arm hands the live stream to a new handle.
-    /// Carries the stream's sample rate so a re-arm can render at the rate the
-    /// stream consumes without re-querying the device.
-    output_stream: Option<(cpal::Stream, u32)>,
+    /// Carries the stream's sample rate + the interface output buffer (frames)
+    /// so a re-arm renders at the rate the stream consumes and the worker leads
+    /// by the interface buffer, without re-querying the device.
+    output_stream: Option<(cpal::Stream, u32, u32)>,
     /// #808: the live runtime the worker steps. A param edit rebuilds the routed
     /// runtime off-thread and swaps it in here (`update_di_runtime`), so the tone
     /// changes gaplessly with NO worker/stream respawn — the same wait-free swap
@@ -147,7 +148,7 @@ impl ProjectRuntimeController {
         chain: &Chain,
         output_index: usize,
         cell: &DiPlaybackCell,
-    ) -> Option<(cpal::Stream, u32)> {
+    ) -> Option<(cpal::Stream, u32, u32)> {
         use cpal::traits::{DeviceTrait, StreamTrait};
         let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
         let out = outputs.get(output_index)?;
@@ -161,6 +162,10 @@ impl ProjectRuntimeController {
             device,
             supported,
         };
+        // #808: the DI buffers to the INTERFACE's output buffer (like a normal
+        // stream), not a hardcoded ring — so its latency/resilience match the
+        // guitar's and a live edit lands within a few interface buffers.
+        let buffer_frames = crate::stream_config::resolved_output_buffer_size_frames(&resolved);
         let stream = crate::stream_builder::build_output_stream_for_output(
             &chain.id,
             output_index,
@@ -170,7 +175,7 @@ impl ProjectRuntimeController {
         )
         .ok()?;
         stream.play().ok()?;
-        Some((stream, rate))
+        Some((stream, rate, buffer_frames))
     }
 
     /// JACK build (Orange Pi) keeps the port-mix DI path unchanged (#808 wires
@@ -181,7 +186,7 @@ impl ProjectRuntimeController {
         _chain: &Chain,
         _output_index: usize,
         _cell: &DiPlaybackCell,
-    ) -> Option<(cpal::Stream, u32)> {
+    ) -> Option<(cpal::Stream, u32, u32)> {
         None
     }
 
@@ -239,8 +244,11 @@ impl ProjectRuntimeController {
         // a failed device resolve).
         let output_rate = output_stream
             .as_ref()
-            .map(|(_, r)| *r)
+            .map(|(_, r, _)| *r)
             .unwrap_or_else(|| self.di_output_rate(&chain.id, output_index));
+        // #808: the worker leads by the INTERFACE output buffer (a few of them),
+        // so the DI buffers like a normal stream — low, interface-matched latency.
+        let buffer_frames = output_stream.as_ref().map(|(_, _, b)| *b).unwrap_or(256);
 
         let armed = Arc::new(Mutex::new(true));
         let failed = Arc::new(AtomicBool::new(false));
@@ -269,6 +277,7 @@ impl ProjectRuntimeController {
             retired: Arc::clone(&self.di_retired),
             handoff,
             live_runtime: Arc::clone(&live_runtime),
+            buffer_frames,
         });
 
         self.di_streams.borrow_mut().insert(

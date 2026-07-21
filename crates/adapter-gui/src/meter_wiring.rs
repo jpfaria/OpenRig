@@ -449,18 +449,18 @@ pub fn start_meter_polling(
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
+        // #808: the DI output select lists the chain's bound outputs (offline,
+        // no device needed), so refresh EVERY chain — active or not — else a
+        // DI-only chain (never enabled) shows no output select.
+        crate::di_output_options::apply_di_outputs_to_rows(
+            &project_chains,
+            &project,
+            &session.io_bindings.borrow(),
+        );
         let rt_borrow = project_runtime.borrow();
-        // Detect chains whose runtime-layout signature changed since
-        // the last tick. Signature mixes project bits (enabled, per
-        // block id+enabled) with the engine's current stream count;
-        // when the engine rebuilds the per-input runtimes (toggle
-        // off→on, rig-nav preset switch) the count or enabled flag
-        // flips and the store re-subscribes against the fresh rings.
-        // Controller=None ⇒ the whole controller was dropped (last
-        // chain toggled off); `detect_invalidations` wipes the cache
-        // so the next online tick treats every chain as fresh — and
-        // we also drop the store so we don't keep handing out rings
-        // pointed at the dropped controller.
+        // Detect runtime-layout signature changes since last tick (enabled +
+        // per-block id/enabled + engine stream count); a rebuild flips it, the
+        // store re-subscribes, and Controller=None wipes the cache + store.
         let invalidate = detect_invalidations(
             &project.chains,
             rt_borrow.as_ref(),
