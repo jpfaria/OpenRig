@@ -15,4 +15,11 @@ impl ChainRuntimeState {
     pub fn set_di_loop_pos(&self, pos: usize) {
         self.di_loop_pos.store(pos, Ordering::Relaxed);
     }
+
+    /// #808: the current DI loop read head (frames). A live param edit swaps the
+    /// DI worker's runtime; carrying this position onto the new runtime keeps the
+    /// loop continuous across the swap (no restart, no jump).
+    pub fn di_loop_pos(&self) -> usize {
+        self.di_loop_pos.load(Ordering::Relaxed)
+    }
 }

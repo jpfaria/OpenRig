@@ -102,20 +102,15 @@ impl ProjectRuntimeController {
                     )?;
                 }
             }
-            self.rearm_di_stream_after_rebuild(chain);
+            self.update_di_runtime(chain);
             return Ok(true);
         }
         self.schedule_chain_rebuild(chain, sample_rate, device_sample_rates, elastic_targets);
-        // A monitored DI is a dedicated pre-render built from the chain's DSP at
-        // arm time (issue #717/#771). The synchronous `upsert_chain` and the
-        // cold-activation poll both re-render it after an edit; this off-thread
-        // fast path (added by #740/#762) used to skip that, so once live edits
-        // started taking it, changing the chain while monitoring the DI produced
-        // NO audible change — the DI kept playing the stale render. Re-render it
-        // from the new config here too. The re-arm builds its OWN routed runtime
-        // off-thread and is a no-op when nothing is armed, so it neither depends
-        // on the guitar rebuild landing nor blocks the GUI.
-        self.rearm_di_stream_after_rebuild(chain);
+        // #808: a monitored DI is an independent pipeline (invariant #4). A live
+        // edit swaps the DI worker's runtime in place (wait-free, off-thread
+        // build) — no worker/output-stream respawn (the "picotando"). No-op when
+        // nothing is armed; independent of the guitar rebuild landing.
+        self.update_di_runtime(chain);
         Ok(true)
     }
 

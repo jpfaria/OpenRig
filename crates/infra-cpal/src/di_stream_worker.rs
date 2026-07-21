@@ -63,6 +63,12 @@ pub(crate) struct DiWorkerSpec {
     pub(crate) failed: Arc<AtomicBool>,
     pub(crate) retired: DiRetired,
     pub(crate) handoff: Option<DiHandoff>,
+    /// #808: the LIVE runtime the worker steps, published here after the initial
+    /// build. A param edit rebuilds the routed runtime off-thread and swaps it in
+    /// (wait-free) so the tone changes GAPLESSLY — no worker respawn, no output
+    /// stream teardown (the "parou som"/"picotando"). The worker reads it every
+    /// block, exactly as the guitar output callback reads its `LiveRuntimeSlot`.
+    pub(crate) live_runtime: Arc<arc_swap::ArcSwapOption<engine::runtime::ChainRuntimeState>>,
 }
 
 /// Spawn the render thread for one armed DI.
@@ -99,6 +105,7 @@ fn run(spec: DiWorkerSpec) {
         failed,
         retired,
         handoff,
+        live_runtime,
     } = spec;
 
     // Build the routed isolated runtime (heavy: NAM/IR loads) OFF the frontend;
@@ -141,6 +148,11 @@ fn run(spec: DiWorkerSpec) {
         start_pos,
     ));
     routed.runtime.set_di_loop_pos(start_pos);
+    // #808: publish the runtime the worker steps. A live param edit swaps a
+    // freshly-built runtime in here; the loop below picks it up next block and
+    // carries the loop position over, so the tone changes with no restart.
+    live_runtime.store(Some(Arc::clone(&routed.runtime)));
+    let mut active_rt = Arc::clone(&routed.runtime);
     let ring = playback.ring();
     let mut parked = false;
     let handoff_deadline = Instant::now() + HANDOFF_TIMEOUT;
@@ -197,9 +209,12 @@ fn run(spec: DiWorkerSpec) {
                 }
             }
         }
-        let free = ring.capacity() - ring.len();
-        if free < BLOCK * 2 {
-            // Ring topped up: rest half a block period.
+        // #808: cap the buffered lead. A full 32k-frame ring lagged a live
+        // runtime swap (a param edit) by ~0.7 s before the new tone was heard.
+        // Keep just enough ahead to ride out preemption dips, so an edit lands
+        // promptly while the SPSC backpressure still clocks the render.
+        let target_fill = (park_fill + BLOCK * 2 * 8).min(ring.capacity() - BLOCK * 2);
+        if ring.len() >= target_fill {
             burst = 0;
             std::thread::sleep(Duration::from_nanos(period_ns / 2));
             continue;
@@ -210,9 +225,17 @@ fn run(spec: DiWorkerSpec) {
             continue;
         }
         burst += 1;
-        process_input_f32(&routed.runtime, 0, &silence, 1);
+        // #808: pick up a live-swapped runtime (a param edit) and carry the loop
+        // position onto it so the render stays continuous — no restart, gapless.
+        if let Some(swapped) = live_runtime.load_full() {
+            if !Arc::ptr_eq(&swapped, &active_rt) {
+                swapped.set_di_loop_pos(active_rt.di_loop_pos());
+                active_rt = swapped;
+            }
+        }
+        process_input_f32(&active_rt, 0, &silence, 1);
         process_output_f32(
-            &routed.runtime,
+            &active_rt,
             routed.output_index,
             &mut drain,
             routed.drain_width,

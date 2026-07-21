@@ -478,8 +478,13 @@ fn a_param_edit_on_a_paused_di_only_chain_re_renders_the_di() {
     controller
         .upsert_chain(&project, &edited)
         .expect("upsert (pause) must not error");
-    std::thread::sleep(Duration::from_millis(500));
-    let peak_open = di_render_peak(&controller);
+    // update_di_runtime swaps the worker's runtime off-thread; poll until the
+    // buffered ring drains to the new (loud) render.
+    let deadline = Instant::now() + Duration::from_secs(4);
+    let mut peak_open = di_render_peak(&controller);
+    while peak_open <= peak_quiet * 2.0 && Instant::now() < deadline {
+        peak_open = di_render_peak(&controller);
+    }
 
     assert!(
         peak_open > peak_quiet * 2.0,
@@ -524,9 +529,14 @@ fn a_live_config_edit_re_renders_the_monitored_di() {
         assert!(Instant::now() < deadline, "rebuild never completed");
         std::thread::sleep(Duration::from_millis(10));
     }
-    // Give the (re-armed) DI render time to refill with the new config.
-    std::thread::sleep(Duration::from_millis(400));
-    let peak_open = di_render_peak(&controller);
+    // The runtime swap is picked up next block, but the buffered ring must
+    // drain first — poll (di_render_peak drains the cell) until the new tone
+    // shows or the deadline passes.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut peak_open = di_render_peak(&controller);
+    while peak_open <= peak_quiet * 2.0 && Instant::now() < deadline {
+        peak_open = di_render_peak(&controller);
+    }
 
     assert!(
         peak_open > peak_quiet * 2.0,

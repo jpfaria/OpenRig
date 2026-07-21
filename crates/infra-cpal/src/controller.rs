@@ -711,9 +711,9 @@ impl ProjectRuntimeController {
             chain.enabled
         );
         if !chain.enabled {
-            // #522 pause (O(1) re-enable); #808 still re-render an armed DI.
+            // #522 pause (O(1) re-enable); #808 swap the armed DI's runtime.
             self.pause_chain(&chain.id);
-            self.rearm_di_stream_after_rebuild(chain);
+            self.update_di_runtime(chain);
             return Ok(());
         }
         // Issue #522: fast-path resume of a paused chain — clear draining
