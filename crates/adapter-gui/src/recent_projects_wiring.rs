@@ -146,6 +146,15 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                         &output_chain_devices.borrow(),
                         &[],
                     );
+                    // #808: the open flow built rows with an empty binding
+                    // registry, so the DI output select was empty until the
+                    // chain was first enabled. Populate it from the real
+                    // bindings now — for every chain, active or not.
+                    crate::di_output_options::apply_di_outputs_to_rows(
+                        &project_chains,
+                        &session.project.borrow(),
+                        &session.io_bindings.borrow(),
+                    );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
