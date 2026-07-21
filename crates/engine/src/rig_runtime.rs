@@ -480,6 +480,10 @@ impl RigRuntime {
 mod tests;
 
 #[cfg(test)]
+#[path = "rig_runtime_tests_scene.rs"]
+mod tests_scene;
+
+#[cfg(test)]
 #[path = "rig_runtime_chain_order_tests.rs"]
 mod chain_order_tests;
 
