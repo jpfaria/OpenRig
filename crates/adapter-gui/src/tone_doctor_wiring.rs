@@ -57,14 +57,7 @@ pub fn diagnose_to_view(
         .ok()
         .flatten();
 
-    // A readable "effect:model" label (e.g. "gain:fuzz_si"), not the internal
-    // model_identity ("core:gain/fuzz_si").
-    let culprit_label = diagnosis
-        .culprit
-        .and_then(|i| chain.blocks.get(i))
-        .and_then(|b| b.model_ref())
-        .map(|m| format!("{}:{}", m.effect_type, m.model))
-        .unwrap_or_default();
+    let culprit_label = culprit_label(chain, diagnosis.culprit);
 
     let suggestion_text = suggestion
         .as_ref()
@@ -104,6 +97,17 @@ pub fn diagnose_to_view(
         clip_limit: limits.clip,
     };
     (view, suggestion)
+}
+
+/// The culprit block's human-readable name for the panel (e.g. "Ibanez TS808",
+/// not the internal `gain:nam_ibanez_ts808_a2` identity). Empty when the chain
+/// is healthy or the culprit exposes no model.
+pub(crate) fn culprit_label(chain: &Chain, culprit: Option<usize>) -> String {
+    culprit
+        .and_then(|i| chain.blocks.get(i))
+        .and_then(|b| b.model_ref())
+        .map(|m| project::catalog::model_display_name(&m.effect_type, &m.model))
+        .unwrap_or_default()
 }
 
 /// Traffic-light severity for a symptom: green (0), amber (1), red (2).

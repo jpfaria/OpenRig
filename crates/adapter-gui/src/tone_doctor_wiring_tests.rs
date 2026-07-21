@@ -74,7 +74,11 @@ fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
     assert!(!view.running, "run completed: {view:?}");
     assert_eq!(view.symptom_level, 2, "fizz is a red-level symptom: {view:?}");
     assert_eq!(view.symptom_text, "Fizz", "{view:?}");
-    assert_eq!(view.culprit_label, "gain:fuzz_si", "{view:?}");
+    assert_eq!(
+        view.culprit_label,
+        project::catalog::model_display_name("gain", "fuzz_si"),
+        "the panel shows the plugin's display name, not the id: {view:?}"
+    );
     assert!(view.has_suggestion, "{view:?}");
     assert!(!view.suggestion_text.is_empty(), "shows the measured move: {view:?}");
     // The measurements travel to the panel meters.
@@ -123,4 +127,15 @@ fn apply_command_targets_the_culprit_block() {
         }
         other => panic!("wrong command: {other:?}"),
     }
+}
+
+#[test]
+fn culprit_label_shows_the_plugin_name_not_the_internal_id() {
+    init();
+    let c = chain(vec![core_block("fz", "fuzz_si", params("fuzz_si", &[]))]);
+    let label = culprit_label(&c, Some(0));
+    let friendly = project::catalog::model_display_name("gain", "fuzz_si");
+    assert!(!friendly.is_empty(), "the model has a display name");
+    assert_eq!(label, friendly, "the panel shows the plugin's display name");
+    assert_ne!(label, "gain:fuzz_si", "never the internal effect:model id");
 }
