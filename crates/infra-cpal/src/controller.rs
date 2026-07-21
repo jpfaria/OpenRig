@@ -790,10 +790,10 @@ impl ProjectRuntimeController {
     }
 
     pub fn is_running(&self) -> bool {
-        // Issue #672: a chain whose runtime is still building off-thread (cold
-        // activation) counts as running so the controller is not torn down
-        // before poll_pending_rebuilds installs its streams.
-        !self.active_chains.is_empty() || !self.pending_activations.is_empty()
+        // #672 a cold build counts; #808 so does an armed DI (owns its stream).
+        !self.active_chains.is_empty()
+            || !self.pending_activations.is_empty()
+            || !self.di_streams.borrow().is_empty()
     }
 
     /// Check whether the audio backend is still healthy.

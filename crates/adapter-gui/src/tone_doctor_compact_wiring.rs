@@ -260,7 +260,7 @@ fn apply_cached_suggestion(
 
 #[cfg(test)]
 #[path = "tone_doctor_compact_wiring_tests.rs"]
-mod tests;
+mod apply_suggestion_tests;
 
 /// Wire the compact window's Tone Doctor run/apply for its single `chain_index`.
 pub(crate) fn wire(
