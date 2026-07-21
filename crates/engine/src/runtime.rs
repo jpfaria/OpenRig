@@ -420,6 +420,34 @@ pub fn process_output_f32_mixed(
 mod tests;
 
 #[cfg(test)]
+#[path = "runtime_block_assembly_tests.rs"]
+mod rt_block_assembly;
+
+#[cfg(test)]
+#[path = "runtime_effective_io_tests.rs"]
+mod rt_effective_io;
+
+#[cfg(test)]
+#[path = "runtime_frame_tests.rs"]
+mod rt_frame;
+
+#[cfg(test)]
+#[path = "runtime_frame_buffer_tests.rs"]
+mod rt_frame_buffer;
+
+#[cfg(test)]
+#[path = "runtime_graph_tests.rs"]
+mod rt_graph;
+
+#[cfg(test)]
+#[path = "runtime_integration_tests.rs"]
+mod rt_integration;
+
+#[cfg(test)]
+#[path = "runtime_process_tests.rs"]
+mod rt_process;
+
+#[cfg(test)]
 #[path = "stream_isolation_tests.rs"]
 mod stream_isolation;
 
