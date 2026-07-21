@@ -35,6 +35,9 @@ pub(crate) static DI_WORKERS_ALIVE: AtomicUsize = AtomicUsize::new(0);
 /// position. After this long, the incoming render takes over anyway.
 const HANDOFF_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// Frames the incoming render pre-rolls before a gapless hand-off takes over.
+const HANDOFF_PREROLL_FRAMES: usize = 8192;
+
 /// Frames rendered per worker iteration.
 const BLOCK: usize = 256;
 
@@ -137,13 +140,10 @@ fn run(spec: DiWorkerSpec) {
     // A hand-off instead starts where the listener WILL be once the pre-roll is
     // ready, and waits to reach exactly that position before taking the cell.
     let loop_len = routed.loop_len.max(1);
-    // #808: lead by the INTERFACE output buffer (a few of them). The DI buffers
-    // like a normal stream — its pre-roll and lead are device-scaled, not a
-    // hardcoded 32k ring — so a live runtime swap lands within a few buffers.
-    let lead_frames = (buffer_frames as usize).max(64) * 4;
+    let _ = buffer_frames; // (kept for future device-scaled tuning; #808)
     let start_pos = handoff
         .as_ref()
-        .map(|h| (h.prev.play_pos() + lead_frames) % loop_len)
+        .map(|h| (h.prev.play_pos() + HANDOFF_PREROLL_FRAMES) % loop_len)
         .unwrap_or(0);
     let playback = Arc::new(DiPlayback::starting_at(
         dest_left,
@@ -160,8 +160,14 @@ fn run(spec: DiWorkerSpec) {
     let ring = playback.ring();
     let mut parked = false;
     let handoff_deadline = Instant::now() + HANDOFF_TIMEOUT;
-    // Pre-buffer / lead, in ring SAMPLES (2 per frame): the interface buffer.
-    let park_fill = lead_frames * 2;
+    let park_fill = match handoff {
+        Some(_) => HANDOFF_PREROLL_FRAMES * 2,
+        None => BLOCK * 2 * 16,
+    };
+    // #808: fill the ring (the #771/#785 cushion) — big enough that the heavy
+    // NAM render rides out preemption dips without underrunning (a smaller lead
+    // stopped the DI). A live runtime swap is heard once this drains.
+    let cushion_fill = ring.capacity() - BLOCK * 2;
 
     // Stream the DI: paced by RING BACKPRESSURE — the worker only produces what
     // the output consumed, so the output device clock IS the DI clock (no drift
@@ -211,11 +217,7 @@ fn run(spec: DiWorkerSpec) {
                 }
             }
         }
-        // #808: lead by the interface buffer (park_fill), not the full ring — so
-        // a live runtime swap is heard within a few buffers while the SPSC
-        // backpressure still clocks the render.
-        let target_fill = park_fill.min(ring.capacity() - BLOCK * 2);
-        if ring.len() >= target_fill {
+        if ring.len() >= cushion_fill {
             burst = 0;
             std::thread::sleep(Duration::from_nanos(period_ns / 2));
             continue;
