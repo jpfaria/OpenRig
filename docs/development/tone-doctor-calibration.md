@@ -142,5 +142,10 @@ intent.
 | `crates/tone-calibrate/` | Offline binary: manifest + WAV + YAML I/O |
 | `assets/tone-profiles/genre-manifest.yaml` | `song -> genre` map (seed, owner-refined) |
 | `assets/tone-profiles/profiles.yaml` | Generated per-genre limit table |
+| `assets/tone-profiles/per-song-measurements.csv` | Raw per-song, per-stem descriptors (`measure` subcommand) |
+| `docs/development/tone-calibration-per-song.html` | Self-contained chart of every song's measurements, faceted by genre |
+
+The per-song chart shows the spread the genre summary hides — open the HTML in a
+browser, or regenerate the CSV with `openrig-tone-calibrate measure`.
 
 Design: `docs/superpowers/specs/2026-07-20-issue-809-genre-calibrated-tone-limits-design.md`.
