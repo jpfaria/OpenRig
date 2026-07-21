@@ -10,12 +10,49 @@ use std::sync::Once;
 
 use domain::ids::{BlockId, ChainId};
 use domain::value_objects::ParameterValue;
-use feature_dsp::tone_descriptors::Symptom;
+use feature_dsp::tone_descriptors::{Symptom, SymptomLimits, ToneDescriptors};
 use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
 use project::chain::Chain;
 use project::param::ParameterSet;
 
-use super::diagnose;
+use super::{diagnose, is_healthy, metric};
+
+#[test]
+fn is_healthy_flips_direction_for_deficit() {
+    // Excess: healthy below the limit.
+    assert!(is_healthy(0.4, 0.5, false));
+    assert!(!is_healthy(0.6, 0.5, false));
+    // Deficit: healthy at or above the floor.
+    assert!(is_healthy(0.6, 0.5, true));
+    assert!(!is_healthy(0.4, 0.5, true));
+}
+
+#[test]
+fn metric_marks_deficit_symptoms_only_when_their_floor_is_enabled() {
+    let d = ToneDescriptors {
+        rms_dbfs: -20.0,
+        peak_dbfs: -6.0,
+        crest_db: 8.0,
+        clip_fraction: 0.0,
+        fizz_ratio: 0.0,
+        mud_ratio: 0.2,
+        harsh_ratio: 0.0,
+        boom_ratio: 0.0,
+    };
+    // Disabled by default → no metric to blame/fix.
+    assert!(metric(Symptom::Thin, &d, &SymptomLimits::DEFAULT).is_none());
+    assert!(metric(Symptom::Squash, &d, &SymptomLimits::DEFAULT).is_none());
+    // Enabled floor → deficit metric with the right value + flag.
+    let lim = SymptomLimits {
+        thin: 0.3,
+        squash: 12.0,
+        ..SymptomLimits::DEFAULT
+    };
+    assert_eq!(metric(Symptom::Thin, &d, &lim), Some((0.2, 0.3, true)));
+    assert_eq!(metric(Symptom::Squash, &d, &lim), Some((8.0, 12.0, true)));
+    // Excess symptoms stay excess (deficit flag false).
+    assert_eq!(metric(Symptom::Mud, &d, &lim).map(|(_, _, def)| def), Some(false));
+}
 
 const SR: f32 = 48_000.0;
 const BUF: usize = 64;

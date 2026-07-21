@@ -132,9 +132,10 @@ intent.
   fill out with brighter stems.
 - **Genre labels are subjective.** Silverchair's "Shade" is acoustic, not grunge;
   each such call is the owner's by ear — the manifest is a seed, not law.
-- **Deficit auto-fix.** `thin` and `squash` are now classified and calibrated,
-  but the auto-fix engine only *lowers* knobs; correcting a deficit means
-  *raising* one, so the doctor reports these two but offers no one-knob fix yet.
+- **Live activation.** Every calibrated limit — excess and deficit alike — flows
+  into the doctor through `diagnose_with_limits` / `measure_fix_with_limits`.
+  Wiring the *selected genre* onto the chain (so the live doctor picks a genre's
+  limits instead of the global defaults) is the remaining Piece-2 plumbing.
 
 ## Constants (single source of truth)
 
