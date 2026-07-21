@@ -326,3 +326,31 @@ parameters:
     assert!(!map.contains_key(&9));
     assert_eq!(map.len(), 3);
 }
+
+#[test]
+fn vst3_groups_only_overlay_parses_without_ranges() {
+    // #812: the VST3 overlay is groups-only by design — the live plugin's
+    // IEditController owns the real ranges/defaults, so a manifest that
+    // declares just `vst3_id` + `group` must deserialize. Requiring
+    // min/max/default broke every populated overlay in OpenRig-plugins and
+    // aborted the release bundle.
+    let yaml = r#"
+manifest_version: 1
+id: qdelay
+display_name: QDelay
+type: vst3
+backend: vst3
+bundle: QDelay.vst3
+parameters:
+  - name: p0
+    vst3_id: 0
+    group: Input EQ
+  - name: p1
+    vst3_id: 1
+    group: Saturation
+"#;
+    let manifest = parse(yaml);
+    let map = manifest.vst3_group_map();
+    assert_eq!(map.get(&0).map(String::as_str), Some("Input EQ"));
+    assert_eq!(map.get(&1).map(String::as_str), Some("Saturation"));
+}

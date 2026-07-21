@@ -71,7 +71,11 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   (`<plugins_root>/vst3/<id>/bundles/<Name>.vst3`, manifest `type: vst3` /
   `backend: vst3`) lands in the **same** VST3 block list as a user-installed
   one, with the same native editor and `Vst3Processor`. Parameters are read at
-  runtime from the plugin's `IEditController`, not from the manifest.
+  runtime from the plugin's `IEditController`, not from the manifest. The
+  manifest's optional `parameters:` overlay is **groups-only** (#812): each
+  entry names a `vst3_id` and the block-editor tab it belongs to; `min` / `max`
+  / `default` are optional and unused for grouping, since the live controller
+  owns the real ranges.
   Parameter changes made in the plugin's **native editor** are captured back
   into the block's params (`p{id}` percent) on save, via `CaptureRigEdits`
   (#780) — the controller's current non-default values are read through the
