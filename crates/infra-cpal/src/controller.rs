@@ -711,9 +711,9 @@ impl ProjectRuntimeController {
             chain.enabled
         );
         if !chain.enabled {
-            // Issue #522: pause instead of teardown. Keeps CPAL streams +
-            // every block processor alive so re-enable resumes in O(1).
+            // #522 pause (O(1) re-enable); #808 still re-render an armed DI.
             self.pause_chain(&chain.id);
+            self.rearm_di_stream_after_rebuild(chain);
             return Ok(());
         }
         // Issue #522: fast-path resume of a paused chain — clear draining
