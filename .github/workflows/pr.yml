@@ -13,11 +13,13 @@ concurrency:
 env:
   # Shared gate shipped as a per-language Docker image on GHCR
   # (github.com/xgodev/quality-gate). The image carries the Rust toolchain and
-  # the gate; OpenRig's native build deps (alsa/jack/fontconfig/seat/input/gbm/
-  # xkbcommon) are declared in `.qg.yaml` `system_packages` and installed by the
-  # gate INSIDE the container before it builds either side. The gate ignores the
-  # project's clippy.toml/rustfmt.toml on purpose (tamper-resistance) and
-  # enforces its own embedded rulesets.
+  # the gate, but NOT OpenRig's native build deps (alsa/jack/fontconfig/seat/
+  # input/gbm/xkbcommon — audio + winit/Slint backends + *-sys FFI crates). The
+  # published `:v1` image does not yet accept `.qg.yaml` `system_packages`, so we
+  # apt-install those deps inside the container ourselves before invoking the
+  # gate's own entrypoint (`/opt/quality-gate/qg`, the path the reusable
+  # `gate.yml` uses). The gate ignores the project's clippy.toml/rustfmt.toml on
+  # purpose (tamper-resistance) and enforces its own embedded rulesets.
   QG_IMAGE: ghcr.io/xgodev/quality-gate/rust:v1
   QG_LOG_DIR: target/qg-logs
 
@@ -48,13 +50,27 @@ jobs:
           # origin/develop must resolve locally for the comparative baseline.
           git fetch --quiet origin develop || true
           set +e
+          # Install OpenRig's native build deps inside the container, then run
+          # the gate's own entrypoint. apt output goes to stderr so stdout stays
+          # pure JSON (the gate result). A failed apt install surfaces as the
+          # gate's exit 2 path below (tool error, never a code verdict).
           docker run --rm \
             -v "$PWD:/src" -w /src \
-            "$QG_IMAGE" \
-            --base origin/develop \
-            --format json \
-            --log-dir "$QG_LOG_DIR" \
-            > qg-result.json 2> "$QG_LOG_DIR/qg-stderr.log"
+            --entrypoint bash \
+            "$QG_IMAGE" -c '
+              set -e
+              {
+                apt-get update -qq
+                apt-get install -y -qq --no-install-recommends \
+                  libasound2-dev libudev-dev pkg-config \
+                  libfontconfig1-dev libseat-dev libxkbcommon-dev \
+                  libinput-dev libgbm-dev libjack-jackd2-dev
+              } >&2
+              exec /opt/quality-gate/qg \
+                --base origin/develop \
+                --format json \
+                --log-dir "'"$QG_LOG_DIR"'"
+            ' > qg-result.json 2> "$QG_LOG_DIR/qg-stderr.log"
           gate_exit=$?
           set -e
           echo "gate_exit=$gate_exit" >> "$GITHUB_OUTPUT"
