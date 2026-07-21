@@ -447,6 +447,48 @@ fn a_live_edit_re_renders_the_di_when_only_the_di_is_running() {
     );
 }
 
+/// #808 (owner, after the DI plays): "I change the param and it STILL doesn't
+/// reach the DI — only toggling the block applies it." Monitoring a DI without
+/// enabling the chain, a param edit routes through `upsert_chain` with the chain
+/// DISABLED (the Pause path), which paused without re-rendering the monitored
+/// DI. The DI is independent (invariant #4) — a config edit must re-render it
+/// even when the chain is paused/disabled.
+#[test]
+fn a_param_edit_on_a_paused_di_only_chain_re_renders_the_di() {
+    init_registry();
+    let mut controller = controller_with_di_only_chain(&gain_chain(15.0));
+
+    let pcm = Arc::new(engine::DiPcm::new(vec![0.6; 48_000], 48_000, 1));
+    controller
+        .arm_di_stream(&gain_chain(15.0), Arc::clone(&pcm))
+        .expect("arm DI");
+    wait_for_di_render(&controller);
+    let peak_quiet = di_render_peak(&controller);
+
+    // Edit a param with the chain DISABLED — the exact GUI path for a DI-only
+    // chain is `upsert_chain` (Pause), never the Enable/activation path.
+    let mut edited = gain_chain(100.0);
+    edited.enabled = false;
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![edited.clone()],
+        midi: None,
+    };
+    controller
+        .upsert_chain(&project, &edited)
+        .expect("upsert (pause) must not error");
+    std::thread::sleep(Duration::from_millis(500));
+    let peak_open = di_render_peak(&controller);
+
+    assert!(
+        peak_open > peak_quiet * 2.0,
+        "a param edit on the paused (DI-only) chain did NOT reach the monitored \
+         DI: quiet={peak_quiet:.4} open={peak_open:.4}. The DI kept the stale \
+         render — the owner's 'change the param and nothing until I toggle the block'."
+    );
+}
+
 /// The owner's PRIMARY report: monitoring a DI, change the chain config →
 /// NOTHING changes. The DI must re-render through the edited chain.
 #[test]
