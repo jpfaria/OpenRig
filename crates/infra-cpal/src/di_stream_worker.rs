@@ -30,13 +30,14 @@ use crate::di_playback::{DiPlayback, DiPlaybackCell, DiRetired};
 /// core rendering a chain into a ring nobody plays. Pinned by the leak test.
 pub(crate) static DI_WORKERS_ALIVE: AtomicUsize = AtomicUsize::new(0);
 
+/// Frames the incoming render pre-rolls before it can take over. The outgoing
+/// playback keeps sounding until the listener reaches this position, so the
+/// hand-off is gapless AND continuous in the loop — no restart, no jump.
+const HANDOFF_PREROLL_FRAMES: usize = 8192;
 
 /// A stalled output (nothing consuming) would never reach the hand-off
 /// position. After this long, the incoming render takes over anyway.
 const HANDOFF_TIMEOUT: Duration = Duration::from_secs(2);
-
-/// Frames the incoming render pre-rolls before a gapless hand-off takes over.
-const HANDOFF_PREROLL_FRAMES: usize = 8192;
 
 /// Frames rendered per worker iteration.
 const BLOCK: usize = 256;
@@ -62,19 +63,6 @@ pub(crate) struct DiWorkerSpec {
     pub(crate) failed: Arc<AtomicBool>,
     pub(crate) retired: DiRetired,
     pub(crate) handoff: Option<DiHandoff>,
-    /// #808: the LIVE runtime the worker steps, published here after the initial
-    /// build. A param edit rebuilds the routed runtime off-thread and swaps it in
-    /// (wait-free) so the tone changes GAPLESSLY — no worker respawn, no output
-    /// stream teardown (the "parou som"/"picotando"). The worker reads it every
-    /// block, exactly as the guitar output callback reads its `LiveRuntimeSlot`.
-    pub(crate) live_runtime: Arc<arc_swap::ArcSwapOption<engine::runtime::ChainRuntimeState>>,
-    /// #808: the interface's output buffer (frames). The worker leads by a few
-    /// of these — the DI buffers like a normal stream, not a hardcoded 32k ring.
-    pub(crate) buffer_frames: u32,
-    /// #808: where the render thread parks the runtime it swaps OUT on a live
-    /// edit — never dropped here (a NAM C++ destructor on the render thread
-    /// stalls/kills the DI); the control worker frees it.
-    pub(crate) graveyard: Arc<Mutex<Vec<Arc<engine::runtime::ChainRuntimeState>>>>,
 }
 
 /// Spawn the render thread for one armed DI.
@@ -111,9 +99,6 @@ fn run(spec: DiWorkerSpec) {
         failed,
         retired,
         handoff,
-        live_runtime,
-        buffer_frames,
-        graveyard,
     } = spec;
 
     // Build the routed isolated runtime (heavy: NAM/IR loads) OFF the frontend;
@@ -145,7 +130,6 @@ fn run(spec: DiWorkerSpec) {
     // A hand-off instead starts where the listener WILL be once the pre-roll is
     // ready, and waits to reach exactly that position before taking the cell.
     let loop_len = routed.loop_len.max(1);
-    let _ = buffer_frames; // (kept for future device-scaled tuning; #808)
     let start_pos = handoff
         .as_ref()
         .map(|h| (h.prev.play_pos() + HANDOFF_PREROLL_FRAMES) % loop_len)
@@ -157,11 +141,6 @@ fn run(spec: DiWorkerSpec) {
         start_pos,
     ));
     routed.runtime.set_di_loop_pos(start_pos);
-    // #808: publish the runtime the worker steps. A live param edit swaps a
-    // freshly-built runtime in here; the loop below picks it up next block and
-    // carries the loop position over, so the tone changes with no restart.
-    live_runtime.store(Some(Arc::clone(&routed.runtime)));
-    let mut active_rt = Arc::clone(&routed.runtime);
     let ring = playback.ring();
     let mut parked = false;
     let handoff_deadline = Instant::now() + HANDOFF_TIMEOUT;
@@ -169,10 +148,6 @@ fn run(spec: DiWorkerSpec) {
         Some(_) => HANDOFF_PREROLL_FRAMES * 2,
         None => BLOCK * 2 * 16,
     };
-    // #808: fill the ring (the #771/#785 cushion) — big enough that the heavy
-    // NAM render rides out preemption dips without underrunning (a smaller lead
-    // stopped the DI). A live runtime swap is heard once this drains.
-    let cushion_fill = ring.capacity() - BLOCK * 2;
 
     // Stream the DI: paced by RING BACKPRESSURE — the worker only produces what
     // the output consumed, so the output device clock IS the DI clock (no drift
@@ -222,7 +197,9 @@ fn run(spec: DiWorkerSpec) {
                 }
             }
         }
-        if ring.len() >= cushion_fill {
+        let free = ring.capacity() - ring.len();
+        if free < BLOCK * 2 {
+            // Ring topped up: rest half a block period.
             burst = 0;
             std::thread::sleep(Duration::from_nanos(period_ns / 2));
             continue;
@@ -233,23 +210,9 @@ fn run(spec: DiWorkerSpec) {
             continue;
         }
         burst += 1;
-        // #808: pick up a live-swapped runtime (a param edit) and carry the loop
-        // position onto it so the render stays continuous — no restart, gapless.
-        if let Some(swapped) = live_runtime.load_full() {
-            if !Arc::ptr_eq(&swapped, &active_rt) {
-                swapped.set_di_loop_pos(active_rt.di_loop_pos());
-                // #808: hand the outgoing runtime to the graveyard — NEVER drop
-                // it here (NAM C++ destructor on the render thread stalls/kills
-                // the DI); the control worker frees it.
-                let old = std::mem::replace(&mut active_rt, swapped);
-                if let Ok(mut g) = graveyard.lock() {
-                    g.push(old);
-                }
-            }
-        }
-        process_input_f32(&active_rt, 0, &silence, 1);
+        process_input_f32(&routed.runtime, 0, &silence, 1);
         process_output_f32(
-            &active_rt,
+            &routed.runtime,
             routed.output_index,
             &mut drain,
             routed.drain_width,

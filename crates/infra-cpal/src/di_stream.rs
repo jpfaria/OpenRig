@@ -72,21 +72,9 @@ pub(crate) struct DiStreamHandle {
     /// device). Present whenever the DI is armed, so it plays with or without
     /// an active guitar stream. `None` on the JACK build (Orange Pi keeps the
     /// port-mix path) and when a re-arm hands the live stream to a new handle.
-    /// Carries the stream's sample rate + the interface output buffer (frames)
-    /// so a re-arm renders at the rate the stream consumes and the worker leads
-    /// by the interface buffer, without re-querying the device.
-    output_stream: Option<(cpal::Stream, u32, u32)>,
-    /// #808: the live runtime the worker steps. A param edit rebuilds the routed
-    /// runtime off-thread and swaps it in here (`update_di_runtime`), so the tone
-    /// changes gaplessly with NO worker/stream respawn — the same wait-free swap
-    /// the guitar path uses. Kept in the handle so re-arms carry it forward.
-    live_runtime: Arc<arc_swap::ArcSwapOption<engine::runtime::ChainRuntimeState>>,
-    /// #808: runtimes the render thread retired on a live swap. A (NAM) runtime
-    /// must NEVER be dropped on the render thread (its C++ destructor there
-    /// stalls/kills the DI — invariant #8; the guitar rebuild drops off-thread
-    /// too). The render thread pushes the outgoing runtime here; the control
-    /// worker drains and frees it.
-    graveyard: Arc<Mutex<Vec<Arc<engine::runtime::ChainRuntimeState>>>>,
+    /// Carries the stream's sample rate so a re-arm can render at the rate the
+    /// stream consumes without re-querying the device.
+    output_stream: Option<(cpal::Stream, u32)>,
 }
 
 /// Stop every render thread in `workers` (idempotent).
@@ -154,7 +142,7 @@ impl ProjectRuntimeController {
         chain: &Chain,
         output_index: usize,
         cell: &DiPlaybackCell,
-    ) -> Option<(cpal::Stream, u32, u32)> {
+    ) -> Option<(cpal::Stream, u32)> {
         use cpal::traits::{DeviceTrait, StreamTrait};
         let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
         let out = outputs.get(output_index)?;
@@ -168,10 +156,6 @@ impl ProjectRuntimeController {
             device,
             supported,
         };
-        // #808: the DI buffers to the INTERFACE's output buffer (like a normal
-        // stream), not a hardcoded ring — so its latency/resilience match the
-        // guitar's and a live edit lands within a few interface buffers.
-        let buffer_frames = crate::stream_config::resolved_output_buffer_size_frames(&resolved);
         let stream = crate::stream_builder::build_output_stream_for_output(
             &chain.id,
             output_index,
@@ -181,7 +165,7 @@ impl ProjectRuntimeController {
         )
         .ok()?;
         stream.play().ok()?;
-        Some((stream, rate, buffer_frames))
+        Some((stream, rate))
     }
 
     /// JACK build (Orange Pi) keeps the port-mix DI path unchanged (#808 wires
@@ -192,7 +176,7 @@ impl ProjectRuntimeController {
         _chain: &Chain,
         _output_index: usize,
         _cell: &DiPlaybackCell,
-    ) -> Option<(cpal::Stream, u32, u32)> {
+    ) -> Option<(cpal::Stream, u32)> {
         None
     }
 
@@ -250,19 +234,11 @@ impl ProjectRuntimeController {
         // a failed device resolve).
         let output_rate = output_stream
             .as_ref()
-            .map(|(_, r, _)| *r)
+            .map(|(_, r)| *r)
             .unwrap_or_else(|| self.di_output_rate(&chain.id, output_index));
-        // #808: the worker leads by the INTERFACE output buffer (a few of them),
-        // so the DI buffers like a normal stream — low, interface-matched latency.
-        let buffer_frames = output_stream.as_ref().map(|(_, _, b)| *b).unwrap_or(256);
 
         let armed = Arc::new(Mutex::new(true));
         let failed = Arc::new(AtomicBool::new(false));
-        // #808: the worker publishes its runtime here after building; a param
-        // edit swaps a fresh one in (update_di_runtime) with no respawn.
-        let live_runtime = Arc::new(arc_swap::ArcSwapOption::from(None));
-        let graveyard: Arc<Mutex<Vec<Arc<engine::runtime::ChainRuntimeState>>>> =
-            Arc::new(Mutex::new(Vec::new()));
         let handoff_pending = handoff.is_some();
         // Every worker the incoming one supersedes, plus itself: whoever takes
         // the cell over stops the others, and a disarm stops the survivors.
@@ -284,9 +260,6 @@ impl ProjectRuntimeController {
             failed: Arc::clone(&failed),
             retired: Arc::clone(&self.di_retired),
             handoff,
-            live_runtime: Arc::clone(&live_runtime),
-            buffer_frames,
-            graveyard: Arc::clone(&graveyard),
         });
 
         self.di_streams.borrow_mut().insert(
@@ -299,8 +272,6 @@ impl ProjectRuntimeController {
                 failed,
                 superseded: false,
                 output_stream,
-                live_runtime,
-                graveyard,
             },
         );
         // A hand-off replaces the handle while its playback is still sounding:
@@ -366,57 +337,6 @@ impl ProjectRuntimeController {
                 let _ = self.spawn_di_stream(chain, pcm, Some(handoff));
             }
         }
-    }
-
-    /// #808: a live param/config edit — rebuild the routed runtime off-thread
-    /// and SWAP it into the DI worker's live slot (wait-free). GAPLESS with NO
-    /// worker or output-stream respawn — that respawn on every edit was the
-    /// owner's "parou som"/"picotando". The DI keeps its own output stream and
-    /// cell untouched; only the DSP the worker steps changes. No-op when the DI
-    /// is not armed. Use this for a param/block edit; `rearm` (respawn) stays for
-    /// arm/disarm and an output-device change.
-    pub fn update_di_runtime(&self, chain: &Chain) {
-        let armed = self.di_streams.borrow().get(&chain.id).map(|h| {
-            (
-                Arc::clone(&h.live_runtime),
-                Arc::clone(&h.pcm),
-                h.output_index,
-                h.output_stream.as_ref().map(|(_, r, _)| *r),
-                Arc::clone(&h.graveyard),
-            )
-        });
-        let Some((live_runtime, pcm, output_index, stream_rate, graveyard)) = armed else {
-            return; // not armed — nothing to update
-        };
-        let chain = chain.clone();
-        let registry = self.io_bindings.clone();
-        // Build at the rate the DI's OWN output stream consumes (the device
-        // rate), not the fallback — a mismatch renders the loop at the wrong
-        // speed/position (silence/garbage after the swap).
-        let output_rate = stream_rate.unwrap_or_else(|| self.di_output_rate(&chain.id, output_index));
-        // Heavy (NAM/IR) build off the frontend; the swap itself is wait-free.
-        let _ = self.worker.submit(move || -> Result<()> {
-            match engine::di_render::build_routed_di_runtime(
-                &chain,
-                &registry,
-                chain.di_output.as_ref(),
-                output_rate,
-                &pcm,
-            ) {
-                Ok(routed) => live_runtime.store(Some(routed.runtime)),
-                Err(e) => log::error!("di update build failed for '{}': {e:#}", chain.id.0),
-            }
-            // #808: free the runtimes the render thread retired on its swap —
-            // here, on the control worker, NEVER on the render thread (NAM C++
-            // destructor there stalls/kills the DI).
-            let retired: Vec<_> = graveyard
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .drain(..)
-                .collect();
-            drop(retired);
-            Ok(())
-        });
     }
 
     /// Drop every DI resource of a removed chain (handle, cells, retirees) so
