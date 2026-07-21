@@ -43,6 +43,8 @@ fn symptom_keywords(symptom: Symptom) -> &'static [&'static str] {
         Symptom::Mud => &["bass", "low", "body", "middle", "mid"],
         Symptom::Harsh => &["presence", "treble", "high", "tone", "bright", "air"],
         Symptom::Boomy => &["bass", "low", "body", "sub"],
+        // Deficit symptoms need a raise, not the lower this engine performs.
+        Symptom::Thin | Symptom::Squash => &[],
         Symptom::Clipping => &["output", "level", "master", "volume", "makeup", "gain"],
         Symptom::Ok => &[],
     }

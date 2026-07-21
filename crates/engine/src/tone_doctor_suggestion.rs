@@ -57,6 +57,9 @@ pub(crate) fn priority_paths(symptom: Symptom) -> &'static [&'static str] {
         Symptom::Harsh => &["presence", "treble", "highs", "high", "tone", "bright", "air"],
         // Cut the sub / low-end rumble.
         Symptom::Boomy => &["bass", "low", "lows", "body", "sub"],
+        // Deficit symptoms need a knob *raised*, not lowered — the auto-fix
+        // engine only lowers, so it offers no path for these (reported only).
+        Symptom::Thin | Symptom::Squash => &[],
         // Pull the block's output down off the rail.
         Symptom::Clipping => &[
             "level", "master", "output", "output_level", "volume", "makeup_gain", "gain",
@@ -126,6 +129,12 @@ pub(crate) fn rationale(symptom: Symptom, model_name: &str, param_label: &str) -
         }
         Symptom::Boomy => {
             format!("Boom traced to {model_name}; lowering '{param_label}' tightens the low end")
+        }
+        Symptom::Thin => {
+            "Thin for this genre — the chain lacks low-mid body; add/raise low-end, no single knob to lower".to_string()
+        }
+        Symptom::Squash => {
+            "Squashed for this genre — dynamics are flattened; back off compression/gain to restore crest".to_string()
         }
         Symptom::Clipping => {
             format!("Clipping traced to {model_name}; lowering '{param_label}' pulls it off the rail")

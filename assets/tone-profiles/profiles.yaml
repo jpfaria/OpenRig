@@ -4,6 +4,8 @@ alternative-rock:
   clip: 0.0
   harsh: 0.000013950539
   boom: 0.05597835
+  thin: 0.12303696
+  squash: 18.269627
   n: 4
   confidence: provisional
 blues:
@@ -12,6 +14,8 @@ blues:
   clip: 0.0
   harsh: 0.0000100701145
   boom: 0.046957083
+  thin: 0.43874073
+  squash: 19.465609
   n: 8
   confidence: trusted
 brazilian-rock:
@@ -20,6 +24,8 @@ brazilian-rock:
   clip: 0.0
   harsh: 0.0010611638
   boom: 0.07721129
+  thin: 0.19734669
+  squash: 15.081365
   n: 5
   confidence: provisional
 classic-rock:
@@ -28,6 +34,8 @@ classic-rock:
   clip: 0.0
   harsh: 0.000106430016
   boom: 0.043573923
+  thin: 0.27410182
+  squash: 20.152529
   n: 4
   confidence: provisional
 clean:
@@ -36,6 +44,8 @@ clean:
   clip: 0.0
   harsh: 0.0003587286
   boom: 0.054340333
+  thin: 0.28763962
+  squash: 17.555935
   n: 8
   confidence: trusted
 grunge:
@@ -44,6 +54,8 @@ grunge:
   clip: 0.0
   harsh: 0.000019169935
   boom: 0.11666717
+  thin: 0.26368314
+  squash: 15.7379
   n: 7
   confidence: trusted
 hard-rock:
@@ -52,6 +64,8 @@ hard-rock:
   clip: 0.0
   harsh: 0.00011911274
   boom: 0.016551811
+  thin: 0.22691129
+  squash: 20.531422
   n: 2
   confidence: provisional
 jazz:
@@ -60,6 +74,8 @@ jazz:
   clip: 0.0
   harsh: 0.0000058382825
   boom: 0.00075697066
+  thin: 0.117869236
+  squash: 16.993328
   n: 1
   confidence: provisional
 metal:
@@ -68,6 +84,8 @@ metal:
   clip: 0.0
   harsh: 0.000017388957
   boom: 0.10027512
+  thin: 0.20122488
+  squash: 18.5934
   n: 2
   confidence: provisional
 pop-rock:
@@ -76,6 +94,8 @@ pop-rock:
   clip: 0.0
   harsh: 0.0000012909157
   boom: 0.005729341
+  thin: 0.4164946
+  squash: 19.919384
   n: 1
   confidence: provisional
 punk:
@@ -84,5 +104,7 @@ punk:
   clip: 0.0
   harsh: 0.0000053954245
   boom: 0.09207831
+  thin: 0.0867465
+  squash: 15.14772
   n: 6
   confidence: trusted

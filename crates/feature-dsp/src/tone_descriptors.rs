@@ -76,6 +76,12 @@ pub enum Symptom {
     Mud,
     Harsh,
     Boomy,
+    /// Too little low-mid body — thin, weedy (a *deficit*, the low tail of the
+    /// same band `Mud` reads at its high tail).
+    Thin,
+    /// Too little dynamic range — over-compressed / squashed (a *deficit* of
+    /// crest factor).
+    Squash,
     Clipping,
 }
 
@@ -99,6 +105,12 @@ pub const BOOM_RATIO_LIMIT: f32 = 0.30;
 /// The per-symptom cut-offs a classification runs against. Defaults to the
 /// global constants; a genre-calibrated profile (#809) supplies its own so the
 /// same tone is judged by its style's standards, not one fixed bar.
+///
+/// `mud`/`fizz`/`harsh`/`boom`/`clip` are *excess* limits (value above = bad).
+/// `thin`/`squash` are *deficit* floors (value below = bad). Deficit floors are
+/// inherently genre-relative — "enough body" or "enough dynamics" only means
+/// something against a style — so they default to `0.0` (disabled) and only
+/// activate once a genre profile supplies a floor.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SymptomLimits {
     pub mud: f32,
@@ -106,16 +118,23 @@ pub struct SymptomLimits {
     pub harsh: f32,
     pub boom: f32,
     pub clip: f32,
+    /// Low-mid `mud_ratio` floor: below it the tone is `Thin`. `0.0` disables.
+    pub thin: f32,
+    /// `crest_db` floor: below it the tone is `Squash`. `0.0` disables.
+    pub squash: f32,
 }
 
 impl SymptomLimits {
     /// The provisional global defaults — used when no genre is selected.
+    /// Deficit floors default off (see the struct docs).
     pub const DEFAULT: SymptomLimits = SymptomLimits {
         mud: MUD_RATIO_LIMIT,
         fizz: FIZZ_RATIO_LIMIT,
         harsh: HARSH_RATIO_LIMIT,
         boom: BOOM_RATIO_LIMIT,
         clip: CLIP_FRACTION_LIMIT,
+        thin: 0.0,
+        squash: 0.0,
     };
 }
 
@@ -138,19 +157,26 @@ impl ToneDescriptors {
         if self.clip_fraction > limits.clip {
             return Symptom::Clipping;
         }
-        // Each spectral symptom scored by how far its ratio sits above its limit,
-        // normalised by the limit so bands with different scales compare fairly.
-        // The largest positive excess wins; none positive → healthy.
-        let candidates = [
-            (Symptom::Fizz, self.fizz_ratio, limits.fizz),
-            (Symptom::Mud, self.mud_ratio, limits.mud),
-            (Symptom::Harsh, self.harsh_ratio, limits.harsh),
-            (Symptom::Boomy, self.boom_ratio, limits.boom),
+        // Every symptom scored by how far it sits into the "bad" side of its
+        // limit, normalised by the limit so differently-scaled metrics compare
+        // fairly. Excess metrics score (value − limit) / limit; deficit metrics
+        // (thin/squash) score (limit − value) / limit and only when their floor
+        // is enabled (> 0). The largest positive score wins; none → healthy.
+        let mut candidates = vec![
+            (Symptom::Fizz, (self.fizz_ratio - limits.fizz) / limits.fizz),
+            (Symptom::Mud, (self.mud_ratio - limits.mud) / limits.mud),
+            (Symptom::Harsh, (self.harsh_ratio - limits.harsh) / limits.harsh),
+            (Symptom::Boomy, (self.boom_ratio - limits.boom) / limits.boom),
         ];
+        if limits.thin > 0.0 {
+            candidates.push((Symptom::Thin, (limits.thin - self.mud_ratio) / limits.thin));
+        }
+        if limits.squash > 0.0 {
+            candidates.push((Symptom::Squash, (limits.squash - self.crest_db) / limits.squash));
+        }
         candidates
             .into_iter()
-            .map(|(sym, value, limit)| (sym, (value - limit) / limit))
-            .filter(|&(_, excess)| excess > 0.0)
+            .filter(|&(_, score)| score > 0.0)
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(sym, _)| sym)
             .unwrap_or(Symptom::Ok)

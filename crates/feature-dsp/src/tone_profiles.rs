@@ -36,6 +36,12 @@ pub struct GenreProfile {
     pub clip_limit: f32,
     pub harsh_limit: f32,
     pub boom_limit: f32,
+    /// Deficit floor: `mud_ratio` below it reads as `Thin` (the low percentile
+    /// of the genre's low-mid — less body than the style expects).
+    pub thin_limit: f32,
+    /// Deficit floor: `crest_db` below it reads as `Squash` (the low percentile
+    /// of the genre's crest factor — flatter dynamics than the style expects).
+    pub squash_limit: f32,
     /// Stems that contributed to this genre.
     pub n: usize,
     pub confidence: Confidence,
@@ -56,7 +62,11 @@ pub fn calibrate(samples: &[(String, ToneDescriptors)], percentile: f32) -> Vec<
         cols.clip.push(d.clip_fraction);
         cols.harsh.push(d.harsh_ratio);
         cols.boom.push(d.boom_ratio);
+        cols.crest.push(d.crest_db);
     }
+
+    // Deficit floors read the *low* tail (e.g. p10 when percentile is p90).
+    let low = 1.0 - percentile;
 
     by_genre
         .into_iter()
@@ -69,16 +79,19 @@ pub fn calibrate(samples: &[(String, ToneDescriptors)], percentile: f32) -> Vec<
                     clip,
                     harsh,
                     boom,
+                    crest,
                 },
             )| {
                 let n = mud.len();
                 GenreProfile {
                     genre: genre.to_string(),
-                    mud_limit: percentile_of(mud, percentile),
+                    mud_limit: percentile_of(mud.clone(), percentile),
                     fizz_limit: percentile_of(fizz, percentile),
                     clip_limit: percentile_of(clip, percentile),
                     harsh_limit: percentile_of(harsh, percentile),
                     boom_limit: percentile_of(boom, percentile),
+                    thin_limit: percentile_of(mud, low),
+                    squash_limit: percentile_of(crest, low),
                     n,
                     confidence: if n >= MIN_CONFIDENT_SAMPLES {
                         Confidence::Trusted
@@ -99,6 +112,7 @@ struct MetricColumns {
     clip: Vec<f32>,
     harsh: Vec<f32>,
     boom: Vec<f32>,
+    crest: Vec<f32>,
 }
 
 /// The `percentile` (0.0..=1.0) of `values`, by linear interpolation between the

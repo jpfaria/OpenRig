@@ -9,17 +9,26 @@ blues tone is dark. A single fixed threshold misfires across styles.
 Every symptom is a reference-free ratio the analyzer reads off a Welch power
 spectrum (or the raw samples, for clip):
 
-| Symptom | Ratio | Meaning |
-|---|---|---|
-| `mud` | low-mid (160–500 Hz) / total | boxy / muddy |
-| `fizz` | presence (3–8 kHz) / body | buzzy / fizzy |
-| `harsh` | brilliance (8–16 kHz) / body | ice-pick highs |
-| `boom` | low-end (40–120 Hz) / total | rumble / boom |
-| `clip` | fraction of rail-pinned samples | clipping |
+| Symptom | Metric | Direction | Meaning |
+|---|---|---|---|
+| `mud` | low-mid (160–500 Hz) / total | excess | boxy / muddy |
+| `fizz` | presence (3–8 kHz) / body | excess | buzzy / fizzy |
+| `harsh` | brilliance (8–16 kHz) / body | excess | ice-pick highs |
+| `boom` | low-end (40–120 Hz) / total | excess | rumble / boom |
+| `clip` | fraction of rail-pinned samples | excess | clipping |
+| `thin` | low-mid (160–500 Hz) / total | **deficit** | weedy, no body |
+| `squash` | crest factor (peak − RMS, dB) | **deficit** | over-compressed |
 
-All five are calibrated identically (each is an "excess above the limit"
-metric). Dynamics (crest) and low-end *deficit* (thinness) are measured or
-future — they need a below-limit direction the excess model doesn't cover yet.
+Five **excess** metrics (value above the limit = bad) and two **deficit**
+metrics (value below a floor = bad). `thin` and `squash` are the low tails of
+`mud_ratio` and `crest_db` — a signal is `Mud` at the high end of the low-mid
+band and `Thin` at the low end; dynamic at high crest and `Squash` at low crest.
+
+Deficit floors are inherently **genre-relative** — "enough body" or "enough
+dynamics" has no absolute value, only a stylistic one — so they default to
+disabled and activate only under a genre's calibrated floor (the low percentile,
+p10, of that genre's distribution). The excess model alone could not express
+this; the classifier now scores both directions.
 
 This tool derives **measured, per-genre limits** from real isolated-guitar
 reference stems instead of guessing them.
@@ -123,9 +132,9 @@ intent.
   fill out with brighter stems.
 - **Genre labels are subjective.** Silverchair's "Shade" is acoustic, not grunge;
   each such call is the owner's by ear — the manifest is a seed, not law.
-- **Missing axes.** Dynamics (compression / squash) and thinness (low-end
-  *deficit*) need a below-limit direction the current excess model does not
-  cover — deferred.
+- **Deficit auto-fix.** `thin` and `squash` are now classified and calibrated,
+  but the auto-fix engine only *lowers* knobs; correcting a deficit means
+  *raising* one, so the doctor reports these two but offers no one-knob fix yet.
 
 ## Constants (single source of truth)
 

@@ -66,6 +66,11 @@ pub(crate) fn symptom_metric(symptom: Symptom, d: &ToneDescriptors) -> Option<(f
         Symptom::Harsh => Some((d.harsh_ratio, HARSH_RATIO_LIMIT)),
         Symptom::Boomy => Some((d.boom_ratio, BOOM_RATIO_LIMIT)),
         Symptom::Clipping => Some((d.clip_fraction, CLIP_FRACTION_LIMIT)),
+        // Deficit symptoms have no global limit — their floor is genre-relative
+        // (SymptomLimits::DEFAULT disables them). Blame-by-ablation for these
+        // rides on the genre-limit injection; classified but not culprit-searched
+        // under the global defaults, so there is nothing to blame here yet.
+        Symptom::Thin | Symptom::Squash => None,
         Symptom::Ok => None,
     }
 }

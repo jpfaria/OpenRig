@@ -118,6 +118,20 @@ fn harsh_and_boom_limits_are_calibrated_too() {
 }
 
 #[test]
+fn deficit_floors_read_the_low_percentile() {
+    // mud ascends 0.10..1.00 (10 values); crest is constant 14. With p90 the
+    // deficit floors read the low tail p10 = rank 0.1*(10-1)=0.9 → between 0.10
+    // and 0.20 → 0.19. thin_limit reads mud's low tail; squash_limit reads
+    // crest's (constant → 14).
+    let samples: Vec<(String, ToneDescriptors)> = (1..=10)
+        .map(|i| ("rock".to_string(), desc(i as f32 / 10.0, 0.0, 0.0)))
+        .collect();
+    let p = &calibrate(&samples, 0.90)[0];
+    assert!((p.thin_limit - 0.19).abs() < 1e-4, "thin floor is p10 of mud: {p:?}");
+    assert!((p.squash_limit - 14.0).abs() < 1e-4, "squash floor is p10 of crest: {p:?}");
+}
+
+#[test]
 fn calibration_is_deterministic() {
     let mut samples = repeat("metal", desc(0.6, 0.2, 0.01), 4);
     samples.extend(repeat("blues", desc(0.3, 0.03, 0.0), 7));

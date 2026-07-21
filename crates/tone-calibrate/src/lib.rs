@@ -156,6 +156,8 @@ pub fn to_yaml(profiles: &[GenreProfile]) -> Result<String> {
                     clip: p.clip_limit,
                     harsh: p.harsh_limit,
                     boom: p.boom_limit,
+                    thin: p.thin_limit,
+                    squash: p.squash_limit,
                     n: p.n,
                     confidence: match p.confidence {
                         Confidence::Trusted => "trusted",
@@ -176,6 +178,8 @@ struct ProfileEntry {
     clip: f32,
     harsh: f32,
     boom: f32,
+    thin: f32,
+    squash: f32,
     n: usize,
     confidence: &'static str,
 }

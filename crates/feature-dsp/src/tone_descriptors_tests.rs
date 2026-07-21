@@ -172,6 +172,52 @@ fn symptom_with_limits_reclassifies_under_a_stricter_genre() {
 }
 
 #[test]
+fn thin_fires_only_when_the_genre_supplies_a_floor() {
+    // A 1 kHz sine has almost no 160–500 Hz low-mid → mud_ratio ~0. That is
+    // "thin" only against a genre that expects body; with the deficit floor off
+    // (the default) it is not flagged.
+    let d = analyze_mono(&sine(1_000.0, 0.5), SR);
+    assert!(d.mud_ratio < 0.1, "sine carries little low-mid: {d:?}");
+    assert_ne!(
+        d.symptom_with_limits(&SymptomLimits::DEFAULT),
+        Symptom::Thin,
+        "deficit disabled by default: {d:?}"
+    );
+    let with_body = SymptomLimits {
+        thin: 0.2,
+        ..SymptomLimits::DEFAULT
+    };
+    assert_eq!(
+        d.symptom_with_limits(&with_body),
+        Symptom::Thin,
+        "below the genre's low-mid floor → thin: {d:?}"
+    );
+}
+
+#[test]
+fn squash_fires_only_when_the_genre_supplies_a_floor() {
+    // A pure sine has a low crest factor (~3 dB) — maximally "squashed"
+    // dynamically. Off by default; flagged against a genre that expects
+    // transient life.
+    let d = analyze_mono(&sine(1_000.0, 0.5), SR);
+    assert!(d.crest_db < 6.0, "sine crest is low: {d:?}");
+    assert_ne!(
+        d.symptom_with_limits(&SymptomLimits::DEFAULT),
+        Symptom::Squash,
+        "deficit disabled by default: {d:?}"
+    );
+    let dynamic = SymptomLimits {
+        squash: 10.0,
+        ..SymptomLimits::DEFAULT
+    };
+    assert_eq!(
+        d.symptom_with_limits(&dynamic),
+        Symptom::Squash,
+        "below the genre's crest floor → squash: {d:?}"
+    );
+}
+
+#[test]
 fn symptom_with_limits_default_matches_symptom() {
     let d = analyze_mono(&multitone(&[(1_000.0, 0.2), (5_000.0, 0.5)]), SR);
     assert_eq!(d.symptom(), d.symptom_with_limits(&SymptomLimits::DEFAULT));
