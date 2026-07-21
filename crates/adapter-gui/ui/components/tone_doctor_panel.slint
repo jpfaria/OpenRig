@@ -8,6 +8,9 @@
 // DiLoopPanel: the host renders it at the window root (never clipped by the
 // chain list) and every click is a normal in-tree TouchArea.
 
+import { Select } from "select.slint";
+import { ToneDoctorState } from "tone_doctor_globals.slint";
+
 // One measurement meter: value fill (green under the limit / red over it), a
 // tick at the healthy limit (fixed at 50 % of the track), and the number.
 component MeasureRow inherits Rectangle {
@@ -88,7 +91,7 @@ export component ToneDoctorPanel inherits Rectangle {
         : #3ecf8e;
 
     width: 360px;
-    height: root.has-result ? (root.has-suggestion ? 414px : 350px) : 150px;
+    height: root.has-result ? (root.has-suggestion ? 460px : 396px) : 196px;
     border-radius: 8px;
     background: #11141af2;
     border-width: 1px; border-color: #3b4250;
@@ -117,9 +120,30 @@ export component ToneDoctorPanel inherits Rectangle {
         SecondsChip { value: 30; selected: root.analyze-seconds == 30; picked(v) => { root.seconds-picked(v); } }
     }
 
+    // ── genre selector (#809) ──────────────────────────────────────────────
+    // Picks the calibrated limits the doctor judges against; "" = defaults.
+    Text {
+        x: 12px; y: 78px; height: 38px; text: @tr("tone-doctor-genre");
+        color: #8a94a2; font-size: 11px; font-weight: 700; vertical-alignment: center;
+    }
+    Select {
+        x: 116px; y: 76px; width: 232px;
+        options: ToneDoctorState.genre-options;
+        active-key: ToneDoctorState.tone-genre;
+        field-label: ToneDoctorState.tone-genre;
+        placeholder: @tr("tone-doctor-genre-default");
+        search-placeholder: @tr("tone-doctor-genre-search");
+        empty-text: @tr("tone-doctor-genre-none");
+        field-font-size: 13px; field-font-weight: 700;
+        popup-width: 232px;
+        picked(key) => { ToneDoctorState.tone-genre = key; }
+        opened => { ToneDoctorState.genre-query(""); }
+        query-changed(q) => { ToneDoctorState.genre-query(q); }
+    }
+
     // ── diagnose button (gated) ────────────────────────────────────────────
     Rectangle {
-        x: 12px; y: 76px; width: 336px; height: 34px;
+        x: 12px; y: 122px; width: 336px; height: 34px;
         border-radius: 6px;
         background: !root.can-diagnose ? #1a1f2a
                     : root.running ? #2b3340
@@ -146,7 +170,7 @@ export component ToneDoctorPanel inherits Rectangle {
 
     // ── the three measurements ─────────────────────────────────────────────
     if root.has-result : VerticalLayout {
-        x: 12px; y: 120px; width: 336px; spacing: 4px;
+        x: 12px; y: 166px; width: 336px; spacing: 4px;
         MeasureRow {
             name: "FIZZ"; value: root.fizz-value; limit: root.fizz-limit;
             value-text: "\{Math.round(root.fizz-value * 100) / 100} / \{Math.round(root.fizz-limit * 100) / 100}";
@@ -163,7 +187,7 @@ export component ToneDoctorPanel inherits Rectangle {
 
     // ── verdict + culprit ──────────────────────────────────────────────────
     if root.has-result : Rectangle {
-        x: 12px; y: 258px; width: 336px; height: 44px;
+        x: 12px; y: 304px; width: 336px; height: 44px;
         border-radius: 6px; background: #0a0d12; border-width: 1px; border-color: #2b3340;
         Rectangle {
             x: 12px; y: parent.height / 2 - 6px; width: 12px; height: 12px;
@@ -184,7 +208,7 @@ export component ToneDoctorPanel inherits Rectangle {
 
     // ── measured fix + apply ───────────────────────────────────────────────
     if root.has-result && root.has-suggestion : Rectangle {
-        x: 12px; y: 310px; width: 336px; height: 64px;
+        x: 12px; y: 356px; width: 336px; height: 64px;
         border-radius: 6px; background: #0a0d12; border-width: 1px; border-color: #2b3340;
         Text {
             x: 12px; y: 10px; width: parent.width - 24px; height: 16px;

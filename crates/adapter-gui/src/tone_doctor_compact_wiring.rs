@@ -109,17 +109,35 @@ fn spawn<F, D>(
     });
 }
 
-/// The genre catalogue for the panel's selector, from the embedded calibrated
-/// table. A leading "" entry is the "no genre — global defaults" choice.
-fn genre_model() -> slint::ModelRc<slint::SharedString> {
-    let mut items: Vec<slint::SharedString> = vec![slint::SharedString::new()];
-    items.extend(
-        engine::tone_profile_table::ProfileTable::embedded()
-            .genres()
+/// Genres from the calibrated table matching `query` (case-insensitive
+/// substring; empty/blank = all), in table order. Public for testing.
+pub fn filter_genres<'a>(genres: &'a [&'a str], query: &str) -> Vec<&'a str> {
+    let q = query.trim().to_lowercase();
+    genres
+        .iter()
+        .copied()
+        .filter(|g| q.is_empty() || g.to_lowercase().contains(&q))
+        .collect()
+}
+
+/// The selector rows for the panel: a leading "" row (label `—`, the "no genre,
+/// global defaults" choice) plus the calibrated genres matching `query`.
+fn genre_options(query: &str) -> slint::ModelRc<crate::SelectOption> {
+    let table = engine::tone_profile_table::ProfileTable::embedded();
+    let genres = table.genres();
+    let mut rows = vec![crate::SelectOption {
+        key: slint::SharedString::new(),
+        label: slint::SharedString::from("—"),
+    }];
+    rows.extend(
+        filter_genres(&genres, query)
             .into_iter()
-            .map(slint::SharedString::from),
+            .map(|g| crate::SelectOption {
+                key: g.into(),
+                label: g.into(),
+            }),
     );
-    slint::ModelRc::new(slint::VecModel::from(items))
+    slint::ModelRc::new(slint::VecModel::from(rows))
 }
 
 /// Resolve the culprit's chain by index.
@@ -221,7 +239,17 @@ pub(crate) fn wire(
     toast_timer: Rc<slint::Timer>,
 ) {
     let cache: SuggestionCache = Arc::new(Mutex::new(None));
-    compact_win.global::<ToneDoctorState>().set_genres(genre_model());
+    {
+        let st = compact_win.global::<ToneDoctorState>();
+        st.set_genre_options(genre_options(""));
+        let weak = compact_win.as_weak();
+        st.on_genre_query(move |q| {
+            if let Some(w) = weak.upgrade() {
+                w.global::<ToneDoctorState>()
+                    .set_genre_options(genre_options(q.as_str()));
+            }
+        });
+    }
     {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();
@@ -266,7 +294,17 @@ pub(crate) fn wire_main(
 ) {
     let cache: SuggestionCache = Arc::new(Mutex::new(None));
     let main_weak = window.as_weak();
-    window.global::<ToneDoctorState>().set_genres(genre_model());
+    {
+        let st = window.global::<ToneDoctorState>();
+        st.set_genre_options(genre_options(""));
+        let weak = window.as_weak();
+        st.on_genre_query(move |q| {
+            if let Some(w) = weak.upgrade() {
+                w.global::<ToneDoctorState>()
+                    .set_genre_options(genre_options(q.as_str()));
+            }
+        });
+    }
     {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();
@@ -299,5 +337,27 @@ pub(crate) fn wire_main(
             };
             apply_suggestion(session, ci, &cache, &main_weak, &toast_timer);
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::filter_genres;
+
+    #[test]
+    fn filter_is_case_insensitive_substring_and_keeps_order() {
+        let genres = ["alternative-rock", "blues-rock", "grunge", "heavy-metal"];
+        assert_eq!(
+            filter_genres(&genres, "rock"),
+            vec!["alternative-rock", "blues-rock"]
+        );
+        assert_eq!(filter_genres(&genres, "METAL"), vec!["heavy-metal"]);
+    }
+
+    #[test]
+    fn blank_query_returns_all() {
+        let genres = ["grunge", "blues-rock"];
+        assert_eq!(filter_genres(&genres, "  "), vec!["grunge", "blues-rock"]);
+        assert!(filter_genres(&genres, "zzz").is_empty());
     }
 }
