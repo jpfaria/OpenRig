@@ -122,17 +122,16 @@ fn read_interleaved(
 /// Render per-stem measurements as CSV (one row per stem) for charting the raw
 /// corpus. Dependency-free; header first.
 pub fn measurements_to_csv(measurements: &[StemMeasurement]) -> String {
-    let mut out = String::from("song,genre,stem,mud,fizz,harsh,boom,clip,rms_dbfs,crest_db\n");
+    let mut out = String::from("song,genre,stem,mud,fizz,boom,clip,rms_dbfs,crest_db\n");
     for m in measurements {
         let d = &m.descriptors;
         out.push_str(&format!(
-            "{},{},{},{},{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{},{}\n",
             m.song,
             m.genre,
             m.stem,
             d.mud_ratio,
             d.fizz_ratio,
-            d.harsh_ratio,
             d.boom_ratio,
             d.clip_fraction,
             d.rms_dbfs,
@@ -154,7 +153,6 @@ pub fn to_yaml(profiles: &[GenreProfile]) -> Result<String> {
                     mud: p.mud_limit,
                     fizz: p.fizz_limit,
                     clip: p.clip_limit,
-                    harsh: p.harsh_limit,
                     boom: p.boom_limit,
                     thin: p.thin_limit,
                     squash: p.squash_limit,
@@ -176,7 +174,6 @@ struct ProfileEntry {
     mud: f32,
     fizz: f32,
     clip: f32,
-    harsh: f32,
     boom: f32,
     thin: f32,
     squash: f32,

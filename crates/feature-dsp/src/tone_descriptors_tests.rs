@@ -133,18 +133,6 @@ fn descriptors_are_deterministic() {
 }
 
 #[test]
-fn brilliance_heavy_signal_reads_as_harsh() {
-    // Body note at 1 kHz plus a loud 11 kHz "ice-pick" in the brilliance band,
-    // with no comparable 3-8 kHz presence, so harsh must beat fizz.
-    let d = analyze_mono(&multitone(&[(1_000.0, 0.2), (11_000.0, 0.6)]), SR);
-    assert_eq!(
-        d.symptom(),
-        Symptom::Harsh,
-        "brilliance-heavy is harsh: {d:?}"
-    );
-}
-
-#[test]
 fn low_end_heavy_signal_reads_as_boomy() {
     // Body note at 1 kHz plus a dominant 60 Hz rumble in the boom band, kept
     // below the rail so it reads as boom, not clipping.
@@ -224,12 +212,8 @@ fn symptom_with_limits_default_matches_symptom() {
 }
 
 #[test]
-fn clean_1khz_sine_has_no_harsh_or_boom() {
+fn clean_1khz_sine_has_no_boom() {
     let d = analyze_mono(&sine(1_000.0, 0.5), SR);
-    assert!(
-        d.harsh_ratio < HARSH_RATIO_LIMIT,
-        "clean tone not harsh: {d:?}"
-    );
     assert!(
         d.boom_ratio < BOOM_RATIO_LIMIT,
         "clean tone not boomy: {d:?}"

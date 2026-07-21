@@ -68,7 +68,6 @@ pub(crate) fn metric(
     match symptom {
         Symptom::Fizz => Some((d.fizz_ratio, limits.fizz, false)),
         Symptom::Mud => Some((d.mud_ratio, limits.mud, false)),
-        Symptom::Harsh => Some((d.harsh_ratio, limits.harsh, false)),
         Symptom::Boomy => Some((d.boom_ratio, limits.boom, false)),
         Symptom::Clipping => Some((d.clip_fraction, limits.clip, false)),
         // Deficit: value below the floor is bad, so the floor must be enabled.

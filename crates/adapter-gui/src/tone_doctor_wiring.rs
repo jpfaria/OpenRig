@@ -32,8 +32,6 @@ pub struct ToneDoctorView {
     pub fizz_limit: f32,
     pub mud_value: f32,
     pub mud_limit: f32,
-    pub harsh_value: f32,
-    pub harsh_limit: f32,
     pub boom_value: f32,
     pub boom_limit: f32,
     pub clip_value: f32,
@@ -100,8 +98,6 @@ pub fn diagnose_to_view(
         fizz_limit: limits.fizz,
         mud_value: d.mud_ratio,
         mud_limit: limits.mud,
-        harsh_value: d.harsh_ratio,
-        harsh_limit: limits.harsh,
         boom_value: d.boom_ratio,
         boom_limit: limits.boom,
         clip_value: d.clip_fraction,
@@ -115,7 +111,7 @@ fn symptom_level(s: Symptom) -> i32 {
     match s {
         Symptom::Ok => 0,
         Symptom::Mud | Symptom::Boomy | Symptom::Thin | Symptom::Squash => 1,
-        Symptom::Fizz | Symptom::Harsh | Symptom::Clipping => 2,
+        Symptom::Fizz | Symptom::Clipping => 2,
     }
 }
 
@@ -126,7 +122,6 @@ fn symptom_text(s: Symptom) -> &'static str {
         Symptom::Ok => "OK",
         Symptom::Fizz => "Fizz",
         Symptom::Mud => "Mud",
-        Symptom::Harsh => "Harsh",
         Symptom::Boomy => "Boomy",
         Symptom::Thin => "Thin",
         Symptom::Squash => "Squash",

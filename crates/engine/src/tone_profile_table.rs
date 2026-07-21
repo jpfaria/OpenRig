@@ -19,7 +19,6 @@ struct Row {
     mud: f32,
     fizz: f32,
     clip: f32,
-    harsh: f32,
     boom: f32,
     thin: f32,
     squash: f32,
@@ -62,7 +61,6 @@ fn parse(raw: &str) -> ProfileTable {
                 SymptomLimits {
                     mud: r.mud,
                     fizz: r.fizz,
-                    harsh: r.harsh,
                     boom: r.boom,
                     clip: r.clip,
                     thin: r.thin,

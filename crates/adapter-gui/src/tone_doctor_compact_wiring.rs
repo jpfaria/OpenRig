@@ -49,8 +49,6 @@ fn apply_view(st: &ToneDoctorState, view: &ToneDoctorView) {
     st.set_fizz_limit(view.fizz_limit);
     st.set_mud_value(view.mud_value);
     st.set_mud_limit(view.mud_limit);
-    st.set_harsh_value(view.harsh_value);
-    st.set_harsh_limit(view.harsh_limit);
     st.set_boom_value(view.boom_value);
     st.set_boom_limit(view.boom_limit);
     st.set_clip_value(view.clip_value);

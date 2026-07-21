@@ -34,7 +34,6 @@ pub struct GenreProfile {
     pub mud_limit: f32,
     pub fizz_limit: f32,
     pub clip_limit: f32,
-    pub harsh_limit: f32,
     pub boom_limit: f32,
     /// Deficit floor: `mud_ratio` below it reads as `Thin` (the low percentile
     /// of the genre's low-mid — less body than the style expects).
@@ -60,7 +59,6 @@ pub fn calibrate(samples: &[(String, ToneDescriptors)], percentile: f32) -> Vec<
         cols.mud.push(d.mud_ratio);
         cols.fizz.push(d.fizz_ratio);
         cols.clip.push(d.clip_fraction);
-        cols.harsh.push(d.harsh_ratio);
         cols.boom.push(d.boom_ratio);
         cols.crest.push(d.crest_db);
     }
@@ -77,7 +75,6 @@ pub fn calibrate(samples: &[(String, ToneDescriptors)], percentile: f32) -> Vec<
                     mud,
                     fizz,
                     clip,
-                    harsh,
                     boom,
                     crest,
                 },
@@ -88,7 +85,6 @@ pub fn calibrate(samples: &[(String, ToneDescriptors)], percentile: f32) -> Vec<
                     mud_limit: percentile_of(mud.clone(), percentile),
                     fizz_limit: percentile_of(fizz, percentile),
                     clip_limit: percentile_of(clip, percentile),
-                    harsh_limit: percentile_of(harsh, percentile),
                     boom_limit: percentile_of(boom, percentile),
                     thin_limit: percentile_of(mud, low),
                     squash_limit: percentile_of(crest, low),
@@ -110,7 +106,6 @@ struct MetricColumns {
     mud: Vec<f32>,
     fizz: Vec<f32>,
     clip: Vec<f32>,
-    harsh: Vec<f32>,
     boom: Vec<f32>,
     crest: Vec<f32>,
 }

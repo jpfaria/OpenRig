@@ -54,7 +54,6 @@ pub(crate) fn priority_paths(symptom: Symptom) -> &'static [&'static str] {
         // Cut the low-mids / body.
         Symptom::Mud => &["mids", "mid", "bass", "low", "lows", "body"],
         // Cut the brilliance / ice-pick highs above the presence band.
-        Symptom::Harsh => &["presence", "treble", "highs", "high", "tone", "bright", "air"],
         // Cut the sub / low-end rumble.
         Symptom::Boomy => &["bass", "low", "lows", "body", "sub"],
         // Deficit symptoms need a knob *raised*, not lowered — the auto-fix
@@ -123,9 +122,6 @@ pub(crate) fn rationale(symptom: Symptom, model_name: &str, param_label: &str) -
         }
         Symptom::Mud => {
             format!("Mud traced to {model_name}; lowering '{param_label}' clears the low-mids")
-        }
-        Symptom::Harsh => {
-            format!("Harshness traced to {model_name}; lowering '{param_label}' tames the brilliance band")
         }
         Symptom::Boomy => {
             format!("Boom traced to {model_name}; lowering '{param_label}' tightens the low end")

@@ -42,7 +42,6 @@ fn symptom_keywords(symptom: Symptom) -> &'static [&'static str] {
     match symptom {
         Symptom::Fizz => &["presence", "treble", "tone", "bright", "high", "fuzz", "drive", "gain"],
         Symptom::Mud => &["bass", "low", "body", "middle", "mid"],
-        Symptom::Harsh => &["presence", "treble", "high", "tone", "bright", "air"],
         Symptom::Boomy => &["bass", "low", "body", "sub"],
         // Deficit: the sweep tries BOTH directions, so these just name the knobs
         // that move body / dynamics — thin is cured by more low-mid (raise a

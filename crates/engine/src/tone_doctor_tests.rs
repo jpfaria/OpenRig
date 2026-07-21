@@ -36,7 +36,6 @@ fn metric_marks_deficit_symptoms_only_when_their_floor_is_enabled() {
         clip_fraction: 0.0,
         fizz_ratio: 0.0,
         mud_ratio: 0.2,
-        harsh_ratio: 0.0,
         boom_ratio: 0.0,
     };
     // Disabled by default → no metric to blame/fix.

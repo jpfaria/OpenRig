@@ -2,7 +2,6 @@ alternative-metal:
   mud: 0.6584378
   fizz: 0.091451526
   clip: 0.0
-  harsh: 0.000694301
   boom: 0.02478453
   thin: 0.51361084
   squash: 15.219137
@@ -12,7 +11,6 @@ alternative-rock:
   mud: 0.4816703
   fizz: 0.29591918
   clip: 0.0
-  harsh: 0.00038975067
   boom: 0.07292919
   thin: 0.14397362
   squash: 16.167461
@@ -22,7 +20,6 @@ art-rock:
   mud: 0.5258338
   fizz: 0.036966212
   clip: 0.0
-  harsh: 0.00009875251
   boom: 0.019519787
   thin: 0.365183
   squash: 21.590334
@@ -32,7 +29,6 @@ blues-rock:
   mud: 0.7367217
   fizz: 0.014184529
   clip: 0.0
-  harsh: 0.000015622478
   boom: 0.038946055
   thin: 0.4792564
   squash: 20.308338
@@ -42,7 +38,6 @@ funk-rock:
   mud: 0.18813632
   fizz: 0.19331299
   clip: 0.0
-  harsh: 0.00006367652
   boom: 0.000592858
   thin: 0.18813632
   squash: 21.60456
@@ -52,7 +47,6 @@ grunge:
   mud: 0.5373455
   fizz: 0.47330508
   clip: 0.0
-  harsh: 0.000019169935
   boom: 0.11666717
   thin: 0.26368314
   squash: 15.7379
@@ -62,7 +56,6 @@ hard-rock:
   mud: 0.4685593
   fizz: 0.09450982
   clip: 0.0
-  harsh: 0.00011911274
   boom: 0.016551811
   thin: 0.22691129
   squash: 20.531422
@@ -72,7 +65,6 @@ heavy-metal:
   mud: 0.553513
   fizz: 0.3432836
   clip: 0.0
-  harsh: 0.000017388957
   boom: 0.10027512
   thin: 0.20122488
   squash: 18.5934
@@ -82,7 +74,6 @@ melodic-hardcore:
   mud: 0.48326105
   fizz: 0.24616198
   clip: 0.0
-  harsh: 3.2647182e-7
   boom: 0.06660207
   thin: 0.12418888
   squash: 18.388422
@@ -92,7 +83,6 @@ mpb:
   mud: 0.117869236
   fizz: 0.050525364
   clip: 0.0
-  harsh: 0.0000058382825
   boom: 0.00075697066
   thin: 0.117869236
   squash: 16.993328
@@ -102,7 +92,6 @@ pop-rock:
   mud: 0.57206374
   fizz: 0.030432638
   clip: 0.0
-  harsh: 0.0000013394582
   boom: 0.04247282
   thin: 0.37359113
   squash: 18.592701
@@ -112,7 +101,6 @@ punk-rock:
   mud: 0.45665503
   fizz: 0.15278444
   clip: 0.0
-  harsh: 0.000006018725
   boom: 0.093168646
   thin: 0.1754562
   squash: 15.027637
@@ -122,7 +110,6 @@ rock:
   mud: 0.61549073
   fizz: 0.31442162
   clip: 0.0
-  harsh: 0.0004374958
   boom: 0.08151705
   thin: 0.20819598
   squash: 17.386648
@@ -132,7 +119,6 @@ soft-rock:
   mud: 0.7203641
   fizz: 0.038983658
   clip: 0.0
-  harsh: 0.00022558904
   boom: 0.0059786066
   thin: 0.6112268
   squash: 18.866568
@@ -142,7 +128,6 @@ southern-rock:
   mud: 0.53432024
   fizz: 0.2850824
   clip: 0.0
-  harsh: 0.00009295384
   boom: 0.04699488
   thin: 0.27596742
   squash: 20.025324
