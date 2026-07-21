@@ -580,11 +580,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
                 };
                 chain.id.clone()
             };
-            // #808: DI is independent — play with no chain enabled needs a runtime.
-            if crate::runtime_lifecycle::ensure_runtime(&project_runtime, session).is_err() {
-                return;
-            }
-            crate::di_loop_wiring::play_chain_di_loop(&project_runtime, &session.dispatcher, &chain_id);
+            crate::di_loop_wiring::play_chain_di_loop(
+                &project_runtime,
+                &session.dispatcher,
+                &chain_id,
+            );
         });
     }
 

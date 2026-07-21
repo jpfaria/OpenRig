@@ -137,12 +137,6 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            // #808: DI is independent — playing it with no chain enabled needs a
-            // runtime, which is otherwise only created when a chain is enabled.
-            if let Err(e) = crate::runtime_lifecycle::ensure_runtime(&project_runtime, session) {
-                log::error!("[adapter-gui] compact di-loop play: ensure_runtime: {e}");
-                return;
-            }
             compact_chain_di_loop_play(&project_runtime, &session.dispatcher, &chain_id);
         });
     }
