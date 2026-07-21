@@ -3,21 +3,21 @@
   :root {
     --bg:#faf9f7; --panel:#fff; --line:#e7e4de; --line-soft:#f0ede7;
     --ink:#17171a; --ink-2:#5c584f; --ink-3:#8b867a;
-    --mud:#2a78d6; --fizz:#eb6834; --boom:#1baf7a; --harsh:#eda100; --crest:#e87ba4;
-    --track:#efece6; --bad:#c0392b; --bad-bg:#fbe9e7;
+    --mud:#2a78d6; --fizz:#eb6834; --boom:#1baf7a; --crest:#e87ba4;
+    --track:#efece6; --bad:#c0392b;
     --prov:#b26a00; --prov-bg:#fbf0dd; --trust:#158a60; --trust-bg:#e4f5ee;
     --shadow:0 1px 2px rgba(20,18,14,.05),0 6px 18px rgba(20,18,14,.04);
   }
   @media (prefers-color-scheme:dark){:root{
     --bg:#17171a; --panel:#1f1f22; --line:#34343a; --line-soft:#2a2a2f;
     --ink:#f4f2ec; --ink-2:#b8b4a8; --ink-3:#86827a;
-    --mud:#3987e5; --fizz:#ef7a4c; --boom:#23b884; --harsh:#c98500; --crest:#d55181;
-    --track:#2a2a30; --bad:#ff6b5e; --bad-bg:#3a201c;
+    --mud:#3987e5; --fizz:#ef7a4c; --boom:#23b884; --crest:#d55181;
+    --track:#2a2a30; --bad:#ff6b5e;
     --prov:#e2a445; --prov-bg:#3a2f1c; --trust:#23b884; --trust-bg:#143028;
     --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
   }}
-  :root[data-theme="light"]{--bg:#faf9f7;--panel:#fff;--line:#e7e4de;--line-soft:#f0ede7;--ink:#17171a;--ink-2:#5c584f;--ink-3:#8b867a;--mud:#2a78d6;--fizz:#eb6834;--boom:#1baf7a;--harsh:#eda100;--crest:#e87ba4;--track:#efece6;--bad:#c0392b;--bad-bg:#fbe9e7;--prov:#b26a00;--prov-bg:#fbf0dd;--trust:#158a60;--trust-bg:#e4f5ee;--shadow:0 1px 2px rgba(20,18,14,.05),0 6px 18px rgba(20,18,14,.04);}
-  :root[data-theme="dark"]{--bg:#17171a;--panel:#1f1f22;--line:#34343a;--line-soft:#2a2a2f;--ink:#f4f2ec;--ink-2:#b8b4a8;--ink-3:#86827a;--mud:#3987e5;--fizz:#ef7a4c;--boom:#23b884;--harsh:#c98500;--crest:#d55181;--track:#2a2a30;--bad:#ff6b5e;--bad-bg:#3a201c;--prov:#e2a445;--prov-bg:#3a2f1c;--trust:#23b884;--trust-bg:#143028;--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}
+  :root[data-theme="light"]{--bg:#faf9f7;--panel:#fff;--line:#e7e4de;--line-soft:#f0ede7;--ink:#17171a;--ink-2:#5c584f;--ink-3:#8b867a;--mud:#2a78d6;--fizz:#eb6834;--boom:#1baf7a;--crest:#e87ba4;--track:#efece6;--bad:#c0392b;--prov:#b26a00;--prov-bg:#fbf0dd;--trust:#158a60;--trust-bg:#e4f5ee;--shadow:0 1px 2px rgba(20,18,14,.05),0 6px 18px rgba(20,18,14,.04);}
+  :root[data-theme="dark"]{--bg:#17171a;--panel:#1f1f22;--line:#34343a;--line-soft:#2a2a2f;--ink:#f4f2ec;--ink-2:#b8b4a8;--ink-3:#86827a;--mud:#3987e5;--fizz:#ef7a4c;--boom:#23b884;--crest:#d55181;--track:#2a2a30;--bad:#ff6b5e;--prov:#e2a445;--prov-bg:#3a2f1c;--trust:#23b884;--trust-bg:#143028;--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;}
   .wrap{max-width:1240px;margin:0 auto;padding:40px 24px 72px;}
@@ -79,14 +79,13 @@
   <header>
     <h1>Tone Doctor — every song we measured</h1>
     <p class="lede">The raw material behind the p90 genre limits: each reference stem (isolated guitar, lead &amp; rhythm) measured by OpenRig's own analyzer. Every number the Tone Doctor reads is here.</p>
-    <p class="insight"><strong>What each song trips:</strong> a value in <span style="color:var(--bad);font-weight:700">red</span> crosses its genre's limit — an excess above (mud / fizz / harsh / boom) or a deficit below the floor (mud &lt; thin floor → <em>Thin</em>; crest &lt; squash floor → <em>Squash</em>). The tags on each row are exactly the symptoms that stem would raise for its style. Bars: mud / fizz / harsh / boom on a shared 0–0.8 scale; crest on its own 0–30 dB scale. Clip is 0 across the corpus.</p>
+    <p class="insight"><strong>What each song trips:</strong> a value in <span style="color:var(--bad);font-weight:700">red</span> crosses its genre's limit — an excess above (mud / fizz / boom) or a deficit below the floor (mud &lt; thin floor → <em>Thin</em>; crest &lt; squash floor → <em>Squash</em>). The tags on each row are exactly the symptoms that stem would raise for its style. Bars: mud / fizz / boom on a shared 0–0.8 scale; crest on its own 0–30 dB scale. Clip is 0 across the corpus.</p>
   </header>
 
   <div class="toolbar">
     <div class="legend">
       <span class="lg"><span class="sw" style="background:var(--mud)"></span> mud <span class="u">low-mid/total</span></span>
       <span class="lg"><span class="sw" style="background:var(--fizz)"></span> fizz <span class="u">presence/body</span></span>
-      <span class="lg"><span class="sw" style="background:var(--harsh)"></span> harsh <span class="u">brilliance/body</span></span>
       <span class="lg"><span class="sw" style="background:var(--boom)"></span> boom <span class="u">low-end/total</span></span>
       <span class="lg"><span class="sw" style="background:var(--crest)"></span> crest <span class="u">dB, dynamics</span></span>
     </div>
@@ -105,21 +104,20 @@
 <div class="tip" id="tip" role="tooltip"></div>
 
 <script>
-// [song, genre, stem, mud, fizz, harsh, boom, crest_db]
-const DATA=[["another-brick-in-the-wall-pt-2","art-rock","lead",0.345,0.028,0.0000,0.017,22.9],["another-brick-in-the-wall-pt-2","art-rock","rhythm",0.546,0.038,0.0001,0.020,21.4],["barao-vermelho-beth-balanco","funk-rock","rhythm",0.188,0.193,0.0001,0.001,21.6],["basket-case-green-day","punk-rock","rhythm",0.365,0.153,0.0000,0.053,15.4],["beat-it-michael-jackson","hard-rock","lead",0.197,0.099,0.0001,0.017,21.7],["beat-it-michael-jackson","hard-rock","rhythm",0.499,0.056,0.0000,0.013,20.4],["charlie-brown-jr-lugar-ao-sol","alternative-rock","lead",0.211,0.063,0.0000,0.002,23.6],["charlie-brown-jr-lugar-ao-sol","alternative-rock","rhythm",0.421,0.073,0.0013,0.110,16.3],["chris-isaak-wicked-game","soft-rock","lead",0.598,0.041,0.0000,0.000,22.5],["chris-isaak-wicked-game","soft-rock","rhythm",0.734,0.019,0.0003,0.007,18.5],["coldplay-clocks","alternative-rock","lead",0.350,0.005,0.0000,0.000,18.8],["coldplay-clocks","alternative-rock","rhythm",0.623,0.001,0.0000,0.028,18.6],["cpm-22-um-minuto-para-o-fim-do-mundo","melodic-hardcore","lead",0.079,0.259,0.0000,0.003,21.1],["cpm-22-um-minuto-para-o-fim-do-mundo","melodic-hardcore","rhythm",0.528,0.128,0.0000,0.074,18.1],["foo-fighters-everlong","alternative-rock","lead",0.160,0.045,0.0000,0.000,26.7],["foo-fighters-everlong","alternative-rock","rhythm",0.273,0.134,0.0000,0.054,15.8],["gravity-john-mayer","blues-rock","lead",0.487,0.009,0.0000,0.000,25.8],["gravity-john-mayer","blues-rock","rhythm",0.737,0.001,0.0000,0.033,23.7],["green-day-basket-case","punk-rock","rhythm",0.365,0.153,0.0000,0.053,15.4],["green-day-when-i-come-around","punk-rock","lead",0.094,0.046,0.0000,0.002,24.8],["green-day-when-i-come-around","punk-rock","rhythm",0.496,0.102,0.0000,0.110,14.8],["john-mayer-gravity","blues-rock","lead",0.487,0.009,0.0000,0.000,25.8],["john-mayer-gravity","blues-rock","rhythm",0.737,0.001,0.0000,0.033,23.7],["john-mayer-heartbreak-warfare","pop-rock","lead",0.363,0.017,0.0000,0.000,23.3],["john-mayer-heartbreak-warfare","pop-rock","rhythm",0.611,0.009,0.0000,0.052,18.3],["john-mayer-slow-dancing-in-a-burning-room","blues-rock","lead",0.471,0.016,0.0000,0.000,20.6],["john-mayer-slow-dancing-in-a-burning-room","blues-rock","rhythm",0.678,0.012,0.0000,0.045,20.0],["lynyrd-skynyrd-simple-man","southern-rock","lead",0.244,0.313,0.0001,0.032,23.8],["lynyrd-skynyrd-simple-man","southern-rock","rhythm",0.567,0.038,0.0000,0.049,19.6],["metallica-enter-sandman","heavy-metal","lead",0.157,0.349,0.0000,0.006,21.4],["metallica-enter-sandman","heavy-metal","rhythm",0.598,0.294,0.0000,0.111,18.3],["nirvana-smells-like-teen-spirit","grunge","lead",0.294,0.194,0.0000,0.000,26.1],["nirvana-smells-like-teen-spirit","grunge","rhythm",0.218,0.663,0.0000,0.015,17.9],["pitty-na-sua-estante","alternative-metal","lead",0.677,0.018,0.0000,0.000,23.8],["pitty-na-sua-estante","alternative-metal","rhythm",0.496,0.100,0.0008,0.028,14.3],["radiohead-creep","alternative-rock","lead",0.107,0.383,0.0000,0.006,24.5],["radiohead-creep","alternative-rock","rhythm",0.276,0.259,0.0000,0.057,23.9],["segredos-torcuato-mariano","mpb","lead",0.118,0.051,0.0000,0.001,17.0],["silverchair-freak","grunge","lead",0.562,0.065,0.0000,0.027,23.4],["silverchair-freak","grunge","rhythm",0.521,0.071,0.0000,0.153,15.8],["silverchair-israels-son","grunge","rhythm",0.343,0.206,0.0000,0.092,15.6],["silverchair-pure-massacre","grunge","lead",0.445,0.347,0.0000,0.001,21.4],["silverchair-pure-massacre","grunge","rhythm",0.334,0.271,0.0000,0.065,16.0],["silverchair-shade","rock","lead",0.710,0.001,0.0000,0.001,24.8],["silverchair-shade","rock","rhythm",0.394,0.037,0.0006,0.116,17.7],["where-the-streets-have-no-name-u2","rock","lead",0.347,0.123,0.0000,0.000,24.1],["where-the-streets-have-no-name-u2","rock","rhythm",0.149,0.396,0.0000,0.001,17.3],["your-love-the-outfield","pop-rock","rhythm",0.416,0.034,0.0000,0.006,19.9]];
-const GEN={"alternative-metal":{mud:0.658,fizz:0.091,harsh:0.00069,boom:0.025,thin:0.514,squash:15.2,n:2,c:"provisional"},"alternative-rock":{mud:0.482,fizz:0.296,harsh:0.00039,boom:0.073,thin:0.144,squash:16.2,n:8,c:"trusted"},"art-rock":{mud:0.526,fizz:0.037,harsh:0.00010,boom:0.020,thin:0.365,squash:21.6,n:2,c:"provisional"},"blues-rock":{mud:0.737,fizz:0.014,harsh:0.00002,boom:0.039,thin:0.479,squash:20.3,n:6,c:"trusted"},"funk-rock":{mud:0.188,fizz:0.193,harsh:0.00006,boom:0.001,thin:0.188,squash:21.6,n:1,c:"provisional"},"grunge":{mud:0.537,fizz:0.473,harsh:0.00002,boom:0.117,thin:0.264,squash:15.7,n:7,c:"trusted"},"hard-rock":{mud:0.469,fizz:0.095,harsh:0.00012,boom:0.017,thin:0.227,squash:20.5,n:2,c:"provisional"},"heavy-metal":{mud:0.554,fizz:0.343,harsh:0.00002,boom:0.100,thin:0.201,squash:18.6,n:2,c:"provisional"},"melodic-hardcore":{mud:0.483,fizz:0.246,harsh:0.00000,boom:0.067,thin:0.124,squash:18.4,n:2,c:"provisional"},"mpb":{mud:0.118,fizz:0.051,harsh:0.00001,boom:0.001,thin:0.118,squash:17.0,n:1,c:"provisional"},"pop-rock":{mud:0.572,fizz:0.030,harsh:0.00000,boom:0.042,thin:0.374,squash:18.6,n:3,c:"provisional"},"punk-rock":{mud:0.457,fizz:0.153,harsh:0.00001,boom:0.093,thin:0.175,squash:15.0,n:4,c:"provisional"},"rock":{mud:0.615,fizz:0.314,harsh:0.00044,boom:0.082,thin:0.208,squash:17.4,n:4,c:"provisional"},"soft-rock":{mud:0.720,fizz:0.039,harsh:0.00023,boom:0.006,thin:0.611,squash:18.9,n:2,c:"provisional"},"southern-rock":{mud:0.534,fizz:0.285,harsh:0.00009,boom:0.047,thin:0.276,squash:20.0,n:2,c:"provisional"}};
+// [song, genre, stem, mud, fizz, boom, crest_db]
+const DATA=[["another-brick-in-the-wall-pt-2","art-rock","lead",0.345,0.028,0.017,22.9],["another-brick-in-the-wall-pt-2","art-rock","rhythm",0.546,0.038,0.020,21.4],["barao-vermelho-beth-balanco","funk-rock","rhythm",0.188,0.193,0.001,21.6],["basket-case-green-day","punk-rock","rhythm",0.365,0.153,0.053,15.4],["beat-it-michael-jackson","hard-rock","lead",0.197,0.099,0.017,21.7],["beat-it-michael-jackson","hard-rock","rhythm",0.499,0.056,0.013,20.4],["charlie-brown-jr-lugar-ao-sol","alternative-rock","lead",0.211,0.063,0.002,23.6],["charlie-brown-jr-lugar-ao-sol","alternative-rock","rhythm",0.421,0.073,0.110,16.3],["chris-isaak-wicked-game","soft-rock","lead",0.598,0.041,0.000,22.5],["chris-isaak-wicked-game","soft-rock","rhythm",0.734,0.019,0.007,18.5],["coldplay-clocks","alternative-rock","lead",0.350,0.005,0.000,18.8],["coldplay-clocks","alternative-rock","rhythm",0.623,0.001,0.028,18.6],["cpm-22-um-minuto-para-o-fim-do-mundo","melodic-hardcore","lead",0.079,0.259,0.003,21.1],["cpm-22-um-minuto-para-o-fim-do-mundo","melodic-hardcore","rhythm",0.528,0.128,0.074,18.1],["foo-fighters-everlong","alternative-rock","lead",0.160,0.045,0.000,26.7],["foo-fighters-everlong","alternative-rock","rhythm",0.273,0.134,0.054,15.8],["gravity-john-mayer","blues-rock","lead",0.487,0.009,0.000,25.8],["gravity-john-mayer","blues-rock","rhythm",0.737,0.001,0.033,23.7],["green-day-basket-case","punk-rock","rhythm",0.365,0.153,0.053,15.4],["green-day-when-i-come-around","punk-rock","lead",0.094,0.046,0.002,24.8],["green-day-when-i-come-around","punk-rock","rhythm",0.496,0.102,0.110,14.8],["john-mayer-gravity","blues-rock","lead",0.487,0.009,0.000,25.8],["john-mayer-gravity","blues-rock","rhythm",0.737,0.001,0.033,23.7],["john-mayer-heartbreak-warfare","pop-rock","lead",0.363,0.017,0.000,23.3],["john-mayer-heartbreak-warfare","pop-rock","rhythm",0.611,0.009,0.052,18.3],["john-mayer-slow-dancing-in-a-burning-room","blues-rock","lead",0.471,0.016,0.000,20.6],["john-mayer-slow-dancing-in-a-burning-room","blues-rock","rhythm",0.678,0.012,0.045,20.0],["lynyrd-skynyrd-simple-man","southern-rock","lead",0.244,0.313,0.032,23.8],["lynyrd-skynyrd-simple-man","southern-rock","rhythm",0.567,0.038,0.049,19.6],["metallica-enter-sandman","heavy-metal","lead",0.157,0.349,0.006,21.4],["metallica-enter-sandman","heavy-metal","rhythm",0.598,0.294,0.111,18.3],["nirvana-smells-like-teen-spirit","grunge","lead",0.294,0.194,0.000,26.1],["nirvana-smells-like-teen-spirit","grunge","rhythm",0.218,0.663,0.015,17.9],["pitty-na-sua-estante","alternative-metal","lead",0.677,0.018,0.000,23.8],["pitty-na-sua-estante","alternative-metal","rhythm",0.496,0.100,0.028,14.3],["radiohead-creep","alternative-rock","lead",0.107,0.383,0.006,24.5],["radiohead-creep","alternative-rock","rhythm",0.276,0.259,0.057,23.9],["segredos-torcuato-mariano","mpb","lead",0.118,0.051,0.001,17.0],["silverchair-freak","grunge","lead",0.562,0.065,0.027,23.4],["silverchair-freak","grunge","rhythm",0.521,0.071,0.153,15.8],["silverchair-israels-son","grunge","rhythm",0.343,0.206,0.092,15.6],["silverchair-pure-massacre","grunge","lead",0.445,0.347,0.001,21.4],["silverchair-pure-massacre","grunge","rhythm",0.334,0.271,0.065,16.0],["silverchair-shade","rock","lead",0.710,0.001,0.001,24.8],["silverchair-shade","rock","rhythm",0.394,0.037,0.116,17.7],["where-the-streets-have-no-name-u2","rock","lead",0.347,0.123,0.000,24.1],["where-the-streets-have-no-name-u2","rock","rhythm",0.149,0.396,0.001,17.3],["your-love-the-outfield","pop-rock","rhythm",0.416,0.034,0.006,19.9]];
+const GEN={"alternative-metal":{mud:0.658,fizz:0.091,boom:0.025,thin:0.514,squash:15.2,n:2,c:"provisional"},"alternative-rock":{mud:0.482,fizz:0.296,boom:0.073,thin:0.144,squash:16.2,n:8,c:"trusted"},"art-rock":{mud:0.526,fizz:0.037,boom:0.020,thin:0.365,squash:21.6,n:2,c:"provisional"},"blues-rock":{mud:0.737,fizz:0.014,boom:0.039,thin:0.479,squash:20.3,n:6,c:"trusted"},"funk-rock":{mud:0.188,fizz:0.193,boom:0.001,thin:0.188,squash:21.6,n:1,c:"provisional"},"grunge":{mud:0.537,fizz:0.473,boom:0.117,thin:0.264,squash:15.7,n:7,c:"trusted"},"hard-rock":{mud:0.469,fizz:0.095,boom:0.017,thin:0.227,squash:20.5,n:2,c:"provisional"},"heavy-metal":{mud:0.554,fizz:0.343,boom:0.100,thin:0.201,squash:18.6,n:2,c:"provisional"},"melodic-hardcore":{mud:0.483,fizz:0.246,boom:0.067,thin:0.124,squash:18.4,n:2,c:"provisional"},"mpb":{mud:0.118,fizz:0.051,boom:0.001,thin:0.118,squash:17.0,n:1,c:"provisional"},"pop-rock":{mud:0.572,fizz:0.030,boom:0.042,thin:0.374,squash:18.6,n:3,c:"provisional"},"punk-rock":{mud:0.457,fizz:0.153,boom:0.093,thin:0.175,squash:15.0,n:4,c:"provisional"},"rock":{mud:0.615,fizz:0.314,boom:0.082,thin:0.208,squash:17.4,n:4,c:"provisional"},"soft-rock":{mud:0.720,fizz:0.039,boom:0.006,thin:0.611,squash:18.9,n:2,c:"provisional"},"southern-rock":{mud:0.534,fizz:0.285,boom:0.047,thin:0.276,squash:20.0,n:2,c:"provisional"}};
 
 const RAT=0.8, CREST=30;
-const COL={mud:"var(--mud)",fizz:"var(--fizz)",harsh:"var(--harsh)",boom:"var(--boom)",crest:"var(--crest)"};
-const TAGC={Mud:"var(--mud)",Fizz:"var(--fizz)",Harsh:"var(--harsh)",Boom:"var(--boom)",Thin:"var(--crest)",Squash:"var(--crest)"};
+const COL={mud:"var(--mud)",fizz:"var(--fizz)",boom:"var(--boom)",crest:"var(--crest)"};
+const TAGC={Mud:"var(--mud)",Fizz:"var(--fizz)",Boom:"var(--boom)",Thin:"var(--crest)",Squash:"var(--crest)"};
 const order=Object.keys(GEN).sort((a,b)=>{const ta=GEN[a].c==="trusted",tb=GEN[b].c==="trusted";if(ta!==tb)return ta?-1:1;return GEN[b].n-GEN[a].n;});
 const pretty=s=>s.replace(/-/g," ").replace(/\b\w/g,c=>c.toUpperCase());
 
 // Which symptoms a stem trips vs its genre limits (mirrors the Rust classifier).
 function trips(r){
-  const [,g,,mud,fizz,harsh,boom,crest]=r, L=GEN[g], t=[];
-  if(mud>L.mud) t.push("Mud"); if(fizz>L.fizz) t.push("Fizz");
-  if(harsh>L.harsh) t.push("Harsh"); if(boom>L.boom) t.push("Boom");
+  const [,g,,mud,fizz,boom,crest]=r, L=GEN[g], t=[];
+  if(mud>L.mud) t.push("Mud"); if(fizz>L.fizz) t.push("Fizz"); if(boom>L.boom) t.push("Boom");
   if(mud<L.thin) t.push("Thin"); if(crest<L.squash) t.push("Squash");
   return t;
 }
@@ -134,15 +132,14 @@ for(const g of order){
     +`<div class="rows"></div>`;
   const rc=p.querySelector(".rows");
   for(const r of rows){
-    const [song,,stem,mud,fizz,harsh,boom,crest]=r, L=GEN[g], t=trips(r);
+    const [song,,stem,mud,fizz,boom,crest]=r, L=GEN[g], t=trips(r);
     const tags=t.length?t.map(x=>`<span class="tag" style="background:${TAGC[x]}">${x}</span>`).join("")
                        :`<span class="healthy">✓ healthy for ${g}</span>`;
     const row=document.createElement("div"); row.className="row";
     row.innerHTML=`<div class="rl"><span class="song">${pretty(song)}</span><span class="stem">${stem}</span></div>`
       +`<div class="tags">${tags}</div><div class="bars">`
       +barR("mud",mud,mud>L.mud||mud<L.thin)+barR("fizz",fizz,fizz>L.fizz)
-      +barR("harsh",harsh,harsh>L.harsh)+barR("boom",boom,boom>L.boom)
-      +barC("crest",crest,crest<L.squash)+`</div>`;
+      +barR("boom",boom,boom>L.boom)+barC("crest",crest,crest<L.squash)+`</div>`;
     row.addEventListener("pointermove",e=>tip(e,r,t));
     row.addEventListener("pointerleave",()=>TIP.classList.remove("on"));
     rc.appendChild(row);
@@ -158,9 +155,9 @@ function bar(n,v,w,lab,trip){
 }
 const TIP=document.getElementById("tip");
 function tip(e,r,t){
-  const [song,g,stem,mud,fizz,harsh,boom,crest]=r;
+  const [song,g,stem,mud,fizz,boom,crest]=r;
   TIP.innerHTML=`<div class="th">${pretty(song)} · ${stem} · ${g}</div>`
-    +row2("mud",mud)+row2("fizz",fizz)+row2("harsh",harsh.toFixed(4))+row2("boom",boom)
+    +row2("mud",mud)+row2("fizz",fizz)+row2("boom",boom)
     +row2("crest",crest+" dB")+`<div class="tr"><span class="tk">trips</span><span>${t.join(", ")||"none"}</span></div>`;
   TIP.classList.add("on");
   const pad=14,w=TIP.offsetWidth,h=TIP.offsetHeight;
@@ -171,11 +168,11 @@ function tip(e,r,t){
 const row2=(k,v)=>`<div class="tr"><span class="tk">${k}</span><span class="mono">${v}</span></div>`;
 
 const tv=document.getElementById("tableView");
-tv.innerHTML=`<table class="tv"><thead><tr><th>Song</th><th>Genre</th><th>Stem</th><th>mud</th><th>fizz</th><th>harsh</th><th>boom</th><th>crest</th><th>trips</th></tr></thead><tbody>`
- +DATA.map(r=>{const [song,g,stem,mud,fizz,harsh,boom,crest]=r,L=GEN[g],t=trips(r);
+tv.innerHTML=`<table class="tv"><thead><tr><th>Song</th><th>Genre</th><th>Stem</th><th>mud</th><th>fizz</th><th>boom</th><th>crest</th><th>trips</th></tr></thead><tbody>`
+ +DATA.map(r=>{const [song,g,stem,mud,fizz,boom,crest]=r,L=GEN[g],t=trips(r);
    const c=(v,bad)=>`<td class="mono${bad?" trip":""}">${v}</td>`;
    return `<tr><td>${pretty(song)}</td><td>${g}</td><td>${stem}</td>`
-     +c(mud.toFixed(3),mud>L.mud||mud<L.thin)+c(fizz.toFixed(3),fizz>L.fizz)+c(harsh.toFixed(4),harsh>L.harsh)
+     +c(mud.toFixed(3),mud>L.mud||mud<L.thin)+c(fizz.toFixed(3),fizz>L.fizz)
      +c(boom.toFixed(3),boom>L.boom)+c(crest.toFixed(1),crest<L.squash)+`<td>${t.join(", ")}</td></tr>`;
  }).join("")+`</tbody></table>`;
 

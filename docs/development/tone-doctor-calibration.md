@@ -13,16 +13,17 @@ spectrum (or the raw samples, for clip):
 |---|---|---|---|
 | `mud` | low-mid (160–500 Hz) / total | excess | boxy / muddy |
 | `fizz` | presence (3–8 kHz) / body | excess | buzzy / fizzy |
-| `harsh` | brilliance (8–16 kHz) / body | excess | ice-pick highs |
 | `boom` | low-end (40–120 Hz) / total | excess | rumble / boom |
 | `clip` | fraction of rail-pinned samples | excess | clipping |
 | `thin` | low-mid (160–500 Hz) / total | **deficit** | weedy, no body |
 | `squash` | crest factor (peak − RMS, dB) | **deficit** | over-compressed |
 
-Five **excess** metrics (value above the limit = bad) and two **deficit**
+Four **excess** metrics (value above the limit = bad) and two **deficit**
 metrics (value below a floor = bad). `thin` and `squash` are the low tails of
 `mud_ratio` and `crest_db` — a signal is `Mud` at the high end of the low-mid
 band and `Thin` at the low end; dynamic at high crest and `Squash` at low crest.
+(A `harsh` 8–16 kHz axis was tried and dropped: a guitar cab rolls off above
+~5-6 kHz, so that band read ~0 for the whole corpus — brightness lives in `fizz`.)
 
 Deficit floors are inherently **genre-relative** — "enough body" or "enough
 dynamics" has no absolute value, only a stylistic one — so they default to
@@ -78,7 +79,6 @@ grunge:
   mud: 0.537
   fizz: 0.473        # buzzy by nature — a fixed 0.05 limit would false-flag it
   clip: 0.0
-  harsh: 0.00002
   boom: 0.117
   n: 7
   confidence: trusted
@@ -86,7 +86,6 @@ metal:
   mud: 0.554
   fizz: 0.343
   clip: 0.0
-  harsh: 0.00002
   boom: 0.100
   n: 2
   confidence: provisional   # too few stems — treat as a best guess
@@ -133,9 +132,6 @@ musical intent.
 
 - **Small N.** Genres with 1–2 songs come out `provisional` — the number exists
   but is not trustworthy until the corpus grows. The flag keeps that in the open.
-- **`harsh` ≈ 0 everywhere.** The reference stems carry little 8–16 kHz content
-  (dark / band-limited masters), so the brilliance limit lands near zero. It will
-  fill out with brighter stems.
 - **Sourced genre, fine granularity.** Each label is grounded in a reference for
   that recording (not guessed), which yields 15 genres — several with 1–2 stems.
   Finer than the corpus can support; grouping into families (e.g. the several
