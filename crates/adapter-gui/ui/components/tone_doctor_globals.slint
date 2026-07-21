@@ -2,6 +2,8 @@
 // row seeds these and flips `open`; a single root overlay renders
 // ToneDoctorPanel (so it is never clipped by the chain list). One panel open at
 // a time, mirroring the DI loop's `DiPanel`.
+import { SelectOption } from "../models.slint";
+
 export global ToneDoctorState {
     in-out property <bool> open;
     // window-absolute position, from the triggering icon's `absolute-position`.
@@ -34,12 +36,23 @@ export global ToneDoctorState {
     // Where the signal comes from, for the panel hint: "di" | "live" | "".
     in-out property <string> source-kind;
 
+    // ── #809: the player's genre, so the doctor judges the tone by that style's
+    // calibrated limits instead of the global defaults. Empty ⇒ defaults.
+    // `tone-genre` is the current choice; `genre-options` is the selector's
+    // catalogue (a "" Default row + the calibrated genres), published by Rust
+    // and re-published filtered on each `genre-query` keystroke.
+    in-out property <string> tone-genre;
+    in property <[SelectOption]> genre-options;
+    callback genre-query(string);
+
     // ── the three measurements + their healthy limits, for the meters ──────
     // The user sees the data behind the verdict instead of a bare word.
     in-out property <float> fizz-value;
     in-out property <float> fizz-limit;
     in-out property <float> mud-value;
     in-out property <float> mud-limit;
+    in-out property <float> boom-value;
+    in-out property <float> boom-limit;
     in-out property <float> clip-value;
     in-out property <float> clip-limit;
 }

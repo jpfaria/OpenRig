@@ -49,6 +49,8 @@ fn apply_view(st: &ToneDoctorState, view: &ToneDoctorView) {
     st.set_fizz_limit(view.fizz_limit);
     st.set_mud_value(view.mud_value);
     st.set_mud_limit(view.mud_limit);
+    st.set_boom_value(view.boom_value);
+    st.set_boom_limit(view.boom_limit);
     st.set_clip_value(view.clip_value);
     st.set_clip_limit(view.clip_limit);
 }
@@ -78,8 +80,14 @@ fn record(ring: Arc<SpscRing<f32>>, sr: f32, seconds: usize) -> Vec<[f32; 2]> {
 
 /// Run the diagnosis on a background thread. `produce` yields the input frames +
 /// sample rate (DI decode or live capture — both blocking, hence off-thread).
-fn spawn<F, D>(chain: project::chain::Chain, cache: SuggestionCache, seconds: usize, produce: F, on_done: D)
-where
+fn spawn<F, D>(
+    chain: project::chain::Chain,
+    limits: feature_dsp::tone_descriptors::SymptomLimits,
+    cache: SuggestionCache,
+    seconds: usize,
+    produce: F,
+    on_done: D,
+) where
     F: FnOnce() -> Option<(Vec<[f32; 2]>, f32)> + Send + 'static,
     D: FnOnce(ToneDoctorView) + Send + 'static,
 {
@@ -91,7 +99,7 @@ where
                     input.truncate(cap);
                 }
                 let (view, suggestion) =
-                    crate::tone_doctor_wiring::diagnose_to_view(&chain, &input, sr, DIAGNOSE_BLOCK);
+                    crate::tone_doctor_wiring::diagnose_to_view(&chain, &input, sr, DIAGNOSE_BLOCK, limits);
                 if let Ok(mut c) = cache.lock() {
                     *c = suggestion;
                 }
@@ -101,6 +109,37 @@ where
         };
         let _ = slint::invoke_from_event_loop(move || on_done(view));
     });
+}
+
+/// Genres from the calibrated table matching `query` (case-insensitive
+/// substring; empty/blank = all), in table order. Public for testing.
+pub fn filter_genres<'a>(genres: &'a [&'a str], query: &str) -> Vec<&'a str> {
+    let q = query.trim().to_lowercase();
+    genres
+        .iter()
+        .copied()
+        .filter(|g| q.is_empty() || g.to_lowercase().contains(&q))
+        .collect()
+}
+
+/// The selector rows for the panel: a leading "" row (label `—`, the "no genre,
+/// global defaults" choice) plus the calibrated genres matching `query`.
+fn genre_options(query: &str) -> slint::ModelRc<crate::SelectOption> {
+    let table = engine::tone_profile_table::ProfileTable::embedded();
+    let genres = table.genres();
+    let mut rows = vec![crate::SelectOption {
+        key: slint::SharedString::new(),
+        label: slint::SharedString::from("—"),
+    }];
+    rows.extend(
+        filter_genres(&genres, query)
+            .into_iter()
+            .map(|g| crate::SelectOption {
+                key: g.into(),
+                label: g.into(),
+            }),
+    );
+    slint::ModelRc::new(slint::VecModel::from(rows))
 }
 
 /// Resolve the culprit's chain by index.
@@ -131,11 +170,17 @@ fn start_run(
         return;
     };
 
+    // The player's selected genre (empty ⇒ none) picks the calibrated limits;
+    // unknown/none falls back to the global defaults inside the table.
+    let genre = st.get_tone_genre();
+    let genre = (!genre.is_empty()).then(|| genre.to_string());
+    let limits = engine::tone_profile_table::ProfileTable::embedded().limits_for(genre.as_deref());
+
     // 1) a DI selected for the chain → render that file.
     if let Some(source) = session.dispatcher.di_loop_source_for_chain(&chain_id) {
         st.set_can_diagnose(true);
         st.set_source_kind("di".into());
-        spawn(chain, cache, seconds, move || {
+        spawn(chain, limits, cache, seconds, move || {
             load_di_loop(&source)
                 .ok()
                 .map(|di| (di.stereo_frames(), di.src_sr() as f32))
@@ -152,7 +197,7 @@ fn start_run(
     if let Some((ring, sr)) = tap {
         st.set_can_diagnose(true);
         st.set_source_kind("live".into());
-        spawn(chain, cache, seconds, move || Some((record(ring, sr, seconds), sr)), on_done);
+        spawn(chain, limits, cache, seconds, move || Some((record(ring, sr, seconds), sr)), on_done);
         return;
     }
 
@@ -228,6 +273,17 @@ pub(crate) fn wire(
 ) {
     let cache: SuggestionCache = Arc::new(Mutex::new(None));
     {
+        let st = compact_win.global::<ToneDoctorState>();
+        st.set_genre_options(genre_options(""));
+        let weak = compact_win.as_weak();
+        st.on_genre_query(move |q| {
+            if let Some(w) = weak.upgrade() {
+                w.global::<ToneDoctorState>()
+                    .set_genre_options(genre_options(q.as_str()));
+            }
+        });
+    }
+    {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();
         let cache = cache.clone();
@@ -280,6 +336,17 @@ pub(crate) fn wire_main(
     let cache: SuggestionCache = Arc::new(Mutex::new(None));
     let main_weak = window.as_weak();
     {
+        let st = window.global::<ToneDoctorState>();
+        st.set_genre_options(genre_options(""));
+        let weak = window.as_weak();
+        st.on_genre_query(move |q| {
+            if let Some(w) = weak.upgrade() {
+                w.global::<ToneDoctorState>()
+                    .set_genre_options(genre_options(q.as_str()));
+            }
+        });
+    }
+    {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();
         let cache = cache.clone();
@@ -319,5 +386,27 @@ pub(crate) fn wire_main(
                 &toast_timer,
             );
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::filter_genres;
+
+    #[test]
+    fn filter_is_case_insensitive_substring_and_keeps_order() {
+        let genres = ["alternative-rock", "blues-rock", "grunge", "heavy-metal"];
+        assert_eq!(
+            filter_genres(&genres, "rock"),
+            vec!["alternative-rock", "blues-rock"]
+        );
+        assert_eq!(filter_genres(&genres, "METAL"), vec!["heavy-metal"]);
+    }
+
+    #[test]
+    fn blank_query_returns_all() {
+        let genres = ["grunge", "blues-rock"];
+        assert_eq!(filter_genres(&genres, "  "), vec!["grunge", "blues-rock"]);
+        assert!(filter_genres(&genres, "zzz").is_empty());
     }
 }

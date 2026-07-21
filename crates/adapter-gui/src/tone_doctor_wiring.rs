@@ -9,12 +9,10 @@
 
 use application::command::Command;
 use domain::ids::ChainId;
-use engine::tone_doctor::diagnose;
-use engine::tone_doctor_fix::measure_fix;
+use engine::tone_doctor::diagnose_with_limits;
+use engine::tone_doctor_fix::measure_fix_with_limits;
 use engine::tone_doctor_suggestion::Suggestion;
-use feature_dsp::tone_descriptors::{
-    Symptom, CLIP_FRACTION_LIMIT, FIZZ_RATIO_LIMIT, MUD_RATIO_LIMIT,
-};
+use feature_dsp::tone_descriptors::{Symptom, SymptomLimits};
 use project::chain::Chain;
 
 /// The panel's result fields, mirroring `ToneDoctorState` in Slint. Carries the
@@ -34,6 +32,8 @@ pub struct ToneDoctorView {
     pub fizz_limit: f32,
     pub mud_value: f32,
     pub mud_limit: f32,
+    pub boom_value: f32,
+    pub boom_limit: f32,
     pub clip_value: f32,
     pub clip_limit: f32,
 }
@@ -46,24 +46,18 @@ pub fn diagnose_to_view(
     input: &[[f32; 2]],
     sample_rate: f32,
     block_size: usize,
+    limits: SymptomLimits,
 ) -> (ToneDoctorView, Option<Suggestion>) {
-    let diagnosis = match diagnose(chain, sample_rate, input, block_size) {
+    let diagnosis = match diagnose_with_limits(chain, sample_rate, input, block_size, &limits) {
         Ok(d) => d,
         Err(_) => return (ToneDoctorView::default(), None),
     };
     // Measured, not guessed: prove the fix actually clears the symptom.
-    let suggestion = measure_fix(chain, sample_rate, input, block_size, &diagnosis)
+    let suggestion = measure_fix_with_limits(chain, sample_rate, input, block_size, &diagnosis, &limits)
         .ok()
         .flatten();
 
-    // A readable "effect:model" label (e.g. "gain:fuzz_si"), not the internal
-    // model_identity ("core:gain/fuzz_si").
-    let culprit_label = diagnosis
-        .culprit
-        .and_then(|i| chain.blocks.get(i))
-        .and_then(|b| b.model_ref())
-        .map(|m| format!("{}:{}", m.effect_type, m.model))
-        .unwrap_or_default();
+    let culprit_label = culprit_label(chain, diagnosis.culprit);
 
     let suggestion_text = suggestion
         .as_ref()
@@ -94,20 +88,33 @@ pub fn diagnose_to_view(
         has_suggestion: suggestion.is_some(),
         suggestion_text,
         fizz_value: d.fizz_ratio,
-        fizz_limit: FIZZ_RATIO_LIMIT,
+        fizz_limit: limits.fizz,
         mud_value: d.mud_ratio,
-        mud_limit: MUD_RATIO_LIMIT,
+        mud_limit: limits.mud,
+        boom_value: d.boom_ratio,
+        boom_limit: limits.boom,
         clip_value: d.clip_fraction,
-        clip_limit: CLIP_FRACTION_LIMIT,
+        clip_limit: limits.clip,
     };
     (view, suggestion)
+}
+
+/// The culprit block's human-readable name for the panel (e.g. "Ibanez TS808",
+/// not the internal `gain:nam_ibanez_ts808_a2` identity). Empty when the chain
+/// is healthy or the culprit exposes no model.
+pub(crate) fn culprit_label(chain: &Chain, culprit: Option<usize>) -> String {
+    culprit
+        .and_then(|i| chain.blocks.get(i))
+        .and_then(|b| b.model_ref())
+        .map(|m| project::catalog::model_display_name(&m.effect_type, &m.model))
+        .unwrap_or_default()
 }
 
 /// Traffic-light severity for a symptom: green (0), amber (1), red (2).
 fn symptom_level(s: Symptom) -> i32 {
     match s {
         Symptom::Ok => 0,
-        Symptom::Mud => 1,
+        Symptom::Mud | Symptom::Boomy | Symptom::Thin | Symptom::Squash => 1,
         Symptom::Fizz | Symptom::Clipping => 2,
     }
 }
@@ -119,6 +126,9 @@ fn symptom_text(s: Symptom) -> &'static str {
         Symptom::Ok => "OK",
         Symptom::Fizz => "Fizz",
         Symptom::Mud => "Mud",
+        Symptom::Boomy => "Boomy",
+        Symptom::Thin => "Thin",
+        Symptom::Squash => "Squash",
         Symptom::Clipping => "Clipping",
     }
 }
