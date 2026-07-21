@@ -102,5 +102,9 @@ pub(crate) fn apply_mixdown(mixdown: ChainOutputMixdown, left: f32, right: f32) 
 mod tests;
 
 #[cfg(test)]
+#[path = "runtime_dsp_tests_extended.rs"]
+mod tests_extended;
+
+#[cfg(test)]
 #[path = "runtime_dsp_lufs_tests.rs"]
 mod lufs_tests;
