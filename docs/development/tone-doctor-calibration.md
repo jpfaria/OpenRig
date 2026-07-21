@@ -98,25 +98,27 @@ genre labels mean several genres will be thin until the corpus grows.
 
 ## Derived numbers (current corpus)
 
-Calibration over 28 songs (each `lead` + `rhythm` isolated stem); genres are
-**sourced per recording** (Wikipedia / Billboard / AllMusic), not guessed. p90
-for excess limits, p10 for the deficit floors (`thin`/`squash`):
+Calibration over the reference stems that exist on disk; each genre is the
+**primary genre in that song's Wikipedia infobox**, fetched and verified
+directly (per recording, not per band — "Enter Sandman" is heavy-metal, not
+thrash). p90 for excess limits, p10 for the deficit floors (`thin`/`squash`):
 
 | Genre | mud | fizz | boom | thin | squash | n | confidence |
 |---|---:|---:|---:|---:|---:|---:|---|
 | alternative-rock | 0.482 | 0.296 | 0.073 | 0.144 | 16.2 | 8 | trusted |
 | grunge | 0.537 | **0.473** | 0.117 | 0.264 | 15.7 | 7 | trusted |
 | blues-rock | 0.737 | **0.014** | 0.039 | 0.479 | 20.3 | 6 | trusted |
-| pop-punk | 0.512 | 0.206 | 0.092 | 0.087 | 15.1 | 6 | trusted |
-| hard-rock | 0.623 | 0.099 | 0.024 | 0.286 | 16.1 | 4 | provisional |
-| acoustic | 0.679 | 0.034 | 0.104 | 0.426 | 18.4 | 2 | provisional |
+| punk-rock | 0.457 | 0.153 | 0.093 | 0.175 | 15.0 | 4 | provisional |
+| rock | 0.615 | 0.314 | 0.082 | 0.208 | 17.4 | 4 | provisional |
+| pop-rock | 0.572 | 0.030 | 0.042 | 0.374 | 18.6 | 3 | provisional |
+| alternative-metal | 0.658 | 0.091 | 0.025 | 0.514 | 15.2 | 2 | provisional |
+| art-rock | 0.526 | 0.037 | 0.020 | 0.365 | 21.6 | 2 | provisional |
+| hard-rock | 0.469 | 0.095 | 0.017 | 0.227 | 20.5 | 2 | provisional |
 | heavy-metal | 0.554 | 0.343 | 0.100 | 0.201 | 18.6 | 2 | provisional |
-| southern-rock | 0.534 | 0.285 | 0.047 | 0.276 | 20.0 | 2 | provisional |
+| melodic-hardcore | 0.483 | 0.246 | 0.067 | 0.124 | 18.4 | 2 | provisional |
 | soft-rock | 0.720 | 0.039 | 0.006 | 0.611 | 18.9 | 2 | provisional |
-| progressive-rock | 0.526 | 0.037 | 0.020 | 0.365 | 21.6 | 2 | provisional |
-| pop-rock | 0.586 | 0.016 | 0.047 | 0.388 | 18.8 | 2 | provisional |
-| rock | 0.327 | 0.369 | 0.001 | 0.168 | 17.9 | 2 | provisional |
-| brazilian-rock · power-pop · smooth-jazz | — | — | — | — | — | 1 | provisional |
+| southern-rock | 0.534 | 0.285 | 0.047 | 0.276 | 20.0 | 2 | provisional |
+| funk-rock · mpb | — | — | — | — | — | 1 | provisional |
 
 ### Why this proves the premise
 
