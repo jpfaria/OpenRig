@@ -424,6 +424,10 @@ mod tests;
 mod stream_isolation;
 
 #[cfg(test)]
+#[path = "stream_isolation_tests_more.rs"]
+mod stream_isolation_more;
+
+#[cfg(test)]
 #[path = "stream_isolation_same_device_tests.rs"]
 mod stream_isolation_same_device;
 
