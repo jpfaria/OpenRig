@@ -27,14 +27,17 @@ use std::path::PathBuf;
 /// so the assertion can never bleed into the model-search wiring further down
 /// the file (which legitimately uses `set_compact_blocks`). A whole-file
 /// `contains` would therefore pass falsely.
+/// The wiring moved to `compact_chain_header_wiring.rs` (#787, file-size cap),
+/// where the closure re-projects through the module's `refresh` helper — so the
+/// closure text plus that helper is what has to carry the rebuild.
 fn on_switch_chain_preset_closure() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_header_wiring.rs");
     let src =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let needle = "on_switch_chain_preset";
     let start = src
         .find(needle)
-        .unwrap_or_else(|| panic!("compact_chain_callbacks.rs has no `{needle}` handler"));
+        .unwrap_or_else(|| panic!("compact_chain_header_wiring.rs has no `{needle}` handler"));
     // The next header callback wired after the preset one; everything between
     // is the preset closure (+ the #659 search-wiring line, which uses neither
     // `build_compact_blocks` nor `set_compact_blocks`).
@@ -42,7 +45,19 @@ fn on_switch_chain_preset_closure() -> String {
     let end = rest
         .find("on_switch_chain_scene")
         .unwrap_or_else(|| panic!("expected `on_switch_chain_scene` to follow the preset handler"));
-    rest[..end].to_string()
+    // The closure calls `refresh(...)`; inline that helper so the assertions
+    // below still see the actual rebuild, wherever it is spelled.
+    let refresh = src
+        .find("fn refresh(")
+        .map(|i| {
+            src[i..]
+                .split("\n}\n")
+                .next()
+                .unwrap_or_default()
+                .to_string()
+        })
+        .unwrap_or_default();
+    format!("{}{}", &rest[..end], refresh)
 }
 
 #[test]

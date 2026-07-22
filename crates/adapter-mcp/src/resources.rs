@@ -43,6 +43,11 @@ pub const URI_PLUGIN_PARAMS_TEMPLATE: &str = "openrig://plugins/{id}/params";
 /// BEFORE the chain-presets parser so the URI shapes do not collide.
 pub const URI_BLOCK_PARAMS_TEMPLATE: &str = "openrig://chains/{chain}/blocks/{block}/params";
 
+/// #791: URI template for one chain's objective quality report (THD+N, noise
+/// floor, level, dynamic range, clipping). Concrete URIs look like
+/// `openrig://chains/<chain_id>/quality`.
+pub const URI_CHAIN_QUALITY_TEMPLATE: &str = "openrig://chains/{chain}/quality";
+
 /// Static list of resources this server exposes.
 pub fn resources() -> Vec<Resource> {
     vec![
@@ -96,6 +101,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_CHAIN_QUALITY_TEMPLATE,
+                "Objective chain quality report (replace {chain} with a chain id) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_BLOCK_PARAMS_TEMPLATE,
                 "Placed-block parameter snapshot (schema + current_value) — JSON",
             ),
@@ -114,6 +126,10 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
         QueryKind::GetBlockParams {
             chain: ChainId(chain),
             block: domain::ids::BlockId(block),
+        }
+    } else if let Some(chain_id) = parse_chain_quality_uri(uri) {
+        QueryKind::ChainQualityReport {
+            chain: ChainId(chain_id),
         }
     } else if let Some(chain_id) = parse_chain_presets_uri(uri) {
         QueryKind::ListChainPresets {
@@ -158,6 +174,15 @@ fn parse_chain_presets_uri(uri: &str) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+/// Extract `<chain>` from `openrig://chains/<chain>/quality`. Returns
+/// `None` for any other URI shape. #791.
+fn parse_chain_quality_uri(uri: &str) -> Option<String> {
+    uri.strip_prefix("openrig://chains/")
+        .and_then(|rest| rest.strip_suffix("/quality"))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
 /// Extract `<id>` from `openrig://plugins/<id>/params`. Returns `None`
 /// for any other URI shape — empty id rejected so `.../params` with no
 /// id is not addressable. Issue #572.
@@ -184,5 +209,53 @@ pub fn parse_block_params_uri(uri: &str) -> Option<(String, String)> {
 }
 
 #[cfg(test)]
-#[path = "resources_tests.rs"]
-mod tests;
+mod tests {
+    use super::{parse_chain_presets_uri, parse_chain_quality_uri};
+
+    #[test]
+    fn parses_chain_quality_uri() {
+        assert_eq!(
+            parse_chain_quality_uri("openrig://chains/rig:input-1/quality"),
+            Some("rig:input-1".to_string())
+        );
+        assert_eq!(
+            parse_chain_quality_uri("openrig://chains/standalone/quality"),
+            Some("standalone".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_non_quality_uris() {
+        assert_eq!(parse_chain_quality_uri("openrig://chains//quality"), None);
+        assert_eq!(parse_chain_quality_uri("openrig://chains/rig:x/presets"), None);
+        assert_eq!(parse_chain_quality_uri("openrig://project"), None);
+    }
+
+    #[test]
+    fn parses_rig_input_chain_id() {
+        assert_eq!(
+            parse_chain_presets_uri("openrig://chains/rig:input-1/presets"),
+            Some("rig:input-1".to_string())
+        );
+    }
+
+    #[test]
+    fn parses_non_rig_chain_id() {
+        assert_eq!(
+            parse_chain_presets_uri("openrig://chains/standalone/presets"),
+            Some("standalone".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_missing_chain_segment() {
+        assert_eq!(parse_chain_presets_uri("openrig://chains//presets"), None);
+    }
+
+    #[test]
+    fn rejects_unrelated_uri() {
+        assert_eq!(parse_chain_presets_uri("openrig://project"), None);
+        assert_eq!(parse_chain_presets_uri("openrig://chains/rig:x"), None);
+        assert_eq!(parse_chain_presets_uri("openrig://chains/rig:x/foo"), None);
+    }
+}

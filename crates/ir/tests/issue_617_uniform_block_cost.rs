@@ -54,7 +54,7 @@ fn cost_per_callback_is_uniform_at_buffer_64() {
 
     // One measurement pass → the p99/median per-block cost ratio.
     let measure = || {
-        let mut ir = MonoIrProcessor::new(cabinet_ir(8192));
+        let mut ir = MonoIrProcessor::new(cabinet_ir(8192)).unwrap();
 
         // Warm up state allocation / caches so the measurement reflects steady
         // state, not the first-build transient.
@@ -101,7 +101,7 @@ fn convolution_stays_linear_and_correct() {
 
     // Effective impulse response of the block (includes its internal
     // latency): feed a unit impulse followed by silence.
-    let mut sys_a = MonoIrProcessor::new(taps.clone());
+    let mut sys_a = MonoIrProcessor::new(taps.clone()).unwrap();
     let mut h = vec![0.0f32; probe_len];
     h[0] = 1.0;
     sys_a.process_block(&mut h);
@@ -112,7 +112,7 @@ fn convolution_stays_linear_and_correct() {
         .collect();
 
     // The block applied to x.
-    let mut sys_b = MonoIrProcessor::new(taps);
+    let mut sys_b = MonoIrProcessor::new(taps).unwrap();
     let mut y = vec![0.0f32; probe_len];
     y[..x.len()].copy_from_slice(&x);
     sys_b.process_block(&mut y);

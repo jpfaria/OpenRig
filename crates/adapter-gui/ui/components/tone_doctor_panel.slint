@@ -1,0 +1,242 @@
+// #791 — the Tone Doctor "janela": a panel (opened by the stethoscope icon)
+// that runs the offline blame-by-ablation and shows the verdict AS AN
+// INSTRUMENT — three meters (Fizz / Mud / Clipping) each against their healthy
+// limit, so the user sees the data behind the verdict, plus the guilty block
+// and a measured fix. The user picks how many seconds of signal to analyse.
+//
+// INLINE (inherits Rectangle), NOT a PopupWindow — same reasoning as
+// DiLoopPanel: the host renders it at the window root (never clipped by the
+// chain list) and every click is a normal in-tree TouchArea.
+
+import { Select } from "select.slint";
+import { ToneDoctorState } from "tone_doctor_globals.slint";
+
+// One measurement meter: value fill (green under the limit / red over it), a
+// tick at the healthy limit (fixed at 50 % of the track), and the number.
+component MeasureRow inherits Rectangle {
+    in property <string> name;
+    in property <float> value;
+    in property <float> limit;
+    in property <string> value-text;
+    private property <float> track-frac: min(root.value / max(root.limit * 2.0, 0.0001), 1.0);
+    private property <bool> over: root.value > root.limit;
+    height: 40px;
+    Text {
+        x: 0; y: 0; text: root.name;
+        color: root.over ? #ff6b6b : #7fe0a8;
+        font-size: 12px; font-weight: 800;
+    }
+    Text {
+        x: parent.width - 110px; y: 0; width: 110px;
+        horizontal-alignment: right; text: root.value-text;
+        color: #eef2f8; font-size: 12px; font-weight: 700;
+    }
+    track := Rectangle {
+        x: 0; y: 20px; width: parent.width; height: 11px;
+        border-radius: 5px; background: #0a0d12;
+        border-width: 1px; border-color: #2b3340; clip: true;
+        Rectangle {
+            x: 0; y: 0; width: parent.width * root.track-frac; height: parent.height;
+            border-radius: 5px; background: root.over ? #ff5c5c : #3ecf8e;
+        }
+    }
+    Rectangle {
+        x: track.width * 0.5 - 1px; y: 16px; width: 2px; height: 19px; background: #cbd3df;
+    }
+}
+
+// A tap-to-select seconds chip.
+component SecondsChip inherits Rectangle {
+    in property <int> value;
+    in property <bool> selected;
+    callback picked(int);
+    width: 44px; height: 26px; border-radius: 5px;
+    background: root.selected ? #33406a : ta.has-hover ? #26304d : #1a2030;
+    border-width: 1px; border-color: root.selected ? #6e8aff : #2b3340;
+    animate background { duration: 120ms; }
+    Text {
+        width: parent.width; height: parent.height;
+        horizontal-alignment: center; vertical-alignment: center;
+        text: "\{root.value}s";
+        color: root.selected ? #dfe6f2 : #8a94a2;
+        font-size: 12px; font-weight: 700;
+    }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.picked(root.value); } }
+}
+
+export component ToneDoctorPanel inherits Rectangle {
+    in property <int> symptom-level;
+    in property <string> symptom-text;
+    in property <string> culprit-label;
+    in property <string> suggestion-text;
+    in property <bool> has-suggestion;
+    in property <bool> has-result;
+    in property <bool> running;
+    in property <int> analyze-seconds;
+    in property <bool> can-diagnose;
+    in property <float> fizz-value;
+    in property <float> fizz-limit;
+    in property <float> mud-value;
+    in property <float> mud-limit;
+    in property <float> boom-value;
+    in property <float> boom-limit;
+    in property <float> clip-value;
+    in property <float> clip-limit;
+
+    callback run-diagnosis();
+    callback apply-suggestion();
+    callback seconds-picked(int);
+
+    private property <color> light-color:
+        root.symptom-level >= 2 ? #ff5c5c
+        : root.symptom-level == 1 ? #f5a623
+        : #3ecf8e;
+
+    width: 360px;
+    height: root.has-result ? (root.has-suggestion ? 504px : 440px) : 196px;
+    border-radius: 8px;
+    background: #11141af2;
+    border-width: 1px; border-color: #3b4250;
+    clip: true;
+
+    // ── header ────────────────────────────────────────────────────────────
+    Image {
+        x: 12px; y: 12px; width: 18px; height: 18px;
+        source: @image-url("../assets/stethoscope.svg"); colorize: #8aa0ff;
+    }
+    Text {
+        x: 38px; y: 12px; height: 18px; text: @tr("tone-doctor-title");
+        color: #f1f4f8; font-size: 15px; font-weight: 700; vertical-alignment: center;
+    }
+
+    // ── seconds selector ───────────────────────────────────────────────────
+    Text {
+        x: 12px; y: 42px; height: 26px; text: @tr("tone-doctor-analyze");
+        color: #8a94a2; font-size: 11px; font-weight: 700; vertical-alignment: center;
+    }
+    HorizontalLayout {
+        x: 116px; y: 42px; width: 232px; height: 26px; spacing: 6px;
+        SecondsChip { value: 5; selected: root.analyze-seconds == 5; picked(v) => { root.seconds-picked(v); } }
+        SecondsChip { value: 10; selected: root.analyze-seconds == 10; picked(v) => { root.seconds-picked(v); } }
+        SecondsChip { value: 20; selected: root.analyze-seconds == 20; picked(v) => { root.seconds-picked(v); } }
+        SecondsChip { value: 30; selected: root.analyze-seconds == 30; picked(v) => { root.seconds-picked(v); } }
+    }
+
+    // ── genre selector (#809) ──────────────────────────────────────────────
+    // Picks the calibrated limits the doctor judges against; "" = defaults.
+    Text {
+        x: 12px; y: 78px; height: 38px; text: @tr("tone-doctor-genre");
+        color: #8a94a2; font-size: 11px; font-weight: 700; vertical-alignment: center;
+    }
+    Select {
+        x: 116px; y: 76px; width: 232px;
+        options: ToneDoctorState.genre-options;
+        active-key: ToneDoctorState.tone-genre;
+        field-label: ToneDoctorState.tone-genre;
+        placeholder: @tr("tone-doctor-genre-default");
+        search-placeholder: @tr("tone-doctor-genre-search");
+        empty-text: @tr("tone-doctor-genre-none");
+        field-font-size: 13px; field-font-weight: 700;
+        popup-width: 232px;
+        picked(key) => { ToneDoctorState.tone-genre = key; }
+        opened => { ToneDoctorState.genre-query(""); }
+        query-changed(q) => { ToneDoctorState.genre-query(q); }
+    }
+
+    // ── diagnose button (gated) ────────────────────────────────────────────
+    Rectangle {
+        x: 12px; y: 122px; width: 336px; height: 34px;
+        border-radius: 6px;
+        background: !root.can-diagnose ? #1a1f2a
+                    : root.running ? #2b3340
+                    : diag-ta.has-hover ? #33406a : #26304d;
+        border-width: 1px; border-color: root.can-diagnose ? #4d5868 : #2b3340;
+        animate background { duration: 150ms; }
+        Text {
+            width: parent.width; height: parent.height;
+            horizontal-alignment: center; vertical-alignment: center;
+            text: !root.can-diagnose ? @tr("tone-doctor-no-signal")
+                  : root.running ? @tr("tone-doctor-diagnosing")
+                  : root.has-result ? @tr("tone-doctor-rerun")
+                  : @tr("tone-doctor-diagnose");
+            color: !root.can-diagnose ? #6b7686 : root.running ? #8a94a2 : #dfe6f2;
+            font-size: !root.can-diagnose ? 12px : 14px; font-weight: 700;
+        }
+        diag-ta := TouchArea {
+            mouse-cursor: (root.can-diagnose && !root.running) ? pointer : default;
+            clicked => { if (root.can-diagnose && !root.running) { root.run-diagnosis(); } }
+        }
+        accessible-role: button;
+        accessible-label: @tr("tone-doctor-diagnose");
+    }
+
+    // ── the three measurements ─────────────────────────────────────────────
+    if root.has-result : VerticalLayout {
+        x: 12px; y: 166px; width: 336px; spacing: 4px;
+        MeasureRow {
+            name: "FIZZ"; value: root.fizz-value; limit: root.fizz-limit;
+            value-text: "\{Math.round(root.fizz-value * 100) / 100} / \{Math.round(root.fizz-limit * 100) / 100}";
+        }
+        MeasureRow {
+            name: "MUD"; value: root.mud-value; limit: root.mud-limit;
+            value-text: "\{Math.round(root.mud-value * 100) / 100} / \{Math.round(root.mud-limit * 100) / 100}";
+        }
+        MeasureRow {
+            name: "BOOM"; value: root.boom-value; limit: root.boom-limit;
+            value-text: "\{Math.round(root.boom-value * 100) / 100} / \{Math.round(root.boom-limit * 100) / 100}";
+        }
+        MeasureRow {
+            name: "CLIP"; value: root.clip-value; limit: root.clip-limit;
+            value-text: "\{Math.round(root.clip-value * 1000) / 10}%";
+        }
+    }
+
+    // ── verdict + culprit ──────────────────────────────────────────────────
+    if root.has-result : Rectangle {
+        x: 12px; y: 348px; width: 336px; height: 44px;
+        border-radius: 6px; background: #0a0d12; border-width: 1px; border-color: #2b3340;
+        Rectangle {
+            x: 12px; y: parent.height / 2 - 6px; width: 12px; height: 12px;
+            border-radius: 6px; background: root.light-color;
+        }
+        VerticalLayout {
+            x: 34px; y: 6px; width: parent.width - 46px; height: parent.height - 12px; spacing: 1px;
+            Text {
+                text: root.symptom-text; color: root.light-color;
+                font-size: 13px; font-weight: 700; vertical-alignment: center; overflow: elide;
+            }
+            Text {
+                text: root.culprit-label; color: #aab4c2;
+                font-size: 11px; vertical-alignment: center; overflow: elide;
+            }
+        }
+    }
+
+    // ── measured fix + apply ───────────────────────────────────────────────
+    if root.has-result && root.has-suggestion : Rectangle {
+        x: 12px; y: 400px; width: 336px; height: 64px;
+        border-radius: 6px; background: #0a0d12; border-width: 1px; border-color: #2b3340;
+        Text {
+            x: 12px; y: 10px; width: parent.width - 24px; height: 16px;
+            text: @tr("tone-doctor-suggestion"); color: #8a94a2; font-size: 11px; font-weight: 700;
+        }
+        Text {
+            x: 12px; y: 28px; width: parent.width - 96px; height: 24px;
+            text: root.suggestion-text; color: #f1f4f8; font-size: 15px; font-weight: 700;
+            vertical-alignment: center; overflow: elide;
+        }
+        Rectangle {
+            x: parent.width - 84px; y: 16px; width: 72px; height: 32px; border-radius: 6px;
+            background: apply-ta.has-hover ? #3ecf8e : #2f9e6e;
+            animate background { duration: 150ms; }
+            Text {
+                width: parent.width; height: parent.height;
+                horizontal-alignment: center; vertical-alignment: center;
+                text: @tr("tone-doctor-apply"); color: #06110b; font-size: 13px; font-weight: 700;
+            }
+            apply-ta := TouchArea { mouse-cursor: pointer; clicked => { root.apply-suggestion(); } }
+            accessible-role: button;
+            accessible-label: @tr("tone-doctor-apply");
+        }
+    }
+}

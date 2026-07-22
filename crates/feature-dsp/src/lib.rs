@@ -4,4 +4,7 @@
 //! taps from the engine. Block-level DSP lives in the `block-*` crates.
 
 pub mod pitch_yin;
+pub mod quality_metrics;
 pub mod spectrum_fft;
+pub mod tone_descriptors;
+pub mod tone_profiles;

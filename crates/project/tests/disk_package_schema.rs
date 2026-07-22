@@ -155,6 +155,25 @@ fn disk_packages_synthesize_schema_parameters_from_manifest() {
     // The Output knob was restored in #496 (had been dropped by #402);
     // see `nam_synthesized_schema_exposes_output_db_knob`.
     assert_eq!(amp_schema.parameters.len(), 10);
+    // #786: the editor renders one tab per group — the manifest axes pick
+    // the capture, everything else is an engine default.
+    let amp_groups: Vec<(&str, &str)> = amp_schema
+        .parameters
+        .iter()
+        .map(|p| (p.path.as_str(), p.group.as_deref().unwrap_or("")))
+        .collect();
+    for (path, group) in &amp_groups {
+        let expected = match *path {
+            "gain" | "volume" => "Capture",
+            p if p.starts_with("noise_gate.") => "Noise Gate",
+            p if p.starts_with("eq.") => "EQ",
+            _ => "Amp",
+        };
+        assert_eq!(
+            group, &expected,
+            "NAM param '{path}' must land in the '{expected}' tab; got: {amp_groups:?}"
+        );
+    }
 
     // ── IR: one text axis → one enum parameter ──
     let cab_schema = project::block::schema_for_block_model("cab", "ir_test_cab_e2e")

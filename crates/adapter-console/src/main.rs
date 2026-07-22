@@ -225,6 +225,11 @@ fn main() -> Result<()> {
                 // no project state required, so the console adapter
                 // serves the same envelope the GUI does.
                 QueryKind::Paths => Ok(application::query::resolved_paths_json()),
+                // #791: objective quality report — runs the synthetic battery
+                // through the offline render of the console's own project chain.
+                QueryKind::ChainQualityReport { chain } => {
+                    application::query_chain_quality::chain_quality_report(&shared.borrow(), chain)
+                }
             },
             64,
         );

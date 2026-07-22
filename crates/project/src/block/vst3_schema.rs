@@ -7,9 +7,9 @@
 //!
 //! * `0`  → continuous knob (0–100 %),
 //! * `1`  → on/off toggle when it reads like a switch (name/labels), otherwise a
-//!          2-position selector,
+//!   2-position selector,
 //! * `>=2`→ selector, with one option per step (labels read from the plugin;
-//!          the UI renders <=4 options as a rotary switch, more as a dropdown).
+//!   the UI renders <=4 options as a rotary switch, more as a dropdown).
 //!
 //! Every parameter is stored under `p{id}`; the engine converts each value back
 //! to a VST3 normalized 0..1 (`stereo::try_in_place_update` /

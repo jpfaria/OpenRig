@@ -37,7 +37,8 @@ use block_wah::build_wah_processor_for_layout;
 use project::block::CoreBlock;
 use project::chain::Chain;
 
-use crate::runtime_block_builders::{audio_block_runtime_node, build_audio_processor_for_model};
+use crate::runtime_block_builders::audio_block_runtime_node;
+use crate::runtime_processor_model::build_audio_processor_for_model;
 use crate::runtime_state::BlockRuntimeNode;
 
 pub(crate) fn build_core_block_runtime_node(

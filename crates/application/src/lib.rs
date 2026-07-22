@@ -18,6 +18,8 @@ pub mod di_loader;
 pub mod dispatcher;
 pub mod event;
 pub mod local_dispatcher;
+mod local_dispatcher_access;
+mod local_dispatcher_attach;
 mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
@@ -31,7 +33,10 @@ mod local_dispatcher_diagnostic;
 mod local_dispatcher_io_binding;
 mod local_dispatcher_ir_reseed;
 mod local_dispatcher_language;
+mod local_dispatcher_midi_system;
 mod local_dispatcher_output;
+mod local_dispatcher_paths;
+mod local_dispatcher_queries;
 mod local_dispatcher_plugin_catalog;
 mod local_dispatcher_preset;
 mod local_dispatcher_project;
@@ -47,6 +52,7 @@ pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;
 pub mod query;
+pub mod query_chain_quality;
 pub mod render_handler;
 pub mod selection_state;
 pub mod session;
@@ -60,6 +66,30 @@ pub mod validate;
 #[cfg(test)]
 #[path = "local_dispatcher_tests.rs"]
 mod local_dispatcher_tests;
+
+#[cfg(test)]
+#[path = "ld_block2_tests.rs"]
+mod ld_block2;
+
+#[cfg(test)]
+#[path = "ld_chain_tests.rs"]
+mod ld_chain;
+
+#[cfg(test)]
+#[path = "ld_savechain_tests.rs"]
+mod ld_savechain;
+
+#[cfg(test)]
+#[path = "ld_insert_tests.rs"]
+mod ld_insert;
+
+#[cfg(test)]
+#[path = "ld_project_tests.rs"]
+mod ld_project;
+
+#[cfg(test)]
+#[path = "ld_preset_tests.rs"]
+mod ld_preset;
 
 #[cfg(test)]
 #[path = "local_dispatcher_midi_block_nav_tests.rs"]

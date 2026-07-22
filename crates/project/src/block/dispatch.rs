@@ -29,7 +29,6 @@ use domain::value_objects::ParameterValue;
 
 use crate::param::{BlockParameterDescriptor, ModelParameterSchema, ParameterSet};
 
-use super::manifest_labels::sanitize_label;
 use super::types::{AudioBlockKind, BlockAudioDescriptor, CoreBlock, NamBlock};
 
 pub fn normalize_block_params(
@@ -96,12 +95,12 @@ fn schema_from_disk_package(
     })
 }
 
-/// Build a `Vec<ParameterSpec>` from a `LoadedPackage` manifest:
-/// - NAM/IR: each grid axis becomes a float (numeric values) or enum
-///   (text values) parameter spanning the declared min..max.
-/// - LV2: scan the bundle's TTL files and emit a float param per
-///   `ControlIn` port using its TTL min/max/default.
-/// - VST3: each declared `Vst3Parameter` becomes a 0..1 float param.
+/// Build a `Vec<ParameterSpec>` from a `LoadedPackage` manifest. One
+/// module per backend does the actual work:
+/// - NAM (`nam_schema`): capture axes (Capture tab) + engine defaults (Amp tab).
+/// - IR (`ir_schema`): capture axes + Output / reverb controls, one flat grid.
+/// - LV2 (`lv2_schema`): one control per `ControlIn` port scanned off the TTL.
+/// - VST3: each declared `Vst3Parameter` becomes a float param.
 /// - Native: nothing — natives go through the legacy schema path so
 ///   this branch shouldn't fire in practice; return empty to avoid a
 ///   panic if it ever does.
@@ -113,84 +112,15 @@ pub(crate) fn synthesize_parameters_from_manifest(
         Backend::Nam {
             parameters,
             captures,
-        } => {
-            // Pre-#287 (when NAM amps lived in `block-preamp/src/nam_*.rs`),
-            // every NAM model exposed two layers of knobs: the per-capture
-            // grid (e.g. `mode`, `character` for nam_boss_ds_2) AND the 8
-            // universal NAM plugin knobs (input/output level, noise gate,
-            // EQ on/off + bass/mid/treble) added by `nam::plugin_parameter_specs()`.
-            // The migration to disk packages dropped the second layer, so
-            // every NAM in the GUI lost its standard knobs (~96 packages —
-            // 21 with empty grids ended up with zero knobs at all). Merge
-            // the standard set back in. Issue #401.
-            //
-            // `effective_grid_axes` first drops dead capture-selector axes
-            // (single-value or over-declared dropdowns) — issue #649.
-            let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
-            let mut specs: Vec<block_core::param::ParameterSpec> =
-                axes.iter().map(grid_parameter_to_spec).collect();
-            // Issue #496 reverses #402's "drop output_db". With the
-            // audit-side `output_gain_db` cleared in the manifests,
-            // there was no automatic compensation AND no user-facing
-            // knob — every NAM played at the raw (quiet) capture
-            // output. Re-expose the host's Output knob so the user
-            // can add makeup gain; the manifest `output_gain_db` is
-            // still summed on top when present.
-            specs.extend(nam::processor::plugin_parameter_specs());
-            // Issue #657: NAM/A2 (SlimmableContainer) models expose a
-            // runtime size lever (SetSlimmableSize). A1 models are not
-            // slimmable, so the knob is appended only for A2 — driven by
-            // the manifest's declared architecture (issue #650).
-            if package.manifest.architecture == Some(plugin_loader::manifest::NamArchitecture::A2) {
-                specs.push(nam::processor::slim_parameter_spec());
-            }
-            specs
-        }
+        } => super::nam_schema::nam_parameters(package, parameters, captures),
         Backend::Ir {
             parameters,
             captures,
-        } => {
-            // Same dead-axis filter as NAM (issue #649).
-            let axes = plugin_loader::grid_axes::effective_grid_axes(parameters, captures);
-            let mut specs: Vec<block_core::param::ParameterSpec> =
-                axes.iter().map(grid_parameter_to_spec).collect();
-            // Issue #733: a `type: reverb` IR blends dry/wet rather than
-            // playing 100% wet at a calibrated level, so it exposes the
-            // reverb controls (mix / pre-delay / wet level) in place of the
-            // cab-style absolute Output knob.
-            if package.manifest.block_type == plugin_loader::manifest::BlockType::Reverb {
-                specs.extend(block_reverb::ir_reverb_parameter_specs());
-                return specs;
-            }
-            // Issue #655: user-adjustable Output Level knob (mirrors NAM).
-            // The default mirrors the engine baseline — the first capture's
-            // audit (manifest-level fallback, 0 dB if neither) — so the knob
-            // shows the real applied offset and a fresh block born at the
-            // first capture stays unchanged (volume invariant #10). The
-            // audio path resolves the offset per-capture from the raw saved
-            // params (see `ir::from_package::resolve_output_db`); this
-            // default only drives the UI and the new-block seed.
-            let default_db = captures
-                .first()
-                .and_then(|c| c.output_gain_db)
-                .or(package.manifest.output_gain_db)
-                .unwrap_or(0.0);
-            specs.push(block_core::param::float_parameter(
-                "output_db",
-                "Output",
-                None,
-                Some(default_db),
-                -24.0,
-                24.0,
-                0.1,
-                block_core::param::ParameterUnit::Decibels,
-            ));
-            specs
-        }
+        } => super::ir_schema::ir_parameters(package, parameters, captures),
         Backend::Lv2 {
             plugin_uri,
             binaries,
-        } => synthesize_lv2_parameters(package, plugin_uri, binaries),
+        } => super::lv2_schema::lv2_parameters(package, plugin_uri, binaries),
         Backend::Vst3 { parameters, .. } => parameters
             .iter()
             .map(|param| {
@@ -208,195 +138,6 @@ pub(crate) fn synthesize_parameters_from_manifest(
             .collect(),
         Backend::Native { .. } => Vec::new(),
     }
-}
-
-fn grid_parameter_to_spec(
-    parameter: &plugin_loader::manifest::GridParameter,
-) -> block_core::param::ParameterSpec {
-    use plugin_loader::manifest::ParameterValue;
-    // Sanitise the axis name so emojis baked into third-party manifests
-    // (issue #424 — Bogner Ecstasy) don't tofu in the BlockEditorPanel
-    // header; raw `parameter.name` stays untouched as the lookup key.
-    let raw_label = parameter.display_name.as_deref().unwrap_or(&parameter.name);
-    let label = sanitize_label(raw_label);
-    let all_numeric = parameter
-        .values
-        .iter()
-        .all(|v| matches!(v, ParameterValue::Number(_)));
-    if all_numeric && !parameter.values.is_empty() {
-        let numbers: Vec<f64> = parameter
-            .values
-            .iter()
-            .filter_map(|v| match v {
-                ParameterValue::Number(n) => Some(*n),
-                _ => None,
-            })
-            .collect();
-        let min = numbers.iter().cloned().fold(f64::INFINITY, f64::min);
-        let max = numbers.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let default = numbers.first().copied().unwrap_or(min);
-        let step = if numbers.len() > 1 {
-            (numbers[1] - numbers[0]).abs() as f32
-        } else {
-            1.0_f32
-        };
-        block_core::param::float_parameter(
-            &parameter.name,
-            &label,
-            None,
-            Some(default as f32),
-            min as f32,
-            max as f32,
-            step.max(0.01),
-            block_core::param::ParameterUnit::None,
-        )
-    } else if parameter
-        .values
-        .iter()
-        .all(|v| matches!(v, ParameterValue::Bool(_)))
-        && !parameter.values.is_empty()
-    {
-        // Pure bool grid → render as a toggle. The default mirrors the
-        // first listed value so manifests can pick the natural off-state
-        // (`[false, true]` -> default off).
-        let default = parameter.values.iter().find_map(|v| match v {
-            ParameterValue::Bool(b) => Some(*b),
-            _ => None,
-        });
-        block_core::param::bool_parameter(&parameter.name, &label, None, default)
-    } else {
-        // (raw_value, sanitised_label) pairs — the value is the lookup
-        // key into `captures[].values` and the user's persisted
-        // `ParameterSet`, so it must round-trip byte-for-byte. Only the
-        // displayed label is cleaned of emoji (issue #424).
-        let options: Vec<(String, String)> = parameter
-            .values
-            .iter()
-            .map(|value| {
-                let raw = match value {
-                    ParameterValue::Text(t) => t.clone(),
-                    ParameterValue::Number(n) => n.to_string(),
-                    ParameterValue::Bool(b) => b.to_string(),
-                };
-                let display = sanitize_label(&raw);
-                (raw, display)
-            })
-            .collect();
-        let option_refs: Vec<(&str, &str)> = options
-            .iter()
-            .map(|(value, display)| (value.as_str(), display.as_str()))
-            .collect();
-        let default = options.first().map(|(k, _)| k.as_str());
-        block_core::param::enum_parameter(&parameter.name, &label, None, default, &option_refs)
-    }
-}
-
-fn synthesize_lv2_parameters(
-    package: &plugin_loader::LoadedPackage,
-    plugin_uri: &str,
-    binaries: &std::collections::BTreeMap<plugin_loader::manifest::Lv2Slot, std::path::PathBuf>,
-) -> Vec<block_core::param::ParameterSpec> {
-    use plugin_loader::dispatch::Lv2PortRole;
-    // Prefer the deduplicated `<package>/data/` TTL bundle; fall back
-    // to the legacy per-platform layout where TTLs lived next to the
-    // binary. Either layout works.
-    let data_dir = package.root.join("data");
-    let bundle_dir: std::path::PathBuf = if data_dir.is_dir() {
-        data_dir
-    } else if let Some((_, rel_binary)) = binaries.iter().next() {
-        let bin_path = package.root.join(rel_binary);
-        match bin_path.parent() {
-            Some(parent) => parent.to_path_buf(),
-            None => return Vec::new(),
-        }
-    } else {
-        return Vec::new();
-    };
-    let Ok(ports) = plugin_loader::dispatch::scan_lv2_ports(&bundle_dir, plugin_uri) else {
-        return Vec::new();
-    };
-    ports
-        .into_iter()
-        .filter(|port| port.role == Lv2PortRole::ControlIn)
-        .map(synthesize_one_lv2_param)
-        .collect()
-}
-
-/// Translate one LV2 ControlIn port into the corresponding
-/// `ParameterSpec`. Routing — checked in this order so that an
-/// `enumeration + integer` port (a common pattern) lands as an enum:
-///
-/// 1. `lv2:toggled` → bool checkbox.
-/// 2. `lv2:enumeration` with at least one `lv2:scalePoint` → enum dropdown.
-/// 3. `lv2:integer` (no scalePoint) → integer-stepped float.
-/// 4. otherwise → continuous float (legacy behaviour).
-fn synthesize_one_lv2_param(
-    port: plugin_loader::dispatch::Lv2Port,
-) -> block_core::param::ParameterSpec {
-    let label = port.name.clone().unwrap_or_else(|| port.symbol.clone());
-
-    if port.is_toggle {
-        let default = port.default_value.map(|value| value >= 0.5).or(Some(false));
-        return block_core::param::bool_parameter(&port.symbol, &label, None, default);
-    }
-
-    if port.is_enumeration && !port.scale_points.is_empty() {
-        // Enum values keep the original numeric ordering. Stored values
-        // are the numeric `rdf:value` (stringified) so the runtime can
-        // round-trip them back to the LV2 control port.
-        let options: Vec<(String, String)> = port
-            .scale_points
-            .iter()
-            .map(|sp| (sp.value.to_string(), sp.label.clone()))
-            .collect();
-        let options_refs: Vec<(&str, &str)> = options
-            .iter()
-            .map(|(value, label)| (value.as_str(), label.as_str()))
-            .collect();
-        let default = port
-            .default_value
-            .and_then(|value| {
-                port.scale_points
-                    .iter()
-                    .find(|sp| (sp.value - value).abs() < f32::EPSILON)
-            })
-            .map(|sp| sp.value.to_string());
-        return block_core::param::enum_parameter(
-            &port.symbol,
-            &label,
-            None,
-            default.as_deref(),
-            &options_refs,
-        );
-    }
-
-    let min = port.minimum.unwrap_or(0.0);
-    let max = port.maximum.unwrap_or(1.0).max(min + 0.001);
-    let default = port.default_value.unwrap_or((min + max) / 2.0);
-
-    let step = if port.is_integer {
-        // pprop:rangeSteps tells us exactly how many discrete positions
-        // the host should expose; fall back to step=1 for plain integer
-        // ports without explicit step count.
-        port.range_steps
-            .filter(|n| *n > 0)
-            .map(|n| (max - min) / n as f32)
-            .unwrap_or(1.0)
-    } else {
-        // Continuous control. step = 0 = "no snap-to-grid".
-        0.0
-    };
-
-    block_core::param::float_parameter(
-        &port.symbol,
-        &label,
-        None,
-        Some(default),
-        min,
-        max,
-        step,
-        block_core::param::ParameterUnit::None,
-    )
 }
 
 fn schema_for_block_model_legacy(
@@ -520,7 +261,3 @@ pub(super) fn describe_block_audio(
         audio_mode: schema.audio_mode,
     })
 }
-
-#[cfg(test)]
-#[path = "dispatch_tests.rs"]
-mod tests;

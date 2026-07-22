@@ -309,10 +309,23 @@ fn select_chain_block_command_sets_dispatcher_owned_selection() {
         })
         .expect("dispatch ok");
 
+    let selection_state = dispatcher.selection_state();
+    let sel = selection_state.read().unwrap();
     assert_eq!(
-        dispatcher.selected_block(&ChainId("rig:in".into())),
-        Some(2),
+        sel.active_chain.as_deref(),
+        Some("rig:in"),
         "the dispatcher must own the selection so MIDI/MCP can drive it"
+    );
+    let expected = project
+        .borrow()
+        .chains
+        .iter()
+        .find(|c| c.id.0 == "rig:in")
+        .and_then(|c| c.blocks.get(2))
+        .map(|b| b.id.0.clone());
+    assert_eq!(
+        sel.active_block, expected,
+        "selecting block index 2 must record it as the active block in SelectionState"
     );
 }
 

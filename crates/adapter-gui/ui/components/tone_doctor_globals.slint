@@ -1,0 +1,58 @@
+// #791 — shared state for the Tone Doctor panel: a stethoscope icon in a chain
+// row seeds these and flips `open`; a single root overlay renders
+// ToneDoctorPanel (so it is never clipped by the chain list). One panel open at
+// a time, mirroring the DI loop's `DiPanel`.
+import { SelectOption } from "../models.slint";
+
+export global ToneDoctorState {
+    in-out property <bool> open;
+    // window-absolute position, from the triggering icon's `absolute-position`.
+    in-out property <length> x;
+    in-out property <length> y;
+    // routes the panel's diagnose / apply back to the right chain.
+    in-out property <int> chain-index;
+
+    // ── diagnosis result, written by Rust after an offline run ────────────
+    // true while the offline ablation is running.
+    in-out property <bool> running;
+    // true once a diagnosis has completed at least once for the open panel.
+    in-out property <bool> has-result;
+    // 0 = healthy (green), 1 = warn (amber), 2 = unhealthy (red).
+    in-out property <int> symptom-level;
+    // e.g. "Fizz", "Mud", "Clipping", "OK".
+    in-out property <string> symptom-text;
+    // the guilty block's model identity, empty when healthy.
+    in-out property <string> culprit-label;
+    // e.g. "Presence 7.2 → 5.0", empty when there is nothing to change.
+    in-out property <string> suggestion-text;
+    in-out property <bool> has-suggestion;
+
+    // How many seconds of signal to analyse (user-chosen). Longer = more
+    // representative, slower.
+    in-out property <int> analyze-seconds: 10;
+    // Whether diagnosing is possible right now: a DI is running OR the chain is
+    // active. Set by Rust when the panel opens.
+    in-out property <bool> can-diagnose;
+    // Where the signal comes from, for the panel hint: "di" | "live" | "".
+    in-out property <string> source-kind;
+
+    // ── #809: the player's genre, so the doctor judges the tone by that style's
+    // calibrated limits instead of the global defaults. Empty ⇒ defaults.
+    // `tone-genre` is the current choice; `genre-options` is the selector's
+    // catalogue (a "" Default row + the calibrated genres), published by Rust
+    // and re-published filtered on each `genre-query` keystroke.
+    in-out property <string> tone-genre;
+    in property <[SelectOption]> genre-options;
+    callback genre-query(string);
+
+    // ── the three measurements + their healthy limits, for the meters ──────
+    // The user sees the data behind the verdict instead of a bare word.
+    in-out property <float> fizz-value;
+    in-out property <float> fizz-limit;
+    in-out property <float> mud-value;
+    in-out property <float> mud-limit;
+    in-out property <float> boom-value;
+    in-out property <float> boom-limit;
+    in-out property <float> clip-value;
+    in-out property <float> clip-limit;
+}

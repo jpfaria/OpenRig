@@ -61,6 +61,16 @@ case "$tool" in
     esac ;;
   Bash)
     cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
+    # `git worktree` is FORBIDDEN everywhere — no .solvers/ or cwd exemption. A
+    # worktree shares the parent .git (registers in the main repo's
+    # .git/worktrees and creates the branch there), so the user's own
+    # `git checkout <branch>` in the main folder aborts with "already used by
+    # worktree at …". Isolation is clone-only (each .solvers/issue-N is its own
+    # `git clone` with an independent .git). This check runs BEFORE any allow
+    # path below, including the .solvers-cwd early-allow (issue #804).
+    if printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_])git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?worktree([^[:alnum:]_]|$)'; then
+      deny "LEI ZERO (OpenRig): 'git worktree' is FORBIDDEN. A worktree shares the main repo's .git and locks the branch, breaking the user's checkout. Isolate with 'git clone' into .solvers/issue-N instead (independent .git). (CLAUDE.md LEI ZERO)"
+    fi
     # Working dir already inside an isolated clone → allow (covers bare VCS like
     # `git commit` run after a cd, which carries no .solvers/ token; issue #751).
     case "$PWD" in
