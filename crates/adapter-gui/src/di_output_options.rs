@@ -4,9 +4,15 @@
 //! (both walk `resolve_chain_ports`), so a picked index maps 1:1 to the
 //! output the playback parks on.
 
+use std::rc::Rc;
+
 use domain::io_binding::IoBinding;
 use project::binding_discovery::{resolve_chain_ports, PortDirection};
 use project::chain::{Chain, DiOutputRef};
+use project::project::Project;
+use slint::{Model, ModelRc, SharedString, VecModel};
+
+use crate::ProjectChainItem;
 
 /// One pickable output endpoint: the persisted reference + its display label.
 #[derive(Debug, Clone, PartialEq)]
@@ -73,6 +79,46 @@ pub fn di_output_selected_index(chain: &Chain, options: &[DiOutputOption]) -> i3
         .as_ref()
         .and_then(|r| options.iter().position(|o| o.di_ref == *r))
         .unwrap_or(0) as i32
+}
+
+/// #808: refresh the DI output select for EVERY chain row from the (real) I/O
+/// bindings — regardless of whether the chain is active/enabled. The DI panel's
+/// options are built inside `replace_project_chains`, but every caller passes an
+/// empty binding registry, so a freshly opened project shows an EMPTY select;
+/// the meter timer refreshes it with the real bindings but ONLY for chains that
+/// produce a live audio reading, so a chain that was never enabled stayed empty
+/// until the first enable. The options come from the chain's bindings (offline,
+/// no device or active stream needed — invariant #4), so populate them for all
+/// chains here. Only the touched fields are written, and only when they change.
+pub(crate) fn apply_di_outputs_to_rows(
+    model: &VecModel<ProjectChainItem>,
+    project: &Project,
+    io_bindings: &[IoBinding],
+) {
+    for (idx, chain) in project.chains.iter().enumerate() {
+        let Some(mut row) = model.row_data(idx) else {
+            continue;
+        };
+        let (labels, selected) = output_labels_and_index(chain, io_bindings);
+        let current: Vec<String> = row.di_loop_outputs.iter().map(|s| s.to_string()).collect();
+        let labels_changed = current != labels;
+        let index_changed = row.di_output_selected_index != selected;
+        if !labels_changed && !index_changed {
+            continue;
+        }
+        if labels_changed {
+            row.di_loop_outputs = ModelRc::from(Rc::new(VecModel::from(
+                labels
+                    .into_iter()
+                    .map(SharedString::from)
+                    .collect::<Vec<_>>(),
+            )));
+        }
+        if index_changed {
+            row.di_output_selected_index = selected;
+        }
+        model.set_row_data(idx, row);
+    }
 }
 
 #[cfg(test)]
@@ -154,6 +200,81 @@ mod tests {
         let options = build_di_output_options(&c, &registry());
         assert!(options.is_empty());
         assert_eq!(di_output_selected_index(&c, &options), -1);
+    }
+}
+
+#[cfg(test)]
+mod di_output_select_before_enable_808_tests {
+    use super::*;
+    use domain::ids::{ChainId, DeviceId};
+    use domain::io_binding::{ChannelMode, IoEndpoint};
+
+    fn registry() -> Vec<IoBinding> {
+        vec![IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![],
+            outputs: vec![
+                IoEndpoint {
+                    name: "Main Out".into(),
+                    device_id: DeviceId("dev".into()),
+                    mode: ChannelMode::Stereo,
+                    channels: vec![0, 1],
+                },
+                IoEndpoint {
+                    name: "FX Out".into(),
+                    device_id: DeviceId("dev".into()),
+                    mode: ChannelMode::Stereo,
+                    channels: vec![2, 3],
+                },
+            ],
+        }]
+    }
+
+    fn disabled_chain() -> Chain {
+        Chain {
+            id: ChainId("c808".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: false, // opened the project, never enabled this chain
+            volume: 100.0,
+            io_binding_ids: vec!["io".into()],
+            blocks: vec![],
+            di_output: None,
+        }
+    }
+
+    /// #808 (owner): "open the project without ever enabling the chain, open the
+    /// DI — the output select does not appear; only after I enable the chain the
+    /// first time." The select's options are built inside `replace_project_chains`
+    /// from its `io_bindings` arg, which every caller passes EMPTY, so the row
+    /// opens with no outputs. The refresh that keeps it fresh must populate it
+    /// from the real bindings even while the chain is disabled (the options are
+    /// offline — invariant #4).
+    #[test]
+    fn di_output_select_populates_before_the_chain_is_ever_enabled() {
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![disabled_chain()],
+            midi: None,
+        };
+        let model: Rc<VecModel<ProjectChainItem>> = Rc::new(VecModel::default());
+        // Reproduce the open flow: rows built with an EMPTY binding registry.
+        crate::project_view::replace_project_chains(&model, &project, &[], &[], &[]);
+        let before = model.row_data(0).unwrap().di_loop_outputs.iter().count();
+        assert_eq!(before, 0, "precondition: the open flow leaves the DI select empty");
+
+        // The refresh must fill the select from the real bindings — disabled or not.
+        apply_di_outputs_to_rows(&model, &project, &registry());
+
+        let after = model.row_data(0).unwrap().di_loop_outputs.iter().count();
+        assert_eq!(
+            after, 2,
+            "#808: the DI output select must list the chain's two bound outputs \
+             even though the chain was never enabled — it stayed empty until the \
+             first enable."
+        );
     }
 }
 

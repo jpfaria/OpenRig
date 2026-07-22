@@ -66,6 +66,15 @@ pub(crate) struct DiStreamHandle {
     /// superseded handle must NOT empty the cell; that is exactly the teardown
     /// the listener heard as a cut.
     superseded: bool,
+    /// #808: the DI's OWN output stream — a fully isolated cpal output on the
+    /// chain's chosen output device that drains this cell (invariant #4: the DI
+    /// never shares the chain's output stream; the backend sums them on the
+    /// device). Present whenever the DI is armed, so it plays with or without
+    /// an active guitar stream. `None` on the JACK build (Orange Pi keeps the
+    /// port-mix path) and when a re-arm hands the live stream to a new handle.
+    /// Carries the stream's sample rate so a re-arm can render at the rate the
+    /// stream consumes without re-querying the device.
+    output_stream: Option<(cpal::Stream, u32)>,
 }
 
 /// Stop every render thread in `workers` (idempotent).
@@ -121,6 +130,56 @@ impl ProjectRuntimeController {
             .unwrap_or(self.sample_rate)
     }
 
+    /// #808: build the DI's OWN cpal output stream on the chain's chosen output
+    /// device, draining `cell`. Fully isolated (invariant #4): the DI never
+    /// shares the chain's output stream, so a chain rebuild/edit cannot chop it,
+    /// and it plays with or without an active guitar stream. Best-effort — on a
+    /// resolve/config failure the DI still renders (heard once an output exists).
+    /// Returns the stream + its sample rate so the render matches the stream.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    fn build_di_output_stream(
+        &self,
+        chain: &Chain,
+        output_index: usize,
+        cell: &DiPlaybackCell,
+    ) -> Option<(cpal::Stream, u32)> {
+        use cpal::traits::{DeviceTrait, StreamTrait};
+        let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
+        let out = outputs.get(output_index)?;
+        let host = crate::host::get_host();
+        let device = crate::find_output_device_by_id(host, &out.device_id.0).ok()??;
+        let supported = device.default_output_config().ok()?;
+        let rate = supported.sample_rate();
+        let resolved = crate::resolved::ResolvedOutputDevice {
+            device_id: out.device_id.0.clone(),
+            settings: None,
+            device,
+            supported,
+        };
+        let stream = crate::stream_builder::build_output_stream_for_output(
+            &chain.id,
+            output_index,
+            resolved,
+            Vec::new(), // no chain runtime slots — this stream plays ONLY the DI
+            cell.clone(),
+        )
+        .ok()?;
+        stream.play().ok()?;
+        Some((stream, rate))
+    }
+
+    /// JACK build (Orange Pi) keeps the port-mix DI path unchanged (#808 wires
+    /// the dedicated cpal output first).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    fn build_di_output_stream(
+        &self,
+        _chain: &Chain,
+        _output_index: usize,
+        _cell: &DiPlaybackCell,
+    ) -> Option<(cpal::Stream, u32)> {
+        None
+    }
+
     /// Arm the chain's DI: resolve the chosen output, build the routed
     /// runtime off-thread and stream the loop into that output's cell. The
     /// guitar runtime is NEVER touched.
@@ -142,7 +201,6 @@ impl ProjectRuntimeController {
     ) -> Result<()> {
         let output_index =
             resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
-        let output_rate = self.di_output_rate(&chain.id, output_index);
         let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
         let dest = outputs
             .get(output_index)
@@ -152,6 +210,33 @@ impl ProjectRuntimeController {
         let dest_right = dest.get(1).copied().unwrap_or(dest_left);
 
         let cell = self.di_playback_cell(&chain.id, output_index);
+
+        // #808: the DI's OWN output stream (invariant #4 — never the chain's).
+        // Take the previous handle out first so a gapless re-arm on the SAME
+        // output REUSES the live stream (no restart, no re-open), and a moved
+        // output rebuilds it. `remove` (not `insert`) so the reused stream is
+        // out of the old handle before it drops.
+        let mut prev = self.di_streams.borrow_mut().remove(&chain.id);
+        let same_output = prev
+            .as_ref()
+            .and_then(|h| h.output_stream.as_ref().map(|_| h.output_index))
+            == Some(output_index);
+        let output_stream = if same_output {
+            prev.as_mut().and_then(|h| h.output_stream.take())
+        } else {
+            if let Some(h) = prev.as_mut() {
+                h.output_stream = None; // moved output: drop the old stream
+            }
+            self.build_di_output_stream(chain, output_index, &cell)
+        };
+        // Render at the rate the DI's own stream consumes; fall back to the
+        // controller's resolved rate when there is no dedicated stream (JACK, or
+        // a failed device resolve).
+        let output_rate = output_stream
+            .as_ref()
+            .map(|(_, r)| *r)
+            .unwrap_or_else(|| self.di_output_rate(&chain.id, output_index));
+
         let armed = Arc::new(Mutex::new(true));
         let failed = Arc::new(AtomicBool::new(false));
         let handoff_pending = handoff.is_some();
@@ -177,7 +262,7 @@ impl ProjectRuntimeController {
             handoff,
         });
 
-        let superseded = self.di_streams.borrow_mut().insert(
+        self.di_streams.borrow_mut().insert(
             chain.id.clone(),
             DiStreamHandle {
                 output_index,
@@ -186,12 +271,14 @@ impl ProjectRuntimeController {
                 pcm,
                 failed,
                 superseded: false,
+                output_stream,
             },
         );
         // A hand-off replaces the handle while its playback is still sounding:
-        // the incoming worker owns stopping it. Dropping it as-is would empty
-        // the cell — the very cut #785 is about.
-        if let Some(mut old) = superseded {
+        // the incoming worker owns stopping it. Dropping `prev` as-is would empty
+        // the cell — the cut #785 is about. Its output_stream was already taken
+        // (reuse) or cleared (rebuild) above, so its Drop stops no live stream.
+        if let Some(mut old) = prev {
             old.superseded = handoff_pending;
         }
         Ok(())

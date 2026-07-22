@@ -56,6 +56,13 @@ pub(crate) fn try_auto_open(
                 &output_chain_devices.borrow(),
                 &[],
             );
+            // #808: populate the DI output select from the real bindings now, or
+            // it stays empty until the chain is first enabled.
+            crate::di_output_options::apply_di_outputs_to_rows(
+                project_chains,
+                &session.project.borrow(),
+                &session.io_bindings.borrow(),
+            );
             let snapshot = project_session_snapshot(&session).ok();
             *project_session.borrow_mut() = Some(session);
             crate::chain_rig_nav_wiring::refresh_from_session(window, project_session);

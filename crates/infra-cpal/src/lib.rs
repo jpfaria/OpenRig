@@ -72,6 +72,7 @@ pub use slot_processing::{build_chain_slots, process_input_buffer, process_outpu
 mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
+mod controller_chain_activation;
 mod controller_offthread_live_rebuild;
 mod controller_taps;
 mod device_enum;
