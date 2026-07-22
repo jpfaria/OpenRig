@@ -207,29 +207,60 @@ fn start_run(
     st.set_running(false);
 }
 
-/// Dispatch the cached suggestion (enable gate + set number) for `chain_index`.
+/// Dispatch the cached suggestion (enable gate + set number) for `chain_index`,
+/// then re-sync the chain's live runtime so the change is heard at once. Errors
+/// surface as a toast on the main window.
 fn apply_suggestion(
     session: &ProjectSession,
+    project_runtime: &ProjectRuntime,
     chain_index: i32,
     cache: &SuggestionCache,
     main_weak: &Weak<AppWindow>,
     toast_timer: &Rc<slint::Timer>,
 ) {
-    let Some(suggestion) = cache.lock().ok().and_then(|c| c.clone()) else {
-        return;
-    };
-    let Some((chain_clone, chain_id)) = resolve_chain(session, chain_index) else {
-        return;
-    };
-    for cmd in crate::tone_doctor_wiring::apply_commands(&chain_clone, &chain_id, &suggestion) {
-        if let Err(err) = session.dispatcher.dispatch(cmd) {
-            if let Some(main_win) = main_weak.upgrade() {
-                set_status_error(&main_win, toast_timer, &err.to_string());
-            }
-            return;
+    let result = apply_cached_suggestion(session, chain_index, cache, |chain_id| {
+        crate::sync_live_chain_runtime(project_runtime, session, chain_id)
+    });
+    if let Err(err) = result {
+        if let Some(main_win) = main_weak.upgrade() {
+            set_status_error(&main_win, toast_timer, &err.to_string());
         }
     }
 }
+
+/// Windowless core: dispatch the cached suggestion's commands, then re-sync the
+/// chain's live runtime via `sync_runtime` so the change is audible at once.
+///
+/// #808: this used to stop right after `dispatch`. The command mutated the
+/// project model but nothing re-synced the runtime, so a doctor fix changed no
+/// sound — and, while monitoring a DI (a dedicated pre-render, #717/#771),
+/// NOTHING changed until a block toggle happened to re-arm it. Every other
+/// param surface (`block_parameter_wiring`, `block_editor_persist`) syncs after
+/// dispatch; the doctor's apply is now on the same footing.
+fn apply_cached_suggestion(
+    session: &ProjectSession,
+    chain_index: i32,
+    cache: &SuggestionCache,
+    sync_runtime: impl FnOnce(&domain::ids::ChainId) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let Some(suggestion) = cache.lock().ok().and_then(|c| c.clone()) else {
+        return Ok(());
+    };
+    let Some((chain_clone, chain_id)) = resolve_chain(session, chain_index) else {
+        return Ok(());
+    };
+    for cmd in crate::tone_doctor_wiring::apply_commands(&chain_clone, &chain_id, &suggestion) {
+        session
+            .dispatcher
+            .dispatch(cmd)
+            .map_err(|e| anyhow::anyhow!(e))?;
+    }
+    sync_runtime(&chain_id)
+}
+
+#[cfg(test)]
+#[path = "tone_doctor_compact_wiring_tests.rs"]
+mod apply_suggestion_tests;
 
 /// Wire the compact window's Tone Doctor run/apply for its single `chain_index`.
 pub(crate) fn wire(
@@ -277,12 +308,20 @@ pub(crate) fn wire(
     }
     {
         let project_session = project_session;
+        let project_runtime = project_runtime;
         compact_win.on_tone_doctor_apply(move |_ci| {
             let sb = project_session.borrow();
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_suggestion(session, chain_index, &cache, &main_weak, &toast_timer);
+            apply_suggestion(
+                session,
+                &project_runtime,
+                chain_index,
+                &cache,
+                &main_weak,
+                &toast_timer,
+            );
         });
     }
 }
@@ -332,12 +371,20 @@ pub(crate) fn wire_main(
     }
     {
         let project_session = project_session;
+        let project_runtime = project_runtime;
         window.on_tone_doctor_apply(move |ci| {
             let sb = project_session.borrow();
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_suggestion(session, ci, &cache, &main_weak, &toast_timer);
+            apply_suggestion(
+                session,
+                &project_runtime,
+                ci,
+                &cache,
+                &main_weak,
+                &toast_timer,
+            );
         });
     }
 }

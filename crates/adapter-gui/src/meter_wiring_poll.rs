@@ -64,6 +64,14 @@ pub fn start_meter_polling(
         };
         let project = session.project.borrow();
         let chain_ids: Vec<_> = project.chains.iter().map(|c| c.id.clone()).collect();
+        // #808: the DI output select lists the chain's bound outputs (offline, no
+        // device needed), so refresh EVERY chain — active or not — else a DI-only
+        // chain (never enabled) shows no output select.
+        crate::di_output_options::apply_di_outputs_to_rows(
+            &project_chains,
+            &project,
+            &session.io_bindings.borrow(),
+        );
         let rt_borrow = project_runtime.borrow();
         // Detect chains whose runtime-layout signature changed since
         // the last tick. Signature mixes project bits (enabled, per
