@@ -48,7 +48,7 @@ jobs:
             libasound2-dev libudev-dev pkg-config \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
-            libjack-jackd2-dev
+            libjack-jackd2-dev gettext
 
       # The suite must be able to fail the job — no `|| true`. Tests that need
       # the owner's private capture tree (OPENRIG_OWNER_PLUGINS) skip loudly
