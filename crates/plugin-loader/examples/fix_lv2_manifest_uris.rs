@@ -142,5 +142,5 @@ fn rewrite_plugin_uri(text: &str, new_uri: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "fix_lv2_manifest_uris_tests.rs"]
+#[path = "support/fix_lv2_manifest_uris_tests.rs"]
 mod tests;
