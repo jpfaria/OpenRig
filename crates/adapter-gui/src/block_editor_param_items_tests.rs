@@ -58,8 +58,7 @@ fn vst3_block_yields_params_via_the_compact_build_path() {
         enabled: true,
         kind,
     };
-    let data =
-        crate::block_editor::block_editor_data(&block).expect("editor data for vst3 block");
+    let data = crate::block_editor::block_editor_data(&block).expect("editor data for vst3 block");
     let params = block_parameter_items_for_editor(&data);
     assert!(
         !params.is_empty(),

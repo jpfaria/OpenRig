@@ -691,9 +691,7 @@ fn mixdown_sum_matches_addition() {
 #[test]
 fn mixdown_average_halves_sum() {
     for (l, r) in [(0.4_f32, 0.6), (-0.2, 0.8), (1.0, 1.0), (-1.0, 1.0)] {
-        assert!(
-            (apply_mixdown(ChainOutputMixdown::Average, l, r) - (l + r) * 0.5).abs() < 1e-6
-        );
+        assert!((apply_mixdown(ChainOutputMixdown::Average, l, r) - (l + r) * 0.5).abs() < 1e-6);
     }
 }
 #[test]
@@ -769,8 +767,7 @@ fn full_stage_sum_mixdown_125pct_bounded_grid() {
         for li in -10i32..=10 {
             for ri in -10i32..=10 {
                 let (l, r) = (li as f32 / 10.0, ri as f32 / 10.0);
-                let y =
-                    output_limiter(apply_mixdown(ChainOutputMixdown::Sum, l, r) * v / 100.0);
+                let y = output_limiter(apply_mixdown(ChainOutputMixdown::Sum, l, r) * v / 100.0);
                 assert!(y.abs() <= 1.0 && y.is_finite(), "v={v} l={l} r={r} y={y}");
             }
         }
@@ -782,9 +779,8 @@ fn full_stage_avg_mixdown_125pct_bounded_grid() {
         for li in -10i32..=10 {
             for ri in -10i32..=10 {
                 let (l, r) = (li as f32 / 10.0, ri as f32 / 10.0);
-                let y = output_limiter(
-                    apply_mixdown(ChainOutputMixdown::Average, l, r) * v / 100.0,
-                );
+                let y =
+                    output_limiter(apply_mixdown(ChainOutputMixdown::Average, l, r) * v / 100.0);
                 assert!(y.abs() <= 1.0 && y.is_finite());
             }
         }

@@ -4,9 +4,7 @@ use domain::value_objects::ParameterValue;
 use crate::block::types::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, NamBlock};
 use crate::param::ParameterSet;
 
-use super::{
-    set_parameter_bool, set_parameter_number, set_parameter_option, set_parameter_text,
-};
+use super::{set_parameter_bool, set_parameter_number, set_parameter_option, set_parameter_text};
 
 fn make_core_block(param_path: &str, value: f32) -> AudioBlock {
     let mut params = ParameterSet::default();
@@ -120,8 +118,8 @@ fn missing_path_inserts_new_parameter() {
 #[test]
 fn input_block_returns_err() {
     let mut block = make_input_block();
-    let err = set_parameter_number(&mut block, "gain", 0.5)
-        .expect_err("InputBlock should return Err");
+    let err =
+        set_parameter_number(&mut block, "gain", 0.5).expect_err("InputBlock should return Err");
     assert!(
         err.to_string().contains("ParameterSet"),
         "error must mention ParameterSet, got: {err}"
@@ -169,8 +167,8 @@ fn set_parameter_bool_missing_path_returns_err() {
 #[test]
 fn set_parameter_bool_input_block_returns_err() {
     let mut block = make_input_block();
-    let err = set_parameter_bool(&mut block, "enabled", true)
-        .expect_err("InputBlock should return Err");
+    let err =
+        set_parameter_bool(&mut block, "enabled", true).expect_err("InputBlock should return Err");
     assert!(
         err.to_string().contains("ParameterSet"),
         "error must mention ParameterSet, got: {err}"
@@ -208,8 +206,8 @@ fn set_parameter_text_missing_path_returns_err() {
 #[test]
 fn set_parameter_text_input_block_returns_err() {
     let mut block = make_input_block();
-    let err = set_parameter_text(&mut block, "label", "val")
-        .expect_err("InputBlock should return Err");
+    let err =
+        set_parameter_text(&mut block, "label", "val").expect_err("InputBlock should return Err");
     assert!(
         err.to_string().contains("ParameterSet"),
         "error must mention ParameterSet, got: {err}"
