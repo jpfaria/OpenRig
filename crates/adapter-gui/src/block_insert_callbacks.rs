@@ -28,13 +28,13 @@ use crate::block_editor::{
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
-use crate::helpers::{sync_block_editor_window, use_inline_block_editor};
+use crate::helpers::use_inline_block_editor;
 use crate::project_view::{block_model_picker_items, block_type_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::ui_index_to_real_block_index;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
-    CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, CurveEditorPoint,
+    MultiSliderPoint, ProjectChainItem,
 };
 
 pub(crate) struct BlockInsertCallbacksCtx {
@@ -59,11 +59,7 @@ pub(crate) struct BlockInsertCallbacksCtx {
     pub auto_save: bool,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: BlockInsertCallbacksCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
     let BlockInsertCallbacksCtx {
         selected_block,
         block_editor_draft,
@@ -167,7 +163,6 @@ pub(crate) fn wire(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_choose_block_model(move |index| {
@@ -229,12 +224,11 @@ pub(crate) fn wire(
             window.set_eq_total_curve(eq_total.into());
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
+            // Only the inline (fullscreen/touch) editor reads the main window's
+            // overlays; the detached editor builds its own via create_and_wire
+            // (#815/#819). The main-window model picker is inline-only now.
             if use_inline_block_editor(&window) {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-            } else if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window
-                    .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                sync_block_editor_window(&window, &block_editor_window);
             }
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(

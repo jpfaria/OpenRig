@@ -21,7 +21,7 @@ use application::dispatcher::CommandDispatcher;
 
 use crate::stop_project_runtime;
 use crate::{
-    AppWindow, BlockEditorWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow,
+    AppWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow,
 };
 
 pub(crate) struct BackToLauncherCtx {
@@ -39,7 +39,6 @@ pub(crate) struct BackToLauncherCtx {
 pub(crate) fn wire(
     window: &AppWindow,
     project_settings_window: &ProjectSettingsWindow,
-    block_editor_window: &BlockEditorWindow,
     ctx: BackToLauncherCtx,
 ) {
     let BackToLauncherCtx {
@@ -56,7 +55,6 @@ pub(crate) fn wire(
 
     let weak_window = window.as_weak();
     let project_settings_window = project_settings_window.as_weak();
-    let block_editor_window = block_editor_window.as_weak();
 
     window.on_back_to_launcher(move || {
         let Some(window) = weak_window.upgrade() else {
@@ -66,9 +64,6 @@ pub(crate) fn wire(
             let _ = settings_window.hide();
         }
         if let Some(editor_window) = chain_editor_window.borrow().as_ref() {
-            let _ = editor_window.hide();
-        }
-        if let Some(editor_window) = block_editor_window.upgrade() {
             let _ = editor_window.hide();
         }
         // #436 E: fechar o projeto é negócio → Command::CloseProject no

@@ -29,9 +29,8 @@ use crate::state::{
     SelectedBlock,
 };
 use crate::{
-    latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInsertWindow,
-    ChannelOptionItem, CompactChainViewWindow, PluginInfoWindow, ProjectSettingsWindow,
-    SpectrumWindow, TunerWindow,
+    latency_probe, AppWindow, ChainEditorWindow, ChainInsertWindow, ChannelOptionItem,
+    CompactChainViewWindow, PluginInfoWindow, ProjectSettingsWindow, SpectrumWindow, TunerWindow,
 };
 
 pub fn run_desktop_app(
@@ -229,12 +228,6 @@ pub fn run_desktop_app(
     }
     let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    let block_editor_window =
-        BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    {
-        use slint::Global;
-        crate::Locale::get(&block_editor_window).set_font_family(boot_font.into());
-    }
     let tuner_window = TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     {
         use slint::Global;
@@ -260,7 +253,6 @@ pub fn run_desktop_app(
         let weak_app = window.as_weak();
         let weak_proj = project_settings_window.as_weak();
         let weak_chain_insert = chain_insert_window.as_weak();
-        let weak_block_editor = block_editor_window.as_weak();
         let weak_tuner = tuner_window.as_weak();
         let weak_spectrum = spectrum_window.as_weak();
         let chain_editor_window_for_apply = chain_editor_window.clone();
@@ -274,9 +266,6 @@ pub fn run_desktop_app(
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = weak_chain_insert.upgrade() {
-                crate::Locale::get(&w).set_font_family(f());
-            }
-            if let Some(w) = weak_block_editor.upgrade() {
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = weak_tuner.upgrade() {
@@ -374,7 +363,7 @@ pub fn run_desktop_app(
         multi_slider_points,
         curve_editor_points,
         eq_band_curves,
-    } = crate::desktop_app_block_models::init(&window, &block_editor_window);
+    } = crate::desktop_app_block_models::init(&window);
     let block_editor_persist_timer = Rc::new(Timer::default());
     let toast_timer = Rc::new(Timer::default());
     window.set_toast_message("".into());
@@ -397,14 +386,6 @@ pub fn run_desktop_app(
         project_session.clone(),
     );
 
-    // --- BlockEditorWindow callbacks (extracted to block_editor_window_wiring) ---
-    crate::block_editor_window_wiring::wire(
-        &window,
-        &block_editor_window,
-        crate::block_editor_window_wiring::BlockEditorWindowCtx {
-            plugin_info_window: plugin_info_window.clone(),
-        },
-    );
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
@@ -663,7 +644,6 @@ pub fn run_desktop_app(
     crate::back_to_launcher_wiring::wire(
         &window,
         &project_settings_window,
-        &block_editor_window,
         crate::back_to_launcher_wiring::BackToLauncherCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
@@ -700,7 +680,6 @@ pub fn run_desktop_app(
     // --- Block-related callback wirings (extracted to desktop_app_block_wiring) ---
     crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
         window: &window,
-        block_editor_window: &block_editor_window,
         chain_insert_window: &chain_insert_window,
         selected_block: selected_block.clone(),
         block_editor_draft: block_editor_draft.clone(),

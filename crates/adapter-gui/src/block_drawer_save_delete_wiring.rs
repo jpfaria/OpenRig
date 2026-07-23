@@ -17,7 +17,7 @@ use crate::compact_block_view::build_compact_blocks;
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CompactChainViewWindow,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CompactChainViewWindow,
     CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
 };
 
@@ -43,11 +43,7 @@ pub(crate) struct BlockDrawerSaveDeleteCtx {
     pub auto_save: bool,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: BlockDrawerSaveDeleteCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
     let BlockDrawerSaveDeleteCtx {
         selected_block,
         block_editor_draft,
@@ -77,7 +73,6 @@ pub(crate) fn wire(
         let project_session_save = project_session.clone();
         let project_session_compact = project_session.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -115,9 +110,6 @@ pub(crate) fn wire(
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
             window.set_eq_total_curve("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                let _ = block_editor_window.hide();
-            }
             // Refresh compact chain view if open
             if let Some((ci, weak_cw)) = open_compact_window.borrow().as_ref() {
                 if let Some(cw) = weak_cw.upgrade() {

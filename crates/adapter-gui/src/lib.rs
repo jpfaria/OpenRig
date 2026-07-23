@@ -21,7 +21,6 @@ mod block_editor_window_lifecycle;
 mod block_editor_window_delete;
 mod block_editor_window_params;
 mod block_editor_window_setup;
-mod block_editor_window_wiring;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
 mod block_panel_dimensions;
@@ -121,7 +120,7 @@ pub use cli::{
 };
 pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_block_toggle,
-    sync_live_chain_runtime, sync_project_runtime, system_language, ui_index_to_real_block_index,
+    sync_live_chain_runtime, sync_project_runtime, ui_index_to_real_block_index,
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.
@@ -145,6 +144,8 @@ mod helpers;
 mod issue_692_project_open_time_tests;
 #[cfg(test)]
 mod issue_815_add_block_tabs_tests;
+#[cfg(test)]
+mod issue_819_retire_persistent_window_tests;
 mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;

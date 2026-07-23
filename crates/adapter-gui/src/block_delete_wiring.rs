@@ -20,7 +20,7 @@ use crate::project_view::{replace_project_chains, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::sync_live_chain_runtime;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
     MultiSliderPoint, ProjectChainItem,
 };
 
@@ -45,11 +45,7 @@ pub(crate) struct BlockDeleteCtx {
     pub auto_save: bool,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: BlockDeleteCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
     let BlockDeleteCtx {
         selected_block,
         block_editor_draft,
@@ -72,7 +68,6 @@ pub(crate) fn wire(
     } = ctx;
     {
         let weak_window = window.as_weak();
-        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_confirm_delete_block(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -151,9 +146,6 @@ pub(crate) fn wire(
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
             clear_status(&window, &toast_timer);
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                let _ = block_editor_window.hide();
-            }
         });
     }
     {

@@ -38,9 +38,7 @@ use crate::project_view::{
 };
 use crate::runtime_lifecycle::sync_live_chain_runtime;
 use crate::state::{BlockEditorDraft, ProjectSession};
-use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ProjectChainItem,
-    };
+use crate::{AppWindow, BlockModelPickerItem, BlockParameterItem, ProjectChainItem};
 
 pub(crate) struct BlockParameterCtx {
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
@@ -60,22 +58,14 @@ pub(crate) struct BlockParameterCtx {
 }
 
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: BlockParameterCtx,
-) {
-    wire_numeric_params(window, block_editor_window, &ctx);
-    wire_text_bool_params(window, block_editor_window, &ctx);
-    crate::block_parameter_extras::wire_select_param(window, block_editor_window, &ctx);
-    crate::block_parameter_extras::wire_toggle_and_file(window, block_editor_window, &ctx);
+pub(crate) fn wire(window: &AppWindow, ctx: BlockParameterCtx) {
+    wire_numeric_params(window, &ctx);
+    wire_text_bool_params(window, &ctx);
+    crate::block_parameter_extras::wire_select_param(window, &ctx);
+    crate::block_parameter_extras::wire_toggle_and_file(window, &ctx);
 }
 
-fn wire_numeric_params(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: &BlockParameterCtx,
-) {
+fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
     let block_editor_draft = &ctx.block_editor_draft;
     let block_parameter_items = &ctx.block_parameter_items;
     let eq_band_curves = &ctx.eq_band_curves;
@@ -208,7 +198,6 @@ fn wire_numeric_params(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_number(move |path, value| {
@@ -217,9 +206,6 @@ fn wire_numeric_params(
             };
             set_block_parameter_number(&block_parameter_items, path.as_str(), value);
             window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_status_message("".into());
-            }
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 let params = build_params_from_items(&block_parameter_items);
                 let (eq_total, eq_bands) = compute_eq_curves(
@@ -258,11 +244,7 @@ fn wire_numeric_params(
 
 }
 
-fn wire_text_bool_params(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: &BlockParameterCtx,
-) {
+fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
     let block_editor_draft = &ctx.block_editor_draft;
     let block_parameter_items = &ctx.block_parameter_items;
     let project_session = &ctx.project_session;
@@ -283,7 +265,6 @@ fn wire_text_bool_params(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_text(move |path, value| {
@@ -293,9 +274,6 @@ fn wire_text_bool_params(
             // Update UI immediately for visual feedback.
             set_block_parameter_text(&block_parameter_items, path.as_str(), value.as_str());
             window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_status_message("".into());
-            }
 
             // Only dispatch if editing an existing block.
             let (chain_index, block_index) = {
@@ -387,7 +365,6 @@ fn wire_text_bool_params(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_bool(move |path, value| {
@@ -397,9 +374,6 @@ fn wire_text_bool_params(
             // Update UI immediately for visual feedback.
             set_block_parameter_bool(&block_parameter_items, path.as_str(), value);
             window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_status_message("".into());
-            }
 
             // Only dispatch if editing an existing block.
             let (chain_index, block_index) = {
