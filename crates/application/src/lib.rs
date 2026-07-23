@@ -30,6 +30,7 @@ mod local_dispatcher_chain_save;
 mod local_dispatcher_close;
 mod local_dispatcher_di_loop;
 mod local_dispatcher_looper;
+pub mod query_loopers;
 mod local_dispatcher_diagnostic;
 mod local_dispatcher_io_binding;
 mod local_dispatcher_ir_reseed;

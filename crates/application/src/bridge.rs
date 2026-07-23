@@ -108,6 +108,11 @@ pub enum QueryKind {
     /// running the synthetic battery through the offline render, so it resolves
     /// off-frontend. MCP serves this as `openrig://chains/{chain}/quality`.
     ChainQualityReport { chain: domain::ids::ChainId },
+    /// #323: one chain's loopers — persisted parameters merged with the live
+    /// transport state the audio thread publishes. Runtime-coupled, so it is
+    /// served by the frontend like `ChainMeters`. Same view the panel shows;
+    /// MCP serves it as `openrig://chains/<id>/loopers` (query-parity law).
+    ChainLoopers { chain: domain::ids::ChainId },
 }
 
 struct QueryRequest {
@@ -170,7 +175,7 @@ impl CommandBridge {
                 crate::query_chain_quality::chain_quality_report(&snap.project, chain),
             ),
             // Live runtime / GUI-coupled reads keep the frontend path.
-            QueryKind::Devices | QueryKind::ChainMeters => None,
+            QueryKind::Devices | QueryKind::ChainMeters | QueryKind::ChainLoopers { .. } => None,
             // Handled above; unreachable here.
             QueryKind::ListPluginCatalog
             | QueryKind::GetPlugin { .. }

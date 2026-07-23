@@ -47,6 +47,9 @@ pub const URI_BLOCK_PARAMS_TEMPLATE: &str = "openrig://chains/{chain}/blocks/{bl
 /// floor, level, dynamic range, clipping). Concrete URIs look like
 /// `openrig://chains/<chain_id>/quality`.
 pub const URI_CHAIN_QUALITY_TEMPLATE: &str = "openrig://chains/{chain}/quality";
+/// #323: parameterised resource — one chain's loopers (persisted parameters
+/// plus live transport state), e.g. `openrig://chains/chain:1/loopers`.
+pub const URI_CHAIN_LOOPERS_TEMPLATE: &str = "openrig://chains/{chain}/loopers";
 
 /// Static list of resources this server exposes.
 pub fn resources() -> Vec<Resource> {
@@ -101,6 +104,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_CHAIN_LOOPERS_TEMPLATE,
+                "Chain loopers: state, position, length, layers and parameters (replace {chain} with a chain id) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_CHAIN_QUALITY_TEMPLATE,
                 "Objective chain quality report (replace {chain} with a chain id) — JSON",
             ),
@@ -126,6 +136,10 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
         QueryKind::GetBlockParams {
             chain: ChainId(chain),
             block: domain::ids::BlockId(block),
+        }
+    } else if let Some(chain_id) = parse_chain_loopers_uri(uri) {
+        QueryKind::ChainLoopers {
+            chain: ChainId(chain_id),
         }
     } else if let Some(chain_id) = parse_chain_quality_uri(uri) {
         QueryKind::ChainQualityReport {
@@ -176,6 +190,14 @@ fn parse_chain_presets_uri(uri: &str) -> Option<String> {
 
 /// Extract `<chain>` from `openrig://chains/<chain>/quality`. Returns
 /// `None` for any other URI shape. #791.
+/// Extract `<id>` from `openrig://chains/<id>/loopers` (#323).
+fn parse_chain_loopers_uri(uri: &str) -> Option<String> {
+    uri.strip_prefix("openrig://chains/")
+        .and_then(|rest| rest.strip_suffix("/loopers"))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
 fn parse_chain_quality_uri(uri: &str) -> Option<String> {
     uri.strip_prefix("openrig://chains/")
         .and_then(|rest| rest.strip_suffix("/quality"))

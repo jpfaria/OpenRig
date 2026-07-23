@@ -837,6 +837,9 @@ pub fn run_desktop_app(
         // Cloned for the meter resolver closure (the moves above
         // consumed `project_chains` for the rig-nav ctx).
         let chains_for_meters = mcp_ctx.project_chains.clone();
+        // #323: the looper read model needs the live runtimes (transport
+        // state) — the same handle the panel wiring drives.
+        let runtime_for_loopers = project_runtime.clone();
         let timer = Timer::default();
         timer.start(
             slint::TimerMode::Repeated,
@@ -948,6 +951,36 @@ pub fn run_desktop_app(
                             // #791: objective quality report, measured offline.
                             application::bridge::QueryKind::ChainQualityReport { chain } => {
                                 application::query_chain_quality::chain_quality_report(&project.borrow(), chain)
+                            }
+                            application::bridge::QueryKind::ChainLoopers { chain } => {
+                                // #323: persisted params (project) merged with
+                                // the transport state the audio thread
+                                // publishes, at the chain's LIVE rate.
+                                let proj = project.borrow();
+                                match proj.chains.iter().find(|c| &c.id == chain) {
+                                    Some(c) => {
+                                        let rt = runtime_for_loopers.borrow();
+                                        // Frame counts are meaningless without
+                                        // the stream's real rate, and there is
+                                        // no rate before a stream exists — say
+                                        // so instead of inventing 48000 (#723).
+                                        match rt.as_ref() {
+                                            Some(controller) => {
+                                                Ok(application::query_loopers::loopers_json(
+                                                    c,
+                                                    &controller.chain_looper_statuses(chain),
+                                                    controller.sample_rate(),
+                                                ))
+                                            }
+                                            None => Err(
+                                                "no live audio runtime — loopers report \
+                                                 nothing until the project is started"
+                                                    .to_string(),
+                                            ),
+                                        }
+                                    }
+                                    None => Err(format!("chain not found: {}", chain.0)),
+                                }
                             }
                         },
                         32,
