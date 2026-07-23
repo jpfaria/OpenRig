@@ -76,14 +76,17 @@ jobs:
           echo "gate_exit=$gate_exit" >> "$GITHUB_OUTPUT"
           echo "Gate exit: $gate_exit"
           cat qg-result.json 2>/dev/null || true
-          # Gate contract: 0 = passed/bypassed, 1 = regressed, 2 = tool/setup
-          # error, 3 = no supported language. ONLY a real code regression
-          # (exit 1) blocks the PR. A tool/setup error (exit 2 — e.g. a native
-          # build dep missing from the container) is explicitly "não bloqueia"
-          # per the gate's own summary, and "no language" (3) has nothing to
-          # gate — both pass. This mirrors the gate's stated semantics; we must
-          # never turn its setup hiccup into a red PR on green code.
-          if [ "$gate_exit" = "1" ]; then
+          # The gate's raw EXIT CODE is unreliable: it returns 1 even when the
+          # overall verdict is "passed" — e.g. the `build` metric tool-errors in
+          # the container (nam's C++/cmake toolchain isn't installed) yet base==pr
+          # so it is comparatively "same", not a regression. Gate on the
+          # AUTHORITATIVE JSON `.verdict` instead, blocking ONLY on "regressed".
+          # passed / improved / same / bypassed → pass. A missing or unparsable
+          # verdict (hard tool/setup error) is non-blocking here: the separate
+          # Test Suite job runs the real full build + test on Linux and gates it.
+          verdict="$(jq -r '.verdict // "unknown"' qg-result.json 2>/dev/null || echo unknown)"
+          echo "Gate verdict: $verdict"
+          if [ "$verdict" = "regressed" ]; then
             exit 1
           fi
           exit 0
