@@ -148,6 +148,7 @@ mod issue_815_add_block_tabs_tests;
 mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
+pub mod looper_wiring;
 mod meter_wiring;
 mod meter_wiring_poll;
 #[cfg(test)]
