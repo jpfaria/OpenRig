@@ -53,23 +53,10 @@ jobs:
       # The suite must be able to fail the job — no `|| true`. Tests that need
       # the owner's private capture tree (OPENRIG_OWNER_PLUGINS) skip loudly
       # when it is absent; they never hard-fail CI. See issue #793.
+      # A hard timeout keeps a hung test from wedging the runner for hours
+      # (see issue #693 FIFO tests, fixed to never block the test thread).
       - name: Run tests
-        run: |
-          # DIAGNOSTIC (temporary): a test hangs only on Linux CI; a hard
-          # timeout keeps the job from running for hours, and per-binary
-          # output lets us spot the binary that prints "Running …" but never
-          # its "test result:" summary — that's the one that hung.
-          set -o pipefail
-          timeout --signal=SIGKILL 1500 \
-            cargo test --workspace --no-fail-fast -- --nocapture 2>&1 \
-            | tee test-output.log
-          status=${PIPESTATUS[0]}
-          if [ "$status" = "137" ]; then
-            echo "::error::cargo test exceeded the 25-min timeout — a test is hanging"
-            echo "=== binaries that started but never produced a 'test result:' summary ==="
-            grep -nE "Running |test result:" test-output.log | tail -40
-          fi
-          exit "$status"
+        run: timeout --signal=SIGKILL 1500 cargo test --workspace
 
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
