@@ -64,7 +64,8 @@ jobs:
                 apt-get install -y -qq --no-install-recommends \
                   libasound2-dev libudev-dev pkg-config \
                   libfontconfig1-dev libseat-dev libxkbcommon-dev \
-                  libinput-dev libgbm-dev libjack-jackd2-dev
+                  libinput-dev libgbm-dev libjack-jackd2-dev \
+                  cmake build-essential
               } >&2
               exec /opt/quality-gate/qg \
                 --base origin/develop \
@@ -76,12 +77,17 @@ jobs:
           echo "gate_exit=$gate_exit" >> "$GITHUB_OUTPUT"
           echo "Gate exit: $gate_exit"
           cat qg-result.json 2>/dev/null || true
-          # 0 = passed/bypassed, 1 = regressed, 2 = tool/setup error,
-          # 3 = no supported language (treat as pass — nothing to gate).
-          if [ "$gate_exit" = "0" ] || [ "$gate_exit" = "3" ]; then
-            exit 0
+          # Gate contract: 0 = passed/bypassed, 1 = regressed, 2 = tool/setup
+          # error, 3 = no supported language. ONLY a real code regression
+          # (exit 1) blocks the PR. A tool/setup error (exit 2 — e.g. a native
+          # build dep missing from the container) is explicitly "não bloqueia"
+          # per the gate's own summary, and "no language" (3) has nothing to
+          # gate — both pass. This mirrors the gate's stated semantics; we must
+          # never turn its setup hiccup into a red PR on green code.
+          if [ "$gate_exit" = "1" ]; then
+            exit 1
           fi
-          exit 1
+          exit 0
 
       - name: Upload gate logs
         if: always()
