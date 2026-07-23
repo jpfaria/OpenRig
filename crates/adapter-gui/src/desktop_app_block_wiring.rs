@@ -68,11 +68,30 @@ pub(crate) struct BlockWiringDeps<'a> {
 }
 
 pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
+    // #819: the inline (fullscreen/touch) editor's parameter-tab state. The
+    // detached editor keeps its own per-window state inside `create_and_wire`;
+    // the inline one is a single shared state driven through the
+    // `BlockParamTabs` global.
+    let inline_tab_state = Rc::new(RefCell::new(
+        crate::block_editor_param_tabs::TabState::default(),
+    ));
+    {
+        use slint::{ComponentHandle, Global};
+        let weak_window = deps.window.as_weak();
+        let items = deps.block_parameter_items.clone();
+        let state = inline_tab_state.clone();
+        crate::BlockParamTabs::get(deps.window).on_select(move |i| {
+            if let Some(window) = weak_window.upgrade() {
+                crate::block_editor_param_tabs::select_inline_param_tab(&window, &items, &state, i);
+            }
+        });
+    }
     // --- on_select_chain_block (extracted to select_chain_block_callback + block_editor_window_*) ---
     crate::select_chain_block_callback::wire(
         deps.window,
         deps.chain_insert_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
+            inline_tab_state: inline_tab_state.clone(),
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),
@@ -138,6 +157,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::block_insert_callbacks::wire(
         deps.window,
         crate::block_insert_callbacks::BlockInsertCallbacksCtx {
+            inline_tab_state: inline_tab_state.clone(),
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             block_type_options: deps.block_type_options.clone(),
@@ -164,6 +184,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
         deps.window,
         deps.chain_insert_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
+            inline_tab_state: inline_tab_state.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),
             block_model_options: deps.block_model_options.clone(),

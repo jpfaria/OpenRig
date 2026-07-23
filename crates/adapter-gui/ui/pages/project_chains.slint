@@ -5,6 +5,7 @@ import { ChainRow } from "./chain_row.slint";
 import { BlockEditorPanel } from "./block_editor_panel.slint";
 import { HeaderIconAction } from "../components/chain_chips.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
+import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -316,9 +317,14 @@ export component ProjectChainsPage inherits Rectangle {
             && root.block-stream-data.stream-kind != "spectrum";
         property <length> eq-extra-height:
             has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
+        // #819: prefer the #500 Rust policy (knob wrap + tab bar) so the panel
+        // never clips its knobs; fall back to the local estimate until Rust
+        // publishes a height.
         property <length> panel-height:
             use-panel-editor
-                ? (has-stream-data ? Math.max(420px, eq-extra-height) : eq-extra-height)
+                ? (BlockParamTabs.panel-height > 0px
+                    ? BlockParamTabs.panel-height
+                    : (has-stream-data ? Math.max(420px, eq-extra-height) : eq-extra-height))
                 : parent.height;
 
         TouchArea {
@@ -346,6 +352,10 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-enabled: root.block-drawer-enabled;
             block-knob-overlays: root.block-knob-overlays;
             block-parameter-items: root.block-parameter-items;
+            // #819: same parameter tabs the detached editor shows.
+            block-parameter-groups: BlockParamTabs.groups;
+            active-parameter-group: BlockParamTabs.active;
+            select-parameter-group(i) => { BlockParamTabs.select(i); }
             multi-slider-points: root.multi-slider-points;
             curve-editor-points: root.curve-editor-points;
             eq-total-curve: root.eq-total-curve;

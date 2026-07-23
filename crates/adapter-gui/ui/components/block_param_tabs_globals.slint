@@ -1,0 +1,19 @@
+// #819 — parameter-tab state for the INLINE (fullscreen/touch) block editor.
+//
+// The detached `BlockEditorWindow` receives these as plain properties from
+// `block_editor_param_tabs::apply_param_tabs`. The inline editor lives deep
+// inside the AppWindow tree (AppWindow → desktop/touch main → ProjectChainsPage
+// → BlockPanelEditor), so it reads the same state from this global instead of
+// prop-drilling through three files. Rust fills it via `BlockParamTabs::get(&window)`.
+export global BlockParamTabs {
+    // Tab labels, in first-appearance order. `<= 1` entry means "no tab bar",
+    // which is exactly how BlockPanelEditor gates `has-param-tabs`.
+    in-out property <[string]> groups;
+    in-out property <int> active;
+    // Panel height from the #500 Rust policy (`block_panel_dimensions::compute`),
+    // including the tab bar when present. Slint must never re-derive the knob
+    // wrap math; 0px means "not computed yet, fall back to the local estimate".
+    in-out property <length> panel-height;
+    // Tab click → Rust re-tags the parameter rows for the chosen group.
+    callback select(int);
+}

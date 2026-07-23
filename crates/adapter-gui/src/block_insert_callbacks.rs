@@ -38,6 +38,7 @@ use crate::{
 };
 
 pub(crate) struct BlockInsertCallbacksCtx {
+    pub inline_tab_state: Rc<RefCell<crate::block_editor_param_tabs::TabState>>,
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub block_type_options: Rc<VecModel<BlockTypePickerItem>>,
@@ -61,6 +62,7 @@ pub(crate) struct BlockInsertCallbacksCtx {
 
 pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
     let BlockInsertCallbacksCtx {
+        inline_tab_state,
         selected_block,
         block_editor_draft,
         block_type_options,
@@ -198,7 +200,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                 project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
                 &new_params,
             );
-            block_parameter_items.set_vec(new_params);
+            crate::block_editor_param_tabs::apply_inline_param_tabs(
+                &window,
+                &block_parameter_items,
+                &inline_tab_state,
+                new_params,
+            );
             multi_slider_points.set_vec(build_multi_slider_points(
                 &model.effect_type,
                 &model.model_id,
@@ -229,6 +236,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
             // (#815/#819). The main-window model picker is inline-only now.
             if use_inline_block_editor(&window) {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                // #819: knob count changed -> re-publish the #500 panel height.
+                crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             }
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(
