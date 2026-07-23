@@ -25,8 +25,7 @@
 //!   J. User-reported reproducer
 
 pub(super) use super::{
-    build_chain_runtime_state, process_input_f32, process_output_f32, AudioFrame,
-    DEFAULT_ELASTIC_TARGET,
+    build_chain_runtime_state, process_input_f32, process_output_f32, DEFAULT_ELASTIC_TARGET,
 };
 pub(super) use domain::ids::{BlockId, ChainId, DeviceId};
 pub(super) use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
