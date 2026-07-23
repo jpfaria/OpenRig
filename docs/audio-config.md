@@ -375,6 +375,54 @@ language: pt-BR  # ou en-US, ou null para seguir o OS
 
 `load_project_session()` popula `project.device_settings` em memória. YAML do projeto **não persiste** `device_settings` (`skip_serializing`), mas YAML antigo com o campo ainda deserializa.
 
+## Multi-rate streams (#736)
+
+Two interfaces running at **different sample rates at the same time, in the
+same chain** — e.g. a 44.1 kHz interface and a 48 kHz interface — is supported.
+Before #736 that configuration was rejected before any stream opened, with
+`mismatched sample rates across inputs (44100 vs 48000)`.
+
+**The rate is resolved per device, and validated per binding.** Each device
+contributes the `sample_rate` saved for it in `config.yaml`; with nothing
+saved, the device's own default rate is used. Every per-input runtime is then
+clocked at the rate of *its own* input device — this follows directly from
+invariant #4: one binding is one isolated stream, and two isolated streams
+share no clock.
+
+What that allows and forbids:
+
+- **Across bindings — free.** Binding A at 44.1 kHz and binding B at 48 kHz in
+  one chain is valid, and starts two independent streams.
+- **Inside one binding — must match.** If a binding's inputs disagree, or its
+  input and output disagree, activation **fails loudly** rather than starting:
+  `chain '<id>' invalid: mismatched sample rates across inputs (<a> vs <b>)`,
+  or `… across I/O (<a> vs <b>)`. A single isolated stream cannot resample
+  internally, so this is deliberately an error and never a silent conversion.
+  The message surfaces through whichever status/toast belongs to the action
+  that triggered the sync.
+- If the device does not support the chosen rate at the channel count the chain
+  needs, activation fails with `no supported config for sample_rate=<r> with at
+  least <n> channels`.
+
+**Nothing is resampled between streams** — there is no sample-rate conversion
+bridging two pipelines, by design. The one resampler in this area is the DI
+loop, which is resampled *to* each output stream's own rate when armed (#749);
+without that, a loop armed at one rate and played on the other stretched by one
+frame per output frame and dragged into slow motion.
+
+A single-binding chain behaves exactly as before #736 — one binding, one group,
+one rate.
+
+Caveats:
+
+- **JACK (Linux, `jack` feature) is unchanged and out of scope** — the JACK
+  server imposes one rate for everything. Multi-rate applies to the cpal path:
+  macOS, Windows, and Linux built without the `jack` feature.
+- The full path needs two physical interfaces, so it cannot be proven headless.
+  It is covered by the hardware battery (macOS): `OPENRIG_HW_TESTS=1 cargo test
+  -p infra-cpal --release --test issue_736_multi_rate_streams`, which runs 30 s
+  and requires zero xruns and zero underruns.
+
 ## JACK lifecycle (Linux only)
 
 Com feature `jack`, OpenRig controla o ciclo de vida do JACK. `ensure_jack_running()` em infra-cpal detecta a placa USB, lê SR/buffer do `device_settings`, **põe o mixer de playback da placa em unity** (`LiveJackBackend::set_playback_mixer_unity` → `amixer -c $CARD sset <ctrl> 100% unmute` nos controles comuns; best-effort, requer `alsa-utils`) — sem PipeWire/Pulse nada inicializa o mixer e muitas interfaces USB sobem atenuadas (~−23 dB → som fraco/abafado). Depois lança `jackd -d alsa -d hw:$CARD -r $SR -p $BUF -n 3`, espera o socket aparecer em `/dev/shm/`. Timer de 2s no adapter-gui (`health_timer`) verifica `is_healthy()` e tenta reconectar quando JACK volta. Tudo atrás de `#[cfg(all(target_os = "linux", feature = "jack"))]`.
