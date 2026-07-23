@@ -35,7 +35,11 @@ use application::command_schema::command_variant_names;
 /// bindings it uses; the tool auto-derives via `command_schema`.
 /// #717 bumped to 73 with `SetChainDiLoopOutput` — persists the chain's
 /// chosen DI output endpoint.
-const COMMAND_VARIANT_COUNT: usize = 73;
+/// #323 bumped to 77 with the per-chain looper: `AddChainLooper`,
+/// `RemoveChainLooper`, `SetChainLooperTransport`, `SetChainLooperParam` —
+/// so an agent drives the looper through the same bus the GUI and the MIDI
+/// footswitch use.
+const COMMAND_VARIANT_COUNT: usize = 77;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

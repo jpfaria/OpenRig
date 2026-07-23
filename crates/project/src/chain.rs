@@ -88,6 +88,10 @@ pub struct DiOutputRef {
     pub endpoint: String,
 }
 
+/// #323: how many loopers one chain can hold. A domain rule (it caps what a
+/// project may contain), read by the engine to size its slots.
+pub const LOOPER_MAX_PER_CHAIN: usize = 8;
+
 /// #323: playback rate of a looper. Not a resample — the read cursor steps by
 /// this factor, so the pitch follows the speed (classic looper behaviour).
 #[derive(

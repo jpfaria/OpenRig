@@ -333,6 +333,13 @@ impl CommandDispatcher for LocalDispatcher {
             | Command::SetChainDiLoopEnabled { .. }
             | Command::SetChainDiLoopOutput { .. } => self.handle_di_loop(cmd),
 
+            // #323: per-chain loopers (membership + params persisted; the
+            // transport is runtime state and travels as an event).
+            Command::AddChainLooper { .. }
+            | Command::RemoveChainLooper { .. }
+            | Command::SetChainLooperTransport { .. }
+            | Command::SetChainLooperParam { .. } => self.handle_looper(cmd),
+
             // #716: per-machine I/O binding registry (persisted to config.yaml).
             Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {
                 self.handle_create_or_update_io_binding(binding)

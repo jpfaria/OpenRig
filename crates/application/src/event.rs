@@ -345,6 +345,30 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #323: a looper was added to a chain; `looper` is the uid the
+    /// dispatcher assigned. The adapter wiring claims the matching slot on
+    /// the chain's runtimes.
+    ChainLooperAdded { chain: ChainId, looper: u64 },
+
+    /// #323: a looper was removed from a chain.
+    ChainLooperRemoved { chain: ChainId, looper: u64 },
+
+    /// #323: a transport action was requested for a looper. The adapter
+    /// wiring turns it into the matching `engine::LooperOp` — allocating the
+    /// layer buffer off the audio thread when the action starts a recording.
+    ChainLooperTransportChanged {
+        chain: ChainId,
+        looper: u64,
+        action: crate::command::LooperAction,
+    },
+
+    /// #323: a looper parameter changed and was persisted on the chain.
+    ChainLooperParamChanged {
+        chain: ChainId,
+        looper: u64,
+        param: crate::command::LooperParam,
+    },
+
     /// #717 Task 3: the chain's chosen DI output endpoint was persisted.
     ///
     /// The adapter-gui reacts to this event to refresh any UI showing the
@@ -390,7 +414,11 @@ impl Event {
             | Event::BlockSelectionChanged { chain, .. }
             | Event::ChainDiLoopSourceChanged { chain }
             | Event::ChainDiLoopEnabledChanged { chain, .. }
-            | Event::ChainDiLoopOutputChanged { chain } => Some(chain),
+            | Event::ChainDiLoopOutputChanged { chain }
+            | Event::ChainLooperAdded { chain, .. }
+            | Event::ChainLooperRemoved { chain, .. }
+            | Event::ChainLooperTransportChanged { chain, .. }
+            | Event::ChainLooperParamChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

@@ -20,8 +20,9 @@ use crate::looper::{LooperSlot, LooperState};
 use crate::runtime_audio_frame::AudioFrame;
 use block_core::AudioChannelLayout;
 
-/// How many loopers one chain can hold.
-pub const LOOPER_MAX_PER_CHAIN: usize = 8;
+/// How many loopers one chain can hold — the domain rule lives in
+/// `project::chain`, this is the runtime reading of it.
+pub use project::chain::LOOPER_MAX_PER_CHAIN;
 /// Longest loop a single looper can record.
 pub const LOOPER_MAX_SECONDS: f32 = 60.0;
 /// Depth of the control → audio op queue. Far above any plausible burst of

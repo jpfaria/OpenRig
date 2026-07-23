@@ -15,6 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use crate::di_loader::DiLoopSource;
+pub use project::chain::LooperSpeed;
 pub use domain::ids::{BlockId, ChainId};
 pub use domain::io_binding::{ChannelMode, IoBinding};
 use project::block::AudioBlock;
@@ -565,6 +566,34 @@ pub enum Command {
     /// Returns `Err` if `chain` is not found.
     SetChainDiLoopEnabled { chain: ChainId, enabled: bool },
 
+    // ── Per-chain loopers (#323) ─────────────────────────────────────────────
+    /// #323: add a looper to a chain. The dispatcher assigns its uid (unique
+    /// within the chain, never 0) and emits `Event::ChainLooperAdded` carrying
+    /// it. Fails when the chain already holds `LOOPER_MAX_PER_CHAIN` loopers.
+    AddChainLooper { chain: ChainId },
+
+    /// #323: remove a looper from a chain, discarding whatever it recorded.
+    /// Fails when the chain or the looper is unknown.
+    RemoveChainLooper { chain: ChainId, looper: u64 },
+
+    /// #323: drive one looper's transport — the same command a GUI button, a
+    /// MIDI footswitch and an MCP tool all go through. Carries no project
+    /// state (a recording is runtime state); the adapter wiring turns the
+    /// emitted event into the matching `engine::LooperOp`.
+    SetChainLooperTransport {
+        chain: ChainId,
+        looper: u64,
+        action: LooperAction,
+    },
+
+    /// #323: set one of a looper's persisted parameters. `Mix`/`Decay` are
+    /// clamped to 0..=1.
+    SetChainLooperParam {
+        chain: ChainId,
+        looper: u64,
+        param: LooperParam,
+    },
+
     /// #717 Task 3: persist the chosen DI output endpoint for a chain.
     ///
     /// Sets `chain.di_output = Some(output)` on the matching chain in the
@@ -635,4 +664,30 @@ pub enum RigNavKind {
     Scene(i32),
     StepPreset(i32),
     StepScene(i32),
+}
+
+/// #323: what a looper transport tap does.
+///
+/// `Record` is the record/overdub footswitch: it starts the first recording,
+/// closes it (freezing the loop length), starts an overdub, or closes the
+/// overdub — whichever the looper's current state calls for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum LooperAction {
+    Record,
+    Play,
+    Stop,
+    Undo,
+    Redo,
+    Clear,
+}
+
+/// #323: one persisted looper parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub enum LooperParam {
+    /// Loop level, 0..=1.
+    Mix(f32),
+    /// Per-layer-of-age gain on older layers, 0..=1 (1 = no decay).
+    Decay(f32),
+    Speed(LooperSpeed),
+    Reverse(bool),
 }
