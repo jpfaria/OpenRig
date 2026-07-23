@@ -237,6 +237,7 @@ fn legacy_chain(desc: &str, vol: f32) -> Chain {
             },
         ],
         di_output: None,
+        loopers: vec![],
     }
 }
 

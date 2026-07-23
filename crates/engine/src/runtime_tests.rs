@@ -62,6 +62,7 @@ pub(super) fn empty_chain(id: &str) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -167,6 +168,7 @@ pub(super) fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -350,6 +352,7 @@ pub(super) fn io_passthrough_chain(id: &str) -> Chain {
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -380,6 +383,7 @@ pub(super) fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -585,6 +589,7 @@ pub(super) fn insert_chain() -> Chain {
             },
         ],
         di_output: None,
+        loopers: vec![],
     }
 }
 

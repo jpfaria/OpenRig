@@ -73,6 +73,7 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -296,4 +297,45 @@ fn chain_output_mode_default_is_stereo() {
 #[test]
 fn chain_output_mixdown_default_is_average() {
     assert_eq!(ChainOutputMixdown::default(), ChainOutputMixdown::Average);
+}
+
+// --- #323: per-chain loopers ---
+
+#[test]
+fn chain_without_loopers_field_deserializes_to_empty() {
+    let yaml = "instrument: electric_guitar\nenabled: true\n";
+    let chain: Chain = serde_yaml::from_str(yaml).expect("legacy chain parses");
+    assert!(
+        chain.loopers.is_empty(),
+        "a project written before the looper existed carries no loopers"
+    );
+}
+
+#[test]
+fn loopers_round_trip_through_yaml() {
+    let mut chain = make_chain(vec![]);
+    chain.loopers = vec![
+        LooperConfig {
+            uid: 1,
+            mix: 0.8,
+            decay: 0.5,
+            speed: LooperSpeed::Double,
+            reverse: true,
+            audio_file: Some("looper-1.wav".into()),
+        },
+        LooperConfig::new(2),
+    ];
+
+    let yaml = serde_yaml::to_string(&chain).expect("serializes");
+    let back: Chain = serde_yaml::from_str(&yaml).expect("deserializes");
+
+    assert_eq!(back.loopers, chain.loopers);
+    assert_eq!(back.loopers[1].speed, LooperSpeed::Normal);
+    assert_eq!(back.loopers[1].mix, 1.0, "a fresh looper plays at unity");
+    assert!(back.loopers[1].audio_file.is_none());
+}
+
+#[test]
+fn looper_speed_default_is_normal() {
+    assert_eq!(LooperSpeed::default(), LooperSpeed::Normal);
 }

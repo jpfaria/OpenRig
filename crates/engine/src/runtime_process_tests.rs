@@ -271,6 +271,7 @@ fn process_input_stereo_output_preserves_channels() {
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let runtime = Arc::new(
         build_chain_runtime_state(
@@ -443,6 +444,7 @@ fn build_chain_runtime_state_empty_chain_succeeds() {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(runtime.is_ok(), "empty chain should build successfully");

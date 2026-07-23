@@ -194,6 +194,7 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))

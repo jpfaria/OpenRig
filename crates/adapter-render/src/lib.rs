@@ -163,6 +163,7 @@ fn synthesize_chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 

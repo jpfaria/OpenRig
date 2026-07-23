@@ -101,6 +101,7 @@ fn same_device_dual_entry_chain() -> Chain {
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -114,6 +115,7 @@ fn split_mono_chain() -> Chain {
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

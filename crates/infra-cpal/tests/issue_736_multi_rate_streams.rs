@@ -136,6 +136,7 @@ fn two_bindings_at_44k_and_48k_activate_both_streams_no_xruns() {
             io_binding_ids: vec!["io-a".into(), "io-b".into()],
             blocks,
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };

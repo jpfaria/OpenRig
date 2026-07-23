@@ -185,6 +185,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let runtime_arc = Arc::new(
         engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
@@ -355,6 +356,7 @@ fn two_device_chain() -> project::chain::Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -484,6 +486,7 @@ fn same_device_chain() -> project::chain::Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

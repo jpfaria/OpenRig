@@ -254,3 +254,44 @@ fn position_tracks_playback() {
     feed(&mut s, &[[0.0, 0.0]; 2]);
     assert_eq!(s.position_frames(), 2);
 }
+
+#[test]
+fn load_layer_restores_a_saved_loop_stopped_and_ready() {
+    let mut s = slot();
+    let mut buf = spare(MAX);
+    buf[0] = 1.0;
+    buf[1] = 1.0;
+    buf[2] = 2.0;
+    buf[3] = 2.0;
+    s.load_layer(buf, 2);
+
+    assert_eq!(
+        s.state(),
+        LooperState::Stopped,
+        "a loop restored from disk waits for the user, it does not start playing"
+    );
+    assert_eq!(s.len_frames(), 2);
+    assert_eq!(s.active_layers(), 1);
+
+    s.play();
+    assert_eq!(s.tick([0.0, 0.0]), [1.0, 1.0]);
+    assert_eq!(s.tick([0.0, 0.0]), [2.0, 2.0]);
+}
+
+#[test]
+fn load_layer_into_a_recorded_looper_replaces_what_was_there() {
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[9.0, 9.0]]);
+    s.tap_record(None);
+
+    let mut buf = spare(MAX);
+    buf[0] = 1.0;
+    buf[1] = 1.0;
+    s.load_layer(buf, 1);
+
+    assert_eq!(s.active_layers(), 1);
+    assert!(s.take_retired().is_some(), "the replaced layer comes back");
+    s.play();
+    assert_eq!(s.tick([0.0, 0.0]), [1.0, 1.0]);
+}

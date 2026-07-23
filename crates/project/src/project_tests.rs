@@ -71,6 +71,7 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -279,6 +280,7 @@ fn chain_with_id(id: &str) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

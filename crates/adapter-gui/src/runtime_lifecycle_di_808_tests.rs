@@ -32,6 +32,7 @@ fn session_with_disabled_chain() -> ProjectSession {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -122,6 +123,7 @@ mod hw {
                 }),
             }],
             di_output: None,
+            loopers: vec![],
         }
     }
 

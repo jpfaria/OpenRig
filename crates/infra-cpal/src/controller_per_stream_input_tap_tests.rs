@@ -62,6 +62,7 @@ fn two_stream_mono_chain(id: &str) -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -100,6 +101,7 @@ fn single_stream_on_channel_one(id: &str) -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

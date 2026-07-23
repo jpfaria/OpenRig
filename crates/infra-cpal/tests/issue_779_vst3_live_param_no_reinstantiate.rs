@@ -142,6 +142,7 @@ fn chow_project(
                 }),
             }],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };

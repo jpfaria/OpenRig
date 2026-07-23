@@ -42,24 +42,17 @@ pub enum LooperState {
     Stopped,
 }
 
-/// Playback rate of a looper. Not a resample — the read cursor steps by this
-/// factor and interpolates, so the pitch shifts with the speed (the classic
-/// looper behaviour).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum LooperSpeed {
-    Half,
-    #[default]
-    Normal,
-    Double,
-}
+/// Playback rate of a looper — owned by `project::chain` (it is persisted
+/// with the chain); the cursor step below is the runtime reading of it. Not a
+/// resample: the read cursor steps by this factor and interpolates, so the
+/// pitch shifts with the speed (the classic looper behaviour).
+pub use project::chain::LooperSpeed;
 
-impl LooperSpeed {
-    fn step(self) -> f64 {
-        match self {
-            Self::Half => 0.5,
-            Self::Normal => 1.0,
-            Self::Double => 2.0,
-        }
+fn speed_step(speed: LooperSpeed) -> f64 {
+    match speed {
+        LooperSpeed::Half => 0.5,
+        LooperSpeed::Normal => 1.0,
+        LooperSpeed::Double => 2.0,
     }
 }
 
@@ -232,6 +225,20 @@ impl LooperSlot {
         self.reverse = reverse;
     }
 
+    /// Install a layer recorded in an earlier session (restored from disk) as
+    /// the looper's only layer, `len_frames` long. The looper lands in
+    /// `Stopped`: reopening a project must not start playing on its own.
+    pub fn load_layer(&mut self, buffer: Box<[f32]>, len_frames: usize) {
+        while let Some(buf) = self.layers.pop() {
+            self.retired.push(buf);
+        }
+        self.push_layer(buffer);
+        self.len_frames = len_frames.min(self.max_frames).max(1);
+        self.write_pos = self.len_frames;
+        self.read_pos = 0.0;
+        self.state = LooperState::Stopped;
+    }
+
     /// Collect one buffer the slot is done with, so the control thread can
     /// drop it. Call until it returns `None`.
     pub fn take_retired(&mut self) -> Option<Box<[f32]>> {
@@ -342,7 +349,7 @@ impl LooperSlot {
         if len <= 0.0 {
             return;
         }
-        let step = self.speed.step() * if self.reverse { -1.0 } else { 1.0 };
+        let step = speed_step(self.speed) * if self.reverse { -1.0 } else { 1.0 };
         let mut next = self.read_pos + step;
         while next < 0.0 {
             next += len;

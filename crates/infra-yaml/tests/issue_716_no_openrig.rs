@@ -39,6 +39,7 @@ fn legacy_project() -> Project {
                 }),
             }],
             di_output: None,
+            loopers: vec![],
         }],
     }
 }

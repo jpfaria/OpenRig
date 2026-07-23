@@ -70,6 +70,7 @@ pub(super) fn bound_chain(id: &str, description: Option<String>, blocks: Vec<Aud
         io_binding_ids: vec!["io".into()],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 

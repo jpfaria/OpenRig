@@ -66,6 +66,7 @@ fn session_with_gain_chain(volume_pct: f32) -> ProjectSession {
                 }),
             }],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };

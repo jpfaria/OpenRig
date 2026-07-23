@@ -173,6 +173,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             io_binding_ids: input.io_binding_ids.clone(),
             blocks,
             di_output: None,
+            loopers: vec![],
         });
     }
     chains

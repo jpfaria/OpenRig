@@ -73,6 +73,7 @@ fn dispatcher_with_chain_having_io() -> (LocalDispatcher, Rc<RefCell<Project>>) 
         io_binding_ids: vec![],
         blocks: vec![user_input(), core("eq:1"), core("amp:2"), user_output()],
         di_output: None,
+        loopers: vec![],
     };
     let project = Rc::new(RefCell::new(Project {
         name: Some("test".into()),

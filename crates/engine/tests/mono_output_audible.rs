@@ -95,6 +95,7 @@ fn chain_named(id: &str) -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

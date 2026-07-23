@@ -27,6 +27,7 @@ fn chain_and_registry(mono_out: bool) -> (Chain, Vec<IoBinding>) {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let out = if mono_out {
         IoEndpoint {

@@ -52,6 +52,7 @@ fn chain_with_input_binding(binding_id: &str, endpoint: &str) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -65,6 +66,7 @@ fn chain_empty() -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

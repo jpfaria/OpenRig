@@ -232,6 +232,7 @@ fn preset_project(
             io_binding_ids: vec!["io".into()],
             blocks,
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };

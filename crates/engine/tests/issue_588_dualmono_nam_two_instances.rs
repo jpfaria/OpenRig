@@ -74,6 +74,7 @@ fn dualmono_source_nam_chain(id: &str) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 

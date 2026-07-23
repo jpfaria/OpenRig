@@ -77,6 +77,7 @@ impl ChainYaml {
             io_binding_ids: self.io_binding_ids.clone(),
             blocks: parsed_blocks,
             di_output: None,
+            loopers: vec![],
         })
     }
 

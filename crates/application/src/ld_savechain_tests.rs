@@ -268,6 +268,7 @@ fn save_chain_input_endpoints_wrong_block_type_returns_err() {
                 make_core_block("blk_mid", true),
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));
@@ -321,6 +322,7 @@ fn save_chain_input_endpoints_preserves_other_blocks() {
                 make_output_block("dev_out", 1),
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));
@@ -366,6 +368,7 @@ pub(super) fn make_project_with_io_chain() -> (Rc<RefCell<Project>>, ChainId) {
             io_binding_ids: vec![],
             blocks: vec![make_input_block("dev_a", 0), make_output_block("dev_b", 1)],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));
@@ -481,6 +484,7 @@ fn save_chain_output_endpoints_preserves_other_blocks() {
                 make_output_block("dev_out_old", 1),
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));

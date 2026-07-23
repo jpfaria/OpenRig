@@ -105,6 +105,7 @@ fn chain(block_enabled: bool, ratio: f32) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -288,6 +289,7 @@ fn gain_chain(volume_pct: f32) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 

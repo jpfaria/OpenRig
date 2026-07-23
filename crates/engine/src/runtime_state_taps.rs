@@ -124,6 +124,30 @@ impl ChainRuntimeState {
             superseded.di_loop_pos.load(Ordering::Relaxed),
             Ordering::Relaxed,
         );
+        self.adopt_loopers_from(superseded);
+    }
+
+    /// #323: carry the recorded loops across an off-thread rebuild. The
+    /// layers are plain buffers owned by the processing state, so the two
+    /// banks are swapped wholesale — the rebuilt runtime keeps playing from
+    /// the same position while the superseded one is dropped with the empty
+    /// bank.
+    ///
+    /// A rebuild that changed the sample rate is the one case where the loops
+    /// are dropped instead: the recorded frames belong to the old rate, and
+    /// replaying them at the new one would play the loop at the wrong speed
+    /// (the #669 bug). Buffer sizes differ in that case, which is exactly
+    /// what the guard tests.
+    fn adopt_loopers_from(&self, superseded: &ChainRuntimeState) {
+        if self.loopers.max_frames() != superseded.loopers.max_frames() {
+            return;
+        }
+        self.loopers.adopt_status_from(&superseded.loopers);
+        if let (Ok(mut fresh), Ok(mut old)) =
+            (self.processing.lock(), superseded.processing.lock())
+        {
+            std::mem::swap(&mut fresh.looper_bank, &mut old.looper_bank);
+        }
     }
 
     /// Drop stream taps whose consumer handles have all been released.

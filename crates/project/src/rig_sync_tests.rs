@@ -61,6 +61,7 @@ fn project_with_chain_ids(ids: &[&str]) -> Project {
                 io_binding_ids: Vec::new(),
                 blocks: Vec::new(),
                 di_output: None,
+                loopers: vec![],
             })
             .collect(),
         midi: None,

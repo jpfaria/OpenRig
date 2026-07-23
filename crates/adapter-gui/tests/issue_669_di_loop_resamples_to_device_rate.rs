@@ -56,6 +56,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))
@@ -73,6 +74,7 @@ fn make_controller_at(chain_id: &ChainId, sr: u32) -> ProjectRuntimeController {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let runtime_arc = Arc::new(
         build_chain_runtime_state(&chain, sr as f32, &[DEFAULT_ELASTIC_TARGET], &[])

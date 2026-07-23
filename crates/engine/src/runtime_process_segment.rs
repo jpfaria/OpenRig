@@ -103,6 +103,7 @@ pub(crate) fn process_single_segment(
     error_queue: &ArrayQueue<BlockError>,
     stream_taps: &[Arc<StreamTap>],
     feed: SegmentFeed<'_>,
+    loopers: Option<&mut crate::looper_bank::LooperBank>,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -171,6 +172,13 @@ pub(crate) fn process_single_segment(
                 frame_buffer.push(chain_frame);
             }
         }
+    }
+
+    // #323: the loopers sit at the chain input — they record the dry signal
+    // that feeds this segment and sum their playback into it, so a loop runs
+    // through the whole chain and follows every block change.
+    if let Some(bank) = loopers {
+        bank.process(frame_buffer.as_mut_slice(), *processing_layout);
     }
 
     for block in blocks.iter_mut() {

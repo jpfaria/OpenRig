@@ -198,7 +198,12 @@ pub fn process_input_f32(
         input_states,
         input_to_segments,
         input_scratches,
+        looper_bank,
     } = &mut *processing_guard;
+
+    // #323: apply the loopers' queued transport/param ops before any segment
+    // runs, so a footswitch tap takes effect on the callback that follows it.
+    looper_bank.drain_ops(&runtime.loopers);
 
     // Temporarily take the scratch for this input_index to work around the
     // aliasing rules: we'll put it back before returning. If the slot does
@@ -230,6 +235,14 @@ pub fn process_input_f32(
             Some(_) => SegmentFeed::Silence,
             None => SegmentFeed::Live,
         };
+        // #323: the loopers record and play on the chain's FIRST segment
+        // only — like the DI loop (#699), a chain's loop material is heard
+        // exactly once, no matter how many segments share the callback.
+        let loopers = if seg_idx == 0 && !looper_bank.is_idle() {
+            Some(&mut *looper_bank)
+        } else {
+            None
+        };
         process_single_segment(
             input_states,
             &mut scratch,
@@ -240,6 +253,7 @@ pub fn process_input_f32(
             &runtime.error_queue,
             &stream_taps,
             feed,
+            loopers,
         );
     }
 
@@ -258,6 +272,10 @@ pub fn process_input_f32(
             runtime.di_loop_pos.store(next, Ordering::Relaxed);
         }
     }
+
+    // #323: publish the looper state for the UI and hand any retired layer
+    // buffer back to the control thread (dropping happens off this thread).
+    looper_bank.publish(&runtime.loopers);
 
     // Snapshot current output routes via ArcSwap — no lock.
     let routes = runtime.output_routes.load();
@@ -538,3 +556,7 @@ mod di_loop_state;
 #[cfg(test)]
 #[path = "di_loop_injection_tests.rs"]
 mod di_loop_injection;
+
+#[cfg(test)]
+#[path = "looper_runtime_tests.rs"]
+mod looper_runtime;

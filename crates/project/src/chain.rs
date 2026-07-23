@@ -88,6 +88,64 @@ pub struct DiOutputRef {
     pub endpoint: String,
 }
 
+/// #323: playback rate of a looper. Not a resample — the read cursor steps by
+/// this factor, so the pitch follows the speed (classic looper behaviour).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum LooperSpeed {
+    Half,
+    #[default]
+    Normal,
+    Double,
+}
+
+/// #323: one per-chain looper as it travels in `project.openrig`. The recorded
+/// audio itself lives beside the project (`audio_file`), not in the YAML.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct LooperConfig {
+    /// Stable identity of this looper, also used by the audio thread to
+    /// address its slot. Unique within the chain.
+    pub uid: u64,
+    /// Loop level, 0..=1.
+    #[serde(default = "default_looper_mix")]
+    pub mix: f32,
+    /// Per-layer-of-age gain applied to older layers, 0..=1 (1 = no decay).
+    #[serde(default = "default_looper_decay")]
+    pub decay: f32,
+    #[serde(default)]
+    pub speed: LooperSpeed,
+    #[serde(default)]
+    pub reverse: bool,
+    /// File name (relative to the project's loop folder) of the recorded
+    /// mixdown, when the looper has audio saved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio_file: Option<String>,
+}
+
+fn default_looper_mix() -> f32 {
+    1.0
+}
+
+fn default_looper_decay() -> f32 {
+    1.0
+}
+
+impl LooperConfig {
+    /// A fresh, empty looper at unity level and normal speed.
+    pub fn new(uid: u64) -> Self {
+        Self {
+            uid,
+            mix: default_looper_mix(),
+            decay: default_looper_decay(),
+            speed: LooperSpeed::default(),
+            reverse: false,
+            audio_file: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Chain {
     #[serde(skip, default = "ChainId::generate")]
@@ -117,6 +175,10 @@ pub struct Chain {
     /// legacy projects have no field and deserialize to `None`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub di_output: Option<DiOutputRef>,
+    /// #323: the chain's loopers, in panel order. Empty for projects written
+    /// before the looper existed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub loopers: Vec<LooperConfig>,
 }
 
 impl Chain {

@@ -127,6 +127,7 @@ pub(super) fn chain_with_blocks(
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: fx,
         di_output: None,
+        loopers: vec![],
     };
     (chain, registry)
 }

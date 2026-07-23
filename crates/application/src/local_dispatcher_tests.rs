@@ -94,6 +94,7 @@ pub(super) fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Proj
             io_binding_ids: vec![],
             blocks: vec![block],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))

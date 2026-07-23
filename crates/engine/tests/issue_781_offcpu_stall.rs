@@ -249,6 +249,7 @@ fn build() -> Arc<ChainRuntimeState> {
             eq8(),
         ],
         di_output: None,
+        loopers: vec![],
     };
     Arc::new(build_chain_runtime_state(&chain, SR, &[BUFFER], &registry()).expect("build rig chain"))
 }

@@ -117,6 +117,7 @@ fn make_project_two_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_1", true),
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))
@@ -211,6 +212,7 @@ fn make_project_three_blocks(chain_id: &str) -> Rc<RefCell<Project>> {
                 make_core_block("blk_2", true),
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))

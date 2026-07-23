@@ -68,6 +68,7 @@ fn chain_with_only_io_blocks_roundtrips() {
                 },
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -306,6 +307,7 @@ fn serialize_project_produces_valid_yaml_string() {
                 },
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };

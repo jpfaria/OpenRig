@@ -36,6 +36,7 @@ fn two_binding_chain() -> Chain {
         io_binding_ids: vec!["scarlet".into(), "teyun".into()],
         blocks: Vec::new(),
         di_output: None,
+        loopers: vec![],
     }
 }
 

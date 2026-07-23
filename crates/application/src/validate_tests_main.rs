@@ -67,6 +67,7 @@ fn validate_project_binding_bound_chain_succeeds() {
         io_binding_ids: vec!["scarlet".into()],
         blocks: vec![bound_input, bound_output],
         di_output: None,
+        loopers: vec![],
     };
     let project = Project {
         name: None,

@@ -46,6 +46,7 @@ fn pipe_runtime() -> Arc<ChainRuntimeState> {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &registry)

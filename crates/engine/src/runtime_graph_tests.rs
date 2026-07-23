@@ -21,6 +21,7 @@ fn build_runtime_graph_skips_disabled_chains() {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -196,6 +197,7 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
             io_binding_ids: vec![IO_BINDING_ID.into()],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }
     }
 
@@ -434,6 +436,7 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
                 io_binding_ids: vec![],
                 blocks: vec![],
                 di_output: None,
+                loopers: vec![],
             },
             tuner_track("enabled", vec![tuner_block("b:0", 440.0)]),
         ],

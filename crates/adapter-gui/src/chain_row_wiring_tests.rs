@@ -22,6 +22,7 @@
             io_binding_ids: vec![],
             blocks: Vec::new(),
             di_output: None,
+            loopers: vec![],
         }
     }
 

@@ -48,6 +48,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))

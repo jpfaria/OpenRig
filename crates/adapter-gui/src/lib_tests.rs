@@ -117,6 +117,7 @@ pub(super) fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
             })
             .collect(),
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -368,6 +369,7 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let project = Project {
         name: None,

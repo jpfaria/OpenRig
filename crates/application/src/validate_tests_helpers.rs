@@ -54,6 +54,7 @@ pub(super) fn test_chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 

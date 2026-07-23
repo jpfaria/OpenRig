@@ -87,6 +87,7 @@ fn nam_chain(id: &str, volume: f32) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 

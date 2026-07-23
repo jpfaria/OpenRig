@@ -172,6 +172,7 @@ pub(super) fn chain() -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -229,3 +230,106 @@ pub(super) fn audio_callback_does_not_allocate_at_buffer_32() {
     );
 }
 
+
+/// Issue #323 — the looper is a recorder living on the audio thread, so it is
+/// the most obvious candidate to break invariant #8. Layer buffers are
+/// allocated by the CONTROL thread and handed over through the op queue; the
+/// audio thread only writes into them, sums them and parks them for return.
+/// This pins that: recording, overdubbing, undoing and playing back a loop
+/// allocate nothing inside the callback.
+#[test]
+#[ignore = "CLAUDE.md invariant #8: audio callback must not allocate. \
+ Allocator wrapper changes the process allocator and is sensitive to \
+ parallel-test pressure — run serially: `cargo test -p engine \
+ --release --lib audio_alloc_invariant -- --ignored --test-threads=1`."]
+pub(super) fn looper_record_overdub_and_undo_do_not_allocate() {
+    use crate::looper_bank::LooperOp;
+
+    let runtime = Arc::new(
+        build_chain_runtime_state(
+            &chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry_stereo(),
+        )
+        .expect("runtime should build"),
+    );
+
+    let buffer_frames = 32_usize;
+    let channels = 2_usize;
+    let input_buf = vec![0.5_f32; buffer_frames * channels];
+    let mut output_buf = vec![0.0_f32; buffer_frames * channels];
+
+    // Everything that allocates happens here, off the measurement window:
+    // the control thread claims a slot and allocates the two layer buffers
+    // the recording and the overdub will use.
+    runtime
+        .push_looper_op(LooperOp::Create { uid: 1 })
+        .expect("queue accepts create");
+    let layers: Vec<Box<[f32]>> = (0..2)
+        .map(|_| vec![0.0_f32; runtime.looper_max_frames() * 2].into_boxed_slice())
+        .collect();
+    let mut layers = layers.into_iter();
+
+    for _ in 0..256 {
+        process_input_f32(&runtime, 0, &input_buf, channels);
+        process_output_f32(&runtime, 0, &mut output_buf, channels);
+    }
+
+    let record = LooperOp::TapRecord {
+        uid: 1,
+        buffer: Some(layers.next().expect("first layer")),
+    };
+    let overdub = LooperOp::TapRecord {
+        uid: 1,
+        buffer: Some(layers.next().expect("second layer")),
+    };
+    let mut queued = vec![
+        LooperOp::Undo { uid: 1 },
+        LooperOp::Redo { uid: 1 },
+        overdub,
+    ];
+
+    let allocs = measure_allocs(|| {
+        // Record → close → overdub → close → undo → redo, with plain
+        // playback callbacks in between. Every op is applied on the audio
+        // thread inside the callback.
+        runtime.push_looper_op(record).ok();
+        for _ in 0..200 {
+            process_input_f32(&runtime, 0, &input_buf, channels);
+            process_output_f32(&runtime, 0, &mut output_buf, channels);
+        }
+        runtime
+            .push_looper_op(LooperOp::TapRecord {
+                uid: 1,
+                buffer: None,
+            })
+            .ok();
+        while let Some(op) = queued.pop() {
+            runtime.push_looper_op(op).ok();
+            for _ in 0..100 {
+                process_input_f32(&runtime, 0, &input_buf, channels);
+                process_output_f32(&runtime, 0, &mut output_buf, channels);
+            }
+            runtime
+                .push_looper_op(LooperOp::TapRecord {
+                    uid: 1,
+                    buffer: None,
+                })
+                .ok();
+        }
+        for _ in 0..500 {
+            process_input_f32(&runtime, 0, &input_buf, channels);
+            process_output_f32(&runtime, 0, &mut output_buf, channels);
+        }
+    });
+
+    eprintln!("[audio_alloc_invariant] looper record/overdub/undo: {allocs} allocations");
+    assert_eq!(
+        allocs, 0,
+        "CLAUDE.md invariant #8 broken by the looper: {allocs} heap \
+         allocations while recording / overdubbing / undoing on the audio \
+         thread. Layer buffers must be allocated by the control thread and \
+         handed over through the op queue — never allocated in the callback."
+    );
+}
