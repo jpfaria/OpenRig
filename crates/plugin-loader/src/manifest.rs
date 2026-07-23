@@ -280,8 +280,8 @@ pub enum Backend {
 }
 
 /// One parameter of a VST3 plugin, with the bridge between OpenRig's
-/// schema-friendly value range (`min`..`max`, optional discrete `step`)
-/// and the VST3 host's normalized 0.0..1.0 value space.
+/// schema-friendly value range (optional `min`..`max`, optional discrete
+/// `step`) and the VST3 host's normalized 0.0..1.0 value space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Vst3Parameter {
     /// Stable identifier under which the user's `ParameterSet` keys this
@@ -292,9 +292,15 @@ pub struct Vst3Parameter {
     /// VST3 numeric parameter ID, exposed by the plugin's
     /// `IEditController::getParameterCount()` enumeration.
     pub vst3_id: u32,
-    pub min: f64,
-    pub max: f64,
-    pub default: f64,
+    /// Optional value range / default. The overlay is groups-only by design
+    /// (#812): the live plugin's `IEditController` owns the real range and
+    /// default, so a manifest that names only `vst3_id` + `group` is valid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<f64>,
     /// Optional step for discrete UI knobs (1.0 percent, 0.5 dB, etc).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<f64>,

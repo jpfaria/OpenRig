@@ -128,9 +128,11 @@ pub(crate) fn synthesize_parameters_from_manifest(
                     &param.name,
                     param.display_name.as_deref().unwrap_or(&param.name),
                     None,
-                    Some(param.default as f32),
-                    param.min as f32,
-                    param.max as f32,
+                    param.default.map(|value| value as f32),
+                    // Undeclared range → the normalized 0..100 % convention
+                    // `vst3_schema` uses for live plugin parameters (#812).
+                    param.min.unwrap_or(0.0) as f32,
+                    param.max.unwrap_or(100.0) as f32,
                     param.step.unwrap_or(0.01) as f32,
                     block_core::param::ParameterUnit::None,
                 )
