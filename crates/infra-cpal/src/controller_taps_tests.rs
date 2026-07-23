@@ -126,7 +126,13 @@ mod di_loop_multirate_output_tests {
     }
 }
 
-#[cfg(test)]
+// The doubling premise — a chain with two same-device entries builds TWO
+// isolated runtimes — only holds where the runtime graph partitions by RAW
+// entry. Under all(linux, jack) it partitions by cpal input index instead
+// (cfg-guarded since #703), collapsing same-device entries into one runtime,
+// so these assertions can't hold there. Gate the module to the same cfg
+// (mirrors the engine same-device isolation tests).
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 mod di_loop_doubling_tests {
     use super::super::arm_di_loop_per_output_stream;
     use crate::{build_chain_runtime, BuildRequest};

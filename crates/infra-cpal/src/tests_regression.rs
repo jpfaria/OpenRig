@@ -309,11 +309,12 @@ fn jack_config_for_card_uses_device_settings_values() {
 #[test]
 fn jack_config_for_card_falls_back_to_realtime_defaults_when_no_match() {
     let card = test_card("hw:4");
-    // No matching device_settings — defaults are realtime + nperiods=3.
-    // We ship nperiods=3 (not 2) because nperiods=2 triggered ALSA Broken
-    // pipe on Q26 USB audio + RK3588 in hardware validation; the extra
-    // period gives the USB driver enough slack without meaningfully
-    // increasing latency (one period at 128 frames / 48kHz ≈ 2.7ms).
+    // No matching device_settings — the fallback is realtime, nperiods=3,
+    // buffer=256. nperiods=3 (not 2) because nperiods=2 triggered ALSA Broken
+    // pipe on Q26 USB audio + RK3588 in hardware validation. buffer=256 (not
+    // 64) because 64 continuously xruns/muffles on a generic non-RT USB
+    // desktop kernel (#479); 256 is the safe USB minimum and matches the twin
+    // fallback in device_settings.rs and jack_config_for_card.
     let project = empty_project();
 
     let config = ProjectRuntimeController::jack_config_for_card(&card, &project);
@@ -322,7 +323,7 @@ fn jack_config_for_card_falls_back_to_realtime_defaults_when_no_match() {
     assert_eq!(config.rt_priority, 70);
     assert_eq!(config.nperiods, 3);
     assert_eq!(config.sample_rate, 48_000);
-    assert_eq!(config.buffer_size, 64);
+    assert_eq!(config.buffer_size, 256);
 }
 
 // ── Issue #350 phase 3: each physical input device wires its OWN runtime ──
