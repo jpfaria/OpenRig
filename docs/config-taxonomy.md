@@ -41,6 +41,12 @@ page for the working rule.
   these for a single run (dev convenience). Distinct from the per-port
   `midi_devices[].enabled` selection, which only picks *which* ports the
   enabled adapter listens to.
+- `metronome` (#14) — practice tempo and click preferences: `bpm`,
+  `beats_per_bar`, `subdivision`, `timbre`, `volume`, `count_in` and
+  `output_device`. A tempo you practise at belongs to you, not to the rig, and
+  the output device it clicks through only exists on this machine. The on/off
+  flag is deliberately **not** persisted: the metronome always opens off, so no
+  config file can make a session start clicking.
 - MIDI device profile (`midi-profile.yaml`) — which controller port to listen to.
 - MIDI binding fallback (`midi-bindings.yaml`) — bindings used when the project has
   no `midi:` field.

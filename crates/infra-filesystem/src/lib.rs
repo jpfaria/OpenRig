@@ -4,10 +4,12 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 pub mod io_bindings;
+pub mod metronome_config;
 pub mod midi_device;
 pub mod midi_migrate;
 pub mod midi_profile;
 pub use io_bindings::{ChannelMode, IoBinding, IoEndpoint};
+pub use metronome_config::MetronomeConfig;
 pub use midi_device::{MidiDeviceSelection, MidiPortKey};
 
 #[cfg(test)]
@@ -234,7 +236,8 @@ pub struct RecentProjectEntry {
     pub invalid_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+// `Eq` is not derivable: `MetronomeConfig` carries floats (#14).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     #[serde(default)]
     pub recent_projects: Vec<RecentProjectEntry>,
@@ -275,6 +278,10 @@ pub struct AppConfig {
     /// this field still deserialize correctly (field absent → empty `Vec`).
     #[serde(default)]
     pub io_bindings: Vec<IoBinding>,
+    /// Per-machine metronome settings (#14, ADR 0003). `enabled` is absent
+    /// on purpose — see [`MetronomeConfig`].
+    #[serde(default)]
+    pub metronome: MetronomeConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]

@@ -10,7 +10,9 @@
 //! every open"). Binding the path here makes the write target the `$HOME`
 //! that was active at dispatch, regardless of later swaps.
 
-use infra_filesystem::{AppConfig, FilesystemStorage};
+use std::path::PathBuf;
+
+use infra_filesystem::{AppConfig, FilesystemStorage, MetronomeConfig};
 
 /// Read-modify-write `config.yaml` on the persist worker, against the path
 /// bound NOW. `mutate` runs on the worker thread after the current config
@@ -27,6 +29,36 @@ pub fn persist_app_config(mutate: impl FnOnce(&mut AppConfig) + Send + 'static) 
         };
         if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, mutate) {
             log::error!("persist app config failed: {e}");
+        }
+    });
+}
+
+/// #14: read-modify-write only the metronome section of `config.yaml` on the
+/// persist worker. `config_path` is the per-machine SYSTEM config (ADR 0003);
+/// `None` resolves the OS path once, HERE, never inside the worker.
+///
+/// Every metronome write funnels through this one door, and `MetronomeConfig`
+/// has no `enabled` field — so "the app always starts with the metronome off"
+/// holds structurally instead of depending on each call site remembering it.
+pub fn persist_metronome(
+    config_path: Option<PathBuf>,
+    mutate: impl FnOnce(&mut MetronomeConfig) + Send + 'static,
+) {
+    let config_path = config_path
+        .map(Ok)
+        .unwrap_or_else(FilesystemStorage::app_config_path);
+    crate::persist_worker::run(move || {
+        let config_path = match config_path {
+            Ok(path) => path,
+            Err(e) => {
+                log::error!("persist metronome: resolve config path failed: {e}");
+                return;
+            }
+        };
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            mutate(&mut config.metronome)
+        }) {
+            log::error!("persist metronome failed: {e}");
         }
     });
 }
