@@ -53,11 +53,11 @@ pub(crate) fn priority_paths(symptom: Symptom) -> &'static [&'static str] {
         ],
         // Cut the low-mids / body.
         Symptom::Mud => &["mids", "mid", "bass", "low", "lows", "body"],
-        // Cut the brilliance / ice-pick highs above the presence band.
         // Cut the sub / low-end rumble.
         Symptom::Boomy => &["bass", "low", "lows", "body", "sub"],
-        // Deficit symptoms need a knob *raised*, not lowered — the auto-fix
-        // engine only lowers, so it offers no path for these (reported only).
+        // Deficit symptoms need a knob *raised*, and this suggester only ever
+        // lowers, so it has no path for them. They are corrected instead by
+        // `tone_doctor_fix`, whose sweep tries both directions (#809).
         Symptom::Thin | Symptom::Squash => &[],
         // Pull the block's output down off the rail.
         Symptom::Clipping => &[

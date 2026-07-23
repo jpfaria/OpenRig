@@ -10,6 +10,7 @@
 | `scripts/package-linux.sh` | Empacota Linux .tar.gz/.deb/.rpm/.AppImage (patchelf RUNPATH p/ libnam_wrapper + libseat) |
 | `scripts/package-macos.sh` | Empacota macOS (assina ad-hoc inside-out + gate de verificação). Plugins bundled: `OPENRIG_PLUGINS_DIR=/path/plugins/source` sobrescreve a origem (default `plugins/source`; override inexistente = erro fatal) |
 | `scripts/lib/console-binaries.{sh,tsv}` | Fonte única dos binários console-style empacotados junto da GUI (`openrig-console`, `openrig-console-rig`, `openrig-render` — #741). Os três packagers buildam e stageam a partir dela; testado por `scripts/tests/console_bundle_test.sh` |
+| `scripts/lib/release-version.sh` | `release_version_from_tag` (ref → semver) + `set_workspace_version` (grava o `version` de `[workspace.package]`, sem tocar nos pins de `[workspace.dependencies]`). A tag é a fonte da verdade: todo job do `release.yml` roda isso ANTES de compilar, porque o rodapé renderiza `env!("CARGO_PKG_VERSION")` (#820). Recusa entrada não-semver; testado por `scripts/tests/release_version_test.sh` |
 | `scripts/install-macos.sh` | Instalador one-liner via `curl` (baixa .dmg de release, copia pro /Applications, tira quarentena) |
 | `scripts/install-macos-local.sh` | Dev: builda do checkout atual (via `package-macos.sh`) e instala em `/Applications` (mata instância aberta + abre). `OPENRIG_PLUGINS_DIR` repassado ao packager. `[version]` default `dev` (#774) |
 | `scripts/build-lib.sh` | Libs externas |

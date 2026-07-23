@@ -1,4 +1,4 @@
-# Tone Doctor (#791)
+# Tone Doctor (#791, #809)
 
 Reference-free tone diagnosis. It answers two questions a spectrum analyzer
 cannot: *is this chain's tone unhealthy?* and, when it is, *which block caused
@@ -9,8 +9,9 @@ render belong to OpenRig, Tone Doctor can measure the chain with blocks added
 and removed and prove causation. A third-party analyzer plugin sees only the
 final signal and cannot re-render the chain without its neighbours.
 
-This document covers the two layers that exist today. The live traffic-light
-surface and the on-screen panel are tracked in #791 and not yet implemented.
+Since #809 the verdict is **genre-aware**: what counts as too much fizz for a
+blues-rock tone is normal for grunge, so the limits come from a table
+calibrated against real reference recordings instead of one global constant.
 
 ## Layer 0 — descriptors (`feature-dsp::tone_descriptors`)
 
@@ -24,23 +25,54 @@ descriptors out. No state, no smoothing, no UI.
 | `clip_fraction` | fraction of samples pinned at the ±1.0 rail |
 | `fizz_ratio` | presence-band (3–8 kHz) power ÷ note-body (200 Hz–2 kHz) power |
 | `mud_ratio` | low-mid (160–500 Hz) power ÷ total power |
+| `boom_ratio` | low-end (40–120 Hz) power ÷ total power (#809) |
 
 Band energy is a Welch-averaged power spectrum (Hann window, 50 % overlap), so
 a multi-second take collapses to one stable estimate.
 
-`ToneDescriptors::symptom()` maps the descriptors to a dominant `Symptom`
-(`Ok`, `Fizz`, `Mud`, `Clipping`); clipping wins over spectral tilt because it
-is the most audible failure.
+`ToneDescriptors::symptom()` maps the descriptors to a dominant `Symptom`.
+`Clipping` short-circuits everything because it is the most audible failure;
+otherwise each candidate symptom is scored by how far it is past its limit,
+normalized by that limit, and the largest positive score wins — no positive
+score means `Ok`.
 
-### Thresholds are provisional
+| Symptom | Descriptor | Direction | Meaning |
+|---|---|---|---|
+| `Fizz` | `fizz_ratio` | excess | presence band dominates the note body |
+| `Mud` | `mud_ratio` | excess | low-mid buildup |
+| `Boomy` | `boom_ratio` | excess (#809) | low-end buildup below the note fundamental |
+| `Thin` | `mud_ratio` | **deficit** (#809) | not enough low-mid body for the genre |
+| `Squash` | `crest_db` | **deficit** (#809) | over-compressed — peaks flattened into the RMS |
+| `Clipping` | `clip_fraction` | excess | samples pinned at the rail |
 
-The cut-offs (`FIZZ_RATIO_LIMIT`, `MUD_RATIO_LIMIT`, `CLIP_FRACTION_LIMIT`) are
-set conservatively so a clean signal never trips them — they separate "clean"
-from "carries real presence-band / low-mid / rail-pinned content". The
-*musical* boundary between wanted and unwanted colour (a fuzz is meant to be
-buzzy) needs real recordings and the player's ear to calibrate, and that tuning
-is deferred. Treat the current symptom classification as a heuristic, not a
-verdict.
+The two deficit symptoms are the point of #809: an excess-only doctor could
+only ever tell you to turn something *down*.
+
+### Genre-calibrated limits (#809)
+
+Each symptom's limit comes from a per-genre `SymptomLimits` row. Picking a
+genre in the panel selects that row; picking none uses the conservative global
+defaults, which keep the original #791 behaviour.
+
+**The deficit floors default to zero, which disables them** — so `Thin` and
+`Squash` can only ever fire when you have selected a genre. Without a genre,
+Tone Doctor still only reports excesses.
+
+The table lives in `assets/tone-profiles/profiles.yaml`, is compiled into the
+binary, and was derived offline from genre-labelled isolated-guitar reference
+stems: excess limits are the corpus **p90** for that genre, deficit floors the
+**p10**. Genres measured from fewer than six stems are marked `provisional` in
+the file (the runtime ignores the marker — the UI does not surface it). Full
+methodology, the derived numbers, and the honest caveats are in
+[`development/tone-doctor-calibration.md`](development/tone-doctor-calibration.md).
+
+The spread is why one global constant could not work: `fizz` for grunge
+calibrates ~30× higher than for blues-rock.
+
+⚠️ A `harsh` (8–16 kHz) axis was built and then **removed**: a guitar cab rolls
+off above ~5–6 kHz, so that band measured ~0 across the whole corpus. It was a
+dead axis, not a strict one — brightness is already carried by `fizz`. Do not
+re-add it.
 
 ## Layer 2 — blame by ablation (`engine::tone_doctor`)
 
@@ -87,6 +119,26 @@ valid range. It never invents a parameter a block lacks; NAM/Insert/Select
 blocks yield no suggestion. Applying is the caller's job — a
 `SetBlockParameterNumber` command with the suggestion's block, path and value.
 
+### Measured, bidirectional auto-fix (`engine::tone_doctor_fix`, #809)
+
+The panel does not ship the unverified nudge above. It calls
+`measure_fix_with_limits`, which **proves** the fix instead of guessing it: for
+the culprit's candidate knob it sweeps 25 / 50 / 75 / 100 % of the distance to
+the range end, and each trial is a real re-render plus a re-measure. The first
+value that actually reads healthy wins; if none does within its 8-render
+budget it returns nothing — an honest "no fix on this block" rather than a
+plausible-looking knob move.
+
+*Bidirectional* is what the deficit symptoms needed: an excess (Fizz, Mud,
+Boomy, Clipping) still sweeps **downward only**, but a deficit (Thin, Squash)
+tries **both directions**, since the cure for a thin tone is to add body, not
+remove it. Health is checked direction-aware — at or above the floor for a
+deficit, below the limit for an excess.
+
+Applying dispatches `SetBlockParameterNumber`, preceded by
+`SetBlockParameterBool` on the group's `.enabled` path when the target knob
+sits in a group that is switched off.
+
 ## Transport parity — objective report query
 
 Layer 3 is exposed read-side for every transport via
@@ -115,7 +167,56 @@ an amber "select a DI" line. The glue lives in `tone_doctor_compact_wiring`
 suggestion→command mapping is the pure, unit-tested `tone_doctor_wiring`.
 
 Strings are translated across all nine locales. The dynamic symptom words
-(Fizz/Mud/Clipping/OK) are the descriptor names, kept as-is for now.
+(Fizz/Mud/Boomy/Thin/Squash/Clipping/OK) are the descriptor names, kept as-is
+for now. The culprit is shown by its catalog display name, not its raw model
+identity.
+
+### Genre selector (#809)
+
+Between the take-length chips and the **Diagnose** button sits a searchable
+genre select listing the 15 calibrated genres, plus a `—` entry meaning *no
+genre → global defaults*. The genre keys are shown verbatim
+(`alternative-metal`, `blues-rock`, `grunge`, `heavy-metal`, `mpb`,
+`punk-rock`, …); there is no separate display label. Typing filters the list.
+
+The choice feeds the next Diagnose run and **is not persisted** — it is neither
+a project field nor a `config.yaml` key, and it is not a `Command`. Reopening
+the panel starts at the default again.
+
+### Meters (#809)
+
+Under the verdict the panel draws four bars — **FIZZ**, **MUD**, **BOOM**,
+**CLIP** — each reading `value / limit` for the selected genre. The tick sits
+at the halfway point of the track, so the limit is always the midpoint: a bar
+filling past the tick turns red, below it stays green. FIZZ, MUD and BOOM are
+dimensionless power ratios; CLIP is a percentage.
+
+Only the excess axes are metered. `Thin` and `Squash` are deficits of `MUD`
+and of crest factor, so they surface as the verdict word rather than as bars of
+their own.
+
+## Per-genre calibration data (#809)
+
+The limit table is regenerated offline by the dev-only
+`openrig-tone-calibrate` binary — it **never** runs in the app or on the audio
+thread, and the app reads only the committed `profiles.yaml`, so regenerating
+it requires a rebuild.
+
+Its `measure` subcommand dumps the raw per-stem measurements instead of the
+aggregated table, which is what you want when checking whether a genre's
+numbers are trustworthy:
+
+```sh
+cargo run -p tone-calibrate --bin openrig-tone-calibrate -- \
+  measure <evaluations-root> assets/tone-profiles/genre-manifest.yaml [out.csv]
+```
+
+It writes one row per reference stem —
+`song,genre,stem,mud,fizz,boom,clip,rms_dbfs,crest_db` — to `out.csv`, or to
+stdout when the path is omitted. The committed dump is
+`assets/tone-profiles/per-song-measurements.csv`. Methodology, the genre
+labelling rules, and the caveats live in
+[`development/tone-doctor-calibration.md`](development/tone-doctor-calibration.md).
 
 ## Not yet built (tracked in #791)
 
