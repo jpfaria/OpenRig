@@ -178,51 +178,51 @@ msgstr "Selector de preset"
 msgid "status-no-presets-found"
 msgstr "Ningún preset encontrado"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:106
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:108
 msgid "tone-doctor-title"
 msgstr "Tone Doctor"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:112
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:114
 msgid "tone-doctor-analyze"
 msgstr "Analizar"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:126
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:128
 msgid "tone-doctor-genre"
 msgstr "Género"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:134
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
 msgid "tone-doctor-genre-default"
 msgstr "Predeterminado"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:135
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:137
 msgid "tone-doctor-genre-search"
 msgstr "Buscar género…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:138
 msgid "tone-doctor-genre-none"
 msgstr "Sin géneros"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:156
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
 msgid "tone-doctor-no-signal"
 msgstr "Reproduce un DI o activa la cadena"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:157
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
 msgid "tone-doctor-diagnosing"
 msgstr "Diagnosticando…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:160
 msgid "tone-doctor-rerun"
 msgstr "Diagnosticar de nuevo"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:161
 msgid "tone-doctor-diagnose"
 msgstr "Diagnosticar"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:215
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:221
 msgid "tone-doctor-suggestion"
 msgstr "Corrección sugerida"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:229
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:235
 msgid "tone-doctor-apply"
 msgstr "Aplicar"
 
@@ -350,6 +350,54 @@ msgstr "Entrada"
 msgid "label-output"
 msgstr "Salida"
 
+#: crates/adapter-gui/ui/pages/metronome_window.slint:81
+msgid "label-metronome"
+msgstr "METRÓNOMO"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:165
+msgid "label-bpm"
+msgstr "BPM"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:188
+msgid "label-count-in"
+msgstr "CONTEO"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:211
+msgid "action-tap-tempo"
+msgstr "TAP"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:231
+msgid "label-time-signature"
+msgstr "COMPÁS"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:243
+msgid "label-subdivision"
+msgstr "SUBDIV"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:255
+msgid "label-timbre"
+msgstr "TIMBRE"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:267
+msgid "label-click-volume"
+msgstr "VOLUMEN"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:303
+msgid "placeholder-metronome-output"
+msgstr "Elegir salida"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:304
+msgid "placeholder-search-device"
+msgstr "Buscar dispositivo…"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:305
+msgid "status-no-devices"
+msgstr "No se encontraron dispositivos"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:320
+msgid "title-window-metronome"
+msgstr "Metrónomo"
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:87
 msgid "·"
 msgstr "·"
@@ -370,27 +418,31 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:144
+#: crates/adapter-gui/ui/pages/project_chains.slint:145
 msgid "tooltip-back"
 msgstr "Atrás"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:152
+#: crates/adapter-gui/ui/pages/project_chains.slint:153
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:160
+#: crates/adapter-gui/ui/pages/project_chains.slint:161
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:168
+#: crates/adapter-gui/ui/pages/project_chains.slint:169
+msgid "tooltip-metronome"
+msgstr "Metrónomo"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:177
 msgid "tooltip-project-settings"
 msgstr "Proyecto"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:177
+#: crates/adapter-gui/ui/pages/project_chains.slint:186
 msgid "tooltip-save"
 msgstr "Guardar"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:185
+#: crates/adapter-gui/ui/pages/project_chains.slint:194
 msgid "tooltip-new-chain"
 msgstr "Nueva cadena"
 
@@ -500,7 +552,8 @@ msgstr "Canales"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr "Agrupa la entrada y la salida de la misma interfaz. Cada chain usa un enlace."
+msgstr ""
+"Agrupa la entrada y la salida de la misma interfaz. Cada chain usa un enlace."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -574,7 +627,8 @@ msgstr "Control MIDI"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:45
 msgid "desc-midi-enabled"
-msgstr "Activa el adaptador MIDI/BLE-MIDI para que los pedales controlen OpenRig"
+msgstr ""
+"Activa el adaptador MIDI/BLE-MIDI para que los pedales controlen OpenRig"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:93
 msgid "label-mcp-enabled"

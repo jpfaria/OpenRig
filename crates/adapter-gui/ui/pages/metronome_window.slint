@@ -1,0 +1,390 @@
+// MetronomeWindow — top-bar utility, issue #14.
+//
+// Visual language is the Tuner's: stompbox header with a power footswitch, and
+// an amber LCD as the primary readout. The LCD carries the two things a player
+// reads mid-song — the tempo and which beat of the bar is sounding — at a size
+// that survives a glance from a metre away.
+//
+// Everything else (time signature, subdivision, timbre, volume) is a rotary
+// knob, matching the pedal vocabulary the rest of the app already speaks. Only
+// the output device, whose list is long and unbounded, uses the shared Select.
+import { Select } from "../components/select.slint";
+import { SelectorKnob } from "../components/selector_knob.slint";
+import { PanelKnob } from "../components/panel_knob.slint";
+import { SelectOption } from "../models.slint";
+import { PowerFootSwitch, BeatLamp, ControlCell, PillButton } from "../components/metronome_controls.slint";
+
+// ── MetronomePanel — reusable content (Window and inline modes) ───────────
+export component MetronomePanel inherits Rectangle {
+    in property <bool> metronome-enabled: false;
+    in property <float> bpm: 120;
+    in property <int> beats-per-bar: 4;
+    in property <int> current-beat: 0;
+    in property <bool> counting-in: false;
+    in property <int> subdivision-index: 0;
+    in property <string> subdivision-label;
+    in property <int> timbre-index: 0;
+    in property <string> timbre-label;
+    in property <float> volume: 0.7;
+    in property <bool> count-in: false;
+    in property <int> time-signature-index: 2;
+    in property <string> time-signature-label: "4/4";
+    in property <[SelectOption]> output-options;
+    in property <string> output-key;
+    in property <string> output-label;
+    in property <bool> show-close-button: false;
+
+    callback close-metronome();
+    callback toggle-enabled(bool);
+    callback set-bpm(float);
+    callback tap();
+    callback set-time-signature(int);
+    callback set-subdivision(int);
+    callback set-timbre(int);
+    callback set-volume(float);
+    callback set-count-in(bool);
+    callback pick-output(string);
+    callback output-opened();
+    callback output-query(string);
+
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+
+    // ── Header bar ───────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: 72px;
+        background: #0c0e12;
+
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        PowerFootSwitch {
+            x: 14px; y: (72px - self.height) / 2;
+            active: root.metronome-enabled;
+            toggled => { root.toggle-enabled(!root.metronome-enabled); }
+        }
+
+        Image {
+            x: 78px; y: 24px;
+            width: 24px; height: 24px;
+            source: @image-url("../assets/metronome.svg");
+            colorize: #c5cdd9;
+        }
+
+        Text {
+            x: 110px; y: 0;
+            width: 200px; height: parent.height;
+            text: @tr("label-metronome");
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 3.0px;
+            vertical-alignment: center;
+        }
+
+        if root.show-close-button : Rectangle {
+            x: parent.width - 40px; y: 22px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            border-width: 1px;
+            border-color: #2c323d;
+
+            Image {
+                x: (parent.width - 12px) / 2;
+                y: (parent.height - 12px) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("../modules/surrealism-ui/icons/close.svg");
+                colorize: #c5cdd9;
+            }
+
+            close-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.close-metronome(); }
+            }
+        }
+    }
+
+    // ── LCD — tempo and the bar, the two things read mid-song ────────────
+    Rectangle {
+        x: 16px; y: 88px;
+        width: parent.width - 32px;
+        height: 168px;
+        border-radius: 6px;
+        background: root.metronome-enabled ? #ccaa66 : #776633;
+        border-width: 1px;
+        border-color: #00000099;
+        clip: true;
+        drop-shadow-blur: 6px;
+        drop-shadow-color: #00000080;
+        animate background { duration: 200ms; }
+
+        // Beat lamps, centred across the top of the LCD.
+        HorizontalLayout {
+            x: 0; y: 16px;
+            width: parent.width;
+            height: 16px;
+            alignment: center;
+            spacing: 10px;
+
+            // Slots past the current time signature collapse to zero width, so
+            // the lamps stay centred whatever the bar length.
+            for slot[idx] in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] : Rectangle {
+                width: idx < root.beats-per-bar ? 16px : 0px;
+                height: 16px;
+                if idx < root.beats-per-bar : BeatLamp {
+                    lit: root.metronome-enabled && idx == root.current-beat;
+                    downbeat: idx == 0;
+                    counting-in: root.counting-in;
+                }
+            }
+        }
+
+        // Tempo — the largest thing on screen.
+        Text {
+            x: 0; y: 44px;
+            width: parent.width;
+            height: 76px;
+            text: Math.round(root.bpm);
+            color: #2a2008;
+            font-family: "Bebas Neue";
+            font-size: 76px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: 0; y: 122px;
+            width: parent.width;
+            height: 18px;
+            text: @tr("label-bpm");
+            color: #5a4a1a;
+            font-family: "Bebas Neue";
+            font-size: 14px;
+            letter-spacing: 4.0px;
+            horizontal-alignment: center;
+        }
+
+        // Time signature, parked in the corner like a pedal's secondary readout.
+        Text {
+            x: parent.width - 76px; y: 46px;
+            width: 60px; height: 26px;
+            text: root.time-signature-label;
+            color: #5a4a1a;
+            font-family: "Bebas Neue";
+            font-size: 24px;
+            letter-spacing: 1.0px;
+            horizontal-alignment: right;
+        }
+
+        if root.counting-in : Text {
+            x: 16px; y: 46px;
+            width: 90px; height: 26px;
+            text: @tr("label-count-in");
+            color: #7a3a0a;
+            font-family: "Bebas Neue";
+            font-size: 15px;
+            letter-spacing: 2.0px;
+            horizontal-alignment: left;
+        }
+    }
+
+    // ── Tempo row — nudge, tap, nudge ────────────────────────────────────
+    HorizontalLayout {
+        x: 16px; y: 268px;
+        width: parent.width - 32px;
+        height: 38px;
+        spacing: 10px;
+
+        PillButton {
+            width: 56px;
+            label: "−";
+            clicked => { root.set-bpm(root.bpm - 1); }
+        }
+
+        PillButton {
+            label: @tr("action-tap-tempo");
+            emphasis: true;
+            clicked => { root.tap(); }
+        }
+
+        PillButton {
+            width: 56px;
+            label: "+";
+            clicked => { root.set-bpm(root.bpm + 1); }
+        }
+    }
+
+    // ── Knob row ─────────────────────────────────────────────────────────
+    HorizontalLayout {
+        x: 16px; y: 320px;
+        width: parent.width - 32px;
+        height: 108px;
+        alignment: space-around;
+
+        ControlCell {
+            caption: @tr("label-time-signature");
+            value: root.time-signature-label;
+            SelectorKnob {
+                x: (parent.width - 64px) / 2; y: 20px;
+                width: 64px; height: 64px;
+                num-options: 7;
+                selected-index: root.time-signature-index;
+                select(i) => { root.set-time-signature(i); }
+            }
+        }
+
+        ControlCell {
+            caption: @tr("label-subdivision");
+            value: root.subdivision-label;
+            SelectorKnob {
+                x: (parent.width - 64px) / 2; y: 20px;
+                width: 64px; height: 64px;
+                num-options: 4;
+                selected-index: root.subdivision-index;
+                select(i) => { root.set-subdivision(i); }
+            }
+        }
+
+        ControlCell {
+            caption: @tr("label-timbre");
+            value: root.timbre-label;
+            SelectorKnob {
+                x: (parent.width - 64px) / 2; y: 20px;
+                width: 64px; height: 64px;
+                num-options: 3;
+                selected-index: root.timbre-index;
+                select(i) => { root.set-timbre(i); }
+            }
+        }
+
+        ControlCell {
+            caption: @tr("label-click-volume");
+            value: Math.round(root.volume * 100) + "%";
+            PanelKnob {
+                x: (parent.width - 64px) / 2; y: 20px;
+                width: 64px; height: 64px;
+                value: root.volume;
+                min-val: 0.0;
+                max-val: 1.0;
+                step: 0.01;
+                path: "metronome.volume";
+                changed(p, v) => { root.set-volume(v); }
+            }
+        }
+    }
+
+    // ── Footer — count-in and output device ──────────────────────────────
+    Rectangle {
+        x: 16px; y: 444px;
+        width: parent.width - 32px;
+        height: 38px;
+
+        PillButton {
+            x: 0; y: 0;
+            width: 132px;
+            label: @tr("label-count-in");
+            emphasis: root.count-in;
+            clicked => { root.set-count-in(!root.count-in); }
+        }
+
+        Select {
+            x: 142px; y: 0;
+            width: parent.width - 142px;
+            options: root.output-options;
+            active-key: root.output-key;
+            field-label: root.output-label;
+            field-icon: @image-url("../assets/headphones.svg");
+            placeholder: @tr("placeholder-metronome-output");
+            search-placeholder: @tr("placeholder-search-device");
+            empty-text: @tr("status-no-devices");
+            field-font-size: 14px;
+            field-font-weight: 600;
+            popup-width: parent.width - 142px;
+            picked(key) => { root.pick-output(key); }
+            opened => { root.output-opened(); }
+            query-changed(q) => { root.output-query(q); }
+        }
+    }
+}
+
+export component MetronomeWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 13px;
+    title: @tr("title-window-metronome");
+    min-width: 480px;
+    min-height: 500px;
+    preferred-width: 560px;
+    preferred-height: 500px;
+    background: #050608;
+
+    in property <bool> metronome-enabled: false;
+    in property <float> bpm: 120;
+    in property <int> beats-per-bar: 4;
+    in property <int> current-beat: 0;
+    in property <bool> counting-in: false;
+    in property <int> subdivision-index: 0;
+    in property <string> subdivision-label;
+    in property <int> timbre-index: 0;
+    in property <string> timbre-label;
+    in property <float> volume: 0.7;
+    in property <bool> count-in: false;
+    in property <int> time-signature-index: 2;
+    in property <string> time-signature-label: "4/4";
+    in property <[SelectOption]> output-options;
+    in property <string> output-key;
+    in property <string> output-label;
+
+    callback close-metronome-window();
+    callback toggle-enabled(bool);
+    callback set-bpm(float);
+    callback tap();
+    callback set-time-signature(int);
+    callback set-subdivision(int);
+    callback set-timbre(int);
+    callback set-volume(float);
+    callback set-count-in(bool);
+    callback pick-output(string);
+    callback output-opened();
+    callback output-query(string);
+
+    MetronomePanel {
+        width: 100%;
+        height: 100%;
+        metronome-enabled: root.metronome-enabled;
+        bpm: root.bpm;
+        beats-per-bar: root.beats-per-bar;
+        current-beat: root.current-beat;
+        counting-in: root.counting-in;
+        subdivision-index: root.subdivision-index;
+        subdivision-label: root.subdivision-label;
+        timbre-index: root.timbre-index;
+        timbre-label: root.timbre-label;
+        volume: root.volume;
+        count-in: root.count-in;
+        time-signature-index: root.time-signature-index;
+        time-signature-label: root.time-signature-label;
+        output-options: root.output-options;
+        output-key: root.output-key;
+        output-label: root.output-label;
+        show-close-button: false;
+        close-metronome => { root.close-metronome-window(); }
+        toggle-enabled(e) => { root.toggle-enabled(e); }
+        set-bpm(v) => { root.set-bpm(v); }
+        tap => { root.tap(); }
+        set-time-signature(i) => { root.set-time-signature(i); }
+        set-subdivision(i) => { root.set-subdivision(i); }
+        set-timbre(i) => { root.set-timbre(i); }
+        set-volume(v) => { root.set-volume(v); }
+        set-count-in(c) => { root.set-count-in(c); }
+        pick-output(k) => { root.pick-output(k); }
+        output-opened => { root.output-opened(); }
+        output-query(q) => { root.output-query(q); }
+    }
+}

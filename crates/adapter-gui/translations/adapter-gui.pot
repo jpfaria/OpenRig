@@ -179,51 +179,51 @@ msgstr ""
 msgid "status-no-presets-found"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:106
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:108
 msgid "tone-doctor-title"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:112
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:114
 msgid "tone-doctor-analyze"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:126
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:128
 msgid "tone-doctor-genre"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:134
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
 msgid "tone-doctor-genre-default"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:135
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:137
 msgid "tone-doctor-genre-search"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:138
 msgid "tone-doctor-genre-none"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:156
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
 msgid "tone-doctor-no-signal"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:157
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
 msgid "tone-doctor-diagnosing"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:160
 msgid "tone-doctor-rerun"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:161
 msgid "tone-doctor-diagnose"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:215
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:221
 msgid "tone-doctor-suggestion"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:229
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:235
 msgid "tone-doctor-apply"
 msgstr ""
 
@@ -351,6 +351,54 @@ msgstr ""
 msgid "label-output"
 msgstr ""
 
+#: crates/adapter-gui/ui/pages/metronome_window.slint:81
+msgid "label-metronome"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:165
+msgid "label-bpm"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:188
+msgid "label-count-in"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:211
+msgid "action-tap-tempo"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:231
+msgid "label-time-signature"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:243
+msgid "label-subdivision"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:255
+msgid "label-timbre"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:267
+msgid "label-click-volume"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:303
+msgid "placeholder-metronome-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:304
+msgid "placeholder-search-device"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:305
+msgid "status-no-devices"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:320
+msgid "title-window-metronome"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:87
 msgid "·"
 msgstr ""
@@ -371,27 +419,31 @@ msgstr ""
 msgid "btn-open-homepage"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:144
+#: crates/adapter-gui/ui/pages/project_chains.slint:145
 msgid "tooltip-back"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:152
+#: crates/adapter-gui/ui/pages/project_chains.slint:153
 msgid "tooltip-spectrum"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:160
+#: crates/adapter-gui/ui/pages/project_chains.slint:161
 msgid "tooltip-tuner"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:168
-msgid "tooltip-project-settings"
+#: crates/adapter-gui/ui/pages/project_chains.slint:169
+msgid "tooltip-metronome"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/project_chains.slint:177
+msgid "tooltip-project-settings"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:186
 msgid "tooltip-save"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:185
+#: crates/adapter-gui/ui/pages/project_chains.slint:194
 msgid "tooltip-new-chain"
 msgstr ""
 

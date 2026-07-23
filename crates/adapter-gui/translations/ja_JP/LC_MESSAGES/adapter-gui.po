@@ -178,51 +178,51 @@ msgstr ""
 msgid "status-no-presets-found"
 msgstr "プリセットが見つかりません"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:106
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:108
 msgid "tone-doctor-title"
 msgstr "Tone Doctor"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:112
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:114
 msgid "tone-doctor-analyze"
 msgstr "分析"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:126
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:128
 msgid "tone-doctor-genre"
 msgstr "ジャンル"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:134
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
 msgid "tone-doctor-genre-default"
 msgstr "デフォルト"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:135
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:137
 msgid "tone-doctor-genre-search"
 msgstr "ジャンルを検索…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:138
 msgid "tone-doctor-genre-none"
 msgstr "ジャンルなし"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:156
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
 msgid "tone-doctor-no-signal"
 msgstr "DI を再生するかチェーンを有効化"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:157
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
 msgid "tone-doctor-diagnosing"
 msgstr "診断中…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:160
 msgid "tone-doctor-rerun"
 msgstr "再診断"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:161
 msgid "tone-doctor-diagnose"
 msgstr "診断"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:215
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:221
 msgid "tone-doctor-suggestion"
 msgstr "推奨する修正"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:229
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:235
 msgid "tone-doctor-apply"
 msgstr "適用"
 
@@ -350,6 +350,54 @@ msgstr "入力"
 msgid "label-output"
 msgstr "出力"
 
+#: crates/adapter-gui/ui/pages/metronome_window.slint:81
+msgid "label-metronome"
+msgstr "メトロノーム"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:165
+msgid "label-bpm"
+msgstr "BPM"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:188
+msgid "label-count-in"
+msgstr "カウントイン"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:211
+msgid "action-tap-tempo"
+msgstr "タップ"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:231
+msgid "label-time-signature"
+msgstr "拍子"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:243
+msgid "label-subdivision"
+msgstr "分割"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:255
+msgid "label-timbre"
+msgstr "音色"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:267
+msgid "label-click-volume"
+msgstr "音量"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:303
+msgid "placeholder-metronome-output"
+msgstr "出力を選択"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:304
+msgid "placeholder-search-device"
+msgstr "デバイスを検索…"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:305
+msgid "status-no-devices"
+msgstr "デバイスが見つかりません"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:320
+msgid "title-window-metronome"
+msgstr "メトロノーム"
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:87
 msgid "·"
 msgstr "·"
@@ -370,27 +418,31 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:144
+#: crates/adapter-gui/ui/pages/project_chains.slint:145
 msgid "tooltip-back"
 msgstr "戻る"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:152
+#: crates/adapter-gui/ui/pages/project_chains.slint:153
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:160
+#: crates/adapter-gui/ui/pages/project_chains.slint:161
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:168
+#: crates/adapter-gui/ui/pages/project_chains.slint:169
+msgid "tooltip-metronome"
+msgstr "メトロノーム"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:177
 msgid "tooltip-project-settings"
 msgstr "プロジェクト"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:177
+#: crates/adapter-gui/ui/pages/project_chains.slint:186
 msgid "tooltip-save"
 msgstr "保存"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:185
+#: crates/adapter-gui/ui/pages/project_chains.slint:194
 msgid "tooltip-new-chain"
 msgstr "新しい チェーン"
 
@@ -500,7 +552,9 @@ msgstr "チャンネル"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr "同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディングを使用します。"
+msgstr ""
+"同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディング"
+"を使用します。"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -512,7 +566,8 @@ msgstr "バインディングがまだありません"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
 msgid "empty-no-bindings-hint"
-msgstr "インターフェースの入力と出力をまとめるバインディングを作成してください。"
+msgstr ""
+"インターフェースの入力と出力をまとめるバインディングを作成してください。"
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358

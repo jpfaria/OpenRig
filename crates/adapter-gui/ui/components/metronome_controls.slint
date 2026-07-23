@@ -1,0 +1,123 @@
+// Issue #14 — the metronome's building blocks, kept out of
+// `pages/metronome_window.slint` so the page stays about layout.
+
+// Power footswitch — same sprite and size as the Tuner's and the block
+// FootSwitch. No label, no LED.
+export component PowerFootSwitch inherits Rectangle {
+    in property <bool> active;
+    callback toggled();
+
+    width: 48px;
+    height: 48px;
+    clip: true;
+
+    // Sprite is vertical: 88×176 px, two 88×88 frames stacked.
+    // Top = pressed/on, bottom = released/off.
+    Image {
+        source: @image-url("../assets/sprites/footswitch.png");
+        x: 0;
+        y: root.active ? -parent.height : 0;
+        width: parent.width;
+        height: 2 * parent.height;
+        image-fit: fill;
+        image-rendering: smooth;
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}
+
+// One beat lamp. The downbeat reads differently from the rest even when unlit,
+// so the bar has a visible starting point at a glance.
+export component BeatLamp inherits Rectangle {
+    in property <bool> lit;
+    in property <bool> downbeat;
+    in property <bool> counting-in;
+
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    border-width: root.downbeat ? 2px : 1px;
+    border-color: #00000066;
+    background: root.lit
+        ? (root.counting-in ? #ff8c42 : (root.downbeat ? #2a6633 : #3d7a48))
+        : #00000022;
+
+    animate background { duration: 60ms; }
+}
+
+// Labelled control cell — caption above, control centred, value below. Keeps
+// the knob row on one baseline grid.
+export component ControlCell inherits Rectangle {
+    in property <string> caption;
+    in property <string> value;
+
+    width: 96px;
+    height: 108px;
+
+    Text {
+        x: 0; y: 0;
+        width: parent.width; height: 14px;
+        text: root.caption;
+        color: #7c8798;
+        font-family: "Bebas Neue";
+        font-size: 11px;
+        letter-spacing: 1.6px;
+        horizontal-alignment: center;
+    }
+
+    @children
+
+    Text {
+        x: 0; y: parent.height - 18px;
+        width: parent.width; height: 16px;
+        text: root.value;
+        color: #d8e0ec;
+        font-family: "Bebas Neue";
+        font-size: 15px;
+        letter-spacing: 1.2px;
+        horizontal-alignment: center;
+    }
+}
+
+// Small pill button — the tempo nudges, TAP, and the count-in toggle.
+export component PillButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> emphasis: false;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    height: 38px;
+    border-radius: 6px;
+    opacity: root.enabled ? 1.0 : 0.35;
+    background: root.emphasis
+        ? (ta.has-hover ? #b8892f : #946d22)
+        : (ta.has-hover ? #2a3340 : #1c2028);
+    border-width: 1px;
+    border-color: root.emphasis ? #d8b268 : #2c323d;
+    animate background { duration: 120ms; }
+
+    Text {
+        width: 100%;
+        height: 100%;
+        text: root.label;
+        color: root.emphasis ? #1a1206 : #d8e0ec;
+        font-family: "Bebas Neue";
+        font-size: 16px;
+        letter-spacing: 2.0px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
+        clicked => {
+            if (root.enabled) {
+                root.clicked();
+            }
+        }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}

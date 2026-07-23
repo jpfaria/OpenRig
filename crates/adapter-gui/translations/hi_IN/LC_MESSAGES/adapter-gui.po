@@ -178,51 +178,51 @@ msgstr ""
 msgid "status-no-presets-found"
 msgstr "कोई प्रीसेट नहीं मिला"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:106
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:108
 msgid "tone-doctor-title"
 msgstr "Tone Doctor"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:112
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:114
 msgid "tone-doctor-analyze"
 msgstr "विश्लेषण"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:126
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:128
 msgid "tone-doctor-genre"
 msgstr "शैली"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:134
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
 msgid "tone-doctor-genre-default"
 msgstr "डिफ़ॉल्ट"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:135
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:137
 msgid "tone-doctor-genre-search"
 msgstr "शैली खोजें…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:136
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:138
 msgid "tone-doctor-genre-none"
 msgstr "कोई शैली नहीं"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:156
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
 msgid "tone-doctor-no-signal"
 msgstr "एक DI चलाएं या चेन सक्षम करें"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:157
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
 msgid "tone-doctor-diagnosing"
 msgstr "निदान हो रहा है…"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:158
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:160
 msgid "tone-doctor-rerun"
 msgstr "फिर से निदान करें"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:159
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:161
 msgid "tone-doctor-diagnose"
 msgstr "निदान करें"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:215
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:221
 msgid "tone-doctor-suggestion"
 msgstr "सुझाया गया सुधार"
 
-#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:229
+#: crates/adapter-gui/ui/components/tone_doctor_panel.slint:235
 msgid "tone-doctor-apply"
 msgstr "लागू करें"
 
@@ -350,6 +350,54 @@ msgstr "इनपुट"
 msgid "label-output"
 msgstr "आउटपुट"
 
+#: crates/adapter-gui/ui/pages/metronome_window.slint:81
+msgid "label-metronome"
+msgstr "मेट्रोनोम"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:165
+msgid "label-bpm"
+msgstr "BPM"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:188
+msgid "label-count-in"
+msgstr "काउंट-इन"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:211
+msgid "action-tap-tempo"
+msgstr "टैप"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:231
+msgid "label-time-signature"
+msgstr "ताल"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:243
+msgid "label-subdivision"
+msgstr "उपविभाजन"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:255
+msgid "label-timbre"
+msgstr "ध्वनि"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:267
+msgid "label-click-volume"
+msgstr "वॉल्यूम"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:303
+msgid "placeholder-metronome-output"
+msgstr "आउटपुट चुनें"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:304
+msgid "placeholder-search-device"
+msgstr "डिवाइस खोजें…"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:305
+msgid "status-no-devices"
+msgstr "कोई डिवाइस नहीं मिला"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:320
+msgid "title-window-metronome"
+msgstr "मेट्रोनोम"
+
 #: crates/adapter-gui/ui/pages/plugin_info_window.slint:87
 msgid "·"
 msgstr "·"
@@ -370,27 +418,31 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:144
+#: crates/adapter-gui/ui/pages/project_chains.slint:145
 msgid "tooltip-back"
 msgstr "वापस"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:152
+#: crates/adapter-gui/ui/pages/project_chains.slint:153
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:160
+#: crates/adapter-gui/ui/pages/project_chains.slint:161
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:168
+#: crates/adapter-gui/ui/pages/project_chains.slint:169
+msgid "tooltip-metronome"
+msgstr "मेट्रोनोम"
+
+#: crates/adapter-gui/ui/pages/project_chains.slint:177
 msgid "tooltip-project-settings"
 msgstr "प्रोजेक्ट"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:177
+#: crates/adapter-gui/ui/pages/project_chains.slint:186
 msgid "tooltip-save"
 msgstr "सहेजें"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:185
+#: crates/adapter-gui/ui/pages/project_chains.slint:194
 msgid "tooltip-new-chain"
 msgstr "नई चेन"
 
@@ -500,7 +552,8 @@ msgstr "चैनल"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr "एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
+msgstr ""
+"एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
