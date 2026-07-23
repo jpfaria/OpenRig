@@ -64,8 +64,7 @@ jobs:
                 apt-get install -y -qq --no-install-recommends \
                   libasound2-dev libudev-dev pkg-config \
                   libfontconfig1-dev libseat-dev libxkbcommon-dev \
-                  libinput-dev libgbm-dev libjack-jackd2-dev \
-                  cmake build-essential
+                  libinput-dev libgbm-dev libjack-jackd2-dev
               } >&2
               exec /opt/quality-gate/qg \
                 --base origin/develop \
