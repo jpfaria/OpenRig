@@ -143,6 +143,8 @@ pub mod graph_view_model;
 mod helpers;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
+#[cfg(test)]
+mod issue_815_add_block_tabs_tests;
 mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;

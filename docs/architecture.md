@@ -34,3 +34,15 @@ assets/amps/{brand}/{model}/component.yaml     ← caminhos de assets + svg_cx/c
 ## BlockEditorPanel
 
 Quando o bloco selecionado é `preamp`, o painel mostra `controls.svg` em vez de só sliders. Implementação em `crates/adapter-gui/ui/pages/project_chains.slint` (propriedades `is-preamp`, `selected-model-id`, ternary chain de `@image-url()` por compile-time). `amp` ainda não tem equivalente.
+
+### Detached editor: one wiring for add and edit (#815)
+
+Outside inline (fullscreen/touch) mode, the block editor opens as a detached
+`BlockEditorWindow` built per-block by `block_editor_window_setup::create_and_wire`.
+Both flows use it: editing an existing block passes `block_index: Some(i)`; adding
+a new block passes `block_index: None` (add-mode — no auto-persist, no stream
+timer, "add" confirm label, and the block is created only on save, where
+`persist_block_editor_draft` inserts when the index is `None`). Because both share
+this one setup, the #780 parameter tabs render identically on add and edit. Add
+previously went through a separate persistent-window wiring that never built the
+tabs — that path is being retired.
