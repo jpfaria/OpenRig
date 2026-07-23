@@ -293,3 +293,25 @@ When changing the GUI direction or implementing material behavior based on this 
 - record new user-approved decisions here as soon as possible so later agents inherit the same context
 - do not silently diverge from the decisions above
 - if implementation forces a tradeoff, record the tradeoff here
+
+## Reading a headless render (#323)
+
+`tools/slint-render` captures the **first frame**. Any property under an
+`animate` block is therefore rendered at its *starting* value, not its
+settled one: an `animate colorize` makes icons come out dark and muddy, an
+`animate background` gives buttons an off colour, and it reads exactly like a
+contrast bug that is not there. When a rendered component looks washed out,
+check for `animate` before redesigning it — the panel of #323 lost two
+iterations to this. Prefer no animation on the properties a render has to
+prove (state colour, enabled/disabled), and keep animations for hover
+transitions the PNG does not need to show.
+
+Two more traps the same render caught, worth checking first:
+
+- A fixed-size button (`width`/`height`) inside a `HorizontalLayout` still
+  gets stretched, and `min-*`/`max-*` conflict with `width`/`height`
+  (a hard compile error). Icon clusters in this app are positioned
+  absolutely for that reason; use layouts for the parts that stretch.
+- Texts inside a stretching container inflate it with their intrinsic width
+  and push the trailing buttons out of the card. Give that container a
+  `min-width` and `clip: true`.

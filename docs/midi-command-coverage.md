@@ -11,6 +11,13 @@ listed below is the live gap. That is the audit; it is an architectural
 program (done red-first, incrementally), not a single change.
 
 **Recent additions:**
+- #323: `AddChainLooper`, `RemoveChainLooper`, `SetChainLooperTransport`,
+  `SetChainLooperParam`, `SetChainLooperAudioFile` (5). The transport backs the
+  MIDI slots `looper_record`, `looper_play_stop`, `looper_undo`,
+  `looper_clear` — a footswitch sends looper uid `0`, the sentinel the
+  dispatcher resolves to the chain's first looper. `LooperAction::PlayStop` is
+  the one-button toggle: the adapter resolves it against the runtime, so pedal
+  and screen behave identically.
 - #513 / #493: `SaveMidiDevices`, `SaveMidiMapping`, `StartMidiLearn`,
   `StopMidiLearn`, `PublishMidiEvent` (5).
 - #548 Phase 3a: `SelectActiveChainRelative`, `SelectActiveBlockRelative`,

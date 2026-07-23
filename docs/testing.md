@@ -69,6 +69,23 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
   runtime por `ChainRuntimeState::record_callback_load` (#670), alimentado
   pelo callback de input via `infra-cpal::callback_load_timing`.
 
+### Looper (#323)
+
+The looper is a recorder living on the audio thread, so it is covered at
+every layer instead of "it plays, ship it":
+
+| Suite | Proves |
+|---|---|
+| `engine/src/looper_tests.rs` | the state machine and layer maths — record → play, overdub sums, undo/redo, redo tail dropped by a new recording, ceiling freeze, speed/reverse/decay, export mixdown |
+| `engine/src/looper_bank_tests.rs` | the op queue: slot claim, buffer hand-back for unknown uids, mono mixdown, per-looper params |
+| `engine/src/looper_runtime_tests.rs` | the callback path: recorded dry input reaches the output, a chain without loopers stays byte-identical silence, a loop survives a runtime rebuild, and one chain's loop never reaches another (invariant #4) |
+| `audio_alloc_invariant_tests::looper_record_overdub_and_undo_do_not_allocate` | zero allocation on the audio thread while recording / overdubbing / undoing (invariant #8) |
+| `infra-cpal/tests/issue_323_controller_loopers.rs` | ops fan out to every runtime of a chain, each with its OWN buffer |
+| `application` dispatcher + `query_loopers` tests | command validation, the footswitch uid-0 sentinel, and the read model every transport shares |
+| `adapter-gui/tests/issue_323_looper_wiring.rs` | the #614 trap: dispatching alone is dead — the runtime state must actually flip |
+| `adapter-gui/tests/issue_323_looper_panel_interaction.rs` | real pointer events on the panel: every transport button fires, disabled ones do not, each row reports its own uid |
+| `adapter-gui/src/looper_persist_tests.rs` | save → reopen round-trip of the wav sidecar, and that a missing sidecar never blocks opening a project |
+
 ## Workspace
 
 ```bash

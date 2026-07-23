@@ -218,12 +218,12 @@ Todo item aberto abaixo é rastreado como uma [issue do GitHub](https://github.c
 - [x] **Formato de preset YAML aberto** — diffável, compartilhável por gist, scriptável; registry canônico de `MODEL_ID` documentado em [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)
 - [x] **Construção de timbre assistida por IA** — a skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) do Claude Code (entregue em [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) monta timbres completos na rig viva a partir de uma música ou artista, via MCP
 - [x] **Bancos de presets + cenas por chain** — troque presets e cenas ao vivo por chain; cenas guardam apenas as diferenças de parâmetro (estilo Helix-Snapshot) para troca instantânea sem recarregar blocos ([#321](https://github.com/jpfaria/OpenRig/issues/321))
+- [x] **Looper multi-camada por chain** — até 8 loopers independentes por chain, cada um gravando a entrada seca da chain e tocando de volta por toda a cadeia (mexer num bloco ao vivo muda o timbre do loop): overdub em camadas com desfazer/refazer, velocidade ½×/1×/2×, reverso, nível e decaimento por camada, controlados pelo painel ou por footswitch MIDI; os loops são salvos junto com o projeto ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [x] **Loop de DI virtual por chain** — faça loop de um DI seco em qualquer chain para moldar o timbre sem tocar (loops CC0 inclusos ou seu próprio WAV); por chain, efêmero, nunca salvo no projeto ([#614](https://github.com/jpfaria/OpenRig/issues/614))
 
 ### Features de palco
 
 - [ ] Setlist / modo live performance ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [ ] Looper, multi-camada ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / player de áudio ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Mapeamento de pedal de expressão via MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [ ] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))

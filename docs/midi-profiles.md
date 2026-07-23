@@ -38,7 +38,7 @@ bindings:
   applies to every MIDI port.
 - `bindings` is the action list.
 - Each binding has a **`when`** (MIDI message pattern) and a **`do`**
-  (slot name from the 20-slot catalog below). Slot names not in the
+  (slot name from the 24-slot catalog below). Slot names not in the
   catalog are rejected at parse time.
 
 ### `when` shape
@@ -58,7 +58,7 @@ wildcard** — match any byte. Used by `jump_preset_n` and
 `jump_scene_n` (the byte becomes the action's index) and by continuous
 CC slots (`chain_volume`, `block_param_numeric`).
 
-### `do` — the 20-slot catalog
+### `do` — the 24-slot catalog
 
 | Slot | Group | Acts on | Effect |
 |---|---|---|---|
@@ -80,6 +80,10 @@ CC slots (`chain_volume`, `block_param_numeric`).
 | `prev_block_2` | Block nav | active block | two blocks back (for compact view) |
 | `next_block_2` | Block nav | active block | two blocks forward |
 | `toggle_active_block_enabled` | Block | active block | enable/disable the active block |
+| `looper_record` | Looper | active chain | record / overdub tap on the chain's first looper (#323) |
+| `looper_play_stop` | Looper | active chain | play or stop that looper, whichever applies |
+| `looper_undo` | Looper | active chain | drop its newest overdub layer |
+| `looper_clear` | Looper | active chain | erase the loop |
 | `chain_volume` | Continuous CC | active chain | set chain volume from CC value (scaled) |
 | `block_param_numeric` | Continuous CC | active block | set the active block's first numeric param from CC value |
 

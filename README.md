@@ -218,12 +218,12 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [x] **Open YAML preset format** — diffable, gist-shareable, scriptable; canonical `MODEL_ID` registry documented in the [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)
 - [x] **AI-assisted tone building** — the [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) Claude Code skill (shipped in [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) builds full tones on the running rig from a song or artist name, via MCP
 - [x] **Per-chain preset banks + scenes** — switch presets and scenes live per chain; scenes store only parameter diffs (Helix-Snapshot style) for instant switching without reloading blocks ([#321](https://github.com/jpfaria/OpenRig/issues/321))
+- [x] **Multi-layer looper per chain** — up to 8 independent loopers per chain, each recording the chain's dry input and playing it back through the whole chain (so a live block edit changes the loop's tone): overdub layers with undo/redo, ½×/1×/2× speed, reverse, level and per-layer decay, driven from the panel or a MIDI footswitch; loops are saved with the project ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [x] **Per-chain virtual DI loop** — loop a dry DI through a chain to shape tone without playing (bundled CC0 loops or your own WAV); per-chain, ephemeral, never saved into the project ([#614](https://github.com/jpfaria/OpenRig/issues/614))
 
 ### Stage features
 
 - [ ] Setlist / live performance mode ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [ ] Looper, multi-layer ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / audio player ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Expression pedal mapping over MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [ ] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
