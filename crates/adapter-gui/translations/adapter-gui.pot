@@ -712,3 +712,101 @@ msgstr ""
 #: crates/adapter-gui/ui/touch_main.slint:623
 msgid "⌨"
 msgstr ""
+
+# Looper UI strings (added #323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-button-label"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-panel-title"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-add"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-title"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-hint"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-record"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-play"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-stop"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-undo"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-redo"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-clear"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-remove"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-parameters"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-level"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-decay"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-speed"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-reverse"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-one"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-many"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-empty"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-recording"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-playing"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-overdubbing"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-stopped"
+msgstr ""

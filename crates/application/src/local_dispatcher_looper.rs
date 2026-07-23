@@ -38,10 +38,7 @@ impl LocalDispatcher {
                 // 1 and never reuse a live one.
                 let uid = c.loopers.iter().map(|l| l.uid).max().unwrap_or(0) + 1;
                 c.loopers.push(LooperConfig::new(uid));
-                Ok(vec![Event::ChainLooperAdded {
-                    chain,
-                    looper: uid,
-                }])
+                Ok(vec![Event::ChainLooperAdded { chain, looper: uid }])
             }
 
             Command::RemoveChainLooper { chain, looper } => {

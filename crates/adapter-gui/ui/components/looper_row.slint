@@ -1,0 +1,258 @@
+// #323 — one looper in the panel: the transport line, plus a drawer with the
+// finer parameters. State is signalled by colour AND label, never colour
+// alone, and every target is 40 px so the row stays usable on the Orange Pi
+// touch screen.
+//
+// The transport is an absolute cluster of fixed 40 px buttons (the pattern of
+// every other icon cluster in this app); the drawer below uses layouts.
+
+import { Theme } from "../theme.slint";
+import { LooperItem } from "../models.slint";
+import { LooperIconButton, LooperSlider, LooperSegmented } from "looper_controls.slint";
+
+export component LooperRow inherits Rectangle {
+    in property <LooperItem> looper;
+    in property <bool> expanded;
+
+    callback record();
+    callback play-stop();
+    callback undo();
+    callback redo();
+    callback clear();
+    callback remove();
+    callback toggle-drawer();
+    callback mix-changed(int);
+    callback decay-changed(int);
+    callback speed-picked(int);
+    callback reverse-toggled(bool);
+
+    // 0 empty · 1 recording · 2 playing · 3 overdubbing · 4 stopped
+    private property <bool> recording: root.looper.state_code == 1 || root.looper.state_code == 3;
+    private property <bool> playing: root.looper.state_code == 2 || root.looper.state_code == 3;
+    private property <bool> has-material: root.looper.state_code != 0;
+    private property <color> state-color:
+        root.looper.state_code == 1 ? #ff5f6d       // recording
+        : root.looper.state_code == 3 ? #ffb454     // overdubbing
+        : root.looper.state_code == 2 ? #6e8aff     // playing
+        : root.looper.state_code == 4 ? #c5cad4     // stopped
+        : #8a94a2;                                  // empty
+
+    height: root.expanded ? 178px : 60px;
+    border-radius: 10px;
+    background: Theme.palette.card-secondary;
+    border-width: 1px;
+    border-color: root.recording ? root.state-color : Theme.palette.border;
+    clip: true;
+
+    // ── transport ───────────────────────────────────────────────────────
+    rec-btn := LooperIconButton {
+        x: 8px;
+        y: 10px;
+        icon: @image-url("../assets/record.svg");
+        label: @tr("looper-record");
+        tint: root.recording ? #ffffff : #ff5f6d;
+        active-background: root.recording ? #ff5f6d : transparent;
+        clicked => { root.record(); }
+    }
+
+    play-btn := LooperIconButton {
+        x: 52px;
+        y: 10px;
+        icon: root.playing
+            ? @image-url("../assets/stop.svg")
+            : @image-url("../assets/play.svg");
+        label: root.playing ? @tr("looper-stop") : @tr("looper-play");
+        tint: root.playing ? #6e8aff : #e6ebf5;
+        is-enabled: root.has-material;
+        clicked => { root.play-stop(); }
+    }
+
+    undo-btn := LooperIconButton {
+        x: 96px;
+        y: 10px;
+        icon: @image-url("../assets/undo.svg");
+        label: @tr("looper-undo");
+        is-enabled: root.looper.can_undo;
+        clicked => { root.undo(); }
+    }
+
+    redo-btn := LooperIconButton {
+        x: 140px;
+        y: 10px;
+        icon: @image-url("../assets/redo.svg");
+        label: @tr("looper-redo");
+        is-enabled: root.looper.can_redo;
+        clicked => { root.redo(); }
+    }
+
+    clear-btn := LooperIconButton {
+        x: 184px;
+        y: 10px;
+        icon: @image-url("../assets/trash.svg");
+        label: @tr("looper-clear");
+        is-enabled: root.has-material;
+        clicked => { root.clear(); }
+    }
+
+    // ── state + progress ────────────────────────────────────────────────
+    Rectangle {
+        x: 236px;
+        y: 10px;
+        width: parent.width - 236px - 96px;
+        height: 40px;
+        clip: true;
+        background: transparent;
+
+        Rectangle {
+            x: 0;
+            y: 6px;
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.state-color;
+        }
+
+        Text {
+            x: 14px;
+            y: 0;
+            width: parent.width - 14px - 104px;
+            height: 20px;
+            vertical-alignment: center;
+            // The label is picked here so every state string lives in the
+            // Slint catalog — the Rust side ships a code, not a sentence.
+            text: root.looper.state_code == 1 ? @tr("looper-state-recording")
+                : root.looper.state_code == 2 ? @tr("looper-state-playing")
+                : root.looper.state_code == 3 ? @tr("looper-state-overdubbing")
+                : root.looper.state_code == 4 ? @tr("looper-state-stopped")
+                : @tr("looper-state-empty");
+            color: root.state-color;
+            font-size: 12px;
+            font-weight: 600;
+            overflow: elide;
+        }
+
+        Text {
+            x: parent.width - 100px;
+            y: 0;
+            width: 100px;
+            height: 20px;
+            vertical-alignment: center;
+            horizontal-alignment: right;
+            text: root.looper.time_label;
+            color: Theme.palette.text-muted;
+            font-size: 12px;
+        }
+
+        Rectangle {
+            x: 0;
+            y: 23px;
+            width: parent.width;
+            height: 4px;
+            border-radius: 2px;
+            background: #2a3140;
+
+            Rectangle {
+                x: 0;
+                width: parent.width * root.looper.progress;
+                height: parent.height;
+                border-radius: 2px;
+                background: root.state-color;
+            }
+        }
+
+        Text {
+            x: 0;
+            y: 29px;
+            height: 14px;
+            vertical-alignment: center;
+            text: root.looper.layers == 1
+                ? @tr("looper-layers-one")
+                : @tr("looper-layers-many", root.looper.layers);
+            color: Theme.palette.text-muted;
+            font-size: 11px;
+        }
+    }
+
+    gear-btn := LooperIconButton {
+        x: parent.width - 92px;
+        y: 10px;
+        icon: @image-url("../assets/gear.svg");
+        label: @tr("looper-parameters");
+        tint: root.expanded ? #6e8aff : #e6ebf5;
+        clicked => { root.toggle-drawer(); }
+    }
+
+    remove-btn := LooperIconButton {
+        x: parent.width - 48px;
+        y: 10px;
+        icon: @image-url("../assets/close.svg");
+        label: @tr("looper-remove");
+        tint: #d9959f;
+        clicked => { root.remove(); }
+    }
+
+    // ── parameter drawer ────────────────────────────────────────────────
+    if root.expanded : VerticalLayout {
+        x: 12px;
+        y: 58px;
+        width: parent.width - 24px;
+        height: 112px;
+        spacing: 8px;
+
+        Rectangle {
+            height: 1px;
+            background: Theme.palette.border;
+        }
+
+        LooperSlider {
+            label: @tr("looper-level");
+            value: root.looper.mix;
+            value-changed(v) => { root.mix-changed(v); }
+        }
+
+        LooperSlider {
+            label: @tr("looper-decay");
+            value: root.looper.decay;
+            value-changed(v) => { root.decay-changed(v); }
+        }
+
+        HorizontalLayout {
+            height: 28px;
+            spacing: 12px;
+
+            LooperSegmented {
+                label: @tr("looper-speed");
+                options: ["½×", "1×", "2×"];
+                selected-index: root.looper.speed_index;
+                picked(i) => { root.speed-picked(i); }
+            }
+
+            Rectangle {
+                width: 132px;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: root.looper.reverse ? #6e8aff : Theme.palette.border;
+                background: root.looper.reverse ? #6e8aff28 : transparent;
+
+                Text {
+                    text: @tr("looper-reverse");
+                    color: root.looper.reverse
+                        ? Theme.palette.text-primary
+                        : Theme.palette.text-muted;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.reverse-toggled(!root.looper.reverse); }
+                }
+
+                accessible-role: checkbox;
+                accessible-label: @tr("looper-reverse");
+                accessible-checked: root.looper.reverse;
+            }
+        }
+    }
+}

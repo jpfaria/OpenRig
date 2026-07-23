@@ -715,3 +715,101 @@ msgstr "⌨"
 # I/O Bindings UI strings (added #716)
 #~ msgid "label-io-binding"
 #~ msgstr "I/Oバインディング"
+
+# Looper UI strings (added #323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-button-label"
+msgstr "ルーパー"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-panel-title"
+msgstr "ルーパー"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-add"
+msgstr "ルーパーを追加"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-title"
+msgstr "ルーパーはまだありません"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-hint"
+msgstr "ルーパーを追加すると、このチェーンの入力を録音し、チェーン全体を通して再生できます。"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-record"
+msgstr "録音 / オーバーダブ"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-play"
+msgstr "再生"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-stop"
+msgstr "停止"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-undo"
+msgstr "レイヤーを元に戻す"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-redo"
+msgstr "レイヤーをやり直す"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-clear"
+msgstr "ループを消去"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-remove"
+msgstr "ルーパーを削除"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-parameters"
+msgstr "パラメーター"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-level"
+msgstr "レベル"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-decay"
+msgstr "ディケイ"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-speed"
+msgstr "速度"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-reverse"
+msgstr "リバース"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-one"
+msgstr "1 レイヤー"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-many"
+msgstr "{} レイヤー"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-empty"
+msgstr "空"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-recording"
+msgstr "録音中"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-playing"
+msgstr "再生中"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-overdubbing"
+msgstr "オーバーダブ中"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-stopped"
+msgstr "停止中"

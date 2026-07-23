@@ -152,7 +152,9 @@ fn stop_undo_clear_reach_the_runtime() {
     apply_looper_event(&controller, &action(LooperAction::Undo));
     tick(&controller, &chain, 0.0);
     assert_eq!(
-        controller.chain_looper_status(&chain, UID).map(|s| s.layers),
+        controller
+            .chain_looper_status(&chain, UID)
+            .map(|s| s.layers),
         Some(0),
         "undo drops the only layer"
     );

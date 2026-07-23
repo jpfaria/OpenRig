@@ -5,13 +5,16 @@ import { DiSourcePicker } from "components/di_source_picker_globals.slint";
 // #749: the DI loop panel (fone → janela with a select + play) is rendered as a
 // single root overlay so it is never clipped by the chain list.
 import { DiPanel } from "components/di_panel_globals.slint";
+import { LooperOverlay } from "components/looper_overlay.slint";
+import { LooperPanel } from "components/looper_panel_globals.slint";
 import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
 // #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
 import { DiLoopHarness } from "components/di_loop_test_harness.slint";
+import { LooperHarness } from "components/looper_panel_test_harness.slint";
 import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness }
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -189,6 +192,20 @@ export component AppWindow inherits Window {
     callback di-loop-choose-file(int);
     callback di-loop-play(int);
     callback di-loop-stop(int);
+    /// #323: looper panel actions. First arg is always the chain index, the
+    /// second (where present) the looper uid.
+    callback looper-add(int);
+    callback looper-record(int, int);
+    callback looper-play-stop(int, int);
+    callback looper-undo(int, int);
+    callback looper-redo(int, int);
+    callback looper-clear(int, int);
+    callback looper-remove(int, int);
+    callback looper-mix-changed(int, int, int);
+    callback looper-decay-changed(int, int, int);
+    callback looper-speed-picked(int, int, int);
+    callback looper-reverse-toggled(int, int, bool);
+
     /// #771: an output endpoint was picked in the DI panel.
     /// Args: chain-index, index into the chain's di_loop_outputs.
     callback di-loop-output-selected(int, int); callback tone-doctor-run(int); callback tone-doctor-apply(int); // #791
@@ -840,6 +857,23 @@ export component AppWindow inherits Window {
         play(ci) => { root.di-loop-play(ci); }
         stop(ci) => { root.di-loop-stop(ci); }
         output-selected(ci, i) => { root.di-loop-output-selected(ci, i); }
+    }
+    LooperOverlay {
+        width: root.width; height: root.height;
+        loopers: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
+            ? root.project-chains[LooperPanel.chain-index].loopers
+            : [];
+        add(ci) => { root.looper-add(ci); }
+        record(ci, uid) => { root.looper-record(ci, uid); }
+        play-stop(ci, uid) => { root.looper-play-stop(ci, uid); }
+        undo(ci, uid) => { root.looper-undo(ci, uid); }
+        redo(ci, uid) => { root.looper-redo(ci, uid); }
+        clear(ci, uid) => { root.looper-clear(ci, uid); }
+        remove(ci, uid) => { root.looper-remove(ci, uid); }
+        mix-changed(ci, uid, v) => { root.looper-mix-changed(ci, uid, v); }
+        decay-changed(ci, uid, v) => { root.looper-decay-changed(ci, uid, v); }
+        speed-picked(ci, uid, v) => { root.looper-speed-picked(ci, uid, v); }
+        reverse-toggled(ci, uid, v) => { root.looper-reverse-toggled(ci, uid, v); }
     }
     ToneDoctorOverlay {
         width: root.width; height: root.height;

@@ -715,3 +715,101 @@ msgstr "⌨"
 # I/O Bindings UI strings (added #716)
 #~ msgid "label-io-binding"
 #~ msgstr "I/O 바인딩"
+
+# Looper UI strings (added #323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-button-label"
+msgstr "루퍼"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-panel-title"
+msgstr "루퍼"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-add"
+msgstr "루퍼 추가"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-title"
+msgstr "루퍼가 없습니다"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-hint"
+msgstr "루퍼를 추가하면 이 체인 입력을 녹음하고 체인 전체를 통해 재생할 수 있습니다."
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-record"
+msgstr "녹음 / 오버더빙"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-play"
+msgstr "재생"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-stop"
+msgstr "정지"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-undo"
+msgstr "레이어 실행 취소"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-redo"
+msgstr "레이어 다시 실행"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-clear"
+msgstr "루프 지우기"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-remove"
+msgstr "루퍼 제거"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-parameters"
+msgstr "매개변수"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-level"
+msgstr "레벨"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-decay"
+msgstr "감쇠"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-speed"
+msgstr "속도"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-reverse"
+msgstr "역방향"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-one"
+msgstr "레이어 1개"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-many"
+msgstr "레이어 {}개"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-empty"
+msgstr "비어 있음"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-recording"
+msgstr "녹음 중"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-playing"
+msgstr "재생 중"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-overdubbing"
+msgstr "오버더빙"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-stopped"
+msgstr "정지됨"

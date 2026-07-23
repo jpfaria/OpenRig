@@ -1,0 +1,49 @@
+// #323 TEST-ONLY harness: hosts LooperPanelView in a real Window so the
+// headless interaction tests (i-slint-backend-testing) can dispatch real
+// pointer events at the transport buttons — all INLINE (the reason the panel
+// is not a PopupWindow). Imported by app-window.slint purely so slint-build
+// emits the Rust type; never shown in the running app.
+
+import { LooperPanelView } from "looper_panel.slint";
+import { LooperItem } from "../models.slint";
+
+export component LooperHarness inherits Window {
+    width: 640px;
+    height: 520px;
+    in property <[LooperItem]> loopers;
+    in property <int> expanded-uid: -1;
+    in property <bool> can-add: true;
+
+    callback add();
+    callback record(int);
+    callback play-stop(int);
+    callback undo(int);
+    callback redo(int);
+    callback clear(int);
+    callback remove(int);
+    callback toggle-drawer(int);
+    callback mix-changed(int, int);
+    callback decay-changed(int, int);
+    callback speed-picked(int, int);
+    callback reverse-toggled(int, bool);
+
+    LooperPanelView {
+        x: 20px;
+        y: 20px;
+        loopers: root.loopers;
+        expanded-uid: root.expanded-uid;
+        can-add: root.can-add;
+        add => { root.add(); }
+        record(uid) => { root.record(uid); }
+        play-stop(uid) => { root.play-stop(uid); }
+        undo(uid) => { root.undo(uid); }
+        redo(uid) => { root.redo(uid); }
+        clear(uid) => { root.clear(uid); }
+        remove(uid) => { root.remove(uid); }
+        toggle-drawer(uid) => { root.toggle-drawer(uid); }
+        mix-changed(uid, v) => { root.mix-changed(uid, v); }
+        decay-changed(uid, v) => { root.decay-changed(uid, v); }
+        speed-picked(uid, v) => { root.speed-picked(uid, v); }
+        reverse-toggled(uid, v) => { root.reverse-toggled(uid, v); }
+    }
+}

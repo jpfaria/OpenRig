@@ -89,7 +89,10 @@ fn create_reaches_every_runtime_of_the_chain() {
             "every parallel runtime of the chain owns its own slot for the looper"
         );
     }
-    assert_eq!(controller.chain_looper_status(&chain, UID).unwrap().state, LooperState::Empty);
+    assert_eq!(
+        controller.chain_looper_status(&chain, UID).unwrap().state,
+        LooperState::Empty
+    );
 }
 
 #[test]

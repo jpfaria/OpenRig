@@ -715,3 +715,101 @@ msgstr "⌨"
 # I/O Bindings UI strings (added #716)
 #~ msgid "label-io-binding"
 #~ msgstr "E/A-Binding"
+
+# Looper UI strings (added #323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-button-label"
+msgstr "Looper"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-panel-title"
+msgstr "Looper"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-add"
+msgstr "Looper hinzufügen"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-title"
+msgstr "Noch keine Looper"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-empty-hint"
+msgstr "Füge einen Looper hinzu, um eine Phrase vom Eingang dieser Kette aufzunehmen und über die ganze Kette abzuspielen."
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-record"
+msgstr "Aufnehmen / Overdub"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-play"
+msgstr "Abspielen"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-stop"
+msgstr "Stopp"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-undo"
+msgstr "Ebene rückgängig"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-redo"
+msgstr "Ebene wiederholen"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-clear"
+msgstr "Loop löschen"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-remove"
+msgstr "Looper entfernen"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-parameters"
+msgstr "Parameter"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-level"
+msgstr "Pegel"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-decay"
+msgstr "Abfall"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-speed"
+msgstr "Tempo"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-reverse"
+msgstr "Rückwärts"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-one"
+msgstr "1 Ebene"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-layers-many"
+msgstr "{} Ebenen"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-empty"
+msgstr "Leer"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-recording"
+msgstr "Aufnahme"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-playing"
+msgstr "Wiedergabe"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-overdubbing"
+msgstr "Overdub"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-state-stopped"
+msgstr "Gestoppt"

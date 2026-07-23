@@ -1,0 +1,158 @@
+// #323 — the looper "janela": the chain's loopers as a stacked list, one row
+// each with its own transport. Opened by the loop button in the chain header,
+// rendered at the window root (see looper_overlay.slint) so the chain list
+// never clips it.
+//
+// INLINE (inherits Rectangle), NOT a PopupWindow — same reason as the DI panel
+// (#749/#761): a panel can grow when a row's drawer opens, and every click is
+// a normal in-tree TouchArea the headless interaction test can actuate.
+
+import { Theme } from "../theme.slint";
+import { LooperItem } from "../models.slint";
+import { LooperRow } from "looper_row.slint";
+
+export component LooperPanelView inherits Rectangle {
+    in property <[LooperItem]> loopers;
+    in property <int> expanded-uid: -1;
+    in property <bool> can-add: true;
+
+    callback add();
+    callback record(int);
+    callback play-stop(int);
+    callback undo(int);
+    callback redo(int);
+    callback clear(int);
+    callback remove(int);
+    callback toggle-drawer(int);
+    callback mix-changed(int, int);
+    callback decay-changed(int, int);
+    callback speed-picked(int, int);
+    callback reverse-toggled(int, bool);
+
+    private property <length> row-height: 60px;
+    private property <length> drawer-extra: 118px;
+    private property <bool> is-empty: root.loopers.length == 0;
+
+    width: 600px;
+    height: 56px
+        + (root.is-empty ? 92px : root.loopers.length * (root.row-height + 8px))
+        + (root.expanded-uid >= 0 ? root.drawer-extra : 0px)
+        + 12px;
+    border-radius: 10px;
+    background: #11141af2;
+    border-width: 1px;
+    border-color: Theme.palette.border-strong;
+    clip: true;
+
+    // ── header ──────────────────────────────────────────────────────────
+    Image {
+        x: 14px;
+        y: 16px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("../assets/loop.svg");
+        image-fit: contain;
+        colorize: Theme.palette.text-secondary;
+    }
+
+    Text {
+        x: 40px;
+        y: 14px;
+        text: @tr("looper-panel-title");
+        color: Theme.palette.text-primary;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    add-button := Rectangle {
+        x: parent.width - 122px;
+        y: 12px;
+        width: 108px;
+        height: 32px;
+        border-radius: 8px;
+        opacity: root.can-add ? 1.0 : 0.4;
+        background: add-ta.has-hover && root.can-add ? #6e8aff38 : #6e8aff22;
+        border-width: 1px;
+        border-color: #6e8aff;
+
+        Image {
+            x: 10px;
+            y: 8px;
+            width: 16px;
+            height: 16px;
+            source: @image-url("../assets/plus.svg");
+            image-fit: contain;
+            colorize: #a8c0ff;
+        }
+
+        Text {
+            x: 32px;
+            width: 66px;
+            height: parent.height;
+            vertical-alignment: center;
+            text: @tr("looper-add");
+            color: #dbe4ff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        add-ta := TouchArea {
+            enabled: root.can-add;
+            mouse-cursor: pointer;
+            clicked => { root.add(); }
+        }
+
+        accessible-role: button;
+        accessible-label: @tr("looper-add");
+        accessible-enabled: root.can-add;
+        accessible-action-default => { root.add(); }
+    }
+
+    // ── empty state ─────────────────────────────────────────────────────
+    if root.is-empty : VerticalLayout {
+        x: 14px;
+        y: 60px;
+        width: parent.width - 28px;
+        spacing: 6px;
+
+        Text {
+            text: @tr("looper-empty-title");
+            color: Theme.palette.text-secondary;
+            font-size: 13px;
+            font-weight: 600;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: @tr("looper-empty-hint");
+            color: Theme.palette.text-muted;
+            font-size: 12px;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+    }
+
+    // ── rows ────────────────────────────────────────────────────────────
+    if !root.is-empty : VerticalLayout {
+        x: 12px;
+        y: 52px;
+        width: parent.width - 24px;
+        spacing: 8px;
+
+        for item[index] in root.loopers: LooperRow {
+            looper: item;
+            expanded: item.uid == root.expanded-uid;
+            record => { root.record(item.uid); }
+            play-stop => { root.play-stop(item.uid); }
+            undo => { root.undo(item.uid); }
+            redo => { root.redo(item.uid); }
+            clear => { root.clear(item.uid); }
+            remove => { root.remove(item.uid); }
+            toggle-drawer => { root.toggle-drawer(item.uid); }
+            mix-changed(v) => { root.mix-changed(item.uid, v); }
+            decay-changed(v) => { root.decay-changed(item.uid, v); }
+            speed-picked(v) => { root.speed-picked(item.uid, v); }
+            reverse-toggled(v) => { root.reverse-toggled(item.uid, v); }
+        }
+    }
+}

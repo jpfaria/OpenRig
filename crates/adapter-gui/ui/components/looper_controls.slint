@@ -1,0 +1,187 @@
+// #323 — the small reusable pieces of the looper panel: an icon button with a
+// ≥40 px touch target, and a horizontal 0..100 slider. Kept apart from
+// `looper_row.slint` so both stay well under the 500-line cap.
+
+import { Theme } from "../theme.slint";
+
+export component LooperIconButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;          // accessible name, already translated
+    in property <color> tint: #e6ebf5;
+    in property <color> active-background: transparent;
+    in property <bool> is-enabled: true;
+
+    callback clicked();
+
+    // Fixed 40 px touch target, positioned by the caller (the transport is
+    // an absolute cluster, like every other icon cluster in the app).
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    opacity: root.is-enabled ? 1.0 : 0.45;
+    background: !root.is-enabled ? #ffffff05
+        : root.active-background != transparent ? root.active-background
+        : ta.has-hover ? #ffffff1c
+        : #ffffff0e;
+    Image {
+        x: 10px;
+        y: 10px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: root.tint;
+    }
+
+    ta := TouchArea {
+        enabled: root.is-enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.is-enabled;
+    accessible-action-default => { root.clicked(); }
+}
+
+/// 0..100 slider. Dragging only previews; the value is reported on release,
+/// so a drag does not flood the command bus.
+export component LooperSlider inherits Rectangle {
+    in property <string> label;
+    in-out property <int> value;
+    callback value-changed(int);
+
+    height: 28px;
+
+    Text {
+        x: 0;
+        y: 0;
+        width: 74px;
+        height: parent.height;
+        vertical-alignment: center;
+        text: root.label;
+        color: Theme.palette.text-muted;
+        font-size: 12px;
+    }
+
+    track := Rectangle {
+        x: 80px;
+        y: parent.height / 2 - 2px;
+        width: parent.width - 80px - 44px;
+        height: 4px;
+        border-radius: 2px;
+        background: #2a3140;
+
+        Rectangle {
+            x: 0;
+            width: parent.width * root.value / 100;
+            height: parent.height;
+            border-radius: 2px;
+            background: #6e8aff;
+        }
+
+        Rectangle {
+            x: parent.width * root.value / 100 - 7px;
+            y: -5px;
+            width: 14px;
+            height: 14px;
+            border-radius: 7px;
+            background: drag.has-hover || drag.pressed ? #ffffff : #c5cad4;
+        }
+
+        drag := TouchArea {
+            x: -8px;
+            y: -10px;
+            width: parent.width + 16px;
+            height: parent.height + 20px;
+            mouse-cursor: pointer;
+
+            moved => {
+                if (self.pressed) {
+                    root.value = Math.max(0, Math.min(100,
+                        Math.round((self.mouse-x - 8px) / track.width * 100)));
+                }
+            }
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down) {
+                    root.value = Math.max(0, Math.min(100,
+                        Math.round((self.mouse-x - 8px) / track.width * 100)));
+                }
+                if (e.kind == PointerEventKind.up) {
+                    root.value-changed(root.value);
+                }
+            }
+        }
+    }
+
+    Text {
+        x: parent.width - 38px;
+        y: 0;
+        width: 38px;
+        height: parent.height;
+        vertical-alignment: center;
+        horizontal-alignment: right;
+        text: root.value + "%";
+        color: Theme.palette.text-secondary;
+        font-size: 12px;
+    }
+
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: root.value;
+    accessible-value-minimum: 0;
+    accessible-value-maximum: 100;
+}
+
+/// A small segmented control — used for the playback speed.
+export component LooperSegmented inherits Rectangle {
+    in property <[string]> options;
+    in property <int> selected-index;
+    in property <string> label;
+    callback picked(int);
+
+    height: 28px;
+
+    Text {
+        x: 0;
+        y: 0;
+        width: 74px;
+        height: parent.height;
+        vertical-alignment: center;
+        text: root.label;
+        color: Theme.palette.text-muted;
+        font-size: 12px;
+    }
+
+    HorizontalLayout {
+        x: 80px;
+        width: parent.width - 80px;
+        spacing: 6px;
+
+        for option[index] in root.options: Rectangle {
+            border-radius: 6px;
+            border-width: 1px;
+            border-color: index == root.selected-index ? #6e8aff : Theme.palette.border;
+            background: index == root.selected-index ? #6e8aff28 : transparent;
+
+            Text {
+                text: option;
+                color: index == root.selected-index
+                    ? Theme.palette.text-primary
+                    : Theme.palette.text-muted;
+                font-size: 12px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            opt-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.picked(index); }
+            }
+
+            accessible-role: button;
+            accessible-label: option;
+        }
+    }
+}

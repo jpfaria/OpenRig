@@ -1,0 +1,47 @@
+// #323 — the looper trigger in a chain header, beside the DI fone and the
+// stethoscope. Clicking it opens the looper panel at the window root via the
+// `LooperPanel` global, seeded with this chain's rows and the button's
+// absolute position (the DI button's proven pattern, #749).
+
+import { LooperPanel } from "looper_panel_globals.slint";
+
+export component ChainLooperButton inherits Rectangle {
+    in property <bool> active: false;      // any looper recording or playing
+    in property <int> chain-index;
+
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    background: root.active ? #6e8aff28
+                : ta.has-hover ? #ffffff10
+                : transparent;
+    animate background { duration: 150ms; }
+
+    Image {
+        x: 5px;
+        y: 5px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("../assets/loop.svg");
+        image-fit: contain;
+        colorize: root.active ? #6e8aff
+                  : ta.has-hover ? #ffffff
+                  : #8a94a2;
+        animate colorize { duration: 150ms; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            LooperPanel.chain-index = root.chain-index;
+            LooperPanel.expanded-uid = -1;
+            // Open below the button, the panel's right edge near it.
+            LooperPanel.x = root.absolute-position.x - 572px;
+            LooperPanel.y = root.absolute-position.y + 32px;
+            LooperPanel.open = true;
+        }
+    }
+
+    accessible-role: button;
+    accessible-label: @tr("looper-button-label");
+}

@@ -37,12 +37,19 @@ const RETIRE_QUEUE_DEPTH: usize = LOOPER_MAX_PER_CHAIN * crate::looper::LOOPER_M
 #[derive(Debug)]
 pub enum LooperOp {
     /// Claim a free slot for `uid`.
-    Create { uid: u64 },
+    Create {
+        uid: u64,
+    },
     /// Free the slot and return every layer it holds.
-    Remove { uid: u64 },
+    Remove {
+        uid: u64,
+    },
     /// The record/overdub footswitch tap. `buffer` must be `Some` when the tap
     /// starts a recording (see [`LooperSlot::tap_record`]).
-    TapRecord { uid: u64, buffer: Option<Box<[f32]>> },
+    TapRecord {
+        uid: u64,
+        buffer: Option<Box<[f32]>>,
+    },
     /// Install a layer recorded earlier (restored from disk) as the base
     /// layer of an empty looper, `len_frames` long.
     LoadLayer {
@@ -50,15 +57,37 @@ pub enum LooperOp {
         buffer: Box<[f32]>,
         len_frames: usize,
     },
-    Play { uid: u64 },
-    Stop { uid: u64 },
-    Undo { uid: u64 },
-    Redo { uid: u64 },
-    Clear { uid: u64 },
-    SetMix { uid: u64, value: f32 },
-    SetDecay { uid: u64, value: f32 },
-    SetSpeed { uid: u64, speed: LooperSpeed },
-    SetReverse { uid: u64, value: bool },
+    Play {
+        uid: u64,
+    },
+    Stop {
+        uid: u64,
+    },
+    Undo {
+        uid: u64,
+    },
+    Redo {
+        uid: u64,
+    },
+    Clear {
+        uid: u64,
+    },
+    SetMix {
+        uid: u64,
+        value: f32,
+    },
+    SetDecay {
+        uid: u64,
+        value: f32,
+    },
+    SetSpeed {
+        uid: u64,
+        speed: LooperSpeed,
+    },
+    SetReverse {
+        uid: u64,
+        value: bool,
+    },
 }
 
 impl LooperOp {
@@ -146,7 +175,9 @@ impl LooperShared {
         Self {
             ops: ArrayQueue::new(OP_QUEUE_DEPTH),
             retired: ArrayQueue::new(RETIRE_QUEUE_DEPTH),
-            status: (0..LOOPER_MAX_PER_CHAIN).map(|_| StatusCell::default()).collect(),
+            status: (0..LOOPER_MAX_PER_CHAIN)
+                .map(|_| StatusCell::default())
+                .collect(),
             max_frames: (LOOPER_MAX_SECONDS * sample_rate.max(1.0)) as usize,
         }
     }
@@ -205,12 +236,14 @@ impl LooperShared {
     /// the UI does not blink through "no loopers" mid-swap.
     pub(crate) fn adopt_status_from(&self, other: &Self) {
         for (dst, src) in self.status.iter().zip(other.status.iter()) {
-            dst.uid.store(src.uid.load(Ordering::Relaxed), Ordering::Relaxed);
+            dst.uid
+                .store(src.uid.load(Ordering::Relaxed), Ordering::Relaxed);
             dst.state
                 .store(src.state.load(Ordering::Relaxed), Ordering::Relaxed);
             dst.position
                 .store(src.position.load(Ordering::Relaxed), Ordering::Relaxed);
-            dst.len.store(src.len.load(Ordering::Relaxed), Ordering::Relaxed);
+            dst.len
+                .store(src.len.load(Ordering::Relaxed), Ordering::Relaxed);
             dst.layers
                 .store(src.layers.load(Ordering::Relaxed), Ordering::Relaxed);
         }
@@ -334,9 +367,9 @@ impl LooperBank {
                 AudioChannelLayout::Stereo => {
                     AudioFrame::Stereo([dry[0] + loop_sum[0], dry[1] + loop_sum[1]])
                 }
-                AudioChannelLayout::Mono => {
-                    AudioFrame::Mono(dry[0].mul_add(0.5, dry[1] * 0.5) + (loop_sum[0] + loop_sum[1]) * 0.5)
-                }
+                AudioChannelLayout::Mono => AudioFrame::Mono(
+                    dry[0].mul_add(0.5, dry[1] * 0.5) + (loop_sum[0] + loop_sum[1]) * 0.5,
+                ),
             };
         }
     }

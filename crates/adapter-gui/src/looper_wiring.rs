@@ -52,7 +52,9 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
                         // Each runtime decides for ITSELF whether this tap
                         // starts or closes a recording — they are independent
                         // pipelines and may not be in the same state.
-                        let state = runtime.looper_status(uid).map_or(LooperState::Empty, |s| s.state);
+                        let state = runtime
+                            .looper_status(uid)
+                            .map_or(LooperState::Empty, |s| s.state);
                         LooperOp::TapRecord {
                             uid,
                             buffer: tap_needs_layer(state).then(|| fresh_layer(runtime)),

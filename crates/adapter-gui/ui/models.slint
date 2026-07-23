@@ -72,6 +72,31 @@ export struct ChainBlockItem {
     param_entries: [BlockParamSummaryEntry],
 }
 
+/// #323: one looper row in the chain's looper panel. Everything is
+/// pre-computed on the Rust side (labels, progress, state code) — the panel
+/// only renders. `state_code` mirrors `engine::LooperState`:
+/// 0 empty, 1 recording, 2 playing, 3 overdubbing, 4 stopped.
+export struct LooperItem {
+    uid: int,
+    state_code: int,
+    /// Playback position over the loop length, 0.0..=1.0.
+    progress: float,
+    /// "0:03 / 0:08" — position and length at the stream's live rate.
+    time_label: string,
+    /// How many overdub layers are audible.
+    layers: int,
+    /// Loop level, 0..=100 (percent, the unit the slider speaks).
+    mix: int,
+    /// Older-layer decay, 0..=100 (100 = no decay).
+    decay: int,
+    /// 0 half, 1 normal, 2 double — index into the speed selector.
+    speed_index: int,
+    reverse: bool,
+    /// Whether an undo / redo would do anything right now.
+    can_undo: bool,
+    can_redo: bool,
+}
+
 export struct ProjectChainItem {
     instrument: string,
     title: string,
@@ -119,6 +144,10 @@ export struct ProjectChainItem {
     /// loop source, or -1 when none. Refreshed by the meter timer from the
     /// dispatcher so the popup ComboBox highlights the active source on reopen.
     di_loop_selected_index: int,
+    /// #323: this chain's loopers, refreshed by the meter timer.
+    loopers: [LooperItem],
+    /// #323: true while any of them is recording, overdubbing or playing.
+    looper_active: bool,
     /// Issue #771: the DI stream's OWN in/out levels (dBFS), read from the
     /// isolated playback's peaks — never a mirror of the chain meters.
     /// Refreshed by the meter timer via `di_playback_peaks`.
@@ -405,4 +434,3 @@ export struct PluginInfoData {
     homepage: string,
     has-homepage: bool,
 }
-

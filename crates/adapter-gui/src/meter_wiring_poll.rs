@@ -280,7 +280,29 @@ fn refresh_chain_meter_row(
         );
     }
     let overload_changed = row.audio_overload != overloaded;
-    if aggregate_changed
+    // #323: refresh the looper rows the panel renders. Cheap wait-free atomic
+    // reads (`chain_looper_statuses`), never the `processing` lock (#580).
+    let looper_rows = crate::looper_view::looper_items(
+        &project.chains[idx],
+        &controller.chain_looper_statuses(cid),
+        controller.sample_rate(),
+    );
+    let looper_active_now = crate::looper_view::any_looper_active(&looper_rows);
+    let loopers_changed = {
+        let current: Vec<crate::LooperItem> = row.loopers.iter().collect();
+        current != looper_rows
+    };
+    // Layer buffers the audio thread finished with come back here — dropping
+    // them is forbidden on the audio thread (invariant #8).
+    controller.drain_chain_looper_layers(cid);
+    let looper_active_changed = row.looper_active != looper_active_now;
+    if loopers_changed || looper_active_changed {
+        row.loopers = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(looper_rows)));
+        row.looper_active = looper_active_now;
+    }
+    if loopers_changed
+        || looper_active_changed
+        || aggregate_changed
         || stream_meters_changed
         || di_changed
         || di_meter_changed

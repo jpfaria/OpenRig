@@ -1,0 +1,51 @@
+// #323 — the looper panel as a root overlay (the DI overlay's shape, #749):
+// the loop button in a chain row flips `LooperPanel.open` and seeds its data +
+// position; this renders the panel at the window root with a click-outside
+// backdrop. Callbacks bubble to the host with the chain index, so the dispatch
+// path stays in Rust.
+
+import { LooperPanel } from "looper_panel_globals.slint";
+import { LooperPanelView } from "looper_panel.slint";
+import { LooperItem } from "../models.slint";
+
+export component LooperOverlay inherits Rectangle {
+    // Fed from the host's live chain model, so the panel keeps updating while
+    // it is open (the meter timer refreshes those rows ~15×/s).
+    in property <[LooperItem]> loopers;
+    callback add(int);
+    callback record(int, int);
+    callback play-stop(int, int);
+    callback undo(int, int);
+    callback redo(int, int);
+    callback clear(int, int);
+    callback remove(int, int);
+    callback mix-changed(int, int, int);
+    callback decay-changed(int, int, int);
+    callback speed-picked(int, int, int);
+    callback reverse-toggled(int, int, bool);
+
+    x: 0; y: 0;
+    visible: LooperPanel.open;
+    TouchArea { clicked => { LooperPanel.open = false; } }
+
+    if LooperPanel.open : LooperPanelView {
+        x: LooperPanel.x;
+        y: LooperPanel.y;
+        loopers: root.loopers;
+        expanded-uid: LooperPanel.expanded-uid;
+        add => { root.add(LooperPanel.chain-index); }
+        record(uid) => { root.record(LooperPanel.chain-index, uid); }
+        play-stop(uid) => { root.play-stop(LooperPanel.chain-index, uid); }
+        undo(uid) => { root.undo(LooperPanel.chain-index, uid); }
+        redo(uid) => { root.redo(LooperPanel.chain-index, uid); }
+        clear(uid) => { root.clear(LooperPanel.chain-index, uid); }
+        remove(uid) => { root.remove(LooperPanel.chain-index, uid); }
+        toggle-drawer(uid) => {
+            LooperPanel.expanded-uid = LooperPanel.expanded-uid == uid ? -1 : uid;
+        }
+        mix-changed(uid, v) => { root.mix-changed(LooperPanel.chain-index, uid, v); }
+        decay-changed(uid, v) => { root.decay-changed(LooperPanel.chain-index, uid, v); }
+        speed-picked(uid, v) => { root.speed-picked(LooperPanel.chain-index, uid, v); }
+        reverse-toggled(uid, v) => { root.reverse-toggled(LooperPanel.chain-index, uid, v); }
+    }
+}

@@ -87,10 +87,18 @@ fn undo_drops_the_last_layer_and_redo_restores_it() {
     assert_eq!(feed(&mut s, &[[0.0, 0.0]])[0], [1.5, 1.5]);
 
     s.undo();
-    assert_eq!(feed(&mut s, &[[0.0, 0.0]])[0], [1.0, 1.0], "undo removes the overdub");
+    assert_eq!(
+        feed(&mut s, &[[0.0, 0.0]])[0],
+        [1.0, 1.0],
+        "undo removes the overdub"
+    );
 
     s.redo();
-    assert_eq!(feed(&mut s, &[[0.0, 0.0]])[0], [1.5, 1.5], "redo restores it");
+    assert_eq!(
+        feed(&mut s, &[[0.0, 0.0]])[0],
+        [1.5, 1.5],
+        "redo restores it"
+    );
 }
 
 #[test]
@@ -115,7 +123,10 @@ fn recording_after_undo_drops_the_redo_tail_and_retires_its_buffer() {
         [1.25, 1.25],
         "the undone layer is gone for good once a new one is recorded"
     );
-    assert!(s.take_retired().is_some(), "the dropped layer is handed back for off-thread drop");
+    assert!(
+        s.take_retired().is_some(),
+        "the dropped layer is handed back for off-thread drop"
+    );
 }
 
 #[test]
@@ -155,7 +166,11 @@ fn recording_stops_at_the_buffer_ceiling_and_starts_playing() {
     s.tap_record(Some(spare(3)));
     feed(&mut s, &[[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]]);
 
-    assert_eq!(s.state(), LooperState::Playing, "the ceiling freezes the loop");
+    assert_eq!(
+        s.state(),
+        LooperState::Playing,
+        "the ceiling freezes the loop"
+    );
     assert_eq!(s.len_frames(), 3);
 }
 
@@ -241,8 +256,15 @@ fn layer_budget_is_capped_and_reports_when_a_buffer_is_needed() {
     assert!(!s.can_record(), "the layer cap is reached");
     let rejected = spare(MAX);
     s.tap_record(Some(rejected));
-    assert_eq!(s.state(), LooperState::Playing, "a refused overdub does not change state");
-    assert!(s.take_retired().is_some(), "the refused buffer is handed back");
+    assert_eq!(
+        s.state(),
+        LooperState::Playing,
+        "a refused overdub does not change state"
+    );
+    assert!(
+        s.take_retired().is_some(),
+        "the refused buffer is handed back"
+    );
 }
 
 #[test]

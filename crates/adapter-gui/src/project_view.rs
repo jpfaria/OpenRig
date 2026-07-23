@@ -511,6 +511,10 @@ pub(crate) fn replace_project_chains(
                     )))
                 },
                 di_loop_selected_index: -1, // #661: refreshed by meter timer
+                // #323: the looper rows and the header tint start empty and
+                // are refreshed by the meter timer from the live runtimes.
+                loopers: ModelRc::from(Rc::new(VecModel::from(Vec::new()))),
+                looper_active: false,
             }
         })
         .collect::<Vec<_>>();

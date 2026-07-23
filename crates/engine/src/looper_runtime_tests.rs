@@ -81,7 +81,9 @@ fn creating_a_looper_publishes_an_empty_status() {
 #[test]
 fn looper_records_the_dry_input_and_plays_it_back() {
     let runtime = passthrough_runtime("looper-record");
-    runtime.push_looper_op(LooperOp::Create { uid: UID }).unwrap();
+    runtime
+        .push_looper_op(LooperOp::Create { uid: UID })
+        .unwrap();
     runtime
         .push_looper_op(LooperOp::TapRecord {
             uid: UID,
@@ -102,7 +104,10 @@ fn looper_records_the_dry_input_and_plays_it_back() {
 
     let status = runtime.looper_status(UID).expect("looper exists");
     assert_eq!(status.state, LooperState::Playing);
-    assert_eq!(status.len_frames, 256, "two 128-frame callbacks were captured");
+    assert_eq!(
+        status.len_frames, 256,
+        "two 128-frame callbacks were captured"
+    );
 
     // With a silent device input, the output is the recorded loop.
     let peak = callback(&runtime, 0.0, 128);
@@ -141,7 +146,10 @@ fn a_playing_looper_never_reaches_another_runtime() {
         })
         .unwrap();
     callback(&looping, 0.0, 128);
-    assert!(callback(&looping, 0.0, 128) > 0.1, "chain A must be looping");
+    assert!(
+        callback(&looping, 0.0, 128) > 0.1,
+        "chain A must be looping"
+    );
 
     let peak_b = callback(&quiet, 0.0, 128);
     assert!(
@@ -153,7 +161,9 @@ fn a_playing_looper_never_reaches_another_runtime() {
 #[test]
 fn undo_and_clear_hand_the_buffers_back_for_off_thread_drop() {
     let runtime = passthrough_runtime("looper-retire");
-    runtime.push_looper_op(LooperOp::Create { uid: UID }).unwrap();
+    runtime
+        .push_looper_op(LooperOp::Create { uid: UID })
+        .unwrap();
     runtime
         .push_looper_op(LooperOp::TapRecord {
             uid: UID,
@@ -169,7 +179,9 @@ fn undo_and_clear_hand_the_buffers_back_for_off_thread_drop() {
         .unwrap();
     callback(&runtime, 0.0, 128);
 
-    runtime.push_looper_op(LooperOp::Clear { uid: UID }).unwrap();
+    runtime
+        .push_looper_op(LooperOp::Clear { uid: UID })
+        .unwrap();
     callback(&runtime, 0.0, 128);
 
     assert_eq!(
@@ -231,7 +243,9 @@ fn a_recorded_loop_survives_a_runtime_rebuild() {
 #[test]
 fn removing_a_looper_frees_the_slot_and_its_layers() {
     let runtime = passthrough_runtime("looper-remove");
-    runtime.push_looper_op(LooperOp::Create { uid: UID }).unwrap();
+    runtime
+        .push_looper_op(LooperOp::Create { uid: UID })
+        .unwrap();
     runtime
         .push_looper_op(LooperOp::TapRecord {
             uid: UID,
@@ -239,9 +253,14 @@ fn removing_a_looper_frees_the_slot_and_its_layers() {
         })
         .unwrap();
     callback(&runtime, 0.5, 128);
-    runtime.push_looper_op(LooperOp::Remove { uid: UID }).unwrap();
+    runtime
+        .push_looper_op(LooperOp::Remove { uid: UID })
+        .unwrap();
     callback(&runtime, 0.0, 128);
 
-    assert!(runtime.looper_status(UID).is_none(), "the slot is free again");
+    assert!(
+        runtime.looper_status(UID).is_none(),
+        "the slot is free again"
+    );
     assert_eq!(runtime.drain_retired_layers().len(), 1);
 }
