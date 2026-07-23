@@ -10,6 +10,13 @@
 //! flood). The off-thread path already builds one runtime per input group and
 //! one stream per device, so the multi-device case takes it as well. That guard
 //! runs before any device probe, so it is testable without hardware.
+//!
+//! Cfg scope: this async-scheduling contract holds only under
+//! `not(all(target_os = "linux", feature = "jack"))`. The JACK build keeps
+//! cold activation synchronous by design (#672 wires cpal first) and returns
+//! `false` unconditionally, so gate the file to match, like the other jack
+//! carve-outs.
+#![cfg(not(all(target_os = "linux", feature = "jack")))]
 
 use std::collections::HashMap;
 

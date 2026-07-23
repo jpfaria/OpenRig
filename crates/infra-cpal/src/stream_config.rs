@@ -24,7 +24,7 @@
 //!
 //! Public surface: nothing. All `pub(crate)`.
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use anyhow::bail;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use anyhow::{anyhow, Result};
@@ -139,7 +139,7 @@ pub(crate) fn select_supported_stream_config(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 pub(crate) fn resolve_chain_runtime_sample_rate(
     chain_id: &str,
     input: &SupportedStreamConfig,
@@ -327,7 +327,7 @@ pub(crate) fn max_supported_output_channels(device: &cpal::Device) -> Result<usi
     max_supported_channels(default_channels, max_supported)
 }
 
-#[cfg(any(not(all(target_os = "linux", feature = "jack")), test))]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn max_supported_channels(
     default_channels: Option<usize>,
     max_supported_channels: Option<usize>,

@@ -163,6 +163,10 @@ fn run(spec: DiWorkerSpec) {
     // one block per iteration, a breath every few blocks, and an honest RT
     // declaration sized to that cadence.
     let period_ns = (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
+    // `dsp_worker` is cfg'd out under Linux+JACK (#755); mirror that gate so the
+    // crate still compiles there. `promote_to_audio_rt` is a no-op off macOS
+    // regardless, so skipping it under Linux+JACK changes no behavior.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns * 3 / 5);
     let silence = vec![0.0f32; BLOCK];
     let mut drain = vec![0.0f32; BLOCK * routed.drain_width];

@@ -202,12 +202,24 @@ fn preset_project(
                 sample_rate: 48_000,
                 buffer_size_frames: BUFFER,
                 bit_depth: 32,
+                #[cfg(target_os = "linux")]
+                realtime: true,
+                #[cfg(target_os = "linux")]
+                rt_priority: 70,
+                #[cfg(target_os = "linux")]
+                nperiods: 3,
             },
             DeviceSettings {
                 device_id: DeviceId(output.id.clone()),
                 sample_rate: 48_000,
                 buffer_size_frames: BUFFER,
                 bit_depth: 32,
+                #[cfg(target_os = "linux")]
+                realtime: true,
+                #[cfg(target_os = "linux")]
+                rt_priority: 70,
+                #[cfg(target_os = "linux")]
+                nperiods: 3,
             },
         ],
         chains: vec![Chain {
@@ -537,6 +549,12 @@ fn enabling_the_preset_chain_live_is_clean() {
             sample_rate: 48_000,
             buffer_size_frames: 64,
             bit_depth: 32,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
+            rt_priority: 70,
+            #[cfg(target_os = "linux")]
+            nperiods: 3,
         })
         .collect();
     infra_cpal::apply_device_settings(&project.device_settings).expect("apply device settings");

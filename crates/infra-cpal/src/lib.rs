@@ -140,11 +140,15 @@ pub(crate) use validation::{
 
 #[cfg(test)]
 mod controller_live_edit_replicates_user_report_tests;
-#[cfg(test)]
+// Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
+// so gate the whole module the same way to avoid orphaned helpers/imports.
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 mod controller_pause_chain_tests;
 #[cfg(test)]
 mod controller_per_stream_input_tap_tests;
-#[cfg(test)]
+// `tests` exercises the CPAL stream path (stream_config/chain_resolve helpers),
+// all cfg'd out under Linux+JACK (#755) — gate the tests the same way.
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 mod tests;
 #[cfg(test)]
 mod tests_regression;

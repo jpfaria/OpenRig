@@ -49,6 +49,7 @@ fn every_catalog_entry_is_flat_no_msgctxt() {
 
 #[test]
 fn tone_doctor_keys_are_present_and_translated_in_pt_br() {
+    // Slint `@tr(...)` strings resolve through the gettext `.po` catalog.
     let po = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("translations/pt_BR/LC_MESSAGES/adapter-gui.po");
     let content = std::fs::read_to_string(&po).expect("pt_BR .po");
@@ -56,7 +57,6 @@ fn tone_doctor_keys_are_present_and_translated_in_pt_br() {
         "tone-doctor-title",
         "tone-doctor-diagnose",
         "tone-doctor-apply",
-        "tone-doctor-no-di",
     ] {
         let needle = format!("msgid \"{key}\"");
         let idx = content
@@ -74,4 +74,19 @@ fn tone_doctor_keys_are_present_and_translated_in_pt_br() {
             "{key} is untranslated in pt_BR"
         );
     }
+
+    // `tone-doctor-no-di` is rendered from Rust via the rust-i18n `t!` catalog
+    // (locales/*.yml), not through a Slint `@tr` — so it lives in the flat YAML
+    // catalog, never in the gettext `.po`. Guard it in its actual home.
+    let yml = Path::new(env!("CARGO_MANIFEST_DIR")).join("locales/pt-BR.yml");
+    let yml_content = std::fs::read_to_string(&yml).expect("pt-BR.yml");
+    let line = yml_content
+        .lines()
+        .find(|l| l.trim_start().starts_with("tone-doctor-no-di:"))
+        .expect("pt-BR.yml missing tone-doctor-no-di");
+    let value = line.split_once(':').map(|(_, v)| v.trim()).unwrap_or("");
+    assert!(
+        value != "\"\"" && value != "''" && !value.is_empty(),
+        "tone-doctor-no-di is untranslated in pt-BR.yml"
+    );
 }

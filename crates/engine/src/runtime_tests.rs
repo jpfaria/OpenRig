@@ -6,6 +6,13 @@
 //! under `mod tests` of the runtime crate root via `#[path]`, so every
 //! `super::xxx` reference (private types, helper fns) keeps resolving
 //! unchanged.
+//!
+//! This file is the shared fixtures/re-export hub for the 7 sibling
+//! `runtime_*_tests.rs` concern files (#792 split). Which re-exports each
+//! sibling consumes varies by build cfg (e.g. the `not(linux+jack)`
+//! same-device isolation tests), so some re-exports are legitimately unused
+//! in any single configuration — allow that here rather than churn the list.
+#![allow(unused_imports)]
 
 pub(super) use super::{
     apply_block_processor, build_chain_runtime_state, build_runtime_graph, effective_inputs,

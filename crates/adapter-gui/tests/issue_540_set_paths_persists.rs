@@ -58,12 +58,22 @@ fn with_temp_home<F: FnOnce(&PathBuf)>(label: &str, f: F) {
         std::env::temp_dir().join(format!("openrig-540-{label}-{}-{now}", std::process::id()));
     std::fs::create_dir_all(&tmp).expect("mkdir tempdir");
     let prev = std::env::var_os("HOME");
+    // dirs::config_dir() honours $XDG_CONFIG_HOME over $HOME/.config on Linux
+    // (CI runners set it), so a HOME-only swap leaks to the runner's real
+    // config dir. Track XDG alongside HOME so config paths follow the tempdir.
+    let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
     std::env::set_var("HOME", &tmp);
+    std::env::set_var("XDG_CONFIG_HOME", tmp.join(".config"));
     let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(&tmp)));
     if let Some(prev) = prev {
         std::env::set_var("HOME", prev);
     } else {
         std::env::remove_var("HOME");
+    }
+    if let Some(prev_xdg) = prev_xdg {
+        std::env::set_var("XDG_CONFIG_HOME", prev_xdg);
+    } else {
+        std::env::remove_var("XDG_CONFIG_HOME");
     }
     let _ = std::fs::remove_dir_all(&tmp);
     if let Err(p) = res {

@@ -274,6 +274,12 @@ fn write_config_with_devices(cfg_path: &PathBuf, input_id: &str, output_id: &str
             sample_rate: 44100,
             buffer_size_frames: 256,
             bit_depth: 24,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
+            rt_priority: 70,
+            #[cfg(target_os = "linux")]
+            nperiods: 3,
         }],
         output_devices: vec![infra_filesystem::GuiAudioDeviceSettings {
             device_id: output_id.to_string(),
@@ -281,6 +287,12 @@ fn write_config_with_devices(cfg_path: &PathBuf, input_id: &str, output_id: &str
             sample_rate: 44100,
             buffer_size_frames: 256,
             bit_depth: 24,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
+            rt_priority: 70,
+            #[cfg(target_os = "linux")]
+            nperiods: 3,
         }],
         ..AppConfig::default()
     };

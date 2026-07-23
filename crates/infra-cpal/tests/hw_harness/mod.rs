@@ -107,12 +107,24 @@ pub fn rig_project_with(
                 sample_rate,
                 buffer_size_frames: buffer_frames,
                 bit_depth: 32,
+                #[cfg(target_os = "linux")]
+                realtime: true,
+                #[cfg(target_os = "linux")]
+                rt_priority: 70,
+                #[cfg(target_os = "linux")]
+                nperiods: 3,
             },
             DeviceSettings {
                 device_id: DeviceId(output.id.clone()),
                 sample_rate,
                 buffer_size_frames: buffer_frames,
                 bit_depth: 32,
+                #[cfg(target_os = "linux")]
+                realtime: true,
+                #[cfg(target_os = "linux")]
+                rt_priority: 70,
+                #[cfg(target_os = "linux")]
+                nperiods: 3,
             },
         ],
         chains: vec![Chain {

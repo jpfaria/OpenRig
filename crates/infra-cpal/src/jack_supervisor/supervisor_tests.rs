@@ -2,7 +2,7 @@
 //! file stays under the size cap. Re-attached as `mod tests` of the parent
 //! via `#[cfg(test)] #[path = "supervisor_tests.rs"] mod tests;`.
 
-use super::super::backend::{JackBackend, MockBackend, MockCall, PostReadyStatus};
+use super::super::backend::{MockBackend, MockCall, PostReadyStatus};
 use super::super::types::{
     HealthStatus, JackConfig, JackMeta, JackServerState, RestartReason, ServerName, SupervisorEvent,
 };
