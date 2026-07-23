@@ -38,6 +38,7 @@ mod runtime_graph_update;
 pub mod runtime_io;
 pub mod runtime_layout;
 pub mod runtime_load;
+pub mod metronome_state;
 pub mod runtime_probe;
 mod runtime_process_segment;
 pub mod runtime_segments;

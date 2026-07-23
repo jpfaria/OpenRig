@@ -222,6 +222,10 @@ impl MetronomeGenerator {
         self.position
     }
 
+    pub fn settings(&self) -> MetronomeSettings {
+        self.settings
+    }
+
     /// Fire the click for the tick that just came due.
     fn on_tick(&mut self) {
         let ticks_per_beat = self.settings.subdivision.ticks_per_beat().max(1) as u64;
