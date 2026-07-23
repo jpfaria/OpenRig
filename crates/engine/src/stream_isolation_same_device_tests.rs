@@ -21,6 +21,14 @@ use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::chain::Chain;
 use project::project::Project;
 use std::collections::HashMap;
+// The per-entry same-device contract below holds only where the runtime
+// graph partitions by RAW entry. Under `linux + jack` (Orange Pi backend)
+// `group_segments_by_input` deliberately partitions by cpal input index
+// instead (cfg-guarded since #703) — so the same-device dual-entry fixture
+// collapses to one runtime there BY DESIGN. Gate the per-entry tests and
+// their helpers to the same cfg so they assert what production actually
+// provides on this platform (and so `Arc` doesn't go unused under jack).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use std::sync::Arc;
 
 /// Registry id every chain in this file references via
@@ -31,6 +39,7 @@ const IO_BINDING_ID: &str = "io";
 /// channel 1 of one interface) — two separate endpoints, preserved in
 /// order — both feeding one stereo output endpoint. The user-visible
 /// "two guitars on one interface" scenario.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn same_device_dual_entry_registry() -> Vec<IoBinding> {
     vec![IoBinding {
         id: IO_BINDING_ID.into(),
@@ -81,6 +90,7 @@ fn split_mono_registry() -> Vec<IoBinding> {
     }]
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn same_device_dual_entry_chain() -> Chain {
     Chain {
         id: ChainId("same_dev".into()),
@@ -125,6 +135,7 @@ fn build_graph(chain: &Chain, registry: &[IoBinding]) -> RuntimeGraph {
 // Contract: one runtime per RAW input entry, even on a shared device
 // ─────────────────────────────────────────────────────────────────────
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn two_entries_on_same_device_produce_two_independent_runtimes() {
     let chain = same_device_dual_entry_chain();
@@ -144,6 +155,7 @@ fn two_entries_on_same_device_produce_two_independent_runtimes() {
     );
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn same_device_runtimes_must_not_share_output_routes_arc() {
     let chain = same_device_dual_entry_chain();
@@ -172,6 +184,7 @@ fn same_device_runtimes_must_not_share_output_routes_arc() {
     }
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn same_device_runtimes_must_not_share_processing_state() {
     let chain = same_device_dual_entry_chain();
@@ -223,6 +236,7 @@ fn split_mono_siblings_stay_in_one_runtime() {
 /// refills every runtime with ALL segments, the one device callback
 /// dispatches BOTH segments in BOTH runtimes — the same guitar processed
 /// twice and summed (audible double volume).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn in_place_upsert_keeps_same_device_runtimes_entry_local() {
     let chain = same_device_dual_entry_chain();
