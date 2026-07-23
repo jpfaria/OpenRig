@@ -46,6 +46,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -161,10 +162,7 @@ fn set_chain_di_loop_source_missing_file_returns_err() {
         source: DiLoopSource::File(std::path::PathBuf::from("/nonexistent/di.wav")),
     });
 
-    assert!(
-        result.is_err(),
-        "missing file must return Err, not Ok"
-    );
+    assert!(result.is_err(), "missing file must return Err, not Ok");
 }
 
 /// `SetChainDiLoopSource` for a non-existent chain must return `Err`.
@@ -182,10 +180,7 @@ fn set_chain_di_loop_source_missing_chain_returns_err() {
         source: DiLoopSource::File(wav),
     });
 
-    assert!(
-        result.is_err(),
-        "missing chain must return Err"
-    );
+    assert!(result.is_err(), "missing chain must return Err");
 }
 
 /// `SetChainDiLoopEnabled` for a non-existent chain must return `Err`.
@@ -199,8 +194,5 @@ fn set_chain_di_loop_enabled_missing_chain_returns_err() {
         enabled: true,
     });
 
-    assert!(
-        result.is_err(),
-        "missing chain for enable must return Err"
-    );
+    assert!(result.is_err(), "missing chain for enable must return Err");
 }

@@ -61,6 +61,7 @@ fn two_stream_mono_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -98,6 +99,7 @@ fn single_stream_on_channel_one(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -151,6 +153,9 @@ fn controller_with_single_runtime(
         pending_activations: Vec::new(),
         sample_rate: 48_000,
         io_bindings: registry.to_vec(),
+        di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
+        di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
+        di_retired: Default::default(),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -330,12 +335,14 @@ fn an_offthread_rebuild_keeps_the_graph_tap_alive() {
         .expect("graph tap on stream 0");
 
     // A preset switch: rebuild the chain off-thread, then apply on the poll tick.
-    let by_device =
-        std::collections::HashMap::from([(DeviceId("scarlett".into()), 48_000.0_f32)]);
+    let by_device = std::collections::HashMap::from([(DeviceId("scarlett".into()), 48_000.0_f32)]);
     controller.schedule_chain_rebuild(&chain, 48_000.0, by_device, vec![512]);
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     while controller.poll_pending_rebuilds() == 0 {
-        assert!(std::time::Instant::now() < deadline, "off-thread rebuild never applied");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "off-thread rebuild never applied"
+        );
         std::thread::sleep(std::time::Duration::from_millis(2));
     }
 

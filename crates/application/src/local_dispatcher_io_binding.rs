@@ -7,14 +7,14 @@
 //!
 //! ## Path resolution
 //!
-//! Every handler reads `self.config_path` (set via `attach_config_path`)
-//! to determine where to persist. When no path is attached, falls back to
+//! Every handler reads `self.io_config_path` (set via `attach_io_config_path`)
+//! — the per-machine SYSTEM config, NOT the project sidecar `config_path`
+//! (#792/ADR-0003: opening a project must not redirect the registry into the
+//! project's `config.yaml`). When no path is attached, falls back to
 //! `FilesystemStorage::app_config_path()` — the same resolution the global
-//! `load_app_config` / `save_app_config` helpers use. This mirrors the
-//! pattern in `local_dispatcher_project.rs` `save_project_to_disk` (lines
-//! that read `self.config_path.borrow().clone().unwrap_or_else(…)`).
+//! `load_app_config` / `save_app_config` helpers use.
 //!
-//! Tests attach a temp-dir path via `attach_config_path` so no global OS
+//! Tests attach a temp-dir path via `attach_io_config_path` so no global OS
 //! path (e.g. `~/Library/Application Support/OpenRig/config.yaml`) is ever
 //! touched.
 //!
@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use infra_filesystem::{AppConfig, FilesystemStorage};
+use infra_filesystem::FilesystemStorage;
 use project::block::AudioBlockKind;
 
 use crate::event::Event;
@@ -40,61 +40,6 @@ use crate::local_dispatcher::LocalDispatcher;
 /// itself fails (unresolvable HOME / XDG).
 fn resolve_config_path(attached: Option<PathBuf>) -> Option<PathBuf> {
     attached.or_else(|| FilesystemStorage::app_config_path().ok())
-}
-
-/// Load `AppConfig` from `path`. Returns `Default::default()` on any error,
-/// logging it so a corrupt config is never silently wiped.
-fn load_config_at(path: &PathBuf) -> AppConfig {
-    if !path.exists() {
-        return AppConfig::default();
-    }
-    match std::fs::read_to_string(path) {
-        Ok(raw) => match serde_yaml::from_str::<AppConfig>(&raw) {
-            Ok(cfg) => cfg,
-            Err(e) => {
-                log::error!(
-                    "io_binding: failed to parse config at {}: {e} — \
-                     proceeding with default (existing data may be lost)",
-                    path.display()
-                );
-                AppConfig::default()
-            }
-        },
-        Err(e) => {
-            log::error!(
-                "io_binding: failed to read config at {}: {e} — \
-                 proceeding with default (existing data may be lost)",
-                path.display()
-            );
-            AppConfig::default()
-        }
-    }
-}
-
-/// Persist `config` to `path`, creating parent directories as needed.
-fn save_config_at(path: &PathBuf, config: &AppConfig) {
-    if let Some(parent) = path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            log::error!(
-                "io_binding: failed to create config dir {}: {e}",
-                parent.display()
-            );
-            return;
-        }
-    }
-    match serde_yaml::to_string(config) {
-        Ok(raw) => {
-            if let Err(e) = std::fs::write(path, raw) {
-                log::error!(
-                    "io_binding: failed to write config to {}: {e}",
-                    path.display()
-                );
-            }
-        }
-        Err(e) => {
-            log::error!("io_binding: failed to serialize AppConfig: {e}");
-        }
-    }
 }
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -111,7 +56,7 @@ impl LocalDispatcher {
     ) -> Result<Vec<Event>> {
         // Resolve the path on the dispatching thread (no Send requirement on
         // the RefCell borrow), then move it into the closure.
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!(
@@ -120,13 +65,15 @@ impl LocalDispatcher {
                 );
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(pos) = config.io_bindings.iter().position(|b| b.id == binding.id) {
-                config.io_bindings[pos] = binding;
-            } else {
-                config.io_bindings.push(binding);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(pos) = config.io_bindings.iter().position(|b| b.id == binding.id) {
+                    config.io_bindings[pos] = binding;
+                } else {
+                    config.io_bindings.push(binding);
+                }
+            }) {
+                log::error!("io_binding create/update: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -160,7 +107,7 @@ impl LocalDispatcher {
             ));
         }
 
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!(
@@ -169,9 +116,11 @@ impl LocalDispatcher {
                 );
                 return;
             };
-            let mut config = load_config_at(&path);
-            config.io_bindings.retain(|b| b.id != id);
-            save_config_at(&path, &config);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                config.io_bindings.retain(|b| b.id != id);
+            }) {
+                log::error!("io_binding delete: persist failed: {e}");
+            }
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -179,17 +128,19 @@ impl LocalDispatcher {
     /// Handle `Command::RenameIoBinding`: rename the entry whose `id` matches
     /// and persist. No-op when the id is absent.
     pub(crate) fn handle_rename_io_binding(&self, id: String, name: String) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!("io_binding rename: config path unresolvable");
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
-                b.name = name;
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
+                    b.name = name;
+                }
+            }) {
+                log::error!("io_binding rename: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -205,28 +156,34 @@ impl LocalDispatcher {
         channels: Vec<usize>,
         mode: ChannelMode,
     ) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!("io_binding add endpoint: config path unresolvable");
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
-                let existing = if is_input { b.inputs.len() } else { b.outputs.len() };
-                let endpoint = IoEndpoint {
-                    name: next_endpoint_name(existing, is_input),
-                    device_id: DeviceId(device_id),
-                    mode,
-                    channels,
-                };
-                if is_input {
-                    b.inputs.push(endpoint);
-                } else {
-                    b.outputs.push(endpoint);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
+                    let existing = if is_input {
+                        b.inputs.len()
+                    } else {
+                        b.outputs.len()
+                    };
+                    let endpoint = IoEndpoint {
+                        name: next_endpoint_name(existing, is_input),
+                        device_id: DeviceId(device_id),
+                        mode,
+                        channels,
+                    };
+                    if is_input {
+                        b.inputs.push(endpoint);
+                    } else {
+                        b.outputs.push(endpoint);
+                    }
                 }
+            }) {
+                log::error!("io_binding add endpoint: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
@@ -239,21 +196,23 @@ impl LocalDispatcher {
         is_input: bool,
         endpoint_name: String,
     ) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.config_path.borrow().clone());
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
         crate::persist_worker::run(move || {
             let Some(path) = config_path else {
                 log::error!("io_binding remove endpoint: config path unresolvable");
                 return;
             };
-            let mut config = load_config_at(&path);
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
-                if is_input {
-                    b.inputs.retain(|e| e.name != endpoint_name);
-                } else {
-                    b.outputs.retain(|e| e.name != endpoint_name);
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
+                    if is_input {
+                        b.inputs.retain(|e| e.name != endpoint_name);
+                    } else {
+                        b.outputs.retain(|e| e.name != endpoint_name);
+                    }
                 }
+            }) {
+                log::error!("io_binding remove endpoint: persist failed: {e}");
             }
-            save_config_at(&path, &config);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }

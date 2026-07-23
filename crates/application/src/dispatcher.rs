@@ -1,4 +1,4 @@
-//! `CommandDispatcher` trait and `EventStream` placeholder.
+//! `CommandDispatcher` trait — the single abstraction over the command bus.
 //!
 //! **Spec reference:** `docs/superpowers/specs/2026-04-23-command-dispatch-architecture-design.md`
 //! — "Shared Architecture / Types".
@@ -17,13 +17,6 @@ use anyhow::Result;
 use crate::command::Command;
 use crate::event::Event;
 
-/// Placeholder for the event stream type.
-///
-/// Phase 2 will replace this with a proper async or channel-based stream
-/// (e.g. `tokio::sync::broadcast::Receiver<Event>`). Keeping it as `()` now
-/// avoids pulling tokio into the `application` crate before it is needed.
-pub type EventStream = ();
-
 /// The single abstraction every consumer of the command bus uses.
 ///
 /// Implementations:
@@ -36,12 +29,6 @@ pub trait CommandDispatcher {
     /// domain errors (invalid chain index, validation failure, runtime error)
     /// without panicking.
     fn dispatch(&self, cmd: Command) -> Result<Vec<Event>>;
-
-    /// Subscribe to events emitted by this dispatcher.
-    ///
-    /// Returns an `EventStream`. Phase 2 will refine the type to something
-    /// that supports async fan-out to multiple subscribers.
-    fn subscribe(&self) -> EventStream;
 
     /// #693: drain results of commands whose heavy work ran on its own
     /// task (e.g. the DI-loop WAV decode), apply them to dispatcher

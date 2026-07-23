@@ -37,7 +37,8 @@ use block_wah::build_wah_processor_for_layout;
 use project::block::CoreBlock;
 use project::chain::Chain;
 
-use crate::runtime_block_builders::{audio_block_runtime_node, build_audio_processor_for_model};
+use crate::runtime_block_builders::audio_block_runtime_node;
+use crate::runtime_processor_model::build_audio_processor_for_model;
 use crate::runtime_state::BlockRuntimeNode;
 
 pub(crate) fn build_core_block_runtime_node(
@@ -290,21 +291,28 @@ pub(crate) fn build_core_block_runtime_node(
             // Resolve UID lazily if not available from moduleinfo.json.
             let uid = vst3_host::resolve_uid_for_model(model)
                 .map_err(|e| anyhow!("VST3 UID resolution failed for '{}': {}", model, e))?;
-            // Convert stored params (path="p{id}", value=0–100%) to VST3 normalized pairs.
+            // Convert stored params (path="p{id}") to VST3 normalized pairs.
+            // Each value maps by widget type — knob(Float %)/toggle(Bool)/
+            // select(String %) — via `param_value_to_normalized` (#780).
             let vst3_params: Vec<(u32, f64)> = params
                 .values
                 .iter()
                 .filter_map(|(path, value)| {
-                    let id_str = path.strip_prefix('p')?;
-                    let id: u32 = id_str.parse().ok()?;
-                    let pct = value.as_f32()?;
-                    Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
+                    let id: u32 = path.strip_prefix('p')?.parse().ok()?;
+                    Some((id, vst3_host::param_value_to_normalized(value)?))
                 })
                 .collect();
-            // Load the plugin once so we can extract the controller and library
-            // Arc before building the processor. This allows the GUI to reuse
-            // the same IEditController instead of creating a second instance
-            // (which fails for plugins like ValhallaSupermassive).
+            // VST3 loads IN-PROCESS, like LV2. The `createInstance -1` that once
+            // looked like a JUCE multi-instance/NSApp limitation was actually a
+            // wrong-class uid (the controller instead of the Audio Module class),
+            // fixed in `resolve_uid_for_model`. With the right uid, many JUCE
+            // instances instantiate in-process under a live NSApp with no trouble
+            // (proven by the `bg-concurrent-4` repro), so no out-of-process host
+            // is needed (#251).
+            //
+            // Load once so we can share the controller + library Arc with the
+            // native editor (it reuses the same IEditController instead of
+            // creating a second instance).
             const VST3_BLOCK_SIZE: usize = 512;
             let plugin = vst3_host::Vst3Plugin::load(
                 &bundle_path,
@@ -315,14 +323,12 @@ pub(crate) fn build_core_block_runtime_node(
                 &vst3_params,
             )
             .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
-            // Register GUI context: shared controller + library Arc + param channel.
             let param_channel = vst3_host::register_vst3_gui_context(
+                &block.id.0,
                 model,
                 plugin.controller_clone(),
                 plugin.library_arc(),
             );
-            // Wrap in Option so we can move the plugin out of the FnMut closure
-            // (VST3 MonoToStereo schema guarantees the closure is called exactly once).
             let mut plugin_opt = Some(plugin);
             Ok(audio_block_runtime_node(
                 block,

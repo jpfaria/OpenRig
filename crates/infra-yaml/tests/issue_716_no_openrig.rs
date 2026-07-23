@@ -38,6 +38,7 @@ fn legacy_project() -> Project {
                     params: ParameterSet::default(),
                 }),
             }],
+            di_output: None,
         }],
     }
 }
@@ -63,5 +64,8 @@ fn loading_a_legacy_yaml_does_not_generate_a_sibling_openrig() {
         !bak.exists(),
         "loading must NOT create a .yaml.bak — migration is in memory only"
     );
-    assert!(yaml.exists(), "the .yaml project file must still be present");
+    assert!(
+        yaml.exists(),
+        "the .yaml project file must still be present"
+    );
 }

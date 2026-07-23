@@ -131,7 +131,7 @@ pub fn build_mono_ir_processor_from_wav(
     };
     let samples = truncate_with_fade(samples, path);
     let samples = resample_if_needed(samples, ir.sample_rate, runtime_sample_rate, path);
-    Ok(Box::new(MonoIrProcessor::new(samples)))
+    Ok(Box::new(MonoIrProcessor::new(samples)?))
 }
 
 pub fn build_stereo_ir_processor_from_wav(
@@ -149,7 +149,7 @@ pub fn build_stereo_ir_processor_from_wav(
     let right = truncate_with_fade(right, path);
     let left = resample_if_needed(left, ir.sample_rate, runtime_sample_rate, path);
     let right = resample_if_needed(right, ir.sample_rate, runtime_sample_rate, path);
-    Ok(Box::new(StereoIrProcessor::new(left, right)))
+    Ok(Box::new(StereoIrProcessor::new(left, right)?))
 }
 
 fn truncate_with_fade(mut samples: Vec<f32>, path: &str) -> Vec<f32> {
@@ -165,10 +165,10 @@ fn truncate_with_fade(mut samples: Vec<f32>, path: &str) -> Vec<f32> {
     );
     samples.truncate(MAX_IR_SAMPLES);
     let fade_start = MAX_IR_SAMPLES.saturating_sub(FADE_OUT_SAMPLES);
-    for i in fade_start..MAX_IR_SAMPLES {
+    for (i, sample) in samples.iter_mut().enumerate().skip(fade_start) {
         let t = (i - fade_start) as f32 / FADE_OUT_SAMPLES as f32;
         let gain = 0.5 * (1.0 + (std::f32::consts::PI * t).cos()); // cosine fade
-        samples[i] *= gain;
+        *sample *= gain;
     }
     samples
 }
@@ -291,9 +291,9 @@ impl FftBlockConvolver {
         // Feed samples into internal input buffer, process partition-sized
         // chunks, and drain output buffer back into the caller's buffer.
         let out_len = state.output_buf.len();
-        for i in 0..buffer.len() {
-            state.input_buf[state.input_pos] = buffer[i];
-            buffer[i] = state.output_buf[state.output_pos % out_len];
+        for sample in buffer.iter_mut() {
+            state.input_buf[state.input_pos] = *sample;
+            *sample = state.output_buf[state.output_pos % out_len];
             state.output_buf[state.output_pos % out_len] = 0.0;
             state.input_pos += 1;
             state.output_pos += 1;
@@ -383,7 +383,7 @@ impl FftBlockConvolver {
         let fft_len = (ps * 2).next_power_of_two();
         let spectrum_len = fft_len / 2 + 1;
 
-        let num_partitions = (self.ir.len() + ps - 1) / ps;
+        let num_partitions = self.ir.len().div_ceil(ps);
         let mut planner = RealFftPlanner::<f32>::new();
         let forward = planner.plan_fft_forward(fft_len);
         let inverse = planner.plan_fft_inverse(fft_len);
@@ -460,10 +460,10 @@ pub struct MonoIrProcessor {
 }
 
 impl MonoIrProcessor {
-    pub fn new(ir: Vec<f32>) -> Self {
-        Self {
-            convolver: FftBlockConvolver::new(ir).expect("IR should be valid"),
-        }
+    pub fn new(ir: Vec<f32>) -> Result<Self> {
+        Ok(Self {
+            convolver: FftBlockConvolver::new(ir)?,
+        })
     }
 }
 
@@ -485,11 +485,11 @@ pub struct StereoIrProcessor {
 }
 
 impl StereoIrProcessor {
-    pub fn new(left: Vec<f32>, right: Vec<f32>) -> Self {
-        Self {
-            left: FftBlockConvolver::new(left).expect("left IR should be valid"),
-            right: FftBlockConvolver::new(right).expect("right IR should be valid"),
-        }
+    pub fn new(left: Vec<f32>, right: Vec<f32>) -> Result<Self> {
+        Ok(Self {
+            left: FftBlockConvolver::new(left)?,
+            right: FftBlockConvolver::new(right)?,
+        })
     }
 }
 

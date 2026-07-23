@@ -26,7 +26,10 @@ use project::rig::{RigInput, RigPreset, RigProject};
 
 fn rig_with_chain() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     let mut inputs = BTreeMap::new();

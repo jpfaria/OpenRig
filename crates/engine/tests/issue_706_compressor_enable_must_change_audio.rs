@@ -87,6 +87,7 @@ fn chain_with_disabled_compressor() -> Chain {
                 params: user_compressor_params(),
             }),
         }],
+        di_output: None,
     }
 }
 

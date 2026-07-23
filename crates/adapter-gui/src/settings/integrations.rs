@@ -46,8 +46,18 @@ pub fn wire(
         project_settings_window.set_mcp_enabled(cfg.mcp_enabled);
     }
 
-    install_midi(window, project_settings_window, &project_session, &app_config);
-    install_mcp(window, project_settings_window, &project_session, &app_config);
+    install_midi(
+        window,
+        project_settings_window,
+        &project_session,
+        &app_config,
+    );
+    install_mcp(
+        window,
+        project_settings_window,
+        &project_session,
+        &app_config,
+    );
 }
 
 /// Build the shared handler for one master switch. Mirrors the new value

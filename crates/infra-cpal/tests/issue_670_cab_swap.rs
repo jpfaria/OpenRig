@@ -54,7 +54,7 @@ fn init_registry() {
 /// interface between them. A create-new lock file does (stale locks older
 /// than 10 min are reclaimed; the guard removes the file on drop, including
 /// on panic unwind).
-
+///
 /// Real-hardware battery gate (issue #670). These tests open the PHYSICAL
 /// audio interface and assert real-time deadlines — they are only meaningful
 /// on an otherwise IDLE machine, run on demand:
@@ -154,7 +154,11 @@ fn load_di_arc(name: &str) -> Arc<engine::DiPcm> {
                 .collect()
         }
     };
-    Arc::new(engine::DiPcm::new(samples, spec.sample_rate, spec.channels as usize))
+    Arc::new(engine::DiPcm::new(
+        samples,
+        spec.sample_rate,
+        spec.channels as usize,
+    ))
 }
 
 /// Build a single-chain project from a preset fixture on the given devices
@@ -215,6 +219,7 @@ fn preset_project(
             volume: 0.0,
             io_binding_ids: vec!["io".into()],
             blocks,
+            di_output: None,
         }],
         midi: None,
     };
@@ -264,7 +269,9 @@ fn swapping_the_cab_while_playing_does_not_damage_sound() {
         preset_project("barao_vermelho_bete_balanco.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry);
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
 
     let di = load_di_arc("phil-STRATO-barao_vermelho-bete-balan\u{e7}o.wav");
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
@@ -381,7 +388,9 @@ fn owner_saved_broken_preset_plays_clean() {
         preset_project("beat_it_rhythm_as_saved_broken.yaml", input, output);
     let mut controller = ProjectRuntimeController::start(&project).expect("start streams");
     controller.set_io_bindings(registry);
-    controller.sync_project(&project).expect("resync with bindings");
+    controller
+        .sync_project(&project)
+        .expect("resync with bindings");
     let di = load_di_arc("phil-STRATO-green_day.wav");
     controller.set_chain_di_loop(&chain_id, Some(di));
 

@@ -143,10 +143,14 @@ pub fn validate_manifest(manifest: &PluginManifest) -> Result<(), ValidationErro
                 if parameter.name.trim().is_empty() {
                     return Err(ValidationError::EmptyParameterName);
                 }
-                if parameter.max < parameter.min {
-                    return Err(ValidationError::Vst3InvalidRange {
-                        name: parameter.name.clone(),
-                    });
+                // Only a declared range can be inverted; a groups-only
+                // overlay declares none and takes the plugin's own (#812).
+                if let (Some(min), Some(max)) = (parameter.min, parameter.max) {
+                    if max < min {
+                        return Err(ValidationError::Vst3InvalidRange {
+                            name: parameter.name.clone(),
+                        });
+                    }
                 }
             }
             Ok(())

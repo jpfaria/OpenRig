@@ -7,31 +7,31 @@
 //! `super::xxx` reference (private types, helper fns) keeps resolving
 //! unchanged.
 
-use super::{
+pub(super) use super::{
     apply_block_processor, build_chain_runtime_state, build_runtime_graph, effective_inputs,
     effective_outputs, process_audio_block, process_input_f32, process_output_f32,
     split_chain_into_segments, update_chain_runtime_state, AudioFrame, AudioProcessor, BlockError,
     BlockRuntimeNode, ElasticBuffer, FadeState, ProcessorScratch, RuntimeProcessor,
     DEFAULT_ELASTIC_TARGET, ERROR_QUEUE_CAPACITY, FADE_IN_FRAMES,
 };
-use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
-use block_core::AudioChannelLayout;
-use block_delay::supported_models as supported_delay_models;
-use block_dyn::compressor_supported_models;
-use block_preamp::supported_models as supported_preamp_models;
-use block_reverb::supported_models as supported_reverb_models;
-use crossbeam_queue::ArrayQueue;
-use crate::runtime_endpoints::{InputEntry, OutputEntry};
-use domain::ids::{BlockId, ChainId, DeviceId};
-use domain::value_objects::ParameterValue;
-use project::block::{
+pub(super) use crate::runtime_endpoints::{InputEntry, OutputEntry};
+pub(super) use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
+pub(super) use block_core::AudioChannelLayout;
+pub(super) use block_delay::supported_models as supported_delay_models;
+pub(super) use block_dyn::compressor_supported_models;
+pub(super) use block_preamp::supported_models as supported_preamp_models;
+pub(super) use block_reverb::supported_models as supported_reverb_models;
+pub(super) use crossbeam_queue::ArrayQueue;
+pub(super) use domain::ids::{BlockId, ChainId, DeviceId};
+pub(super) use domain::value_objects::ParameterValue;
+pub(super) use project::block::{
     schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, InsertBlock, SelectBlock,
 };
-use project::chain::{Chain, ChainInputMode, ChainOutputMode};
-use project::param::ParameterSet;
-use project::project::Project;
-use std::collections::HashMap;
-use std::sync::Arc;
+pub(super) use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+pub(super) use project::param::ParameterSet;
+pub(super) use project::project::Project;
+pub(super) use std::collections::HashMap;
+pub(super) use std::sync::Arc;
 
 // ── Model-A I/O binding registries (#716) ─────────────────────────────────
 // A chain no longer embeds device endpoints; head input + tail output are
@@ -40,12 +40,12 @@ use std::sync::Arc;
 
 /// Registry id every helper chain in this file references via
 /// `io_binding_ids: vec!["io".into()]`.
-const IO_BINDING_ID: &str = "io";
+pub(super) const IO_BINDING_ID: &str = "io";
 
 /// A bare chain with no blocks and no binding selection. Used by the
 /// `effective_inputs`/`effective_outputs` unit tests, which feed the resolved
 /// endpoint slice directly (the binding registry's resolved view).
-fn empty_chain(id: &str) -> Chain {
+pub(super) fn empty_chain(id: &str) -> Chain {
     Chain {
         id: ChainId(id.into()),
         description: None,
@@ -54,11 +54,12 @@ fn empty_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     }
 }
 
 /// Mono input (ch0) + mono output (ch0) — mirrors `io_passthrough_chain`.
-fn io_registry_mono() -> Vec<domain::io_binding::IoBinding> {
+pub(super) fn io_registry_mono() -> Vec<domain::io_binding::IoBinding> {
     vec![domain::io_binding::IoBinding {
         id: IO_BINDING_ID.into(),
         name: "IO".into(),
@@ -79,7 +80,7 @@ fn io_registry_mono() -> Vec<domain::io_binding::IoBinding> {
 
 /// Split-mono input (one Mono endpoint spanning ch0,1) + stereo output —
 /// mirrors the legacy dual-mono isolation chains (`mode: Mono, channels [0,1]`).
-fn io_registry_split_dual() -> Vec<domain::io_binding::IoBinding> {
+pub(super) fn io_registry_split_dual() -> Vec<domain::io_binding::IoBinding> {
     vec![domain::io_binding::IoBinding {
         id: IO_BINDING_ID.into(),
         name: "IO".into(),
@@ -100,7 +101,7 @@ fn io_registry_split_dual() -> Vec<domain::io_binding::IoBinding> {
 
 /// Two distinct-device mono inputs (scarlett + teyun) + a stereo output —
 /// the "two guitars" rig that yields two isolated per-input runtimes.
-fn io_registry_two_device() -> Vec<domain::io_binding::IoBinding> {
+pub(super) fn io_registry_two_device() -> Vec<domain::io_binding::IoBinding> {
     vec![domain::io_binding::IoBinding {
         id: IO_BINDING_ID.into(),
         name: "IO".into(),
@@ -128,7 +129,7 @@ fn io_registry_two_device() -> Vec<domain::io_binding::IoBinding> {
 }
 
 /// Stereo input (ch0,1) + stereo output (ch0,1).
-fn io_registry_stereo() -> Vec<domain::io_binding::IoBinding> {
+pub(super) fn io_registry_stereo() -> Vec<domain::io_binding::IoBinding> {
     vec![domain::io_binding::IoBinding {
         id: IO_BINDING_ID.into(),
         name: "IO".into(),
@@ -147,328 +148,9 @@ fn io_registry_stereo() -> Vec<domain::io_binding::IoBinding> {
     }]
 }
 
-#[test]
-#[ignore] // IR cabs migrated to disk packages (issue #287); needs registry lookup
-fn runtime_graph_builds_for_chain_with_cab_block() {
-    let (model, params) = any_ir_cab_defaults();
 
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("chain:0".into()),
-            description: Some("Cab test".into()),
-            instrument: "electric_guitar".to_string(),
-            enabled: true,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: vec![AudioBlock {
-                id: BlockId("chain:0:block:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    effect_type: "cab".to_string(),
-                    model,
-                    params,
-                }),
-            }],
-        }],
-        midi: None,
-    };
 
-    let runtime = build_runtime_graph(
-        &project,
-        &HashMap::from([(ChainId("chain:0".into()), 48_000.0)]),
-        &HashMap::new(),
-        &[],
-    )
-    .expect("runtime graph should build");
-    assert_eq!(runtime.chains.len(), 1);
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
-    let (model, params) = any_ir_cab_defaults();
-
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("chain:0".into()),
-            description: Some("Cab test".into()),
-            instrument: "electric_guitar".to_string(),
-            enabled: true,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: vec![AudioBlock {
-                id: BlockId("chain:0:block:0".into()),
-                enabled: true,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    effect_type: "cab".to_string(),
-                    model,
-                    params,
-                }),
-            }],
-        }],
-        midi: None,
-    };
-
-    let error = match build_runtime_graph(
-        &project,
-        &HashMap::from([(ChainId("chain:0".into()), 44_100.0)]),
-        &HashMap::new(),
-        &[],
-    ) {
-        Ok(_) => panic!("runtime graph should reject mismatched IR sample rate"),
-        Err(error) => error,
-    };
-
-    assert!(error.to_string().contains("sample_rate"));
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn update_chain_runtime_state_preserves_unchanged_block_instances() {
-    let mut chain = tuner_track(
-        "chain:0",
-        vec![
-            tuner_block("chain:0:block:a", 440.0),
-            tuner_block("chain:0:block:b", 445.0),
-        ],
-    );
-
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
-            .expect("runtime state should build"),
-    );
-    let original_serials = {
-        let locked = runtime.processing.lock().expect("runtime poisoned");
-        locked.input_states[0]
-            .blocks
-            .iter()
-            .map(|block| block.instance_serial)
-            .collect::<Vec<_>>()
-    };
-
-    if let AudioBlockKind::Core(core) = &mut chain.blocks[1].kind {
-        core.params
-            .insert("reference_hz", ParameterValue::Float(432.0));
-    }
-
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime update should succeed");
-
-    let updated_serials = {
-        let locked = runtime.processing.lock().expect("runtime poisoned");
-        locked.input_states[0]
-            .blocks
-            .iter()
-            .map(|block| block.instance_serial)
-            .collect::<Vec<_>>()
-    };
-
-    assert_eq!(updated_serials[0], original_serials[0]);
-    assert_ne!(updated_serials[1], original_serials[1]);
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn update_chain_runtime_state_preserves_block_identity_when_reordered() {
-    let mut chain = tuner_track(
-        "chain:0",
-        vec![
-            tuner_block("chain:0:block:a", 440.0),
-            tuner_block("chain:0:block:b", 445.0),
-        ],
-    );
-
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
-            .expect("runtime state should build"),
-    );
-    let original_by_block_id = {
-        let locked = runtime.processing.lock().expect("runtime poisoned");
-        locked.input_states[0]
-            .blocks
-            .iter()
-            .map(|block| (block.block_id.clone(), block.instance_serial))
-            .collect::<HashMap<_, _>>()
-    };
-
-    chain.blocks.swap(0, 1);
-
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime update should succeed");
-
-    let reordered = runtime.processing.lock().expect("runtime poisoned");
-    assert_eq!(reordered.input_states[0].blocks.len(), 2);
-    for block in &reordered.input_states[0].blocks {
-        assert_eq!(
-            Some(&block.instance_serial),
-            original_by_block_id.get(&block.block_id)
-        );
-    }
-}
-
-#[test]
-fn process_input_limits_buffered_output_frames() {
-    let chain = tuner_track("chain:0", Vec::new());
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
-            .expect("runtime state should build"),
-    );
-    let total_frames = DEFAULT_ELASTIC_TARGET * 2 + 64;
-    let input = vec![0.25f32; total_frames];
-
-    process_input_f32(&runtime, 0, &input, 1);
-
-    let routes = runtime.output_routes.load();
-    assert!(routes[0].buffer.len() <= DEFAULT_ELASTIC_TARGET * 2);
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn process_output_drains_buffered_frames() {
-    let chain = tuner_track("chain:0", Vec::new());
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
-            .expect("runtime state should build"),
-    );
-
-    process_input_f32(&runtime, 0, &[0.25, 0.5, 0.75, 1.0], 1);
-
-    let mut out = vec![0.0f32; 4];
-    process_output_f32(&runtime, 0, &mut out, 1);
-
-    assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
-    let routes = runtime.output_routes.load();
-    assert_eq!(routes[0].buffer.len(), 0);
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn dual_mono_chain_does_not_leak_left_into_right() {
-    let chain = Chain {
-        id: ChainId("chain:stereo".into()),
-        description: Some("Stereo isolation".into()),
-        instrument: "electric_guitar".to_string(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec![IO_BINDING_ID.into()],
-        blocks: vec![
-            compressor_block("chain:stereo:block:0"),
-            preamp_block("chain:stereo:block:1"),
-            native_cab_block("chain:stereo:block:2"),
-            reverb_block("chain:stereo:block:3"),
-        ],
-    };
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_split_dual())
-            .expect("runtime state should build"),
-    );
-
-    let mut input = vec![0.0f32; 256 * 2];
-    for frame in input.chunks_mut(2) {
-        frame[0] = 0.25;
-        frame[1] = 0.0;
-    }
-    process_input_f32(&runtime, 0, &input, 2);
-
-    let mut output = vec![0.0f32; input.len()];
-    process_output_f32(&runtime, 0, &mut output, 2);
-
-    let right_peak = output
-        .chunks_exact(2)
-        .map(|frame| frame[1].abs())
-        .fold(0.0f32, f32::max);
-    assert!(
-        right_peak <= 1.0e-6,
-        "dual-mono chain leaked signal into right channel: peak={right_peak}"
-    );
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
-    let chain = Chain {
-        id: ChainId("chain:asset-backed".into()),
-        description: Some("Stereo isolation asset-backed".into()),
-        instrument: "electric_guitar".to_string(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec![IO_BINDING_ID.into()],
-        blocks: vec![
-            marshall_preamp_block("chain:asset-backed:block:0"),
-            ir_cab_block("chain:asset-backed:block:1"),
-            reverb_block("chain:asset-backed:block:2"),
-        ],
-    };
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_split_dual())
-            .expect("runtime state should build"),
-    );
-
-    let mut input = vec![0.0f32; 256 * 2];
-    for frame in input.chunks_mut(2) {
-        frame[0] = 0.25;
-        frame[1] = 0.0;
-    }
-    process_input_f32(&runtime, 0, &input, 2);
-
-    let mut output = vec![0.0f32; input.len()];
-    process_output_f32(&runtime, 0, &mut output, 2);
-
-    let right_peak = output
-        .chunks_exact(2)
-        .map(|frame| frame[1].abs())
-        .fold(0.0f32, f32::max);
-    assert!(
-        right_peak <= 1.0e-6,
-        "asset-backed dual-mono chain leaked signal into right channel: peak={right_peak}"
-    );
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn select_block_builds_for_generic_delay_options() {
-    let chain = select_delay_chain("chain:select", "delay_a");
-
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("select delay chain should build");
-
-    let locked = runtime.processing.lock().expect("runtime poisoned");
-    assert_eq!(locked.input_states[0].blocks.len(), 1);
-}
-
-#[test]
-#[ignore] // requires asset_paths initialization
-fn update_chain_runtime_state_preserves_select_instance_when_switching_active_option() {
-    let mut chain = select_delay_chain("chain:select", "delay_a");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
-            .expect("runtime state should build"),
-    );
-    let original_serial = {
-        let locked = runtime.processing.lock().expect("runtime poisoned");
-        locked.input_states[0].blocks[0].instance_serial
-    };
-
-    if let AudioBlockKind::Select(select) = &mut chain.blocks[0].kind {
-        select.selected_block_id = BlockId("chain:select:block:0::delay_b".into());
-    }
-
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime update should succeed when switching select option");
-
-    let updated_serial = {
-        let locked = runtime.processing.lock().expect("runtime poisoned");
-        locked.input_states[0].blocks[0].instance_serial
-    };
-
-    assert_eq!(updated_serial, original_serial);
-}
-
-fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
+pub(super) fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
     Chain {
         id: ChainId(chain_id.into()),
         description: Some("Tuner chain".into()),
@@ -477,8 +159,10 @@ fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks,
+        di_output: None,
     }
 }
+
 
 /// Test helper — builds a generic processing block. Originally backed by
 /// the (now removed) `chromatic_tuner` / `spectrum_analyzer` utility
@@ -487,7 +171,7 @@ fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
 /// `BlockProcessor` in their chains; `reference_hz` is preserved as a
 /// dummy `time_ms` for the delay so unique values per block survive
 /// the rename.
-fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
+pub(super) fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
     let delay_model = supported_delay_models()
         .first()
         .expect("block-delay must expose at least one model")
@@ -505,7 +189,8 @@ fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
     }
 }
 
-fn any_ir_cab_defaults() -> (String, ParameterSet) {
+
+pub(super) fn any_ir_cab_defaults() -> (String, ParameterSet) {
     let model = supported_cab_models()
         .iter()
         .find(|model| {
@@ -523,7 +208,8 @@ fn any_ir_cab_defaults() -> (String, ParameterSet) {
     (model, params)
 }
 
-fn normalized_defaults(effect_type: &str, model: &str) -> ParameterSet {
+
+pub(super) fn normalized_defaults(effect_type: &str, model: &str) -> ParameterSet {
     let schema =
         schema_for_block_model(effect_type, model).expect("schema should exist for test model");
     ParameterSet::default()
@@ -531,7 +217,8 @@ fn normalized_defaults(effect_type: &str, model: &str) -> ParameterSet {
         .expect("defaults should normalize")
 }
 
-fn compressor_block(block_id: &str) -> AudioBlock {
+
+pub(super) fn compressor_block(block_id: &str) -> AudioBlock {
     let model = compressor_supported_models()
         .first()
         .expect("block-dyn must expose at least one compressor")
@@ -547,7 +234,8 @@ fn compressor_block(block_id: &str) -> AudioBlock {
     }
 }
 
-fn native_cab_block(block_id: &str) -> AudioBlock {
+
+pub(super) fn native_cab_block(block_id: &str) -> AudioBlock {
     let model = supported_cab_models()
         .iter()
         .find(|model| {
@@ -569,7 +257,8 @@ fn native_cab_block(block_id: &str) -> AudioBlock {
     }
 }
 
-fn preamp_block(block_id: &str) -> AudioBlock {
+
+pub(super) fn preamp_block(block_id: &str) -> AudioBlock {
     let model = supported_preamp_models()
         .iter()
         .find(|model| !model.contains("marshall_jcm_800"))
@@ -587,7 +276,8 @@ fn preamp_block(block_id: &str) -> AudioBlock {
     }
 }
 
-fn marshall_preamp_block(block_id: &str) -> AudioBlock {
+
+pub(super) fn marshall_preamp_block(block_id: &str) -> AudioBlock {
     let model = "marshall_jcm_800_2203".to_string();
     AudioBlock {
         id: BlockId(block_id.into()),
@@ -600,7 +290,8 @@ fn marshall_preamp_block(block_id: &str) -> AudioBlock {
     }
 }
 
-fn ir_cab_block(block_id: &str) -> AudioBlock {
+
+pub(super) fn ir_cab_block(block_id: &str) -> AudioBlock {
     let model = supported_cab_models()
         .iter()
         .find(|model| {
@@ -622,7 +313,8 @@ fn ir_cab_block(block_id: &str) -> AudioBlock {
     }
 }
 
-fn reverb_block(block_id: &str) -> AudioBlock {
+
+pub(super) fn reverb_block(block_id: &str) -> AudioBlock {
     let model = supported_reverb_models()
         .first()
         .expect("block-reverb must expose at least one model")
@@ -638,74 +330,10 @@ fn reverb_block(block_id: &str) -> AudioBlock {
     }
 }
 
-// --- ElasticBuffer tests ---
-
-#[test]
-fn elastic_buffer_push_pop_basic() {
-    let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
-    buf.push(AudioFrame::Mono(0.5));
-    buf.push(AudioFrame::Mono(0.7));
-    assert_eq!(buf.len(), 2);
-    let f1 = buf.pop();
-    assert!(matches!(f1, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
-    let f2 = buf.pop();
-    assert!(matches!(f2, AudioFrame::Mono(v) if (v - 0.7).abs() < 1e-6));
-}
-
-#[test]
-fn elastic_buffer_underrun_returns_silence_not_last_frame() {
-    // Issue #496: was `..._repeats_last_frame` and pinned the
-    // "brief sustain on underrun" form, which measurably injected
-    // broadband noise (swarm-of-bees artefact) into every chain.
-    // The new contract is silence on underrun — standard DAW.
-    let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
-    buf.push(AudioFrame::Mono(0.42));
-    let _ = buf.pop();
-    let next = buf.pop();
-    assert!(matches!(next, AudioFrame::Mono(v) if v.abs() < 1e-6));
-}
-
-#[test]
-fn elastic_buffer_underrun_before_any_push_returns_silence() {
-    let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
-    let frame = buf.pop();
-    assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
-}
-
-#[test]
-fn elastic_buffer_overrun_drops_newest() {
-    // The lock-free SPSC ring drops the newest frame when full (rather
-    // than advancing the tail from the producer side, which would break
-    // the single-producer invariant). Ring capacity is the next power of
-    // two at or above target_level * 2.
-    let target: usize = 4;
-    let capacity = (target * 2).next_power_of_two();
-    let buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
-    for i in 0..(capacity + 4) {
-        buf.push(AudioFrame::Mono(i as f32));
-    }
-    assert_eq!(buf.len(), capacity);
-    // Oldest frames are retained — first pop returns the very first push.
-    assert!(matches!(buf.pop(), AudioFrame::Mono(v) if v == 0.0));
-}
-
-#[test]
-fn elastic_buffer_stabilizes_around_target() {
-    let target = 256;
-    let buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
-    // Simulate: push slightly faster than pop
-    for _ in 0..10000 {
-        buf.push(AudioFrame::Mono(1.0));
-        buf.push(AudioFrame::Mono(1.0)); // 2 pushes
-        let _ = buf.pop(); // 1 pop — simulates input faster than output
-    }
-    // Should not have grown unbounded
-    assert!(buf.len() <= target * 2);
-}
 
 /// A chain with proper Input and Output blocks but no effect blocks.
 /// Useful for testing process_input_f32 / process_output_f32.
-fn io_passthrough_chain(id: &str) -> Chain {
+pub(super) fn io_passthrough_chain(id: &str) -> Chain {
     Chain {
         id: ChainId(id.into()),
         description: Some("Passthrough".into()),
@@ -714,10 +342,12 @@ fn io_passthrough_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
-fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
+
+pub(super) fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
     let models = supported_delay_models();
     let first_model = models
         .first()
@@ -742,10 +372,12 @@ fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
                 ],
             }),
         }],
+        di_output: None,
     }
 }
 
-fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
+
+pub(super) fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
     let mut params = normalized_defaults("delay", model);
     params.insert("time_ms", ParameterValue::Float(time_ms));
     AudioBlock {
@@ -759,18 +391,22 @@ fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
     }
 }
 
+
 // ── Panic recovery tests ──────────────────────────────────────────────────
 
-struct PanickingProcessor;
+pub(super) struct PanickingProcessor;
+
 impl block_core::MonoProcessor for PanickingProcessor {
     fn process_sample(&mut self, _: f32) -> f32 {
         panic!("simulated plugin crash");
     }
 }
 
-struct CountingProcessor {
+
+pub(super) struct CountingProcessor {
     call_count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
+
 impl block_core::MonoProcessor for CountingProcessor {
     fn process_sample(&mut self, input: f32) -> f32 {
         self.call_count
@@ -779,7 +415,8 @@ impl block_core::MonoProcessor for CountingProcessor {
     }
 }
 
-fn panicking_block_node() -> BlockRuntimeNode {
+
+pub(super) fn panicking_block_node() -> BlockRuntimeNode {
     BlockRuntimeNode {
         instance_serial: 0,
         block_id: domain::ids::BlockId("test:panicking".into()),
@@ -805,7 +442,8 @@ fn panicking_block_node() -> BlockRuntimeNode {
     }
 }
 
-fn counting_block_node(
+
+pub(super) fn counting_block_node(
     counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 ) -> BlockRuntimeNode {
     BlockRuntimeNode {
@@ -835,930 +473,6 @@ fn counting_block_node(
     }
 }
 
-#[test]
-fn panicking_processor_does_not_crash_the_caller() {
-    let mut block = panicking_block_node();
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    // Must not panic
-    apply_block_processor(&mut block, &mut frames, &error_queue);
-}
-
-#[test]
-fn panicking_processor_marks_block_as_faulted() {
-    let mut block = panicking_block_node();
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    apply_block_processor(&mut block, &mut frames, &error_queue);
-
-    assert!(
-        block.faulted,
-        "block should be marked faulted after a panic"
-    );
-}
-
-#[test]
-fn panicking_processor_zeroes_output_frames() {
-    let mut block = panicking_block_node();
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    apply_block_processor(&mut block, &mut frames, &error_queue);
-
-    for frame in &frames {
-        match frame {
-            AudioFrame::Stereo([l, r]) => {
-                assert_eq!(*l, 0.0, "left channel should be silent after panic");
-                assert_eq!(*r, 0.0, "right channel should be silent after panic");
-            }
-            AudioFrame::Mono(s) => assert_eq!(*s, 0.0, "mono channel should be silent after panic"),
-        }
-    }
-}
-
-#[test]
-fn panicking_processor_posts_error_to_queue() {
-    let mut block = panicking_block_node();
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    apply_block_processor(&mut block, &mut frames, &error_queue);
-
-    assert_eq!(error_queue.len(), 1, "exactly one error should be posted");
-    let err = error_queue.pop().expect("error should be available");
-    assert_eq!(err.block_id.0, "test:panicking");
-    assert!(
-        err.message.contains("simulated plugin crash"),
-        "error message should contain panic message"
-    );
-}
-
-#[test]
-fn faulted_block_is_permanently_bypassed() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.faulted = true; // pre-fault the block
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    apply_block_processor(&mut block, &mut frames, &error_queue);
-
-    assert_eq!(
-        counter.load(std::sync::atomic::Ordering::SeqCst),
-        0,
-        "process_sample should never be called on a faulted block"
-    );
-}
-
-#[test]
-fn second_call_after_panic_does_not_process_or_post_error() {
-    let mut block = panicking_block_node();
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    // First call: panics, marks faulted, posts error
-    apply_block_processor(&mut block, &mut frames, &error_queue);
-    assert_eq!(error_queue.len(), 1);
-
-    // Second call: faulted — must not post another error
-    apply_block_processor(&mut block, &mut frames, &error_queue);
-    assert_eq!(
-        error_queue.len(),
-        1,
-        "no additional error should be posted for an already-faulted block"
-    );
-}
-
-#[test]
-fn process_audio_block_bypassed_state_skips_processing() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.fade_state = FadeState::Bypassed;
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    process_audio_block(&mut block, &mut frames, &error_queue);
-
-    assert_eq!(
-        counter.load(std::sync::atomic::Ordering::SeqCst),
-        0,
-        "bypassed block should not call process_sample"
-    );
-}
-
-#[test]
-fn process_audio_block_fading_in_applies_processing() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.fade_state = FadeState::FadingIn {
-        frames_remaining: FADE_IN_FRAMES,
-    };
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    process_audio_block(&mut block, &mut frames, &error_queue);
-
-    assert!(
-        counter.load(std::sync::atomic::Ordering::SeqCst) > 0,
-        "fading-in block should call process_sample"
-    );
-}
-
-// ── AudioFrame tests ─────────────────────────────────────────────────────
-
-#[test]
-fn audio_frame_mono_mix_mono_returns_sample() {
-    let frame = AudioFrame::Mono(0.75);
-    assert!((frame.mono_mix() - 0.75).abs() < 1e-6);
-}
-
-#[test]
-fn audio_frame_mono_mix_stereo_returns_average() {
-    let frame = AudioFrame::Stereo([0.4, 0.8]);
-    assert!((frame.mono_mix() - 0.6).abs() < 1e-6);
-}
-
-// ── ElasticBuffer edge cases ─────────────────────────────────────────────
-
-#[test]
-fn elastic_buffer_target_one_limits_to_two() {
-    let buf = ElasticBuffer::new(1, AudioChannelLayout::Mono);
-    buf.push(AudioFrame::Mono(1.0));
-    buf.push(AudioFrame::Mono(2.0));
-    buf.push(AudioFrame::Mono(3.0)); // should discard oldest
-    assert!(
-        buf.len() <= 2,
-        "buffer with target=1 should hold at most 2 frames"
-    );
-}
-
-#[test]
-fn elastic_buffer_stereo_push_pop_preserves_channels() {
-    let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
-    buf.push(AudioFrame::Stereo([0.3, 0.7]));
-    let frame = buf.pop();
-    match frame {
-        AudioFrame::Stereo([l, r]) => {
-            assert!((l - 0.3).abs() < 1e-6);
-            assert!((r - 0.7).abs() < 1e-6);
-        }
-        _ => panic!("expected stereo frame"),
-    }
-}
-
-#[test]
-fn elastic_buffer_multiple_pops_on_empty_return_silence() {
-    // Issue #496: was `..._repeat_last`. Pinned the buggy form.
-    let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
-    buf.push(AudioFrame::Mono(0.99));
-    let _ = buf.pop();
-    for _ in 0..5 {
-        let f = buf.pop();
-        assert!(matches!(f, AudioFrame::Mono(v) if v.abs() < 1e-6));
-    }
-}
-
-// ── FadeState transition tests ───────────────────────────────────────────
-
-#[test]
-fn fade_in_completes_to_active_after_enough_frames() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.fade_state = FadeState::FadingIn {
-        frames_remaining: 16,
-    };
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    process_audio_block(&mut block, &mut frames, &error_queue);
-
-    assert_eq!(
-        block.fade_state,
-        FadeState::Active,
-        "fade-in should complete to Active when frames_remaining reaches 0"
-    );
-}
-
-#[test]
-fn fade_in_partial_keeps_fading_in() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.fade_state = FadeState::FadingIn {
-        frames_remaining: 64,
-    };
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    process_audio_block(&mut block, &mut frames, &error_queue);
-
-    match block.fade_state {
-        FadeState::FadingIn { frames_remaining } => {
-            assert_eq!(
-                frames_remaining, 48,
-                "should have consumed 16 frames of fade"
-            );
-        }
-        other => panic!("expected FadingIn, got {:?}", other),
-    }
-}
-
-#[test]
-fn fade_out_completes_to_bypassed_after_enough_frames() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.fade_state = FadeState::FadingOut {
-        frames_remaining: 16,
-    };
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    process_audio_block(&mut block, &mut frames, &error_queue);
-
-    assert_eq!(
-        block.fade_state,
-        FadeState::Bypassed,
-        "fade-out should complete to Bypassed when frames_remaining reaches 0"
-    );
-}
-
-#[test]
-fn fade_out_partial_keeps_fading_out() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.fade_state = FadeState::FadingOut {
-        frames_remaining: 64,
-    };
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    process_audio_block(&mut block, &mut frames, &error_queue);
-
-    match block.fade_state {
-        FadeState::FadingOut { frames_remaining } => {
-            assert_eq!(
-                frames_remaining, 48,
-                "should have consumed 16 frames of fade"
-            );
-        }
-        other => panic!("expected FadingOut, got {:?}", other),
-    }
-}
-
-#[test]
-fn fade_out_applies_processing_during_transition() {
-    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut block = counting_block_node(counter.clone());
-    block.fade_state = FadeState::FadingOut {
-        frames_remaining: FADE_IN_FRAMES,
-    };
-
-    let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
-    let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
-
-    process_audio_block(&mut block, &mut frames, &error_queue);
-
-    assert!(
-        counter.load(std::sync::atomic::Ordering::SeqCst) > 0,
-        "fading-out block should still call process_sample during transition"
-    );
-}
-
-// ── blend_frame tests ────────────────────────────────────────────────────
-
-#[test]
-fn blend_frame_mono_interpolates_correctly() {
-    use super::blend_frame;
-    let mut wet = AudioFrame::Mono(1.0);
-    let dry = AudioFrame::Mono(0.0);
-    blend_frame(&mut wet, dry, 0.5, 0.5);
-    assert!((wet.mono_mix() - 0.5).abs() < 1e-6);
-}
-
-#[test]
-fn blend_frame_stereo_interpolates_correctly() {
-    use super::blend_frame;
-    let mut wet = AudioFrame::Stereo([1.0, 0.0]);
-    let dry = AudioFrame::Stereo([0.0, 1.0]);
-    blend_frame(&mut wet, dry, 0.5, 0.5);
-    match wet {
-        AudioFrame::Stereo([l, r]) => {
-            assert!((l - 0.5).abs() < 1e-6);
-            assert!((r - 0.5).abs() < 1e-6);
-        }
-        _ => panic!("expected stereo"),
-    }
-}
-
-#[test]
-fn blend_frame_layout_mismatch_passes_dry_through() {
-    use super::blend_frame;
-    let mut wet = AudioFrame::Mono(1.0);
-    let dry = AudioFrame::Stereo([0.3, 0.7]);
-    blend_frame(&mut wet, dry, 0.5, 0.5);
-    // On layout mismatch, frame should be set to dry
-    match wet {
-        AudioFrame::Stereo([l, r]) => {
-            assert!((l - 0.3).abs() < 1e-6);
-            assert!((r - 0.7).abs() < 1e-6);
-        }
-        _ => panic!("expected stereo from dry passthrough"),
-    }
-}
-
-// ── mix_frames tests ─────────────────────────────────────────────────────
-
-#[test]
-fn mix_frames_mono_mono_sums() {
-    use super::mix_frames;
-    let result = mix_frames(AudioFrame::Mono(0.3), AudioFrame::Mono(0.5));
-    assert!(matches!(result, AudioFrame::Mono(v) if (v - 0.8).abs() < 1e-6));
-}
-
-#[test]
-fn mix_frames_stereo_stereo_sums() {
-    use super::mix_frames;
-    let result = mix_frames(
-        AudioFrame::Stereo([0.1, 0.2]),
-        AudioFrame::Stereo([0.3, 0.4]),
-    );
-    match result {
-        AudioFrame::Stereo([l, r]) => {
-            assert!((l - 0.4).abs() < 1e-6);
-            assert!((r - 0.6).abs() < 1e-6);
-        }
-        _ => panic!("expected stereo"),
-    }
-}
-
-#[test]
-fn mix_frames_mono_stereo_widens() {
-    use super::mix_frames;
-    let result = mix_frames(AudioFrame::Mono(0.5), AudioFrame::Stereo([0.1, 0.2]));
-    match result {
-        AudioFrame::Stereo([l, r]) => {
-            assert!((l - 0.6).abs() < 1e-6);
-            assert!((r - 0.7).abs() < 1e-6);
-        }
-        _ => panic!("expected stereo"),
-    }
-}
-
-#[test]
-fn mix_frames_stereo_mono_widens() {
-    use super::mix_frames;
-    let result = mix_frames(AudioFrame::Stereo([0.1, 0.2]), AudioFrame::Mono(0.5));
-    match result {
-        AudioFrame::Stereo([l, r]) => {
-            assert!((l - 0.6).abs() < 1e-6);
-            assert!((r - 0.7).abs() < 1e-6);
-        }
-        _ => panic!("expected stereo"),
-    }
-}
-
-// ── output_limiter tests ─────────────────────────────────────────────────
-
-#[test]
-fn output_limiter_transparent_below_threshold() {
-    use super::output_limiter;
-    assert!((output_limiter(0.5) - 0.5).abs() < 1e-6);
-    assert!((output_limiter(-0.5) - (-0.5)).abs() < 1e-6);
-    assert!((output_limiter(0.0) - 0.0).abs() < 1e-6);
-    assert!((output_limiter(0.94) - 0.94).abs() < 1e-6);
-}
-
-#[test]
-fn output_limiter_saturates_above_threshold() {
-    // Issue #496: the previous tanh form was discontinuous (-2.17 dB
-    // step at the threshold) and non-monotonic from ~0.95 to ~1.83
-    // (proven RED in runtime_dsp::tests). Pin the PROPERTY a soft
-    // limiter must have — bounded, sign-preserving, smaller than the
-    // input above the knee — not the specific tanh function.
-    use super::output_limiter;
-    let limited = output_limiter(2.0);
-    assert!(
-        limited < 2.0 && limited > 0.0,
-        "reduce + keep sign: {limited}"
-    );
-    assert!(limited <= 1.0 && limited.is_finite(), "bounded: {limited}");
-}
-
-#[test]
-fn output_limiter_negative_saturates_symmetrically() {
-    // Issue #496: assert odd symmetry instead of pinning tanh()
-    // numerically. The new soft-clip is not tanh but is still odd,
-    // bounded, monotonic and continuous.
-    use super::output_limiter;
-    assert!((output_limiter(-2.0) + output_limiter(2.0)).abs() < 1e-6);
-    assert!(output_limiter(-2.0) >= -1.0 && output_limiter(-2.0).is_finite());
-}
-
-// ── apply_mixdown tests ──────────────────────────────────────────────────
-
-#[test]
-fn apply_mixdown_sum_adds_channels() {
-    use super::apply_mixdown;
-    use project::chain::ChainOutputMixdown;
-    assert!((apply_mixdown(ChainOutputMixdown::Sum, 0.3, 0.5) - 0.8).abs() < 1e-6);
-}
-
-#[test]
-fn apply_mixdown_average_averages_channels() {
-    use super::apply_mixdown;
-    use project::chain::ChainOutputMixdown;
-    assert!((apply_mixdown(ChainOutputMixdown::Average, 0.4, 0.8) - 0.6).abs() < 1e-6);
-}
-
-#[test]
-fn apply_mixdown_left_returns_left() {
-    use super::apply_mixdown;
-    use project::chain::ChainOutputMixdown;
-    assert!((apply_mixdown(ChainOutputMixdown::Left, 0.3, 0.7) - 0.3).abs() < 1e-6);
-}
-
-#[test]
-fn apply_mixdown_right_returns_right() {
-    use super::apply_mixdown;
-    use project::chain::ChainOutputMixdown;
-    assert!((apply_mixdown(ChainOutputMixdown::Right, 0.3, 0.7) - 0.7).abs() < 1e-6);
-}
-
-// ── layout_from_channels tests ───────────────────────────────────────────
-
-#[test]
-fn layout_from_channels_mono_ok() {
-    use super::layout_from_channels;
-    assert_eq!(layout_from_channels(1).unwrap(), AudioChannelLayout::Mono);
-}
-
-#[test]
-fn layout_from_channels_stereo_ok() {
-    use super::layout_from_channels;
-    assert_eq!(layout_from_channels(2).unwrap(), AudioChannelLayout::Stereo);
-}
-
-#[test]
-fn layout_from_channels_invalid_errors() {
-    use super::layout_from_channels;
-    assert!(layout_from_channels(0).is_err());
-    assert!(layout_from_channels(3).is_err());
-    assert!(layout_from_channels(8).is_err());
-}
-
-// ── write_output_frame tests ─────────────────────────────────────────────
-
-#[test]
-fn write_output_frame_mono_to_single_channel() {
-    use super::write_output_frame;
-    use project::chain::ChainOutputMixdown;
-    let mut frame = [0.0f32; 2];
-    write_output_frame(
-        AudioFrame::Mono(0.5),
-        &[1],
-        &mut frame,
-        ChainOutputMixdown::Average,
-    );
-    assert!(
-        (frame[0] - 0.0).abs() < 1e-6,
-        "channel 0 should be untouched"
-    );
-    assert!(
-        (frame[1] - 0.5).abs() < 1e-6,
-        "channel 1 should have the sample"
-    );
-}
-
-#[test]
-fn write_output_frame_mono_to_multiple_channels() {
-    use super::write_output_frame;
-    use project::chain::ChainOutputMixdown;
-    let mut frame = [0.0f32; 4];
-    write_output_frame(
-        AudioFrame::Mono(0.8),
-        &[0, 2, 3],
-        &mut frame,
-        ChainOutputMixdown::Average,
-    );
-    assert!((frame[0] - 0.8).abs() < 1e-6);
-    assert!((frame[1] - 0.0).abs() < 1e-6);
-    assert!((frame[2] - 0.8).abs() < 1e-6);
-    assert!((frame[3] - 0.8).abs() < 1e-6);
-}
-
-#[test]
-fn write_output_frame_stereo_to_zero_channels() {
-    use super::write_output_frame;
-    use project::chain::ChainOutputMixdown;
-    let mut frame = [0.0f32; 2];
-    // Empty channels — should not write anything
-    write_output_frame(
-        AudioFrame::Stereo([0.5, 0.7]),
-        &[],
-        &mut frame,
-        ChainOutputMixdown::Average,
-    );
-    assert_eq!(frame, [0.0, 0.0]);
-}
-
-#[test]
-fn write_output_frame_stereo_to_one_channel_uses_mixdown() {
-    use super::write_output_frame;
-    use project::chain::ChainOutputMixdown;
-    let mut frame = [0.0f32; 2];
-    write_output_frame(
-        AudioFrame::Stereo([0.4, 0.8]),
-        &[0],
-        &mut frame,
-        ChainOutputMixdown::Average,
-    );
-    // Average of 0.4 and 0.8 = 0.6
-    assert!((frame[0] - 0.6).abs() < 1e-6);
-}
-
-#[test]
-fn write_output_frame_stereo_to_two_channels_preserves_lr() {
-    use super::write_output_frame;
-    use project::chain::ChainOutputMixdown;
-    let mut frame = [0.0f32; 4];
-    write_output_frame(
-        AudioFrame::Stereo([0.3, 0.7]),
-        &[1, 3],
-        &mut frame,
-        ChainOutputMixdown::Average,
-    );
-    assert!((frame[0] - 0.0).abs() < 1e-6);
-    assert!((frame[1] - 0.3).abs() < 1e-6);
-    assert!((frame[2] - 0.0).abs() < 1e-6);
-    assert!((frame[3] - 0.7).abs() < 1e-6);
-}
-
-// ── read_input_frame tests ───────────────────────────────────────────────
-
-#[test]
-fn read_input_frame_mono_reads_correct_channel() {
-    use super::read_input_frame;
-    let data = [0.1, 0.9, 0.5, 0.3];
-    let frame = read_input_frame(AudioChannelLayout::Mono, &[2], &data);
-    assert!(matches!(frame, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
-}
-
-#[test]
-fn read_input_frame_stereo_reads_two_channels() {
-    use super::read_input_frame;
-    let data = [0.1, 0.2, 0.3, 0.4];
-    let frame = read_input_frame(AudioChannelLayout::Stereo, &[1, 3], &data);
-    match frame {
-        AudioFrame::Stereo([l, r]) => {
-            assert!((l - 0.2).abs() < 1e-6);
-            assert!((r - 0.4).abs() < 1e-6);
-        }
-        _ => panic!("expected stereo"),
-    }
-}
-
-#[test]
-fn read_input_frame_out_of_bounds_returns_zero() {
-    use super::read_input_frame;
-    let data = [0.5f32; 2];
-    let frame = read_input_frame(AudioChannelLayout::Mono, &[99], &data);
-    assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
-}
-
-// ── silent_frame tests ───────────────────────────────────────────────────
-
-#[test]
-fn silent_frame_mono_is_zero() {
-    use super::silent_frame;
-    let frame = silent_frame(AudioChannelLayout::Mono);
-    assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
-}
-
-#[test]
-fn silent_frame_stereo_is_zero() {
-    use super::silent_frame;
-    let frame = silent_frame(AudioChannelLayout::Stereo);
-    assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
-}
-
-// ── build_runtime_graph edge cases ───────────────────────────────────────
-
-#[test]
-fn build_runtime_graph_skips_disabled_chains() {
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("disabled".into()),
-            description: None,
-            instrument: "electric_guitar".to_string(),
-            enabled: false,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: vec![],
-        }],
-        midi: None,
-    };
-
-    let runtime = build_runtime_graph(&project, &HashMap::new(), &HashMap::new(), &[])
-        .expect("build should succeed with disabled chain");
-    assert!(
-        runtime.chains.is_empty(),
-        "disabled chains should be skipped"
-    );
-}
-
-#[test]
-fn build_runtime_graph_errors_on_missing_sample_rate() {
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![Chain {
-            id: ChainId("chain:0".into()),
-            description: None,
-            instrument: "electric_guitar".to_string(),
-            enabled: true,
-            volume: 100.0,
-            io_binding_ids: vec![],
-            blocks: vec![],
-        }],
-        midi: None,
-    };
-
-    let result = build_runtime_graph(&project, &HashMap::new(), &HashMap::new(), &[]);
-    assert!(
-        result.is_err(),
-        "should error when chain has no sample rate"
-    );
-}
-
-// ── RuntimeGraph methods ─────────────────────────────────────────────────
-
-#[test]
-fn runtime_graph_remove_chain_removes_entry() {
-    let chain = tuner_track("chain:remove", Vec::new());
-    let mut rates = HashMap::new();
-    rates.insert(ChainId("chain:remove".into()), 48_000.0);
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![chain],
-        midi: None,
-    };
-    let mut graph = build_runtime_graph(&project, &rates, &HashMap::new(), &[]).unwrap();
-    assert_eq!(graph.chains.len(), 1);
-    graph.remove_chain(&ChainId("chain:remove".into()));
-    assert!(graph.chains.is_empty());
-}
-
-#[test]
-fn runtime_graph_runtime_for_chain_returns_none_for_unknown() {
-    use super::RuntimeGraph;
-    let graph = RuntimeGraph {
-        chains: HashMap::new(),
-    };
-    assert!(graph
-        .runtime_for_chain(&ChainId("nonexistent".into()))
-        .is_none());
-}
-
-#[test]
-fn runtime_graph_upsert_chain_creates_new_entry() {
-    use super::RuntimeGraph;
-    let mut graph = RuntimeGraph {
-        chains: HashMap::new(),
-    };
-    let chain = tuner_track("chain:new", Vec::new());
-    let result = graph.upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[]);
-    assert!(result.is_ok());
-    assert_eq!(graph.chains.len(), 1);
-}
-
-#[test]
-fn runtime_graph_upsert_chain_updates_existing() {
-    use super::RuntimeGraph;
-    let mut graph = RuntimeGraph {
-        chains: HashMap::new(),
-    };
-    let chain = tuner_track("chain:upsert", vec![tuner_block("b:0", 440.0)]);
-    graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[])
-        .unwrap();
-    // Update — should reuse existing entry
-    let chain2 = tuner_track("chain:upsert", vec![tuner_block("b:0", 445.0)]);
-    let result = graph.upsert_chain(&chain2, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &[]);
-    assert!(result.is_ok());
-    assert_eq!(graph.chains.len(), 1);
-}
-
-#[test]
-fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
-    // Reproduces the exact path the volume slider takes:
-    //   slider → Command::SetChainVolume (mutates Project.chain.volume)
-    //   → sync_live_chain_runtime → controller.upsert_chain_with_resolved
-    //   → RuntimeGraph::upsert_chain (called unconditionally, ln 501 controller.rs)
-    // The audio thread reads `runtime.volume_pct()` every output callback,
-    // so after a volume edit on a LIVE (already-running) chain the runtime's
-    // volume_pct MUST reflect the new value — without this, moving the
-    // slider does nothing audible.
-    use super::RuntimeGraph;
-    let mut graph = RuntimeGraph {
-        chains: HashMap::new(),
-    };
-    let mut chain = io_passthrough_chain("chain:vol");
-    chain.volume = 100.0;
-    graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-        .unwrap();
-    let rt = graph.runtime_for_chain(&chain.id).expect("runtime exists");
-    assert_eq!(rt.volume_pct(), 100.0, "initial volume must be 100");
-
-    // User drags the slider → 150. Same call the controller makes for a
-    // live chain (needs_stream_rebuild = false → fast in-place path).
-    chain.volume = 150.0;
-    graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-        .unwrap();
-    let rt2 = graph.runtime_for_chain(&chain.id).expect("runtime exists");
-    assert_eq!(
-        rt2.volume_pct(),
-        150.0,
-        "volume change did NOT reach the live runtime — slider is dead"
-    );
-}
-
-#[test]
-fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_input() {
-    // The user's real bug: a chain with TWO input devices (CPM 22:
-    // Scarlett + TEYUN). The cpal callbacks capture `Arc<ChainRuntimeState>`
-    // at stream-build time. A volume edit does NOT change the stream
-    // signature, so `needs_stream_rebuild = false` and the callbacks keep
-    // their original Arcs. If `upsert_chain`'s multi-input path drops those
-    // Arcs and inserts brand-new ones, the live callbacks read the OLD
-    // volume forever — moving the slider does nothing for multi-input chains.
-    //
-    // This test simulates the callback by holding the Arcs obtained BEFORE
-    // the volume edit, then asserts they observe the new volume after the
-    // same `upsert_chain(needs_stream_rebuild=false)` the controller runs.
-    use super::RuntimeGraph;
-
-    fn two_device_chain(id: &str, volume: f32) -> Chain {
-        // Two input endpoints (scarlett + teyun) resolve from
-        // `io_registry_two_device()`; head/tail no longer live in the chain.
-        Chain {
-            id: ChainId(id.into()),
-            description: Some("two guitars".into()),
-            instrument: "electric_guitar".to_string(),
-            enabled: true,
-            volume,
-            io_binding_ids: vec![IO_BINDING_ID.into()],
-            blocks: vec![],
-        }
-    }
-
-    let mut graph = RuntimeGraph {
-        chains: HashMap::new(),
-    };
-    let mut chain = two_device_chain("chain:2dev", 100.0);
-    graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), true, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
-        .unwrap();
-
-    // The cpal callbacks capture these Arcs at stream-build time and keep
-    // them until the stream is rebuilt (which a volume edit does NOT do).
-    let held: Vec<Arc<super::ChainRuntimeState>> = graph.runtimes_for(&chain.id);
-    assert!(held.len() >= 2, "fixture: expected ≥2 per-input runtimes");
-
-    // User drags volume → 150. Same call the controller makes for a live
-    // chain whose stream signature is unchanged: needs_stream_rebuild=false.
-    chain.volume = 150.0;
-    graph
-        .upsert_chain(&chain, 48_000.0, &HashMap::new(), false, &[DEFAULT_ELASTIC_TARGET], &io_registry_two_device())
-        .unwrap();
-
-    for (i, rt) in held.iter().enumerate() {
-        assert_eq!(
-            rt.volume_pct(),
-            150.0,
-            "runtime #{i} held by the live cpal callback still reads the OLD \
-             volume — multi-input volume edit never reaches the audio thread"
-        );
-    }
-}
-
-// ── process_output_f32 edge cases ────────────────────────────────────────
-
-#[test]
-fn process_output_fills_silence_for_invalid_output_index() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    let mut out = vec![1.0f32; 8];
-    process_output_f32(&runtime, 999, &mut out, 1);
-
-    assert!(
-        out.iter().all(|&v| v == 0.0),
-        "invalid output index should fill with silence"
-    );
-}
-
-#[test]
-fn process_output_underrun_returns_silence_not_last_frame() {
-    // Issue #496: was `..._repeats_last_frame` and pinned the
-    // "brief sustain on underrun" form, which produced broadband
-    // noise on every chain. Standard DAW behavior is silence on
-    // underrun (a tiny gap is musically inaudible, repeated samples
-    // are not).
-    let chain = io_passthrough_chain("chain:underrun");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-    let warmup = vec![0.0f32; FADE_IN_FRAMES + 16];
-    process_input_f32(&runtime, 0, &warmup, 1);
-    let mut drain = vec![0.0f32; warmup.len()];
-    process_output_f32(&runtime, 0, &mut drain, 1);
-
-    process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
-    let mut out = vec![0.0f32; 4];
-    process_output_f32(&runtime, 0, &mut out, 1);
-
-    assert!(
-        (out[0] - 0.5).abs() < 1e-6,
-        "frame 0 should be 0.5, got {}",
-        out[0]
-    );
-    assert!(
-        (out[1] - 0.7).abs() < 1e-6,
-        "frame 1 should be 0.7, got {}",
-        out[1]
-    );
-    assert!(
-        out[2].abs() < 1e-6,
-        "frame 2 should be silence (underrun), got {}",
-        out[2]
-    );
-    assert!(
-        out[3].abs() < 1e-6,
-        "frame 3 should be silence (underrun), got {}",
-        out[3]
-    );
-}
-
-// ── ChainRuntimeState method tests ───────────────────────────────────────
-
-#[test]
-fn measured_latency_ms_returns_zero_initially() {
-    let chain = tuner_track("chain:0", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
-    assert!((runtime.measured_latency_ms() - 0.0).abs() < 1e-6);
-}
-
-#[test]
-fn poll_errors_drains_and_returns_all() {
-    let chain = tuner_track("chain:0", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
-    // Manually push errors
-    runtime
-        .error_queue
-        .push(BlockError {
-            block_id: BlockId("err:1".into()),
-            message: "oops".into(),
-        })
-        .unwrap();
-    runtime
-        .error_queue
-        .push(BlockError {
-            block_id: BlockId("err:2".into()),
-            message: "boom".into(),
-        })
-        .unwrap();
-    let errors = runtime.poll_errors();
-    assert_eq!(errors.len(), 2);
-    // Second call should be empty
-    let errors2 = runtime.poll_errors();
-    assert!(errors2.is_empty(), "poll_errors should drain the queue");
-}
-
-#[test]
-fn poll_stream_returns_none_for_unknown_block() {
-    let chain = tuner_track("chain:0", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
-    assert!(runtime
-        .poll_stream(&BlockId("nonexistent".into()))
-        .is_none());
-}
 
 // ── effective_inputs / effective_outputs with Insert blocks ───────────────
 
@@ -1768,7 +482,7 @@ fn poll_stream_returns_none_for_unknown_block() {
 /// stay identical to the legacy layout. The `"fx"` binding mirrors the legacy
 /// inline insert send/return (#716, model A): send = the binding's stereo
 /// OUTPUT (send_dev), return = its stereo INPUT (return_dev).
-fn insert_registry() -> Vec<domain::io_binding::IoBinding> {
+pub(super) fn insert_registry() -> Vec<domain::io_binding::IoBinding> {
     vec![
         domain::io_binding::IoBinding {
             id: IO_BINDING_ID.into(),
@@ -1805,7 +519,8 @@ fn insert_registry() -> Vec<domain::io_binding::IoBinding> {
     ]
 }
 
-fn insert_chain() -> Chain {
+
+pub(super) fn insert_chain() -> Chain {
     Chain {
         id: ChainId("chain:insert".into()),
         description: None,
@@ -1862,315 +577,10 @@ fn insert_chain() -> Chain {
                 }),
             },
         ],
+        di_output: None,
     }
 }
 
-#[test]
-fn effective_inputs_includes_insert_return() {
-    let chain = insert_chain();
-    let (resolved_in, _resolved_out) =
-        crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
-    let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved_in, &insert_registry());
-    // Should have: 1 regular input + 1 insert return = 2
-    assert_eq!(eff_inputs.len(), 2);
-    assert_eq!(cpal_indices.len(), 2);
-}
-
-#[test]
-fn effective_outputs_includes_insert_send() {
-    let chain = insert_chain();
-    let (_resolved_in, resolved_out) =
-        crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
-    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
-    // Should have: 1 regular output + 1 insert send = 2
-    assert_eq!(eff_outputs.len(), 2);
-    assert_eq!(eff_outputs.len(), 2);
-}
-
-#[test]
-fn split_chain_with_insert_produces_two_segments() {
-    let chain = insert_chain();
-    let (resolved_in, resolved_out) =
-        crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
-    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
-        effective_inputs(&chain, &resolved_in, &insert_registry());
-    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
-    let segments = split_chain_into_segments(
-        &chain,
-        &eff_inputs,
-        &cpal_indices,
-        &split_positions,
-        &entry_groups,
-        &eff_outputs,
-        &insert_registry(),
-    );
-
-    // Should have 2 segments: before insert and after insert
-    assert_eq!(
-        segments.len(),
-        2,
-        "insert should split chain into 2 segments"
-    );
-
-    // Segment 0: input → [comp:0] → insert send
-    assert_eq!(
-        segments[0].block_indices,
-        vec![1],
-        "first segment should contain only effect blocks before insert"
-    );
-
-    // Segment 1: insert return → [delay:0] → output
-    assert_eq!(
-        segments[1].block_indices,
-        vec![3],
-        "second segment should contain only effect blocks after insert"
-    );
-}
-
-#[test]
-fn split_chain_with_disabled_insert_produces_one_segment() {
-    let mut chain = insert_chain();
-    // Disable the insert block
-    chain.blocks[2].enabled = false;
-    let (resolved_in, resolved_out) =
-        crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
-    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
-        effective_inputs(&chain, &resolved_in, &insert_registry());
-    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
-    let segments = split_chain_into_segments(
-        &chain,
-        &eff_inputs,
-        &cpal_indices,
-        &split_positions,
-        &entry_groups,
-        &eff_outputs,
-        &insert_registry(),
-    );
-
-    // Disabled insert should not split the chain
-    assert_eq!(
-        segments.len(),
-        1,
-        "disabled insert should not split the chain"
-    );
-}
-
-// ── #716: per-binding routing (no cross-binding) ──────────────────────────
-
-#[test]
-fn split_two_bindings_pairs_each_input_with_its_own_binding_output() {
-    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-    fn b(id: &str, dev: &str) -> IoBinding {
-        IoBinding {
-            id: id.into(),
-            name: id.into(),
-            inputs: vec![IoEndpoint {
-                name: "In".into(),
-                device_id: DeviceId(format!("{dev}-in")),
-                mode: ChannelMode::Mono,
-                channels: vec![0],
-            }],
-            outputs: vec![IoEndpoint {
-                name: "Out".into(),
-                device_id: DeviceId(format!("{dev}-out")),
-                mode: ChannelMode::Stereo,
-                channels: vec![0, 1],
-            }],
-        }
-    }
-    let reg = vec![b("scarlet", "scarlett"), b("teyun", "teyun")];
-    let mut chain = empty_chain("rig:input-1");
-    chain.io_binding_ids = vec!["scarlet".into(), "teyun".into()];
-
-    let (rin, rout) = crate::runtime_endpoints::resolve_chain_io(&chain, &reg);
-    let (eff_in, cpal, splits, groups) = effective_inputs(&chain, &rin, &reg);
-    let eff_out = effective_outputs(&chain, &rout, &reg);
-    let segments =
-        split_chain_into_segments(&chain, &eff_in, &cpal, &splits, &groups, &eff_out, &reg);
-
-    let scarlet_out = eff_out
-        .iter()
-        .position(|o| o.device_id.0 == "scarlett-out")
-        .unwrap();
-
-    // No cross-routing: the TEYUN input must never reach the SCARLET output.
-    assert!(
-        !segments.iter().any(|s| s.input.device_id.0 == "teyun-in"
-            && s.output_route_indices.contains(&scarlet_out)),
-        "cross-binding routing: TEYUN input reached the SCARLET output"
-    );
-    // Sanity: the TEYUN input still routes somewhere (to its own output).
-    assert!(
-        segments.iter().any(|s| s.input.device_id.0 == "teyun-in"),
-        "the TEYUN input must still produce a segment"
-    );
-}
-
-// ── effective_inputs with mono multi-channel splitting ────────────────────
-
-#[test]
-fn effective_inputs_splits_mono_multichannel_entry() {
-    let chain = empty_chain("chain:split");
-    // A single mono endpoint spanning 3 channels (as resolved from a binding).
-    let resolved = vec![InputEntry {
-        device_id: DeviceId("dev".into()),
-        mode: ChainInputMode::Mono,
-        channels: vec![0, 1, 2],
-    }];
-    let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved, &[]);
-    assert_eq!(
-        eff_inputs.len(),
-        3,
-        "mono entry with 3 channels should split into 3 entries"
-    );
-    assert_eq!(eff_inputs[0].channels, vec![0]);
-    assert_eq!(eff_inputs[1].channels, vec![1]);
-    assert_eq!(eff_inputs[2].channels, vec![2]);
-    // All should share the same CPAL stream index
-    assert_eq!(cpal_indices[0], cpal_indices[1]);
-    assert_eq!(cpal_indices[1], cpal_indices[2]);
-}
-
-// ── effective_inputs / outputs fallback ───────────────────────────────────
-
-#[test]
-fn effective_inputs_fallback_when_no_input_blocks() {
-    let chain = empty_chain("chain:fallback");
-    // No resolved inputs (no binding selected) → fallback.
-    let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &[], &[]);
-    assert_eq!(
-        eff_inputs.len(),
-        1,
-        "fallback should produce exactly 1 input"
-    );
-    assert_eq!(cpal_indices, vec![0]);
-}
-
-#[test]
-fn effective_outputs_fallback_when_no_output_blocks() {
-    let chain = empty_chain("chain:fallback");
-    // No resolved outputs (no binding selected) → fallback.
-    let eff_outputs = effective_outputs(&chain, &[], &[]);
-    assert_eq!(
-        eff_outputs.len(),
-        1,
-        "fallback should produce exactly 1 output"
-    );
-}
-
-// ── downcast_panic_message tests ─────────────────────────────────────────
-
-#[test]
-fn downcast_panic_str_message() {
-    use super::downcast_panic_message;
-    let payload: Box<dyn std::any::Any + Send> = Box::new("static string");
-    assert_eq!(downcast_panic_message(payload), "static string");
-}
-
-#[test]
-fn downcast_panic_string_message() {
-    use super::downcast_panic_message;
-    let payload: Box<dyn std::any::Any + Send> = Box::new(String::from("owned string"));
-    assert_eq!(downcast_panic_message(payload), "owned string");
-}
-
-#[test]
-fn downcast_panic_unknown_type_message() {
-    use super::downcast_panic_message;
-    let payload: Box<dyn std::any::Any + Send> = Box::new(42i32);
-    assert_eq!(downcast_panic_message(payload), "unknown panic");
-}
-
-// ── process_input_f32 with stereo I/O ────────────────────────────────────
-
-#[test]
-fn process_input_stereo_output_preserves_channels() {
-    let chain = Chain {
-        id: ChainId("chain:stereo-io".into()),
-        description: None,
-        instrument: "electric_guitar".to_string(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec![IO_BINDING_ID.into()],
-        blocks: vec![],
-    };
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_stereo())
-            .expect("runtime should build"),
-    );
-
-    // Push enough frames to get past fade-in (interleaved stereo)
-    let warmup = vec![0.0f32; (FADE_IN_FRAMES + 16) * 2];
-    process_input_f32(&runtime, 0, &warmup, 2);
-    let mut drain = vec![0.0f32; warmup.len()];
-    process_output_f32(&runtime, 0, &mut drain, 2);
-
-    // Interleaved stereo: L=0.3, R=0.7, L=0.5, R=0.9
-    let input = [0.3f32, 0.7, 0.5, 0.9];
-    process_input_f32(&runtime, 0, &input, 2);
-
-    let mut out = vec![0.0f32; 4];
-    process_output_f32(&runtime, 0, &mut out, 2);
-
-    assert!(
-        (out[0] - 0.3).abs() < 1e-6,
-        "left ch frame 0: got {}",
-        out[0]
-    );
-    assert!(
-        (out[1] - 0.7).abs() < 1e-6,
-        "right ch frame 0: got {}",
-        out[1]
-    );
-    assert!(
-        (out[2] - 0.5).abs() < 1e-6,
-        "left ch frame 1: got {}",
-        out[2]
-    );
-    assert!(
-        (out[3] - 0.9).abs() < 1e-6,
-        "right ch frame 1: got {}",
-        out[3]
-    );
-}
-
-// ── update_chain_runtime_state with reset_output_queue ───────────────────
-
-#[test]
-fn update_chain_runtime_state_with_reset_output_queue() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    // Push some data
-    process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
-
-    // Update with reset_output_queue=true should clear the buffer
-    update_chain_runtime_state(&runtime, &chain, 48_000.0, true, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-        .expect("update should succeed");
-
-    let mut out = vec![0.0f32; 2];
-    process_output_f32(&runtime, 0, &mut out, 1);
-    // After reset, output should be silence (no frames in queue)
-    assert!(
-        out.iter().all(|&v| v.abs() < 1e-6),
-        "after reset_output_queue, output should be silent"
-    );
-}
-
-// ── layout_label tests ───────────────────────────────────────────────────
-
-#[test]
-fn layout_label_returns_correct_strings() {
-    use super::layout_label;
-    assert_eq!(layout_label(AudioChannelLayout::Mono), "mono");
-    assert_eq!(layout_label(AudioChannelLayout::Stereo), "stereo");
-}
 
 // ── insert_return_as_input_entry tests ──────────────────────────────────
 
@@ -2178,7 +588,7 @@ fn layout_label_returns_correct_strings() {
 /// send/return — model A (#716): send = the binding's OUTPUT, return = its
 /// INPUT. `(send_mode, send_channels)` and `(ret_mode, ret_channels)` map to
 /// the corresponding endpoint.
-fn fx_registry(
+pub(super) fn fx_registry(
     send_mode: domain::io_binding::ChannelMode,
     send_channels: Vec<usize>,
     ret_mode: domain::io_binding::ChannelMode,
@@ -2202,770 +612,10 @@ fn fx_registry(
     }]
 }
 
-fn fx_insert() -> InsertBlock {
+
+pub(super) fn fx_insert() -> InsertBlock {
     InsertBlock {
         model: "external_loop".into(),
         io: "fx".into(),
     }
-}
-
-#[test]
-fn insert_return_as_input_entry_copies_return_endpoint() {
-    use super::insert_return_as_input_entry;
-    use domain::io_binding::ChannelMode;
-    let reg = fx_registry(ChannelMode::Stereo, vec![0, 1], ChannelMode::Mono, vec![2]);
-    let entry = insert_return_as_input_entry(&fx_insert(), &reg).expect("return resolves");
-    assert_eq!(entry.device_id.0, "return_dev");
-    assert_eq!(entry.channels, vec![2]);
-    assert!(matches!(entry.mode, ChainInputMode::Mono));
-}
-
-// ── insert_send_as_output_entry tests ───────────────────────────────────
-
-#[test]
-fn insert_send_as_output_entry_mono_mode() {
-    use super::insert_send_as_output_entry;
-    use domain::io_binding::ChannelMode;
-    let reg = fx_registry(ChannelMode::Mono, vec![0], ChannelMode::Stereo, vec![0, 1]);
-    let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
-    assert_eq!(entry.device_id.0, "send_dev");
-    assert_eq!(entry.channels, vec![0]);
-    assert!(matches!(entry.mode, ChainOutputMode::Mono));
-}
-
-#[test]
-fn insert_send_as_output_entry_stereo_mode() {
-    use super::insert_send_as_output_entry;
-    use domain::io_binding::ChannelMode;
-    let reg = fx_registry(ChannelMode::Stereo, vec![0, 1], ChannelMode::Mono, vec![0]);
-    let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
-    assert!(matches!(entry.mode, ChainOutputMode::Stereo));
-}
-
-#[test]
-fn insert_send_as_output_entry_dual_mono_becomes_stereo() {
-    use super::insert_send_as_output_entry;
-    use domain::io_binding::ChannelMode;
-    let reg = fx_registry(ChannelMode::DualMono, vec![0, 1], ChannelMode::Mono, vec![0]);
-    let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
-    assert!(matches!(entry.mode, ChainOutputMode::Stereo));
-}
-
-// ── next_block_instance_serial tests ────────────────────────────────────
-
-#[test]
-fn next_block_instance_serial_increments() {
-    use super::next_block_instance_serial;
-    let a = next_block_instance_serial();
-    let b = next_block_instance_serial();
-    assert!(b > a, "serial should increment monotonically");
-}
-
-// ── build_output_routing_state tests ────────────────────────────────────
-
-#[test]
-fn build_output_routing_state_mono_single_channel() {
-    use super::build_output_routing_state;
-    let output = OutputEntry {
-        device_id: DeviceId("dev".into()),
-        mode: ChainOutputMode::Mono,
-        channels: vec![0],
-    };
-    let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0);
-    assert_eq!(state.output_channels, vec![0]);
-}
-
-#[test]
-fn build_output_routing_state_stereo_two_channels() {
-    use super::build_output_routing_state;
-    let output = OutputEntry {
-        device_id: DeviceId("dev".into()),
-        mode: ChainOutputMode::Stereo,
-        channels: vec![0, 1],
-    };
-    let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0);
-    assert_eq!(state.output_channels, vec![0, 1]);
-}
-
-#[test]
-fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
-    use super::build_output_routing_state;
-    let output = OutputEntry {
-        device_id: DeviceId("dev".into()),
-        mode: ChainOutputMode::Mono,
-        channels: vec![0, 1],
-    };
-    let _state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0);
-    // Mono mode with 2 channels: layout should be Mono per the logic
-    // Just verifying it doesn't panic and runs correctly
-}
-
-// ── read_channel edge cases ─────────────────────────────────────────────
-
-#[test]
-fn read_channel_valid_index() {
-    use super::read_channel;
-    let data = [0.1, 0.2, 0.3];
-    assert!((read_channel(&data, 1) - 0.2).abs() < 1e-6);
-}
-
-#[test]
-fn read_channel_out_of_bounds_returns_zero() {
-    use super::read_channel;
-    let data = [0.5, 0.7];
-    assert!((read_channel(&data, 10)).abs() < 1e-6);
-}
-
-#[test]
-fn read_channel_empty_data_returns_zero() {
-    use super::read_channel;
-    let data: [f32; 0] = [];
-    assert!((read_channel(&data, 0)).abs() < 1e-6);
-}
-
-// ── runtime graph with multiple chains ──────────────────────────────────
-
-#[test]
-fn build_runtime_graph_with_multiple_enabled_chains() {
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![
-            tuner_track("chain:0", Vec::new()),
-            tuner_track("chain:1", vec![tuner_block("b:0", 440.0)]),
-        ],
-        midi: None,
-    };
-    let mut rates = HashMap::new();
-    rates.insert(ChainId("chain:0".into()), 48_000.0);
-    rates.insert(ChainId("chain:1".into()), 48_000.0);
-
-    let runtime = build_runtime_graph(&project, &rates, &HashMap::new(), &[])
-        .expect("should build with multiple chains");
-    assert_eq!(runtime.chains.len(), 2);
-}
-
-#[test]
-fn build_runtime_graph_mixed_enabled_and_disabled() {
-    let project = Project {
-        name: None,
-        device_settings: Vec::new(),
-        chains: vec![
-            Chain {
-                id: ChainId("disabled".into()),
-                description: None,
-                instrument: "electric_guitar".to_string(),
-                enabled: false,
-                volume: 100.0,
-                io_binding_ids: vec![],
-                blocks: vec![],
-            },
-            tuner_track("enabled", vec![tuner_block("b:0", 440.0)]),
-        ],
-        midi: None,
-    };
-    let mut rates = HashMap::new();
-    rates.insert(ChainId("enabled".into()), 48_000.0);
-
-    let runtime = build_runtime_graph(&project, &rates, &HashMap::new(), &[]).unwrap();
-    assert_eq!(runtime.chains.len(), 1);
-    assert!(!runtime.runtimes_for(&ChainId("enabled".into())).is_empty());
-}
-
-// ── process_input_f32 edge cases ────────────────────────────────────────
-
-#[test]
-fn process_input_with_empty_data_does_not_panic() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-    process_input_f32(&runtime, 0, &[], 1);
-}
-
-#[test]
-fn process_input_with_invalid_index_does_not_panic() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-    process_input_f32(&runtime, 999, &[0.5, 0.7], 1);
-}
-
-// ── input tap ───────────────────────────────────────────────────────────
-
-#[test]
-fn subscribe_input_tap_receives_pre_fx_samples() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    // Subscribe to input 0, channel 0 (mono input).
-    let rings = runtime.subscribe_input_tap(0, 1, &[0], 256);
-    assert_eq!(rings.len(), 1, "one ring per subscribed channel");
-
-    // Feed a known buffer through process_input_f32.
-    let data = [0.1_f32, 0.2, 0.3, 0.4];
-    process_input_f32(&runtime, 0, &data, 1);
-
-    // Drain the ring and confirm the same samples landed pre-FX.
-    let mut received = Vec::new();
-    while let Some(s) = rings[0].pop() {
-        received.push(s);
-    }
-    assert_eq!(received, vec![0.1, 0.2, 0.3, 0.4]);
-}
-
-#[test]
-fn subscribe_input_tap_only_targets_matching_input_index() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    let rings = runtime.subscribe_input_tap(0, 1, &[0], 256);
-
-    // Push to a *different* input index — tap should not see the samples.
-    process_input_f32(&runtime, 99, &[0.5, 0.6], 1);
-    assert!(
-        rings[0].pop().is_none(),
-        "tap on input 0 must ignore input 99"
-    );
-}
-
-#[test]
-fn prune_dead_input_taps_removes_unused() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    {
-        let rings = runtime.subscribe_input_tap(0, 1, &[0], 64);
-        assert_eq!(rings.len(), 1);
-        assert_eq!(runtime.input_taps.load().len(), 1);
-    }
-    // rings out of scope — only the runtime's InputTap holds the channel
-    // ring Arc, so its strong_count == 1 and prune drops it.
-    runtime.prune_dead_input_taps();
-    assert_eq!(runtime.input_taps.load().len(), 0);
-}
-
-// ── stream tap ──────────────────────────────────────────────────────────
-
-#[test]
-fn subscribe_stream_tap_receives_post_fx_stereo() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    // Subscribe to stream 0 (the chain's single input pipeline).
-    let [l_ring, r_ring] = runtime.subscribe_stream_tap(0, 256);
-
-    // Drive the chain so the segment's frame_buffer has known data.
-    process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
-
-    // Mono input is upmixed before FX → both rings receive the same
-    // samples after the (no-op) processing of the passthrough chain.
-    let mut left = Vec::new();
-    while let Some(s) = l_ring.pop() {
-        left.push(s);
-    }
-    let mut right = Vec::new();
-    while let Some(s) = r_ring.pop() {
-        right.push(s);
-    }
-    assert_eq!(left.len(), 4, "left ring got {left:?}");
-    assert_eq!(right.len(), 4, "right ring got {right:?}");
-}
-
-#[test]
-fn subscribe_stream_tap_only_targets_matching_stream_index() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    // Subscribe to a stream that does not exist (chain has only one).
-    let [l_ring, r_ring] = runtime.subscribe_stream_tap(99, 256);
-    process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
-    assert!(
-        l_ring.pop().is_none(),
-        "tap on stream 99 must ignore segment 0"
-    );
-    assert!(r_ring.pop().is_none());
-}
-
-#[test]
-fn stream_tap_publishes_independent_of_output_mute() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    let [l_ring, r_ring] = runtime.subscribe_stream_tap(0, 256);
-    // Mute the output — the device buffer will be zero, but the
-    // stream tap is dispatched **before** the output stage so the
-    // analyzer keeps receiving samples.
-    runtime.set_output_muted(true);
-    process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
-    let mut out = vec![0.0_f32; 4];
-    process_output_f32(&runtime, 0, &mut out, 1);
-
-    assert!(
-        out.iter().all(|&s| s == 0.0),
-        "muted device output must be zero, got {:?}",
-        out
-    );
-    // Stream tap kept feeding the analyzer.
-    let mut left = Vec::new();
-    while let Some(s) = l_ring.pop() {
-        left.push(s);
-    }
-    let mut right = Vec::new();
-    while let Some(s) = r_ring.pop() {
-        right.push(s);
-    }
-    assert_eq!(left.len(), 4);
-    assert_eq!(right.len(), 4);
-}
-
-#[test]
-fn prune_dead_stream_taps_removes_unused() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    {
-        let _rings = runtime.subscribe_stream_tap(0, 64);
-        assert_eq!(runtime.stream_taps.load().len(), 1);
-    }
-    runtime.prune_dead_stream_taps();
-    assert_eq!(runtime.stream_taps.load().len(), 0);
-}
-
-// ── output_muted flag ────────────────────────────────────────────────────
-
-#[test]
-fn output_muted_defaults_to_false() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    assert!(!runtime.is_output_muted());
-}
-
-#[test]
-fn set_output_muted_round_trips() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    runtime.set_output_muted(true);
-    assert!(runtime.is_output_muted());
-
-    runtime.set_output_muted(false);
-    assert!(!runtime.is_output_muted());
-}
-
-#[test]
-fn output_muted_zeros_process_output_buffer() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    // Push some samples through the input so the chain has data
-    // available when process_output_f32 runs.
-    process_input_f32(&runtime, 0, &[0.1, 0.2, 0.3, 0.4], 1);
-
-    runtime.set_output_muted(true);
-    let mut out = vec![0.5_f32; 4];
-    process_output_f32(&runtime, 0, &mut out, 1);
-    assert!(
-        out.iter().all(|&s| s == 0.0),
-        "muted output must be all zero, got {:?}",
-        out
-    );
-}
-
-#[test]
-fn output_muted_unset_does_not_zero_buffer() {
-    let chain = io_passthrough_chain("chain:0");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    // Drive a known signal through input → passthrough → output.
-    process_input_f32(&runtime, 0, &[0.1, 0.2, 0.3, 0.4], 1);
-    let mut out = vec![0.0_f32; 4];
-    process_output_f32(&runtime, 0, &mut out, 1);
-
-    // With the mute flag off, the output buffer must contain the
-    // forwarded samples — at least one frame is non-zero.
-    assert!(
-        out.iter().any(|&s| s != 0.0),
-        "unmuted passthrough output must have non-zero samples, got {:?}",
-        out
-    );
-}
-
-// ── effective_inputs with stereo entry does not split ────────────────────
-
-#[test]
-fn effective_inputs_stereo_entry_not_split() {
-    let chain = empty_chain("chain:stereo");
-    let resolved = vec![InputEntry {
-        device_id: DeviceId("dev".into()),
-        mode: ChainInputMode::Stereo,
-        channels: vec![0, 1],
-    }];
-    let (eff_inputs, _, _, _) = effective_inputs(&chain, &resolved, &[]);
-    assert_eq!(eff_inputs.len(), 1, "stereo entry should not be split");
-    assert_eq!(eff_inputs[0].channels, vec![0, 1]);
-}
-
-// ── effective_inputs with multiple input blocks ─────────────────────────
-
-#[test]
-fn effective_inputs_multiple_input_blocks() {
-    let chain = empty_chain("chain:multi-in");
-    // Two distinct-device mono endpoints (as resolved from a binding).
-    let resolved = vec![
-        InputEntry {
-            device_id: DeviceId("dev1".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        InputEntry {
-            device_id: DeviceId("dev2".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-    ];
-    let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved, &[]);
-    assert_eq!(eff_inputs.len(), 2);
-    assert_eq!(eff_inputs[0].device_id.0, "dev1");
-    assert_eq!(eff_inputs[1].device_id.0, "dev2");
-    // Different devices should have different CPAL indices
-    assert_ne!(cpal_indices[0], cpal_indices[1]);
-}
-
-// ── effective_inputs same device shares cpal index ──────────────────────
-
-#[test]
-fn effective_inputs_same_device_shares_cpal_index() {
-    let chain = empty_chain("chain:same-dev");
-    // Two same-device mono endpoints (as resolved from a binding).
-    let resolved = vec![
-        InputEntry {
-            device_id: DeviceId("same_dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
-        },
-        InputEntry {
-            device_id: DeviceId("same_dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![1],
-        },
-    ];
-    let (eff_inputs, cpal_indices, _split_positions, _entry_groups) =
-        effective_inputs(&chain, &resolved, &[]);
-    assert_eq!(eff_inputs.len(), 2);
-    assert_eq!(
-        cpal_indices[0], cpal_indices[1],
-        "same device should share CPAL index"
-    );
-}
-
-// ── build_chain_runtime_state with only effects (no I/O blocks) ─────────
-
-#[test]
-fn build_chain_runtime_state_no_io_blocks_uses_fallback() {
-    let chain = Chain {
-        id: ChainId("chain:no-io".into()),
-        description: None,
-        instrument: "electric_guitar".to_string(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![tuner_block("b:0", 440.0)],
-    };
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
-    assert!(runtime.is_ok(), "should build with fallback I/O");
-}
-
-// ── process passthrough chain round-trip ────────────────────────────────
-
-#[test]
-fn passthrough_chain_round_trip_preserves_signal() {
-    let chain = io_passthrough_chain("chain:rt");
-    let runtime = Arc::new(
-        build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &io_registry_mono())
-            .expect("runtime should build"),
-    );
-
-    // Warm up past fade-in
-    let warmup = vec![0.0f32; FADE_IN_FRAMES + 64];
-    process_input_f32(&runtime, 0, &warmup, 1);
-    let mut drain = vec![0.0f32; warmup.len()];
-    process_output_f32(&runtime, 0, &mut drain, 1);
-
-    // Now test actual signal
-    let input = [0.1f32, 0.2, 0.3, 0.4];
-    process_input_f32(&runtime, 0, &input, 1);
-    let mut out = vec![0.0f32; 4];
-    process_output_f32(&runtime, 0, &mut out, 1);
-
-    for (i, (&expected, &actual)) in input.iter().zip(out.iter()).enumerate() {
-        assert!(
-            (expected - actual).abs() < 1e-6,
-            "frame {i}: expected {expected}, got {actual}"
-        );
-    }
-}
-
-// ── ChainRuntimeState measured_latency_ms with stored nanos ─────────────
-
-#[test]
-fn measured_latency_ms_converts_nanos_correctly() {
-    let chain = tuner_track("chain:lat", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
-    // Store 5ms worth of nanos
-    runtime
-        .measured_latency_nanos
-        .store(5_000_000, std::sync::atomic::Ordering::Relaxed);
-    let ms = runtime.measured_latency_ms();
-    assert!((ms - 5.0).abs() < 1e-3, "expected ~5.0ms, got {ms}");
-}
-
-// ── Regression: clear_draining re-arms callback after teardown (#316) ────
-
-#[test]
-fn chain_runtime_state_clear_draining_resets_flag() {
-    // The draining flag is set by infra-cpal::teardown_active_chain_for_rebuild
-    // before dropping the old streams. The Arc<ChainRuntimeState> is then
-    // reused by the rebuild — without clear_draining the new streams' first
-    // callbacks observe is_draining()==true and silence audio for every
-    // segment (including sibling InputEntries on the same chain), until the
-    // chain is fully removed and re-added. See issue #316.
-    let chain = tuner_track("chain:drain", Vec::new());
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime should build");
-    runtime.set_draining();
-    assert!(runtime.is_draining(), "set_draining should arm the flag");
-    runtime.clear_draining();
-    assert!(
-        !runtime.is_draining(),
-        "clear_draining must reset the flag so a runtime reused across a teardown+rebuild can resume audio (#316)"
-    );
-}
-
-// ── Empty chain builds successfully ─────────────────────────────────────
-
-#[test]
-fn build_chain_runtime_state_empty_chain_succeeds() {
-    let chain = Chain {
-        id: ChainId("chain:empty".into()),
-        description: None,
-        instrument: "electric_guitar".to_string(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec![],
-        blocks: vec![],
-    };
-    let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
-    assert!(runtime.is_ok(), "empty chain should build successfully");
-}
-
-// ── ElasticBuffer push/pop FIFO order ───────────────────────────────────
-
-#[test]
-fn elastic_buffer_fifo_order() {
-    let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
-    for i in 0..10 {
-        buf.push(AudioFrame::Mono(i as f32 * 0.1));
-    }
-    for i in 0..10 {
-        let frame = buf.pop();
-        let expected = i as f32 * 0.1;
-        assert!(
-            matches!(frame, AudioFrame::Mono(v) if (v - expected).abs() < 1e-6),
-            "frame {i}: expected {expected}"
-        );
-    }
-}
-
-// ── RuntimeGraph remove non-existent chain ──────────────────────────────
-
-#[test]
-fn runtime_graph_remove_nonexistent_chain_no_panic() {
-    use super::RuntimeGraph;
-    let mut graph = RuntimeGraph {
-        chains: HashMap::new(),
-    };
-    graph.remove_chain(&ChainId("does_not_exist".into()));
-    assert!(graph.chains.is_empty());
-}
-
-// ── bypass_runtime_node tests ───────────────────────────────────────────
-
-#[test]
-fn bypass_runtime_node_has_bypass_processor() {
-    use super::bypass_runtime_node;
-    let block = AudioBlock {
-        id: BlockId("test:bypass".into()),
-        enabled: false,
-        kind: AudioBlockKind::Core(CoreBlock {
-            effect_type: "gain".into(),
-            model: "volume".into(),
-            params: ParameterSet::default(),
-        }),
-    };
-    let node = bypass_runtime_node(&block, AudioChannelLayout::Mono, true);
-    assert!(matches!(node.processor, RuntimeProcessor::Bypass));
-    assert_eq!(node.block_id.0, "test:bypass");
-    assert_eq!(node.input_layout, AudioChannelLayout::Mono);
-    assert_eq!(node.output_layout, AudioChannelLayout::Mono);
-}
-
-// ── SelectRuntimeState selected_node_mut ────────────────────────────────
-
-#[test]
-fn select_runtime_state_finds_selected_option() {
-    use super::SelectRuntimeState;
-    let mut state = SelectRuntimeState {
-        selected_block_id: BlockId("opt:b".into()),
-        options: vec![
-            counting_block_node(std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0))),
-            {
-                let mut node = counting_block_node(std::sync::Arc::new(
-                    std::sync::atomic::AtomicUsize::new(0),
-                ));
-                node.block_id = BlockId("opt:b".into());
-                node
-            },
-        ],
-    };
-    let found = state.selected_node_mut();
-    assert!(found.is_some());
-    assert_eq!(found.unwrap().block_id.0, "opt:b");
-}
-
-#[test]
-fn select_runtime_state_returns_none_when_no_match() {
-    use super::SelectRuntimeState;
-    let mut state = SelectRuntimeState {
-        selected_block_id: BlockId("nonexistent".into()),
-        options: vec![counting_block_node(std::sync::Arc::new(
-            std::sync::atomic::AtomicUsize::new(0),
-        ))],
-    };
-    assert!(state.selected_node_mut().is_none());
-}
-
-// ── processor_scratch tests ─────────────────────────────────────────────
-
-#[test]
-fn processor_scratch_mono_creates_mono_scratch() {
-    use super::processor_scratch;
-    struct NoopMono;
-    impl block_core::MonoProcessor for NoopMono {
-        fn process_sample(&mut self, s: f32) -> f32 {
-            s
-        }
-    }
-    let proc = AudioProcessor::Mono(Box::new(NoopMono));
-    let scratch = processor_scratch(&proc);
-    assert!(matches!(scratch, ProcessorScratch::Mono(_)));
-}
-
-#[test]
-fn processor_scratch_stereo_creates_stereo_scratch() {
-    use super::processor_scratch;
-    struct NoopStereo;
-    impl block_core::StereoProcessor for NoopStereo {
-        fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-            input
-        }
-    }
-    let proc = AudioProcessor::Stereo(Box::new(NoopStereo));
-    let scratch = processor_scratch(&proc);
-    assert!(matches!(scratch, ProcessorScratch::Stereo(_)));
-}
-
-#[test]
-fn processor_scratch_dual_mono_creates_dual_mono_scratch() {
-    use super::processor_scratch;
-    struct NoopMono;
-    impl block_core::MonoProcessor for NoopMono {
-        fn process_sample(&mut self, s: f32) -> f32 {
-            s
-        }
-    }
-    let proc = AudioProcessor::DualMono {
-        left: Box::new(NoopMono),
-        right: Box::new(NoopMono),
-    };
-    let scratch = processor_scratch(&proc);
-    assert!(matches!(scratch, ProcessorScratch::DualMono { .. }));
-}
-
-// ── #723: no hardcoded sample rate in the latency-probe beep ──────────────
-
-#[test]
-fn chain_runtime_state_reports_its_build_sample_rate() {
-    // The live probe beep (process_input_f32) must synthesize at the real
-    // device rate, so the runtime has to remember the rate it was built at —
-    // never assume 48000 (issue #723).
-    let chain = tuner_track("chain:0", Vec::new());
-    let rt = build_chain_runtime_state(&chain, 44_100.0, &[DEFAULT_ELASTIC_TARGET], &[])
-        .expect("runtime state should build");
-    assert_eq!(rt.sample_rate(), 44_100.0);
-}
-
-#[test]
-fn write_probe_beep_depends_on_the_passed_sample_rate() {
-    // The probe beep is a 1 kHz sine. Its sample at frame f is
-    // sin(2π·freq·f/sr)·0.95·envelope, so feeding 44100 vs 48000 must produce
-    // different audio — proving the rate is honored, not hardcoded.
-    use crate::runtime_probe::{write_probe_beep, PROBE_BEEP_FREQ};
-    let frames = 64usize;
-    let channels = 2usize;
-    let mut at_44100 = vec![0.0f32; frames * channels];
-    let mut at_48000 = vec![0.0f32; frames * channels];
-    write_probe_beep(&mut at_44100, channels, 44_100.0, frames);
-    write_probe_beep(&mut at_48000, channels, 48_000.0, frames);
-    assert_ne!(
-        at_44100, at_48000,
-        "beep must depend on the passed sample rate"
-    );
-
-    let f = 20usize;
-    let sr = 44_100.0f32;
-    let env = (std::f32::consts::PI * f as f32 / frames as f32).sin();
-    let expected =
-        (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * (f as f32 / sr)).sin() * 0.95 * env;
-    assert!((at_44100[f * channels] - expected).abs() < 1e-5);
-    // Both channels carry the same mono beep.
-    assert_eq!(at_44100[f * channels], at_44100[f * channels + 1]);
 }

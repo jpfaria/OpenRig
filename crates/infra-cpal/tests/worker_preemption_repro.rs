@@ -10,6 +10,7 @@
 //! CONTENTION, which we inject here. The variants show the mechanism:
 //!   - a NORMAL (non-RT) thread under contention → many late buffers
 //!   - an RT-promoted (Mach time-constraint) thread → fewer
+//!
 //! The remaining gap (RT thread STILL late under heavy contention) is exactly
 //! why the worker needs the CoreAudio workgroup (P-core coscheduling) — which
 //! requires a real device, so it is validated in the HW battery, not here.
@@ -144,7 +145,9 @@ fn late_buffers_reproduce_under_contention() {
         );
         return;
     }
-    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(8);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(8);
     let contenders = cores * 2; // oversubscribe, like the app + browser + OS
 
     let total_buffers = SECONDS * 1_000_000 / PERIOD_US;

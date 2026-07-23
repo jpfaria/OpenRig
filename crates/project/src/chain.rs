@@ -78,6 +78,16 @@ fn default_chain_volume() -> f32 {
     100.0
 }
 
+/// #717: a reference to one of a chain's already-bound output endpoints,
+/// identifying the endpoint by its binding id + endpoint name (a name alone is
+/// not unique across the chain's bindings). Used to route the dedicated DI
+/// stream to a chosen output. Travels with the chain in `project.openrig`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct DiOutputRef {
+    pub binding_id: String,
+    pub endpoint: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Chain {
     #[serde(skip, default = "ChainId::generate")]
@@ -101,6 +111,12 @@ pub struct Chain {
     pub io_binding_ids: Vec<String>,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
+    /// #717: the chain's chosen DI-loop output endpoint (one of its
+    /// already-bound outputs). The armed DI stream routes here instead of the
+    /// chain's main output. `None` ⇒ the chain's main output (the default;
+    /// legacy projects have no field and deserialize to `None`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub di_output: Option<DiOutputRef>,
 }
 
 impl Chain {

@@ -48,6 +48,7 @@ pub(crate) fn build_jack_direct_chain(
     chain: &Chain,
     runtime: Arc<ChainRuntimeState>,
     registry: &[IoBinding],
+    di_cells: Vec<crate::di_playback::DiPlaybackCell>,
 ) -> Result<(
     jack::AsyncClient<JackShutdownHandler, JackProcessHandler>,
     DspWorkerHandle,
@@ -221,6 +222,7 @@ pub(crate) fn build_jack_direct_chain(
         worker_wake: Some(Arc::clone(&wake)),
         current_n_frames: Arc::clone(&current_n_frames),
         affinity_pinned: false,
+        di_cells,
     };
 
     // Spawn DSP worker thread

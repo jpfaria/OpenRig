@@ -76,7 +76,7 @@ fn binding_named(id: &str, name: &str) -> IoBindingModel {
 fn nth_abs_y(w: &ProjectSettingsWindow, id: &str, n: usize) -> Option<f32> {
     i_slint_backend_testing::ElementHandle::find_by_element_id(w, id)
         .nth(n)
-        .map(|el| el.absolute_position().y as f32)
+        .map(|el| el.absolute_position().y)
 }
 
 #[test]
@@ -106,10 +106,28 @@ fn io_bindings_ui_interactions() {
     {
         let w = new_window(vec![empty_binding()]);
         let chans = vec![
-            ChannelOptionItem { index: 0, label: "1".into(), selected: false, available: true },
-            ChannelOptionItem { index: 1, label: "2".into(), selected: false, available: true },
+            ChannelOptionItem {
+                index: 0,
+                label: "1".into(),
+                selected: false,
+                available: true,
+            },
+            ChannelOptionItem {
+                index: 1,
+                label: "2".into(),
+                selected: false,
+                available: true,
+            },
         ];
         w.set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
+
+        // Expand the binding so its input editor materialises — a collapsed
+        // binding only shows the In/Out count badges (the add-input button and
+        // channel cells live under `if expanded-binding-id == binding.id`).
+        assert!(
+            click_element(&w, "SectionSystemIoBindings::chev-ta"),
+            "binding expand chevron not found"
+        );
 
         // Open the add-input form so the channel cells materialise.
         assert!(
@@ -138,8 +156,14 @@ fn io_bindings_ui_interactions() {
         let w = new_window(vec![empty_binding()]);
 
         // Resting state: pencil + trash are present.
-        assert!(exists(&w, "SectionSystemIoBindings::rename-btn"), "pencil missing at rest");
-        assert!(exists(&w, "SectionSystemIoBindings::delete-btn"), "trash missing at rest");
+        assert!(
+            exists(&w, "SectionSystemIoBindings::rename-btn"),
+            "pencil missing at rest"
+        );
+        assert!(
+            exists(&w, "SectionSystemIoBindings::delete-btn"),
+            "trash missing at rest"
+        );
 
         let fired = Rc::new(Cell::new(false));
         let f = fired.clone();
@@ -191,6 +215,14 @@ fn io_bindings_ui_interactions() {
             vec![binding_named("b1", "First"), binding_named("b2", "Second")],
             1100.0,
             420.0,
+        );
+
+        // Expand the first binding so its editor makes the content taller than
+        // the short panel (two COLLAPSED headers would both fit — only one
+        // binding can be expanded at a time, `expanded-binding-id` is scalar).
+        assert!(
+            click_element(&w, "SectionSystemIoBindings::chev-ta"),
+            "binding expand chevron not found"
         );
 
         // First card is on-screen; the second overflows the short panel and is
@@ -269,7 +301,8 @@ fn io_bindings_ui_interactions() {
             "rename did not update the displayed binding name (model not reprojected)"
         );
         assert_eq!(
-            cfg.borrow().io_bindings[0].name, "Renamed",
+            cfg.borrow().io_bindings[0].name,
+            "Renamed",
             "rename did not commit to the config"
         );
     }
@@ -314,6 +347,13 @@ fn io_bindings_ui_interactions() {
             Rc::new(RefCell::new(None)),
         );
         psw.show().unwrap();
+
+        // Expand the binding so its input editor materialises (collapsed shows
+        // only the count badges).
+        assert!(
+            click_element(&psw, "SectionSystemIoBindings::chev-ta"),
+            "binding expand chevron not found"
+        );
 
         // Open the add-input form.
         assert!(
@@ -413,8 +453,16 @@ fn io_bindings_ui_interactions() {
         let w = ChainEditorWindow::new().unwrap();
         w.window().set_size(LogicalSize::new(1100.0, 700.0));
         w.set_bindings(ModelRc::new(VecModel::from(vec![
-            ChainBindingChoice { id: "xyz".into(), name: "XYZ".into(), selected: false },
-            ChainBindingChoice { id: "abc".into(), name: "ABC".into(), selected: true },
+            ChainBindingChoice {
+                id: "xyz".into(),
+                name: "XYZ".into(),
+                selected: false,
+            },
+            ChainBindingChoice {
+                id: "abc".into(),
+                name: "ABC".into(),
+                selected: true,
+            },
         ])));
         w.show().unwrap();
 
@@ -428,7 +476,10 @@ fn io_bindings_ui_interactions() {
              old add-input/add-output flow instead of a binding checklist"
         );
         let (idx, on) = fired.get();
-        assert_eq!(idx, 0, "clicking the first binding row must toggle binding 0");
+        assert_eq!(
+            idx, 0,
+            "clicking the first binding row must toggle binding 0"
+        );
         assert!(on, "an unselected binding row must toggle ON when clicked");
     }
 }

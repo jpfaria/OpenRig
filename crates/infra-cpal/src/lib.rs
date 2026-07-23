@@ -21,6 +21,9 @@
 )]
 mod jack_supervisor;
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod device_config_cache;
+
 mod host;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -69,8 +72,13 @@ pub use slot_processing::{build_chain_slots, process_input_buffer, process_outpu
 mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
+mod controller_chain_activation;
+mod controller_offthread_live_rebuild;
 mod controller_taps;
 mod device_enum;
+mod di_playback;
+mod di_stream;
+mod di_stream_worker;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_enum::jack_is_running;
 pub use device_enum::{
@@ -130,6 +138,8 @@ pub(crate) use validation::{
     find_input_device_by_id, find_output_device_by_id, validate_buffer_size,
 };
 
+#[cfg(test)]
+mod controller_live_edit_replicates_user_report_tests;
 #[cfg(test)]
 mod controller_pause_chain_tests;
 #[cfg(test)]

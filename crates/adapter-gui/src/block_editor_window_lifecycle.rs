@@ -27,7 +27,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use project::catalog::{model_brand, model_display_name, model_type_label};
 
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
@@ -40,13 +39,11 @@ use crate::block_editor::{
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
-use crate::helpers::show_child_window;
-use crate::plugin_info;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
-    block_model_picker_items, load_screenshot_image, replace_project_chains, set_selected_block,
+    block_model_picker_items, replace_project_chains, set_selected_block,
 };
-use crate::runtime_lifecycle::{sync_block_toggle, sync_live_chain_runtime, system_language};
+use crate::runtime_lifecycle::sync_block_toggle;
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem, CurveEditorPoint,
@@ -62,7 +59,7 @@ use crate::{
 pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     use slint::Model;
     let overlay_count = win.get_block_knob_overlays().row_count();
-    let param_count = win.get_block_parameter_items().row_count();
+    let param_count = crate::block_editor_param_tabs::visible_param_count(win);
     // Slint hides the param grid when overlays are present
     // (`block-knob-overlays.length == 0` gates `params-visible`), so
     // the count that drives layout is whichever source actually renders.
@@ -93,7 +90,14 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
         has_eq_widget,
     });
     win.set_panel_knob_window_width(dims.window_width_px);
-    win.set_panel_knob_window_height(dims.window_height_px);
+    win.set_panel_knob_window_height(
+        dims.window_height_px
+            + if win.get_block_parameter_groups().row_count() > 1 {
+                40.0
+            } else {
+                0.0
+            },
+    );
     win.set_panel_knob_inner_height(dims.inner_panel_height_px);
     win.set_panel_grid_cols(dims.grid_cols as i32);
     win.set_panel_grid_rows(dims.grid_rows as i32);
@@ -111,6 +115,7 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
 pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub win_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub win_param_items: Rc<VecModel<BlockParameterItem>>,
+    pub tab_state: Rc<RefCell<crate::block_editor_param_tabs::TabState>>,
     pub win_knob_overlays: Rc<VecModel<BlockKnobOverlay>>,
     pub win_multi_slider_pts: Rc<VecModel<MultiSliderPoint>>,
     pub win_curve_editor_pts: Rc<VecModel<CurveEditorPoint>>,
@@ -131,38 +136,46 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub auto_save: bool,
 }
 
+
 pub(crate) fn wire(
     win: &BlockEditorWindow,
     weak_main_window: slint::Weak<AppWindow>,
     ctx: BlockEditorWindowLifecycleCtx,
 ) {
-    let BlockEditorWindowLifecycleCtx {
-        win_draft,
-        win_param_items,
-        win_knob_overlays,
-        win_multi_slider_pts,
-        win_curve_editor_pts,
-        win_eq_band_curves,
-        win_timer,
-        project_session,
-        project_chains,
-        project_runtime,
-        saved_project_snapshot,
-        project_dirty,
-        input_chain_devices,
-        output_chain_devices,
-        selected_block,
-        open_block_windows,
-        plugin_info_window,
-        chain_index,
-        block_index,
-        auto_save,
-    } = ctx;
+    wire_model_selection(win, &weak_main_window, &ctx);
+    wire_drawer_toggle_save(win, &weak_main_window, &ctx);
+    crate::block_editor_window_delete::wire_block_delete(win, &weak_main_window, &ctx);
+    crate::block_editor_window_delete::wire_plugin_info_close(win, &weak_main_window, &ctx);
+}
+
+fn wire_model_selection(
+    win: &BlockEditorWindow,
+    weak_main_window: &slint::Weak<AppWindow>,
+    ctx: &BlockEditorWindowLifecycleCtx,
+) {
+    let win_draft = &ctx.win_draft;
+    let win_param_items = &ctx.win_param_items;
+    let tab_state = &ctx.tab_state;
+    let win_knob_overlays = &ctx.win_knob_overlays;
+    let win_multi_slider_pts = &ctx.win_multi_slider_pts;
+    let win_curve_editor_pts = &ctx.win_curve_editor_pts;
+    let win_eq_band_curves = &ctx.win_eq_band_curves;
+    let win_timer = &ctx.win_timer;
+    let project_session = &ctx.project_session;
+    let project_chains = &ctx.project_chains;
+    let project_runtime = &ctx.project_runtime;
+    let saved_project_snapshot = &ctx.saved_project_snapshot;
+    let project_dirty = &ctx.project_dirty;
+    let input_chain_devices = &ctx.input_chain_devices;
+    let output_chain_devices = &ctx.output_chain_devices;
+    let auto_save = ctx.auto_save;
+
 
     // on_choose_block_model
     {
         let win_draft = win_draft.clone();
         let win_param_items = win_param_items.clone();
+        let tab_state = tab_state.clone();
         let win_knob_overlays = win_knob_overlays.clone();
         let win_multi_slider_pts = win_multi_slider_pts.clone();
         let win_curve_editor_pts = win_curve_editor_pts.clone();
@@ -205,7 +218,12 @@ pub(crate) fn wire(
                 &new_params,
             );
             win_knob_overlays.set_vec(overlays);
-            win_param_items.set_vec(new_params);
+            crate::block_editor_param_tabs::apply_param_tabs(
+                &win,
+                &win_param_items,
+                &tab_state,
+                new_params,
+            );
             // Update EQ widgets for the new model
             let default_params = build_params_from_items(&win_param_items);
             win_multi_slider_pts.set_vec(build_multi_slider_points(
@@ -260,6 +278,27 @@ pub(crate) fn wire(
             }
         });
     }
+}
+
+fn wire_drawer_toggle_save(
+    win: &BlockEditorWindow,
+    weak_main_window: &slint::Weak<AppWindow>,
+    ctx: &BlockEditorWindowLifecycleCtx,
+) {
+    let win_draft = &ctx.win_draft;
+    let win_param_items = &ctx.win_param_items;
+    let win_timer = &ctx.win_timer;
+    let project_session = &ctx.project_session;
+    let project_chains = &ctx.project_chains;
+    let project_runtime = &ctx.project_runtime;
+    let saved_project_snapshot = &ctx.saved_project_snapshot;
+    let project_dirty = &ctx.project_dirty;
+    let input_chain_devices = &ctx.input_chain_devices;
+    let output_chain_devices = &ctx.output_chain_devices;
+    let selected_block = &ctx.selected_block;
+    let open_block_windows = &ctx.open_block_windows;
+    let auto_save = ctx.auto_save;
+
 
     // on_toggle_block_drawer_enabled
     {
@@ -353,10 +392,10 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
-            &[]
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+                &[],
             );
             sync_project_dirty(
                 &main,
@@ -369,6 +408,7 @@ pub(crate) fn wire(
             win.set_block_drawer_enabled(new_enabled);
         });
     }
+
 
     // on_save_block_drawer (edit mode - saves and closes)
     {
@@ -406,8 +446,8 @@ pub(crate) fn wire(
                 &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
                 true,
                 auto_save,
             ) {
@@ -424,240 +464,5 @@ pub(crate) fn wire(
             let _ = win.hide();
         });
     }
-
-    // on_delete_block_drawer (trash icon) — opens the in-window overlay.
-    // Issue #360: the actual delete moved to on_confirm_delete_block below;
-    // the previous native-dialog path is gone (native popup did not suit
-    // Orange Pi touch sessions and stole focus on macOS).
-    {
-        let win_draft = win_draft.clone();
-        let win_timer = win_timer.clone();
-        let weak_win = win.as_weak();
-        win.on_delete_block_drawer(move || {
-            let Some(win) = weak_win.upgrade() else {
-                return;
-            };
-            win_timer.stop();
-            let Some(draft) = win_draft.borrow().clone() else {
-                return;
-            };
-            if draft.block_index.is_none() {
-                return;
-            }
-            win.set_confirm_delete_block_name(draft.model_id.into());
-            win.set_show_confirm_delete_block(true);
-        });
-    }
-
-    // on_cancel_delete_block — just hide the overlay.
-    {
-        let weak_win = win.as_weak();
-        win.on_cancel_delete_block(move || {
-            if let Some(win) = weak_win.upgrade() {
-                win.set_show_confirm_delete_block(false);
-            }
-        });
-    }
-
-    // on_confirm_delete_block — execute the deletion the overlay just gated.
-    {
-        let win_draft = win_draft.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let selected_block_delete = selected_block.clone();
-        let open_block_windows_delete = open_block_windows.clone();
-        let weak_main = weak_main_window.clone();
-        let weak_win = win.as_weak();
-        win.on_confirm_delete_block(move || {
-            let Some(win) = weak_win.upgrade() else {
-                return;
-            };
-            // Hide overlay first so any error toast renders on the
-            // window, not behind the modal backdrop.
-            win.set_show_confirm_delete_block(false);
-            let Some(main) = weak_main.upgrade() else {
-                return;
-            };
-            let Some(draft) = win_draft.borrow().clone() else {
-                return;
-            };
-            let Some(block_index) = draft.block_index else {
-                return;
-            };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                return;
-            };
-            // Resolve chain_id and block_id before dispatching.
-            let (chain_id, block_id) = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(draft.chain_index) else {
-                    return;
-                };
-                let Some(block) = chain.blocks.get(block_index) else {
-                    return;
-                };
-                (chain.id.clone(), block.id.clone())
-            };
-            // Dispatch Command::RemoveBlock — mutates project via shared Rc.
-            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-            }) {
-                log::error!("[adapter-gui] block-window.delete dispatch: {e}");
-                if let Some(w) = weak_main.upgrade() {
-                    w.set_block_drawer_status_message(e.to_string().into());
-                }
-                return;
-            }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                log::error!("[adapter-gui] block-window.delete: {e}");
-                if let Some(w) = weak_main.upgrade() {
-                    w.set_block_drawer_status_message(e.to_string().into());
-                }
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
-            &[]
-            );
-            sync_project_dirty(
-                &main,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
-            drop(session_borrow);
-            *selected_block_delete.borrow_mut() = None;
-            set_selected_block(&main, None, None);
-            open_block_windows_delete
-                .borrow_mut()
-                .retain(|bw| bw.chain_index != draft.chain_index || bw.block_index != block_index);
-            let _ = win.hide();
-        });
-    }
-
-    // on_show_plugin_info
-    {
-        let weak_main = weak_main_window.clone();
-        let plugin_info_window = plugin_info_window.clone();
-        win.on_show_plugin_info(move |effect_type, model_id| {
-            let Some(window) = weak_main.upgrade() else {
-                return;
-            };
-            let effect_type = effect_type.to_string();
-            let model_id = model_id.to_string();
-
-            let display_name = model_display_name(&effect_type, &model_id);
-            let brand = model_brand(&effect_type, &model_id);
-            let type_label = model_type_label(&effect_type, &model_id);
-
-            let lang = system_language();
-            let meta = plugin_info::plugin_metadata(&lang, &model_id);
-
-            let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
-
-            let info_win = match PluginInfoWindow::new() {
-                Ok(w) => w,
-                Err(e) => {
-                    log::error!("Failed to create PluginInfoWindow: {}", e);
-                    return;
-                }
-            };
-            {
-                use slint::Global;
-                crate::Locale::get(&info_win)
-                    .set_font_family(crate::i18n::font_for_persisted_runtime().into());
-            }
-
-            info_win.set_plugin_name(display_name.into());
-            info_win.set_brand(brand.into());
-            info_win.set_type_label(type_label.into());
-            info_win.set_description(meta.description.into());
-            info_win.set_license(meta.license.into());
-            info_win.set_has_homepage(!meta.homepage.is_empty());
-            info_win.set_homepage(meta.homepage.clone().into());
-            info_win.set_screenshot(screenshot_img);
-            info_win.set_has_screenshot(has_screenshot);
-
-            {
-                let homepage = meta.homepage.clone();
-                info_win.on_open_homepage(move || {
-                    plugin_info::open_homepage(&homepage);
-                });
-            }
-
-            {
-                let win_weak = info_win.as_weak();
-                info_win.on_close_window(move || {
-                    if let Some(w) = win_weak.upgrade() {
-                        let _ = w.window().hide();
-                    }
-                });
-            }
-
-            *plugin_info_window.borrow_mut() = Some(info_win);
-            if let Some(w) = plugin_info_window.borrow().as_ref() {
-                show_child_window(window.window(), w.window());
-            }
-        });
-    }
-
-    // on_close_block_drawer (close without saving)
-    {
-        let win_draft = win_draft.clone();
-        let open_block_windows_close = open_block_windows.clone();
-        let selected_block_close = selected_block.clone();
-        let weak_main = weak_main_window.clone();
-        let weak_win = win.as_weak();
-        win.on_close_block_drawer(move || {
-            let Some(win) = weak_win.upgrade() else {
-                return;
-            };
-            let Some(main) = weak_main.upgrade() else {
-                return;
-            };
-            let draft_borrow = win_draft.borrow();
-            if let Some(draft) = draft_borrow.as_ref() {
-                open_block_windows_close.borrow_mut().retain(|bw| {
-                    bw.chain_index != draft.chain_index || Some(bw.block_index) != draft.block_index
-                });
-            }
-            drop(draft_borrow);
-            *selected_block_close.borrow_mut() = None;
-            set_selected_block(&main, None, None);
-            let _ = win.hide();
-        });
-    }
-
-    // Clean up stream timer when block editor is closed via the window X button.
-    {
-        let open_block_windows_close = open_block_windows.clone();
-        let ci = chain_index;
-        let bi = block_index;
-        win.window().on_close_requested(move || {
-            open_block_windows_close
-                .borrow_mut()
-                .retain(|bw| bw.chain_index != ci || bw.block_index != bi);
-            slint::CloseRequestResponse::HideWindow
-        });
-    }
-
-    // Touch unused models so the helper above (which mutates them) doesn't
-    // emit dead-code warnings on partial wiring branches.
-    let _ = (
-        &win_knob_overlays,
-        &win_multi_slider_pts,
-        &win_curve_editor_pts,
-        &win_eq_band_curves,
-    );
 }
+

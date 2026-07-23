@@ -22,6 +22,28 @@ use crate::block_editor_values::unit_label;
 use crate::state::BlockEditorData;
 use crate::{BlockParameterItem, SELECT_SELECTED_BLOCK_ID};
 
+/// Fallback tab label for parameters that declare no group.
+pub(crate) const DEFAULT_PARAM_GROUP: &str = "Main";
+
+/// Ordered, de-duplicated tab labels across `items`, in first-appearance
+/// order. Parameters with an empty group collapse under [`DEFAULT_PARAM_GROUP`].
+/// One label (or none) means the block needs no tab bar (#780).
+pub(crate) fn parameter_groups(items: &[BlockParameterItem]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for it in items {
+        let g = it.group.as_str();
+        let label = if g.is_empty() { DEFAULT_PARAM_GROUP } else { g };
+        if !out.iter().any(|existing| existing == label) {
+            out.push(label.to_string());
+        }
+    }
+    out
+}
+
+// Per-tab filtering now lives in `block_editor_param_tabs::retag_for_group`,
+// which tags each row's `tab_slot` instead of dropping rows — the model must
+// stay full so a save never loses a non-active tab's params (#780).
+
 pub(crate) fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParameterItem> {
     let mut items = Vec::new();
     if !data.select_options.is_empty() {
@@ -68,6 +90,8 @@ pub(crate) fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<Bl
             file_extensions: ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
             optional: false,
             allow_empty: false,
+            tab_slot: 0,
+            strip_line: -1,
         });
     }
     items.extend(block_parameter_items_for_model(
@@ -210,7 +234,82 @@ pub(crate) fn block_parameter_items_for_model(
                 file_extensions,
                 optional: spec.optional,
                 allow_empty: spec.allow_empty,
+                tab_slot: 0,
+                strip_line: -1,
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn item(label: &str, group: &str) -> BlockParameterItem {
+        BlockParameterItem {
+            label: label.into(),
+            group: group.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn groups_are_distinct_first_appearance_with_default_fallback() {
+        let items = vec![
+            item("Gain", "Tone"),
+            item("Level", "Tone"),
+            item("Mode", "Voicing"),
+            item("Mix", ""), // ungrouped → Main
+        ];
+        assert_eq!(
+            parameter_groups(&items),
+            vec![
+                "Tone".to_string(),
+                "Voicing".to_string(),
+                "Main".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn vst3_block_yields_params_via_the_compact_build_path() {
+        // #780 repro: the compact view showed a VST3 block with zero params.
+        // This drives the SAME build the compact view uses — build the block,
+        // resolve its editor data, build the param items — with a real plugin.
+        use std::path::PathBuf;
+        let Some(dir) = std::env::var_os("OPENRIG_TEST_VST3_DIR").map(PathBuf::from) else {
+            return;
+        };
+        project::vst3_editor::init_vst3_catalog(48_000.0, &[dir]);
+        let Some(model) = project::catalog::supported_block_models(block_core::EFFECT_TYPE_VST3)
+            .ok()
+            .and_then(|models| {
+                models
+                    .into_iter()
+                    .find(|m| m.model_id.to_lowercase().contains("chowcentaur"))
+                    .map(|m| m.model_id)
+            })
+        else {
+            return;
+        };
+        let kind = project::block::build_audio_block_kind(
+            block_core::EFFECT_TYPE_VST3,
+            &model,
+            project::param::ParameterSet::default(),
+        )
+        .expect("build vst3 block kind");
+        let block = project::block::AudioBlock {
+            id: domain::ids::BlockId("v1".into()),
+            enabled: true,
+            kind,
+        };
+        let data =
+            crate::block_editor::block_editor_data(&block).expect("editor data for vst3 block");
+        let params = block_parameter_items_for_editor(&data);
+        assert!(
+            !params.is_empty(),
+            "compact build path produced ZERO params for VST3 model {}",
+            model
+        );
+    }
 }

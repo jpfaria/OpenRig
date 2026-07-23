@@ -113,7 +113,8 @@ pub fn build_streams_for_project(
             let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
-            let (input_streams, output_streams) = build_chain_streams(&chain.id, resolved, slots)?;
+            let (input_streams, output_streams) =
+                build_chain_streams(&chain.id, resolved, slots, &[])?;
             streams.extend(input_streams);
             streams.extend(output_streams);
         }
@@ -150,6 +151,10 @@ pub(crate) fn build_input_stream_for_input(
         buffer_size_frames,
     );
     let device = resolved_input_device.device;
+    // #760: the workgroup join must target THIS device (resolved off the audio
+    // thread), not the system default — otherwise the non-default interface's
+    // callback co-schedules with the wrong device and underruns under load.
+    let workgroup_uid = device.id().ok().map(|id| id.to_string());
     let stream = match sample_format {
         SampleFormat::F32 if cfg!(target_os = "macos") => {
             let channels = stream_config.channels as usize;
@@ -179,6 +184,7 @@ pub(crate) fn build_input_stream_for_input(
                         channels,
                         sample_rate,
                         (buffer_size_frames as usize).max(64) * channels * 8,
+                        workgroup_uid.clone(),
                     )
                 })
                 .collect();
@@ -187,7 +193,7 @@ pub(crate) fn build_input_stream_for_input(
                 move |data: &[f32], _| {
                     // #670: co-schedule this callback thread with the audio I/O
                     // workgroup so its cache (NAM weights) stays warm.
-                    crate::audio_workgroup::ensure_joined_input();
+                    crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
                     for worker in &workers {
                         worker.push(data);
                     }
@@ -232,7 +238,7 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i16], _| {
-                    crate::audio_workgroup::ensure_joined_input();
+                    crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
@@ -265,7 +271,7 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[u16], _| {
-                    crate::audio_workgroup::ensure_joined_input();
+                    crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
@@ -298,7 +304,7 @@ pub(crate) fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i32], _| {
-                    crate::audio_workgroup::ensure_joined_input();
+                    crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
                     converted.resize(data.len(), 0.0);
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i32::MAX as f32;
@@ -349,6 +355,7 @@ pub(crate) fn build_output_stream_for_output(
     output_index: usize,
     resolved_output_device: ResolvedOutputDevice,
     slots: Vec<LiveRuntimeSlot>,
+    di_cell: crate::di_playback::DiPlaybackCell,
 ) -> Result<Stream> {
     log::debug!(
         "building output stream for chain '{}' output_index={}",
@@ -368,12 +375,15 @@ pub(crate) fn build_output_stream_for_output(
         buffer_size_frames,
     );
     let device = resolved_output_device.device;
+    // #760: join THIS output device's workgroup, not the system default.
+    let workgroup_uid = device.id().ok().map(|id| id.to_string());
     let stream = match sample_format {
         SampleFormat::F32 => {
             let slots_for_data = slots.clone();
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let di_cell = di_cell.clone();
             // Pre-allocated backend-mix scratch (issue #350 phase 3). Sized
             // to the configured buffer once here; the steady-state callback
             // never allocates. `process_output_f32_mixed` takes the
@@ -382,7 +392,7 @@ pub(crate) fn build_output_stream_for_output(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
-                    crate::audio_workgroup::ensure_joined_output();
+                    crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
                     }
@@ -395,6 +405,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, out, channels);
                     }));
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
@@ -406,12 +417,13 @@ pub(crate) fn build_output_stream_for_output(
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
-            let mut temp = Vec::new();
+            let di_cell = di_cell.clone();
+            let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i16], _| {
-                    crate::audio_workgroup::ensure_joined_output();
+                    crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -425,6 +437,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -440,12 +453,13 @@ pub(crate) fn build_output_stream_for_output(
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
-            let mut temp = Vec::new();
+            let di_cell = di_cell.clone();
+            let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [u16], _| {
-                    crate::audio_workgroup::ensure_joined_output();
+                    crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -459,6 +473,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
@@ -475,12 +490,13 @@ pub(crate) fn build_output_stream_for_output(
             let mut loaded: Vec<Arc<ChainRuntimeState>> = Vec::with_capacity(slots_for_data.len());
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
-            let mut temp = Vec::new();
+            let di_cell = di_cell.clone();
+            let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i32], _| {
-                    crate::audio_workgroup::ensure_joined_output();
+                    crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     temp.resize(out.len(), 0.0);
                     if mix_scratch.len() < out.len() {
                         mix_scratch.resize(out.len(), 0.0);
@@ -494,6 +510,7 @@ pub(crate) fn build_output_stream_for_output(
                             channels,
                             &mut mix_scratch,
                         );
+                        crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -534,6 +551,7 @@ fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
+    _di_cells: &[crate::di_playback::DiPlaybackCell], // #808: chain output is DI-free now
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
     // Flat list (group order) for the backend output mix. Issue #672: the
     // callbacks read each slot live so a worker-published rebuild takes
@@ -587,14 +605,20 @@ fn build_chain_streams(
 
     let mut output_streams = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
-        // #743: mix only the runtimes clocked at THIS output's rate. A runtime
-        // at another input device's rate (the owner's 44.1/48 mixed rig) would
-        // be consumed here at the wrong rate — a continuous route under/overflow
-        // that starves the output on almost every pop (invariant #4). A
-        // single-rate chain is unaffected (every runtime matches the one rate).
-        let out_rate = resolved_output_sample_rate(&resolved_output) as f32;
-        let out_slots = crate::slot_processing::slots_for_output_stream(&slots, out_rate);
-        let stream = build_output_stream_for_output(chain_id, j, resolved_output, out_slots)?;
+        // LAW (stream isolation): this output mixes ONLY the runtimes whose
+        // binding feeds THIS device (by input cpal index) — never all runtimes
+        // at its rate (the #743 rate-filter was a leaky proxy that flooded
+        // underruns: same-rate runtimes that don't feed this device pop empty).
+        let out_slots = crate::slot_processing::slots_for_output_stream(
+            &slots,
+            &resolved.output_devices_by_input_cpal,
+            &resolved_output.device_id,
+        );
+        // #808: chain output NEVER drains the DI cell — the DI has its OWN
+        // isolated stream (invariant #4; the shared cell was the "picotando").
+        let di_cell = crate::di_playback::DiPlaybackCell::default();
+        let stream =
+            build_output_stream_for_output(chain_id, j, resolved_output, out_slots, di_cell)?;
         output_streams.push(stream);
     }
 
@@ -613,6 +637,7 @@ pub(crate) fn build_active_chain_runtime(
     resolved: ResolvedChainAudioConfig,
     slots: Vec<(usize, LiveRuntimeSlot)>,
     #[allow(unused_variables)] registry: &[IoBinding],
+    di_cells: &[crate::di_playback::DiPlaybackCell],
 ) -> Result<ActiveChainRuntime> {
     log::info!(
         "building active chain runtime for '{}', sample_rate={}",
@@ -638,8 +663,11 @@ pub(crate) fn build_active_chain_runtime(
                 .next()
                 .map(|(_, slot)| slot.load())
                 .ok_or_else(|| anyhow::anyhow!("chain '{}' has no runtime state", chain_id.0))?;
+            // #771: JACK-direct runs a single output stream — hand it ALL
+            // the chain's DI cells so the DI is audible whichever output the
+            // arm parked on.
             let (jack_client, dsp_worker) =
-                build_jack_direct_chain(chain_id, chain, runtime, registry)?;
+                build_jack_direct_chain(chain_id, chain, runtime, registry, di_cells.to_vec())?;
             return Ok(ActiveChainRuntime {
                 stream_signature,
                 _input_streams: Vec::new(),
@@ -655,6 +683,7 @@ pub(crate) fn build_active_chain_runtime(
         let _ = chain_id;
         let _ = resolved;
         let _ = slots;
+        let _ = di_cells;
         return Ok(ActiveChainRuntime {
             stream_signature,
             _input_streams: Vec::new(),
@@ -666,7 +695,8 @@ pub(crate) fn build_active_chain_runtime(
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
-        let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, slots)?;
+        let (input_streams, output_streams) =
+            build_chain_streams(chain_id, resolved, slots, di_cells)?;
         for stream in &input_streams {
             stream.play()?;
         }

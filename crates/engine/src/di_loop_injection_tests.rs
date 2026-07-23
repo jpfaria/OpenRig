@@ -47,6 +47,7 @@ fn passthrough_runtime() -> Arc<super::ChainRuntimeState> {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     };
     Arc::new(
         build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET], &registry)
@@ -167,6 +168,7 @@ fn two_source_runtime() -> Arc<super::ChainRuntimeState> {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     };
     Arc::new(
         build_chain_runtime_state(&chain, SR as f32, &[DEFAULT_ELASTIC_TARGET], &registry)

@@ -103,6 +103,11 @@ pub enum QueryKind {
     /// overrides fall back to the OS default (consumers don't
     /// re-implement the fallback). MCP serves this as `openrig://paths`.
     Paths,
+    /// #791: objective audio-quality report for one chain (THD+N, noise floor,
+    /// level, dynamic range, clipping). Derived from the snapshot's chain by
+    /// running the synthetic battery through the offline render, so it resolves
+    /// off-frontend. MCP serves this as `openrig://chains/{chain}/quality`.
+    ChainQualityReport { chain: domain::ids::ChainId },
 }
 
 struct QueryRequest {
@@ -161,6 +166,9 @@ impl CommandBridge {
             QueryKind::GetBlockParams { chain, block } => {
                 Some(q::get_block_params(&snap.project, chain, block))
             }
+            QueryKind::ChainQualityReport { chain } => Some(
+                crate::query_chain_quality::chain_quality_report(&snap.project, chain),
+            ),
             // Live runtime / GUI-coupled reads keep the frontend path.
             QueryKind::Devices | QueryKind::ChainMeters => None,
             // Handled above; unreachable here.
@@ -316,7 +324,7 @@ mod tests {
         // it only returns a count and the events are lost.
         let dispatcher = LocalDispatcher::new(test_project());
         let (bridge, drain) = channel();
-        let _ = bridge.submit(Command::SaveProject);
+        let _rx = bridge.submit(Command::SaveProject);
 
         let events = drain.drain(&dispatcher, 16);
 
@@ -331,7 +339,7 @@ mod tests {
         let dispatcher = LocalDispatcher::new(test_project());
         let (bridge, drain) = channel();
         for _ in 0..5 {
-            let _ = bridge.submit(Command::SaveProject);
+            let _rx = bridge.submit(Command::SaveProject);
         }
         // SaveProject yields exactly one ProjectSaved, so the event count
         // tracks the command count: cap=2 ⇒ 2 handled, then the remaining 3.

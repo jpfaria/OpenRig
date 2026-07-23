@@ -14,7 +14,7 @@
 //!
 //! ## Test isolation
 //!
-//! Every test uses `TempDir` + `attach_config_path`. No `set_var("HOME")`.
+//! Every test uses `TempDir` + `attach_io_config_path`. No `set_var("HOME")`.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -138,7 +138,10 @@ fn save_input_endpoints_sets_reference() {
         if c.id.0 == chain_id_str {
             // Input block is already seeded by rig_to_legacy_project at index 0.
             // If absent, push it.
-            if c.blocks.iter().all(|b| !matches!(b.kind, AudioBlockKind::Input(_))) {
+            if c.blocks
+                .iter()
+                .all(|b| !matches!(b.kind, AudioBlockKind::Input(_)))
+            {
                 c.blocks.insert(0, input_block("rig:in:in"));
             }
         }
@@ -146,7 +149,7 @@ fn save_input_endpoints_sets_reference() {
 
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     dispatcher.attach_rig(Rc::clone(&rig));
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     // Dispatch the NEW-shape command.
     let res = dispatcher.dispatch(Command::SaveChainInputEndpoints {
@@ -236,7 +239,10 @@ fn save_output_endpoints_sets_reference() {
     for c in project.borrow_mut().chains.iter_mut() {
         if c.id.0 == chain_id_str {
             // Ensure there's an output block somewhere.
-            if c.blocks.iter().all(|b| !matches!(b.kind, AudioBlockKind::Output(_))) {
+            if c.blocks
+                .iter()
+                .all(|b| !matches!(b.kind, AudioBlockKind::Output(_)))
+            {
                 c.blocks.push(output_block("rig:in:out"));
             }
         }
@@ -255,7 +261,7 @@ fn save_output_endpoints_sets_reference() {
 
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     dispatcher.attach_rig(Rc::clone(&rig));
-    dispatcher.attach_config_path(Some(cfg_path));
+    dispatcher.attach_io_config_path(Some(cfg_path));
 
     let res = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
         chain: domain::ids::ChainId(chain_id_str.to_string()),
@@ -335,7 +341,7 @@ fn delete_referenced_binding_rejected() {
     let cfg_path = tmp.path().join("config.yaml");
 
     let dispatcher = LocalDispatcher::new(empty_project());
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     // Create the binding first.
     dispatcher
@@ -353,6 +359,7 @@ fn delete_referenced_binding_rejected() {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let mut blk = input_block("my-chain:in");
     if let AudioBlockKind::Input(ref mut ib) = blk.kind {
@@ -369,7 +376,7 @@ fn delete_referenced_binding_rejected() {
         midi: None,
     }));
     let dispatcher2 = LocalDispatcher::new(Rc::clone(&project_with_ref));
-    dispatcher2.attach_config_path(Some(cfg_path.clone()));
+    dispatcher2.attach_io_config_path(Some(cfg_path.clone()));
 
     // Also pre-seed the binding so it exists in config.
     dispatcher2
@@ -425,6 +432,7 @@ fn delete_unreferenced_binding_ok() {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     };
     let mut blk = input_block("my-chain:in");
     if let AudioBlockKind::Input(ref mut ib) = blk.kind {
@@ -440,7 +448,7 @@ fn delete_unreferenced_binding_ok() {
         midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project_with_ref));
-    dispatcher.attach_config_path(Some(cfg_path.clone()));
+    dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
         .dispatch(Command::CreateIoBinding {

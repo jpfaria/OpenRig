@@ -136,13 +136,16 @@ impl NativeCabProcessor {
         // On-axis (high mic_position) brightens: pushes the rolloff up and the
         // presence peak slightly higher, the way moving a mic toward the cone
         // centre does. Off-axis darkens.
-        let rolloff_hz = (profile.rolloff_hz * (0.85 + mic_position * 0.3)).clamp(1_500.0, nyquist_guard);
-        let presence_hz = (profile.presence_hz * (0.9 + mic_position * 0.2)).clamp(800.0, nyquist_guard);
+        let rolloff_hz =
+            (profile.rolloff_hz * (0.85 + mic_position * 0.3)).clamp(1_500.0, nyquist_guard);
+        let presence_hz =
+            (profile.presence_hz * (0.9 + mic_position * 0.2)).clamp(800.0, nyquist_guard);
 
         // Knobs scale the intrinsic profile stages, monotonic around the
         // defaults: Resonance drives the low bump, Air the presence.
         let low_bump_db = profile.low_bump_db * (settings.resonance / 100.0 * 1.8).clamp(0.0, 2.0);
-        let presence_db = profile.presence_db * (0.6 + (settings.air / 100.0) * 0.8).clamp(0.0, 2.0);
+        let presence_db =
+            profile.presence_db * (0.6 + (settings.air / 100.0) * 0.8).clamp(0.0, 2.0);
 
         let body_hz = settings.low_cut_hz.clamp(20.0, 400.0);
         let brightness_hz = settings.high_cut_hz.clamp(1_500.0, nyquist_guard);
@@ -185,7 +188,13 @@ impl NativeCabProcessor {
                 profile.rolloff_q,
                 sample_rate,
             ),
-            speaker_lp2: BiquadFilter::new(BiquadKind::LowPass, rolloff_hz, 0.0, 0.707, sample_rate),
+            speaker_lp2: BiquadFilter::new(
+                BiquadKind::LowPass,
+                rolloff_hz,
+                0.0,
+                0.707,
+                sample_rate,
+            ),
             // The High Cut knob, a gentle extra low-pass on top of the speaker
             // rolloff so the user can darken without redefining the cabinet.
             brightness_lp: BiquadFilter::new(

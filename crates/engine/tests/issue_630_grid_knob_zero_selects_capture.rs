@@ -95,6 +95,7 @@ fn grid_chain(drive: f32, pedal_enabled: bool) -> Chain {
                 params,
             }),
         }],
+        di_output: None,
     }
 }
 
@@ -167,8 +168,9 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // (a) Build LIVE at the HIGH capture (drive=5). Model loads once.
     let hi = grid_chain(5.0, true);
     let (project, rates) = project_with(hi.clone());
-    let mut graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new(), &registry())
-        .expect("graph with a NAM grid pedal must build");
+    let mut graph =
+        engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new(), &registry())
+            .expect("graph with a NAM grid pedal must build");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
         .expect("the chain must have a live runtime");
@@ -190,7 +192,14 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // bug.
     let lo = grid_chain(0.0, true);
     graph
-        .upsert_chain(&lo, SR, &HashMap::new(), false, &[BUFFER_FRAMES], &registry())
+        .upsert_chain(
+            &lo,
+            SR,
+            &HashMap::new(),
+            false,
+            &[BUFFER_FRAMES],
+            &registry(),
+        )
         .expect("live drive->0 edit must succeed");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
@@ -216,7 +225,14 @@ fn grid_knob_zero_keeps_model_loaded_and_selects_capture() {
     // energy is restored.
     let hi_again = grid_chain(5.0, true);
     graph
-        .upsert_chain(&hi_again, SR, &HashMap::new(), false, &[BUFFER_FRAMES], &registry())
+        .upsert_chain(
+            &hi_again,
+            SR,
+            &HashMap::new(),
+            false,
+            &[BUFFER_FRAMES],
+            &registry(),
+        )
         .expect("live drive->5 edit must succeed");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
@@ -246,8 +262,9 @@ fn grid_pedal_on_off_is_the_enable_toggle_even_at_knob_zero() {
     // Build LIVE at the axis minimum. NEW contract: model loaded.
     let lo = grid_chain(0.0, true);
     let (project, rates) = project_with(lo.clone());
-    let graph = engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new(), &registry())
-        .expect("graph with a NAM grid pedal must build");
+    let graph =
+        engine::runtime_graph::build_runtime_graph(&project, &rates, &HashMap::new(), &registry())
+            .expect("graph with a NAM grid pedal must build");
     let runtime = graph
         .runtime_for_chain(&ChainId("issue-630".into()))
         .expect("runtime present");

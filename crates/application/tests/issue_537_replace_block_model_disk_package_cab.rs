@@ -34,23 +34,35 @@ use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
-fn init_plugins() {
+/// The owner's private capture tree, resolved from `OPENRIG_OWNER_PLUGINS` or
+/// the sibling `OpenRig-plugins` checkout. `None` when neither is present — the
+/// caller then skips (this repro needs the real disk packages, not a fixture).
+fn owner_plugins_root() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("OPENRIG_OWNER_PLUGINS") {
+        let p = PathBuf::from(p);
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    // Walk up from the crate dir; accept the first ancestor with a sibling
+    // `OpenRig-plugins/plugins/source` (author's main checkout or a .solvers
+    // clone, at any depth). None on CI, where the tree is absent.
+    let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let cand = dir.join("OpenRig-plugins/plugins/source");
+        if cand.is_dir() {
+            return Some(cand);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
+fn init_plugins(root: &std::path::Path) {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        let candidates = [
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../../../../OpenRig-plugins/plugins/source"),
-            PathBuf::from(
-                "/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source",
-            ),
-        ];
-        let roots: Vec<PathBuf> = candidates.into_iter().filter(|p| p.is_dir()).collect();
-        assert!(
-            !roots.is_empty(),
-            "issue #537 repro requires OpenRig-plugins/plugins/source to be \
-             present on disk — none of the candidate roots resolved"
-        );
-        plugin_loader::registry::init_many(&roots);
+        plugin_loader::registry::init_many(std::slice::from_ref(&root.to_path_buf()));
     });
 }
 
@@ -75,13 +87,20 @@ fn make_project_with_cab(model_id: &str) -> Rc<RefCell<Project>> {
                     params: ParameterSet::default(),
                 }),
             }],
+            di_output: None,
         }],
     }))
 }
 
 #[test]
 fn issue_537_both_disk_packages_register_as_cab() {
-    init_plugins();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!(
+            "[#537] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
+        return;
+    };
+    init_plugins(&root);
     let models = project::catalog::supported_block_models("cab")
         .expect("cab catalog must exist after registry init");
     let ids: Vec<&str> = models.iter().map(|m| m.model_id.as_str()).collect();
@@ -100,7 +119,13 @@ fn issue_537_both_disk_packages_register_as_cab() {
 
 #[test]
 fn issue_537_replace_marshall_with_v30_keeps_cab_effect_type() {
-    init_plugins();
+    let Some(root) = owner_plugins_root() else {
+        eprintln!(
+            "[#537] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
+        return;
+    };
+    init_plugins(&root);
     let project = make_project_with_cab("ir_marshall_4x12_v30");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 

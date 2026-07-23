@@ -36,6 +36,18 @@ pub struct ParameterSpec {
     pub allow_empty: bool,
 }
 
+/// The block-instance context every parameter of one model shares when it is
+/// materialised into a descriptor. It is loop-invariant across a schema's
+/// parameters — assembled once, then handed to each
+/// [`ParameterSpec::materialize`] — so the per-parameter call carries only the
+/// value that actually varies.
+pub struct MaterializeContext<'a> {
+    pub block_id: &'a BlockId,
+    pub effect_type: &'a str,
+    pub model: &'a str,
+    pub audio_mode: ModelAudioMode,
+}
+
 impl ParameterSpec {
     pub fn validate_value(&self, value: &ParameterValue) -> Result<(), String> {
         if value.is_null() {
@@ -80,18 +92,15 @@ impl ParameterSpec {
 
     pub fn materialize(
         &self,
-        block_id: &BlockId,
-        effect_type: &str,
-        model: &str,
-        audio_mode: ModelAudioMode,
+        ctx: &MaterializeContext,
         current_value: ParameterValue,
     ) -> BlockParameterDescriptor {
         BlockParameterDescriptor {
-            id: ParameterId::for_block_path(block_id, &self.path),
-            block_id: block_id.clone(),
-            effect_type: effect_type.to_string(),
-            model: model.to_string(),
-            audio_mode,
+            id: ParameterId::for_block_path(ctx.block_id, &self.path),
+            block_id: ctx.block_id.clone(),
+            effect_type: ctx.effect_type.to_string(),
+            model: ctx.model.to_string(),
+            audio_mode: ctx.audio_mode,
             path: self.path.clone(),
             label: self.label.clone(),
             group: self.group.clone(),

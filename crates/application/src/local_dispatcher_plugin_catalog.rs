@@ -70,22 +70,24 @@ impl LocalDispatcher {
         let tx = self.async_done_tx.clone();
         std::thread::Builder::new()
             .name("plugin-load".into())
-            .spawn(move || match plugin_loader::registry::load_one(&id, &roots) {
-                Ok(()) => {
-                    let _ = tx.send(crate::local_dispatcher::AsyncDone::Events(vec![
-                        Event::PluginLoaded { id },
-                    ]));
-                }
-                Err(e) => {
-                    log::error!("LoadPlugin '{id}' failed: {e}");
-                    let _ = tx.send(crate::local_dispatcher::AsyncDone::Events(vec![
-                        Event::PluginLoadFailed {
-                            id,
-                            reason: e.to_string(),
-                        },
-                    ]));
-                }
-            })
+            .spawn(
+                move || match plugin_loader::registry::load_one(&id, &roots) {
+                    Ok(()) => {
+                        let _ = tx.send(crate::local_dispatcher::AsyncDone::Events(vec![
+                            Event::PluginLoaded { id },
+                        ]));
+                    }
+                    Err(e) => {
+                        log::error!("LoadPlugin '{id}' failed: {e}");
+                        let _ = tx.send(crate::local_dispatcher::AsyncDone::Events(vec![
+                            Event::PluginLoadFailed {
+                                id,
+                                reason: e.to_string(),
+                            },
+                        ]));
+                    }
+                },
+            )
             .map_err(|e| anyhow::anyhow!("failed to spawn plugin-load task: {e}"))?;
         Ok(vec![])
     }

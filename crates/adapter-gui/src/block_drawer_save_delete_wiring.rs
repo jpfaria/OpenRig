@@ -13,7 +13,8 @@ use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::block_editor::persist_block_editor_draft;
-use crate::project_view::{build_compact_blocks, set_selected_block};
+use crate::compact_block_view::build_compact_blocks;
+use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CompactChainViewWindow,
@@ -122,7 +123,7 @@ pub(crate) fn wire(
                 if let Some(cw) = weak_cw.upgrade() {
                     let session_borrow = project_session_compact.borrow();
                     if let Some(session) = session_borrow.as_ref() {
-                        let blocks = build_compact_blocks(&*session.project.borrow(), *ci);
+                        let blocks = build_compact_blocks(&session.project.borrow(), *ci);
                         cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
                     }
                 }

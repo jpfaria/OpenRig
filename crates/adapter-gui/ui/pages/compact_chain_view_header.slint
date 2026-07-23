@@ -3,6 +3,7 @@ import { ChainTitlePreset } from "../components/chain_title_preset.slint";
 import { ChainActionIcon } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
 import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
+import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 
 // Compact chain view header — preset select + scene bar + chain action
@@ -21,6 +22,8 @@ export component CompactChainViewHeader inherits Rectangle {
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
     in property <int> di-loop-selected-index: -1;
+    in property <[string]> di-loop-outputs: [];
+    in property <int> di-output-selected-index: -1;
     in property <float> latency-ms: 0.0;
 
     callback toggle-chain-enabled(int);
@@ -86,6 +89,16 @@ export component CompactChainViewHeader inherits Rectangle {
         playing: root.di-loop-playing;
         sources: root.di-loop-sources;
         selected-index: root.di-loop-selected-index;
+        outputs: root.di-loop-outputs;
+        output-selected-index: root.di-output-selected-index;
+        chain-index: root.chain-index;
+    }
+
+    // #791: Tone Doctor trigger — the stethoscope opens the diagnosis panel
+    // (root overlay via ToneDoctorState), scoped to this chain-index.
+    ChainToneDoctorButton {
+        x: parent.width - 234px;
+        y: (parent.height - 36px) / 2;
         chain-index: root.chain-index;
     }
 

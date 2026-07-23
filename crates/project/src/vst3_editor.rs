@@ -1,52 +1,34 @@
-//! Facade for VST3 catalog initialisation and plugin editor windows.
+//! Facade for VST3 catalog initialisation (and #778 teardown marshalling).
 //!
-//! `adapter-gui` must not depend on `vst3-host` directly. All VST3 operations
-//! that the GUI layer needs are exposed here through `project`, which is the
-//! correct dependency boundary for the adapter layer.
+//! `adapter-gui` must not depend on `vst3-host` directly. The VST3 operations
+//! the GUI layer needs are exposed here through `project`, the correct
+//! dependency boundary for the adapter layer.
+//!
+//! #780: VST3 has no native plugin editor any more — a VST3 block is edited
+//! through OpenRig's own knob editor like every other block (the knobs are
+//! synthesised from the plugin's parameters, see `vst3_host::catalog_params`).
 
-use anyhow::Result;
-pub use block_core::PluginEditorHandle;
-
-/// Initialise the VST3 plugin catalog by scanning standard system paths.
+/// Initialise the VST3 plugin catalog by scanning standard system paths plus
+/// the `vst3/` sub-directory of each configured plugin root (issue #776), so a
+/// catalog VST3 shipped in the OpenRig plugins folder is discovered exactly
+/// like a system-installed one.
 ///
 /// Safe to call from a background thread. Subsequent calls are no-ops.
-pub fn init_vst3_catalog(sample_rate: f64) {
-    vst3_host::init_vst3_catalog(sample_rate);
+pub fn init_vst3_catalog(sample_rate: f64, plugin_roots: &[std::path::PathBuf]) {
+    let extra_dirs: Vec<std::path::PathBuf> =
+        plugin_roots.iter().map(|root| root.join("vst3")).collect();
+    vst3_host::init_vst3_catalog(sample_rate, &extra_dirs);
 }
 
-/// Open the native editor window for the VST3 plugin identified by `model_id`.
-///
-/// Strategy:
-/// 1. If the audio engine has already built this plugin (registered a
-///    `Vst3GuiContext`), reuse its `IEditController`. This avoids creating a
-///    second plugin instance, which fails for plugins like ValhallaSupermassive.
-/// 2. Otherwise fall back to loading a fresh instance. This works for plugins
-///    that allow multiple instances (Cloud Seed, Cocoa Delay, …) and lets the
-///    user open the GUI before the engine has started.
-///
-/// Must be called on the main/UI thread (macOS AppKit requirement).
-pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
-    let entry = vst3_host::find_vst3_plugin(model_id)
-        .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
+/// Record the UI thread as the main/AppKit thread (issue #778). Call once on the
+/// UI thread at startup so a VST3 plugin dropped on the control worker has its
+/// teardown marshaled back here instead of crashing off the main thread.
+pub fn mark_main_thread() {
+    vst3_host::mark_main_thread();
+}
 
-    if let Some(gui_context) = vst3_host::lookup_vst3_gui_context(model_id) {
-        // Engine already loaded this plugin — reuse the existing controller.
-        log::debug!("VST3 editor: reusing engine controller for '{}'", model_id);
-        let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
-        return Ok(Box::new(handle));
-    }
-
-    // Fallback: load a standalone instance (no param-channel communication).
-    log::debug!(
-        "VST3 editor: no engine context for '{}', loading standalone instance",
-        model_id
-    );
-    let uid = vst3_host::resolve_uid_for_model(model_id)?;
-    let handle = vst3_host::open_vst3_editor_window_standalone(
-        &entry.info.bundle_path,
-        &uid,
-        entry.display_name,
-        sample_rate,
-    )?;
-    Ok(Box::new(handle))
+/// Run any VST3 plugin teardown deferred from a non-main thread (issue #778).
+/// Call on the frontend tick, on the main thread.
+pub fn drain_deferred_vst3_teardowns() {
+    vst3_host::drain_main_thread_deferred();
 }

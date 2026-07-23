@@ -8,7 +8,7 @@ block-core = { path = "../block-core" }
 plugin-loader = { path = "../plugin-loader" }
 ir = { path = "../ir" }
 lv2 = { path = "../lv2" }
-vst3-host = { path = "../vst3" }
+vst3-host = { path = "../vst3-host" }
 log.workspace = true
 [dev-dependencies]
 domain = { path = "../domain" }

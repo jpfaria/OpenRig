@@ -112,7 +112,9 @@ fn issue_706_user_params_must_compress_dynamics() {
     ps.insert("threshold", ParameterValue::Float(70.0));
     ps.insert("mix", ParameterValue::Float(100.0));
     ps.insert("makeup_gain", ParameterValue::Float(50.0));
-    let params = ps.normalized_against(&schema).expect("user params normalize");
+    let params = ps
+        .normalized_against(&schema)
+        .expect("user params normalize");
 
     let sample_rate = 48_000.0_f32;
     let mut proc = match build_dynamics_processor_for_layout(

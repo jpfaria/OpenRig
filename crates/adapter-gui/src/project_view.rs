@@ -1,14 +1,10 @@
-use crate::block_editor::{
-    block_editor_data, block_parameter_items_for_editor, block_parameter_items_for_model,
-    build_knob_overlays,
-};
-use crate::eq::{build_curve_editor_points, build_multi_slider_points};
+use crate::block_editor::block_parameter_items_for_model;
 use crate::state::SelectedBlock;
 use crate::ui_state::{chain_io_chip_label_from_bindings, chain_routing_summary};
-use infra_filesystem::IoBinding;
 use crate::AppWindow;
-use crate::{BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem, ProjectChainItem};
+use crate::{BlockModelPickerItem, BlockTypePickerItem, ProjectChainItem};
 use infra_cpal::AudioDeviceDescriptor;
+use infra_filesystem::IoBinding;
 use project::block::AudioBlockKind;
 use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
 use project::chain::Chain;
@@ -189,109 +185,6 @@ pub(crate) fn block_model_index(effect_type: &str, model_id: &str, instrument: &
         .unwrap_or(-1)
 }
 
-pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec<CompactBlockItem> {
-    let Some(chain) = project.chains.get(chain_index) else {
-        return Vec::new();
-    };
-    chain
-        .blocks
-        .iter()
-        .enumerate()
-        .filter_map(|(block_index, block)| {
-            let editor_data = block_editor_data(block)?;
-            let effect_type = editor_data.effect_type.clone();
-            let model_id = editor_data.model_id.clone();
-            let params = block_parameter_items_for_editor(&editor_data);
-            let knob_layout = project::catalog::model_knob_layout(&effect_type, &model_id);
-            let overlays = build_knob_overlays(knob_layout, &params);
-            let ms_pts = build_multi_slider_points(&effect_type, &model_id, &editor_data.params);
-            let ce_pts = build_curve_editor_points(&effect_type, &model_id, &editor_data.params);
-            let icon_kind = supported_block_type(&effect_type)
-                .map(|t| t.icon_kind.to_string())
-                .unwrap_or_default();
-            let visual = project::catalog::supported_block_models(&effect_type)
-                .ok()
-                .and_then(|models| models.into_iter().find(|m| m.model_id == model_id));
-
-            Some(CompactBlockItem {
-                chain_index: chain_index as i32,
-                block_index: block_index as i32,
-                block_id: block.id.0.clone().into(),
-                effect_type: effect_type.clone().into(),
-                model_id: model_id.clone().into(),
-                icon_kind: icon_kind.clone().into(),
-                brand: visual
-                    .as_ref()
-                    .map(|v| v.brand.clone())
-                    .unwrap_or_default()
-                    .into(),
-                display_name: visual
-                    .as_ref()
-                    .map(|v| v.display_name.clone())
-                    .unwrap_or_default()
-                    .into(),
-                type_label: visual
-                    .as_ref()
-                    .map(|v| v.type_label.clone())
-                    .unwrap_or_default()
-                    .into(),
-                enabled: block.enabled,
-                panel_bg: {
-                    let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc =
-                        project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
-                    let [r, g, b] = vc.panel_bg;
-                    slint::Color::from_argb_u8(0xff, r, g, b)
-                },
-                panel_text: {
-                    let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
-                    let vc =
-                        project::catalog::resolve_color_scheme(&effect_type, brand_str, &model_id);
-                    let [r, g, b] = vc.panel_text;
-                    slint::Color::from_argb_u8(0xff, r, g, b)
-                },
-                accent_color: crate::ui_state::accent_color_for_icon_kind(&icon_kind),
-                display_label: {
-                    let bt = supported_block_type(&effect_type);
-                    bt.map(|e| e.display_label).unwrap_or("BLOCK").into()
-                },
-                icon_source: slint::Image::default(),
-                knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
-                parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
-                multi_slider_points: ModelRc::from(Rc::new(VecModel::from(ms_pts))),
-                curve_editor_points: ModelRc::from(Rc::new(VecModel::from(ce_pts))),
-                model_labels: {
-                    let instrument = chain.instrument.as_str();
-                    let items = block_model_picker_items(&effect_type, instrument);
-                    let labels: Vec<SharedString> = items.iter().map(|i| i.label.clone()).collect();
-                    ModelRc::from(Rc::new(VecModel::from(labels)))
-                },
-                model_selected_index: {
-                    let instrument = chain.instrument.as_str();
-                    let items = block_model_picker_items(&effect_type, instrument);
-                    items
-                        .iter()
-                        .position(|i| i.model_id.as_str() == model_id)
-                        .map(|i| i as i32)
-                        .unwrap_or(-1)
-                },
-                models: {
-                    let instrument = chain.instrument.as_str();
-                    let items = block_model_picker_items(&effect_type, instrument);
-                    ModelRc::from(Rc::new(VecModel::from(items)))
-                },
-                filtered_models: {
-                    let instrument = chain.instrument.as_str();
-                    let items = block_model_picker_items(&effect_type, instrument);
-                    ModelRc::from(Rc::new(VecModel::from(items)))
-                },
-                stream_data: Default::default(),
-                has_external_gui: project::catalog::block_has_external_gui(&effect_type),
-            })
-        })
-        .collect()
-}
-
 pub(crate) fn chain_block_item_from_block(
     block: &project::block::AudioBlock,
 ) -> crate::ChainBlockItem {
@@ -457,8 +350,7 @@ pub(crate) fn replace_project_chains(
                     }
                 },
                 input_label: {
-                    let binding_name =
-                        chain_io_chip_label_from_bindings(chain, io_bindings, true);
+                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, true);
                     if binding_name.is_empty() {
                         // #716: device endpoints resolve from the binding
                         // registry (never from block `entries`).
@@ -476,8 +368,7 @@ pub(crate) fn replace_project_chains(
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices, io_bindings)
                     .into(),
                 output_label: {
-                    let binding_name =
-                        chain_io_chip_label_from_bindings(chain, io_bindings, false);
+                    let binding_name = chain_io_chip_label_from_bindings(chain, io_bindings, false);
                     if binding_name.is_empty() {
                         // #716: device endpoints resolve from the binding
                         // registry (never from block `entries`).
@@ -500,6 +391,29 @@ pub(crate) fn replace_project_chains(
                 // timer subscribes & polls (engine::output_meter).
                 meter_in_dbfs: engine::output_meter::SILENT_DBFS,
                 meter_out_dbfs: engine::output_meter::SILENT_DBFS,
+                // #771: the DI meter row starts silent; the timer fills it
+                // from the isolated playback's own peaks while the DI plays.
+                di_meter: crate::StreamMeter {
+                    in_dbfs: engine::output_meter::SILENT_DBFS,
+                    out_dbfs: engine::output_meter::SILENT_DBFS,
+                },
+                // #771: the DI panel's output select — the chain's bound
+                // output endpoints + the persisted pick.
+                di_loop_outputs: {
+                    let (labels, _) =
+                        crate::di_output_options::output_labels_and_index(chain, io_bindings);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        labels
+                            .into_iter()
+                            .map(SharedString::from)
+                            .collect::<Vec<_>>(),
+                    )))
+                },
+                di_output_selected_index: crate::di_output_options::output_labels_and_index(
+                    chain,
+                    io_bindings,
+                )
+                .1,
                 // Issue #670: no overload until the meter timer observes
                 // xruns from the running audio callback.
                 audio_overload: false,

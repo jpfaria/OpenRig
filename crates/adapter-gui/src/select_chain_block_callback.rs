@@ -47,9 +47,7 @@ use crate::project_view::{
     block_type_picker_items, set_selected_block,
 };
 use crate::runtime_lifecycle::ui_index_to_real_block_index;
-use crate::state::{
-    BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
-};
+use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::ui_state::block_drawer_state;
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, BlockStreamData, BlockStreamEntry,
@@ -84,8 +82,6 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
-    pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
 
@@ -121,8 +117,6 @@ pub(crate) fn wire(
         inline_stream_timer,
         toast_timer,
         plugin_info_window,
-        vst3_editor_handles,
-        vst3_sample_rate,
         auto_save,
     } = ctx;
 
@@ -169,52 +163,49 @@ pub(crate) fn wire(
         // Handle Insert blocks — open the insert configuration window. I/O
         // blocks are no longer editable here (#716: a chain's I/O comes from
         // its selected bindings); they fall through to the not-editable path.
-        match &block.kind {
-            AudioBlockKind::Insert(ib) => {
-                let fresh_input = refresh_input_devices(&chain_input_device_options);
-                let fresh_output = refresh_output_devices(&chain_output_device_options);
-                log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
-                // TODO(#716): insert editor UI should pick a binding (`io`)
-                // instead of raw send/return device endpoints. The device-picker
-                // fields below are placeholder no-ops until the Slint window is
-                // reworked; the persisted value is the binding id (`ib.io`).
-                let draft = InsertDraft {
-                    chain_index: chain_index as usize,
-                    block_index: block_index as usize,
-                    io: ib.io.clone(),
-                    send_device_id: None,
-                    send_channels: Vec::new(),
-                    send_mode: project::chain::ChainInputMode::Mono,
-                    return_device_id: None,
-                    return_channels: Vec::new(),
-                    return_mode: project::chain::ChainInputMode::Mono,
-                };
-                let is_middle = block_index > 0 && (block_index as usize) < chain.blocks.len() - 1;
-                if let Some(iw) = weak_insert_window.upgrade() {
-                    let send_items = build_insert_send_channel_items(&draft, &fresh_output);
-                    let return_items = build_insert_return_channel_items(&draft, &fresh_input);
-                    replace_channel_options(&insert_send_channels, send_items);
-                    replace_channel_options(&insert_return_channels, return_items);
-                    iw.set_selected_send_device_index(selected_device_index(
-                        &fresh_output,
-                        draft.send_device_id.as_deref(),
-                    ));
-                    iw.set_selected_return_device_index(selected_device_index(
-                        &fresh_input,
-                        draft.return_device_id.as_deref(),
-                    ));
-                    iw.set_selected_send_mode_index(insert_mode_to_index(draft.send_mode));
-                    iw.set_selected_return_mode_index(insert_mode_to_index(draft.return_mode));
-                    iw.set_show_block_controls(is_middle);
-                    iw.set_block_enabled(block.enabled);
-                    iw.set_status_message("".into());
-                    *insert_draft.borrow_mut() = Some(draft);
-                    drop(session_borrow);
-                    show_child_window(window.window(), iw.window());
-                }
-                return;
+        if let AudioBlockKind::Insert(ib) = &block.kind {
+            let fresh_input = refresh_input_devices(&chain_input_device_options);
+            let fresh_output = refresh_output_devices(&chain_output_device_options);
+            log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
+            // TODO(#716): insert editor UI should pick a binding (`io`)
+            // instead of raw send/return device endpoints. The device-picker
+            // fields below are placeholder no-ops until the Slint window is
+            // reworked; the persisted value is the binding id (`ib.io`).
+            let draft = InsertDraft {
+                chain_index: chain_index as usize,
+                block_index: block_index as usize,
+                io: ib.io.clone(),
+                send_device_id: None,
+                send_channels: Vec::new(),
+                send_mode: project::chain::ChainInputMode::Mono,
+                return_device_id: None,
+                return_channels: Vec::new(),
+                return_mode: project::chain::ChainInputMode::Mono,
+            };
+            let is_middle = block_index > 0 && (block_index as usize) < chain.blocks.len() - 1;
+            if let Some(iw) = weak_insert_window.upgrade() {
+                let send_items = build_insert_send_channel_items(&draft, &fresh_output);
+                let return_items = build_insert_return_channel_items(&draft, &fresh_input);
+                replace_channel_options(&insert_send_channels, send_items);
+                replace_channel_options(&insert_return_channels, return_items);
+                iw.set_selected_send_device_index(selected_device_index(
+                    &fresh_output,
+                    draft.send_device_id.as_deref(),
+                ));
+                iw.set_selected_return_device_index(selected_device_index(
+                    &fresh_input,
+                    draft.return_device_id.as_deref(),
+                ));
+                iw.set_selected_send_mode_index(insert_mode_to_index(draft.send_mode));
+                iw.set_selected_return_mode_index(insert_mode_to_index(draft.return_mode));
+                iw.set_show_block_controls(is_middle);
+                iw.set_block_enabled(block.enabled);
+                iw.set_status_message("".into());
+                *insert_draft.borrow_mut() = Some(draft);
+                drop(session_borrow);
+                show_child_window(window.window(), iw.window());
             }
-            _ => {}
+            return;
         }
         log::info!("[select_chain_block] block at real_index={}: id='{}', kind={}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
         log::info!("[select_chain_block] chain has {} blocks:", chain.blocks.len());
@@ -271,18 +262,13 @@ pub(crate) fn wire(
         window.set_block_drawer_enabled(enabled);
         window.set_block_drawer_status_message("".into());
         window.set_show_block_type_picker(false);
-        // Clone block_id before dropping session_borrow (needed by window editor stream timer)
+        // Clone block_id before dropping session_borrow (needed by the window
+        // editor stream timer below).
         let block_id_for_editor = block.id.clone();
-        let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
         drop(session_borrow);
-        // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
-        if is_vst3_block && !model_id.is_empty() {
-            match project::vst3_editor::open_vst3_editor(&model_id, vst3_sample_rate) {
-                Ok(handle) => { vst3_editor_handles.borrow_mut().push(handle); }
-                Err(e) => set_status_error(&window, &toast_timer, &rust_i18n::t!("error-vst3-open", err = e).to_string()),
-            }
-            return;
-        }
+        // #780: VST3 blocks open the SAME OpenRig knob editor as every other
+        // block (LV2/NAM/…) — no native plugin GUI. The knobs are synthesised
+        // from the plugin's own parameters (`catalog_params`).
         if use_inline_block_editor(&window) {
             let param_items_vec = block_parameter_items_for_editor(&editor_data);
             let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
@@ -376,8 +362,6 @@ pub(crate) fn wire(
                 selected_block: selected_block.clone(),
                 open_block_windows: open_block_windows.clone(),
                 plugin_info_window: plugin_info_window.clone(),
-                vst3_editor_handles: vst3_editor_handles.clone(),
-                vst3_sample_rate,
                 auto_save,
             };
             let (win, block_stream_timer) = match block_editor_window_setup::create_and_wire(
@@ -386,7 +370,7 @@ pub(crate) fn wire(
             ) {
                 Ok(pair) => pair,
                 Err(e) => {
-                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-editor-open", err = e).to_string());
+                    set_status_error(&window, &toast_timer, rust_i18n::t!("error-editor-open", err = e).as_ref());
                     return;
                 }
             };

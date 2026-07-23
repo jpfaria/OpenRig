@@ -1,9 +1,13 @@
-import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter } from "models.slint";
+import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter, ChainBlockItem } from "models.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
+import { DiLoopPanel } from "components/di_loop_panel.slint";
+import { DiPanel } from "components/di_panel_globals.slint";
+import { ToneDoctorPanel } from "components/tone_doctor_panel.slint";
+import { ToneDoctorState } from "components/tone_doctor_globals.slint";
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -22,6 +26,8 @@ export component BlockEditorWindow inherits Window {
     in-out property <string> block-model-search-text;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[string]> block-parameter-groups;
+    in property <int> active-parameter-group: 0;
     in property <[MultiSliderPoint]> multi-slider-points;
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
@@ -49,8 +55,8 @@ export component BlockEditorWindow inherits Window {
     callback update-block-parameter-number-text(string, string);
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
+    callback select-parameter-group(int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
 
     // Realtime data stream from engine (tuner, meter, analyzer, etc.)
     in property <BlockStreamData> block-stream-data;
@@ -143,6 +149,8 @@ export component BlockEditorWindow inherits Window {
         block-drawer-enabled: root.block-drawer-enabled;
         block-knob-overlays: root.block-knob-overlays;
         block-parameter-items: root.block-parameter-items;
+        block-parameter-groups: root.block-parameter-groups;
+        active-parameter-group: root.active-parameter-group;
         multi-slider-points: root.multi-slider-points;
         curve-editor-points: root.curve-editor-points;
         eq-total-curve: root.eq-total-curve;
@@ -164,6 +172,7 @@ export component BlockEditorWindow inherits Window {
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
+        select-parameter-group(i) => { root.select-parameter-group(i); }
     }
 
     // Other block types: existing form-based editor
@@ -200,7 +209,6 @@ export component BlockEditorWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
     }
 
     in-out property <string> toast-message;
@@ -259,6 +267,15 @@ export component CompactChainViewWindow inherits Window {
     // #614: DI loop state for the focused chain.
     in property <bool> di-loop-playing: false;
     in property <[string]> di-loop-sources: [];
+    // #717: which source is selected — without it the compact panel opens with
+    // no selection, so it shows nothing picked and hides the play/stop button.
+    in property <int> di-loop-selected-index: -1;
+    // #771: the chain's bound output endpoints + the persisted pick.
+    in property <[string]> di-loop-outputs: [];
+    in property <int> di-output-selected-index: -1;
+    // #717: dedicated DI-stream graph payload (the DI's own blocks + live
+    // meters + chosen output label), shown while the DI plays.
+    in property <StreamMeter> di-graph-meter;
 
     // I/O device configuration
     callback configure-input(int); // chain_index
@@ -268,12 +285,22 @@ export component CompactChainViewWindow inherits Window {
     callback di-loop-choose-file();
     callback di-loop-play();
     callback di-loop-stop();
+    // #771: an output endpoint was picked (index into di-loop-outputs).
+    callback di-loop-output-selected(int);
+    // #791: Tone Doctor — run the offline diagnosis / apply its suggested fix.
+    callback tone-doctor-run(int);
+    callback tone-doctor-apply(int);
 
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
     callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
+    // #787: switch the parameter tab a compact block shows, and the row geometry
+    // the drag/drop indicator needs (rows no longer share a fixed stride).
+    callback select-block-parameter-group(int, int, int);
+    pure callback slot-at(length) -> int;
+    pure callback slot-y(int) -> length;
     callback choose-block-model(int, int, int);
     callback choose-block-model-by-id(int, int, string);
     callback search-block-model(int, int, string);
@@ -283,7 +310,6 @@ export component CompactChainViewWindow inherits Window {
     callback close-compact-view();
     callback choose-block-type(int, int, int);
     callback remove-block(int, int);
-    callback open-plugin(string); // model-id, for VST3 blocks
     // Preset / chain admin callbacks — same shape `chain_row` exposes
     // so the same wiring on the Rust side serves both views.
     callback switch-chain-preset(int);
@@ -323,6 +349,10 @@ export component CompactChainViewWindow inherits Window {
         volume: root.volume;
         di-loop-playing: root.di-loop-playing;
         di-loop-sources: root.di-loop-sources;
+        di-loop-selected-index: root.di-loop-selected-index;
+        di-loop-outputs: root.di-loop-outputs;
+        di-output-selected-index: root.di-output-selected-index;
+        di-graph-meter: root.di-graph-meter;
         configure-input(ci) => { root.configure-input(ci); }
         configure-output(ci) => { root.configure-output(ci); }
         di-loop-source-selected(src) => { root.di-loop-source-selected(src); }
@@ -334,6 +364,9 @@ export component CompactChainViewWindow inherits Window {
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
         update-block-parameter-bool(ci, bi, p, v) => { root.update-block-parameter-bool(ci, bi, p, v); }
         select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
+        select-block-parameter-group(ci, bi, gi) => { root.select-block-parameter-group(ci, bi, gi); }
+        slot-at(y) => { root.slot-at(y) }
+        slot-y(i) => { root.slot-y(i) }
         choose-block-model(ci, bi, mi) => { root.choose-block-model(ci, bi, mi); }
         choose-block-model-by-id(ci, bi, mid) => { root.choose-block-model-by-id(ci, bi, mid); }
         search-block-model(ci, bi, text) => { root.search-block-model(ci, bi, text); }
@@ -343,7 +376,6 @@ export component CompactChainViewWindow inherits Window {
         close-compact-view => { root.close-compact-view(); }
         choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
         remove-block(ci, bi) => { root.remove-block(ci, bi); }
-        open-plugin(model-id) => { root.open-plugin(model-id); }
         switch-chain-preset(slot) => { root.switch-chain-preset(slot); }
         switch-chain-scene(s) => { root.switch-chain-scene(s); }
         rename-chain-preset(name) => { root.rename-chain-preset(name); }
@@ -372,5 +404,75 @@ export component CompactChainViewWindow inherits Window {
         chain-name: root.confirm-delete-chain-name;
         confirm => { root.confirm-delete-chain(); }
         cancel => { root.cancel-delete-chain(); }
+    }
+
+    // #717: DI panel overlay for the DETACHED compact window. The fone
+    // (ChainDiLoopButton) sets `DiPanel.open` on this window's own global;
+    // without this overlay the click had no visible effect ("botão não faz
+    // nada"). Mirrors app-window's DI overlay, but the window's DI callbacks
+    // are single-chain (no chain index).
+    if DiPanel.open : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        TouchArea { clicked => { DiPanel.open = false; } }
+        DiLoopPanel {
+            x: DiPanel.x;
+            y: DiPanel.y;
+            sources: DiPanel.sources;
+            selected-index: DiPanel.selected-index;
+            playing: DiPanel.playing;
+            outputs: DiPanel.outputs;
+            output-selected-index: DiPanel.output-selected-index;
+            source-picked(i, s) => {
+                DiPanel.selected-index = i;
+                root.di-loop-source-selected(s);
+            }
+            choose-file => { root.di-loop-choose-file(); }
+            play => {
+                DiPanel.playing = true;
+                root.di-loop-play();
+            }
+            stop => {
+                DiPanel.playing = false;
+                root.di-loop-stop();
+            }
+            output-picked(i, s) => {
+                DiPanel.output-selected-index = i;
+                root.di-loop-output-selected(i);
+            }
+        }
+    }
+
+    // #791: Tone Doctor panel overlay for the detached compact window. The
+    // stethoscope (ChainToneDoctorButton) sets `ToneDoctorState.open`; Rust
+    // fills the result fields after the offline run.
+    if ToneDoctorState.open : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        TouchArea { clicked => { ToneDoctorState.open = false; } }
+        ToneDoctorPanel {
+            x: ToneDoctorState.x;
+            y: ToneDoctorState.y;
+            running: ToneDoctorState.running;
+            has-result: ToneDoctorState.has-result;
+            symptom-level: ToneDoctorState.symptom-level;
+            symptom-text: ToneDoctorState.symptom-text;
+            culprit-label: ToneDoctorState.culprit-label;
+            suggestion-text: ToneDoctorState.suggestion-text;
+            has-suggestion: ToneDoctorState.has-suggestion;
+            fizz-value: ToneDoctorState.fizz-value;
+            fizz-limit: ToneDoctorState.fizz-limit;
+            mud-value: ToneDoctorState.mud-value;
+            mud-limit: ToneDoctorState.mud-limit;
+            boom-value: ToneDoctorState.boom-value;
+            boom-limit: ToneDoctorState.boom-limit;
+            clip-value: ToneDoctorState.clip-value;
+            clip-limit: ToneDoctorState.clip-limit;
+            analyze-seconds: ToneDoctorState.analyze-seconds;
+            can-diagnose: ToneDoctorState.can-diagnose;
+            seconds-picked(s) => { ToneDoctorState.analyze-seconds = s; }
+            run-diagnosis => { root.tone-doctor-run(ToneDoctorState.chain-index); }
+            apply-suggestion => { root.tone-doctor-apply(ToneDoctorState.chain-index); }
+        }
     }
 }

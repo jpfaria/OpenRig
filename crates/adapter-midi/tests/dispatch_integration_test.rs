@@ -14,7 +14,7 @@ use adapter_midi::profile::parse_profile_yaml;
 use adapter_midi::slots::IncomingMessage;
 use anyhow::Result;
 use application::command::Command;
-use application::dispatcher::{CommandDispatcher, EventStream};
+use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::SelectionState;
 
@@ -36,10 +36,6 @@ impl CommandDispatcher for SpyDispatcher {
         self.seen.borrow_mut().push(cmd);
         Ok(vec![])
     }
-
-    fn subscribe(&self) -> EventStream {
-        unimplemented!("not used by these tests")
-    }
 }
 
 #[test]
@@ -55,8 +51,10 @@ bindings:
     )
     .unwrap();
 
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("rig:guitar".to_string());
+    let sel = SelectionState {
+        active_chain: Some("rig:guitar".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     let msg = IncomingMessage::ProgramChange {
@@ -88,8 +86,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("g".to_string());
+    let sel = SelectionState {
+        active_chain: Some("g".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     let msg = IncomingMessage::ProgramChange {
@@ -124,8 +124,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("g".to_string());
+    let sel = SelectionState {
+        active_chain: Some("g".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     dispatch_midi_message(
@@ -153,8 +155,10 @@ bindings:
 "#,
     )
     .unwrap();
-    let mut sel = SelectionState::default();
-    sel.active_chain = Some("g".to_string());
+    let sel = SelectionState {
+        active_chain: Some("g".to_string()),
+        ..Default::default()
+    };
     let dispatcher = SpyDispatcher::new();
 
     dispatch_midi_message(

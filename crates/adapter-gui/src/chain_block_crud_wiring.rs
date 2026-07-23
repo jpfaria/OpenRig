@@ -3,13 +3,13 @@
 //! Three callbacks driving the per-block actions inside an open chain:
 //!
 //! - `on_clear_chain_block`        — clear all selected-block + drawer state
-//!                                   (closes the standalone block editor too).
+//!   (closes the standalone block editor too).
 //! - `on_toggle_chain_block_enabled` — toggle one block's enabled flag, keep
-//!                                     the editor draft in sync, and resync
-//!                                     the live runtime.
+//!   the editor draft in sync, and resync
+//!   the live runtime.
 //! - `on_reorder_chain_block`      — move a block, close any open block-editor
-//!                                   windows for that chain (avoids stale
-//!                                   index references), and resync runtime.
+//!   windows for that chain (avoids stale
+//!   index references), and resync runtime.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -197,10 +197,10 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-            &[]
+                &[],
             );
             let selected = SelectedBlock {
                 chain_index: chain_index as usize,
@@ -298,7 +298,7 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
+                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
             &[]

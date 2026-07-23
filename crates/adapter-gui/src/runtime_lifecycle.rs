@@ -50,8 +50,8 @@ pub(crate) fn sync_project_runtime(
     {
         let mut borrow = project_runtime.borrow_mut();
         if let Some(runtime) = borrow.as_mut() {
-            validate_project(&*proj)?;
-            runtime.sync_project(&*proj)?;
+            validate_project(&proj)?;
+            runtime.sync_project(&proj)?;
         }
     }
     // #669: keep the dispatcher's engine sample rate in lock-step with the
@@ -116,7 +116,7 @@ pub(crate) fn sync_live_chain_runtime(
             // chain bails "no input blocks". Sourced from the session's mirror
             // of `AppConfig.io_bindings`.
             let controller = ProjectRuntimeController::start_with_io_bindings(
-                &*proj,
+                &proj,
                 session.io_bindings.borrow().clone(),
             )?;
             *borrow = Some(controller);
@@ -142,7 +142,7 @@ pub(crate) fn sync_live_chain_runtime(
             // the session's live mirror of `AppConfig.io_bindings` on EVERY
             // sync, not just at start, so a just-created binding takes effect.
             runtime.set_io_bindings(session.io_bindings.borrow().clone());
-            validate_project(&*proj)?;
+            validate_project(&proj)?;
             // #743: plan the action BEFORE resolving anything. A disable must
             // pause immediately (drain → output silent) and must NOT run
             // `chain_io_changed` — that synchronous CoreAudio resolve costs
@@ -152,7 +152,7 @@ pub(crate) fn sync_live_chain_runtime(
             // off). The IO-change re-bind check belongs only to an enable.
             let action = plan_live_sync(chain.is_some(), chain_enabled, || {
                 let chain = chain.expect("io_changed is only queried for a present, enabled chain");
-                runtime.chain_io_changed(&*proj, chain)
+                runtime.chain_io_changed(&proj, chain)
             })?;
             match action {
                 LiveSyncAction::Remove => runtime.remove_chain(chain_id),
@@ -160,7 +160,7 @@ pub(crate) fn sync_live_chain_runtime(
                     // upsert_chain's !enabled path pauses (keeps streams alive,
                     // drains to silence) in O(1) — no device queries.
                     let chain = chain.expect("Pause implies the chain is present");
-                    runtime.upsert_chain(&*proj, chain)?;
+                    runtime.upsert_chain(&proj, chain)?;
                 }
                 LiveSyncAction::Enable { io_changed } => {
                     // Issue #672/#693: a cold activation builds the runtime off the
@@ -178,10 +178,10 @@ pub(crate) fn sync_live_chain_runtime(
                     if io_changed {
                         runtime.remove_chain(&chain.id);
                     }
-                    if !runtime.schedule_chain_activation(&*proj, chain)?
-                        && !runtime.request_offthread_rebuild_if_live(&*proj, chain)?
+                    if !runtime.schedule_chain_activation(&proj, chain)?
+                        && !runtime.request_offthread_rebuild_if_live(&proj, chain)?
                     {
-                        runtime.upsert_chain(&*proj, chain)?;
+                        runtime.upsert_chain(&proj, chain)?;
                     }
                 }
             }
@@ -193,6 +193,37 @@ pub(crate) fn sync_live_chain_runtime(
     }
     // #669: an upsert may have rebuilt the stream at a new device rate; keep
     // the dispatcher's engine sample rate in lock-step.
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
+    Ok(())
+}
+
+/// #808: ensure a runtime controller exists so the DI can play WITHOUT any
+/// chain being enabled. The DI is an independent pipeline (invariant #4) — it
+/// must not depend on a guitar stream even existing. `sync_live_chain_runtime`
+/// only lazily creates the controller when a chain is being ENABLED, so a user
+/// who opens a project and hits ▶ on the DI (no chain active) had no controller
+/// at all — the play was a silent no-op until a chain toggle created one. This
+/// mirrors that lazy creation but is NOT gated on `enabled`. No-op when a
+/// controller already exists.
+pub(crate) fn ensure_runtime(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    session: &ProjectSession,
+) -> Result<()> {
+    {
+        let borrow = project_runtime.borrow();
+        if borrow.is_some() {
+            return Ok(());
+        }
+    }
+    // #716 (AUDIO-CRITICAL): hand the I/O binding registry to the controller
+    // BEFORE start() runs its initial sync (same reason as the enable path).
+    let controller = ProjectRuntimeController::start_with_io_bindings(
+        &session.project.borrow(),
+        session.io_bindings.borrow().clone(),
+    )?;
+    *project_runtime.borrow_mut() = Some(controller);
+    // #669: keep the dispatcher's engine rate in lock-step with the real device
+    // rate start() resolved, so a DI resamples correctly.
     crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
     Ok(())
 }
@@ -221,7 +252,16 @@ pub(crate) fn sync_block_toggle(
     let fast_path = {
         let borrow = project_runtime.borrow();
         match borrow.as_ref() {
-            Some(runtime) => runtime.set_block_enabled(chain_id, block_id, enabled),
+            // #522 fast toggle + re-render the monitored DI (issue #717/#771): the
+            // fast path only flips the guitar runtime, so a block disabled while
+            // monitoring the DI would keep sounding without the re-arm.
+            Some(runtime) => {
+                let project = session.project.borrow();
+                match project.chains.iter().find(|c| &c.id == chain_id) {
+                    Some(chain) => runtime.toggle_block_enabled_live(chain, block_id, enabled),
+                    None => runtime.set_block_enabled(chain_id, block_id, enabled),
+                }
+            }
             None => Err(anyhow::anyhow!("runtime not started")),
         }
     };
@@ -283,3 +323,7 @@ pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> us
     // If ui_index is past all visible blocks, return end (before last output)
     last_output_idx.unwrap_or(chain.blocks.len())
 }
+
+#[cfg(test)]
+#[path = "runtime_lifecycle_di_808_tests.rs"]
+mod di_808_tests;

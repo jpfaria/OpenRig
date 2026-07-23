@@ -18,8 +18,8 @@ pub use builders::{
 };
 pub use descriptor::BlockParameterDescriptor;
 pub use schema::{
-    CurveEditorRole, ModelParameterSchema, ParameterDomain, ParameterOption, ParameterSpec,
-    ParameterUnit, ParameterWidget,
+    CurveEditorRole, MaterializeContext, ModelParameterSchema, ParameterDomain, ParameterOption,
+    ParameterSpec, ParameterUnit, ParameterWidget,
 };
 pub use set::{optional_string, required_bool, required_f32, required_string, ParameterSet};
 
@@ -36,3 +36,7 @@ pub(crate) use domain::value_objects::ParameterValue;
 #[cfg(test)]
 #[path = "../param_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../param_tests_more.rs"]
+mod tests_more;

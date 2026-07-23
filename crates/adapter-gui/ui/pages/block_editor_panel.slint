@@ -45,7 +45,6 @@ export component BlockEditorPanel inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
 
     // Realtime data stream from engine (tuner, spectrum analyzer, etc.)
     in property <BlockStreamData> block-stream-data;

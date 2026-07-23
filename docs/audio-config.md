@@ -154,7 +154,7 @@ explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
 
 ### Virtual DI loop (per-chain, ephemeral)
 
-A chain's live hardware input can be temporarily replaced by a looping dry-DI buffer for tone-shaping without playing (#614). The substitution is per-chain and audio-thread-safe: decoding, resampling, and loop crossfading happen off the audio thread; the audio thread performs only a lock-free pointer read (zero allocation, zero lock). All other chains continue reading their own hardware inputs — isolation invariant #4 is preserved. On a chain with **multiple input sources**, the loop plays exactly **once** (through the first source segment); the remaining segments are muted while the loop is armed, so playback is never doubled at the output (#699). The state is runtime-only and is never persisted (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details and source options.
+A chain's DI loop plays on its **own isolated, streamed runtime** (#771) — it never replaces or rides the guitar's live input. Arming resolves the chain's persisted output choice (`Chain.di_output` → one of its bound output endpoints; absent → the main output), builds a fresh copy of the chain's block graph REDUCED to that output's binding (so the loop feeds the route the chosen output drains, #716/#699) on a `di-stream` worker, and parks a ring-backed playback on that output's cell immediately — a 75 s loop starts in milliseconds (the full pre-render tried first took minutes before the first sample). The worker steps the runtime paced by **ring backpressure**: it only produces what the output callback consumed, so the output device clock IS the DI clock — no drift by construction (the sleep-paced worker tried in #717 drifted and was reverted) — and the callback only pops frames and sums (zero allocation/locks/DSP, invariant #8). Decoding, resampling (per-output rate, #749) and all block DSP happen off the audio thread. The guitar runtime, its meters, and every other output are untouched (isolation invariant #4); a device-rate change re-arms at the new rate (#669). A live edit (a param change or a block toggle) re-renders the DI **gaplessly** (#785): the playback that is sounding keeps playing while the new render is built and pre-rolled off-thread, and the incoming worker takes the output's cell over mid-loop — at exactly the loop position the listener reaches (`DiPlayback::play_pos`, `set_di_loop_pos`) — so the edit lands with neither a silent gap nor a restart of the take. The outgoing playback is retired off the audio thread, never dropped by the callback (invariant #8). The **source** choice stays runtime-only; only the **output** choice persists, inside the chain in `project.openrig` (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details.
 
 ### Per-entry stream isolation (issues #350 / #703)
 
@@ -166,7 +166,18 @@ is only logical grouping.
 
 - **Two devices** (#350 phase 3): one cpal stream per device, each bound
   to its own runtime; the shared output device sums them at the backend
-  (the only mix point invariant #4 permits).
+  (the only mix point invariant #4 permits). On macOS each device's
+  callback joins **its own** device's OS workgroup — resolved by the
+  bound device's UID, never the system default (#760). Before this the
+  join was hard-coded to the default device, so the non-default
+  interface's callback co-scheduled with the wrong device's IO thread and
+  underran under CPU contention despite spare cores. The `dsp_worker`
+  thread (which we own, unlike the C-owned cpal HAL callback thread) holds
+  its membership in an RAII guard and **leaves** the workgroup before the
+  thread exits: a chain rebuild tears the worker down and respawns it, and
+  a thread that joined but exits without leaving crashes in libpthread's
+  `_os_workgroup_tsd_cleanup` (#779). The HAL callback thread cannot leave
+  from another thread, so it keeps its membership for the process lifetime.
 - **Two entries on ONE device** (#703): Core Audio cannot open two
   streams on one device (a previous attempt produced total silence), so
   the device keeps ONE cpal stream whose callback fans out to every
@@ -184,6 +195,18 @@ is only logical grouping.
 Contract tests: `crates/engine/src/stream_isolation_tests.rs` +
 `stream_isolation_same_device_tests.rs`; cpal binding in
 `crates/infra-cpal/src/tests_regression.rs`.
+
+**Live edits on a VST3 chain (#779).** A live edit on a running chain normally
+rebuilds its runtime off-thread and swaps it in — but a **fresh** build calls
+the VST3 `createInstance` on the control worker while the audio thread is inside
+the old instance's `process()`, and JUCE global state is not safe against that
+concurrent instantiate-vs-process (SIGSEGV; the pairing #778's lock cannot
+cover, since `process()` is RT and must not lock). So a chain containing a VST3
+is instead updated **in place** (`engine::runtime::update_chain_runtime_state`
+in `controller_offthread_live_rebuild.rs`): the live VST3 instance is reused (a
+param change becomes `setParameter`, never a reload), mutated under the runtime's
+processing lock. Non-VST3 chains keep the off-thread fresh rebuild — re-creating
+a NAM/native block touches no shared JUCE state.
 
 ### I/O resolution from the binding registry (issue #716, model A)
 

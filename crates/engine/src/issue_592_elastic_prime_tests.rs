@@ -79,12 +79,13 @@ fn chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks,
+        di_output: None,
     }
 }
 
 fn first_output_buffer_len(chain: &Chain, buffer: usize) -> usize {
-    let rt = build_chain_runtime_state(chain, SR, &[buffer], &registry())
-        .expect("chain runtime builds");
+    let rt =
+        build_chain_runtime_state(chain, SR, &[buffer], &registry()).expect("chain runtime builds");
     rt.output_routes.load()[0].buffer.len()
 }
 

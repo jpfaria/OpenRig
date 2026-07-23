@@ -8,6 +8,8 @@ Pedalboard/rig virtual para guitarra em Rust + Slint. Cross-platform: macOS, Win
 
 **O agente trabalha SOMENTE em `.solvers/issue-N/`** — um clone isolado da branch. Edita ali, commita ali, dá push dali. A entrega termina no push; o usuário puxa a branch na pasta dele por conta própria.
 
+**A única primitiva de isolamento é `git clone` — `git worktree` é PROIBIDO, sempre, mesmo mirando `.solvers/`.** Um worktree compartilha o `.git` do repo principal: registra em `.git/worktrees` e cria a branch no repo principal, então o `git checkout <branch>` do usuário na pasta dele ABORTA com `'<branch>' is already used by worktree at …`. Um clone de verdade tem `.git` como DIRETÓRIO próprio (não um arquivo `.git` apontando de volta) — confira `.solvers/issue-N/.git` ser um dir antes de trabalhar. O guard `main-folder-guard.sh` agora BLOQUEIA `git worktree` (issue #804); mesmo assim: clone, nunca worktree.
+
 **Why:** o usuário roda vários agents em paralelo, cada um na sua branch, e usa a pasta principal pra rodar/testar o app. Um agent mexendo lá sobrescreve trabalho não-commitado do usuário e de outros agents, corrompe o estado de git da pasta e quebra a confiança — já aconteceu repetidas vezes. Regra escrita não basta: depende do agent lembrar.
 
 **How to apply:** se a tua sessão não está enraizada em `.solvers/issue-N/`, você está no lugar errado — clone a branch pra lá e trabalhe lá. Guard determinístico: o hook `main-folder-guard.sh` (PreToolUse) BLOQUEIA `Edit`/`Write`/`git` de qualquer sessão cuja raiz não esteja sob `.solvers/`. O bloqueio não depende do agent obedecer — a harness força.
@@ -20,11 +22,25 @@ Só estende a resposta quando o usuário pedir explicitamente ("explica em detal
 
 Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
 
+## LEI ZERO — PERGUNTA CURTA E OBJETIVA, SEMPRE
+
+**PROIBIDO pergunta confusa ou com textão.** Pergunta = uma coisa, mínimo de palavras, direto. Sem contexto longo, sem opções aninhadas, sem explicação antes. Se não cabe em uma linha, corta. Confundir o usuário com pergunta enorme é falha grave.
+
 ## LEI — PROIBIDO supor quando não está claro
 
 **EU SOU PROIBIDO DE SUPOR QUANDO AS COISAS NÃO ESTÃO CLARAS. EU PRECISO PERGUNTAR DE FORMA SIMPLES ATÉ TUDO FICAR CLARO.**
 
 Escopo, modelo de dados, comportamento esperado, camada certa, qual arquivo, A vs B — se QUALQUER coisa não está 100% clara, **PARO e pergunto** (uma pergunta curta de cada vez, até não restar dúvida). PROIBIDO "vou de cabeça e depois conserto", PROIBIDO inventar caminho, PROIBIDO escolher entre alternativas que o usuário não escolheu. Supor inverteu o pedido e queimou dias (I/O dentro da chain vs. fora; teste-depois vs. teste-antes) — na dúvida entre perguntar e supor, **perguntar**.
+
+## LEI ZERO — ISOLAMENTO TOTAL entre streams: N streams = N pipelines independentes, NADA misturado no nosso código
+
+**Se o rig tem N streams, são N chains COMPLETAMENTE isoladas.** Cada stream é um pipeline end-to-end próprio — SUA entrada, SEU runtime, SUA saída — e NADA de um stream pode tocar, misturar, somar, compartilhar, agrupar ou depender de outro. **Uma coisa NUNCA interfere na outra:** estado, buffer, rate, route, tap, falha, rebuild, latência — tudo por-stream. Se dois streams "sabem" um do outro no NOSSO código, é BUG. Não importa se têm a mesma taxa, o mesmo device, a mesma interface — continuam sendo pipelines separados que não se enxergam.
+
+**Mixing entre streams NUNCA acontece no nosso código — só no backend (cpal/JACK).** O sistema operacional soma streams do mesmo device físico; nós não. Qualquer código que combine/some/filtre-junto/selecione-em-grupo os runtimes de mais de um stream (ex.: um output que "mistura TODOS os runtimes da mesma taxa" — seleção por RATE em vez de por STREAM/DEVICE) **VIOLA esta lei e é causa raiz de cross-talk / underrun / interferência**. Um output stream serve APENAS o runtime do SEU próprio stream.
+
+**Why:** o usuário roda vários streams em paralelo (ex.: 4 streams em 2 interfaces) e cada um TEM que ser 100% independente — mexer, quebrar, atrasar ou reconstruir um NÃO pode afetar outro. "Selecionar por taxa" é um proxy furado de isolamento: mesma taxa em dois devices cross-mistura, e rate mal-resolvido agrupa errado → underrun/cross-talk. A isolação é por STREAM/DEVICE, JAMAIS por rate nem por "todos que casam". Já foi repetido incontáveis vezes; virou LEI.
+
+**How to apply:** qualquer seleção/agrupamento de runtimes no caminho de I/O (`slots_for_*`, output mixing, taps, DI, meters) tem que ser por identidade de STREAM/DEVICE — nunca por rate, nunca por "todos os que batem". Um output só toca o runtime do seu stream; um tap só lê o seu; um rebuild só reconstrói o seu. Achou código que junta/seleciona runtimes de streams diferentes por qualquer critério que não seja a identidade do próprio stream/device → é violação, PARA, reporta e corrige. Ver invariante #4 e o red flag correspondente abaixo.
 
 ## Invariantes que NUNCA podem piorar
 

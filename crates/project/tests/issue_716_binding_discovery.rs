@@ -42,6 +42,7 @@ fn chain_with(io_binding_ids: Vec<String>, blocks: Vec<AudioBlock>) -> Chain {
         volume: 100.0,
         io_binding_ids,
         blocks,
+        di_output: None,
     }
 }
 
@@ -54,7 +55,10 @@ fn registry() -> Vec<IoBinding> {
     }]
 }
 
-fn endpoint_names(ports: &[project::binding_discovery::ChainPort], dir: PortDirection) -> Vec<String> {
+fn endpoint_names(
+    ports: &[project::binding_discovery::ChainPort],
+    dir: PortDirection,
+) -> Vec<String> {
     ports
         .iter()
         .filter(|p| p.direction == dir)
@@ -73,7 +77,9 @@ fn selected_binding_expands_into_head_inputs_and_tail_outputs() {
         .filter(|p| p.direction == PortDirection::Input)
         .collect();
     assert_eq!(inputs.len(), 2, "two input endpoints → two input ports");
-    assert!(inputs.iter().all(|p| p.offset == 0 && p.binding_id == "xyz"));
+    assert!(inputs
+        .iter()
+        .all(|p| p.offset == 0 && p.binding_id == "xyz"));
     assert_eq!(
         endpoint_names(&ports, PortDirection::Input),
         vec!["ch1".to_string(), "ch2".to_string()]
@@ -85,7 +91,11 @@ fn selected_binding_expands_into_head_inputs_and_tail_outputs() {
         .filter(|p| p.direction == PortDirection::Output)
         .collect();
     assert_eq!(outputs.len(), 1, "one output endpoint → one output port");
-    assert_eq!(outputs[0].offset, chain.blocks.len(), "output sits at the tail");
+    assert_eq!(
+        outputs[0].offset,
+        chain.blocks.len(),
+        "output sits at the tail"
+    );
     assert_eq!(outputs[0].binding_id, "xyz");
     assert_eq!(outputs[0].endpoint.name, "ch3");
 }

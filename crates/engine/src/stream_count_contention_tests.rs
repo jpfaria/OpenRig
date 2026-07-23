@@ -115,14 +115,20 @@ fn chain() -> Chain {
         volume: 100.0,
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
 #[test]
 fn stream_count_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry(),
+        )
+        .expect("runtime should build"),
     );
 
     // Simulate the audio thread mid-callback: hold `processing`.
@@ -220,8 +226,13 @@ where
 #[test]
 fn xrun_count_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry(),
+        )
+        .expect("runtime should build"),
     );
     let _guard = runtime
         .processing
@@ -237,8 +248,13 @@ fn xrun_count_does_not_block_on_processing_lock() {
 #[test]
 fn peak_callback_load_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry(),
+        )
+        .expect("runtime should build"),
     );
     let _guard = runtime
         .processing
@@ -254,8 +270,13 @@ fn peak_callback_load_does_not_block_on_processing_lock() {
 #[test]
 fn underrun_count_does_not_block_on_processing_lock() {
     let runtime = Arc::new(
-        build_chain_runtime_state(&chain(), 48_000.0_f32, &[DEFAULT_ELASTIC_TARGET], &io_registry())
-            .expect("runtime should build"),
+        build_chain_runtime_state(
+            &chain(),
+            48_000.0_f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            &io_registry(),
+        )
+        .expect("runtime should build"),
     );
     let _guard = runtime
         .processing

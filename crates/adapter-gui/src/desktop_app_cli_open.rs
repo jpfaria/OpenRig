@@ -47,14 +47,21 @@ pub(crate) fn try_auto_open(
     match open_cli_project(cli_path) {
         Ok(session) => {
             let canonical_path = canonical_project_path(cli_path).unwrap_or(cli_path.clone());
-            let title = project_title_for_path(Some(&canonical_path), &*session.project.borrow());
-            let display_name = project_display_name(&*session.project.borrow());
+            let title = project_title_for_path(Some(&canonical_path), &session.project.borrow());
+            let display_name = project_display_name(&session.project.borrow());
             replace_project_chains(
                 project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
-            &[]
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+                &[],
+            );
+            // #808: populate the DI output select from the real bindings now, or
+            // it stays empty until the chain is first enabled.
+            crate::di_output_options::apply_di_outputs_to_rows(
+                project_chains,
+                &session.project.borrow(),
+                &session.io_bindings.borrow(),
             );
             let snapshot = project_session_snapshot(&session).ok();
             *project_session.borrow_mut() = Some(session);

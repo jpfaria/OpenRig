@@ -86,6 +86,7 @@ fn nam_chain(id: &str, volume: f32) -> Chain {
                 params: amp_params,
             }),
         }],
+        di_output: None,
     }
 }
 

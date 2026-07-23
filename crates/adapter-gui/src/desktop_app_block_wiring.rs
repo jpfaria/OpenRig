@@ -18,9 +18,7 @@ use slint::{SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use crate::state::{
-    BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
-};
+use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
     ChainInsertWindow, ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint,
@@ -65,20 +63,16 @@ pub(crate) struct BlockWiringDeps<'a> {
     pub open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
-    pub vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
-    pub vst3_editor_handles_for_on_open:
-        Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>>,
     pub block_editor_persist_timer: Rc<Timer>,
 
-    pub vst3_sample_rate: f64,
     pub auto_save: bool,
 }
 
 pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     // --- on_select_chain_block (extracted to select_chain_block_callback + block_editor_window_*) ---
     crate::select_chain_block_callback::wire(
-        &deps.window,
-        &deps.chain_insert_window,
+        deps.window,
+        deps.chain_insert_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -106,21 +100,19 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             inline_stream_timer: deps.inline_stream_timer.clone(),
             toast_timer: deps.toast_timer.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
-            vst3_editor_handles: deps.vst3_editor_handles.clone(),
-            vst3_sample_rate: deps.vst3_sample_rate,
             auto_save: deps.auto_save,
         },
     );
     // --- on_select_chain (#591: chain-level selection drives the footswitch's active chain) ---
     crate::select_chain_callback::wire(
-        &deps.window,
+        deps.window,
         deps.project_session.clone(),
         deps.toast_timer.clone(),
     );
     // --- Chain block CRUD callbacks (extracted to chain_block_crud_wiring) ---
     crate::chain_block_crud_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::chain_block_crud_wiring::ChainBlockCrudCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -146,8 +138,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- on_start_block_insert + on_choose_block_model (extracted to block_insert_callbacks) ---
     crate::block_insert_callbacks::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_insert_callbacks::BlockInsertCallbacksCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -172,9 +164,9 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- on_choose_block_type (extracted to block_choose_type_callback) ---
     crate::block_choose_type_callback::wire(
-        &deps.window,
-        &deps.block_editor_window,
-        &deps.chain_insert_window,
+        deps.window,
+        deps.block_editor_window,
+        deps.chain_insert_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),
@@ -201,15 +193,15 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block model search callbacks (extracted to block_model_search_wiring) ---
     crate::block_model_search_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         deps.block_model_options.clone(),
         deps.filtered_block_model_options.clone(),
     );
     // --- Block picker cancel callback (extracted to block_picker_wiring) ---
     crate::block_picker_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_picker_wiring::BlockPickerCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
             block_model_options: deps.block_model_options.clone(),
@@ -224,8 +216,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block drawer close (extracted to block_drawer_close_wiring) ---
     crate::block_drawer_close_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_drawer_close_wiring::BlockDrawerCloseCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -242,8 +234,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block parameter callbacks (extracted to block_parameter_wiring) ---
     crate::block_parameter_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_parameter_wiring::BlockParameterCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
             block_parameter_items: deps.block_parameter_items.clone(),
@@ -261,16 +253,10 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             auto_save: deps.auto_save,
         },
     );
-    // --- VST3 editor open (extracted to vst3_editor_wiring) ---
-    crate::vst3_editor_wiring::wire(
-        &deps.window,
-        deps.vst3_editor_handles_for_on_open.clone(),
-        deps.vst3_sample_rate,
-    );
     // --- Block drawer save+delete callbacks (extracted to block_drawer_save_delete_wiring) ---
     crate::block_drawer_save_delete_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_drawer_save_delete_wiring::BlockDrawerSaveDeleteCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -295,8 +281,8 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     );
     // --- Block delete confirm/cancel callbacks (extracted to block_delete_wiring) ---
     crate::block_delete_wiring::wire(
-        &deps.window,
-        &deps.block_editor_window,
+        deps.window,
+        deps.block_editor_window,
         crate::block_delete_wiring::BlockDeleteCtx {
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),

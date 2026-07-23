@@ -144,6 +144,46 @@ pub struct PluginManifest {
     pub backend: Backend,
 }
 
+impl PluginManifest {
+    /// Map of VST3 numeric parameter id → author-declared tab group, for a
+    /// `backend: vst3` manifest. Only parameters that declare a `group` are
+    /// included; a non-VST3 manifest yields an empty map. The block editor
+    /// overlays this onto the live parameters by `vst3_id` to render tabs
+    /// (#780).
+    pub fn vst3_group_map(&self) -> BTreeMap<u32, String> {
+        match &self.backend {
+            Backend::Vst3 { parameters, .. } => parameters
+                .iter()
+                .filter_map(|p| p.group.clone().map(|g| (p.vst3_id, g)))
+                .collect(),
+            _ => BTreeMap::new(),
+        }
+    }
+}
+
+/// Find the OpenRig package manifest that owns a scanned VST3 `bundle_path`
+/// and return its `vst3_id → group` map. The catalog scans the raw `.vst3`
+/// folder (e.g. `<plugins>/vst3/<id>/bundles/<name>.vst3`), so this walks up
+/// a few levels looking for the sibling `manifest.yaml`. Returns an empty map
+/// when the bundle ships no OpenRig manifest — the caller then groups the
+/// parameters dynamically (#780).
+pub fn vst3_group_map_for_bundle(bundle_path: &std::path::Path) -> BTreeMap<u32, String> {
+    let mut dir = bundle_path.parent();
+    for _ in 0..4 {
+        let Some(d) = dir else { break };
+        let candidate = d.join("manifest.yaml");
+        if candidate.is_file() {
+            if let Ok(text) = std::fs::read_to_string(&candidate) {
+                if let Ok(manifest) = serde_yaml::from_str::<PluginManifest>(&text) {
+                    return manifest.vst3_group_map();
+                }
+            }
+        }
+        dir = d.parent();
+    }
+    BTreeMap::new()
+}
+
 /// NAM model architecture family (issue #650).
 ///
 /// - [`A1`](NamArchitecture::A1) — NAM "v1": WaveNet / LSTM / ConvNet
@@ -187,6 +227,12 @@ pub enum BlockType {
     Wah,
     Pitch,
     Util,
+    /// Native VST3 plugin hosted through its own editor (issue #776). Unlike
+    /// the sonic categories above, this is not a DSP family — it marks a
+    /// package whose `backend: vst3` bundle is surfaced through the same VST3
+    /// block kind and discovery path as a system-installed VST3, so the
+    /// manifest deserializes instead of being skipped.
+    Vst3,
 }
 
 /// Backend-specific payload of a plugin.
@@ -234,8 +280,8 @@ pub enum Backend {
 }
 
 /// One parameter of a VST3 plugin, with the bridge between OpenRig's
-/// schema-friendly value range (`min`..`max`, optional discrete `step`)
-/// and the VST3 host's normalized 0.0..1.0 value space.
+/// schema-friendly value range (optional `min`..`max`, optional discrete
+/// `step`) and the VST3 host's normalized 0.0..1.0 value space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Vst3Parameter {
     /// Stable identifier under which the user's `ParameterSet` keys this
@@ -246,9 +292,15 @@ pub struct Vst3Parameter {
     /// VST3 numeric parameter ID, exposed by the plugin's
     /// `IEditController::getParameterCount()` enumeration.
     pub vst3_id: u32,
-    pub min: f64,
-    pub max: f64,
-    pub default: f64,
+    /// Optional value range / default. The overlay is groups-only by design
+    /// (#812): the live plugin's `IEditController` owns the real range and
+    /// default, so a manifest that names only `vst3_id` + `group` is valid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<f64>,
     /// Optional step for discrete UI knobs (1.0 percent, 0.5 dB, etc).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<f64>,
@@ -259,6 +311,12 @@ pub struct Vst3Parameter {
     /// Free-form unit hint shown next to the value (percent, db, hz, ms).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// Tab this parameter belongs to in the block editor. Plugins with
+    /// hundreds of flat parameters (JUCE "Root Unit") declare groups so
+    /// the editor renders one tab per group instead of one long knob wall
+    /// (#780). `None` → the app groups the parameter dynamically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 /// A single value on a capture-grid axis.
@@ -407,3 +465,7 @@ pub enum Lv2Slot {
 #[cfg(test)]
 #[path = "manifest_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "manifest_more_tests.rs"]
+mod manifest_more;

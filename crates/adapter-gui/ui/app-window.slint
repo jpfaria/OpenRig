@@ -5,13 +5,13 @@ import { DiSourcePicker } from "components/di_source_picker_globals.slint";
 // #749: the DI loop panel (fone → janela with a select + play) is rendered as a
 // single root overlay so it is never clipped by the chain list.
 import { DiPanel } from "components/di_panel_globals.slint";
-import { DiLoopPanel } from "components/di_loop_panel.slint";
+import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
-// #749 test-only: exposes DiLoopHarness as a Rust type for headless DI popup
-// interaction tests. Never instantiated in the running UI.
+// #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
 import { DiLoopHarness } from "components/di_loop_test_harness.slint";
-export { DiLoopHarness }
+import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
+export { DiLoopHarness, ParamTabBarHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -26,9 +26,7 @@ import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
-export { Locale }
-export { PresetPicker }
-export { DiSourcePicker }
+export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
@@ -191,6 +189,9 @@ export component AppWindow inherits Window {
     callback di-loop-choose-file(int);
     callback di-loop-play(int);
     callback di-loop-stop(int);
+    /// #771: an output endpoint was picked in the DI panel.
+    /// Args: chain-index, index into the chain's di_loop_outputs.
+    callback di-loop-output-selected(int, int); callback tone-doctor-run(int); callback tone-doctor-apply(int); // #791
     callback move-chain-up(int);
     callback move-chain-down(int);
     callback configure-chain(int);
@@ -229,7 +230,6 @@ export component AppWindow inherits Window {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
     // Fullscreen inline project settings callbacks
@@ -502,7 +502,6 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
@@ -715,7 +714,6 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
@@ -834,34 +832,19 @@ export component AppWindow inherits Window {
         query-changed(t) => { root.preset-picker-query-changed(t); }
     }
 
-    // #749: DI loop panel overlay. The fone in a chain row flips DiPanel.open
-    // and seeds its data + position; this renders the panel at the root (no
-    // clipping) with a click-outside backdrop.
-    if DiPanel.open : Rectangle {
-        x: 0; y: 0;
+    // #749/#791: DI loop + Tone Doctor root overlays (extracted to components).
+    DiLoopOverlay {
         width: root.width; height: root.height;
-        TouchArea { clicked => { DiPanel.open = false; } }
-        DiLoopPanel {
-            x: DiPanel.x;
-            y: DiPanel.y;
-            sources: DiPanel.sources;
-            selected-index: DiPanel.selected-index;
-            playing: DiPanel.playing;
-            source-picked(i, s) => {
-                // Reflect the pick in the open panel immediately, then dispatch.
-                DiPanel.selected-index = i;
-                root.di-loop-source-selected(DiPanel.chain-index, s);
-            }
-            choose-file => { root.di-loop-choose-file(DiPanel.chain-index); }
-            play => {
-                DiPanel.playing = true;
-                root.di-loop-play(DiPanel.chain-index);
-            }
-            stop => {
-                DiPanel.playing = false;
-                root.di-loop-stop(DiPanel.chain-index);
-            }
-        }
+        source-selected(ci, s) => { root.di-loop-source-selected(ci, s); }
+        choose-file(ci) => { root.di-loop-choose-file(ci); }
+        play(ci) => { root.di-loop-play(ci); }
+        stop(ci) => { root.di-loop-stop(ci); }
+        output-selected(ci, i) => { root.di-loop-output-selected(ci, i); }
+    }
+    ToneDoctorOverlay {
+        width: root.width; height: root.height;
+        run-diagnosis(ci) => { root.tone-doctor-run(ci); }
+        apply-suggestion(ci) => { root.tone-doctor-apply(ci); }
     }
 
     PresetSaveOverlay {

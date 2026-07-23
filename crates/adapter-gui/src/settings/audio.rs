@@ -124,9 +124,7 @@ fn split_device_settings_by_direction(
     let mut inputs = Vec::new();
     let mut outputs = Vec::new();
     for device in selected {
-        let is_input = input_descriptors
-            .iter()
-            .any(|d| d.id == device.device_id.0);
+        let is_input = input_descriptors.iter().any(|d| d.id == device.device_id.0);
         let is_output = output_descriptors
             .iter()
             .any(|d| d.id == device.device_id.0);
@@ -348,7 +346,11 @@ pub(crate) fn wire(
                             .filter(|d| output_descriptors.iter().any(|od| od.id == d.device_id))
                             .cloned()
                             .collect();
-                        apply_audio_override(&mut app_config.borrow_mut(), &gui_inputs, &gui_outputs);
+                        apply_audio_override(
+                            &mut app_config.borrow_mut(),
+                            &gui_inputs,
+                            &gui_outputs,
+                        );
                     }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         set_status_error(&window, &toast_timer, &error.to_string());
@@ -356,15 +358,15 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &*session.project.borrow(),
+                        &session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
-            &[]
+                        &[],
                     );
                     window.set_project_title(
                         project_title_for_path(
                             session.project_path.as_ref(),
-                            &*session.project.borrow(),
+                            &session.project.borrow(),
                         )
                         .into(),
                     );
@@ -499,7 +501,11 @@ pub(crate) fn wire(
                             .filter(|d| output_descriptors.iter().any(|od| od.id == d.device_id))
                             .cloned()
                             .collect();
-                        apply_audio_override(&mut app_config.borrow_mut(), &gui_inputs, &gui_outputs);
+                        apply_audio_override(
+                            &mut app_config.borrow_mut(),
+                            &gui_inputs,
+                            &gui_outputs,
+                        );
                     }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         settings_window.set_status_message(error.to_string().into());
@@ -507,15 +513,15 @@ pub(crate) fn wire(
                     }
                     replace_project_chains(
                         &project_chains,
-                        &*session.project.borrow(),
+                        &session.project.borrow(),
                         &input_descriptors,
                         &output_descriptors,
-            &[]
+                        &[],
                     );
                     window.set_project_title(
                         project_title_for_path(
                             session.project_path.as_ref(),
-                            &*session.project.borrow(),
+                            &session.project.borrow(),
                         )
                         .into(),
                     );

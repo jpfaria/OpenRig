@@ -97,6 +97,7 @@ fn issue_693_save_chain_preset_returns_immediately_with_stuck_preset_file() {
                 volume: 1.0,
                 io_binding_ids: vec![],
                 blocks: Vec::new(),
+                di_output: None,
             }],
             midi: None,
         })));
@@ -153,6 +154,7 @@ fn issue_693_set_di_loop_source_returns_immediately_with_stuck_wav() {
                 volume: 1.0,
                 io_binding_ids: vec![],
                 blocks: Vec::new(),
+                di_output: None,
             }],
             midi: None,
         })));

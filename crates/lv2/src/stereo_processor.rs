@@ -2,10 +2,6 @@ use crate::host::Lv2Plugin;
 use block_core::StereoProcessor;
 use std::ffi::c_void;
 
-/// Stereo audio processor wrapping a loaded LV2 plugin with 2-in/2-out audio.
-///
-/// Unlike `Lv2Processor` (mono), this connects separate L/R buffers.
-
 /// Maximum block size for LV2 processing (matches `Lv2Processor`).
 const MAX_BLOCK_SIZE: usize = 4096;
 
@@ -13,6 +9,9 @@ const MAX_BLOCK_SIZE: usize = 4096;
 /// Must meet rsz:minimumSize from plugin TTL (Dragonfly requires 2048).
 const ATOM_BUF_SIZE: usize = 4096;
 
+/// Stereo audio processor wrapping a loaded LV2 plugin with 2-in/2-out audio.
+///
+/// Unlike `Lv2Processor` (mono), this connects separate L/R buffers.
 pub struct StereoLv2Processor {
     plugin: Lv2Plugin,
     in_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,

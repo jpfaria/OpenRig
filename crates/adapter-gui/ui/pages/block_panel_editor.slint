@@ -10,6 +10,7 @@ import { BlockPanelHeader } from "../components/block_panel_header.slint";
 import { BlockPanelBrandStrip } from "../components/block_panel_brand_strip.slint";
 import { BlockPanelParameterItem } from "../components/block_panel_parameter_item.slint";
 import { BlockParamGrid } from "../components/block_param_grid.slint";
+import { ParamTabBar } from "../components/param_tab_bar.slint";
 
 import "../fonts/Inter.ttf";
 import "../fonts/BebasNeue.ttf";
@@ -30,6 +31,9 @@ export component BlockPanelEditor inherits Rectangle {
     in property <bool> block-drawer-enabled: true;
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[BlockParameterItem]> block-parameter-items;
+    // Parameter tabs (#780): group labels + active index (<=1 group → no bar).
+    in property <[string]> block-parameter-groups;
+    in property <int> active-parameter-group: 0;
     in property <[MultiSliderPoint]> multi-slider-points;
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
@@ -75,6 +79,7 @@ export component BlockPanelEditor inherits Rectangle {
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
     callback update-block-parameter-bool(string, bool);
+    callback select-parameter-group(int);
 
     // Computed
     private property <string> selected-model-id:
@@ -137,6 +142,10 @@ export component BlockPanelEditor inherits Rectangle {
         root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
     private property <length> brand-strip-height: 0px;
+    // Parameter-tab bar (#780): present only with >1 group; shifts panel down.
+    private property <bool> has-param-tabs: root.block-parameter-groups.length > 1;
+    private property <length> tab-bar-height: root.has-param-tabs ? 40px : 0px;
+    private property <length> content-top: root.header-height + root.tab-bar-height + root.brand-strip-height;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
     // Panel-height is driven by the Rust knob-grid policy
@@ -185,6 +194,16 @@ export component BlockPanelEditor inherits Rectangle {
         save-block => { root.save-block-drawer(); }
     }
 
+    if root.has-param-tabs : ParamTabBar {
+        x: 0;
+        y: root.header-height;
+        width: parent.width;
+        height: root.tab-bar-height;
+        groups: root.block-parameter-groups;
+        active: root.active-parameter-group;
+        select(i) => { root.select-parameter-group(i); }
+    }
+
     // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
     // Panel colors from model data
     private property <color> panel-bg:
@@ -210,7 +229,7 @@ export component BlockPanelEditor inherits Rectangle {
 
     Rectangle {
         x: 0;
-        y: root.header-height + root.brand-strip-height;
+        y: root.content-top;
         width: parent.width;
         height: root.panel-height;
         clip: true;
@@ -261,6 +280,7 @@ export component BlockPanelEditor inherits Rectangle {
             height: root.panel-knob-inner-height;
             knob-overlays: root.block-knob-overlays;
             param-items: root.block-parameter-items;
+            has-param-tabs: root.has-param-tabs;
             show-overlays: parent.show-overlays;
             show-params: parent.show-params;
             grid-area-x: parent.grid-area-x;
@@ -283,7 +303,7 @@ export component BlockPanelEditor inherits Rectangle {
     // as invisible 1-pixel-tall bars (issue #358 visual report).
     if root.curve-editor-points.length > 0 : CurveEditorControl {
         x: 8px;
-        y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
+        y: root.content-top + root.panel-height + 8px;
         width: root.width - 16px;
         height: Math.max(
             280px,
@@ -299,7 +319,7 @@ export component BlockPanelEditor inherits Rectangle {
     // ── Multi Slider (graphic EQ) ──
     if root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
         x: 8px;
-        y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
+        y: root.content-top + root.panel-height + 8px;
         width: root.width - 16px;
         height: Math.max(
             280px,
@@ -313,7 +333,7 @@ export component BlockPanelEditor inherits Rectangle {
     // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──
     if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
-        y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
+        y: root.content-top + root.panel-height * 0.52;
         width: Math.min(parent.width - 56px - 230px, 240px);
         height: root.panel-height * 0.46;
 
@@ -379,7 +399,7 @@ export component BlockPanelEditor inherits Rectangle {
     // ── Spectrum analyzer bars — shown when stream_kind == "spectrum" ──
     if root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
         x: 8px;
-        y: root.header-height + root.brand-strip-height + 4px;
+        y: root.content-top + 4px;
         width: parent.width - 16px;
         height: root.panel-height - 28px;
         background: #06060e;
@@ -468,7 +488,7 @@ export component BlockPanelEditor inherits Rectangle {
     // Pinned to top (4px) when there are no knob overlays or eq widget — those blocks
     // (e.g. utility) use the full panel area for stream display, so the button goes top-left.
     // Falls to 62% when knob overlays are present so it sits alongside the knobs.
-    private property <length> power-y: root.header-height + root.brand-strip-height + 4px;
+    private property <length> power-y: root.content-top + 4px;
 
     FootSwitch {
         x: 8px;

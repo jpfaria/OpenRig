@@ -17,10 +17,8 @@
 use std::path::PathBuf;
 
 fn compact_view_source() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("ui/pages/compact_chain_view.slint");
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/pages/compact_chain_view.slint");
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
 /// #761: the header cluster (chain title, volume, DI loop, latency badge,
@@ -30,10 +28,9 @@ fn compact_view_source() -> String {
 /// the badge, not which specific file the markup lives in — so it scans
 /// both.
 fn compact_view_header_source() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("ui/pages/compact_chain_view_header.slint");
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/pages/compact_chain_view_header.slint");
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
 #[test]

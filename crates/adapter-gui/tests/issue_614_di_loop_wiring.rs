@@ -34,6 +34,7 @@ fn test_chain(id: &str) -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: Vec::<AudioBlock>::new(),
+        di_output: None,
     }
 }
 
@@ -73,7 +74,10 @@ fn apply_di_loop_event_enabled_true_with_arc_arms_runtime() {
 
     adapter_gui::di_loop_wiring::apply_di_loop_event(&rt, Some(pcm), true);
 
-    assert!(rt.has_di_loop(), "has_di_loop must be true after enabled=true with arc");
+    assert!(
+        rt.has_di_loop(),
+        "has_di_loop must be true after enabled=true with arc"
+    );
 }
 
 /// `enabled = true` with no arc (source not loaded yet) must leave the runtime
@@ -100,7 +104,10 @@ fn apply_di_loop_event_enabled_false_clears_runtime() {
 
     adapter_gui::di_loop_wiring::apply_di_loop_event(&rt, Some(dummy_pcm()), false);
 
-    assert!(!rt.has_di_loop(), "has_di_loop must be false after enabled=false");
+    assert!(
+        !rt.has_di_loop(),
+        "has_di_loop must be false after enabled=false"
+    );
 }
 
 // ── Piece B: di_loop_commands ────────────────────────────────────────────────
@@ -108,31 +115,36 @@ fn apply_di_loop_event_enabled_false_clears_runtime() {
 /// Play with a new source → [SetChainDiLoopSource, SetChainDiLoopEnabled(true)]
 #[test]
 fn di_loop_commands_play_with_new_source_returns_two_commands() {
-    use adapter_gui::di_loop_wiring::{DiLoopIntent, di_loop_commands};
+    use adapter_gui::di_loop_wiring::{di_loop_commands, DiLoopIntent};
 
     let chain = ChainId("chain_x".into());
     let source = dummy_source();
-    let cmds = di_loop_commands(chain.clone(), DiLoopIntent::PlayWithNewSource {
-        source: source.clone(),
-    });
+    let cmds = di_loop_commands(
+        chain.clone(),
+        DiLoopIntent::PlayWithNewSource {
+            source: source.clone(),
+        },
+    );
 
     assert_eq!(cmds.len(), 2, "expected 2 commands, got {cmds:?}");
     assert!(
         matches!(&cmds[0], Command::SetChainDiLoopSource { chain: c, source: s }
             if c.0 == "chain_x" && matches!(s, DiLoopSource::File(_))),
-        "first command must be SetChainDiLoopSource, got {:?}", cmds[0]
+        "first command must be SetChainDiLoopSource, got {:?}",
+        cmds[0]
     );
     assert!(
         matches!(&cmds[1], Command::SetChainDiLoopEnabled { chain: c, enabled: true }
             if c.0 == "chain_x"),
-        "second command must be SetChainDiLoopEnabled(true), got {:?}", cmds[1]
+        "second command must be SetChainDiLoopEnabled(true), got {:?}",
+        cmds[1]
     );
 }
 
 /// Play (source already loaded) → [SetChainDiLoopEnabled(true)]
 #[test]
 fn di_loop_commands_play_returns_enable_command() {
-    use adapter_gui::di_loop_wiring::{DiLoopIntent, di_loop_commands};
+    use adapter_gui::di_loop_wiring::{di_loop_commands, DiLoopIntent};
 
     let chain = ChainId("chain_y".into());
     let cmds = di_loop_commands(chain.clone(), DiLoopIntent::Play);
@@ -141,14 +153,15 @@ fn di_loop_commands_play_returns_enable_command() {
     assert!(
         matches!(&cmds[0], Command::SetChainDiLoopEnabled { chain: c, enabled: true }
             if c.0 == "chain_y"),
-        "command must be SetChainDiLoopEnabled(true), got {:?}", cmds[0]
+        "command must be SetChainDiLoopEnabled(true), got {:?}",
+        cmds[0]
     );
 }
 
 /// Stop → [SetChainDiLoopEnabled(false)]
 #[test]
 fn di_loop_commands_stop_returns_disable_command() {
-    use adapter_gui::di_loop_wiring::{DiLoopIntent, di_loop_commands};
+    use adapter_gui::di_loop_wiring::{di_loop_commands, DiLoopIntent};
 
     let chain = ChainId("chain_z".into());
     let cmds = di_loop_commands(chain.clone(), DiLoopIntent::Stop);
@@ -157,25 +170,30 @@ fn di_loop_commands_stop_returns_disable_command() {
     assert!(
         matches!(&cmds[0], Command::SetChainDiLoopEnabled { chain: c, enabled: false }
             if c.0 == "chain_z"),
-        "command must be SetChainDiLoopEnabled(false), got {:?}", cmds[0]
+        "command must be SetChainDiLoopEnabled(false), got {:?}",
+        cmds[0]
     );
 }
 
 /// SelectSource → [SetChainDiLoopSource]
 #[test]
 fn di_loop_commands_select_source_returns_source_command() {
-    use adapter_gui::di_loop_wiring::{DiLoopIntent, di_loop_commands};
+    use adapter_gui::di_loop_wiring::{di_loop_commands, DiLoopIntent};
 
     let chain = ChainId("chain_w".into());
     let source = dummy_source();
-    let cmds = di_loop_commands(chain.clone(), DiLoopIntent::SelectSource {
-        source: source.clone(),
-    });
+    let cmds = di_loop_commands(
+        chain.clone(),
+        DiLoopIntent::SelectSource {
+            source: source.clone(),
+        },
+    );
 
     assert_eq!(cmds.len(), 1, "expected 1 command, got {cmds:?}");
     assert!(
         matches!(&cmds[0], Command::SetChainDiLoopSource { chain: c, source: s }
             if c.0 == "chain_w" && matches!(s, DiLoopSource::File(_))),
-        "command must be SetChainDiLoopSource, got {:?}", cmds[0]
+        "command must be SetChainDiLoopSource, got {:?}",
+        cmds[0]
     );
 }

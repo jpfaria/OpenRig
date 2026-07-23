@@ -20,9 +20,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod block_yaml;
+mod block_yaml_load;
 mod chain_yaml;
 mod rig_yaml;
-use block_yaml::{load_audio_block_value, AudioBlockYaml};
+use block_yaml::AudioBlockYaml;
+use block_yaml_load::load_audio_block_value;
 use chain_yaml::ChainYaml;
 pub use rig_yaml::{
     load_project_any, load_rig_project_file, migrate_legacy_project_file, parse_rig_project,
@@ -528,3 +530,11 @@ pub(crate) fn default_instrument() -> String {
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "lib_roundtrip_tests.rs"]
+mod roundtrip_tests;
+
+#[cfg(test)]
+#[path = "lib_misc_tests.rs"]
+mod misc_tests;

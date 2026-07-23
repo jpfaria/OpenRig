@@ -1,7 +1,5 @@
 use anyhow::{Error, Result};
-use block_core::param::{
-    file_path_parameter, required_string, ModelParameterSchema, ParameterSet,
-};
+use block_core::param::{file_path_parameter, required_string, ModelParameterSchema, ParameterSet};
 use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
 };
@@ -39,7 +37,6 @@ fn schema() -> Result<ModelParameterSchema> {
             "file",
             "IR File",
             None,
-            None,
             &["wav"],
             false,
         )],
@@ -64,9 +61,10 @@ fn build(
 ) -> Result<BlockProcessor> {
     let file = required_string(params, "file").map_err(Error::msg)?;
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(
-            build_mono_ir_processor_from_wav(&file, sample_rate)?,
-        )),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(build_mono_ir_processor_from_wav(
+            &file,
+            sample_rate,
+        )?)),
         AudioChannelLayout::Stereo => {
             let asset = IrAsset::load_from_wav(&file)?;
             match asset.channel_data() {

@@ -50,27 +50,34 @@ pub(crate) fn slots_for_input_stream(
         .collect()
 }
 
-/// The slots an output device's stream may mix (issue #743): only the runtimes
-/// clocked at the output's own sample rate.
+/// The slots an output device's stream may mix. LAW (stream isolation): ONLY
+/// the runtimes whose OWN binding outputs to THIS physical device — never "all
+/// runtimes at the same rate".
 ///
-/// Each per-input runtime is isolated and clocked at ITS input device's rate
-/// (#736). A runtime's output route is filled by that runtime's worker at its
-/// own rate; an output stream pops it at the OUTPUT device's rate. When the two
-/// rates differ (the owner's Scarlett @44.1 + TEYUN @48 rig) the mismatch is a
-/// continuous under/overflow on the route — the output starves on almost every
-/// pop (invariant #4: isolated streams must not be cross-rate mixed in our code;
-/// the backend mixes same-rate streams). Mixing only same-rate runtimes keeps
-/// each route's producer and consumer in lock-step. A single-output / single-rate
-/// chain is unaffected (every runtime matches the one output rate).
+/// Each per-input runtime writes its binding's output route and nothing else.
+/// The old rate filter mixed every same-rate runtime into every same-rate
+/// output, so a runtime that does NOT feed this device still got popped here —
+/// its route is unwritten, the elastic buffer is empty, and every pop underruns
+/// (N streams at one rate flood, invariant #4). `output_devices_by_input_cpal`
+/// (from the resolved config) maps each runtime's input cpal index to its
+/// binding's output device id(s); an empty map (JACK / degenerate) keeps the
+/// pre-isolation behaviour of feeding the runtime.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[must_use]
 pub(crate) fn slots_for_output_stream(
     slots: &[(usize, LiveRuntimeSlot)],
-    output_sample_rate: f32,
+    output_devices_by_input_cpal: &[Vec<String>],
+    output_device_id: &str,
 ) -> Vec<LiveRuntimeSlot> {
     slots
         .iter()
-        .filter(|(_, slot)| (slot.load().sample_rate() - output_sample_rate).abs() < 1.0)
+        .filter(|(group, slot)| {
+            let cpal = slot.load().input_cpal_index().unwrap_or(*group);
+            match output_devices_by_input_cpal.get(cpal) {
+                Some(devs) => devs.iter().any(|d| d == output_device_id),
+                None => true,
+            }
+        })
         .map(|(_, slot)| slot.handle())
         .collect()
 }
@@ -125,6 +132,7 @@ mod issue_743_output_rate_isolation_tests {
             volume: 100.0,
             io_binding_ids: vec!["io".into()],
             blocks: vec![],
+            di_output: None,
         };
         let registry = vec![IoBinding {
             id: "io".into(),
@@ -147,26 +155,42 @@ mod issue_743_output_rate_isolation_tests {
     }
 
     #[test]
-    fn an_output_stream_only_mixes_runtimes_at_its_own_rate() {
-        // Two isolated interfaces at different rates (#736): Scarlett @44.1,
-        // TEYUN @48. The 44.1 kHz output stream must consume ONLY the 44.1 kHz
-        // runtimes — mixing a 48 kHz runtime's route into a 44.1 kHz output
-        // (consumed slower than produced) is the owner's underrun flood (#743).
-        let slots: Vec<(usize, LiveRuntimeSlot)> =
-            vec![(0, pipe(44_100.0)), (1, pipe(44_100.0)), (2, pipe(48_000.0)), (3, pipe(48_000.0))];
+    fn an_output_device_mixes_only_the_runtimes_that_feed_it() {
+        // FOUR isolated streams, ALL at 44.1 kHz, each on its OWN output
+        // device. Per the isolation LAW, output device "outA" mixes ONLY the
+        // runtime that outputs to "outA" — never the three same-rate siblings.
+        // Mixing them would pop their unwritten routes = the underrun flood
+        // ("4 streams at 44 are 4 separate pipelines, not one").
+        let slots: Vec<(usize, LiveRuntimeSlot)> = vec![
+            (0, pipe(44_100.0)),
+            (1, pipe(44_100.0)),
+            (2, pipe(44_100.0)),
+            (3, pipe(44_100.0)),
+        ];
+        // input cpal index (group) -> its binding's output device id(s)
+        let map = vec![
+            vec!["outA".to_string()],
+            vec!["outB".to_string()],
+            vec!["outC".to_string()],
+            vec!["outD".to_string()],
+        ];
+        for dev in ["outA", "outB", "outC", "outD"] {
+            let mixed = slots_for_output_stream(&slots, &map, dev);
+            assert_eq!(
+                mixed.len(),
+                1,
+                "output '{dev}' must mix ONLY its own runtime, not the same-rate siblings"
+            );
+        }
+    }
 
-        let at_44k = slots_for_output_stream(&slots, 44_100.0);
-        assert_eq!(
-            at_44k.len(),
-            2,
-            "the 44.1 kHz output must mix exactly the two 44.1 kHz runtimes, not the 48 kHz ones"
-        );
-        assert!(
-            at_44k.iter().all(|s| (s.load().sample_rate() - 44_100.0).abs() < 1.0),
-            "every mixed runtime must be at the output's own rate"
-        );
-
-        let at_48k = slots_for_output_stream(&slots, 48_000.0);
-        assert_eq!(at_48k.len(), 2, "the 48 kHz output must mix exactly the two 48 kHz runtimes");
+    #[test]
+    fn runtimes_sharing_one_output_device_are_summed() {
+        // Two inputs whose bindings both feed the SAME physical output device
+        // (one interface's stereo out) ARE summed there — same device ⇒ same
+        // rate, the legitimate backend sum, not cross-stream leakage.
+        let slots: Vec<(usize, LiveRuntimeSlot)> = vec![(0, pipe(48_000.0)), (1, pipe(48_000.0))];
+        let map = vec![vec!["shared".to_string()], vec!["shared".to_string()]];
+        assert_eq!(slots_for_output_stream(&slots, &map, "shared").len(), 2);
     }
 }

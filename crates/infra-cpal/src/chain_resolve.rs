@@ -34,14 +34,13 @@ use domain::io_binding::IoBinding;
 use project::project::Project;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use engine::runtime_endpoints::{resolve_chain_io, resolve_chain_io_by_binding, InputEntry, OutputEntry};
+use engine::runtime_endpoints::{
+    resolve_chain_io, resolve_chain_io_by_binding, InputEntry, OutputEntry,
+};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::block::{AudioBlockKind, InsertBlock};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-use cpal::traits::DeviceTrait;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::{is_asio_host, using_jack_direct};
@@ -71,8 +70,8 @@ pub fn resolve_project_chain_sample_rates(
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         let _ = registry; // device endpoints come from libjack meta on this path
-        // Probe the first running named server via the libjack helper — no
-        // cache involved; this is a one-off read for UI/display purposes.
+                          // Probe the first running named server via the libjack helper — no
+                          // cache involved; this is a one-off read for UI/display purposes.
         let cards = detect_all_usb_audio_cards();
         let meta = cards
             .iter()
@@ -99,24 +98,38 @@ pub fn resolve_project_chain_sample_rates(
             if !chain.enabled {
                 continue;
             }
-            let inputs = resolve_chain_inputs(&host, project, chain, registry)?;
-            let outputs = resolve_chain_outputs(&host, project, chain, registry)?;
+            let inputs = resolve_chain_inputs(host, project, chain, registry)?;
+            let outputs = resolve_chain_outputs(host, project, chain, registry)?;
             let (logical_inputs, logical_outputs) =
                 engine::runtime_endpoints::resolve_chain_io(chain, registry);
             let mut by_device: std::collections::HashMap<domain::ids::DeviceId, u32> =
                 std::collections::HashMap::new();
             for (logical, resolved) in logical_inputs.iter().zip(inputs.iter()) {
-                by_device.insert(logical.device_id.clone(), crate::resolved_input_sample_rate(resolved));
+                by_device.insert(
+                    logical.device_id.clone(),
+                    crate::resolved_input_sample_rate(resolved),
+                );
             }
             for (logical, resolved) in logical_outputs.iter().zip(outputs.iter()) {
-                by_device.insert(logical.device_id.clone(), crate::resolved_output_sample_rate(resolved));
+                by_device.insert(
+                    logical.device_id.clone(),
+                    crate::resolved_output_sample_rate(resolved),
+                );
             }
             let binding_rates: Vec<(Vec<u32>, Vec<u32>)> =
                 engine::runtime_endpoints::resolve_chain_io_by_binding(chain, registry)
                     .iter()
                     .map(|g| {
-                        let in_r = g.inputs.iter().map(|e| by_device.get(&e.device_id).copied().unwrap_or(0)).collect();
-                        let out_r = g.outputs.iter().map(|e| by_device.get(&e.device_id).copied().unwrap_or(0)).collect();
+                        let in_r = g
+                            .inputs
+                            .iter()
+                            .map(|e| by_device.get(&e.device_id).copied().unwrap_or(0))
+                            .collect();
+                        let out_r = g
+                            .outputs
+                            .iter()
+                            .map(|e| by_device.get(&e.device_id).copied().unwrap_or(0))
+                            .collect();
                         (in_r, out_r)
                     })
                     .collect();
@@ -153,21 +166,17 @@ pub(crate) fn resolve_input_device_for_chain_input(
             input.device_id.0
         )
     })?;
-    let default_config = device.default_input_config().with_context(|| {
-        format!(
+    // #762: cached CoreAudio query — avoid re-probing the same device (and
+    // disturbing it) on every live sync.
+    let cfg = crate::device_config_cache::configs_for(&device, true)
+        .with_context(|| format!("failed to query input configs for '{}'", input.device_id.0))?;
+    let default_config = cfg.default.ok_or_else(|| {
+        anyhow!(
             "failed to get default input config for '{}'",
             input.device_id.0
         )
     })?;
-    let supported_ranges = device
-        .supported_input_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate input configs for '{}'",
-                input.device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
+    let supported_ranges = cfg.supported;
     let required_channels = crate::required_channel_count(&input.channels);
     let supported = crate::select_supported_stream_config(
         &default_config,
@@ -219,21 +228,20 @@ pub(crate) fn resolve_output_device_for_chain_output(
             output.device_id.0
         )
     })?;
-    let default_config = device.default_output_config().with_context(|| {
+    // #762: cached CoreAudio query — avoid re-probing on every live sync.
+    let cfg = crate::device_config_cache::configs_for(&device, false).with_context(|| {
         format!(
+            "failed to query output configs for '{}'",
+            output.device_id.0
+        )
+    })?;
+    let default_config = cfg.default.ok_or_else(|| {
+        anyhow!(
             "failed to get default output config for '{}'",
             output.device_id.0
         )
     })?;
-    let supported_ranges = device
-        .supported_output_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate output configs for '{}'",
-                output.device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
+    let supported_ranges = cfg.supported;
     let required_channels = crate::required_channel_count(&output.channels);
     let supported = crate::select_supported_stream_config(
         &default_config,
@@ -252,6 +260,7 @@ pub(crate) fn resolve_output_device_for_chain_output(
         }
     }
     Ok(ResolvedOutputDevice {
+        device_id: output.device_id.0.clone(),
         settings,
         device,
         supported,
@@ -431,11 +440,42 @@ pub(crate) fn resolve_chain_audio_config(
     let stream_signature: ChainStreamSignature =
         crate::build_chain_stream_signature_multi(chain, &inputs, &outputs, registry);
 
+    // LAW (stream isolation): each output device's stream mixes ONLY the
+    // runtimes whose OWN binding outputs to that device — never all runtimes at
+    // the same rate. Map each input cpal index (Nth distinct input device,
+    // first-seen over the resolved input order — the same order the engine
+    // assigns cpal indices) to its binding's output device id(s).
+    let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
+    for lin in &logical_inputs {
+        let next = device_to_cpal.len();
+        device_to_cpal
+            .entry(lin.device_id.0.clone())
+            .or_insert(next);
+    }
+    let mut output_devices_by_input_cpal: Vec<Vec<String>> = vec![Vec::new(); device_to_cpal.len()];
+    for group in resolve_chain_io_by_binding(chain, registry) {
+        let out_devs: Vec<String> = group
+            .outputs
+            .iter()
+            .map(|o| o.device_id.0.clone())
+            .collect();
+        for inp in &group.inputs {
+            if let Some(&ci) = device_to_cpal.get(&inp.device_id.0) {
+                for d in &out_devs {
+                    if !output_devices_by_input_cpal[ci].contains(d) {
+                        output_devices_by_input_cpal[ci].push(d.clone());
+                    }
+                }
+            }
+        }
+    }
+
     Ok(ResolvedChainAudioConfig {
         inputs,
         outputs,
         sample_rate,
         by_device,
+        output_devices_by_input_cpal,
         stream_signature,
     })
 }

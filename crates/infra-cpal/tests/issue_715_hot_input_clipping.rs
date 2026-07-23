@@ -20,16 +20,39 @@ use hw_harness::init_registry_with_root;
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 
-fn real_plugins_root() -> PathBuf {
-    PathBuf::from("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig-plugins/plugins/source")
+/// The owner's private capture tree, from `OPENRIG_OWNER_PLUGINS` or a sibling
+/// `OpenRig-plugins` checkout at any depth. `None` when absent (the test skips).
+fn owner_plugins_root() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("OPENRIG_OWNER_PLUGINS") {
+        let p = PathBuf::from(p);
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let cand = dir.join("OpenRig-plugins/plugins/source");
+        if cand.is_dir() {
+            return Some(cand);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
 }
 
-fn user_project_path() -> PathBuf {
-    PathBuf::from("/Users/joao.faria/.openrig/project.yaml")
+/// The owner's real rig, from `OPENRIG_OWNER_PROJECT`. This diagnostic renders
+/// the owner's ACTUAL chains, so the project is opt-in and never read from a
+/// hardcoded live path — `None` (skip) unless the owner points it explicitly.
+fn owner_project_path() -> Option<PathBuf> {
+    std::env::var_os("OPENRIG_OWNER_PROJECT")
+        .map(PathBuf::from)
+        .filter(|p| p.is_file())
 }
 
 fn di_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/di-loops/phil-STRATO-green_day.wav")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/di-loops/phil-STRATO-green_day.wav")
 }
 
 fn is_guitar(chain: &Chain) -> bool {
@@ -46,13 +69,21 @@ fn load_di_hot(target: f32) -> Vec<[f32; 2]> {
         hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap()).collect(),
         hound::SampleFormat::Int => {
             let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
-            reader.samples::<i32>().map(|s| s.unwrap() as f32 / max).collect()
+            reader
+                .samples::<i32>()
+                .map(|s| s.unwrap() as f32 / max)
+                .collect()
         }
     };
     let mono: Vec<f32> = raw.chunks(ch).map(|c| c[0]).collect();
     let peak = mono.iter().fold(0.0_f32, |a, &b| a.max(b.abs())).max(1e-9);
     let g = target / peak;
-    mono.iter().map(|&s| { let v = s * g; [v, v] }).collect()
+    mono.iter()
+        .map(|&s| {
+            let v = s * g;
+            [v, v]
+        })
+        .collect()
 }
 
 struct Scan {
@@ -63,7 +94,12 @@ struct Scan {
 }
 
 fn scan(samples: &[[f32; 2]]) -> Scan {
-    let mut s = Scan { peak: 0.0, over_one: 0, rail_run_max: 0, nan: 0 };
+    let mut s = Scan {
+        peak: 0.0,
+        over_one: 0,
+        rail_run_max: 0,
+        nan: 0,
+    };
     for ch in 0..2 {
         let mut run = 0usize;
         for fr in samples {
@@ -90,14 +126,17 @@ fn scan(samples: &[[f32; 2]]) -> Scan {
 
 #[test]
 fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
-    let root = real_plugins_root();
-    if !root.exists() {
-        eprintln!("[#715-clip] real plugins not found at {root:?} — skipping");
+    let Some(root) = owner_plugins_root() else {
+        eprintln!("[#715-clip] owner plugins tree not present (set OPENRIG_OWNER_PLUGINS) — skipping");
         return;
-    }
+    };
     init_registry_with_root(&root);
 
-    let rig = infra_yaml::load_project_any(&user_project_path()).expect("load user project");
+    let Some(project_path) = owner_project_path() else {
+        eprintln!("[#715-clip] owner project not set (OPENRIG_OWNER_PROJECT=<project.yaml>) — skipping");
+        return;
+    };
+    let rig = infra_yaml::load_project_any(&project_path).expect("load owner project");
     let enabled: std::collections::BTreeSet<String> = rig.inputs.keys().cloned().collect();
     let project = engine::rig_runtime::rig_to_legacy_project(&rig, &enabled);
 
@@ -107,14 +146,30 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
         r.spec().sample_rate
     };
 
+    // The user's real chains now carry catalog/system VST3 blocks (ChowCentaur,
+    // ValhallaSupermassive — issue #776). The offline render resolves them from
+    // the VST3 catalog, which the live app builds at startup; without this the
+    // blocks fault "not found in catalog", every guitar chain is skipped, and
+    // the test can't measure clipping at all. Initialise it the same way.
+    project::vst3_editor::init_vst3_catalog(di_sr as f64, &[root.clone()]);
+
     let mut worst: Option<(String, Scan)> = None;
     for chain in project.chains.into_iter().filter(is_guitar) {
         let n_nam = chain
             .blocks
             .iter()
-            .filter(|b| matches!(&b.kind, AudioBlockKind::Core(c) if c.model.starts_with("nam_")) || matches!(b.kind, AudioBlockKind::Nam(_)))
+            .filter(|b| {
+                matches!(&b.kind, AudioBlockKind::Core(c) if c.model.starts_with("nam_"))
+                    || matches!(b.kind, AudioBlockKind::Nam(_))
+            })
             .count();
-        let outcome = match engine::offline::render_chain(&chain, di_sr as f32, &di_hot, 64, di_sr as usize) {
+        let outcome = match engine::offline::render_chain(
+            &chain,
+            di_sr as f32,
+            &di_hot,
+            64,
+            di_sr as usize,
+        ) {
             Ok(o) => o,
             Err(e) => {
                 eprintln!("[#715-clip] chain '{}' did not render: {e}", chain.id.0);
@@ -122,7 +177,10 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
             }
         };
         if !outcome.faulted_blocks.is_empty() {
-            eprintln!("[#715-clip] chain '{}' has faulted blocks {:?} — skipping", chain.id.0, outcome.faulted_blocks);
+            eprintln!(
+                "[#715-clip] chain '{}' has faulted blocks {:?} — skipping",
+                chain.id.0, outcome.faulted_blocks
+            );
             continue;
         }
         let s = scan(&outcome.samples);
@@ -130,7 +188,10 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
             "[#715-clip] chain '{}' ({n_nam} NAM): peak={:.4} over1.0={} rail_run_max={} nan={}",
             chain.id.0, s.peak, s.over_one, s.rail_run_max, s.nan
         );
-        if worst.as_ref().map_or(true, |(_, w)| s.rail_run_max > w.rail_run_max) {
+        if worst
+            .as_ref()
+            .is_none_or(|(_, w)| s.rail_run_max > w.rail_run_max)
+        {
             worst = Some((chain.id.0.clone(), s));
         }
     }
@@ -148,6 +209,7 @@ fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
          pinned at the +-1.0 rail (peak {:.4}). That is the buzzy 'clipando / em curto', \
          distinct from the musical tanh limiter. A gain stage before the limiter is \
          railing the signal.",
-        s.rail_run_max, s.peak
+        s.rail_run_max,
+        s.peak
     );
 }

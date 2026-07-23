@@ -11,15 +11,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use anyhow::{anyhow, Result};
 
 use block_core::param::ParameterSet;
-use block_core::{
-    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
-};
+use block_core::{AudioChannelLayout, BlockProcessor};
 use block_nam::build_nam_processor_for_layout;
 use domain::ids::BlockId;
-use project::block::{schema_for_block_model, AudioBlockKind, NamBlock, SelectBlock};
+use project::block::{AudioBlockKind, NamBlock, SelectBlock};
 use project::chain::Chain;
 
-use crate::runtime::{layout_label, FADE_IN_FRAMES};
+use crate::runtime::FADE_IN_FRAMES;
 use crate::runtime_audio_frame::{AudioProcessor, ProcessorScratch};
 use crate::runtime_block_core::build_core_block_runtime_node;
 use crate::runtime_state::{
@@ -277,9 +275,13 @@ fn try_in_place_param_update(
             let right_ok = right.try_in_place_update(next.params, sample_rate);
             left_ok && right_ok
         }
-        // Stereo / StereoFromMono use the StereoProcessor trait — not extended
-        // with try_in_place_update yet (#358 scope). Falls through to rebuild.
-        AudioProcessor::Stereo(_) | AudioProcessor::StereoFromMono(_) => false,
+        // Stereo / StereoFromMono retune in place too. This is essential for
+        // VST3 GUI plugins, which must NOT be re-instantiated on a param change
+        // (a reload re-runs createInstance, which fails under the app's
+        // NSApplication after the first instance — #251).
+        AudioProcessor::Stereo(processor) | AudioProcessor::StereoFromMono(processor) => {
+            processor.try_in_place_update(next.params, sample_rate)
+        }
     }
 }
 
@@ -474,127 +476,6 @@ pub(crate) fn processor_scratch(processor: &AudioProcessor) -> ProcessorScratch 
     }
 }
 
-pub(crate) fn build_audio_processor_for_model<F>(
-    chain: &Chain,
-    effect_type: &str,
-    model: &str,
-    input_layout: AudioChannelLayout,
-    content_mono: bool,
-    mut builder: F,
-) -> Result<ProcessorBuildOutcome>
-where
-    F: FnMut(AudioChannelLayout) -> Result<BlockProcessor>,
-{
-    let schema = schema_for_block_model(effect_type, model).map_err(|error| {
-        anyhow!(
-            "chain '{}' {} model '{}': {}",
-            chain.id.0,
-            effect_type,
-            model,
-            error
-        )
-    })?;
-
-    let output_layout = schema
-        .audio_mode
-        .output_layout(input_layout)
-        .ok_or_else(|| {
-            anyhow!(
-                "chain '{}' {} model '{}' with audio mode '{}' does not accept {} input",
-                chain.id.0,
-                effect_type,
-                model,
-                schema.audio_mode.as_str(),
-                layout_label(input_layout)
-            )
-        })?;
-
-    let processor = match (schema.audio_mode, input_layout) {
-        // MonoOnly: build mono processor — process_buffer handles stereo↔mono conversion
-        (ModelAudioMode::MonoOnly, _) => AudioProcessor::Mono(expect_mono_processor(
-            builder(AudioChannelLayout::Mono)?,
-            chain,
-            effect_type,
-            model,
-        )?),
-        (ModelAudioMode::DualMono, AudioChannelLayout::Mono) => {
-            AudioProcessor::Mono(expect_mono_processor(
-                builder(AudioChannelLayout::Mono)?,
-                chain,
-                effect_type,
-                model,
-            )?)
-        }
-        // Issue #588: a mono source broadcast to stereo carries identical
-        // channels (L == R). A single mono processor on that signal yields
-        // bit-identical output to two instances (`mono_mix([s, s]) == s`),
-        // at half the model footprint and CPU. Only collapse when the
-        // content reaching this block is still effectively mono.
-        (ModelAudioMode::DualMono, AudioChannelLayout::Stereo) if content_mono => {
-            AudioProcessor::Mono(expect_mono_processor(
-                builder(AudioChannelLayout::Mono)?,
-                chain,
-                effect_type,
-                model,
-            )?)
-        }
-        (ModelAudioMode::DualMono, AudioChannelLayout::Stereo) => AudioProcessor::DualMono {
-            left: expect_mono_processor(
-                builder(AudioChannelLayout::Mono)?,
-                chain,
-                effect_type,
-                model,
-            )?,
-            right: expect_mono_processor(
-                builder(AudioChannelLayout::Mono)?,
-                chain,
-                effect_type,
-                model,
-            )?,
-        },
-        (ModelAudioMode::TrueStereo, AudioChannelLayout::Stereo) => {
-            AudioProcessor::Stereo(expect_stereo_processor(
-                builder(AudioChannelLayout::Stereo)?,
-                chain,
-                effect_type,
-                model,
-            )?)
-        }
-        (ModelAudioMode::MonoToStereo, AudioChannelLayout::Mono) => {
-            AudioProcessor::StereoFromMono(expect_stereo_processor(
-                builder(AudioChannelLayout::Stereo)?,
-                chain,
-                effect_type,
-                model,
-            )?)
-        }
-        (ModelAudioMode::MonoToStereo, AudioChannelLayout::Stereo) => {
-            AudioProcessor::Stereo(expect_stereo_processor(
-                builder(AudioChannelLayout::Stereo)?,
-                chain,
-                effect_type,
-                model,
-            )?)
-        }
-        _ => {
-            return Err(anyhow!(
-                "chain '{}' {} model '{}' with audio mode '{}' cannot run on {} input",
-                chain.id.0,
-                effect_type,
-                model,
-                schema.audio_mode.as_str(),
-                layout_label(input_layout)
-            ));
-        }
-    };
-
-    Ok(ProcessorBuildOutcome {
-        processor,
-        output_layout,
-        stream_handle: None,
-    })
-}
-
 fn build_nam_audio_processor(
     chain: &Chain,
     stage: &NamBlock,
@@ -602,7 +483,7 @@ fn build_nam_audio_processor(
     content_mono: bool,
     sample_rate: f32,
 ) -> Result<ProcessorBuildOutcome> {
-    build_audio_processor_for_model(
+    crate::runtime_processor_model::build_audio_processor_for_model(
         chain,
         block_core::EFFECT_TYPE_NAM,
         &stage.model,
@@ -631,40 +512,6 @@ fn build_nam_processor_via_dispatch(
     Err(anyhow!(
         "no NAM plugin package registered for model '{model}' and no `model_path` in params"
     ))
-}
-
-fn expect_mono_processor(
-    processor: BlockProcessor,
-    chain: &Chain,
-    effect_type: &str,
-    model: &str,
-) -> Result<Box<dyn MonoProcessor>> {
-    match processor {
-        BlockProcessor::Mono(processor) => Ok(processor),
-        BlockProcessor::Stereo(_) => Err(anyhow!(
-            "chain '{}' {} model '{}' returned stereo processing where mono was required",
-            chain.id.0,
-            effect_type,
-            model
-        )),
-    }
-}
-
-fn expect_stereo_processor(
-    processor: BlockProcessor,
-    chain: &Chain,
-    effect_type: &str,
-    model: &str,
-) -> Result<Box<dyn StereoProcessor>> {
-    match processor {
-        BlockProcessor::Stereo(processor) => Ok(processor),
-        BlockProcessor::Mono(_) => Err(anyhow!(
-            "chain '{}' {} model '{}' returned mono processing where stereo was required",
-            chain.id.0,
-            effect_type,
-            model
-        )),
-    }
 }
 
 pub(crate) fn next_block_instance_serial() -> u64 {

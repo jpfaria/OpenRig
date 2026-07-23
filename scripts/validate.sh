@@ -4,6 +4,14 @@
 # Usage:
 #   ./scripts/validate.sh file1 file2 ...   check specific files
 #   ./scripts/validate.sh                   check git-diff files (staged + unstaged)
+#   ./scripts/validate.sh crates            check the WHOLE repo (recursive)
+#
+# Env:
+#   VALIDATE_STATIC_ONLY=1   run only the static, build-free checks (file size +
+#                            inline test modules); skip fmt/clippy/slint compile.
+#                            Used by the whole-repo CI job so the size/inline-test
+#                            gate covers every file without rebuilding the world
+#                            (the shared quality gate already builds for lint).
 #
 # Checks:
 #   1. File size (lines)
@@ -34,32 +42,29 @@ SLINT_CHANGED=false
 # ─── Known debt files — warn instead of fail ────────────────────────────────
 # These files already exceed the limit. Do NOT add new ones here.
 # Instead: refactor the file before extending it.
+# Frozen 2026-07-15 (#793) to the ACTUAL files over the cap, whole-repo scan.
+# Regenerate ONLY by shrinking: a file leaves this list when it drops under the
+# cap. A NEW file over the cap must fail the gate, never be appended here.
 DEBT_FILES="
-crates/adapter-gui/src/lib.rs
-crates/engine/src/runtime.rs
-crates/infra-cpal/src/lib.rs
-crates/infra-yaml/src/lib.rs
-crates/project/src/block.rs
-crates/block-core/src/param.rs
-crates/application/src/validate.rs
-crates/block-core/src/lib.rs
-crates/adapter-gui/src/block_editor.rs
-crates/ir/src/lib.rs
-crates/infra-filesystem/src/lib.rs
-crates/block-gain/src/native_ibanez_ts9.rs
-crates/vst3/src/host.rs
-crates/project/src/chain.rs
-crates/project/src/catalog.rs
-crates/adapter-gui/src/visual_config/mod.rs
-crates/block-mod/src/lib.rs
-crates/block-dyn/src/lib.rs
-crates/block-delay/src/lib.rs
-crates/adapter-gui/ui/pages/project_chains.slint
+crates/adapter-gui/src/desktop_app.rs
+crates/application/src/command.rs
+crates/engine/src/runtime_tests.rs
+crates/engine/tests/issue_670_beat_it_real_rig.rs
+crates/infra-cpal/src/controller_live_edit_replicates_user_report_tests.rs
+crates/infra-cpal/src/controller.rs
+crates/infra-cpal/src/jack_supervisor/live_backend.rs
+crates/infra-cpal/src/jack_supervisor/supervisor_tests.rs
+crates/infra-cpal/src/jack_supervisor/supervisor.rs
+crates/infra-cpal/src/stream_builder.rs
+crates/infra-cpal/src/tests_regression.rs
+crates/infra-cpal/src/tests.rs
+crates/infra-cpal/tests/issue_670_cab_swap.rs
+crates/lv2/src/host.rs
 crates/adapter-gui/ui/app-window.slint
+crates/adapter-gui/ui/desktop_main.slint
 crates/adapter-gui/ui/pages/block_panel_editor.slint
-crates/adapter-gui/ui/pages/compact_chain_view.slint
-crates/adapter-gui/ui/touch_main.slint
 crates/adapter-gui/ui/pages/chain_row.slint
+crates/adapter-gui/ui/touch_main.slint
 "
 
 is_debt() {
@@ -99,7 +104,8 @@ if [ $# -gt 0 ]; then
   FILES=""
   for arg in "$@"; do
     if [ -d "$arg" ]; then
-      found=$(find "$arg" \( -name "*.rs" -o -name "*.slint" \) | sort)
+      # Skip vendored third-party UI modules (e.g. surrealism-ui) — not ours to cap.
+      found=$(find "$arg" \( -name "*.rs" -o -name "*.slint" \) -not -path '*/modules/*' | sort)
       FILES="$FILES $found"
     elif [ -f "$arg" ]; then
       FILES="$FILES $arg"
@@ -164,7 +170,7 @@ done
 
 # ─── 2. RUST FORMATTING (per-file, not per-crate) ───────────────────────────
 RS_FILES=$(echo "$FILES" | tr ' ' '\n' | grep '\.rs$' | grep -v '^$' || true)
-if [ -n "$RS_FILES" ]; then
+if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$RS_FILES" ]; then
   echo ""
   echo -e "${BOLD}── 2. Rust Formatting ──${NC}"
   for file in $RS_FILES; do
@@ -178,7 +184,7 @@ if [ -n "$RS_FILES" ]; then
 fi
 
 # ─── 3. RUST CLIPPY ─────────────────────────────────────────────────────────
-if [ -n "$(echo "$SEEN_CRATES" | tr -d ' ')" ]; then
+if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$(echo "$SEEN_CRATES" | tr -d ' ')" ]; then
   echo ""
   echo -e "${BOLD}── 3. Rust Clippy ──${NC}"
   for pkg in $SEEN_CRATES; do
@@ -191,7 +197,7 @@ if [ -n "$(echo "$SEEN_CRATES" | tr -d ' ')" ]; then
 fi
 
 # ─── 4. SLINT COMPILATION ───────────────────────────────────────────────────
-if $SLINT_CHANGED; then
+if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && $SLINT_CHANGED; then
   echo ""
   echo -e "${BOLD}── 4. Slint Compilation ──${NC}"
   if cargo check -p adapter-gui 2>/dev/null; then

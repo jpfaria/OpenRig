@@ -9,7 +9,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
-import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
+import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint"; import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
@@ -107,7 +107,9 @@ export component ChainRow inherits Rectangle {
     height: 106px + (root.block-row-count * 108px)
         + (root.chain.stream_meters.length > 1
             ? (root.chain.stream_meters.length - 1) * 22px
-            : 0px);
+            : 0px)
+        // #717: one extra row for the DI stream's own IN/OUT meter while it plays.
+        + (root.chain.di_loop_playing ? 22px : 0px);
 
     Rectangle {
         x: 0px;
@@ -217,15 +219,17 @@ export component ChainRow inherits Rectangle {
             value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
         }
 
-        // #614/#749: DI loop trigger — just the fone icon (28px) in its original
-        // slot. Clicking it opens the DI panel (select + play) as a root overlay
-        // via the DiPanel global; pick/play/stop route back through chain-index.
+        // #791: Tone Doctor trigger (stethoscope), left of the DI fone.
+        ChainToneDoctorButton { x: parent.width - 340px; y: 12px; chain-index: root.chain-index; }
+        // #614/#749: DI loop trigger — the fone opens the DI panel (root overlay).
         ChainDiLoopButton {
             x: parent.width - 308px;
             y: 12px;
             playing: root.chain.di_loop_playing;
             sources: root.chain.di_loop_sources;
             selected-index: root.chain.di_loop_selected_index;
+            outputs: root.chain.di_loop_outputs;
+            output-selected-index: root.chain.di_output_selected_index;
             chain-index: root.chain-index;
         }
 
@@ -686,6 +690,80 @@ export component ChainRow inherits Rectangle {
     // above it. Combined with the `(N-1)*22px` height bump above,
     // every row stays inside the card and the rows don't bleed into
     // the next chain card.
+    // #717: the DI stream's own IN/OUT meter — one row above the chain's stream
+    // rows while the DI plays, with a DI accent so it reads as the DI.
+    if root.chain.di_loop_playing : Rectangle {
+        x: 0px;
+        y: root.height - 22px - root.chain.stream_meters.length * 22px;
+        width: root.width;
+        height: 16px;
+
+        Rectangle {
+            x: 60px; y: 0px; width: 220px; height: 16px;
+            Text {
+                x: 0px; y: 0px; width: 44px; height: parent.height;
+                text: "DI";
+                font-size: 8px; font-weight: 800; color: #6e8aff;
+                horizontal-alignment: right; vertical-alignment: center;
+            }
+            Rectangle {
+                x: 48px; y: 2px; width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: root.chain.di_meter.in_dbfs > 0.0 ? #f87171 : #6e8aff66;
+                border-radius: 2px;
+                background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
+                    #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0, Math.min(1.0, (root.chain.di_meter.in_dbfs + 60.0) / 60.0));
+                    width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.chain.di_meter.in_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 182px; y: 0px; width: 36px; height: parent.height;
+                text: root.chain.di_meter.in_dbfs <= -119.0 ? "—" : Math.round(root.chain.di_meter.in_dbfs) + " dB";
+                font-size: 9px; font-weight: 700;
+                color: root.chain.di_meter.in_dbfs <= -119.0 ? #6b7280
+                     : root.chain.di_meter.in_dbfs > -3.0 ? #f87171
+                     : root.chain.di_meter.in_dbfs >= -30.0 ? #4ade80 : #facc15;
+                vertical-alignment: center;
+            }
+        }
+        Rectangle {
+            x: parent.width - 240px; y: 0px; width: 230px; height: 16px;
+            Text {
+                x: 0px; y: 0px; width: 50px; height: parent.height;
+                text: "DI OUT";
+                font-size: 8px; font-weight: 800; color: #6e8aff;
+                horizontal-alignment: right; vertical-alignment: center;
+            }
+            Rectangle {
+                x: 54px; y: 2px; width: 130px; height: 12px;
+                border-width: 1px;
+                border-color: root.chain.di_meter.out_dbfs > 0.0 ? #f87171 : #6e8aff66;
+                border-radius: 2px;
+                background: @linear-gradient(90deg, #facc1560 0%, #facc15 6%, #facc15 35%,
+                    #4ade80 50%, #4ade80 88%, #f87171 95%, #f87171 100%);
+                Rectangle {
+                    x: parent.width * Math.max(0.0, Math.min(1.0, (root.chain.di_meter.out_dbfs + 60.0) / 60.0));
+                    width: parent.width * (1.0 - Math.max(0.0, Math.min(1.0, (root.chain.di_meter.out_dbfs + 60.0) / 60.0)));
+                    height: parent.height;
+                    background: #0b0e13e8;
+                }
+            }
+            Text {
+                x: 188px; y: 0px; width: 40px; height: parent.height;
+                text: root.chain.di_meter.out_dbfs <= -119.0 ? "—" : Math.round(root.chain.di_meter.out_dbfs) + " dB";
+                font-size: 9px; font-weight: 700;
+                color: root.chain.di_meter.out_dbfs <= -119.0 ? #6b7280
+                     : root.chain.di_meter.out_dbfs > -3.0 ? #f87171
+                     : root.chain.di_meter.out_dbfs >= -30.0 ? #4ade80 : #facc15;
+                vertical-alignment: center;
+            }
+        }
+    }
+
     for stream[i] in root.chain.stream_meters: Rectangle {
         x: 0px;
         y: root.height - 22px - (root.chain.stream_meters.length - 1 - i) * 22px;

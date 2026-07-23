@@ -18,7 +18,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -36,7 +38,7 @@ const TAU: f32 = std::f32::consts::TAU;
 struct Params {
     decay_pct: f32,
     damping: f32,
-    mod_depth_ms: f32,    // peak excursion of each LFO in ms
+    mod_depth_ms: f32, // peak excursion of each LFO in ms
     mix: f32,
 }
 
@@ -59,10 +61,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
-            float_parameter("decay", "Decay", None, Some(d.decay_pct), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(d.damping), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("mod_depth_ms", "Mod Depth", None, Some(d.mod_depth_ms), 0.0, 5.0, 0.1, ParameterUnit::Milliseconds),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "decay",
+                "Decay",
+                None,
+                Some(d.decay_pct),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(d.damping),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "mod_depth_ms",
+                "Mod Depth",
+                None,
+                Some(d.mod_depth_ms),
+                0.0,
+                5.0,
+                0.1,
+                ParameterUnit::Milliseconds,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -124,10 +162,20 @@ impl ModDelay {
     }
 }
 
-struct OnePoleLpf { state: f32, coeff: f32 }
+struct OnePoleLpf {
+    state: f32,
+    coeff: f32,
+}
 impl OnePoleLpf {
-    fn new() -> Self { Self { state: 0.0, coeff: 0.0 } }
-    fn set_damping(&mut self, d: f32) { self.coeff = d.clamp(0.0, 1.0).sqrt(); }
+    fn new() -> Self {
+        Self {
+            state: 0.0,
+            coeff: 0.0,
+        }
+    }
+    fn set_damping(&mut self, d: f32) {
+        self.coeff = d.clamp(0.0, 1.0).sqrt();
+    }
     fn process(&mut self, x: f32) -> f32 {
         self.state = (1.0 - self.coeff).mul_add(x, self.coeff * self.state);
         self.state
@@ -136,21 +184,31 @@ impl OnePoleLpf {
 
 fn hadamard8(x: &mut [f32; N]) {
     for i in (0..N).step_by(2) {
-        let a = x[i]; let b = x[i + 1];
-        x[i] = a + b; x[i + 1] = a - b;
+        let a = x[i];
+        let b = x[i + 1];
+        x[i] = a + b;
+        x[i + 1] = a - b;
     }
     for base in (0..N).step_by(4) {
-        let a0 = x[base]; let a1 = x[base + 1];
-        let a2 = x[base + 2]; let a3 = x[base + 3];
-        x[base] = a0 + a2; x[base + 1] = a1 + a3;
-        x[base + 2] = a0 - a2; x[base + 3] = a1 - a3;
+        let a0 = x[base];
+        let a1 = x[base + 1];
+        let a2 = x[base + 2];
+        let a3 = x[base + 3];
+        x[base] = a0 + a2;
+        x[base + 1] = a1 + a3;
+        x[base + 2] = a0 - a2;
+        x[base + 3] = a1 - a3;
     }
     for i in 0..4 {
-        let a = x[i]; let b = x[i + 4];
-        x[i] = a + b; x[i + 4] = a - b;
+        let a = x[i];
+        let b = x[i + 4];
+        x[i] = a + b;
+        x[i + 4] = a - b;
     }
     let inv = 1.0 / (N as f32).sqrt();
-    for v in x.iter_mut() { *v *= inv; }
+    for v in x.iter_mut() {
+        *v *= inv;
+    }
 }
 
 struct LushReverb {
@@ -175,7 +233,12 @@ impl LushReverb {
             f
         });
 
-        Self { params, delays, lpfs, feedback }
+        Self {
+            params,
+            delays,
+            lpfs,
+            feedback,
+        }
     }
 }
 
@@ -188,12 +251,12 @@ impl StereoProcessor for LushReverb {
         let wet_l = (s[0] + s[2] + s[4] + s[6]) * 0.25;
         let wet_r = (s[1] + s[3] + s[5] + s[7]) * 0.25;
 
-        for i in 0..N {
-            s[i] = self.lpfs[i].process(s[i]) * self.feedback;
+        for (i, s_i) in s.iter_mut().enumerate() {
+            *s_i = self.lpfs[i].process(*s_i) * self.feedback;
         }
         hadamard8(&mut s);
-        for i in 0..N {
-            self.delays[i].write(s[i] + in_mono * 0.25);
+        for (i, &s_i) in s.iter().enumerate() {
+            self.delays[i].write(s_i + in_mono * 0.25);
         }
 
         let dry = 1.0 - self.params.mix;
@@ -224,8 +287,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(LushReverb::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(LushAsMono(LushReverb::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(LushReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(LushAsMono(
+            LushReverb::new(p, sample_rate),
+        )))),
     }
 }
 

@@ -160,10 +160,10 @@ pub(crate) fn wire(
             }
             replace_project_chains(
                 &project_chains,
-                &*session.project.borrow(),
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
-            &[]
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+                &[],
             );
             sync_project_dirty(
                 &window,

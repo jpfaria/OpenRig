@@ -39,7 +39,8 @@ members = [
   "crates/adapter-gui",
   "crates/adapter-vst3",
   "crates/adapter-render",
-  "crates/vst3",
+  "crates/vst3-host",
+  "crates/tone-calibrate",
 ]
 # Dev-only headless Slint renderer (PNG screenshots for UI review). Excluded:
 # it pins slint-interpreter at its own version and must not enter the app build.

@@ -1,0 +1,135 @@
+alternative-metal:
+  mud: 0.6584378
+  fizz: 0.091451526
+  clip: 0.0
+  boom: 0.02478453
+  thin: 0.51361084
+  squash: 15.219137
+  n: 2
+  confidence: provisional
+alternative-rock:
+  mud: 0.4816703
+  fizz: 0.29591918
+  clip: 0.0
+  boom: 0.07292919
+  thin: 0.14397362
+  squash: 16.167461
+  n: 8
+  confidence: trusted
+art-rock:
+  mud: 0.5258338
+  fizz: 0.036966212
+  clip: 0.0
+  boom: 0.019519787
+  thin: 0.365183
+  squash: 21.590334
+  n: 2
+  confidence: provisional
+blues-rock:
+  mud: 0.7367217
+  fizz: 0.014184529
+  clip: 0.0
+  boom: 0.038946055
+  thin: 0.4792564
+  squash: 20.308338
+  n: 6
+  confidence: trusted
+funk-rock:
+  mud: 0.18813632
+  fizz: 0.19331299
+  clip: 0.0
+  boom: 0.000592858
+  thin: 0.18813632
+  squash: 21.60456
+  n: 1
+  confidence: provisional
+grunge:
+  mud: 0.5373455
+  fizz: 0.47330508
+  clip: 0.0
+  boom: 0.11666717
+  thin: 0.26368314
+  squash: 15.7379
+  n: 7
+  confidence: trusted
+hard-rock:
+  mud: 0.4685593
+  fizz: 0.09450982
+  clip: 0.0
+  boom: 0.016551811
+  thin: 0.22691129
+  squash: 20.531422
+  n: 2
+  confidence: provisional
+heavy-metal:
+  mud: 0.553513
+  fizz: 0.3432836
+  clip: 0.0
+  boom: 0.10027512
+  thin: 0.20122488
+  squash: 18.5934
+  n: 2
+  confidence: provisional
+melodic-hardcore:
+  mud: 0.48326105
+  fizz: 0.24616198
+  clip: 0.0
+  boom: 0.06660207
+  thin: 0.12418888
+  squash: 18.388422
+  n: 2
+  confidence: provisional
+mpb:
+  mud: 0.117869236
+  fizz: 0.050525364
+  clip: 0.0
+  boom: 0.00075697066
+  thin: 0.117869236
+  squash: 16.993328
+  n: 1
+  confidence: provisional
+pop-rock:
+  mud: 0.57206374
+  fizz: 0.030432638
+  clip: 0.0
+  boom: 0.04247282
+  thin: 0.37359113
+  squash: 18.592701
+  n: 3
+  confidence: provisional
+punk-rock:
+  mud: 0.45665503
+  fizz: 0.15278444
+  clip: 0.0
+  boom: 0.093168646
+  thin: 0.1754562
+  squash: 15.027637
+  n: 4
+  confidence: provisional
+rock:
+  mud: 0.61549073
+  fizz: 0.31442162
+  clip: 0.0
+  boom: 0.08151705
+  thin: 0.20819598
+  squash: 17.386648
+  n: 4
+  confidence: provisional
+soft-rock:
+  mud: 0.7203641
+  fizz: 0.038983658
+  clip: 0.0
+  boom: 0.0059786066
+  thin: 0.6112268
+  squash: 18.866568
+  n: 2
+  confidence: provisional
+southern-rock:
+  mud: 0.53432024
+  fizz: 0.2850824
+  clip: 0.0
+  boom: 0.04699488
+  thin: 0.27596742
+  squash: 20.025324
+  n: 2
+  confidence: provisional

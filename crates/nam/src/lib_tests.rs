@@ -117,8 +117,8 @@ fn default_plugin_params_has_expected_values() {
     // Issue #612: the gate now defaults OFF. The old lv2 engine had no
     // gate at all; a default-on expander strangled the decay/sustain
     // ("sem vida"). The gate still WORKS when a user enables it.
-    assert!(!DEFAULT_PLUGIN_PARAMS.noise_gate_enabled);
-    assert!(DEFAULT_PLUGIN_PARAMS.eq_enabled);
+    const { assert!(!DEFAULT_PLUGIN_PARAMS.noise_gate_enabled) };
+    const { assert!(DEFAULT_PLUGIN_PARAMS.eq_enabled) };
     assert_eq!(DEFAULT_PLUGIN_PARAMS.bass, 5.0);
     assert_eq!(DEFAULT_PLUGIN_PARAMS.middle, 5.0);
     assert_eq!(DEFAULT_PLUGIN_PARAMS.treble, 5.0);

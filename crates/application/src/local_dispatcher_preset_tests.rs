@@ -64,6 +64,7 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: Vec::new(),
+            di_output: None,
         }],
         midi: None,
     };
@@ -163,6 +164,7 @@ fn save_chain_preset_tags_preset_with_chain_instrument() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: Vec::new(),
+            di_output: None,
         }],
         midi: None,
     };
@@ -220,6 +222,7 @@ fn load_chain_preset_rejects_instrument_mismatch() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![original_block],
+            di_output: None,
         }],
         midi: None,
     }));
@@ -237,7 +240,10 @@ fn load_chain_preset_rejects_instrument_mismatch() {
     );
     // Chain must be unchanged
     let blocks_after = project.borrow().chains[0].blocks.len();
-    assert_eq!(blocks_after, 1, "chain must not be mutated on mismatch reject");
+    assert_eq!(
+        blocks_after, 1,
+        "chain must not be mutated on mismatch reject"
+    );
 }
 
 /// #627: loading a preset with matching instrument succeeds.
@@ -258,6 +264,7 @@ fn load_chain_preset_accepts_matching_instrument() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: Vec::new(),
+            di_output: None,
         }],
         midi: None,
     }));
@@ -297,6 +304,7 @@ fn load_chain_preset_back_compat_untagged_defaults_to_electric_guitar() {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: Vec::new(),
+            di_output: None,
         }],
         midi: None,
     }));

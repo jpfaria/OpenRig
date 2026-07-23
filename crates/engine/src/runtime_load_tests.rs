@@ -45,6 +45,7 @@ fn pipe_runtime() -> Arc<ChainRuntimeState> {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     };
     Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &registry)
@@ -205,7 +206,11 @@ fn dropped_ring_buffer_counts_as_one_xrun_each() {
     let rt = pipe_runtime();
     assert_eq!(rt.xrun_count(), 0);
     rt.record_dropped_buffer();
-    assert_eq!(rt.xrun_count(), 1, "a dropped input buffer is an audible gap");
+    assert_eq!(
+        rt.xrun_count(),
+        1,
+        "a dropped input buffer is an audible gap"
+    );
     rt.record_dropped_buffer();
     rt.record_dropped_buffer();
     assert_eq!(rt.xrun_count(), 3, "drops accumulate");
@@ -242,6 +247,9 @@ fn extreme_overload_does_not_panic_and_stays_finite() {
     // buffer size) must not panic and must keep a finite, >1.0 load.
     rt.record_callback_load(u64::MAX / 2, 1);
     let peak = rt.peak_callback_load();
-    assert!(peak.is_finite(), "extreme overload must not produce NaN/Inf");
+    assert!(
+        peak.is_finite(),
+        "extreme overload must not produce NaN/Inf"
+    );
     assert!(peak > 1.0, "extreme overload reads as an overload");
 }

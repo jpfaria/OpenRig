@@ -225,6 +225,11 @@ fn main() -> Result<()> {
                 // no project state required, so the console adapter
                 // serves the same envelope the GUI does.
                 QueryKind::Paths => Ok(application::query::resolved_paths_json()),
+                // #791: objective quality report — runs the synthetic battery
+                // through the offline render of the console's own project chain.
+                QueryKind::ChainQualityReport { chain } => {
+                    application::query_chain_quality::chain_quality_report(&shared.borrow(), chain)
+                }
             },
             64,
         );
@@ -244,8 +249,8 @@ fn main() -> Result<()> {
 }
 
 fn parse_mcp_addr() -> Option<SocketAddr> {
-    let mut args = env::args().skip(1);
-    while let Some(arg) = args.next() {
+    let args = env::args().skip(1);
+    for arg in args {
         if arg == "--mcp" {
             return Some("127.0.0.1:4123".parse().expect("default mcp addr"));
         }
@@ -268,8 +273,8 @@ enum MidiMapArg {
 }
 
 fn parse_midi_map() -> Option<MidiMapArg> {
-    let mut args = env::args().skip(1);
-    while let Some(arg) = args.next() {
+    let args = env::args().skip(1);
+    for arg in args {
         if arg == "--midi" {
             return Some(MidiMapArg::Default);
         }

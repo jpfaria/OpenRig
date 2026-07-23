@@ -41,7 +41,7 @@ pub fn bundled_di_loop_ids() -> Vec<String> {
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let path = entry.path();
-            if path.extension()?.to_ascii_lowercase() == "wav" {
+            if path.extension()?.eq_ignore_ascii_case("wav") {
                 path.file_stem()
                     .and_then(|s| s.to_str())
                     .map(|s| s.to_string())
@@ -86,7 +86,7 @@ pub fn build_di_loop_sources_with_loaded(
     let mut result: Vec<String> = bundled_ids.iter().map(|id| id.to_string()).collect();
     if let Some(DiLoopSource::File(path)) = loaded {
         let label = di_loop_file_label(path);
-        if !result.iter().any(|s| *s == label) {
+        if !result.contains(&label) {
             result.push(label);
         }
     }
@@ -121,7 +121,7 @@ pub fn parse_di_loop_source(selected: &str, bundled_ids: &[&str]) -> Option<DiLo
     if selected == CHOOSE_FILE_SENTINEL || selected.is_empty() {
         return None;
     }
-    if bundled_ids.iter().any(|id| *id == selected) {
+    if bundled_ids.contains(&selected) {
         return Some(DiLoopSource::Bundled(selected.to_string()));
     }
     None

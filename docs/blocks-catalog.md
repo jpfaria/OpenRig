@@ -63,6 +63,48 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
   plugin params above; A1 never does.
 - **IR** — Impulse Response (cabs, corpos). Uniformly-partitioned FFT convolution (`crates/ir`); partition size = 64 so per-callback cost is uniform with no periodic FFT spike — safe at 64-frame device buffers, ~1.3 ms added latency (#617). For `type: cab`/`body` it is 100% wet and exposes a user-adjustable **Output** knob (dB, −24..+24) mirroring NAM (#655): the absolute applied output level, defaulting to the selected capture's `output_gain_db` audit baseline and re-seeding to the new capture's baseline when the user switches mic/position. Presets saved before the knob keep their audit loudness (the audio path resolves the per-capture baseline from the raw params; volume invariant #10). For `type: reverb` (#733) the **same convolution engine** drives the wet path but the block stays gain-passive and blends dry/wet via **mix** (+ **pre_delay_ms**, wet **level**) instead of normalising to a calibrated level — long diffuse reverb tails would be wrong under cab-style peak normalisation. Dispatch branches on the backend in `block_reverb::build_reverb_processor_for_layout`; the wet builder is shared via `ir::from_package::build_convolution_from_package`.
 - **LV2** — Plugins externos open-source
+- **VST3** — Native VST3 plugins hosted through the plugin's own editor window
+  (`crates/vst3-host`). Discovered from the standard OS VST3 paths
+  (`~/Library/Audio/Plug-Ins/VST3` and platform equivalents) **and** from the
+  `vst3/` sub-directory of each configured plugin root (#776), so a catalog VST3
+  shipped in OpenRig-plugins
+  (`<plugins_root>/vst3/<id>/bundles/<Name>.vst3`, manifest `type: vst3` /
+  `backend: vst3`) lands in the **same** VST3 block list as a user-installed
+  one, with the same native editor and `Vst3Processor`. Parameters are read at
+  runtime from the plugin's `IEditController`, not from the manifest. The
+  manifest's optional `parameters:` overlay is **groups-only** (#812): each
+  entry names a `vst3_id` and the block-editor tab it belongs to; `min` / `max`
+  / `default` are optional and unused for grouping, since the live controller
+  owns the real ranges.
+  Parameter changes made in the plugin's **native editor** are captured back
+  into the block's params (`p{id}` percent) on save, via `CaptureRigEdits`
+  (#780) — the controller's current non-default values are read through the
+  block's registered `Vst3GuiContext` and persisted, so tweaks survive
+  save + reload. The VST3 GUI-context registry is keyed by **block instance**
+  (`BlockId`), not model, so two blocks referencing the same plugin open and
+  persist independently. Surfacing the discovered params as OpenRig FORM knobs
+  (so the standard `SetBlockParameter*` path also persists) is a follow-up.
+
+### NAM block editor tabs (#786)
+
+A NAM block's controls have always-known origins, so the block editor tabs them
+with no per-plugin authoring:
+
+- **Capture** — the axes the manifest declares under `parameters:` (`channel`,
+  `gain`, `mic`, …). They pick which `.nam` capture is loaded; the `captures:`
+  list maps each combination to a file. A NAM whose axes are all dead (dropped by
+  the #649 filter) or that declares none simply has no Capture tab. Tagged in
+  `project::block::nam_schema`, the only layer that knows about the manifest.
+- **Amp** — `input_db`, `output_db` and the A2-only `slim`.
+- **Noise Gate** — `noise_gate.enabled` + `noise_gate.threshold_db`.
+- **EQ** — `eq.enabled` + `eq.bass` / `eq.middle` / `eq.treble`.
+
+The last three are the engine controls **every** NAM has (a plugin package or the
+generic `neural_amp_modeler` loader), identical for A1 and A2 apart from `slim`,
+so their tabs are declared once with the specs themselves in `nam::params` — a
+manifest never repeats them. The group of a `ParameterSpec` IS the tab, and the
+generic tab machinery of #780 renders one tab per group. IR/LV2 params stay
+ungrouped: one flat grid.
 
 ### Native cab voicing (#620)
 

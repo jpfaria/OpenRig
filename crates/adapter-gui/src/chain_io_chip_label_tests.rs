@@ -51,6 +51,7 @@ fn chain_with_input_binding(binding_id: &str, endpoint: &str) -> Chain {
                 endpoint: endpoint.to_string(),
             }),
         }],
+        di_output: None,
     }
 }
 
@@ -63,6 +64,7 @@ fn chain_empty() -> Chain {
         volume: 100.0,
         io_binding_ids: vec![],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -103,8 +105,7 @@ fn chain_io_chip_label_unbound() {
 fn compact_configure_io_routes_to_picker() {
     use std::path::PathBuf;
 
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_callbacks.rs");
     let src =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 

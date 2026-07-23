@@ -35,6 +35,7 @@ fn chain_bound(id: &str, enabled: bool) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io1".into()],
         blocks: vec![],
+        di_output: None,
     }
 }
 
@@ -49,18 +50,26 @@ fn project_from_chain(chain: Chain) -> Project {
 
 #[test]
 fn fingerprint_skips_disabled_chains() {
-    let registry = vec![binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])];
+    let registry = vec![binding(
+        "io1",
+        vec![in_ep("dev:1", vec![0], ChannelMode::Mono)],
+    )];
     let fp_enabled =
         project_stream_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &registry);
-    let fp_disabled =
-        project_stream_fingerprint(&project_from_chain(chain_bound("chain:0", false)), &registry);
+    let fp_disabled = project_stream_fingerprint(
+        &project_from_chain(chain_bound("chain:0", false)),
+        &registry,
+    );
     assert_ne!(fp_enabled, fp_disabled);
     assert!(fp_disabled.is_empty());
 }
 
 #[test]
 fn fingerprint_changes_when_input_mode_changes() {
-    let mono = vec![binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])];
+    let mono = vec![binding(
+        "io1",
+        vec![in_ep("dev:1", vec![0], ChannelMode::Mono)],
+    )];
     let stereo = vec![binding(
         "io1",
         vec![in_ep("dev:1", vec![0, 1], ChannelMode::Stereo)],
@@ -75,17 +84,28 @@ fn fingerprint_changes_when_input_mode_changes() {
 
 #[test]
 fn fingerprint_changes_when_device_id_changes() {
-    let dev_a = vec![binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])];
-    let dev_b = vec![binding("io1", vec![in_ep("dev:2", vec![0], ChannelMode::Mono)])];
+    let dev_a = vec![binding(
+        "io1",
+        vec![in_ep("dev:1", vec![0], ChannelMode::Mono)],
+    )];
+    let dev_b = vec![binding(
+        "io1",
+        vec![in_ep("dev:2", vec![0], ChannelMode::Mono)],
+    )];
 
-    let fp_a = project_stream_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &dev_a);
-    let fp_b = project_stream_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &dev_b);
+    let fp_a =
+        project_stream_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &dev_a);
+    let fp_b =
+        project_stream_fingerprint(&project_from_chain(chain_bound("chain:0", true)), &dev_b);
     assert_ne!(fp_a, fp_b);
 }
 
 #[test]
 fn fingerprint_stable_for_identical_projects() {
-    let registry = vec![binding("io1", vec![in_ep("dev:1", vec![0], ChannelMode::Mono)])];
+    let registry = vec![binding(
+        "io1",
+        vec![in_ep("dev:1", vec![0], ChannelMode::Mono)],
+    )];
     let mk = || project_from_chain(chain_bound("chain:0", true));
     assert_eq!(
         project_stream_fingerprint(&mk(), &registry),

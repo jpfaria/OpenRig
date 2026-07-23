@@ -14,11 +14,12 @@ use std::path::PathBuf;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use crate::di_loader::DiLoopSource;
 pub use domain::ids::{BlockId, ChainId};
 pub use domain::io_binding::{ChannelMode, IoBinding};
 use project::block::AudioBlock;
 use project::chain::Chain;
-pub use crate::di_loader::DiLoopSource;
+pub use project::chain::DiOutputRef;
 
 /// Every state change the UI or any controller can request.
 ///
@@ -562,13 +563,17 @@ pub enum Command {
     /// `runtime.set_di_loop(None)`.
     ///
     /// Returns `Err` if `chain` is not found.
-    SetChainDiLoopEnabled {
-        chain: ChainId,
-        enabled: bool,
-    },
+    SetChainDiLoopEnabled { chain: ChainId, enabled: bool },
+
+    /// #717 Task 3: persist the chosen DI output endpoint for a chain.
+    ///
+    /// Sets `chain.di_output = Some(output)` on the matching chain in the
+    /// project and emits `Event::ChainDiLoopOutputChanged { chain }`.
+    ///
+    /// Returns `Err` if `chain` is not found.
+    SetChainDiLoopOutput { chain: ChainId, output: DiOutputRef },
 
     // ── I/O binding registry (#716) ───────────────────────────────────────────
-
     /// #716: add a new I/O binding to the per-machine registry in
     /// `config.yaml`. The binding is identified by `binding.id`.
     /// When an entry with the same `id` already exists it is replaced

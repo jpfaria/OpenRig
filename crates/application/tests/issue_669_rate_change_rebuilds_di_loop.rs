@@ -47,6 +47,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks: vec![],
+            di_output: None,
         }],
         midi: None,
     }))
@@ -74,9 +75,7 @@ fn changing_engine_sr_flags_loaded_di_loop_for_rearm() {
     // #693: the decode runs on its own task — wait for the completion
     // to land via poll_async_results before reading the loop back.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-    while dispatcher.di_loop_for_chain(&chain).is_none()
-        && std::time::Instant::now() < deadline
-    {
+    while dispatcher.di_loop_for_chain(&chain).is_none() && std::time::Instant::now() < deadline {
         let _ = dispatcher.poll_async_results();
         std::thread::sleep(std::time::Duration::from_millis(10));
     }

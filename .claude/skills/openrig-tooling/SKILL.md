@@ -33,6 +33,7 @@ Not for: editing code (see `openrig-code-quality`), or UI design work (see
 | Goal | Command (from repo root) |
 |---|---|
 | macOS universal .dmg | `OPENRIG_PLUGINS_DIR=<plugins> ./scripts/package-macos.sh <ver>` |
+| macOS build + install to /Applications | `OPENRIG_PLUGINS_DIR=<plugins> ./scripts/install-macos-local.sh [ver]` (dev; builds via packager, quits+replaces+launches) |
 | Linux .deb (arm64+amd64) | `./scripts/build-deb-local.sh` (Docker Desktop running) |
 | Orange Pi SD image | `./scripts/build-orange-pi-image.sh --local-deb output/deb/openrig_*_arm64.deb` |
 | Headless Slint → PNG | `cargo run --manifest-path tools/slint-render/Cargo.toml --release -- <file.slint> <Component> <out.png> [w] [h]` |

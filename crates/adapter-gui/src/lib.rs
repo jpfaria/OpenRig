@@ -16,7 +16,9 @@ mod block_choose_type_callback;
 mod block_delete_wiring;
 mod block_drawer_close_wiring;
 mod block_drawer_save_delete_wiring;
+pub mod block_editor_param_tabs;
 mod block_editor_window_lifecycle;
+mod block_editor_window_delete;
 mod block_editor_window_params;
 mod block_editor_window_setup;
 mod block_editor_window_wiring;
@@ -24,7 +26,11 @@ mod block_insert_callbacks;
 mod block_model_search_wiring;
 mod block_panel_dimensions;
 mod block_parameter_wiring;
+mod block_parameter_extras;
 mod block_picker_wiring;
+/// #614: compact chain view callbacks — also exposes public play/stop helpers
+/// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
+pub mod chain_binding_choices;
 mod chain_block_crud_wiring;
 mod chain_crud_wiring;
 mod chain_editor_callbacks;
@@ -36,13 +42,17 @@ mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;
 mod chain_row_wiring;
+mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
 mod cli;
+mod compact_block_layout;
+mod compact_block_tabs;
+mod compact_block_view;
 mod compact_chain_block_handlers;
-/// #614: compact chain view callbacks — also exposes public play/stop helpers
-/// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
-pub mod chain_binding_choices;
+mod compact_chain_block_delete;
 pub mod compact_chain_callbacks;
+mod compact_chain_delete_wiring;
+mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
 mod device_settings_wiring;
@@ -53,7 +63,16 @@ mod di_loop_chooser_wiring;
 /// chain-tile DI loop ComboBox (Task 7).
 pub mod di_loop_ui_sources;
 /// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
+pub mod compact_chain_di_callbacks;
 pub mod di_loop_wiring;
+pub mod tone_doctor_compact_wiring;
+pub mod tone_doctor_wiring;
+/// #771: DI meter row values from the isolated playback's own peaks.
+pub mod di_meter;
+/// #771: pure option list + index mapping for the DI panel's output select.
+pub mod di_output_options;
+/// #771: window wiring for the DI panel's output select.
+mod di_output_select_wiring;
 /// #749: search-as-you-type filter for the chain DI loop source dropdown
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
@@ -93,7 +112,6 @@ mod tuner_session;
 mod tuner_wiring;
 pub mod ui_stall;
 mod virtual_keyboard_wiring;
-mod vst3_editor_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
@@ -113,22 +131,23 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
-mod default_io_binding;
 mod block_editor;
 mod block_editor_param_items;
 mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
 mod chain_editor;
+mod default_io_binding;
 mod eq;
 pub mod graph_view_model;
 mod helpers;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
+mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
-mod latency_probe;
 mod meter_wiring;
+mod meter_wiring_poll;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
@@ -139,6 +158,7 @@ mod model_search;
 mod model_search_wiring;
 mod preset_search;
 mod project_ops;
+mod project_ops_recents;
 // #679: `pub` so the issue_599 integration test can reach
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
 // `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
@@ -173,6 +193,10 @@ rust_i18n::i18n!("locales", fallback = "en-US");
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "lib_recent_tests.rs"]
+mod lib_recent_tests;
 
 #[cfg(test)]
 mod compact_block_search_wiring_tests;

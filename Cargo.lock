@@ -362,6 +362,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
+ "vst3-host",
 ]
 
 [[package]]
@@ -1842,6 +1843,7 @@ dependencies = [
  "crossbeam-queue",
  "domain",
  "ebur128",
+ "feature-dsp",
  "hound",
  "infra-yaml",
  "ir",
@@ -1851,6 +1853,8 @@ dependencies = [
  "plugin-loader",
  "project",
  "rustfft",
+ "serde",
+ "serde_yaml",
  "vst3-host",
 ]
 
@@ -3250,6 +3254,7 @@ dependencies = [
  "nam",
  "plugin-loader",
  "project",
+ "vst3-host",
 ]
 
 [[package]]
@@ -6567,6 +6572,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f17aaa1c6e3dc22b1da4b6bba97d066e354c7945cac2f7852d4e4e7ca7a6b56d"
 
 [[package]]
+name = "tone-calibrate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "feature-dsp",
+ "hound",
+ "serde",
+ "serde_yaml",
+]
+
+[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6883,6 +6899,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "crossbeam-queue",
+ "domain",
  "libloading 0.8.9",
  "log",
  "vst3",

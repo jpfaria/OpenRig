@@ -25,6 +25,11 @@ fn di_loop_events_do_not_rebuild() {
     assert!(!event_requires_runtime_sync(
         &Event::ChainDiLoopSourceChanged { chain: chain() }
     ));
+    // #771: the DI output pick is runtime-only too — the DI wiring re-arms
+    // the isolated playback itself; a full chain rebuild is pure damage.
+    assert!(!event_requires_runtime_sync(
+        &Event::ChainDiLoopOutputChanged { chain: chain() }
+    ));
 }
 
 #[test]

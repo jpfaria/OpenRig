@@ -205,6 +205,7 @@ fn block_type_label(bt: &plugin_loader::manifest::BlockType) -> &'static str {
         Wah => "wah",
         Pitch => "pitch",
         Util => "util",
+        Vst3 => "vst3",
     }
 }
 
@@ -469,6 +470,7 @@ mod tests {
             volume: 100.0,
             io_binding_ids: vec![],
             blocks,
+            di_output: None,
         }
     }
 

@@ -92,7 +92,7 @@ fn active_scene(session: &ProjectSession, chain_desc: &str) -> Option<usize> {
         } else {
             rig.inputs
                 .iter()
-                .find(|(_, _i)| chain_desc == chain_desc)
+                .find(|(k, _i)| k.contains(chain_desc))
                 .map(|(_, i)| i.active_scene)
         }
     })

@@ -13,6 +13,8 @@ jack = []
 log.workspace = true
 anyhow.workspace = true
 arc-swap.workspace = true
+serde = { workspace = true }
+serde_yaml.workspace = true
 crossbeam-queue.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }
@@ -36,7 +38,8 @@ block-pitch = { path = "../block-pitch" }
 block-reverb = { path = "../block-reverb" }
 block-util = { path = "../block-util" }
 project = { path = "../project" }
-vst3-host = { path = "../vst3" }
+feature-dsp = { path = "../feature-dsp" }
+vst3-host = { path = "../vst3-host" }
 plugin-loader = { path = "../plugin-loader" }
 
 [dev-dependencies]

@@ -1,0 +1,49 @@
+# Tone Doctor genre calibration manifest (#809).
+#
+# Maps each reference-stem song folder (~/.openrig/evaluations/<song>/refs/) to a
+# genre. The genre is NOT on disk — the calibration tool
+# (`openrig-tone-calibrate`) reads this map to group stems and derive per-genre
+# limits.
+#
+# Each genre is the PRIMARY genre in the Wikipedia infobox of that specific
+# song's article — fetched and quoted directly, not guessed and not inferred
+# from prose ("acoustic" is an arrangement, not a genre, so it is not used).
+# Genre is per-RECORDING, not per-band: "Enter Sandman" is heavy-metal (the
+# Black Album's move away from thrash), "Everlong" is alternative-rock — even
+# though the bands are famous for thrash / punk roots.
+#
+# Two songs have no genre in their own infobox; the source is named:
+#   - john-mayer-heartbreak-warfare: pop-rock (from the album Battle Studies)
+#   - segredos-torcuato-mariano:     mpb (from the artist's infobox)
+#
+# Fine granularity (16 genres, several n=1-2 → provisional) is the honest cost of
+# sourcing per recording; grouping into families is a later slicing choice.
+
+another-brick-in-the-wall-pt-2: art-rock
+barao-vermelho-beth-balanco: funk-rock
+basket-case-green-day: punk-rock
+beat-it-michael-jackson: hard-rock
+charlie-brown-jr-lugar-ao-sol: alternative-rock
+chris-isaak-wicked-game: soft-rock
+coldplay-clocks: alternative-rock
+cpm-22-um-minuto-para-o-fim-do-mundo: melodic-hardcore
+foo-fighters-everlong: alternative-rock
+gravity-john-mayer: blues-rock
+green-day-basket-case: punk-rock
+green-day-when-i-come-around: punk-rock
+john-mayer-gravity: blues-rock
+john-mayer-heartbreak-warfare: pop-rock
+john-mayer-slow-dancing-in-a-burning-room: blues-rock
+john-mayer-xo: pop
+lynyrd-skynyrd-simple-man: southern-rock
+metallica-enter-sandman: heavy-metal
+nirvana-smells-like-teen-spirit: grunge
+pitty-na-sua-estante: alternative-metal
+radiohead-creep: alternative-rock
+segredos-torcuato-mariano: mpb
+silverchair-freak: grunge
+silverchair-israels-son: grunge
+silverchair-pure-massacre: grunge
+silverchair-shade: rock
+where-the-streets-have-no-name-u2: rock
+your-love-the-outfield: pop-rock

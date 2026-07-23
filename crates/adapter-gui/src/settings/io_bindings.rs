@@ -392,26 +392,14 @@ impl WireCtx {
     fn toggle_channel(&self, index: i32, selected: bool, mode: &str) {
         let model = &self.models.channels;
         let current: Vec<ChannelOptionItem> = model.iter().collect();
-        let updated = apply_channel_toggle(
-            &current,
-            index,
-            selected,
-            channel_mode_from_str(mode),
-        );
+        let updated = apply_channel_toggle(&current, index, selected, channel_mode_from_str(mode));
         model.set_vec(updated);
     }
 
     /// Add (or, when `edit_name` is non-empty, replace) an endpoint on the
     /// binding. The replace path keeps the endpoint's name and position so an
     /// edit updates the row in place instead of appending a duplicate.
-    fn add_endpoint(
-        &self,
-        id: &str,
-        device_id: &str,
-        mode: &str,
-        is_input: bool,
-        edit_name: &str,
-    ) {
+    fn add_endpoint(&self, id: &str, device_id: &str, mode: &str, is_input: bool, edit_name: &str) {
         let channels = selected_channels(&self.models.channels);
         if channels.is_empty() {
             return;
@@ -576,9 +564,7 @@ fn install_psw_callbacks(
         c.device_changed(is_input, dev.as_str())
     });
     let c = ctx.clone();
-    psw.on_toggle_endpoint_channel(move |idx, sel, mode| {
-        c.toggle_channel(idx, sel, mode.as_str())
-    });
+    psw.on_toggle_endpoint_channel(move |idx, sel, mode| c.toggle_channel(idx, sel, mode.as_str()));
     let c = ctx.clone();
     psw.on_add_input_endpoint(move |id, dev, mode, en| {
         c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), true, en.as_str())

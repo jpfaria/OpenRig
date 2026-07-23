@@ -51,6 +51,7 @@ fn bound_project() -> Project {
                     params: ParameterSet::default(),
                 }),
             }],
+            di_output: None,
         }],
     }
 }
@@ -58,8 +59,7 @@ fn bound_project() -> Project {
 #[test]
 fn start_does_not_bail_no_input_blocks_for_a_binding_bound_chain() {
     let project = bound_project();
-    let result =
-        infra_cpal::ProjectRuntimeController::start_with_io_bindings(&project, registry());
+    let result = infra_cpal::ProjectRuntimeController::start_with_io_bindings(&project, registry());
     let msg = result.err().map(|e| e.to_string()).unwrap_or_default();
     assert!(
         !msg.contains("no input blocks"),

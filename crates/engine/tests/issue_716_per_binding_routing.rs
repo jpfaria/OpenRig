@@ -35,13 +35,15 @@ fn two_binding_chain() -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["scarlet".into(), "teyun".into()],
         blocks: Vec::new(),
+        di_output: None,
     }
 }
 
 #[test]
 fn resolves_io_grouped_per_binding_so_inputs_pair_with_their_own_output() {
     let registry = vec![binding("scarlet", "scarlett"), binding("teyun", "teyun")];
-    let groups = engine::runtime_endpoints::resolve_chain_io_by_binding(&two_binding_chain(), &registry);
+    let groups =
+        engine::runtime_endpoints::resolve_chain_io_by_binding(&two_binding_chain(), &registry);
 
     assert_eq!(groups.len(), 2, "one group per referenced binding");
 
@@ -59,7 +61,10 @@ fn resolves_io_grouped_per_binding_so_inputs_pair_with_their_own_output() {
         .find(|g| g.inputs.iter().any(|i| i.device_id.0 == "scarlett-in"))
         .expect("a group carrying the SCARLET input");
     assert!(
-        scarlet.outputs.iter().all(|o| o.device_id.0 == "scarlett-out"),
+        scarlet
+            .outputs
+            .iter()
+            .all(|o| o.device_id.0 == "scarlett-out"),
         "SCARLET input pairs only with the SCARLET output"
     );
 }

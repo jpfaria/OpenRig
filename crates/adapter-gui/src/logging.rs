@@ -75,15 +75,14 @@ pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
         })
         .expect("spawn log-writer thread");
 
-    let logger = env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("info"),
-    )
-    .target(env_logger::Target::Pipe(Box::new(NonBlockingWriter {
-        tx,
-        dropped,
-        buf: Vec::new(),
-    })))
-    .build();
+    let logger =
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+            .target(env_logger::Target::Pipe(Box::new(NonBlockingWriter {
+                tx,
+                dropped,
+                buf: Vec::new(),
+            })))
+            .build();
     let max_level = logger.filter();
     if log::set_boxed_logger(Box::new(logger)).is_ok() {
         log::set_max_level(max_level);

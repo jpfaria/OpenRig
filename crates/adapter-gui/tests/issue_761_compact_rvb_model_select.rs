@@ -20,8 +20,8 @@
 use std::path::PathBuf;
 
 fn compact_block_handlers_source() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src/compact_chain_block_handlers.rs");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/compact_chain_block_handlers.rs");
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 

@@ -135,6 +135,7 @@ mod tests {
                 core_block("b1"),
                 io_block("out", false),
             ],
+            di_output: None,
         }
     }
 
@@ -155,25 +156,31 @@ mod tests {
 
     #[test]
     fn active_chain_without_block_marks_the_row_only() {
-        let mut sel = SelectionState::default();
-        sel.active_chain = Some("rig:input-3".to_string());
+        let sel = SelectionState {
+            active_chain: Some("rig:input-3".to_string()),
+            ..Default::default()
+        };
         // index 1, no block → block UI index -1
         assert_eq!(active_highlight_indices(&project(), &sel), (1, -1));
     }
 
     #[test]
     fn active_chain_and_block_marks_both_with_ui_block_index() {
-        let mut sel = SelectionState::default();
-        sel.active_chain = Some("rig:input-1".to_string());
-        sel.active_block = Some("b1".to_string());
+        let sel = SelectionState {
+            active_chain: Some("rig:input-1".to_string()),
+            active_block: Some("b1".to_string()),
+            ..Default::default()
+        };
         // chain 0; "b1" is the 2nd core block → UI index 1 (IO stripped).
         assert_eq!(active_highlight_indices(&project(), &sel), (0, 1));
     }
 
     #[test]
     fn stale_active_chain_marks_nothing() {
-        let mut sel = SelectionState::default();
-        sel.active_chain = Some("rig:does-not-exist".to_string());
+        let sel = SelectionState {
+            active_chain: Some("rig:does-not-exist".to_string()),
+            ..Default::default()
+        };
         assert_eq!(active_highlight_indices(&project(), &sel), (-1, -1));
     }
 
@@ -181,18 +188,22 @@ mod tests {
 
     #[test]
     fn neighbor_is_the_next_ui_block() {
-        let mut sel = SelectionState::default();
-        sel.active_chain = Some("rig:input-1".to_string());
-        sel.active_block = Some("b0".to_string()); // UI 0
+        let sel = SelectionState {
+            active_chain: Some("rig:input-1".to_string()),
+            active_block: Some("b0".to_string()), // UI 0
+            ..Default::default()
+        };
         // neighbor = the block after the active one → b1 (UI 1)
         assert_eq!(active_neighbor_block_ui_index(&project(), &sel), 1);
     }
 
     #[test]
     fn neighbor_is_minus_one_when_next_block_is_io() {
-        let mut sel = SelectionState::default();
-        sel.active_chain = Some("rig:input-1".to_string());
-        sel.active_block = Some("b1".to_string()); // last audio block; raw-next is Output
+        let sel = SelectionState {
+            active_chain: Some("rig:input-1".to_string()),
+            active_block: Some("b1".to_string()), // last audio block; raw-next is Output
+            ..Default::default()
+        };
         // The toggle-neighbor command targets the raw-next block (here the
         // Output endpoint), which has no chip on the strip → not markable.
         assert_eq!(active_neighbor_block_ui_index(&project(), &sel), -1);
@@ -200,8 +211,10 @@ mod tests {
 
     #[test]
     fn neighbor_is_none_without_active_block() {
-        let mut sel = SelectionState::default();
-        sel.active_chain = Some("rig:input-1".to_string());
+        let sel = SelectionState {
+            active_chain: Some("rig:input-1".to_string()),
+            ..Default::default()
+        };
         assert_eq!(active_neighbor_block_ui_index(&project(), &sel), -1);
     }
 }

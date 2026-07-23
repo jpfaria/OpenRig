@@ -119,7 +119,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
             };
             let devs_in = input_chain_devices.borrow();
             let devs_out = output_chain_devices.borrow();
-            let draft = create_chain_draft(&*session.project.borrow(), &devs_in, &devs_out);
+            let draft = create_chain_draft(&session.project.borrow(), &devs_in, &devs_out);
             *chain_draft.borrow_mut() = Some(draft.clone());
             apply_chain_editor_labels(&window, &draft);
             // #716: feed the binding checklist (none selected for a new chain).

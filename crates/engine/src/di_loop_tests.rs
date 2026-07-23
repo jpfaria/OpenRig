@@ -103,7 +103,11 @@ fn downsample_48k_to_44k1_length_matches_ratio() {
     let samples: Vec<f32> = (0..1000).map(|i| (i as f32 * 0.001).fract()).collect();
     let di = DiLoop::from_samples(&samples, 48_000, 1, 44_100, 0);
     let expected = (1000.0_f64 * 44_100.0 / 48_000.0).round() as usize; // 919
-    assert_eq!(di.len(), expected, "downsampled length must scale by 44100/48000");
+    assert_eq!(
+        di.len(),
+        expected,
+        "downsampled length must scale by 44100/48000"
+    );
 }
 
 #[test]
@@ -114,7 +118,9 @@ fn identity_rate_preserves_every_sample() {
     assert_eq!(di.len(), samples.len());
     for (i, &expected) in samples.iter().enumerate() {
         match di.frame_at(i) {
-            DiFrame::Mono(v) => assert!((v - expected).abs() < 1e-6, "frame {i}: {v} != {expected}"),
+            DiFrame::Mono(v) => {
+                assert!((v - expected).abs() < 1e-6, "frame {i}: {v} != {expected}")
+            }
             _ => unreachable!(),
         }
     }
@@ -163,4 +169,17 @@ fn crossfade_shortens_the_loop_by_the_fade_length() {
     let xfade = 64;
     let di = DiLoop::from_samples(&samples, 48_000, 1, 48_000, xfade);
     assert_eq!(di.len(), n - xfade);
+}
+
+#[test]
+fn di_pcm_stereo_frames_broadcasts_mono() {
+    let pcm = DiPcm::new(vec![0.1, 0.2, 0.3], 48_000, 1);
+    assert_eq!(pcm.stereo_frames(), vec![[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]]);
+    assert_eq!(pcm.src_sr(), 48_000);
+}
+
+#[test]
+fn di_pcm_stereo_frames_deinterleaves_stereo() {
+    let pcm = DiPcm::new(vec![0.1, 0.9, 0.2, 0.8], 44_100, 2);
+    assert_eq!(pcm.stereo_frames(), vec![[0.1, 0.9], [0.2, 0.8]]);
 }

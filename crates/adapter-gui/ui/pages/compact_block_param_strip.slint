@@ -1,0 +1,58 @@
+import { CompactBlockItem } from "../models.slint";
+import { ParamTabBar } from "../components/param_tab_bar.slint";
+import { CompactBlockParamCell } from "compact_block_param_cell.slint";
+
+// Right-aligned parameter strip for a compact block row.
+//
+// #787: the parameters wrap across as many lines as they need (`strip_line`,
+// assigned in Rust by `compact_block_layout` — Slint has no flow layout), and a
+// block whose parameters carry 2+ groups gets the #780 tab bar on top, showing
+// one group at a time. A block with a single group and one line of parameters
+// renders exactly as it did before.
+//
+// The caller sets `x`, `y`, `width`, `height` and `visible` on the instance.
+export component CompactBlockParamStrip inherits VerticalLayout {
+    in property <CompactBlockItem> block-data;
+    callback update-parameter-number(int, int, string, float);
+    callback update-parameter-bool(int, int, string, bool);
+    callback select-parameter-option(int, int, string, int);
+    callback select-parameter-group(int, int, int);
+
+    private property <bool> has-tabs: root.block-data.parameter-groups.length > 1;
+
+    // Breathing room between the tab bar and the first line, and between wrapped
+    // lines — matches `compact_block_layout::LINE_GAP_PX`.
+    spacing: 12px;
+
+    if root.has-tabs : HorizontalLayout {
+        alignment: end;
+        padding-right: 34px;
+        height: 28px;
+
+        ParamTabBar {
+            height: 28px;
+            groups: root.block-data.parameter-groups;
+            active: root.block-data.active-parameter-group;
+            select(i) => {
+                root.select-parameter-group(root.block-data.chain-index, root.block-data.block-index, i);
+            }
+        }
+    }
+
+    for line[li] in root.block-data.parameter-lines : HorizontalLayout {
+        alignment: end;
+        spacing: 4px;
+        padding-right: 34px;
+        height: 90px;
+
+        for param[pi] in line.cells : CompactBlockParamCell {
+            param: param;
+            panel-text: root.block-data.panel-text;
+            chain-index: root.block-data.chain-index;
+            block-index: root.block-data.block-index;
+            update-parameter-number(ci, bi, p, v) => { root.update-parameter-number(ci, bi, p, v); }
+            update-parameter-bool(ci, bi, p, v) => { root.update-parameter-bool(ci, bi, p, v); }
+            select-parameter-option(ci, bi, p, oi) => { root.select-parameter-option(ci, bi, p, oi); }
+        }
+    }
+}

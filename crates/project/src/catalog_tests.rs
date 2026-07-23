@@ -236,8 +236,12 @@ fn model_type_label_all_effect_types() {
 // --- block_has_external_gui tests ---
 
 #[test]
-fn block_has_external_gui_vst3_returns_true() {
-    assert!(super::block_has_external_gui("vst3"));
+fn block_has_external_gui_vst3_is_false_since_780_removed_the_native_editor() {
+    // #780 killed the native VST3 editor — VST3 params are OpenRig knobs now, so
+    // VST3 has NO external GUI. Otherwise the compact view hides its param strip
+    // (`compact_block_row.slint` gates on `!has-external-gui`) and a VST3 block
+    // shows zero params in the compact view.
+    assert!(!super::block_has_external_gui("vst3"));
 }
 
 #[test]
@@ -332,7 +336,6 @@ fn model_stream_kind_non_utility_returns_empty() {
     assert_eq!(super::model_stream_kind("delay", "some_model"), "");
     assert_eq!(super::model_stream_kind("preamp", "american_clean"), "");
 }
-
 
 // --- model_knob_layout tests ---
 

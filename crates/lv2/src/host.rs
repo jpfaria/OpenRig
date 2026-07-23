@@ -521,8 +521,7 @@ impl Lv2Plugin {
         if let Some(ext_data) = unsafe { (*descriptor).extension_data } {
             let iface_ptr = unsafe { ext_data(worker_iface_uri.as_ptr()) };
             if !iface_ptr.is_null() {
-                let mut ws =
-                    WorkerState::new(handle, iface_ptr as *const LV2WorkerInterface);
+                let mut ws = WorkerState::new(handle, iface_ptr as *const LV2WorkerInterface);
                 worker_schedule.handle = ws.as_mut() as *mut WorkerState as *mut c_void;
                 worker_state = Some(ws);
                 log::debug!("LV2 worker interface found for '{uri}'");
@@ -558,7 +557,7 @@ impl Lv2Plugin {
         })
     }
 
-    pub unsafe fn connect_port(&self, port_index: u32, data: *mut c_void) {
+    pub(crate) unsafe fn connect_port(&self, port_index: u32, data: *mut c_void) {
         if let Some(connect) = unsafe { (*self.descriptor).connect_port } {
             unsafe { connect(self.handle, port_index, data) };
         }
@@ -630,10 +629,7 @@ pub fn issue670_schedule_work_thread_check() -> WorkerThreadCheck {
         work_response: None,
         end_run: None,
     });
-    let mut state = WorkerState::new(
-        std::ptr::null_mut(),
-        &*iface as *const LV2WorkerInterface,
-    );
+    let mut state = WorkerState::new(std::ptr::null_mut(), &*iface as *const LV2WorkerInterface);
     let calling = std::thread::current().id();
     unsafe {
         worker_schedule_callback(

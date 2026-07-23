@@ -28,7 +28,7 @@ pub struct StateSnapshot {
 
 fn cell() -> &'static ArcSwapOption<StateSnapshot> {
     static CELL: OnceLock<ArcSwapOption<StateSnapshot>> = OnceLock::new();
-    CELL.get_or_init(|| ArcSwapOption::const_empty())
+    CELL.get_or_init(ArcSwapOption::const_empty)
 }
 
 /// Publish a fresh snapshot (writer side — the dispatching thread).

@@ -76,8 +76,8 @@ pub(crate) fn schedule_block_editor_persist(
                 &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
-                &*devs_in,
-                &*devs_out,
+                &devs_in,
+                &devs_out,
                 false,
                 auto_save,
             ) {
@@ -134,8 +134,8 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
                 &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
-                &*devs_in,
-                &*devs_out,
+                &devs_in,
+                &devs_out,
                 false,
                 auto_save,
             ) {
@@ -333,10 +333,10 @@ pub(crate) fn persist_block_editor_draft(
     }
     replace_project_chains(
         project_chains,
-        &*session.project.borrow(),
+        &session.project.borrow(),
         input_chain_devices,
         output_chain_devices,
-            &[]
+        &[],
     );
     sync_project_dirty(
         window,

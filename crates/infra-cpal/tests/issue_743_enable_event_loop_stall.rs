@@ -1,5 +1,5 @@
-//! Issue #743 — the owner's four-stream, two-interface rig (Scarlett 2i2 @44.1 kHz
-//! + TEYUN Q26 @48 kHz) on enable. Two real defects, measured on the real
+//! Issue #743 — the owner's four-stream, two-interface rig (Scarlett 2i2 @44.1 kHz +
+//! TEYUN Q26 @48 kHz) on enable. Two real defects, measured on the real
 //! interfaces (NOT arbitrary first-two devices — virtual loopbacks like BlackHole
 //! starve unconditionally and tell us nothing):
 //!
@@ -118,7 +118,9 @@ fn owner_two_interface_rig_enable_is_clean() {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")
         .join("beat_it_michael_jackson_rhythm.yaml");
-    let blocks: Vec<AudioBlock> = infra_yaml::load_chain_preset_file(&preset).expect("preset").blocks;
+    let blocks: Vec<AudioBlock> = infra_yaml::load_chain_preset_file(&preset)
+        .expect("preset")
+        .blocks;
     let chain_id = ChainId("rig".into());
     let project = Project {
         name: Some("issue-743-owner-rig".into()),

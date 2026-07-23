@@ -59,6 +59,7 @@ fn chain(desc: &str, volume: f32, blocks: Vec<AudioBlock>) -> Chain {
         volume,
         io_binding_ids: vec![],
         blocks,
+        di_output: None,
     }
 }
 
@@ -196,7 +197,11 @@ fn migrate_creates_placeholder_output_per_output_block_and_routes_to_it() {
         chain("b", 100.0, vec![fx("y"), output_block("o2")]),
     ]);
     let r = migrate_legacy_project(&p);
-    assert_eq!(r.outputs.len(), 2, "one placeholder output per output block");
+    assert_eq!(
+        r.outputs.len(),
+        2,
+        "one placeholder output per output block"
+    );
     assert_eq!(
         r.inputs.get("input-1").unwrap().routing,
         vec!["output-1".to_string()]

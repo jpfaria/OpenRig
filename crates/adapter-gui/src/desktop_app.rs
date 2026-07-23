@@ -148,17 +148,13 @@ pub fn run_desktop_app(
     // catalog, so by the time `packages()` is read everything lives in
     // one place.
     engine::native_registry::register_all_natives();
-    plugin_loader::registry::init_many(&[bundled_root, user_root]);
+    plugin_loader::registry::init_many(&[bundled_root.clone(), user_root.clone()]);
     log::info!(
         "plugin catalog ready: {} plugin(s) loaded ({} native, {} disk package(s))",
         plugin_loader::registry::len(),
         plugin_loader::registry::native_count(),
         plugin_loader::registry::len() - plugin_loader::registry::native_count(),
     );
-    // Open VST3 editor handles (kept alive so the OS window stays open).
-    let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
-        Rc::new(RefCell::new(Vec::new()));
-    let vst3_editor_handles_for_on_open = vst3_editor_handles.clone();
     // Scan system VST3 paths in a background thread so startup isn't blocked.
     // The catalog is available before any project is opened.
     let vst3_sample_rate = settings
@@ -167,7 +163,7 @@ pub fn run_desktop_app(
         .map(|d| d.sample_rate)
         .unwrap_or(48_000) as f64;
     std::thread::spawn(move || {
-        project::vst3_editor::init_vst3_catalog(vst3_sample_rate);
+        project::vst3_editor::init_vst3_catalog(vst3_sample_rate, &[bundled_root, user_root]);
     });
     let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
@@ -321,12 +317,12 @@ pub fn run_desktop_app(
         project_runtime.clone(),
     );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
-        &*input_chain_devices.borrow(),
+        &input_chain_devices.borrow(),
         &settings.input_devices,
     )));
     mark_unselected_devices(&input_devices, &settings.input_devices);
     let output_devices = Rc::new(VecModel::from(build_device_selection_items(
-        &*output_chain_devices.borrow(),
+        &output_chain_devices.borrow(),
         &settings.output_devices,
     )));
     mark_unselected_devices(&output_devices, &settings.output_devices);
@@ -696,10 +692,8 @@ pub fn run_desktop_app(
         chain_output_device_options: chain_output_device_options.clone(),
         chain_editor_window: chain_editor_window.clone(),
         open_compact_window: open_compact_window.clone(),
-        vst3_editor_handles: vst3_editor_handles.clone(),
         toast_timer: toast_timer.clone(),
         app_config: app_config.clone(),
-        vst3_sample_rate,
         fullscreen,
         auto_save,
     });
@@ -735,10 +729,7 @@ pub fn run_desktop_app(
         open_compact_window: open_compact_window.clone(),
         toast_timer: toast_timer.clone(),
         plugin_info_window: plugin_info_window.clone(),
-        vst3_editor_handles: vst3_editor_handles.clone(),
-        vst3_editor_handles_for_on_open: vst3_editor_handles_for_on_open.clone(),
         block_editor_persist_timer: block_editor_persist_timer.clone(),
-        vst3_sample_rate,
         auto_save,
     });
     // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
@@ -778,11 +769,7 @@ pub fn run_desktop_app(
     );
     // #614: DI loop file picker — separate module because chain_row_wiring
     // is forbidden from using rfd:: (issue #511).
-    crate::di_loop_chooser_wiring::wire(
-        &window,
-        project_session.clone(),
-        toast_timer.clone(),
-    );
+    crate::di_loop_chooser_wiring::wire(&window, project_session.clone(), toast_timer.clone());
     crate::chain_rig_nav_wiring::wire(
         &window,
         crate::chain_rig_nav_wiring::ChainRigNavCtx {
@@ -954,15 +941,13 @@ pub fn run_desktop_app(
                                     block,
                                 )
                             }
-                            // #582: effective resolved system paths
-                            // (data root + every configurable directory)
-                            // for the `openrig://paths` MCP resource.
-                            // Loads from `config.yaml` on each call so
-                            // path overrides written via
-                            // `Command::Set*Path` are visible immediately
-                            // without restarting the process.
+                            // #582: resolved system paths (reloads config.yaml).
                             application::bridge::QueryKind::Paths => {
                                 Ok(application::query::resolved_paths_json())
+                            }
+                            // #791: objective quality report, measured offline.
+                            application::bridge::QueryKind::ChainQualityReport { chain } => {
+                                application::query_chain_quality::chain_quality_report(&project.borrow(), chain)
                             }
                         },
                         32,

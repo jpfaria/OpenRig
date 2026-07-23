@@ -66,13 +66,9 @@ fn four_binding_chain_is_scheduled_async_on_cold_start() {
         instrument: "electric_guitar".into(),
         enabled: true,
         volume: 100.0,
-        io_binding_ids: vec![
-            "io-1".into(),
-            "io-2".into(),
-            "io-3".into(),
-            "io-4".into(),
-        ],
+        io_binding_ids: vec!["io-1".into(), "io-2".into(), "io-3".into(), "io-4".into()],
         blocks: vec![],
+        di_output: None,
     };
     let project = Project {
         name: None,

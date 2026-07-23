@@ -160,6 +160,7 @@ fn chain_with_io(id: &str, input: IoEndpoint, output: IoEndpoint) -> (Chain, Vec
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
+        di_output: None,
     };
     let registry = vec![IoBinding {
         id: "io".into(),
@@ -207,7 +208,7 @@ impl DeadlineResult {
         let p99_ratio = self.p99_ns as f64 / self.period_ns as f64;
 
         assert!(
-            self.overruns <= MAX_OVERRUNS,
+            self.overruns == MAX_OVERRUNS,
             "{}: {} buffers exceeded period (max allowed: {}). \
              period={}us, max observed={}us, p99={}us. \
              Every overrun is an audible click in production. The most recent commit \
@@ -259,8 +260,13 @@ fn run_deadline(
     iterations: usize,
 ) -> DeadlineResult {
     let runtime = Arc::new(
-        build_chain_runtime_state(chain, sample_rate_hz as f32, &[DEFAULT_ELASTIC_TARGET], registry)
-            .expect("runtime should build for deadline test"),
+        build_chain_runtime_state(
+            chain,
+            sample_rate_hz as f32,
+            &[DEFAULT_ELASTIC_TARGET],
+            registry,
+        )
+        .expect("runtime should build for deadline test"),
     );
     measure_deadline(
         label,

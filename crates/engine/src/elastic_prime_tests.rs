@@ -19,6 +19,7 @@ fn io_chain(mid: AudioBlock) -> Chain {
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
         blocks: vec![mid],
+        di_output: None,
     }
 }
 
@@ -110,8 +111,8 @@ fn prime_frames_full_truth_table() {
         (512, true, false, 0),
         (512, false, true, 0),
         (512, false, false, 0),
-        (0, true, true, 0),   // initial convolution but nothing to prime
-        (1, true, true, 1),   // minimal prime survives
+        (0, true, true, 0), // initial convolution but nothing to prime
+        (1, true, true, 1), // minimal prime survives
         (256, false, false, 0),
         (usize::MAX, true, true, usize::MAX), // oversized prime is passed through
     ];
@@ -127,7 +128,7 @@ fn prime_frames_full_truth_table() {
 #[test]
 fn capacity_target_boundaries_around_the_cushion() {
     let floor = IR_COLD_START_CUSHION_FRAMES; // 512
-    // Convolution chains floor at the cushion; values around the boundary.
+                                              // Convolution chains floor at the cushion; values around the boundary.
     assert_eq!(elastic_capacity_target(0, true), floor);
     assert_eq!(elastic_capacity_target(floor - 1, true), floor);
     assert_eq!(elastic_capacity_target(floor, true), floor);

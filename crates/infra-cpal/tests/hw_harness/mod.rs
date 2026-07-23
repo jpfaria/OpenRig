@@ -125,6 +125,7 @@ pub fn rig_project_with(
             volume: 0.0,
             io_binding_ids: vec!["io".into()],
             blocks,
+            di_output: None,
         }],
         midi: None,
     };
@@ -153,6 +154,32 @@ pub fn load_di(name: &str, engine_sr: u32) -> Arc<engine::DiLoop> {
         spec.channels as usize,
         engine_sr,
         256,
+    ))
+}
+
+/// Like [`load_di`] but returns the source PCM (`DiPcm`) the current
+/// `set_chain_di_loop` API takes; the controller resamples to the engine rate
+/// on arm. (The old `DiLoop`-returning path pre-dates the DiPcm split.)
+pub fn load_di_pcm(name: &str) -> Arc<engine::DiPcm> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/di-loops")
+        .join(name);
+    let mut reader = hound::WavReader::open(&path).expect("DI loop");
+    let spec = reader.spec();
+    let samples: Vec<f32> = match spec.sample_format {
+        hound::SampleFormat::Float => reader.samples::<f32>().map(|s| s.unwrap()).collect(),
+        hound::SampleFormat::Int => {
+            let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
+            reader
+                .samples::<i32>()
+                .map(|s| s.unwrap() as f32 / max)
+                .collect()
+        }
+    };
+    Arc::new(engine::DiPcm::new(
+        samples,
+        spec.sample_rate,
+        spec.channels as usize,
     ))
 }
 

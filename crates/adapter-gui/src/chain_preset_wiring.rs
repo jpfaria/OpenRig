@@ -3,9 +3,9 @@
 //! Owns the 5 callbacks driving preset save/load and the touch-mode picker:
 //!
 //! - `on_save_chain_preset`     — touch-mode auto-saves to the presets dir,
-//!                                desktop opens a save dialog.
+//!   desktop opens a save dialog.
 //! - `on_configure_chain_preset` — touch-mode shows the in-app picker (lists
-//!                                 the presets dir), desktop opens a load dialog.
+//!   the presets dir), desktop opens a load dialog.
 //! - `on_preset_picker_confirm` — touch picker → load + replace blocks.
 //! - `on_preset_picker_cancel`  — closes the touch picker.
 //! - `on_preset_picker_delete`  — touch picker → delete preset file.
@@ -196,6 +196,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 volume: 100.0,
                                 io_binding_ids: vec![],
                                 blocks: stripped,
+                                di_output: None,
                             };
                             assign_new_block_ids(&mut tmp_chain);
                             Some((chain_id, tmp_chain.blocks))
@@ -232,10 +233,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         }
                         replace_project_chains(
                             &project_chains,
-                            &*session.project.borrow(),
+                            &session.project.borrow(),
                             &input_chain_devices.borrow(),
                             &output_chain_devices.borrow(),
-            &[]
+                            &[],
                         );
                         // Issue #510 bug fix: the chain preset combobox
                         // is fed by `chain-rig-nav`, not by `project_chains`.

@@ -17,7 +17,7 @@ use crate::state::{BlockEditorData, SelectOptionEditorItem};
 use crate::{BlockKnobOverlay, BlockParameterItem};
 
 pub(crate) use crate::block_editor_param_items::{
-    block_parameter_items_for_editor, block_parameter_items_for_model,
+    block_parameter_items_for_editor, block_parameter_items_for_model, parameter_groups,
 };
 pub(crate) use crate::block_editor_persist::{
     persist_block_editor_draft, schedule_block_editor_persist,
@@ -46,6 +46,7 @@ pub(crate) fn build_knob_overlays(
                 .map(|p| p.label.to_string().to_uppercase())
                 .unwrap_or_else(|| info.param_key.to_uppercase());
             BlockKnobOverlay {
+                strip_line: -1,
                 path: info.param_key.into(),
                 label: label.into(),
                 svg_cx: info.svg_cx,

@@ -38,7 +38,7 @@ const SR: f32 = 48_000.0;
 /// much louder than the clean DI. The #496 detour that made this an
 /// attenuation ("tudo baixo") was reverted; clip safety is now a
 /// memoryless soft-clip in the NAM processor, not a quiet calibration.
-const PLEXI_CAL_DB: f32 = 8.931_892_4;
+const PLEXI_CAL_DB: f32 = 8.931_892;
 
 fn fixtures_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugins")

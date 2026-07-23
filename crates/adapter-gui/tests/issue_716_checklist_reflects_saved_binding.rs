@@ -20,7 +20,10 @@ use project::rig::{RigInput, RigPreset, RigProject};
 
 fn rig_with_chain() -> RigProject {
     let mut presets = BTreeMap::new();
-    presets.insert("p1".into(), RigPreset::from_legacy_blocks(Vec::new(), 100.0));
+    presets.insert(
+        "p1".into(),
+        RigPreset::from_legacy_blocks(Vec::new(), 100.0),
+    );
     let mut bank = BTreeMap::new();
     bank.insert(1, "p1".into());
     let mut inputs = BTreeMap::new();
@@ -83,8 +86,7 @@ fn reopened_checklist_shows_selected_binding_checked() {
         .expect("SetChainIoBindings must succeed");
 
     // Reopen + build the editor checklist exactly like chain_crud_wiring does.
-    let reopened =
-        engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
+    let reopened = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
     let chain = reopened
         .chains
         .iter()

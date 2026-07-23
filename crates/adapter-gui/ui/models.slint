@@ -119,6 +119,18 @@ export struct ProjectChainItem {
     /// loop source, or -1 when none. Refreshed by the meter timer from the
     /// dispatcher so the popup ComboBox highlights the active source on reopen.
     di_loop_selected_index: int,
+    /// Issue #771: the DI stream's OWN in/out levels (dBFS), read from the
+    /// isolated playback's peaks — never a mirror of the chain meters.
+    /// Refreshed by the meter timer via `di_playback_peaks`.
+    di_meter: StreamMeter,
+    /// Issue #771: the chain's already-bound output endpoints (labels), the
+    /// DI panel's output select. Order matches the engine's flat resolve
+    /// order, so a picked index maps 1:1 to the playback's output.
+    di_loop_outputs: [string],
+    /// Issue #771: index into `di_loop_outputs` of the persisted `di_output`
+    /// (0 = main output when none persisted; -1 when the chain has no bound
+    /// outputs).
+    di_output_selected_index: int,
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the
@@ -195,6 +207,8 @@ export struct BlockKnobOverlay {
     min_val: float,
     max_val: float,
     step: float,
+    // #787: line of the compact row's strip this overlay wraps onto.
+    strip_line: int,
 }
 
 export struct BlockParameterItem {
@@ -216,6 +230,13 @@ export struct BlockParameterItem {
     file_extensions: [string],
     optional: bool,
     allow_empty: bool,
+    // #780: 0-based slot within the active parameter tab, or -1 when hidden by
+    // the tab filter. Only consulted when the block has >1 group (has-param-tabs);
+    // otherwise the grid positions by loop index and every param shows.
+    tab_slot: int,
+    // #787: 0-based line of the compact row's parameter strip this cell wraps
+    // onto, or -1 when the tab filter hides it. Unused by the detached editor.
+    strip_line: int,
 }
 
 // Point in a MultiSlider widget (one vertical slider per point)
@@ -272,6 +293,18 @@ export struct BlockStreamData {
     entries: [BlockStreamEntry],  // arbitrary key-value pairs
 }
 
+// #787: one line of a compact row's parameter strip. Slint has no flow layout
+// and cannot filter inside a `for`, so the wrap is done in Rust
+// (`compact_block_layout`) and the strip renders one HorizontalLayout per line.
+export struct CompactParamLine {
+    cells: [BlockParameterItem],
+}
+
+// #787: one line of a compact row's curated knob overlays.
+export struct CompactOverlayLine {
+    knobs: [BlockKnobOverlay],
+}
+
 export struct CompactBlockItem {
     chain_index: int,
     block_index: int,
@@ -298,6 +331,19 @@ export struct CompactBlockItem {
     filtered_models: [BlockModelPickerItem],
     stream_data: BlockStreamData,
     has_external_gui: bool,
+    // #787: tab labels of this block's parameters (0 or 1 → no tab bar) and the
+    // one being shown.
+    parameter_groups: [string],
+    active_parameter_group: int,
+    // #787: the active tab's parameters (and the curated overlays), already
+    // wrapped into the lines the row renders. `parameter_items` above stays FULL
+    // — every tab's rows — because that is what a save reads (#780).
+    parameter_lines: [CompactParamLine],
+    overlay_lines: [CompactOverlayLine],
+    // #787: the row's height and its absolute y inside the flickable. Computed in
+    // Rust because the page positions rows — and hit-tests drags — by absolute y.
+    row_height: length,
+    row_y: length,
 }
 
 export struct RecentProjectItem {
