@@ -80,3 +80,20 @@ fn adding_a_block_opens_the_tabbed_editor_in_add_mode() {
         "adding a block must NOT be in edit mode"
     );
 }
+
+/// The end-to-end add flow needs a fully wired `AppWindow`, which the codebase
+/// keeps out of tests, so we pin the routing by source (the `no_native_dialogs`
+/// convention): the ADD detached branch must build the editor via
+/// `create_and_wire`, NOT sync the retired persistent window.
+#[test]
+fn add_flow_uses_create_and_wire_not_the_persistent_window() {
+    let src = include_str!("block_choose_type_callback.rs");
+    assert!(
+        src.contains("create_and_wire"),
+        "the ADD detached branch must build the editor via create_and_wire"
+    );
+    assert!(
+        !src.contains("sync_block_editor_window"),
+        "the ADD flow must NOT sync the old persistent window anymore"
+    );
+}

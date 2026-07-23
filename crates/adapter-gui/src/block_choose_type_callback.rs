@@ -31,18 +31,21 @@ use crate::block_editor::{block_parameter_items_for_model, build_knob_overlays};
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
-use crate::helpers::{show_child_window, sync_block_editor_window, use_inline_block_editor};
+use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{
     block_model_picker_items, block_model_picker_labels, block_type_picker_items,
     replace_project_chains,
 };
-use crate::state::{BlockEditorDraft, InsertDraft, ProjectSession};
+use crate::state::{
+    BlockEditorData, BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
+};
 use crate::sync_live_chain_runtime;
 use crate::ui_state::block_drawer_state;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, ChainInsertWindow,
-    ChannelOptionItem, CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
+    block_editor_window_setup, AppWindow, BlockModelPickerItem, BlockParameterItem,
+    ChainInsertWindow, ChannelOptionItem, CurveEditorPoint, MultiSliderPoint, PluginInfoWindow,
+    ProjectChainItem,
 };
 
 pub(crate) struct BlockChooseTypeCallbackCtx {
@@ -66,12 +69,16 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub chain_output_device_options: Rc<VecModel<SharedString>>,
     pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
     pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
+    // #815: the ADD detached editor is now built via `create_and_wire`, so this
+    // callback needs the same per-block window deps as the edit path.
+    pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
+    pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
+    pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
     pub auto_save: bool,
 }
 
 pub(crate) fn wire(
     window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
     chain_insert_window: &ChainInsertWindow,
     ctx: BlockChooseTypeCallbackCtx,
 ) {
@@ -96,11 +103,13 @@ pub(crate) fn wire(
         chain_output_device_options,
         insert_send_channels,
         insert_return_channels,
+        selected_block,
+        open_block_windows,
+        plugin_info_window,
         auto_save,
     } = ctx;
 
     let weak_window = window.as_weak();
-    let weak_block_editor_window = block_editor_window.as_weak();
     let weak_insert_window = chain_insert_window.as_weak();
 
     window.on_choose_block_type(move |index| {
@@ -268,12 +277,70 @@ pub(crate) fn wire(
             window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             window.set_show_block_drawer(true);
         } else {
+            // #815: build the SAME per-block tabbed editor the edit path uses,
+            // in add-mode (block_index None). The window builds its own params,
+            // knob overlays and #780 parameter tabs from `editor_data`; the
+            // block is created only on save (persist inserts when index is None).
             window.set_show_block_drawer(false);
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window
-                    .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                sync_block_editor_window(&window, &block_editor_window);
-                show_child_window(window.window(), block_editor_window.window());
+            let (chain_index, before_index) = block_editor_draft
+                .borrow()
+                .as_ref()
+                .map(|d| (d.chain_index, d.before_index))
+                .unwrap_or((0, 0));
+            let editor_data = BlockEditorData {
+                effect_type: model.effect_type.to_string(),
+                model_id: model.model_id.to_string(),
+                params: seeded.clone(),
+                enabled: true,
+                is_select: false,
+                select_options: Vec::new(),
+                selected_select_option_block_id: None,
+            };
+            // Only one add-editor at a time — close any prior one (sentinel key).
+            {
+                let borrow = open_block_windows.borrow();
+                for bw in borrow.iter().filter(|bw| bw.block_index == usize::MAX) {
+                    let _ = bw.window.hide();
+                }
+            }
+            open_block_windows
+                .borrow_mut()
+                .retain(|bw| bw.block_index != usize::MAX);
+            let setup_ctx = block_editor_window_setup::BlockEditorWindowSetupCtx {
+                chain_index,
+                block_index: None,
+                before_index,
+                instrument: instrument.clone(),
+                effect_type: model.effect_type.to_string(),
+                model_id: model.model_id.to_string(),
+                enabled: true,
+                editor_data,
+                block_id: None,
+                project_session: project_session.clone(),
+                project_chains: project_chains.clone(),
+                project_runtime: project_runtime.clone(),
+                saved_project_snapshot: saved_project_snapshot.clone(),
+                project_dirty: project_dirty.clone(),
+                input_chain_devices: input_chain_devices.clone(),
+                output_chain_devices: output_chain_devices.clone(),
+                selected_block: selected_block.clone(),
+                open_block_windows: open_block_windows.clone(),
+                plugin_info_window: plugin_info_window.clone(),
+                auto_save,
+            };
+            match block_editor_window_setup::create_and_wire(window.as_weak(), setup_ctx) {
+                Ok((win, stream_timer)) => {
+                    show_child_window(window.window(), win.window());
+                    open_block_windows.borrow_mut().push(BlockWindow {
+                        chain_index,
+                        block_index: usize::MAX,
+                        window: win,
+                        stream_timer,
+                    });
+                }
+                Err(e) => {
+                    log::error!("[adapter-gui] add-block editor open: {e}");
+                }
             }
         }
     });
