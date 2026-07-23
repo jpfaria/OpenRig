@@ -10,7 +10,7 @@
 //! `block_param_numeric`) need parameter-schema lookup to scale 0-127
 //! → range; they are handled in a follow-up sub-phase.
 
-use application::command::{BlockId, ChainId, Command, RigNavKind};
+use application::command::{BlockId, ChainId, Command, LooperAction, RigNavKind};
 use application::SelectionState;
 
 /// MIDI message in the shape the daemon resolves before calling slots:
@@ -179,6 +179,30 @@ pub fn slot_to_command(
             let _ = selection.active_block.clone()?;
             Some(Command::ToggleActiveBlockNeighborEnabled)
         }
+
+        // --- Looper transport on the active chain (#323). uid 0 is the
+        //     footswitch sentinel: the dispatcher resolves it to the
+        //     chain's first looper, since a pedal has no uid to send.
+        "looper_record" => Some(Command::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::Record,
+        }),
+        "looper_play_stop" => Some(Command::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::PlayStop,
+        }),
+        "looper_undo" => Some(Command::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::Undo,
+        }),
+        "looper_clear" => Some(Command::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::Clear,
+        }),
 
         // --- Continuous CC. Scaled 0..127 → 0.0..1.0; the project /
         //     parameter layer maps the normalised value to its real

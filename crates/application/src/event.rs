@@ -362,6 +362,9 @@ pub enum Event {
         action: crate::command::LooperAction,
     },
 
+    /// #323: a looper's recorded-audio pointer changed on the chain.
+    ChainLooperAudioFileChanged { chain: ChainId, looper: u64 },
+
     /// #323: a looper parameter changed and was persisted on the chain.
     ChainLooperParamChanged {
         chain: ChainId,
@@ -418,7 +421,8 @@ impl Event {
             | Event::ChainLooperAdded { chain, .. }
             | Event::ChainLooperRemoved { chain, .. }
             | Event::ChainLooperTransportChanged { chain, .. }
-            | Event::ChainLooperParamChanged { chain, .. } => Some(chain),
+            | Event::ChainLooperParamChanged { chain, .. }
+            | Event::ChainLooperAudioFileChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

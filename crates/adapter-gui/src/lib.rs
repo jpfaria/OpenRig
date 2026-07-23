@@ -149,6 +149,7 @@ mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
+mod looper_persist;
 pub mod looper_view;
 pub mod looper_wiring;
 mod meter_wiring;

@@ -286,6 +286,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
+        // #323: the loop sidecars are written from the live runtimes.
+        let project_runtime = project_runtime.clone();
         window.on_save_project(move || {
             log::info!("on_save_project triggered");
             let Some(window) = weak_window.upgrade() else {
@@ -329,6 +331,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     .attach_presets_path(session.presets_path.clone());
                 path
             };
+            // #323: a recorded loop is audio — write it as a sidecar and let
+            // the chain remember the file, BEFORE the project is serialized.
+            crate::looper_persist::save_chain_loops(session, &project_runtime, &project_path);
             // #555: the file writes used to happen here via
             // `save_project_session(session, &project_path)`. They now
             // live inside the `Command::SaveProject` dispatcher handler

@@ -594,6 +594,15 @@ pub enum Command {
         param: LooperParam,
     },
 
+    /// #323: remember (or forget) the file holding a looper's recorded audio.
+    /// Dispatched by whoever wrote the wav — the recording itself is runtime
+    /// state; only the pointer lives in the project.
+    SetChainLooperAudioFile {
+        chain: ChainId,
+        looper: u64,
+        file: Option<String>,
+    },
+
     /// #717 Task 3: persist the chosen DI output endpoint for a chain.
     ///
     /// Sets `chain.di_output = Some(output)` on the matching chain in the
@@ -676,6 +685,9 @@ pub enum LooperAction {
     Record,
     Play,
     Stop,
+    /// Toggle: whoever applies it (the adapter, which can see the runtime)
+    /// turns it into `Play` or `Stop`. A footswitch has one button for both.
+    PlayStop,
     Undo,
     Redo,
     Clear,

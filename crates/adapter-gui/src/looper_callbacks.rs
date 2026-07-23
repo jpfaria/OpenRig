@@ -115,39 +115,9 @@ pub(crate) fn wire_looper_callbacks(window: &AppWindow, session: &Session, runti
     transport!(on_looper_redo, LooperAction::Redo);
     transport!(on_looper_clear, LooperAction::Clear);
 
-    // Play/stop is one button: which action it sends depends on what the
-    // runtime is doing right now.
-    {
-        let session = session.clone();
-        let runtime = runtime.clone();
-        window.on_looper_play_stop(move |index, uid| {
-            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
-                let playing = runtime
-                    .borrow()
-                    .as_ref()
-                    .and_then(|c| c.chain_looper_status(&chain, uid as u64))
-                    .is_some_and(|st| {
-                        matches!(
-                            st.state,
-                            engine::LooperState::Playing | engine::LooperState::Overdubbing
-                        )
-                    });
-                dispatch_and_apply(
-                    s,
-                    &runtime,
-                    Command::SetChainLooperTransport {
-                        chain,
-                        looper: uid as u64,
-                        action: if playing {
-                            LooperAction::Stop
-                        } else {
-                            LooperAction::Play
-                        },
-                    },
-                );
-            });
-        });
-    }
+    // Play/stop is one button: the PlayStop action is resolved against the
+    // runtime by the wiring, so the GUI and a footswitch behave identically.
+    transport!(on_looper_play_stop, LooperAction::PlayStop);
 
     // ── parameters ──────────────────────────────────────────────────────
     macro_rules! param {

@@ -61,7 +61,7 @@ impl LocalDispatcher {
                 looper,
                 action,
             } => {
-                self.require_looper(&chain, looper)?;
+                let looper = self.resolve_looper(&chain, looper)?;
                 Ok(vec![Event::ChainLooperTransportChanged {
                     chain,
                     looper,
@@ -99,21 +99,53 @@ impl LocalDispatcher {
                 }])
             }
 
+            Command::SetChainLooperAudioFile {
+                chain,
+                looper,
+                file,
+            } => {
+                {
+                    let mut proj = self.project.borrow_mut();
+                    let cfg = proj
+                        .chains
+                        .iter_mut()
+                        .find(|c| c.id == chain)
+                        .ok_or_else(|| anyhow!("chain not found: {chain:?}"))?
+                        .loopers
+                        .iter_mut()
+                        .find(|l| l.uid == looper)
+                        .ok_or_else(|| anyhow!("looper not found: {looper}"))?;
+                    cfg.audio_file = file;
+                }
+                Ok(vec![Event::ChainLooperAudioFileChanged { chain, looper }])
+            }
+
             other => unreachable!("handle_looper received a non-looper command: {other:?}"),
         }
     }
 
-    /// Fail unless `chain` holds `looper` — a transport action for something
-    /// that does not exist is a caller bug, never a silent no-op.
-    fn require_looper(&self, chain: &domain::ids::ChainId, looper: u64) -> Result<()> {
+    /// Resolve the looper a transport action addresses.
+    ///
+    /// `0` is the footswitch sentinel: a pedal has no uid to send, so it
+    /// means "this chain's first looper" (uid 0 is never assigned). Any other
+    /// value must exist — a transport action for something that does not
+    /// exist is a caller bug, never a silent no-op.
+    fn resolve_looper(&self, chain: &domain::ids::ChainId, looper: u64) -> Result<u64> {
         let proj = self.project.borrow();
         let c = proj
             .chains
             .iter()
             .find(|c| &c.id == chain)
             .ok_or_else(|| anyhow!("chain not found: {chain:?}"))?;
+        if looper == 0 {
+            return c
+                .loopers
+                .first()
+                .map(|l| l.uid)
+                .ok_or_else(|| anyhow!("chain has no looper to control"));
+        }
         if c.loopers.iter().any(|l| l.uid == looper) {
-            Ok(())
+            Ok(looper)
         } else {
             Err(anyhow!("looper not found: {looper}"))
         }

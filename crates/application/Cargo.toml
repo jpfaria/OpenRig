@@ -12,6 +12,8 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 schemars.workspace = true
 futures.workspace = true
+# #323: the recorded loop is written as a wav sidecar next to the project.
+hound = "3.5"
 project = { path = "../project" }
 engine = { path = "../engine" }
 block-core = { path = "../block-core" }
@@ -25,7 +27,6 @@ adapter-render = { path = "../adapter-render" }
 block-core = { path = "../block-core" }
 block-delay = { path = "../block-delay" }
 block-reverb = { path = "../block-reverb" }
-hound = "3.5"
 serde_yaml.workspace = true
 tempfile = "3"
 # #780 end-to-end test: drive a real VST3 controller + register its context.

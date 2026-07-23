@@ -60,6 +60,17 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
                             buffer: tap_needs_layer(state).then(|| fresh_layer(runtime)),
                         }
                     }
+                    LooperAction::PlayStop => {
+                        // One footswitch, both actions: the runtime decides.
+                        let playing = runtime.looper_status(uid).is_some_and(|s| {
+                            matches!(s.state, LooperState::Playing | LooperState::Overdubbing)
+                        });
+                        if playing {
+                            LooperOp::Stop { uid }
+                        } else {
+                            LooperOp::Play { uid }
+                        }
+                    }
                     LooperAction::Play => LooperOp::Play { uid },
                     LooperAction::Stop => LooperOp::Stop { uid },
                     LooperAction::Undo => LooperOp::Undo { uid },

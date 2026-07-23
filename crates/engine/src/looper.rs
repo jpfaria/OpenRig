@@ -239,6 +239,31 @@ impl LooperSlot {
         self.state = LooperState::Stopped;
     }
 
+    /// Interleaved-stereo mixdown of the audible layers, one loop long — what
+    /// the user would hear in one pass, ready to be written to disk.
+    ///
+    /// Allocates, so it is for the CONTROL thread only (project save), never
+    /// the audio callback. Returns `None` when nothing is recorded.
+    pub fn export_mixdown(&self) -> Option<Vec<f32>> {
+        if self.active == 0 || self.len_frames == 0 {
+            return None;
+        }
+        let mut out = Vec::with_capacity(self.len_frames * 2);
+        for frame in 0..self.len_frames {
+            let mut acc = [0.0f32; 2];
+            let mut gain = 1.0f32;
+            for layer in (0..self.active).rev() {
+                let buf = &self.layers[layer];
+                acc[0] += buf[frame * 2] * gain;
+                acc[1] += buf[frame * 2 + 1] * gain;
+                gain *= self.decay;
+            }
+            out.push(acc[0]);
+            out.push(acc[1]);
+        }
+        Some(out)
+    }
+
     /// Collect one buffer the slot is done with, so the control thread can
     /// drop it. Call until it returns `None`.
     pub fn take_retired(&mut self) -> Option<Box<[f32]>> {

@@ -259,3 +259,51 @@ fn commands_for_an_unknown_chain_or_looper_fail_loudly() {
         })
         .is_err());
 }
+
+// --- #323: the footswitch sentinel ---
+
+#[test]
+fn looper_zero_addresses_the_chains_first_looper() {
+    let (d, project) = dispatcher_with_chain("c1");
+    let chain = ChainId("c1".into());
+    d.dispatch(Command::AddChainLooper {
+        chain: chain.clone(),
+    })
+    .unwrap();
+    d.dispatch(Command::AddChainLooper {
+        chain: chain.clone(),
+    })
+    .unwrap();
+    let first = looper_uids(&project, &chain)[0];
+
+    // A footswitch has no uid to send — 0 means "this chain's first looper".
+    let events = d
+        .dispatch(Command::SetChainLooperTransport {
+            chain: chain.clone(),
+            looper: 0,
+            action: LooperAction::PlayStop,
+        })
+        .expect("the sentinel resolves");
+
+    assert_eq!(
+        events,
+        vec![Event::ChainLooperTransportChanged {
+            chain: chain.clone(),
+            looper: first,
+            action: LooperAction::PlayStop,
+        }],
+        "the emitted event names the real looper, never the sentinel"
+    );
+}
+
+#[test]
+fn the_sentinel_fails_when_the_chain_has_no_looper() {
+    let (d, _project) = dispatcher_with_chain("c1");
+    assert!(d
+        .dispatch(Command::SetChainLooperTransport {
+            chain: ChainId("c1".into()),
+            looper: 0,
+            action: LooperAction::Record,
+        })
+        .is_err());
+}

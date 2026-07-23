@@ -30,6 +30,14 @@ impl ChainRuntimeState {
         self.loopers.statuses()
     }
 
+    /// Interleaved-stereo mixdown of one looper — one loop long, at this
+    /// runtime's sample rate — so the control thread can write it to disk.
+    /// Takes the `processing` lock, so it belongs to project save, never to a
+    /// per-frame path. `None` when the looper is unknown or empty.
+    pub fn export_looper(&self, uid: u64) -> Option<Vec<f32>> {
+        self.processing.lock().ok()?.looper_bank.export(uid)
+    }
+
     /// Collect the layer buffers the audio thread handed back and drop them
     /// here — freeing memory is forbidden on the audio thread (invariant #8).
     pub fn drain_retired_layers(&self) -> Vec<Box<[f32]>> {

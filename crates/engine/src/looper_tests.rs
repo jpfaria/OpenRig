@@ -317,3 +317,37 @@ fn load_layer_into_a_recorded_looper_replaces_what_was_there() {
     s.play();
     assert_eq!(s.tick([0.0, 0.0]), [1.0, 1.0]);
 }
+
+#[test]
+fn export_mixdown_sums_the_audible_layers_over_one_loop() {
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0], [2.0, 2.0]]);
+    s.tap_record(None);
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[0.5, 0.5], [0.25, 0.25]]);
+    s.tap_record(None);
+
+    let pcm = s.export_mixdown().expect("there is material");
+    assert_eq!(pcm, vec![1.5, 1.5, 2.25, 2.25]);
+}
+
+#[test]
+fn export_mixdown_honours_undo_and_is_none_when_empty() {
+    let mut s = slot();
+    assert!(s.export_mixdown().is_none(), "nothing recorded yet");
+
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0]]);
+    s.tap_record(None);
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[0.5, 0.5]]);
+    s.tap_record(None);
+    s.undo();
+
+    assert_eq!(
+        s.export_mixdown().expect("the first layer is still there"),
+        vec![1.0, 1.0],
+        "an undone layer must not land in the saved file"
+    );
+}

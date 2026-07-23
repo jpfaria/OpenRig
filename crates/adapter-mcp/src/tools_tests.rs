@@ -39,7 +39,9 @@ use application::command_schema::command_variant_names;
 /// `RemoveChainLooper`, `SetChainLooperTransport`, `SetChainLooperParam` —
 /// so an agent drives the looper through the same bus the GUI and the MIDI
 /// footswitch use.
-const COMMAND_VARIANT_COUNT: usize = 77;
+/// #323 bumped to 78 with `SetChainLooperAudioFile` — the pointer to the wav
+/// a recorded loop was saved into.
+const COMMAND_VARIANT_COUNT: usize = 78;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

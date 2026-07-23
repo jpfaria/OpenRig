@@ -393,6 +393,15 @@ impl LooperBank {
         }
     }
 
+    /// Mixdown of one looper, for the control thread to save. Allocates —
+    /// never called from the audio callback.
+    pub(crate) fn export(&self, uid: u64) -> Option<Vec<f32>> {
+        self.entries
+            .iter()
+            .find(|e| e.uid == uid)
+            .and_then(|e| e.slot.export_mixdown())
+    }
+
     fn index_of(&self, uid: u64) -> Option<usize> {
         self.entries.iter().position(|e| e.uid == uid)
     }
