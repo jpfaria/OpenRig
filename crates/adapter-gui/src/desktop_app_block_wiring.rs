@@ -165,7 +165,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     // --- on_choose_block_type (extracted to block_choose_type_callback) ---
     crate::block_choose_type_callback::wire(
         deps.window,
-        deps.block_editor_window,
         deps.chain_insert_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -188,6 +187,9 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             chain_output_device_options: deps.chain_output_device_options.clone(),
             insert_send_channels: deps.insert_send_channels.clone(),
             insert_return_channels: deps.insert_return_channels.clone(),
+            selected_block: deps.selected_block.clone(),
+            open_block_windows: deps.open_block_windows.clone(),
+            plugin_info_window: deps.plugin_info_window.clone(),
             auto_save: deps.auto_save,
         },
     );

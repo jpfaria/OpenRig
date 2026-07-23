@@ -48,20 +48,49 @@ jobs:
             libasound2-dev libudev-dev pkg-config \
             libfontconfig1-dev libseat-dev \
             libxkbcommon-dev libinput-dev libgbm-dev \
-            libjack-jackd2-dev
+            libjack-jackd2-dev gettext
 
       # The suite must be able to fail the job — no `|| true`. Tests that need
       # the owner's private capture tree (OPENRIG_OWNER_PLUGINS) skip loudly
       # when it is absent; they never hard-fail CI. See issue #793.
+      # A hard timeout keeps a hung test from wedging the runner for hours
+      # (see issue #693 FIFO tests, fixed to never block the test thread).
       - name: Run tests
-        run: cargo test --workspace
+        run: timeout --signal=SIGKILL 1500 cargo test --workspace
+
+  # Coverage is REPORTING, not a gate. It lives in its own job with
+  # continue-on-error so it can NEVER block a PR whose tests passed: the
+  # `cargo llvm-cov` instrumented rebuild + full re-run of this large
+  # audio/Slint workspace is heavy enough to exhaust an ubuntu runner (OOM /
+  # disk), and a killed runner ignores an inline `|| true`. Isolating it keeps
+  # the Test Suite result about tests only. See issue #793.
+  coverage:
+    name: Coverage (reporting)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev pkg-config \
+            libfontconfig1-dev libseat-dev \
+            libxkbcommon-dev libinput-dev libgbm-dev \
+            libjack-jackd2-dev gettext
 
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
 
-      # Coverage is reporting, not a gate: a flaky coverage run must not block a
-      # PR whose tests passed, so this step and the upload stay non-blocking.
       - name: Generate coverage report
+        timeout-minutes: 30
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info || true
 
       - name: Upload coverage artifact

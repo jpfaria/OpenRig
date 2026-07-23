@@ -115,7 +115,9 @@ pub fn process_output_buffer(
     process_output_f32_mixed(loaded, output_index, out, output_total_channels, scratch);
 }
 
-#[cfg(test)]
+// `slots_for_output_stream` is cfg'd out under Linux+JACK (#755); gate its tests
+// the same way so the crate compiles there (JACK routes in its own supervisor).
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 mod issue_743_output_rate_isolation_tests {
     use super::*;
     use domain::ids::{ChainId, DeviceId};

@@ -51,7 +51,9 @@ fn block_editor_window_lifecycle_uses_no_native_dialog() {
 
 #[test]
 fn compact_view_block_delete_is_gated_by_overlay() {
-    let src = read_src("compact_chain_block_handlers.rs");
+    // #787 split the block-delete wiring out of compact_chain_block_handlers.rs
+    // into its own module for the file-size cap; the gate lives there now.
+    let src = read_src("compact_chain_block_delete.rs");
     assert!(
         src.contains("set_show_confirm_delete_block"),
         "issue #360: compact view must raise the in-window block-delete \

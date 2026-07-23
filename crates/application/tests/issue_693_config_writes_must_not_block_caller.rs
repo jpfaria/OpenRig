@@ -50,10 +50,18 @@ fn issue_693_save_audio_settings_returns_immediately_with_stuck_config() {
     });
 
     let result = done_rx.recv_timeout(Duration::from_secs(2));
-    // Unblock the FIFO: the handler's first touch is a LOAD (read-open),
-    // so pair it with a write-open + immediate drop (EOF). Detached
-    // threads still stuck at process exit die with the process.
-    let _ = std::fs::OpenOptions::new().write(true).open(&cfg);
+    // Best-effort unblock of any worker still parked on the FIFO. Do it on a
+    // DETACHED thread: on Linux the handler resolves config under
+    // $XDG_CONFIG_HOME (not this macOS-layout path), so it never opens this
+    // FIFO — a blocking write-open on the test thread would then wait forever
+    // for a reader and wedge the whole suite. The assertion below only needs
+    // `result`, already in hand; the parked thread dies with the process.
+    {
+        let cfg = cfg.clone();
+        std::thread::spawn(move || {
+            let _ = std::fs::OpenOptions::new().write(true).open(&cfg);
+        });
+    }
 
     let elapsed = result.expect(
         "dispatch(SaveAudioSettings) is stuck on config.yaml I/O — the \
@@ -111,8 +119,14 @@ fn issue_693_save_chain_preset_returns_immediately_with_stuck_preset_file() {
     });
 
     let result = done_rx.recv_timeout(Duration::from_secs(2));
-    // Pair the write-open with a read-open so blocked threads release.
-    let _ = std::fs::OpenOptions::new().read(true).open(&preset_file);
+    // Best-effort pairing on a DETACHED thread so a missing peer can never
+    // wedge the test thread (see the save-audio-settings case above).
+    {
+        let preset_file = preset_file.clone();
+        std::thread::spawn(move || {
+            let _ = std::fs::OpenOptions::new().read(true).open(&preset_file);
+        });
+    }
 
     let elapsed = result.expect(
         "dispatch(SaveChainPreset) is stuck on the preset file I/O — the \
@@ -167,8 +181,14 @@ fn issue_693_set_di_loop_source_returns_immediately_with_stuck_wav() {
     });
 
     let result = done_rx.recv_timeout(Duration::from_secs(2));
-    // Pair the decoder's read-open with a write-open (drop = EOF).
-    let _ = std::fs::OpenOptions::new().write(true).open(&wav);
+    // Best-effort pairing on a DETACHED thread so a missing peer can never
+    // wedge the test thread (see the save-audio-settings case above).
+    {
+        let wav = wav.clone();
+        std::thread::spawn(move || {
+            let _ = std::fs::OpenOptions::new().write(true).open(&wav);
+        });
+    }
 
     let elapsed = result.expect(
         "dispatch(SetChainDiLoopSource) is stuck decoding the WAV — the \
@@ -258,8 +278,14 @@ fn issue_693_render_chain_returns_immediately_with_stuck_chain_file() {
     });
 
     let result = done_rx.recv_timeout(Duration::from_secs(2));
-    // Pair the renderer's read-open with a write-open (drop = EOF).
-    let _ = std::fs::OpenOptions::new().write(true).open(&chain_yaml);
+    // Best-effort pairing on a DETACHED thread so a missing peer can never
+    // wedge the test thread (see the save-audio-settings case above).
+    {
+        let chain_yaml = chain_yaml.clone();
+        std::thread::spawn(move || {
+            let _ = std::fs::OpenOptions::new().write(true).open(&chain_yaml);
+        });
+    }
 
     let elapsed = result.expect(
         "dispatch(RenderChain) is stuck on the offline render I/O — the \

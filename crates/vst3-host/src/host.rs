@@ -3,6 +3,9 @@
 //! audio processing loop.
 
 use anyhow::{bail, Result};
+// `Path` is used only by the macOS-gated `run_bundle_entry`; gate the import
+// to match so non-macOS builds (e.g. Linux CI) don't see it as unused.
+#[cfg(target_os = "macos")]
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;

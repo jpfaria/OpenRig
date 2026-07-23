@@ -79,6 +79,12 @@ fn device_settings(dev: &AudioDeviceDescriptor) -> DeviceSettings {
         sample_rate: 48_000,
         buffer_size_frames: BUFFER,
         bit_depth: 32,
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }
 }
 

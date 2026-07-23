@@ -47,9 +47,15 @@ fn issue_731_save_audio_settings_write_does_not_leak_to_swapped_home() {
     let home_a = tempfile::TempDir::new().expect("home_a");
     let home_b = tempfile::TempDir::new().expect("home_b");
     let prev = std::env::var_os("HOME");
+    // On Linux `dirs::config_dir()` (used by `app_config_path()`) honours
+    // $XDG_CONFIG_HOME over $HOME/.config, and CI runners may set it — so a
+    // HOME-only swap would leak to the runner's real config dir, not the
+    // tempdir. Track XDG alongside HOME so the config path follows the swap.
+    let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
 
     // Dispatch under HOME = A: the write targets A's config.yaml.
     std::env::set_var("HOME", home_a.path());
+    std::env::set_var("XDG_CONFIG_HOME", home_a.path().join(".config"));
     let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project {
         name: None,
         device_settings: Vec::new(),
@@ -64,12 +70,17 @@ fn issue_731_save_audio_settings_write_does_not_leak_to_swapped_home() {
     // Swap to HOME = B before the worker drains — exactly what
     // `with_tmp_home` does when it restores `$HOME` post-closure.
     std::env::set_var("HOME", home_b.path());
+    std::env::set_var("XDG_CONFIG_HOME", home_b.path().join(".config"));
     application::persist_worker::flush();
 
-    // Restore the real $HOME before asserting (never leave it dangling).
+    // Restore the real $HOME/$XDG before asserting (never leave them dangling).
     match prev {
         Some(p) => std::env::set_var("HOME", p),
         None => std::env::remove_var("HOME"),
+    }
+    match prev_xdg {
+        Some(p) => std::env::set_var("XDG_CONFIG_HOME", p),
+        None => std::env::remove_var("XDG_CONFIG_HOME"),
     }
 
     assert!(

@@ -261,7 +261,14 @@ exceção pra "é só visual".
 4. **`git push` da branch** (sem PR ainda).
 5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
 6. **Quality gate compartilhado** rodar e ficar verde — invocar via skill `quality-gate` (mecânica do gate, JSON, bypass governance ficam todos lá).
-7. **Só ENTÃO** `gh pr create`.
+7. **Só ENTÃO** o PR, **sempre não-interativo** — push a branch first, then pass every field explicitly:
+
+   ```bash
+   gh pr create --repo jpfaria/OpenRig --base develop --head <branch> \
+     --title "<type>(#<issue>): <summary>" --body "Closes #<issue>. …"
+   ```
+
+   NUNCA rode `gh pr create` sem `--title`/`--body`/`--head` (ou com a branch não pushada): o shell do agente não tem TTY, o gh abre o prompt interativo e **pendura** lendo um stdin que nunca vem — até o timeout (~8 min). Guard-rail de máquina: `gh config set prompt disabled` faz o gh **errar na hora** em vez de travar.
 
 Não inverter:
 - PR antes da validação do usuário = retrabalho quando ele acha problema no comportamento real.

@@ -16,6 +16,13 @@
 //! it is deterministic and needs no hardware. The hardware battery counterpart
 //! (real four-binding cold start, ~zero boot underruns) lives in the
 //! `OPENRIG_HW_TESTS=1` battery.
+//!
+//! Cfg scope: `schedule_chain_activation` returns async only under
+//! `not(all(target_os = "linux", feature = "jack"))`. The JACK build keeps
+//! cold activation SYNCHRONOUS by design (#672 wires cpal first), returning
+//! `false` unconditionally — so this async-scheduling guard applies only to
+//! the non-jack path and is gated to match, like the other jack carve-outs.
+#![cfg(not(all(target_os = "linux", feature = "jack")))]
 
 use std::collections::HashMap;
 

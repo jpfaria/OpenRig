@@ -154,6 +154,10 @@ jobs:
   # --------------------------------------------------------------------------
   build-linux-x86_64:
     name: Build Linux x86_64
+    # Temporarily disabled — shipping macOS only while platforms roll out
+    # gradually (#816). Re-enable: drop this `if`, add the job back to
+    # create-release `needs`, and uncomment its download step below.
+    if: false
     needs: bundle-plugins
     runs-on: ubuntu-24.04
     steps:
@@ -225,6 +229,8 @@ jobs:
   # --------------------------------------------------------------------------
   build-linux-aarch64:
     name: Build Linux aarch64
+    # Temporarily disabled — macOS only for now (#816). See build-linux-x86_64.
+    if: false
     needs: bundle-plugins
     runs-on: ubuntu-24.04-arm
     steps:
@@ -296,6 +302,8 @@ jobs:
   # --------------------------------------------------------------------------
   build-windows:
     name: Build Windows x64
+    # Temporarily disabled — macOS only for now (#816). See build-linux-x86_64.
+    if: false
     needs: bundle-plugins
     runs-on: windows-latest
     steps:
@@ -379,7 +387,9 @@ jobs:
   # --------------------------------------------------------------------------
   create-release:
     name: Create GitHub Release
-    needs: [build-macos, build-linux-x86_64, build-linux-aarch64, build-windows]
+    # macOS only for now (#816); add the platform jobs back here as they
+    # are re-enabled.
+    needs: [build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -391,21 +401,23 @@ jobs:
         with:
           name: openrig-macos
           path: artifacts
-      - name: Download Linux x86_64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: openrig-linux-x86_64
-          path: artifacts
-      - name: Download Linux aarch64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: openrig-linux-aarch64
-          path: artifacts
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: openrig-windows-x64
-          path: artifacts
+      # Linux/Windows downloads disabled — macOS only for now (#816).
+      # Re-enable alongside the matching build job.
+      # - name: Download Linux x86_64 artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: openrig-linux-x86_64
+      #     path: artifacts
+      # - name: Download Linux aarch64 artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: openrig-linux-aarch64
+      #     path: artifacts
+      # - name: Download Windows artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: openrig-windows-x64
+      #     path: artifacts
 
       - name: Generate release notes from milestone
         id: notes

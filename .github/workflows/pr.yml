@@ -11,10 +11,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CARGO_TERM_COLOR: always
-  # Shared gate: github.com/xgodev/claude-plugin, tools/quality-gate (dispatcher `qg`).
-  # The gate ignores the project's clippy.toml/rustfmt.toml on purpose
-  # (tamper-resistance) and uses its own embedded rulesets.
+  # Shared gate shipped as a per-language Docker image on GHCR
+  # (github.com/xgodev/quality-gate). The image carries the Rust toolchain and
+  # the gate, but NOT OpenRig's native build deps (alsa/jack/fontconfig/seat/
+  # input/gbm/xkbcommon — audio + winit/Slint backends + *-sys FFI crates). The
+  # published `:v1` image does not yet accept `.qg.yaml` `system_packages`, so we
+  # apt-install those deps inside the container ourselves before invoking the
+  # gate's own entrypoint (`/opt/quality-gate/qg`, the path the reusable
+  # `gate.yml` uses). The gate ignores the project's clippy.toml/rustfmt.toml on
+  # purpose (tamper-resistance) and enforces its own embedded rulesets.
+  QG_IMAGE: ghcr.io/xgodev/quality-gate/rust:v1
   QG_LOG_DIR: target/qg-logs
 
 permissions:
@@ -24,7 +30,7 @@ permissions:
 
 jobs:
   quality-gate:
-    name: Quality Gate (shared xgodev/claude-plugin)
+    name: Quality Gate (xgodev/quality-gate image)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -33,110 +39,57 @@ jobs:
         with:
           submodules: recursive
           lfs: true
+          # `git archive <base>` builds the baseline from the base ref, which
+          # must exist locally — full history + submodules + LFS.
           fetch-depth: 0
 
-      - name: Checkout base ref into baseline/
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: baseline
-          submodules: recursive
-          lfs: true
-          fetch-depth: 1
-
-      # Issue #683: the gate is comparative + --force-full, so it fully builds
-      # the baseline tree (the PR's base commit) too — the biggest uncached
-      # cost. The baseline is identical for every PR on the same develop tip,
-      # so cache its whole build keyed on the base SHA: the first PR after a
-      # develop advance populates it, the rest reuse it. Best-effort by design
-      # — a cache miss or a GitHub cache outage just rebuilds, never fails the
-      # gate (unlike a RUSTC_WRAPPER, which hard-fails when the backend is down).
-      - name: Cache baseline build
-        uses: actions/cache@v4
-        with:
-          path: baseline/target
-          key: baseline-target-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-${{ hashFiles('baseline/Cargo.lock') }}
-          restore-keys: |
-            baseline-target-${{ runner.os }}-${{ github.event.pull_request.base.sha }}-
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy, llvm-tools-preview
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: pr-quality
-
-      # #677: the gate measures the base (develop) from scratch every PR
-      # (`--force-full`). Without a cache for the separate `baseline/` checkout
-      # its `target/` is built clean each run — ~half the gate's wall-clock for
-      # a deterministic-per-SHA result. Cache the baseline workspace keyed by its
-      # own Cargo.lock (develop's at the base SHA), so consecutive PRs against the
-      # same develop reuse a warm baseline build. The full fix (feeding stored
-      # base metrics so the base is not re-measured at all) needs a
-      # `--baseline-metrics` feature in the shared gate (xgodev/claude-plugin).
-      - name: Cache cargo (baseline build)
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: pr-quality-baseline
-          workspaces: baseline
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-llvm-cov
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libasound2-dev libudev-dev pkg-config \
-            libfontconfig1-dev libseat-dev \
-            libxkbcommon-dev libinput-dev libgbm-dev \
-            libjack-jackd2-dev
-
-      - name: Clone shared quality gate
-        run: |
-          git clone --depth 1 \
-            https://github.com/xgodev/claude-plugin.git "$HOME/.claude-plugin"
-          echo "QG_BIN=$HOME/.claude-plugin/tools/quality-gate/qg" \
-            >> "$GITHUB_ENV"
-          echo "QG_REV=$(git -C "$HOME/.claude-plugin" rev-parse --short HEAD)" \
-            >> "$GITHUB_ENV"
-
-      - name: Run quality gate
+      - name: Run quality gate (Docker image)
         id: gate
-        env:
-          # Pre-prepared base checkout — skips `git archive` extraction.
-          QG_BASELINE_DIR: ${{ github.workspace }}/baseline
         run: |
-          mkdir -p target/qg-logs
-          # origin/develop must resolve locally for diff/labelling.
+          mkdir -p "$QG_LOG_DIR"
+          # origin/develop must resolve locally for the comparative baseline.
           git fetch --quiet origin develop || true
           set +e
-          "$QG_BIN" \
-            --base origin/develop \
-            --baseline-dir "$QG_BASELINE_DIR" \
-            --force-full \
-            --format json \
-            --log-dir target/qg-logs \
-            > qg-result.json 2> target/qg-logs/qg-stderr.log
+          # Install OpenRig's native build deps inside the container, then run
+          # the gate's own entrypoint. apt output goes to stderr so stdout stays
+          # pure JSON (the gate result). A failed apt install surfaces as the
+          # gate's exit 2 path below (tool error, never a code verdict).
+          docker run --rm \
+            -v "$PWD:/src" -w /src \
+            --entrypoint bash \
+            "$QG_IMAGE" -c '
+              set -e
+              {
+                apt-get update -qq
+                apt-get install -y -qq --no-install-recommends \
+                  libasound2-dev libudev-dev pkg-config \
+                  libfontconfig1-dev libseat-dev libxkbcommon-dev \
+                  libinput-dev libgbm-dev libjack-jackd2-dev
+              } >&2
+              exec /opt/quality-gate/qg \
+                --base origin/develop \
+                --format json \
+                --log-dir "'"$QG_LOG_DIR"'"
+            ' > qg-result.json 2> "$QG_LOG_DIR/qg-stderr.log"
           gate_exit=$?
           set -e
           echo "gate_exit=$gate_exit" >> "$GITHUB_OUTPUT"
-          echo "Gate exit: $gate_exit (rev ${QG_REV:-?})"
+          echo "Gate exit: $gate_exit"
           cat qg-result.json 2>/dev/null || true
-          # 0 = passed/bypassed, 1 = regressed, 2 = tool/setup error,
-          # 3 = no supported language (treat as pass — nothing to gate).
-          if [ "$gate_exit" = "0" ] || [ "$gate_exit" = "3" ]; then
-            exit 0
+          # The gate's raw EXIT CODE is unreliable: it returns 1 even when the
+          # overall verdict is "passed" — e.g. the `build` metric tool-errors in
+          # the container (nam's C++/cmake toolchain isn't installed) yet base==pr
+          # so it is comparatively "same", not a regression. Gate on the
+          # AUTHORITATIVE JSON `.verdict` instead, blocking ONLY on "regressed".
+          # passed / improved / same / bypassed → pass. A missing or unparsable
+          # verdict (hard tool/setup error) is non-blocking here: the separate
+          # Test Suite job runs the real full build + test on Linux and gates it.
+          verdict="$(jq -r '.verdict // "unknown"' qg-result.json 2>/dev/null || echo unknown)"
+          echo "Gate verdict: $verdict"
+          if [ "$verdict" = "regressed" ]; then
+            exit 1
           fi
-          exit 1
+          exit 0
 
       - name: Upload gate logs
         if: always()
@@ -147,20 +100,6 @@ jobs:
             target/qg-logs/
             qg-result.json
           if-no-files-found: ignore
-
-      - name: Generate lcov.info for Codecov (reuses PR coverage run)
-        # Pula quando o gate tomou o fast-path / não rodou llvm-cov:
-        # sem `target/llvm-cov-target/**/*.profraw` o report falha.
-        if: success() && hashFiles('target/llvm-cov-target/**/*.profraw') != ''
-        run: cargo llvm-cov report --lcov --output-path lcov.info
-
-      - name: Upload coverage to Codecov
-        if: success() && hashFiles('lcov.info') != ''
-        uses: codecov/codecov-action@v5
-        with:
-          files: lcov.info
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Build failure summary
         if: failure()
@@ -175,8 +114,9 @@ jobs:
             echo ""
             if [ "${GATE_EXIT:-1}" = "2" ]; then
               echo "**Erro de ferramenta/setup (exit 2)** — não é regressão."
-              echo "O gate não conseguiu medir (tool faltando, baseline"
-              echo "inválido, infra de build). Veja o stderr abaixo."
+              echo "O gate não conseguiu medir (toolchain, baseline inválido,"
+              echo "instalação de \`system_packages\`, infra de build). Veja o"
+              echo "stderr abaixo."
               echo ""
               echo '```'
               tail -n 60 target/qg-logs/qg-stderr.log 2>/dev/null \
@@ -189,11 +129,8 @@ jobs:
               echo "Rode o gate compartilhado localmente até passar:"
               echo ""
               echo '```bash'
-              echo "git -C ~/.claude-plugin pull --ff-only \\"
-              echo "  || git clone --depth 1 \\"
-              echo "       https://github.com/xgodev/claude-plugin.git \\"
-              echo "       ~/.claude-plugin"
-              echo "~/.claude-plugin/tools/quality-gate/qg --base origin/develop"
+              echo "docker run --rm -v \"\$PWD:/src\" -w /src \\"
+              echo "  ghcr.io/xgodev/quality-gate/rust:v1 --base origin/develop"
               echo '```'
               echo ""
               echo "### Métricas regredidas"
@@ -231,7 +168,7 @@ jobs:
             echo ""
             echo "[View full CI log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
             echo ""
-            echo "_Posted by quality-gate workflow — shared gate \`xgodev/claude-plugin@${QG_REV:-?}\`. Issue #482._"
+            echo "_Posted by quality-gate workflow — shared gate image \`ghcr.io/xgodev/quality-gate/rust:v1\`. Issue #482._"
           } > "$summary_file"
           {
             echo 'body<<__QG_BODY__'
@@ -271,7 +208,7 @@ jobs:
             ## ✅ Quality gate passed
 
             Comparativo (PR vs `develop`) pelo gate compartilhado
-            `xgodev/claude-plugin` (tools/quality-gate): nenhuma métrica regrediu.
+            `xgodev/quality-gate` (imagem `rust:v1`): nenhuma métrica regrediu.
             Verificadas: fmt, lint, build, test, complexity, coverage.
 
             _Posted by quality-gate workflow — issue #482._

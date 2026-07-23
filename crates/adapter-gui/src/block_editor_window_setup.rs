@@ -45,13 +45,21 @@ use crate::{
 
 pub(crate) struct BlockEditorWindowSetupCtx {
     pub chain_index: usize,
-    pub block_index: usize,
+    /// `Some(index)` when editing an existing block; `None` when the editor is
+    /// opened for a block being ADDED to the chain (#815). Add-mode skips the
+    /// per-edit auto-persist and the utility stream timer; the block is created
+    /// only on save (`persist_block_editor_draft` inserts when this is `None`).
+    pub block_index: Option<usize>,
+    /// Chain position the new block will be inserted before (add-mode). For the
+    /// edit path this equals `block_index`.
+    pub before_index: usize,
     pub instrument: String,
     pub effect_type: String,
     pub model_id: String,
     pub enabled: bool,
     pub editor_data: BlockEditorData,
-    pub block_id: domain::ids::BlockId,
+    /// `None` in add-mode — there is no block in the chain yet.
+    pub block_id: Option<domain::ids::BlockId>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
@@ -72,6 +80,7 @@ pub(crate) fn create_and_wire(
     let BlockEditorWindowSetupCtx {
         chain_index,
         block_index,
+        before_index,
         instrument,
         effect_type,
         model_id,
@@ -121,8 +130,8 @@ pub(crate) fn create_and_wire(
     ));
     let win_draft = Rc::new(RefCell::new(Some(BlockEditorDraft {
         chain_index,
-        block_index: Some(block_index),
-        before_index: block_index,
+        block_index,
+        before_index,
         instrument: instrument.clone(),
         effect_type: effect_type.clone(),
         model_id: model_id.clone(),
@@ -198,7 +207,19 @@ pub(crate) fn create_and_wire(
     win.set_eq_band_curves(ModelRc::from(win_eq_band_curves.clone()));
     win.set_block_drawer_selected_type_index(type_index);
     win.set_block_drawer_selected_model_index(model_index);
-    win.set_block_drawer_edit_mode(true);
+    // Add-mode (no block yet, #815) shows the "add" confirm label and hides the
+    // delete affordance; editing an existing block shows "save".
+    let is_edit = block_index.is_some();
+    win.set_block_drawer_edit_mode(is_edit);
+    win.set_block_drawer_confirm_label(
+        if is_edit {
+            rust_i18n::t!("btn-save")
+        } else {
+            rust_i18n::t!("btn-add")
+        }
+        .as_ref()
+        .into(),
+    );
     win.set_block_drawer_enabled(enabled);
     win.set_block_drawer_status_message("".into());
     // Set window title
@@ -215,16 +236,21 @@ pub(crate) fn create_and_wire(
     // Start the timer regardless of current enabled state: when the user enables
     // the block while the popup is open, stream data must appear without reopening.
     let mut block_stream_timer: Option<Rc<Timer>> = None;
+    // Add-mode (no block yet) has no runtime block to poll; the stream timer is
+    // an edit-only concern. `block_id` is `Some` exactly when `block_index` is.
     let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
-    log::info!(
-        "[block-editor-stream] block='{}' effect_type='{}' model='{}' enabled={} is_utility={}",
-        block_id.0,
-        effect_type,
-        model_id,
-        enabled,
-        is_utility
-    );
-    if is_utility {
+    if let Some(block_id) = block_id.as_ref() {
+        log::info!(
+            "[block-editor-stream] block='{}' effect_type='{}' model='{}' enabled={} is_utility={}",
+            block_id.0,
+            effect_type,
+            model_id,
+            enabled,
+            is_utility
+        );
+    }
+    if is_utility && block_id.is_some() {
+        let block_id = block_id.clone().expect("guarded by block_id.is_some()");
         log::info!(
             "[block-editor-stream] starting stream timer for block '{}'",
             block_id.0
@@ -329,7 +355,7 @@ pub(crate) fn create_and_wire(
             open_block_windows,
             plugin_info_window,
             chain_index,
-            block_index,
+            block_index: block_index.unwrap_or(before_index),
             auto_save,
         },
     );
