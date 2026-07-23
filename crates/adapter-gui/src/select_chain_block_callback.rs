@@ -345,13 +345,14 @@ pub(crate) fn wire(
             // Build + wire a fresh BlockEditorWindow for this block
             let setup_ctx = block_editor_window_setup::BlockEditorWindowSetupCtx {
                 chain_index: ci,
-                block_index: bi,
+                block_index: Some(bi),
+                before_index: bi,
                 instrument: instrument.clone(),
                 effect_type: effect_type.clone(),
                 model_id: model_id.clone(),
                 enabled,
                 editor_data,
-                block_id: block_id_for_editor,
+                block_id: Some(block_id_for_editor),
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
                 project_runtime: project_runtime.clone(),
