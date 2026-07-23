@@ -27,8 +27,8 @@ use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock}
 use crate::ui_index_to_real_block_index;
 use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{
-    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
-    MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
+    ProjectChainItem,
 };
 use slint::SharedString;
 

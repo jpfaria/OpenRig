@@ -20,8 +20,8 @@ use crate::project_view::{replace_project_chains, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::sync_live_chain_runtime;
 use crate::{
-    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
-    MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
+    ProjectChainItem,
 };
 
 pub(crate) struct BlockDeleteCtx {

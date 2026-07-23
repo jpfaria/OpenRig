@@ -89,4 +89,3 @@ pub(crate) fn clear_status(window: &AppWindow, toast_timer: &Timer) {
     window.set_toast_message("".into());
     window.set_toast_level("info".into());
 }
-

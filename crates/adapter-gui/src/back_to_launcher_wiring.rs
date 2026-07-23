@@ -20,9 +20,7 @@ use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 
 use crate::stop_project_runtime;
-use crate::{
-    AppWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow,
-};
+use crate::{AppWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow};
 
 pub(crate) struct BackToLauncherCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,

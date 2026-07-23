@@ -12,8 +12,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, SelectedBlock};
 use crate::{
-    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
-    MultiSliderPoint,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
 };
 
 pub(crate) struct BlockDrawerCloseCtx {

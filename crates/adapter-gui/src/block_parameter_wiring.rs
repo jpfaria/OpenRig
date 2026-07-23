@@ -27,15 +27,13 @@ use application::event::Event;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::block_editor::{
-    build_params_from_items, schedule_block_editor_persist,
-    set_block_parameter_bool, set_block_parameter_number, set_block_parameter_text,
+    build_params_from_items, schedule_block_editor_persist, set_block_parameter_bool,
+    set_block_parameter_number, set_block_parameter_text,
 };
 use crate::eq::{compute_eq_curves, eq_viz_sample_rate};
 use crate::helpers::log_gui_message;
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{
-    replace_project_chains,
-};
+use crate::project_view::replace_project_chains;
 use crate::runtime_lifecycle::sync_live_chain_runtime;
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{AppWindow, BlockModelPickerItem, BlockParameterItem, ProjectChainItem};
@@ -56,7 +54,6 @@ pub(crate) struct BlockParameterCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub auto_save: bool,
 }
-
 
 pub(crate) fn wire(window: &AppWindow, ctx: BlockParameterCtx) {
     wire_numeric_params(window, &ctx);
@@ -241,7 +238,6 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             }
         });
     }
-
 }
 
 fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
@@ -455,6 +451,4 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             );
         });
     }
-
 }
-

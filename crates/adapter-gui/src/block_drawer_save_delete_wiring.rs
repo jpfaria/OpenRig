@@ -17,8 +17,8 @@ use crate::compact_block_view::build_compact_blocks;
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::{
-    AppWindow, BlockModelPickerItem, BlockParameterItem, CompactChainViewWindow,
-    CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CompactChainViewWindow, CurveEditorPoint,
+    MultiSliderPoint, ProjectChainItem,
 };
 
 pub(crate) struct BlockDrawerSaveDeleteCtx {

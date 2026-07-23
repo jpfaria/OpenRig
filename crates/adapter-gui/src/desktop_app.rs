@@ -926,7 +926,10 @@ pub fn run_desktop_app(
                             }
                             // #791: objective quality report, measured offline.
                             application::bridge::QueryKind::ChainQualityReport { chain } => {
-                                application::query_chain_quality::chain_quality_report(&project.borrow(), chain)
+                                application::query_chain_quality::chain_quality_report(
+                                    &project.borrow(),
+                                    chain,
+                                )
                             }
                         },
                         32,

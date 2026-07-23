@@ -10,8 +10,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use crate::state::BlockEditorDraft;
 use crate::{
-    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
-    MultiSliderPoint,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
 };
 
 pub(crate) struct BlockPickerCtx {
