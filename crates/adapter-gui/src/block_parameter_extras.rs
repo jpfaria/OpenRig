@@ -1,15 +1,9 @@
 //! Block-parameter select + toggle/file callback wiring (issue #792 split
 //! from block_parameter_wiring.rs).
 
-use rfd::FileDialog;
-use slint::{ComponentHandle};
-use application::command::Command;
-use application::dispatcher::CommandDispatcher;
-use application::event::Event;
 use crate::block_editor::{
     block_editor_data_with_selected, block_parameter_extensions, block_parameter_items_for_editor,
-    internal_block_parameter_value, schedule_block_editor_persist,
-    set_block_parameter_option,
+    internal_block_parameter_value, schedule_block_editor_persist, set_block_parameter_option,
     set_block_parameter_text,
 };
 use crate::project_ops::sync_project_dirty;
@@ -18,17 +12,16 @@ use crate::project_view::{
     replace_project_chains,
 };
 use crate::runtime_lifecycle::sync_live_chain_runtime;
-use crate::{
-    AppWindow, BlockEditorWindow, SELECT_SELECTED_BLOCK_ID,
-};
+use crate::{AppWindow, SELECT_SELECTED_BLOCK_ID};
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+use application::event::Event;
+use rfd::FileDialog;
+use slint::ComponentHandle;
 
 use crate::block_parameter_wiring::BlockParameterCtx;
 
-pub(crate) fn wire_select_param(
-    window: &AppWindow,
-    _block_editor_window: &BlockEditorWindow,
-    ctx: &BlockParameterCtx,
-) {
+pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
     let block_editor_draft = &ctx.block_editor_draft;
     let block_parameter_items = &ctx.block_parameter_items;
     let block_model_options = &ctx.block_model_options;
@@ -211,14 +204,9 @@ pub(crate) fn wire_select_param(
             );
         });
     }
-
 }
 
-pub(crate) fn wire_toggle_and_file(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: &BlockParameterCtx,
-) {
+pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) {
     let block_editor_draft = &ctx.block_editor_draft;
     let block_parameter_items = &ctx.block_parameter_items;
     let project_session = &ctx.project_session;
@@ -241,7 +229,6 @@ pub(crate) fn wire_toggle_and_file(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_toggle_block_drawer_enabled(move || {
@@ -256,9 +243,6 @@ pub(crate) fn wire_toggle_and_file(
             log::info!("[toggle_block_drawer_enabled] chain_index={}, block_index={:?}, enabled={}, effect_type='{}', model_id='{}'",
                 draft.chain_index, draft.block_index, draft.enabled, draft.effect_type, draft.model_id);
             window.set_block_drawer_enabled(draft.enabled);
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_enabled(draft.enabled);
-            }
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
@@ -398,6 +382,4 @@ pub(crate) fn wire_toggle_and_file(
             );
         });
     }
-
 }
-

@@ -5,7 +5,7 @@ import { DiSourcePicker } from "components/di_source_picker_globals.slint";
 // #749: the DI loop panel (fone → janela with a select + play) is rendered as a
 // single root overlay so it is never clipped by the chain list.
 import { DiPanel } from "components/di_panel_globals.slint";
-import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint";
+import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint"; import { BlockParamTabs } from "components/block_param_tabs_globals.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
 // #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
@@ -26,7 +26,7 @@ import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
-export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState }
+export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, BlockParamTabs }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow }
 export { BlockEditorWindow, CompactChainViewWindow }

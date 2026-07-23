@@ -27,8 +27,8 @@ use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock}
 use crate::ui_index_to_real_block_index;
 use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
-    MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
+    ProjectChainItem,
 };
 use slint::SharedString;
 
@@ -55,11 +55,7 @@ pub(crate) struct ChainBlockCrudCtx {
     pub auto_save: bool,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: ChainBlockCrudCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
     let ChainBlockCrudCtx {
         selected_block,
         block_editor_draft,
@@ -94,7 +90,6 @@ pub(crate) fn wire(
         let multi_slider_points = multi_slider_points.clone();
         let curve_editor_points = curve_editor_points.clone();
         let eq_band_curves = eq_band_curves.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_clear_chain_block(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -113,9 +108,6 @@ pub(crate) fn wire(
             window.set_show_block_drawer(false);
             window.set_show_block_type_picker(false);
             window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                let _ = block_editor_window.hide();
-            }
         });
     }
     {

@@ -12,8 +12,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, SelectedBlock};
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
-    MultiSliderPoint,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
 };
 
 pub(crate) struct BlockDrawerCloseCtx {
@@ -30,11 +29,7 @@ pub(crate) struct BlockDrawerCloseCtx {
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: BlockDrawerCloseCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerCloseCtx) {
     let BlockDrawerCloseCtx {
         selected_block,
         block_editor_draft,
@@ -49,7 +44,6 @@ pub(crate) fn wire(
         inline_stream_timer,
     } = ctx;
     let weak_window = window.as_weak();
-    let weak_block_editor_window = block_editor_window.as_weak();
     window.on_close_block_drawer(move || {
         let Some(window) = weak_window.upgrade() else {
             return;
@@ -72,8 +66,5 @@ pub(crate) fn wire(
         window.set_show_block_type_picker(false);
         window.set_show_block_drawer(false);
         window.set_block_drawer_status_message("".into());
-        if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-            let _ = block_editor_window.hide();
-        }
     });
 }

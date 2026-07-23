@@ -49,6 +49,7 @@ use crate::{
 };
 
 pub(crate) struct BlockChooseTypeCallbackCtx {
+    pub inline_tab_state: Rc<RefCell<crate::block_editor_param_tabs::TabState>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub insert_draft: Rc<RefCell<Option<InsertDraft>>>,
     pub block_model_options: Rc<VecModel<BlockModelPickerItem>>,
@@ -83,6 +84,7 @@ pub(crate) fn wire(
     ctx: BlockChooseTypeCallbackCtx,
 ) {
     let BlockChooseTypeCallbackCtx {
+        inline_tab_state,
         block_editor_draft,
         insert_draft,
         block_model_options,
@@ -241,7 +243,12 @@ pub(crate) fn wire(
             project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
             &new_params,
         );
-        block_parameter_items.set_vec(new_params);
+        crate::block_editor_param_tabs::apply_inline_param_tabs(
+            &window,
+            &block_parameter_items,
+            &inline_tab_state,
+            new_params,
+        );
         multi_slider_points.set_vec(build_multi_slider_points(
             &model.effect_type,
             &model.model_id,
@@ -275,6 +282,8 @@ pub(crate) fn wire(
         window.set_show_block_type_picker(false);
         if use_inline_block_editor(&window) {
             window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            // #819: knob count changed -> re-publish the #500 panel height.
+            crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             window.set_show_block_drawer(true);
         } else {
             // #815: build the SAME per-block tabbed editor the edit path uses,
