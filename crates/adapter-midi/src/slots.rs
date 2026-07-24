@@ -11,7 +11,8 @@
 //! → range; they are handled in a follow-up sub-phase.
 
 use application::command::{
-    BlockCommand, BlockId, ChainCommand, ChainId, Command, RigNavKind, SelectionCommand,
+    BlockCommand, BlockId, ChainCommand, ChainId, Command, MetronomeCommand, RigNavKind,
+    SelectionCommand,
 };
 use application::SelectionState;
 
@@ -178,6 +179,12 @@ pub fn slot_to_command(
         "toggle_spectrum" => Some(Command::Selection(SelectionCommand::SetSpectrumEnabled {
             enabled: !selection.spectrum_enabled,
         })),
+        "toggle_metronome" => Some(Command::Metronome(MetronomeCommand::SetMetronomeEnabled {
+            enabled: !selection.metronome_enabled,
+        })),
+        // The one stateless slot: every press is a tap, and the adapter turns
+        // the tap history into a tempo.
+        "metronome_tap" => Some(Command::Metronome(MetronomeCommand::MetronomeTap)),
 
         // --- Chain / block enable on the active selection ---
         "toggle_active_chain_enabled" => Some(Command::Chain(ChainCommand::ToggleChainEnabled {

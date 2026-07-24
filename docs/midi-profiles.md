@@ -65,6 +65,8 @@ CC slots (`chain_volume`, `block_param_numeric`).
 | `toggle_tuner` | App | global | flips the tuner button |
 | `toggle_output_mute` | App | global | flips output mute |
 | `toggle_spectrum` | App | global | flips the spectrum window |
+| `toggle_metronome` | App | global | starts/stops the metronome |
+| `metronome_tap` | App | global | one tap of tap tempo (stateless — every press is a tap) |
 | `prev_chain` | Chain nav | active chain | select previous chain (wraps) |
 | `next_chain` | Chain nav | active chain | select next chain (wraps) |
 | `toggle_active_chain_enabled` | Chain | active chain | enable/disable the active chain |
