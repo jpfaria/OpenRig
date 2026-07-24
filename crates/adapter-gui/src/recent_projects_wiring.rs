@@ -19,7 +19,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{Command, ProjectCommand};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::AppConfig;
@@ -122,16 +122,20 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    // #436 E: abrir recente é negócio → Command::LoadProject
+                    // #436 E: abrir recente é negócio → ProjectCommand::LoadProject
                     // no dispatcher da sessão (MCP/MIDI, observável via
                     // Event::ProjectLoaded). Load+swap é adapter-side
                     // (precedente SaveProject).
                     {
                         let project = session.project.borrow().clone();
-                        if let Err(e) = session.dispatcher.dispatch(Command::LoadProject {
-                            project,
-                            path: canonical_path.clone(),
-                        }) {
+                        if let Err(e) =
+                            session
+                                .dispatcher
+                                .dispatch(Command::Project(ProjectCommand::LoadProject {
+                                    project,
+                                    path: canonical_path.clone(),
+                                }))
+                        {
                             log::warn!("[open-recent] Command::LoadProject falhou: {e}");
                         }
                     }
@@ -166,10 +170,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     );
                     // #436 (sweep): registrar recente via Command.
                     if let Some(s) = project_session.borrow().as_ref() {
-                        let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
-                            path: canonical_path.clone(),
-                            name: display_name.clone(),
-                        });
+                        let _ = s.dispatcher.dispatch(Command::Project(
+                            ProjectCommand::RegisterRecentProject {
+                                path: canonical_path.clone(),
+                                name: display_name.clone(),
+                            },
+                        ));
                     }
                     {
                         // #693: config write runs on the persist worker — the
@@ -213,10 +219,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     // há sessão; open falhou, pode não haver). Persist
                     // abaixo é adapter-side (precedente SaveProject).
                     if let Some(s) = project_session.borrow().as_ref() {
-                        let _ = s.dispatcher.dispatch(Command::MarkRecentProjectInvalid {
-                            path: path.clone(),
-                            reason,
-                        });
+                        let _ = s.dispatcher.dispatch(Command::Project(
+                            ProjectCommand::MarkRecentProjectInvalid {
+                                path: path.clone(),
+                                reason,
+                            },
+                        ));
                     }
                     {
                         // #693: config write runs on the persist worker — the
@@ -303,7 +311,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 if let Some(session) = project_session.borrow().as_ref() {
                     if let Err(e) = session
                         .dispatcher
-                        .dispatch(Command::RemoveRecentProject { index })
+                        .dispatch(Command::Project(ProjectCommand::RemoveRecentProject {
+                            index,
+                        }))
                     {
                         log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
                     }

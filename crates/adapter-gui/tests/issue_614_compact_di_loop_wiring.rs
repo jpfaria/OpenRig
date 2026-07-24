@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
@@ -98,10 +98,10 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
 
     // Load a source via the dispatcher.
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id.clone(),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed");
     // #693: the decode runs on its own task — wait for it to land
     // (poll_async_results is the frontend tick's job).
@@ -155,10 +155,10 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
 
     // Load + play to arm the runtime.
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id.clone(),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("SetChainDiLoopSource");
     // #693: wait for the off-thread decode to land before playing.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);

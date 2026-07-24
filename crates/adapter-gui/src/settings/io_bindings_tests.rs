@@ -204,7 +204,7 @@ fn channel_items_for_unknown_device_is_empty() {
 // ── add_input_endpoint structured (device + channels + mode) ──────────────────
 
 /// Adding an input endpoint with device "A" + channels [0,1] + Stereo builds
-/// `Command::UpdateIoBinding` whose binding gains the structured endpoint, and
+/// `IoBindingCommand::UpdateIoBinding` whose binding gains the structured endpoint, and
 /// the endpoint survives the YAML serialization round-trip that
 /// `save_app_config`/`load_app_config` perform (persistence proof WITHOUT
 /// touching the shared HOME-derived config path — see memory: concurrent
@@ -225,9 +225,9 @@ fn add_input_endpoint_structured_appends_and_persists() {
 
     let binding = config.io_bindings[0].clone();
     let cmd = super::build_update_with_input_endpoint(binding, ep.clone());
-    use application::command::Command;
+    use application::command::{Command, IoBindingCommand};
     match cmd {
-        Command::UpdateIoBinding { binding: b } => {
+        Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding: b }) => {
             assert_eq!(b.inputs.len(), 2, "existing input + new input");
             assert_eq!(b.inputs[1].device_id, DeviceId("A".to_string()));
             assert_eq!(b.inputs[1].channels, vec![0, 1]);
@@ -291,7 +291,7 @@ fn edit_endpoint_prefills_device_mode_and_channels() {
 /// reorder of the others): remove the old name + insert the new endpoint.
 #[test]
 fn editing_endpoint_replaces_in_place() {
-    use application::command::Command;
+    use application::command::{Command, IoBindingCommand};
     use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 
     let binding = IoBinding {
@@ -319,7 +319,7 @@ fn editing_endpoint_replaces_in_place() {
     let cmd = super::build_update_replacing_endpoint(binding, "In 1", new_ep, true);
 
     match cmd {
-        Command::UpdateIoBinding { binding: b } => {
+        Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding: b }) => {
             assert_eq!(b.inputs.len(), 2, "replace, not append");
             // "In 1" is updated in place (still first), "In 2" untouched.
             assert_eq!(b.inputs[0].name, "In 1");
@@ -344,9 +344,9 @@ fn add_output_endpoint_structured_appends_mono() {
 
     let binding = make_binding("main", "Main Rig");
     let cmd = super::build_update_with_output_endpoint(binding, ep);
-    use application::command::Command;
+    use application::command::{Command, IoBindingCommand};
     match cmd {
-        Command::UpdateIoBinding { binding: b } => {
+        Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding: b }) => {
             assert_eq!(b.outputs.len(), 1);
             assert_eq!(b.outputs[0].device_id, DeviceId("B".to_string()));
             assert_eq!(b.outputs[0].mode, ChannelMode::Mono);
@@ -357,7 +357,7 @@ fn add_output_endpoint_structured_appends_mono() {
 
 // ── remove_endpoint drops it ──────────────────────────────────────────────────
 
-/// Removing an endpoint by name builds `Command::UpdateIoBinding` with that
+/// Removing an endpoint by name builds `IoBindingCommand::UpdateIoBinding` with that
 /// endpoint dropped from the matching list (input vs output).
 #[test]
 fn remove_input_endpoint_drops_it() {
@@ -365,9 +365,9 @@ fn remove_input_endpoint_drops_it() {
     assert_eq!(binding.inputs.len(), 1, "fixture has one input");
 
     let cmd = super::build_update_removing_endpoint(binding, "Guitar In", true);
-    use application::command::Command;
+    use application::command::{Command, IoBindingCommand};
     match cmd {
-        Command::UpdateIoBinding { binding: b } => {
+        Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding: b }) => {
             assert_eq!(b.inputs.len(), 0, "named input endpoint must be removed");
         }
         other => panic!("expected UpdateIoBinding, got {other:?}"),
@@ -399,15 +399,15 @@ fn make_output_endpoint(name: &str) -> IoEndpoint {
 
 // ── create_binding_event_dispatches_create ───────────────────────────────────
 
-/// Creating a binding builds a `Command::CreateIoBinding` carrying the binding.
+/// Creating a binding builds an `IoBindingCommand::CreateIoBinding` carrying the binding.
 #[test]
 fn create_binding_event_dispatches_create() {
     let binding = make_binding("main", "Main Rig");
     let cmd = build_create_command(binding.clone());
 
-    use application::command::Command;
+    use application::command::{Command, IoBindingCommand};
     match cmd {
-        Command::CreateIoBinding { binding: b } => {
+        Command::IoBinding(IoBindingCommand::CreateIoBinding { binding: b }) => {
             assert_eq!(b.id, "main");
             assert_eq!(b.name, "Main Rig");
         }
@@ -418,7 +418,7 @@ fn create_binding_event_dispatches_create() {
 // ── add_output_endpoint_event_dispatches_update ──────────────────────────────
 
 /// Adding an output endpoint to an existing binding builds
-/// `Command::UpdateIoBinding` with the endpoint appended to `outputs`.
+/// `IoBindingCommand::UpdateIoBinding` with the endpoint appended to `outputs`.
 #[test]
 fn add_output_endpoint_event_dispatches_update() {
     let binding = make_binding("main", "Main Rig");
@@ -426,9 +426,9 @@ fn add_output_endpoint_event_dispatches_update() {
 
     let cmd = build_update_with_output_endpoint(binding, new_ep.clone());
 
-    use application::command::Command;
+    use application::command::{Command, IoBindingCommand};
     match cmd {
-        Command::UpdateIoBinding { binding: b } => {
+        Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding: b }) => {
             assert_eq!(b.id, "main");
             assert_eq!(b.outputs.len(), 1);
             assert_eq!(b.outputs[0].name, "Amp Out");

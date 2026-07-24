@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
@@ -220,7 +220,7 @@ fn wire_mute_inline(
         if !mw.get_tuner_enabled() {
             return;
         }
-        // #436 G: mute é negócio → Command::SetOutputMuted no dispatcher
+        // #436 G: mute é negócio → SelectionCommand::SetOutputMuted no dispatcher
         // compartilhado (alcançável MCP/MIDI, observável via
         // Event::OutputMutedChanged). O efeito no runtime de áudio
         // (rt.set_output_muted) continua adapter-side (precedente
@@ -228,7 +228,9 @@ fn wire_mute_inline(
         if let Some(session) = project_session.borrow().as_ref() {
             if let Err(e) = session
                 .dispatcher
-                .dispatch(Command::SetOutputMuted { muted })
+                .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+                    muted,
+                }))
             {
                 log::warn!("[tuner.mute] Command::SetOutputMuted falhou: {e}");
             }
@@ -258,11 +260,13 @@ fn wire_mute_windowed(
         if !tw.get_tuner_enabled() {
             return;
         }
-        // #436 G: mute via Command::SetOutputMuted (ver wire_mute_inline).
+        // #436 G: mute via SelectionCommand::SetOutputMuted (ver wire_mute_inline).
         if let Some(session) = project_session.borrow().as_ref() {
             if let Err(e) = session
                 .dispatcher
-                .dispatch(Command::SetOutputMuted { muted })
+                .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+                    muted,
+                }))
             {
                 log::warn!("[tuner.mute] Command::SetOutputMuted falhou: {e}");
             }
@@ -300,7 +304,9 @@ fn wire_power(
         if let Some(session) = project_session.borrow().as_ref() {
             if let Err(e) = session
                 .dispatcher
-                .dispatch(Command::SetTunerEnabled { enabled })
+                .dispatch(Command::Selection(SelectionCommand::SetTunerEnabled {
+                    enabled,
+                }))
             {
                 log::warn!("[tuner] Command::SetTunerEnabled falhou: {e}");
             }

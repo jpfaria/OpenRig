@@ -1,5 +1,5 @@
 use super::*;
-use application::command::Command;
+use application::command::{Command, IoBindingCommand};
 use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use slint::Model;
@@ -18,7 +18,7 @@ fn make_item(id: &str) -> DeviceSelectionItem {
 // ── wizard_finish_creates_default_binding ────────────────────────────────────
 
 /// Finishing the audio wizard with a chosen input + output device dispatches
-/// `Command::CreateIoBinding` with id == "default" and the expected endpoints.
+/// `IoBindingCommand::CreateIoBinding` with id == "default" and the expected endpoints.
 #[test]
 fn wizard_finish_creates_default_binding() {
     let cmd = wizard_create_or_update_default_binding(
@@ -26,7 +26,7 @@ fn wizard_finish_creates_default_binding() {
     );
 
     match cmd {
-        Command::CreateIoBinding { binding } => {
+        Command::IoBinding(IoBindingCommand::CreateIoBinding { binding }) => {
             assert_eq!(binding.id, "default", "binding id must be 'default'");
             assert!(
                 !binding.inputs.is_empty(),
@@ -60,7 +60,7 @@ fn wizard_finish_creates_default_binding() {
 // ── wizard_finish_updates_existing_default ───────────────────────────────────
 
 /// If a "default" binding already exists, finishing the wizard emits
-/// `Command::UpdateIoBinding` (not a duplicate create).
+/// `IoBindingCommand::UpdateIoBinding` (not a duplicate create).
 #[test]
 fn wizard_finish_updates_existing_default() {
     let existing = IoBinding {
@@ -84,7 +84,7 @@ fn wizard_finish_updates_existing_default() {
         wizard_create_or_update_default_binding("new-input-dev", "new-output-dev", Some(&existing));
 
     match cmd {
-        Command::UpdateIoBinding { binding } => {
+        Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding }) => {
             assert_eq!(binding.id, "default");
             assert_eq!(
                 binding.inputs[0].device_id,

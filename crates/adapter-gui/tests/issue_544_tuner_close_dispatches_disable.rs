@@ -14,14 +14,14 @@
 //! Root cause hypothesis:
 //!   `on_close_tuner` / `on_close_tuner_window` in
 //!   `crates/adapter-gui/src/tuner_wiring.rs` hide the window without
-//!   dispatching `Command::SetTunerEnabled { enabled: false }`. The
+//!   dispatching `SelectionCommand::SetTunerEnabled { enabled: false }`. The
 //!   dispatcher / runtime stays `tuner = true`, while the Slint
 //!   `tuner-enabled` property is reset to false on next open.
 //!
 //! Contract under test:
 //!   The "close tuner window" intent — represented as a pure
 //!   `tuner_close_commands()` helper — MUST include
-//!   `Command::SetTunerEnabled { enabled: false }` so the wiring can
+//!   `SelectionCommand::SetTunerEnabled { enabled: false }` so the wiring can
 //!   route the same commands through the dispatcher when the window
 //!   closes. Auto-engaged mute (set on power-on) MUST also be released
 //!   so closing mirrors the explicit power-off.
@@ -31,14 +31,17 @@
 //! and wiring the two `on_close_*` callbacks to dispatch it.
 
 use adapter_gui::tuner_close::tuner_close_commands;
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 
 #[test]
 fn close_intent_disables_tuner() {
     let cmds = tuner_close_commands();
     assert!(
         cmds.iter()
-            .any(|c| matches!(c, Command::SetTunerEnabled { enabled: false })),
+            .any(|c| matches!(
+                c,
+                Command::Selection(SelectionCommand::SetTunerEnabled { enabled: false })
+            )),
         "closing the tuner window must dispatch SetTunerEnabled(false); \
          got {cmds:?}"
     );
@@ -49,7 +52,10 @@ fn close_intent_releases_auto_engaged_mute() {
     let cmds = tuner_close_commands();
     assert!(
         cmds.iter()
-            .any(|c| matches!(c, Command::SetOutputMuted { muted: false })),
+            .any(|c| matches!(
+                c,
+                Command::Selection(SelectionCommand::SetOutputMuted { muted: false })
+            )),
         "closing the tuner window must release the mute that power-on \
          auto-engaged (commit b616bde13); got {cmds:?}"
     );

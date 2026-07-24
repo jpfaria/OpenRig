@@ -1,8 +1,8 @@
 //! Wiring for the per-chain row actions on the main window.
 //!
 //! Owns `on_remove_chain` (confirms with the user, dispatches
-//! `Command::RemoveChain`, kills its runtime, and refreshes the chain list)
-//! and `on_toggle_chain_enabled` (dispatches `Command::ToggleChainEnabled`;
+//! `ChainCommand::RemoveChain`, kills its runtime, and refreshes the chain list)
+//! and `on_toggle_chain_enabled` (dispatches `ChainCommand::ToggleChainEnabled`;
 //! channel-conflict validation is performed inside the dispatcher via
 //! `chain_validation::validate_no_channel_conflict`).
 //!
@@ -18,7 +18,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use anyhow::Result;
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
@@ -40,7 +40,7 @@ pub(crate) struct MoveChainOutcome {
     pub new_slot: usize,
 }
 
-/// Dispatch [`Command::MoveChainUp`] for the chain at `slot` (no-op when
+/// Dispatch [`ChainCommand::MoveChainUp`] for the chain at `slot` (no-op when
 /// `slot == 0` or `slot` is out of range). Returns the chain that moved
 /// plus its new slot so the caller can reseat the selection cursor by
 /// `ChainId`. Pure (no `AppWindow`); fully unit-testable.
@@ -52,9 +52,11 @@ pub(crate) fn apply_move_chain_up(
         Some(chain) => chain.id.clone(),
         None => return Ok(None),
     };
-    let events = session.dispatcher.dispatch(Command::MoveChainUp {
-        chain: chain_id.clone(),
-    })?;
+    let events = session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp {
+            chain: chain_id.clone(),
+        }))?;
     if events.is_empty() {
         return Ok(None);
     }
@@ -72,7 +74,7 @@ pub(crate) fn apply_move_chain_up(
     }))
 }
 
-/// Dispatch [`Command::MoveChainDown`] for the chain at `slot` (no-op
+/// Dispatch [`ChainCommand::MoveChainDown`] for the chain at `slot` (no-op
 /// when `slot` is the last index or out of range). See [`apply_move_chain_up`]
 /// for the contract.
 pub(crate) fn apply_move_chain_down(
@@ -83,9 +85,11 @@ pub(crate) fn apply_move_chain_down(
         Some(chain) => chain.id.clone(),
         None => return Ok(None),
     };
-    let events = session.dispatcher.dispatch(Command::MoveChainDown {
-        chain: chain_id.clone(),
-    })?;
+    let events = session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::MoveChainDown {
+            chain: chain_id.clone(),
+        }))?;
     if events.is_empty() {
         return Ok(None);
     }
@@ -233,9 +237,11 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            if let Err(err) = session.dispatcher.dispatch(Command::RemoveChain {
-                chain: chain_id.clone(),
-            }) {
+            if let Err(err) = session
+                .dispatcher
+                .dispatch(Command::Chain(ChainCommand::RemoveChain {
+                    chain: chain_id.clone(),
+                })) {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
@@ -323,9 +329,11 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 chain.id.clone()
             };
             // Dispatch — validation + mutation inside the dispatcher.
-            if let Err(err) = session.dispatcher.dispatch(Command::ToggleChainEnabled {
-                chain: chain_id.clone(),
-            }) {
+            if let Err(err) = session.dispatcher.dispatch(Command::Chain(
+                ChainCommand::ToggleChainEnabled {
+                    chain: chain_id.clone(),
+                },
+            )) {
                 // Error could be a channel conflict or a missing chain.
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
@@ -347,7 +355,7 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
     }
 
     // ── on_chain_volume_changed ──────────────────────────────────────────────
-    // Dispatches Command::SetChainVolume; updates live runtime and persists.
+    // Dispatches ChainCommand::SetChainVolume; updates live runtime and persists.
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -380,10 +388,12 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 };
                 chain.id.clone()
             };
-            if let Err(err) = session.dispatcher.dispatch(Command::SetChainVolume {
-                chain: chain_id.clone(),
-                value: value as f32,
-            }) {
+            if let Err(err) = session.dispatcher.dispatch(Command::Chain(
+                ChainCommand::SetChainVolume {
+                    chain: chain_id.clone(),
+                    value: value as f32,
+                },
+            )) {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }

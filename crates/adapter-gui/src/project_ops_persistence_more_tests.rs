@@ -3,7 +3,7 @@
 
 use crate::project_ops::{load_project_session, save_project_session};
 use crate::state::ProjectSession;
-use application::command::Command;
+use application::command::{BlockCommand, ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::{BlockId, ChainId};
 use domain::value_objects::ParameterValue;
@@ -94,14 +94,14 @@ fn editing_a_block_in_an_existing_chain_persists_on_reload() {
     save_project_session(&seed, &path).expect("seed save");
 
     // Reopen, add a distinctive block to the existing chain via the editor
-    // path (`Command::SaveChain` upsert), then save — exactly what happens
+    // path (`ChainCommand::SaveChain` upsert), then save — exactly what happens
     // when the user tweaks their rig and hits save.
     let s = load_project_session(&path, &cfg).expect("reload 1");
     let mut chain = s.project.borrow().chains[0].clone();
     let insert_at = chain.blocks.len().saturating_sub(1); // before the output block
     chain.blocks.insert(insert_at, marker_block());
     s.dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain edit");
     save_project_session(&s, &path).expect("save 2");
 
@@ -158,7 +158,7 @@ fn tonemark_gain(s: &ProjectSession) -> Option<f32> {
 #[test]
 fn block_parameter_knob_edit_persists_on_reload() {
     // The tone-shaping flow that the user reported as "everything reverts":
-    // open a saved project, turn a knob (Command::SetBlockParameterNumber),
+    // open a saved project, turn a knob (BlockCommand::SetBlockParameterNumber),
     // save, reopen — the new value MUST survive. Unlike SaveChain, the param
     // command does not sync the edit back into the rig, so the rig-driven
     // reload restores the old value.
@@ -176,7 +176,7 @@ fn block_parameter_knob_edit_persists_on_reload() {
     let at = chain.blocks.len().saturating_sub(1);
     chain.blocks.insert(at, tone_block());
     seed.dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("seed SaveChain with TONEMARK");
     save_project_session(&seed, &path).expect("seed save");
 
@@ -191,12 +191,12 @@ fn block_parameter_knob_edit_persists_on_reload() {
     // Turn the knob: gain 50 -> 99 via the real param command.
     let (chain_id, block_id) = find_tonemark(&s).expect("TONEMARK present after reload");
     s.dispatcher
-        .dispatch(Command::SetBlockParameterNumber {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id,
             block: block_id,
             path: "gain".into(),
             value: 99.0,
-        })
+        }))
         .expect("SetBlockParameterNumber");
     assert_eq!(
         tonemark_gain(&s),
@@ -261,7 +261,7 @@ fn replace_block_model_in_existing_chain_persists_on_reload() {
     let at = chain.blocks.len().saturating_sub(1);
     chain.blocks.insert(at, gain_block("volume"));
     seed.dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("seed SaveChain with gain block");
     save_project_session(&seed, &path).expect("seed save");
 
@@ -277,7 +277,7 @@ fn replace_block_model_in_existing_chain_persists_on_reload() {
         cb.model = "swapped_pedal".into();
     }
     s.dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain model swap");
     save_project_session(&s, &path).expect("save 2");
 

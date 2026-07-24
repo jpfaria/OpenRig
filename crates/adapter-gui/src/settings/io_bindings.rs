@@ -18,7 +18,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, IoBindingCommand};
 use application::dispatcher::CommandDispatcher;
 use domain::io_binding::{IoBinding, IoEndpoint};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
@@ -32,7 +32,7 @@ use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, Proje
 mod io_bindings_endpoint;
 pub(crate) use io_bindings_endpoint::{
     apply_channel_toggle, build_input_endpoint, build_output_endpoint,
-    build_update_removing_endpoint, build_update_replacing_endpoint,
+    build_update_command, build_update_removing_endpoint, build_update_replacing_endpoint,
     build_update_with_input_endpoint, build_update_with_output_endpoint, channel_items_for_device,
     channel_mode_from_str, endpoint_prefill, next_endpoint_name,
 };
@@ -43,9 +43,9 @@ mod io_bindings_tests;
 
 // ── Pure helpers (testable without AppWindow) ─────────────────────────────────
 
-/// Build a `Command::CreateIoBinding` for a new binding.
+/// Build an `IoBindingCommand::CreateIoBinding` for a new binding.
 pub(crate) fn build_create_command(binding: IoBinding) -> Command {
-    Command::CreateIoBinding { binding }
+    Command::IoBinding(IoBindingCommand::CreateIoBinding { binding })
 }
 
 /// Convert a dispatcher reject `Err` into a display string for the UI.
@@ -69,7 +69,7 @@ fn apply_binding_command(
     ps: &Rc<RefCell<Option<ProjectSession>>>,
     cmd: Command,
 ) {
-    if let Command::UpdateIoBinding { binding } = &cmd {
+    if let Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding }) = &cmd {
         *slot = binding.clone();
     }
     dispatch_if_session(ps, cmd);
@@ -110,7 +110,7 @@ fn push_bindings_to_runtime(
 }
 
 fn delete_reject_message(ps: &Rc<RefCell<Option<ProjectSession>>>, id: &str) -> String {
-    let cmd = Command::DeleteIoBinding { id: id.to_string() };
+    let cmd = Command::IoBinding(IoBindingCommand::DeleteIoBinding { id: id.to_string() });
     if let Some(session) = ps.borrow().as_ref() {
         match session.dispatcher.dispatch(cmd) {
             Ok(_) => String::new(),
@@ -371,7 +371,7 @@ impl WireCtx {
             let mut config = self.cfg.borrow_mut();
             if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
                 b.name = new_name.to_string();
-                dispatch_if_session(&self.ps, Command::UpdateIoBinding { binding: b.clone() });
+                dispatch_if_session(&self.ps, build_update_command(b.clone()));
             }
         }
         self.propagate_bindings();

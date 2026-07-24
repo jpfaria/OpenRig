@@ -19,7 +19,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{ChainCommand, Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
@@ -205,11 +205,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         }
                     };
                     if let Some((chain_id, preset_blocks)) = dispatch_result {
-                        if let Err(error) = session.dispatcher.dispatch(Command::LoadChainPreset {
-                            chain: chain_id.clone(),
-                            preset_instrument,
-                            preset_blocks,
-                        }) {
+                        if let Err(error) = session.dispatcher.dispatch(Command::Chain(
+                            ChainCommand::LoadChainPreset {
+                                chain: chain_id.clone(),
+                                preset_instrument,
+                                preset_blocks,
+                            },
+                        )) {
                             set_status_error(&window, &toast_timer, &error.to_string());
                             return;
                         }
@@ -218,10 +220,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         // stem verbatim so the combobox reflects exactly
                         // what the user picked.
                         if let Some(name) = preset_rename_target_from_path(&path) {
-                            if let Err(e) = session.dispatcher.dispatch(Command::RenameRigPreset {
-                                chain: chain_id.clone(),
-                                name,
-                            }) {
+                            if let Err(e) = session.dispatcher.dispatch(Command::Selection(
+                                SelectionCommand::RenameRigPreset {
+                                    chain: chain_id.clone(),
+                                    name,
+                                },
+                            )) {
                                 log::warn!("[preset] Command::RenameRigPreset falhou: {e}");
                             }
                         }
@@ -240,7 +244,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                         );
                         // Issue #510 bug fix: the chain preset combobox
                         // is fed by `chain-rig-nav`, not by `project_chains`.
-                        // Without this refresh, `Command::RenameRigPreset`
+                        // Without this refresh, `SelectionCommand::RenameRigPreset`
                         // updates the rig in memory but the visible combo
                         // keeps the old label.
                         crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
@@ -283,7 +287,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             else {
                 return;
             };
-            // #555: deletion is business — `Command::DeleteChainPreset`
+            // #555: deletion is business — `ChainCommand::DeleteChainPreset`
             // owns the `fs::remove_file` call inside the dispatcher
             // (`local_dispatcher_preset.rs`). The GUI only dispatches
             // the intent and refreshes its picker on success.
@@ -295,7 +299,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             let outcome = if let Some(session) = project_session.borrow().as_ref() {
                 session
                     .dispatcher
-                    .dispatch(Command::DeleteChainPreset { name })
+                    .dispatch(Command::Chain(ChainCommand::DeleteChainPreset { name }))
             } else {
                 Err(anyhow::anyhow!("no active session to dispatch on"))
             };
@@ -369,8 +373,8 @@ pub(crate) fn default_preset_filename_slug(chain_id: &ChainId, rig: &RigProject)
 pub(crate) use application::preset_file::{preset_filename, preset_save_path};
 
 /// Derive the preset display name from a loaded file path so the
-/// adapter can dispatch `Command::RenameRigPreset` after a successful
-/// `Command::LoadChainPreset`. The name is the file's stem verbatim
+/// adapter can dispatch `SelectionCommand::RenameRigPreset` after a successful
+/// `ChainCommand::LoadChainPreset`. The name is the file's stem verbatim
 /// — no humanization. Earlier versions ran `humanize_preset_label`
 /// here and silently rewrote dashes/underscores, surprising users who
 /// chose those characters deliberately. Issue #510 round-trip

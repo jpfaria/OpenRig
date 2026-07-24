@@ -1,7 +1,7 @@
 //! Admin persistence: NAM/install + command-driven tests (issue #792 split
 //! from project_admin_persistence_tests.rs). Shares session/chain fixtures via super.
 
-use application::command::Command;
+use application::command::{BlockCommand, ChainCommand, Command, ProjectCommand};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
@@ -25,21 +25,21 @@ fn set_block_parameter_number_persists() {
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: gain_block("g1", 0.0),
             position: pos,
-        })
+        }))
         .expect("Insert");
 
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterNumber {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id.clone(),
             block: BlockId("g1".into()),
             path: "drive".into(),
             value: 42.0,
-        })
+        }))
         .expect("SetBlockParameterNumber");
     s.save(&session);
 
@@ -76,7 +76,7 @@ fn set_block_parameter_bool_persists() {
     params.insert("active", ParameterValue::Bool(false));
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: AudioBlock {
                 id: BlockId("g1".into()),
@@ -88,17 +88,17 @@ fn set_block_parameter_bool_persists() {
                 }),
             },
             position: pos,
-        })
+        }))
         .expect("Insert");
 
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterBool {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterBool {
             chain: chain_id.clone(),
             block: BlockId("g1".into()),
             path: "active".into(),
             value: true,
-        })
+        }))
         .expect("SetBlockParameterBool");
     s.save(&session);
 
@@ -132,7 +132,7 @@ fn set_block_parameter_text_persists() {
     params.insert("label", ParameterValue::String(String::new()));
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: AudioBlock {
                 id: BlockId("g1".into()),
@@ -144,17 +144,17 @@ fn set_block_parameter_text_persists() {
                 }),
             },
             position: pos,
-        })
+        }))
         .expect("Insert");
 
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterText {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterText {
             chain: chain_id.clone(),
             block: BlockId("g1".into()),
             path: "label".into(),
             value: "HELLO".into(),
-        })
+        }))
         .expect("SetBlockParameterText");
     s.save(&session);
 
@@ -189,31 +189,31 @@ fn full_admin_sequence_round_trips() {
 
     session
         .dispatcher
-        .dispatch(Command::UpdateProjectName {
+        .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
             name: "STAGE".into(),
-        })
+        }))
         .expect("name");
     let c1 = add_chain(&session, "GUITAR");
     let c2 = add_chain(&session, "BASS");
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: c1.clone(),
             block: gain_block("g1", 25.0),
             position: pos,
-        })
+        }))
         .expect("insert g1");
     session
         .dispatcher
-        .dispatch(Command::SetChainVolume {
+        .dispatch(Command::Chain(ChainCommand::SetChainVolume {
             chain: c1.clone(),
             value: 75.0,
-        })
+        }))
         .expect("vol");
     session
         .dispatcher
-        .dispatch(Command::MoveChainUp { chain: c2.clone() })
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp { chain: c2.clone() }))
         .expect("move up");
     s.save(&session);
 
@@ -286,7 +286,7 @@ fn delete_only_chain_then_add_new_one_round_trips() {
         .unwrap_or(id);
     session
         .dispatcher
-        .dispatch(Command::RemoveChain { chain: id })
+        .dispatch(Command::Chain(ChainCommand::RemoveChain { chain: id }))
         .expect("RemoveChain");
     add_chain(&session, "NEW");
     s.save(&session);
@@ -379,11 +379,11 @@ fn issue_606_nam_backed_gain_block_survives_load() {
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: nam_gain_block("nam_od"),
             position: pos,
-        })
+        }))
         .expect("InsertPrebuiltBlock");
     s.save(&session);
 
@@ -445,11 +445,11 @@ fn issue_606_uninstalled_model_block_is_disabled_on_load() {
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: uninstalled_nam_gain_block("ghost"),
             position: pos,
-        })
+        }))
         .expect("InsertPrebuiltBlock");
     s.save(&session);
 

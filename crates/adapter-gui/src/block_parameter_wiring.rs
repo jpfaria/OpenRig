@@ -10,18 +10,18 @@
 //! - on_pick_block_parameter_file         — file-picker params (dispatches Command)
 //!
 //! Migrated to dispatch via `LocalDispatcher`:
-//! - `on_update_block_parameter_number_text` → `Command::SetBlockParameterNumber`
-//! - `on_update_block_parameter_bool`        → `Command::SetBlockParameterBool`
-//! - `on_update_block_parameter_text`        → `Command::SetBlockParameterText`
-//! - `on_select_block_parameter_option`      → `Command::SelectBlockParameterOption`
-//! - `on_pick_block_parameter_file`          → `Command::PickBlockParameterFile`
+//! - `on_update_block_parameter_number_text` → `BlockCommand::SetBlockParameterNumber`
+//! - `on_update_block_parameter_bool`        → `BlockCommand::SetBlockParameterBool`
+//! - `on_update_block_parameter_text`        → `BlockCommand::SetBlockParameterText`
+//! - `on_select_block_parameter_option`      → `BlockCommand::SelectBlockParameterOption`
+//! - `on_pick_block_parameter_file`          → `BlockCommand::PickBlockParameterFile`
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
@@ -150,12 +150,12 @@ fn wire_numeric_params(
                 };
                 match session
                     .dispatcher
-                    .dispatch(Command::SetBlockParameterNumber {
+                    .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
                         chain: chain_id.clone(),
                         block: block_id,
                         path: path.to_string(),
                         value,
-                    }) {
+                    })) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
@@ -331,12 +331,14 @@ fn wire_text_bool_params(
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match session.dispatcher.dispatch(Command::SetBlockParameterText {
-                    chain: chain_id.clone(),
-                    block: block_id,
-                    path: path.to_string(),
-                    value: value.to_string(),
-                }) {
+                match session.dispatcher.dispatch(Command::Block(
+                    BlockCommand::SetBlockParameterText {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                        path: path.to_string(),
+                        value: value.to_string(),
+                    },
+                )) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
@@ -435,12 +437,14 @@ fn wire_text_bool_params(
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match session.dispatcher.dispatch(Command::SetBlockParameterBool {
-                    chain: chain_id.clone(),
-                    block: block_id,
-                    path: path.to_string(),
-                    value,
-                }) {
+                match session.dispatcher.dispatch(Command::Block(
+                    BlockCommand::SetBlockParameterBool {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                        path: path.to_string(),
+                        value,
+                    },
+                )) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),

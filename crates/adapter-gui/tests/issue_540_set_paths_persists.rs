@@ -18,8 +18,8 @@
 //! Command, then load `config.yaml` from the same location the app
 //! writes/reads at runtime, and assert the path is present.
 //!
-//! It is RED today: `Command::SetPluginsPath` and
-//! `Command::SetPresetsPath` are wired to emit the event only; nothing
+//! It is RED today: `SettingsCommand::SetPluginsPath` and
+//! `SettingsCommand::SetPresetsPath` are wired to emit the event only; nothing
 //! persists. Fix forward by wiring the persistence into the system
 //! command's handler (or by adding the adapter-side listener).
 
@@ -28,7 +28,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Mutex;
 
-use application::command::Command;
+use application::command::{Command, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use infra_filesystem::FilesystemStorage;
@@ -89,9 +89,9 @@ fn issue_540_set_plugins_path_persists_to_config_yaml() {
         let picked = PathBuf::from("/tmp/openrig-540-picked-plugins");
 
         let events = dispatcher
-            .dispatch(Command::SetPluginsPath {
+            .dispatch(Command::Settings(SettingsCommand::SetPluginsPath {
                 path: Some(picked.clone()),
-            })
+            }))
             .expect("dispatch must succeed");
         // #693: path persistence runs on the persist worker — wait for
         // durability before reading config.yaml back.
@@ -118,9 +118,9 @@ fn issue_540_set_presets_path_persists_to_config_yaml() {
         let picked = PathBuf::from("/tmp/openrig-540-picked-presets");
 
         let events = dispatcher
-            .dispatch(Command::SetPresetsPath {
+            .dispatch(Command::Settings(SettingsCommand::SetPresetsPath {
                 path: Some(picked.clone()),
-            })
+            }))
             .expect("dispatch must succeed");
         // #693: path persistence runs on the persist worker — wait for
         // durability before reading config.yaml back.

@@ -13,7 +13,7 @@ use crate::chain_rig_nav::rig_nav_rows;
 use crate::project_ops::create_new_project_session;
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
-use application::command::Command;
+use application::command::{ChainCommand, Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use std::path::PathBuf;
@@ -51,7 +51,7 @@ fn add_chain(session: &ProjectSession, desc: &str, dev: &str, preset_name: &str)
     });
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
     let id = session
         .project
@@ -64,10 +64,10 @@ fn add_chain(session: &ProjectSession, desc: &str, dev: &str, preset_name: &str)
         .expect("chain present");
     session
         .dispatcher
-        .dispatch(Command::RenameRigPreset {
+        .dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
             chain: id.clone(),
             name: preset_name.into(),
-        })
+        }))
         .expect("rename");
     id
 }
@@ -94,7 +94,7 @@ fn move_chain_up_brings_its_preset_label_along() {
     // Move C up to index 1.
     session
         .dispatcher
-        .dispatch(Command::MoveChainUp { chain: c })
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp { chain: c }))
         .expect("MoveChainUp");
 
     // After the dispatch, the preset label at index 1 in
@@ -124,7 +124,7 @@ fn move_chain_down_brings_its_preset_label_along() {
 
     session
         .dispatcher
-        .dispatch(Command::MoveChainDown { chain: a })
+        .dispatch(Command::Chain(ChainCommand::MoveChainDown { chain: a }))
         .expect("MoveChainDown");
 
     let rig = session.rig.as_ref().expect("rig").borrow();

@@ -11,7 +11,7 @@ use crate::project_ops::{create_new_project_session, load_project_session, save_
 use crate::state::ProjectSession;
 use application::block_factory::{build_default_block, resolve_effect_type_for_model};
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
-use application::command::Command;
+use application::command::{BlockCommand, ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::{BlockId, ChainId};
 use project::block::AudioBlockKind;
@@ -85,7 +85,7 @@ fn add_chain(session: &ProjectSession) -> ChainId {
     });
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
     session.project.borrow().chains[0].id.clone()
 }
@@ -109,11 +109,11 @@ fn insert_nam_block(session: &ProjectSession, chain: &ChainId, id: &str) -> Bloc
         .expect("chain present");
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain.clone(),
             block,
             position,
-        })
+        }))
         .expect("InsertPrebuiltBlock");
     BlockId(id.into())
 }
@@ -163,12 +163,12 @@ fn nam_noise_gate_toggle_survives_save_and_reload() {
     // The user flips the gate in the block editor.
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterBool {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterBool {
             chain: chain_id.clone(),
             block: block.clone(),
             path: "noise_gate.enabled".into(),
             value: false,
-        })
+        }))
         .expect("SetBlockParameterBool");
     s.save(&session);
 
@@ -204,12 +204,12 @@ fn nam_noise_gate_threshold_survives_save_and_reload() {
 
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterNumber {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id.clone(),
             block: block.clone(),
             path: "noise_gate.threshold_db".into(),
             value: -23.5,
-        })
+        }))
         .expect("SetBlockParameterNumber");
     s.save(&session);
 

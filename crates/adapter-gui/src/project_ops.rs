@@ -1,4 +1,4 @@
-use application::command::Command;
+use application::command::{Command, ProjectCommand, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 
 use crate::state::{AppConfigYaml, ProjectPaths, ProjectSession};
@@ -94,7 +94,7 @@ pub(crate) fn create_new_project_session(default_config_path: &Path) -> ProjectS
         None,
         config.presets_path.unwrap_or_else(default_presets_path),
     );
-    // Attach an empty rig from the start so `Command::AddChain` can
+    // Attach an empty rig from the start so `ChainCommand::AddChain` can
     // mirror new chains into it (input + "Preset 1" + scene 1) without
     // waiting for a save/reload cycle. The GUI's preset combobox binds
     // against `session.rig`, so missing this leaves the combobox empty
@@ -267,7 +267,9 @@ pub(crate) fn load_project_session(
     if let Some(first_chain) = first_chain {
         let _ = session
             .dispatcher
-            .dispatch(application::command::Command::SelectActiveChain { chain: first_chain });
+            .dispatch(Command::Selection(SelectionCommand::SelectActiveChain {
+                chain: first_chain,
+            }));
     }
 
     Ok(session)
@@ -318,10 +320,13 @@ pub(crate) fn sync_project_dirty(
     if auto_save {
         if let Some(ref path) = session.project_path {
             // #555: auto-save goes through the dispatcher too — the
-            // file writes live inside `Command::SaveProject`. Keep the
+            // file writes live inside `ProjectCommand::SaveProject`. Keep the
             // local snapshot fingerprint up to date so the next
             // dirty-check is accurate.
-            match session.dispatcher.dispatch(Command::SaveProject) {
+            match session
+                .dispatcher
+                .dispatch(Command::Project(ProjectCommand::SaveProject))
+            {
                 Ok(_) => {
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(window, project_dirty, false);
@@ -341,9 +346,9 @@ pub(crate) fn sync_project_dirty(
     set_project_dirty(window, project_dirty, dirty);
 }
 
-/// #555: test-only shim that dispatches `Command::SaveProject` after
+/// #555: test-only shim that dispatches `ProjectCommand::SaveProject` after
 /// attaching the session's paths. Production callers go through
-/// `session.dispatcher.dispatch(Command::SaveProject)` directly —
+/// `dispatch(Command::Project(ProjectCommand::SaveProject))` directly —
 /// this shim exists so the existing `project_ops_persistence_tests`
 /// suite keeps exercising the end-to-end save path without each
 /// test repeating the four attach + dispatch lines.
@@ -363,7 +368,7 @@ pub(crate) fn save_project_session(
         .attach_config_path(session.config_path.clone());
     let result = session
         .dispatcher
-        .dispatch(Command::SaveProject)
+        .dispatch(Command::Project(ProjectCommand::SaveProject))
         .map(|_| ());
     // #693: writes are queued to the persist worker; the round-trip
     // suites reload right after saving, so wait for durability here.
@@ -373,7 +378,7 @@ pub(crate) fn save_project_session(
 
 // `save_chain_blocks_to_preset` was moved to
 // `application::local_dispatcher_preset::handle_chain_preset` in #555.
-// The GUI now dispatches `Command::SaveChainPreset { chain, name }`
+// The GUI now dispatches `ChainCommand::SaveChainPreset { chain, name }`
 // and the dispatcher does the file write.
 
 pub(crate) fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {

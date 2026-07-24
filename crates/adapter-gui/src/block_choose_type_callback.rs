@@ -18,7 +18,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::chain::ChainInputMode;
@@ -135,7 +135,7 @@ pub(crate) fn wire(
         // Handle I/O and Insert block types: open the dedicated window instead of the block editor
         let effect_type_str = block_type.effect_type.as_str();
         if effect_type_str == "insert" {
-            // Insert block: create via Command::AddBlock so business logic stays in the dispatcher.
+            // Insert block: create via BlockCommand::AddBlock so business logic stays in the dispatcher.
             let (chain_index, before_index) = {
                 let draft_borrow = block_editor_draft.borrow();
                 let Some(draft) = draft_borrow.as_ref() else {
@@ -154,13 +154,13 @@ pub(crate) fn wire(
                 };
                 chain.id.clone()
             };
-            // Dispatch Command::AddBlock — mutates project via shared Rc.
-            if let Err(e) = session.dispatcher.dispatch(Command::AddBlock {
+            // Dispatch BlockCommand::AddBlock — mutates project via shared Rc.
+            if let Err(e) = session.dispatcher.dispatch(Command::Block(BlockCommand::AddBlock {
                 chain: chain_id.clone(),
                 kind: "insert".to_string(),
                 model_id: "standard".to_string(),
                 position: before_index,
-            }) {
+            })) {
                 log::error!("insert block AddBlock dispatch error: {e}");
                 return;
             }

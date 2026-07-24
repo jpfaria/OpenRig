@@ -16,7 +16,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -164,10 +164,12 @@ pub(crate) fn wire(
                 };
                 (block_index, chain.id.clone(), block.id.clone())
             };
-            if let Err(error) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
-                chain: chain_id.clone(),
-                block: block_id.clone(),
-            }) {
+            if let Err(error) = session.dispatcher.dispatch(Command::Block(
+                BlockCommand::ToggleBlockEnabled {
+                    chain: chain_id.clone(),
+                    block: block_id.clone(),
+                },
+            )) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
@@ -283,12 +285,14 @@ pub(crate) fn wire(
                     normalized_before.clamp(0, block_count - 1) as usize;
                 (chain.id.clone(), block_id, insert_at)
             };
-            // Dispatch Command::MoveBlock — mutates project via shared Rc.
-            if let Err(error) = session.dispatcher.dispatch(Command::MoveBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-                new_position: insert_at,
-            }) {
+            // Dispatch BlockCommand::MoveBlock — mutates project via shared Rc.
+            if let Err(error) = session.dispatcher.dispatch(Command::Block(
+                BlockCommand::MoveBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    new_position: insert_at,
+                },
+            )) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }

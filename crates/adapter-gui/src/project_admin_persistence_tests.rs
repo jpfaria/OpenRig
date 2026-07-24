@@ -13,7 +13,7 @@
 use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
-use application::command::Command;
+use application::command::{BlockCommand, ChainCommand, Command, ProjectCommand};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::{BlockId, ChainId};
 use domain::value_objects::ParameterValue;
@@ -135,7 +135,7 @@ pub(super) fn add_chain(session: &ProjectSession, desc: &str) -> ChainId {
     let chain = default_chain(session, desc);
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain }))
         .expect("AddChain");
     // The dispatcher re-tags new chains to `rig:<input>`; pick up
     // the post-dispatch id from the project.
@@ -182,9 +182,9 @@ fn update_project_name_persists_across_reload() {
     let session = s.new_session();
     session
         .dispatcher
-        .dispatch(Command::UpdateProjectName {
+        .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
             name: "MY PROJECT".into(),
-        })
+        }))
         .expect("UpdateProjectName");
     s.save(&session);
 
@@ -232,7 +232,7 @@ fn remove_chain_command_persists() {
         .unwrap_or(id_a);
     session
         .dispatcher
-        .dispatch(Command::RemoveChain { chain: target })
+        .dispatch(Command::Chain(ChainCommand::RemoveChain { chain: target }))
         .expect("RemoveChain");
     s.save(&session);
 
@@ -264,7 +264,7 @@ fn move_chain_up_persists_order() {
         .expect("B exists");
     session
         .dispatcher
-        .dispatch(Command::MoveChainUp { chain: target_b })
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp { chain: target_b }))
         .expect("MoveChainUp");
     s.save(&session);
 
@@ -295,7 +295,9 @@ fn move_chain_down_persists_order() {
         .expect("A exists");
     session
         .dispatcher
-        .dispatch(Command::MoveChainDown { chain: target_a })
+        .dispatch(Command::Chain(ChainCommand::MoveChainDown {
+            chain: target_a,
+        }))
         .expect("MoveChainDown");
     s.save(&session);
 
@@ -323,7 +325,7 @@ fn toggle_chain_enabled_persists() {
     let initial = session.project.borrow().chains[0].enabled;
     session
         .dispatcher
-        .dispatch(Command::ToggleChainEnabled { chain: id })
+        .dispatch(Command::Chain(ChainCommand::ToggleChainEnabled { chain: id }))
         .expect("ToggleChainEnabled");
     s.save(&session);
 
@@ -346,10 +348,10 @@ fn set_chain_volume_persists() {
     let id = add_chain(&session, "X");
     session
         .dispatcher
-        .dispatch(Command::SetChainVolume {
+        .dispatch(Command::Chain(ChainCommand::SetChainVolume {
             chain: id,
             value: 37.5,
-        })
+        }))
         .expect("SetChainVolume");
     s.save(&session);
 
@@ -370,7 +372,7 @@ fn set_chain_volume_persists() {
 
 // `SaveChain` mutates only the legacy `Project`; the rig path's source
 // of truth for chain title is `RigPreset.name`, edited via
-// `Command::RenameRigPreset`. Persisting a chain rename therefore goes
+// `SelectionCommand::RenameRigPreset`. Persisting a chain rename therefore goes
 // through `RenameRigPreset` (covered in `project_rig_persistence_tests`).
 // Leaving the original test here, ignored, so the gap is visible.
 #[ignore = "rig design: chain rename persists via RenameRigPreset, not SaveChain"]
@@ -386,7 +388,7 @@ fn save_chain_metadata_via_save_chain_command_persists() {
     chain.description = Some("NEW".into());
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
     s.save(&session);
 
@@ -416,11 +418,11 @@ fn insert_prebuilt_block_persists() {
 
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: gain_block("g1", 11.0),
             position: block_position,
-        })
+        }))
         .expect("InsertPrebuiltBlock");
     s.save(&session);
 
@@ -444,19 +446,19 @@ fn remove_block_persists() {
     let block_position = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: gain_block("g1", 11.0),
             position: block_position,
-        })
+        }))
         .expect("Insert");
 
     session
         .dispatcher
-        .dispatch(Command::RemoveBlock {
+        .dispatch(Command::Block(BlockCommand::RemoveBlock {
             chain: chain_id.clone(),
             block: BlockId("g1".into()),
-        })
+        }))
         .expect("RemoveBlock");
     s.save(&session);
 
@@ -481,20 +483,20 @@ fn move_block_persists_order() {
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: gain_block("g1", 10.0),
             position: pos,
-        })
+        }))
         .expect("Insert g1");
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: gain_block("g2", 20.0),
             position: pos,
-        })
+        }))
         .expect("Insert g2");
 
     // Move g2 before g1.
@@ -505,11 +507,11 @@ fn move_block_persists_order() {
         .expect("g1 exists");
     session
         .dispatcher
-        .dispatch(Command::MoveBlock {
+        .dispatch(Command::Block(BlockCommand::MoveBlock {
             chain: chain_id.clone(),
             block: BlockId("g2".into()),
             new_position: target_position,
-        })
+        }))
         .expect("MoveBlock");
     s.save(&session);
 
@@ -538,19 +540,19 @@ fn toggle_block_enabled_persists() {
     let pos = session.project.borrow().chains[0].blocks.len() - 1;
     session
         .dispatcher
-        .dispatch(Command::InsertPrebuiltBlock {
+        .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
             chain: chain_id.clone(),
             block: gain_block("g1", 11.0),
             position: pos,
-        })
+        }))
         .expect("Insert");
 
     session
         .dispatcher
-        .dispatch(Command::ToggleBlockEnabled {
+        .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
             chain: chain_id.clone(),
             block: BlockId("g1".into()),
-        })
+        }))
         .expect("ToggleBlockEnabled");
     s.save(&session);
 

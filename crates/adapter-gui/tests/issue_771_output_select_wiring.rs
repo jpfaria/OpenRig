@@ -1,5 +1,5 @@
 //! #771 — picking an output in the DI panel must (1) persist it via
-//! `Command::SetChainDiLoopOutput` and (2) move a PLAYING DI to the new
+//! `ChainCommand::SetChainDiLoopOutput` and (2) move a PLAYING DI to the new
 //! output (re-arm → re-render → park on the picked output's cell).
 
 use std::cell::RefCell;
@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
@@ -122,10 +122,10 @@ fn output_pick_persists_and_moves_a_playing_di() {
     let controller = RefCell::new(Some(make_controller(&chain_id)));
 
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id.clone(),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed");
     let deadline = Instant::now() + Duration::from_secs(2);
     while dispatcher.di_loop_for_chain(&chain_id).is_none() && Instant::now() < deadline {
@@ -157,7 +157,7 @@ fn output_pick_persists_and_moves_a_playing_di() {
             binding_id: "io".into(),
             endpoint: "FX Out".into(),
         }),
-        "#771: the pick must persist through Command::SetChainDiLoopOutput"
+        "#771: the pick must persist through ChainCommand::SetChainDiLoopOutput"
     );
     assert!(
         wait_for_output(&controller, &chain_id, 1),

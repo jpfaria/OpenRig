@@ -8,7 +8,7 @@
 //! problem and narrows the defect to the model-replace path itself.
 //!
 //! Root cause: `compact_chain_block_handlers.rs`'s `on_choose_block_model`
-//! dispatches `Command::ReplaceBlockModel` and, on failure (e.g. the
+//! dispatches `BlockCommand::ReplaceBlockModel` and, on failure (e.g. the
 //! target model isn't actually available/buildable), only
 //! `log::error!`s and returns — it never calls `set_status_error` to
 //! tell the user anything happened. Every OTHER error branch in the very
@@ -31,7 +31,7 @@ fn compact_block_handlers_source() -> String {
 /// pass by matching `set_status_error` calls used elsewhere in the same
 /// closure (e.g. the `sync_live_chain_runtime` error branch right after).
 fn replace_block_model_dispatch_error_body(src: &str) -> String {
-    let needle = "session.dispatcher.dispatch(Command::ReplaceBlockModel";
+    let needle = "BlockCommand::ReplaceBlockModel";
     let start = src
         .find(needle)
         .unwrap_or_else(|| panic!("compact_chain_block_handlers.rs has no `{needle}` call"));
@@ -48,7 +48,7 @@ fn compact_choose_model_shows_a_toast_when_the_replace_dispatch_fails() {
     let body = replace_block_model_dispatch_error_body(&src);
     assert!(
         body.contains("set_status_error"),
-        "in compact_chain_block_handlers.rs, the `Command::ReplaceBlockModel` \
+        "in compact_chain_block_handlers.rs, the `BlockCommand::ReplaceBlockModel` \
          dispatch's error branch only logs (`log::error!`) and returns — it \
          never calls `set_status_error` to tell the user the model swap \
          failed. Every other error branch in the same closure does. Without \

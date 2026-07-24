@@ -12,7 +12,7 @@ use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, Timer, VecMod
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use application::command::{ChainId, Command, RigNavKind};
+use application::command::{ChainId, Command, RigNavKind, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 
@@ -100,7 +100,7 @@ pub(crate) fn refresh_chain_rig_nav(window: &AppWindow, session: &ProjectSession
 }
 
 /// #436: the GUI carries NO rig business logic. It resolves the
-/// synthetic chain id, dispatches `Command::ApplyRigNav` (the
+/// synthetic chain id, dispatches `SelectionCommand::ApplyRigNav` (the
 /// dispatcher owns the rig and does capture→apply→re-project→swap),
 /// then refreshes the UI and the live runtime from the shared
 /// `Project`. Non-rig / missing chain ⇒ no-op.
@@ -123,10 +123,12 @@ fn reproject(window: &AppWindow, ctx: &ChainRigNavCtx, chain_index: i32, kind: R
         };
 
         // All business logic lives behind the Command now.
-        match session.dispatcher.dispatch(Command::ApplyRigNav {
-            chain: chain_id,
-            kind,
-        }) {
+        match session
+            .dispatcher
+            .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
+                chain: chain_id,
+                kind,
+            })) {
             Ok(events) => events,
             Err(_) => {
                 set_status_error(
@@ -352,7 +354,7 @@ where
     PresetPicker::get(window).set_options(ModelRc::new(VecModel::from(options)));
 }
 
-/// Dispatches `Command::RenameRigPreset` for the chain at
+/// Dispatches `SelectionCommand::RenameRigPreset` for the chain at
 /// `chain_index`. Empty `new_name` is a no-op (the user pressed OK
 /// with no text). Surfaces an error only if the chain index is out
 /// of range; non-`rig:` chains silently succeed because the
@@ -375,9 +377,9 @@ pub(crate) fn apply_rename_rig_preset(
         .ok_or_else(|| anyhow::anyhow!("chain index {chain_index} out of range"))?;
     session
         .dispatcher
-        .dispatch(application::command::Command::RenameRigPreset {
+        .dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
             chain: chain_id,
             name: trimmed.to_string(),
-        })?;
+        }))?;
     Ok(())
 }

@@ -3,7 +3,7 @@
 
 use slint::ComponentHandle;
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use project::catalog::{model_brand, model_display_name, model_type_label};
 
@@ -116,11 +116,13 @@ pub(crate) fn wire_block_delete(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            // Dispatch Command::RemoveBlock — mutates project via shared Rc.
-            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-            }) {
+            // Dispatch BlockCommand::RemoveBlock — mutates project via shared Rc.
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::Block(BlockCommand::RemoveBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                })) {
                 log::error!("[adapter-gui] block-window.delete dispatch: {e}");
                 if let Some(w) = weak_main.upgrade() {
                     w.set_block_drawer_status_message(e.to_string().into());

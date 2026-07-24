@@ -19,7 +19,7 @@
 
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, IoBindingCommand};
 use domain::io_binding::IoBinding;
 use slint::VecModel;
 
@@ -47,8 +47,8 @@ pub(crate) fn wizard_create_or_update_default_binding(
 ) -> Command {
     let binding = build_default_io_binding(input_device_id, output_device_id);
     match existing {
-        None => Command::CreateIoBinding { binding },
-        Some(_) => Command::UpdateIoBinding { binding },
+        None => Command::IoBinding(IoBindingCommand::CreateIoBinding { binding }),
+        Some(_) => Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding }),
     }
 }
 

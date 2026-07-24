@@ -156,10 +156,12 @@ pub(crate) fn wire(
         // is screen concern and stays for now (separate decrements).
         let _ = session
             .dispatcher
-            .dispatch(application::command::Command::SelectChainBlock {
-                chain: chain.id.clone(),
-                block_index: block_index as usize,
-            });
+            .dispatch(application::command::Command::Selection(
+                application::command::SelectionCommand::SelectChainBlock {
+                    chain: chain.id.clone(),
+                    block_index: block_index as usize,
+                },
+            ));
         // Handle Insert blocks — open the insert configuration window. I/O
         // blocks are no longer editable here (#716: a chain's I/O comes from
         // its selected bindings); they fall through to the not-editable path.

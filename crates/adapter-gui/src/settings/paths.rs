@@ -4,7 +4,7 @@
 //! the override (so the OS default wins again). Both callbacks
 //! persist the choice into `config.yaml` immediately (via
 //! `FilesystemStorage::save_*_path`) AND dispatch
-//! `Command::SetPresetsPath` / `Command::SetPluginsPath` so the event
+//! `SettingsCommand::SetPresetsPath` / `SettingsCommand::SetPluginsPath` so the event
 //! fans out on the bus (MCP/gRPC parity). Pattern matches
 //! `midi_devices`: persist locally + dispatch the Command, identical
 //! to `SaveMidiDevices`.
@@ -28,7 +28,7 @@ use std::rc::Rc;
 use rfd::FileDialog;
 use slint::ComponentHandle;
 
-use application::command::Command;
+use application::command::{Command, PluginCommand, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use infra_filesystem::{AppConfig, FilesystemStorage};
@@ -75,7 +75,7 @@ pub fn apply_evaluations_override(
 }
 
 /// Persist the new presets-path override into `config.yaml` and, when
-/// a project session is loaded, dispatch `Command::SetPresetsPath` so
+/// a project session is loaded, dispatch `SettingsCommand::SetPresetsPath` so
 /// the event fans out on the bus.
 fn apply_presets_path(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
@@ -92,7 +92,7 @@ fn apply_presets_path(
     };
     if let Err(e) = session
         .dispatcher
-        .dispatch(Command::SetPresetsPath { path })
+        .dispatch(Command::Settings(SettingsCommand::SetPresetsPath { path }))
     {
         log::warn!("[paths] Command::SetPresetsPath failed: {e}");
     }
@@ -114,7 +114,7 @@ fn apply_plugins_path(
     };
     if let Err(e) = session
         .dispatcher
-        .dispatch(Command::SetPluginsPath { path })
+        .dispatch(Command::Settings(SettingsCommand::SetPluginsPath { path }))
     {
         log::warn!("[paths] Command::SetPluginsPath failed: {e}");
     }
@@ -136,13 +136,15 @@ fn apply_evaluations_path(
     };
     if let Err(e) = session
         .dispatcher
-        .dispatch(Command::SetEvaluationsPath { path })
+        .dispatch(Command::Settings(SettingsCommand::SetEvaluationsPath {
+            path,
+        }))
     {
         log::warn!("[paths] Command::SetEvaluationsPath failed: {e}");
     }
 }
 
-/// #561: dispatch `Command::ReloadPluginCatalog` and return a
+/// #561: dispatch `PluginCommand::ReloadPluginCatalog` and return a
 /// human-readable summary of the new totals (or an error message
 /// suitable for the status text). Both `install` and `install_secondary`
 /// share this helper so the success/failure path is one place.
@@ -160,7 +162,9 @@ fn run_reload_plugin_catalog(project_session: &Rc<RefCell<Option<ProjectSession>
     let events_result: anyhow::Result<Vec<Event>> = {
         let borrow = project_session.borrow();
         if let Some(session) = borrow.as_ref() {
-            session.dispatcher.dispatch(Command::ReloadPluginCatalog)
+            session
+                .dispatcher
+                .dispatch(Command::Plugin(PluginCommand::ReloadPluginCatalog))
         } else {
             drop(borrow);
             // No project session — run the side-effect directly via a
@@ -174,7 +178,7 @@ fn run_reload_plugin_catalog(project_session: &Rc<RefCell<Option<ProjectSession>
                 midi: None,
             }));
             application::local_dispatcher::LocalDispatcher::new(project)
-                .dispatch(Command::ReloadPluginCatalog)
+                .dispatch(Command::Plugin(PluginCommand::ReloadPluginCatalog))
         }
     };
     match events_result {

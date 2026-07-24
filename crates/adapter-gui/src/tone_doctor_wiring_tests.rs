@@ -119,7 +119,7 @@ fn apply_command_targets_the_culprit_block() {
     // A native fuzz knob is always live (no enable gate) → a single command.
     assert_eq!(cmds.len(), 1, "{cmds:?}");
     match &cmds[0] {
-        Command::SetBlockParameterNumber { chain, block, path, value } => {
+        Command::Block(BlockCommand::SetBlockParameterNumber { chain, block, path, value }) => {
             assert_eq!(*chain, c.id);
             assert_eq!(*block, BlockId("fz".into()), "targets the fuzz");
             assert_eq!(path, &s.param_path);

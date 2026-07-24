@@ -23,7 +23,7 @@ use std::rc::Rc;
 
 use slint::ComponentHandle;
 
-use application::command::Command;
+use application::command::{Command, MidiCommand, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use infra_filesystem::{AppConfig, FilesystemStorage};
 
@@ -118,7 +118,7 @@ fn install_midi(
             s.set_midi_enabled(on);
         },
         |cfg, on| cfg.midi_enabled = on,
-        |enabled| Command::SetMidiEnabled { enabled },
+        |enabled| Command::Midi(MidiCommand::SetMidiEnabled { enabled }),
         |enabled| {
             let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
             config.midi_enabled = enabled;
@@ -149,7 +149,7 @@ fn install_mcp(
             s.set_mcp_enabled(on);
         },
         |cfg, on| cfg.mcp_enabled = on,
-        |enabled| Command::SetMcpEnabled { enabled },
+        |enabled| Command::Settings(SettingsCommand::SetMcpEnabled { enabled }),
         |enabled| {
             let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
             config.mcp_enabled = enabled;

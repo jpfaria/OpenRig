@@ -18,7 +18,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -113,7 +113,10 @@ pub(crate) fn wire(
                 editing_index
             );
             let chain_id = chain.id.clone();
-            if let Err(error) = session.dispatcher.dispatch(Command::SaveChain { chain }) {
+            if let Err(error) = session
+                .dispatcher
+                .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
+            {
                 chain_window.set_status_message(error.to_string().into());
                 return;
             }

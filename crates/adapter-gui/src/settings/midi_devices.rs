@@ -1,7 +1,7 @@
 //! System / MIDI devices section wiring (#513). The adapter calls
 //! `adapter_midi::list_input_ports()` directly for the refresh button
 //! (no Command is necessary for a read-only query). User edits dispatch
-//! `Command::SaveMidiDevices` immediately (when a project session is
+//! `MidiCommand::SaveMidiDevices` immediately (when a project session is
 //! loaded) and persist into `config.yaml` in the same callback — the
 //! event still fans out, but persistence lives colocated with the user
 //! action so the rows survive even when the launcher has no dispatcher.
@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use slint::VecModel;
 
-use application::command::Command;
+use application::command::{Command, MidiCommand};
 use infra_filesystem::{FilesystemStorage, MidiDeviceSelection, MidiPortKey};
 
 use crate::state::ProjectSession;
@@ -83,7 +83,7 @@ pub(crate) fn devices_for_save(rows: &[MidiDeviceSelection]) -> Vec<MidiDeviceSe
 }
 
 /// Install the section callbacks on the AppWindow. Each user edit
-/// dispatches `Command::SaveMidiDevices` (when a session is loaded) and
+/// dispatches `MidiCommand::SaveMidiDevices` (when a session is loaded) and
 /// persists the new list into `config.yaml` in the same callback. The
 /// `Event::MidiDevicesSaved` fan-out still happens for any future
 /// listener, but the persistence write is colocated so the launcher
@@ -222,9 +222,11 @@ fn dispatch_and_persist(
 ) {
     if let Some(session) = project_session.borrow().as_ref() {
         use application::dispatcher::CommandDispatcher;
-        if let Err(e) = session.dispatcher.dispatch(Command::SaveMidiDevices {
-            devices: rows.to_vec(),
-        }) {
+        if let Err(e) = session
+            .dispatcher
+            .dispatch(Command::Midi(MidiCommand::SaveMidiDevices {
+                devices: rows.to_vec(),
+            })) {
             log::warn!("[midi_devices] Command::SaveMidiDevices failed: {e}");
         }
     }

@@ -14,7 +14,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -93,12 +93,12 @@ pub(crate) fn wire(
             };
             if let Err(e) = session
                 .dispatcher
-                .dispatch(Command::SetBlockParameterNumber {
+                .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
                     chain: chain_id.clone(),
                     block: block_id,
                     path: path.to_string(),
                     value: value as f64,
-                })
+                }))
             {
                 log::error!("[compact] update param error: {e}");
                 return;
@@ -187,13 +187,13 @@ pub(crate) fn wire(
             };
             if let Err(e) = session
                 .dispatcher
-                .dispatch(Command::SelectBlockParameterOption {
+                .dispatch(Command::Block(BlockCommand::SelectBlockParameterOption {
                     chain: chain_id.clone(),
                     block: block_id,
                     path: path.to_string(),
                     value: option_value,
                     index: option_index as usize,
-                })
+                }))
             {
                 log::error!("[compact] select option error: {e}");
                 return;
@@ -257,12 +257,14 @@ pub(crate) fn wire(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            if let Err(e) = session.dispatcher.dispatch(Command::SetBlockParameterBool {
-                chain: chain_id.clone(),
-                block: block_id,
-                path: path.to_string(),
-                value,
-            }) {
+            if let Err(e) = session.dispatcher.dispatch(Command::Block(
+                BlockCommand::SetBlockParameterBool {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    path: path.to_string(),
+                    value,
+                },
+            )) {
                 log::error!("[compact] update bool param error: {e}");
                 return;
             }

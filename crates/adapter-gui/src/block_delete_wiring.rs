@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -109,11 +109,13 @@ pub(crate) fn wire(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            // Dispatch Command::RemoveBlock — mutates project via shared Rc.
-            if let Err(error) = session.dispatcher.dispatch(Command::RemoveBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-            }) {
+            // Dispatch BlockCommand::RemoveBlock — mutates project via shared Rc.
+            if let Err(error) = session.dispatcher.dispatch(Command::Block(
+                BlockCommand::RemoveBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                },
+            )) {
                 log::error!("[adapter-gui] block-drawer.delete dispatch: {error}");
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;

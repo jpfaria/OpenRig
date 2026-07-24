@@ -1,18 +1,18 @@
 //! Red-first tests for in-memory chain creation. The user reported:
 //! "criei uma chain nova e não veio com o preset preenchido nem a
-//! scene 1." That means after `Command::AddChain` runs (and BEFORE
+//! scene 1." That means after `ChainCommand::AddChain` runs (and BEFORE
 //! any save/reload), the session's `RigProject` must already have
 //! the input + preset + scene 1 so the GUI's preset combobox is
 //! populated immediately.
 //!
 //! Each test exercises the path the GUI follows: build a chain via
-//! `chain_factory::build_default_chain`, dispatch `Command::AddChain`,
+//! `chain_factory::build_default_chain`, dispatch `ChainCommand::AddChain`,
 //! then assert on `session.rig` directly. No save, no reload.
 
 use crate::project_ops::create_new_project_session;
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use project::chain::Chain;
 use std::path::PathBuf;
@@ -73,7 +73,7 @@ fn add_chain_command_creates_a_rig_input() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain }))
         .expect("AddChain");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -96,7 +96,7 @@ fn add_chain_command_creates_a_preset_named_preset_1() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain }))
         .expect("AddChain");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -121,7 +121,7 @@ fn add_chain_command_creates_scene_1_in_the_new_preset() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain }))
         .expect("AddChain");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -146,7 +146,7 @@ fn add_chain_active_preset_and_scene_default_to_1() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain }))
         .expect("AddChain");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -165,8 +165,8 @@ fn add_chain_active_preset_and_scene_default_to_1() {
 // ────────────────────────────────────────────────────────────────────
 
 // ────────────────────────────────────────────────────────────────────
-// 5. The chain editor uses `Command::SaveChain` (upsert), not
-//    `Command::AddChain`. So SaveChain must also populate the rig
+// 5. The chain editor uses `ChainCommand::SaveChain` (upsert), not
+//    `ChainCommand::AddChain`. So SaveChain must also populate the rig
 //    when the chain is brand-new.
 // ────────────────────────────────────────────────────────────────────
 
@@ -177,7 +177,7 @@ fn save_chain_on_new_chain_id_creates_a_rig_input() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -200,7 +200,7 @@ fn save_chain_on_new_chain_creates_default_preset_and_scene() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -227,7 +227,7 @@ fn save_chain_on_existing_chain_does_not_duplicate_rig_input() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("first save");
 
     // The first SaveChain re-tagged the chain id to `rig:<input>`.
@@ -237,7 +237,7 @@ fn save_chain_on_existing_chain_does_not_duplicate_rig_input() {
     existing.description = Some("Renamed".into());
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain: existing })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain: existing }))
         .expect("second save");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -275,7 +275,7 @@ fn pre_dispatch_chain_id_is_invalid_after_save_chain() {
 
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
 
     let still_present = session
@@ -306,7 +306,7 @@ fn save_chain_rewrites_chain_id_to_rig_prefix() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
 
     let project = session.project.borrow();
@@ -327,7 +327,7 @@ fn rig_nav_rows_after_save_chain_carry_default_preset_label() {
     let chain = chain_with(&session, "Chain 1", "dev-A");
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -351,11 +351,11 @@ fn two_add_chain_calls_with_same_source_produce_two_inputs() {
     let b = chain_with(&session, "Chain 2", "shared-dev");
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain: a })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain: a }))
         .expect("AddChain A");
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain: b })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain: b }))
         .expect("AddChain B");
 
     let rig = session.rig.as_ref().expect("rig attached");

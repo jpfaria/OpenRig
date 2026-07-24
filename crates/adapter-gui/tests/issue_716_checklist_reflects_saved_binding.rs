@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 use adapter_gui::chain_binding_choices::binding_choices;
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{ChainId, DeviceId};
@@ -79,10 +79,10 @@ fn reopened_checklist_shows_selected_binding_checked() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::SetChainIoBindings {
+        .dispatch(Command::Chain(ChainCommand::SetChainIoBindings {
             chain: ChainId("rig:in".to_string()),
             binding_ids: vec!["main".to_string()],
-        })
+        }))
         .expect("SetChainIoBindings must succeed");
 
     // Reopen + build the editor checklist exactly like chain_crud_wiring does.

@@ -552,7 +552,7 @@ msgstr "채널"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
+msgstr "같은 인터페이스의 입력과 출력을 묶습니다. 각 체인은 하나의 바인딩을 사용합니다."
 "같은 인터페이스의 입력과 출력을 묶습니다. 각 체인은 하나의 바인딩을 사용합니"
 "다."
 

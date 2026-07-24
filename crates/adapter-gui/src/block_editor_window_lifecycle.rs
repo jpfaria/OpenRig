@@ -28,7 +28,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 
@@ -344,16 +344,18 @@ fn wire_drawer_toggle_save(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            // Step 2: dispatch Command::ToggleBlockEnabled — mutates project via shared Rc.
+            // Step 2: dispatch BlockCommand::ToggleBlockEnabled — mutates project via shared Rc.
             let new_enabled = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
-                    chain: chain_id.clone(),
-                    block: block_id.clone(),
-                }) {
+                match session.dispatcher.dispatch(Command::Block(
+                    BlockCommand::ToggleBlockEnabled {
+                        chain: chain_id.clone(),
+                        block: block_id.clone(),
+                    },
+                )) {
                     Ok(events) => events.into_iter().find_map(|e| {
                         if let Event::BlockEnabledChanged { enabled, .. } = e {
                             Some(enabled)

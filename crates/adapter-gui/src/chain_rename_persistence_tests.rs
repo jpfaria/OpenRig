@@ -1,7 +1,7 @@
 //! Red-first regression test for the live bug: editing a chain's
 //! name in the chain editor, hitting save, and watching the UI snap
 //! back to the previous name ("Chain Reborn"). The chain editor
-//! dispatches `Command::SaveChain` (upsert path) with a fresh
+//! dispatches `ChainCommand::SaveChain` (upsert path) with a fresh
 //! description. The handler replaces the legacy `chain` entry in
 //! place, but the rig's `RigInput.label` is what feeds
 //! `rig_to_chains` -> `chain.description` on every re-projection.
@@ -10,7 +10,7 @@
 
 use crate::project_ops::create_new_project_session;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
-use application::command::Command;
+use application::command::{ChainCommand, Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -41,7 +41,7 @@ fn session_with_one_rig_chain() -> (TempDir, crate::state::ProjectSession) {
     });
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("seed SaveChain");
     (tmp, session)
 }
@@ -56,7 +56,7 @@ fn save_chain_rename_propagates_to_rig_input_label() {
     renamed.description = Some("Lead Tone".into());
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain: renamed })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain: renamed }))
         .expect("SaveChain rename");
 
     let rig = session.rig.as_ref().expect("rig attached");
@@ -78,7 +78,7 @@ fn rename_survives_a_re_projection() {
     renamed.description = Some("Lead Tone".into());
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain: renamed })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain: renamed }))
         .expect("rename");
 
     // Force a re-projection (any rig nav command emits ChainReloaded
@@ -87,10 +87,10 @@ fn rename_survives_a_re_projection() {
     let chain_id = session.project.borrow().chains[0].id.clone();
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id,
             kind: application::command::RigNavKind::StepPreset(0),
-        })
+        }))
         .expect("noop nav to trigger reproject");
 
     let desc = session.project.borrow().chains[0].description.clone();

@@ -9,7 +9,7 @@
 use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
-use application::command::{Command, RigNavKind};
+use application::command::{ChainCommand, Command, RigNavKind, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use project::chain::Chain;
@@ -75,7 +75,7 @@ fn add_chain(session: &ProjectSession, desc: &str) -> ChainId {
     let id = chain.id.clone();
     session
         .dispatcher
-        .dispatch(Command::AddChain { chain })
+        .dispatch(Command::Chain(ChainCommand::AddChain { chain }))
         .expect("AddChain");
     id
 }
@@ -142,7 +142,7 @@ fn reloaded_session_carries_a_rig() {
 #[test]
 fn new_session_already_has_a_rig() {
     // A brand-new project must already have a `RigProject` attached;
-    // otherwise the first `Command::ApplyRigNav` will be a no-op and the
+    // otherwise the first `SelectionCommand::ApplyRigNav` will be a no-op and the
     // first save will follow the legacy `.yaml` path (not `.openrig`).
     let s = Sandbox::new();
     let session = s.new_session();
@@ -175,10 +175,10 @@ fn apply_rig_nav_scene_persists_active_scene() {
         .unwrap_or(chain_id);
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id,
             kind: RigNavKind::Scene(2),
-        })
+        }))
         .expect("ApplyRigNav scene 2");
     s.save(&session);
 
@@ -210,10 +210,12 @@ fn apply_rig_nav_preset_persists_active_preset() {
         .find(|c| c.description.as_deref() == Some("X"))
         .map(|c| c.id.clone())
         .unwrap_or(chain_id);
-    let _ = session.dispatcher.dispatch(Command::ApplyRigNav {
-        chain: chain_id,
-        kind: RigNavKind::StepPreset(1),
-    });
+    let _ = session
+        .dispatcher
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
+            chain: chain_id,
+            kind: RigNavKind::StepPreset(1),
+        }));
     let after_dispatch = active_preset(&session);
     s.save(&session);
 
@@ -247,10 +249,10 @@ fn rename_rig_preset_persists() {
         .unwrap_or(chain_id);
     session
         .dispatcher
-        .dispatch(Command::RenameRigPreset {
+        .dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
             chain: chain_id,
             name: "CRUNCH".into(),
-        })
+        }))
         .expect("RenameRigPreset");
     s.save(&session);
 
@@ -296,10 +298,10 @@ fn scene_2_can_be_selected_and_round_trips() {
     // Switch to scene 2, save, reopen — scene 2 must still be the active scene.
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id.clone(),
             kind: RigNavKind::Scene(2),
-        })
+        }))
         .expect("scene 2");
     s.save(&session);
 
@@ -332,10 +334,10 @@ fn returning_from_scene_2_to_scene_1_round_trips() {
     // Two-step: 2 then 1; both must persist faithfully.
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id.clone(),
             kind: RigNavKind::Scene(2),
-        })
+        }))
         .expect("scene 2");
     s.save(&session);
     let intermediate = s.reload();
@@ -351,10 +353,10 @@ fn returning_from_scene_2_to_scene_1_round_trips() {
         .unwrap_or(chain_id);
     intermediate
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id,
             kind: RigNavKind::Scene(1),
-        })
+        }))
         .expect("scene 1");
     s.save(&intermediate);
 

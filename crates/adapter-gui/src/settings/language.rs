@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, ModelRc, SharedString, VecModel};
 
-use application::command::Command;
+use application::command::{Command, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use infra_filesystem::FilesystemStorage;
 
@@ -71,16 +71,18 @@ pub fn wire(
             };
             let lang = pick_language(idx);
             log::info!("language selector: persisting {:?}", lang);
-            // #436 F: trocar idioma é negócio → vai por Command::SetLanguage
+            // #436 F: trocar idioma é negócio → vai por SettingsCommand::SetLanguage
             // no dispatcher compartilhado (alcançável MCP/MIDI; observável
             // via Event::LanguageChanged) quando há sessão. A persistência
             // + live-swap abaixo é I/O de adapter (precedente SaveProject).
             // No launcher (sem ProjectSession) não há dispatcher; ainda
             // assim persiste — o Command cobre o caminho programático.
             if let Some(session) = project_session.borrow().as_ref() {
-                if let Err(e) = session.dispatcher.dispatch(Command::SetLanguage {
-                    language: lang.clone(),
-                }) {
+                if let Err(e) = session.dispatcher.dispatch(Command::Settings(
+                    SettingsCommand::SetLanguage {
+                        language: lang.clone(),
+                    },
+                )) {
                     log::warn!("[language] Command::SetLanguage falhou: {e}");
                 }
             }

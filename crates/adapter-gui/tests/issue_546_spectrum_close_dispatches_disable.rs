@@ -16,7 +16,7 @@
 //!
 //! Contract under test:
 //!   `spectrum_close_commands()` returns a Vec containing
-//!   `Command::SetSpectrumEnabled { enabled: false }` so every close
+//!   `SelectionCommand::SetSpectrumEnabled { enabled: false }` so every close
 //!   path routes the same intent through the dispatcher.
 //!
 //! This test is RED today: `adapter_gui::spectrum_close` does not
@@ -25,14 +25,17 @@
 //! handler, mirroring the #544 fix.
 
 use adapter_gui::spectrum_close::spectrum_close_commands;
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 
 #[test]
 fn close_intent_disables_spectrum() {
     let cmds = spectrum_close_commands();
     assert!(
         cmds.iter()
-            .any(|c| matches!(c, Command::SetSpectrumEnabled { enabled: false })),
+            .any(|c| matches!(
+                c,
+                Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled: false })
+            )),
         "closing the spectrum window must dispatch SetSpectrumEnabled(false); \
          got {cmds:?}"
     );

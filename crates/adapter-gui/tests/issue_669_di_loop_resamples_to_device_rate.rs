@@ -19,7 +19,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
@@ -94,10 +94,10 @@ fn armed_loop_len_at(device_sr: u32, wav: &Path) -> usize {
     adapter_gui::di_loop_wiring::sync_engine_sr_from_runtime(&controller, &dispatcher);
 
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id.clone(),
             source: DiLoopSource::File(wav.to_path_buf()),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed");
     // #693: wait for the off-thread decode to land via the poll tick.
     {

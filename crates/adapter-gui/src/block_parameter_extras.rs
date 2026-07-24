@@ -3,7 +3,7 @@
 
 use rfd::FileDialog;
 use slint::{ComponentHandle};
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use crate::block_editor::{
@@ -164,13 +164,13 @@ pub(crate) fn wire_select_param(
                 };
                 match session
                     .dispatcher
-                    .dispatch(Command::SelectBlockParameterOption {
+                    .dispatch(Command::Block(BlockCommand::SelectBlockParameterOption {
                         chain: chain_id.clone(),
                         block: block_id,
                         path: path.to_string(),
                         value: option_value,
                         index: index as usize,
-                    }) {
+                    })) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
@@ -352,12 +352,12 @@ pub(crate) fn wire_toggle_and_file(
                 };
                 match session
                     .dispatcher
-                    .dispatch(Command::PickBlockParameterFile {
+                    .dispatch(Command::Block(BlockCommand::PickBlockParameterFile {
                         chain: chain_id.clone(),
                         block: block_id,
                         path: path.to_string(),
                         file: file.clone(),
-                    }) {
+                    })) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),

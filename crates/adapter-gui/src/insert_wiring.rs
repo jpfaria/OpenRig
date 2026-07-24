@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -211,10 +211,12 @@ pub(crate) fn wire(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
-                chain: chain_id.clone(),
-                block: block_id.clone(),
-            }) {
+            match session.dispatcher.dispatch(Command::Block(
+                BlockCommand::ToggleBlockEnabled {
+                    chain: chain_id.clone(),
+                    block: block_id.clone(),
+                },
+            )) {
                 Ok(_) => {}
                 Err(e) => {
                     log::error!("toggle insert block enabled: {e}");
@@ -297,10 +299,12 @@ pub(crate) fn wire(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-            }) {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::Block(BlockCommand::RemoveBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                })) {
                 log::error!("delete insert block: {e}");
                 return;
             }
@@ -375,11 +379,13 @@ pub(crate) fn wire(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            if let Err(e) = session.dispatcher.dispatch(Command::SaveInsertBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-                io,
-            }) {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::Block(BlockCommand::SaveInsertBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    io,
+                })) {
                 log::error!("insert save error: {e}");
                 let _ = iw.hide();
                 return;

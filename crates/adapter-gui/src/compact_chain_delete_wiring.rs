@@ -97,9 +97,11 @@ pub(crate) fn wire(
             if let Err(err) =
                 session
                     .dispatcher
-                    .dispatch(application::command::Command::RemoveChain {
-                        chain: chain_id.clone(),
-                    })
+                    .dispatch(application::command::Command::Chain(
+                        application::command::ChainCommand::RemoveChain {
+                            chain: chain_id.clone(),
+                        },
+                    ))
             {
                 set_status_error(&main_win, &ctx.toast_timer, &err.to_string());
                 return;

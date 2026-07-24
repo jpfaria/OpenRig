@@ -17,7 +17,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer};
 
-use application::command::Command;
+use application::command::{ChainCommand, Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use project::chain::Chain;
@@ -90,7 +90,7 @@ pub(crate) fn wire(
             if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog.
                 // (Directory creation is handled inside the
-                // `Command::SaveChainPreset` dispatcher; the GUI no
+                // `ChainCommand::SaveChainPreset` dispatcher; the GUI no
                 // longer touches the filesystem here — #555.)
                 perform_preset_save(
                     &window,
@@ -105,7 +105,7 @@ pub(crate) fn wire(
                 // (replaces the native FileDialog). Stash the chain
                 // id + clone + default name; final write happens when
                 // the user confirms via `preset-save-request`. The
-                // chain id is what `Command::RenameRigPreset` keys on
+                // chain id is what `SelectionCommand::RenameRigPreset` keys on
                 // so the active preset's display name follows the
                 // typed name end-to-end.
                 *pending_save.borrow_mut() = Some(PendingSave {
@@ -223,9 +223,9 @@ pub(crate) fn wire(
 }
 
 /// Commit a preset save: write the YAML file under the configured
-/// presets directory, dispatch `Command::SaveChainPreset` so
+/// presets directory, dispatch `ChainCommand::SaveChainPreset` so
 /// MCP/MIDI/gRPC observers see the same event, then dispatch
-/// `Command::RenameRigPreset` so the active preset's display name
+/// `SelectionCommand::RenameRigPreset` so the active preset's display name
 /// follows the name the user just typed. Without the rename the
 /// chain title combobox stays on the old label and the user sees
 /// "nothing happened". Issue #510.
@@ -239,21 +239,25 @@ fn perform_preset_save(
 ) {
     // #555: the YAML write and the `create_dir_all` used to happen
     // here in the adapter. They now live inside the dispatcher
-    // handler for `Command::SaveChainPreset`, so MCP/MIDI/gRPC
+    // handler for `ChainCommand::SaveChainPreset`, so MCP/MIDI/gRPC
     // clients produce the same on-disk effect as the GUI.
-    match session.dispatcher.dispatch(Command::SaveChainPreset {
-        chain: chain_id.clone(),
-        name: name.to_string(),
-    }) {
+    match session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::SaveChainPreset {
+            chain: chain_id.clone(),
+            name: name.to_string(),
+        })) {
         Ok(_) => {
             // Mirror the load flow: rename the active preset to the
             // chosen name and refresh the chain-rig-nav so the
             // combobox in the chain title reflects the new label
             // immediately.
-            if let Err(e) = session.dispatcher.dispatch(Command::RenameRigPreset {
-                chain: chain_id.clone(),
-                name: name.to_string(),
-            }) {
+            if let Err(e) = session.dispatcher.dispatch(Command::Selection(
+                SelectionCommand::RenameRigPreset {
+                    chain: chain_id.clone(),
+                    name: name.to_string(),
+                },
+            )) {
                 log::warn!("[preset-save] Command::RenameRigPreset failed: {e}");
             }
             crate::chain_rig_nav_wiring::refresh_chain_rig_nav(window, session);

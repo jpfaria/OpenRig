@@ -19,9 +19,9 @@ fn read_src(relative: &str) -> String {
 fn integrations_wiring_dispatches_set_midi_enabled() {
     let src = read_src("settings/integrations.rs");
     assert!(
-        src.contains("Command::SetMidiEnabled"),
+        src.contains("MidiCommand::SetMidiEnabled"),
         "issue #712: the MIDI master toggle must dispatch \
-         Command::SetMidiEnabled (persists config.yaml midi_enabled with \
+         MidiCommand::SetMidiEnabled (persists config.yaml midi_enabled with \
          GUI/MCP/gRPC parity), not mutate config directly in the callback."
     );
 }
@@ -30,9 +30,9 @@ fn integrations_wiring_dispatches_set_midi_enabled() {
 fn integrations_wiring_dispatches_set_mcp_enabled() {
     let src = read_src("settings/integrations.rs");
     assert!(
-        src.contains("Command::SetMcpEnabled"),
+        src.contains("SettingsCommand::SetMcpEnabled"),
         "issue #712: the MCP master toggle must dispatch \
-         Command::SetMcpEnabled, not mutate config directly in the callback."
+         SettingsCommand::SetMcpEnabled, not mutate config directly in the callback."
     );
 }
 
