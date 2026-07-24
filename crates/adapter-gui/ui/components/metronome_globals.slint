@@ -1,0 +1,47 @@
+// #14 — shared state for the metronome panel.
+//
+// The panel is rendered in two places — the standalone `MetronomeWindow`
+// (windowed desktop) and inline over the chains page (fullscreen / touch) —
+// and both need the same ~16 display values and the same dozen callbacks.
+// Threading all of that through `AppWindow → DesktopMain/TouchMain` as bound
+// properties would add hundreds of lines of forwarding to files that are
+// already over the line-cap. So, like `DiPanel` (#749), the state lives on one
+// global the panel reads directly; the wiring sets it once per window instance.
+import { SelectOption } from "../models.slint";
+
+export global MetronomeBridge {
+    // Whether the inline panel is shown (the standalone window ignores this).
+    in-out property <bool> show;
+
+    // ── Display state, mirrored from the session by the wiring ──
+    in-out property <bool> metronome-enabled;
+    in-out property <float> bpm: 120;
+    in-out property <int> beats-per-bar: 4;
+    in-out property <int> current-beat;
+    in-out property <bool> counting-in;
+    in-out property <int> subdivision-index;
+    in-out property <string> subdivision-label;
+    in-out property <int> timbre-index;
+    in-out property <string> timbre-label;
+    in-out property <float> volume: 0.7;
+    in-out property <bool> count-in;
+    in-out property <int> time-signature-index: 2;
+    in-out property <string> time-signature-label: "4/4";
+    in-out property <[SelectOption]> output-options;
+    in-out property <string> output-key;
+    in-out property <string> output-label;
+
+    // ── Intent, routed to the dispatcher by the wiring ──
+    callback close-metronome();
+    callback toggle-enabled(bool);
+    callback set-bpm(float);
+    callback tap();
+    callback set-time-signature(int);
+    callback set-subdivision(int);
+    callback set-timbre(int);
+    callback set-volume(float);
+    callback set-count-in(bool);
+    callback pick-output(string);
+    callback output-opened();
+    callback output-query(string);
+}

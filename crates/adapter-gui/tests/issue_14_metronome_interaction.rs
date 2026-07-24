@@ -13,9 +13,9 @@
 //! #749 / #761), so what is provable here is that the field opens — the row
 //! click is not, and is not pretended to be.
 
-use adapter_gui::MetronomeWindow;
+use adapter_gui::{MetronomeBridge, MetronomeWindow};
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, LogicalPosition};
+use slint::{ComponentHandle, Global, LogicalPosition};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -50,41 +50,43 @@ fn every_metronome_control_fires_its_callback() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = MetronomeWindow::new().unwrap();
+    // The panel reads its state from the MetronomeBridge global, so drive that.
+    let bridge = MetronomeBridge::get(&w);
     // The window opens on the persisted settings; these are the defaults the
     // wiring pushes in (120 BPM, 4/4, subdivision off, click timbre).
-    w.set_bpm(120.0);
-    w.set_time_signature_index(2);
-    w.set_subdivision_index(0);
-    w.set_timbre_index(0);
-    w.set_count_in(false);
+    bridge.set_bpm(120.0);
+    bridge.set_time_signature_index(2);
+    bridge.set_subdivision_index(0);
+    bridge.set_timbre_index(0);
+    bridge.set_count_in(false);
 
     let powered: Rc<Cell<Option<bool>>> = Rc::new(Cell::new(None));
     let p = powered.clone();
-    w.on_toggle_enabled(move |on| p.set(Some(on)));
+    bridge.on_toggle_enabled(move |on| p.set(Some(on)));
 
     let bpm: Rc<RefCell<Vec<f32>>> = Rc::new(RefCell::new(Vec::new()));
     let b = bpm.clone();
-    w.on_set_bpm(move |v| b.borrow_mut().push(v));
+    bridge.on_set_bpm(move |v| b.borrow_mut().push(v));
 
     let taps = Rc::new(Cell::new(0));
     let t = taps.clone();
-    w.on_tap(move || t.set(t.get() + 1));
+    bridge.on_tap(move || t.set(t.get() + 1));
 
     let count_in: Rc<Cell<Option<bool>>> = Rc::new(Cell::new(None));
     let c = count_in.clone();
-    w.on_set_count_in(move |on| c.set(Some(on)));
+    bridge.on_set_count_in(move |on| c.set(Some(on)));
 
     let time_signature: Rc<Cell<Option<i32>>> = Rc::new(Cell::new(None));
     let ts = time_signature.clone();
-    w.on_set_time_signature(move |i| ts.set(Some(i)));
+    bridge.on_set_time_signature(move |i| ts.set(Some(i)));
 
     let subdivision: Rc<Cell<Option<i32>>> = Rc::new(Cell::new(None));
     let sd = subdivision.clone();
-    w.on_set_subdivision(move |i| sd.set(Some(i)));
+    bridge.on_set_subdivision(move |i| sd.set(Some(i)));
 
     let timbre: Rc<Cell<Option<i32>>> = Rc::new(Cell::new(None));
     let tb = timbre.clone();
-    w.on_set_timbre(move |i| tb.set(Some(i)));
+    bridge.on_set_timbre(move |i| tb.set(Some(i)));
 
     w.show().unwrap();
 
@@ -180,9 +182,10 @@ fn opening_the_output_select_asks_rust_for_the_device_list() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = MetronomeWindow::new().unwrap();
+    let bridge = MetronomeBridge::get(&w);
     let opened = Rc::new(Cell::new(0));
     let o = opened.clone();
-    w.on_output_opened(move || o.set(o.get() + 1));
+    bridge.on_output_opened(move || o.set(o.get() + 1));
     w.show().unwrap();
 
     assert!(
@@ -208,7 +211,7 @@ fn the_open_dropdown_lists_every_output_device() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = MetronomeWindow::new().unwrap();
-    w.set_output_options(slint::ModelRc::new(slint::VecModel::from(vec![
+    MetronomeBridge::get(&w).set_output_options(slint::ModelRc::new(slint::VecModel::from(vec![
         adapter_gui::SelectOption {
             key: "dev:a".into(),
             label: "Scarlett 2i2".into(),

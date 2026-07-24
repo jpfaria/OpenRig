@@ -16,12 +16,15 @@ use slint::{ModelRc, SharedString, VecModel};
 use crate::metronome_events::dispatch;
 use crate::metronome_session::{subdivision_key, timbre_key, time_signature_beats};
 use crate::metronome_wiring::MetronomeCtx;
-use crate::{MetronomeWindow, SelectOption};
+use crate::{MetronomeBridge, SelectOption};
 
-pub(crate) fn wire_controls(metronome_window: &MetronomeWindow, ctx: &MetronomeCtx) {
+/// Connect the tempo row, the four knobs and the count-in pill on one surface's
+/// bridge. Called once per surface (window + inline), so either fires the same
+/// dispatch.
+pub(crate) fn wire_controls(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_set_bpm(move |bpm| {
+        bridge.on_set_bpm(move |bpm| {
             dispatch(
                 &ctx,
                 Command::Metronome(MetronomeCommand::SetMetronomeBpm { bpm }),
@@ -30,13 +33,13 @@ pub(crate) fn wire_controls(metronome_window: &MetronomeWindow, ctx: &MetronomeC
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_tap(move || {
+        bridge.on_tap(move || {
             dispatch(&ctx, Command::Metronome(MetronomeCommand::MetronomeTap));
         });
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_set_time_signature(move |index| {
+        bridge.on_set_time_signature(move |index| {
             dispatch(
                 &ctx,
                 Command::Metronome(MetronomeCommand::SetMetronomeTimeSignature {
@@ -47,7 +50,7 @@ pub(crate) fn wire_controls(metronome_window: &MetronomeWindow, ctx: &MetronomeC
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_set_subdivision(move |index| {
+        bridge.on_set_subdivision(move |index| {
             dispatch(
                 &ctx,
                 Command::Metronome(MetronomeCommand::SetMetronomeSubdivision {
@@ -58,7 +61,7 @@ pub(crate) fn wire_controls(metronome_window: &MetronomeWindow, ctx: &MetronomeC
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_set_timbre(move |index| {
+        bridge.on_set_timbre(move |index| {
             dispatch(
                 &ctx,
                 Command::Metronome(MetronomeCommand::SetMetronomeTimbre {
@@ -69,7 +72,7 @@ pub(crate) fn wire_controls(metronome_window: &MetronomeWindow, ctx: &MetronomeC
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_set_volume(move |volume| {
+        bridge.on_set_volume(move |volume| {
             dispatch(
                 &ctx,
                 Command::Metronome(MetronomeCommand::SetMetronomeVolume { volume }),
@@ -78,7 +81,7 @@ pub(crate) fn wire_controls(metronome_window: &MetronomeWindow, ctx: &MetronomeC
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_set_count_in(move |enabled| {
+        bridge.on_set_count_in(move |enabled| {
             dispatch(
                 &ctx,
                 Command::Metronome(MetronomeCommand::SetMetronomeCountIn { enabled }),
@@ -89,10 +92,10 @@ pub(crate) fn wire_controls(metronome_window: &MetronomeWindow, ctx: &MetronomeC
 
 // ── output device select ────────────────────────────────────────────────
 
-pub(crate) fn wire_output_select(metronome_window: &MetronomeWindow, ctx: &MetronomeCtx) {
+pub(crate) fn wire_output_select(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_output_opened(move || {
+        bridge.on_output_opened(move || {
             // Re-enumerate on open so a device plugged in since the last look
             // shows up; the host list is cached, so this is cheap.
             output_device_ids(&ctx.devices);
@@ -101,13 +104,13 @@ pub(crate) fn wire_output_select(metronome_window: &MetronomeWindow, ctx: &Metro
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_output_query(move |query| {
+        bridge.on_output_query(move |query| {
             publish_output_options(&ctx, query.as_str());
         });
     }
     {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_pick_output(move |key| {
+        bridge.on_pick_output(move |key| {
             dispatch(
                 &ctx,
                 Command::Metronome(MetronomeCommand::SetMetronomeOutput {
@@ -135,12 +138,9 @@ pub(crate) fn output_device_ids(cache: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>)
     }
 }
 
-/// Publish the (filtered) device rows onto the select. Filtering lives here
-/// because Slint has no string `contains`.
+/// Publish the (filtered) device rows onto every surface's select. Filtering
+/// lives here because Slint has no string `contains`.
 fn publish_output_options(ctx: &MetronomeCtx, query: &str) {
-    let Some(mw) = ctx.window.upgrade() else {
-        return;
-    };
     let devices = ctx.devices.borrow();
     let options: Vec<SelectOption> = filter_output_devices(&devices, query)
         .into_iter()
@@ -149,7 +149,11 @@ fn publish_output_options(ctx: &MetronomeCtx, query: &str) {
             label: SharedString::from(d.name.as_str()),
         })
         .collect();
-    mw.set_output_options(ModelRc::new(VecModel::from(options)));
+    // A fresh model per bridge — a ModelRc is single-owner, and both surfaces
+    // read their own copy of the global.
+    ctx.for_each_bridge(|bridge| {
+        bridge.set_output_options(ModelRc::new(VecModel::from(options.clone())));
+    });
 }
 
 /// Case-insensitive substring match on the device name, original order kept.

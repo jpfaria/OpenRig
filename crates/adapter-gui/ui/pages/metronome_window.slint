@@ -1,4 +1,4 @@
-// MetronomeWindow — top-bar utility, issue #14.
+// MetronomeWindow / MetronomePanel — top-bar utility, issue #14.
 //
 // Visual language is the Tuner's: stompbox header with a power footswitch, and
 // an amber LCD as the primary readout. The LCD carries the two things a player
@@ -8,44 +8,22 @@
 // Everything else (time signature, subdivision, timbre, volume) is a rotary
 // knob, matching the pedal vocabulary the rest of the app already speaks. Only
 // the output device, whose list is long and unbounded, uses the shared Select.
+//
+// The panel reads its state from the `MetronomeBridge` global rather than from
+// bound properties, so the same component serves the standalone window and the
+// inline (fullscreen/touch) placement without either one threading ~16 values
+// through the widget tree.
 import { Select } from "../components/select.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
-import { SelectOption } from "../models.slint";
 import { PowerFootSwitch, BeatLamp, ControlCell, PillButton } from "../components/metronome_controls.slint";
+import { MetronomeBridge } from "../components/metronome_globals.slint";
 
 // ── MetronomePanel — reusable content (Window and inline modes) ───────────
 export component MetronomePanel inherits Rectangle {
-    in property <bool> metronome-enabled: false;
-    in property <float> bpm: 120;
-    in property <int> beats-per-bar: 4;
-    in property <int> current-beat: 0;
-    in property <bool> counting-in: false;
-    in property <int> subdivision-index: 0;
-    in property <string> subdivision-label;
-    in property <int> timbre-index: 0;
-    in property <string> timbre-label;
-    in property <float> volume: 0.7;
-    in property <bool> count-in: false;
-    in property <int> time-signature-index: 2;
-    in property <string> time-signature-label: "4/4";
-    in property <[SelectOption]> output-options;
-    in property <string> output-key;
-    in property <string> output-label;
+    // The one per-placement flag: the inline overlay needs a close button, the
+    // standalone window closes via its own chrome.
     in property <bool> show-close-button: false;
-
-    callback close-metronome();
-    callback toggle-enabled(bool);
-    callback set-bpm(float);
-    callback tap();
-    callback set-time-signature(int);
-    callback set-subdivision(int);
-    callback set-timbre(int);
-    callback set-volume(float);
-    callback set-count-in(bool);
-    callback pick-output(string);
-    callback output-opened();
-    callback output-query(string);
 
     background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
 
@@ -64,8 +42,8 @@ export component MetronomePanel inherits Rectangle {
 
         PowerFootSwitch {
             x: 14px; y: (72px - self.height) / 2;
-            active: root.metronome-enabled;
-            toggled => { root.toggle-enabled(!root.metronome-enabled); }
+            active: MetronomeBridge.metronome-enabled;
+            toggled => { MetronomeBridge.toggle-enabled(!MetronomeBridge.metronome-enabled); }
         }
 
         Image {
@@ -105,7 +83,7 @@ export component MetronomePanel inherits Rectangle {
 
             close-ta := TouchArea {
                 mouse-cursor: pointer;
-                clicked => { root.close-metronome(); }
+                clicked => { MetronomeBridge.close-metronome(); }
             }
         }
     }
@@ -116,7 +94,7 @@ export component MetronomePanel inherits Rectangle {
         width: parent.width - 32px;
         height: 168px;
         border-radius: 6px;
-        background: root.metronome-enabled ? #ccaa66 : #776633;
+        background: MetronomeBridge.metronome-enabled ? #ccaa66 : #776633;
         border-width: 1px;
         border-color: #00000099;
         clip: true;
@@ -135,12 +113,12 @@ export component MetronomePanel inherits Rectangle {
             // Slots past the current time signature collapse to zero width, so
             // the lamps stay centred whatever the bar length.
             for slot[idx] in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] : Rectangle {
-                width: idx < root.beats-per-bar ? 16px : 0px;
+                width: idx < MetronomeBridge.beats-per-bar ? 16px : 0px;
                 height: 16px;
-                if idx < root.beats-per-bar : BeatLamp {
-                    lit: root.metronome-enabled && idx == root.current-beat;
+                if idx < MetronomeBridge.beats-per-bar : BeatLamp {
+                    lit: MetronomeBridge.metronome-enabled && idx == MetronomeBridge.current-beat;
                     downbeat: idx == 0;
-                    counting-in: root.counting-in;
+                    counting-in: MetronomeBridge.counting-in;
                 }
             }
         }
@@ -150,7 +128,7 @@ export component MetronomePanel inherits Rectangle {
             x: 0; y: 44px;
             width: parent.width;
             height: 76px;
-            text: Math.round(root.bpm);
+            text: Math.round(MetronomeBridge.bpm);
             color: #2a2008;
             font-family: "Bebas Neue";
             font-size: 76px;
@@ -174,7 +152,7 @@ export component MetronomePanel inherits Rectangle {
         Text {
             x: parent.width - 76px; y: 46px;
             width: 60px; height: 26px;
-            text: root.time-signature-label;
+            text: MetronomeBridge.time-signature-label;
             color: #5a4a1a;
             font-family: "Bebas Neue";
             font-size: 24px;
@@ -182,7 +160,7 @@ export component MetronomePanel inherits Rectangle {
             horizontal-alignment: right;
         }
 
-        if root.counting-in : Text {
+        if MetronomeBridge.counting-in : Text {
             x: 16px; y: 46px;
             width: 90px; height: 26px;
             text: @tr("label-count-in");
@@ -204,19 +182,19 @@ export component MetronomePanel inherits Rectangle {
         PillButton {
             width: 56px;
             label: "−";
-            clicked => { root.set-bpm(root.bpm - 1); }
+            clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm - 1); }
         }
 
         PillButton {
             label: @tr("action-tap-tempo");
             emphasis: true;
-            clicked => { root.tap(); }
+            clicked => { MetronomeBridge.tap(); }
         }
 
         PillButton {
             width: 56px;
             label: "+";
-            clicked => { root.set-bpm(root.bpm + 1); }
+            clicked => { MetronomeBridge.set-bpm(MetronomeBridge.bpm + 1); }
         }
     }
 
@@ -229,52 +207,52 @@ export component MetronomePanel inherits Rectangle {
 
         ControlCell {
             caption: @tr("label-time-signature");
-            value: root.time-signature-label;
+            value: MetronomeBridge.time-signature-label;
             SelectorKnob {
                 x: (parent.width - 64px) / 2; y: 20px;
                 width: 64px; height: 64px;
                 num-options: 7;
-                selected-index: root.time-signature-index;
-                select(i) => { root.set-time-signature(i); }
+                selected-index: MetronomeBridge.time-signature-index;
+                select(i) => { MetronomeBridge.set-time-signature(i); }
             }
         }
 
         ControlCell {
             caption: @tr("label-subdivision");
-            value: root.subdivision-label;
+            value: MetronomeBridge.subdivision-label;
             SelectorKnob {
                 x: (parent.width - 64px) / 2; y: 20px;
                 width: 64px; height: 64px;
                 num-options: 4;
-                selected-index: root.subdivision-index;
-                select(i) => { root.set-subdivision(i); }
+                selected-index: MetronomeBridge.subdivision-index;
+                select(i) => { MetronomeBridge.set-subdivision(i); }
             }
         }
 
         ControlCell {
             caption: @tr("label-timbre");
-            value: root.timbre-label;
+            value: MetronomeBridge.timbre-label;
             SelectorKnob {
                 x: (parent.width - 64px) / 2; y: 20px;
                 width: 64px; height: 64px;
                 num-options: 3;
-                selected-index: root.timbre-index;
-                select(i) => { root.set-timbre(i); }
+                selected-index: MetronomeBridge.timbre-index;
+                select(i) => { MetronomeBridge.set-timbre(i); }
             }
         }
 
         ControlCell {
             caption: @tr("label-click-volume");
-            value: Math.round(root.volume * 100) + "%";
+            value: Math.round(MetronomeBridge.volume * 100) + "%";
             PanelKnob {
                 x: (parent.width - 64px) / 2; y: 20px;
                 width: 64px; height: 64px;
-                value: root.volume;
+                value: MetronomeBridge.volume;
                 min-val: 0.0;
                 max-val: 1.0;
                 step: 0.01;
                 path: "metronome.volume";
-                changed(p, v) => { root.set-volume(v); }
+                changed(p, v) => { MetronomeBridge.set-volume(v); }
             }
         }
     }
@@ -289,16 +267,16 @@ export component MetronomePanel inherits Rectangle {
             x: 0; y: 0;
             width: 132px;
             label: @tr("label-count-in");
-            emphasis: root.count-in;
-            clicked => { root.set-count-in(!root.count-in); }
+            emphasis: MetronomeBridge.count-in;
+            clicked => { MetronomeBridge.set-count-in(!MetronomeBridge.count-in); }
         }
 
         Select {
             x: 142px; y: 0;
             width: parent.width - 142px;
-            options: root.output-options;
-            active-key: root.output-key;
-            field-label: root.output-label;
+            options: MetronomeBridge.output-options;
+            active-key: MetronomeBridge.output-key;
+            field-label: MetronomeBridge.output-label;
             field-icon: @image-url("../assets/headphones.svg");
             placeholder: @tr("placeholder-metronome-output");
             search-placeholder: @tr("placeholder-search-device");
@@ -306,9 +284,9 @@ export component MetronomePanel inherits Rectangle {
             field-font-size: 14px;
             field-font-weight: 600;
             popup-width: parent.width - 142px;
-            picked(key) => { root.pick-output(key); }
-            opened => { root.output-opened(); }
-            query-changed(q) => { root.output-query(q); }
+            picked(key) => { MetronomeBridge.pick-output(key); }
+            opened => { MetronomeBridge.output-opened(); }
+            query-changed(q) => { MetronomeBridge.output-query(q); }
         }
     }
 }
@@ -324,67 +302,9 @@ export component MetronomeWindow inherits Window {
     preferred-height: 500px;
     background: #050608;
 
-    in property <bool> metronome-enabled: false;
-    in property <float> bpm: 120;
-    in property <int> beats-per-bar: 4;
-    in property <int> current-beat: 0;
-    in property <bool> counting-in: false;
-    in property <int> subdivision-index: 0;
-    in property <string> subdivision-label;
-    in property <int> timbre-index: 0;
-    in property <string> timbre-label;
-    in property <float> volume: 0.7;
-    in property <bool> count-in: false;
-    in property <int> time-signature-index: 2;
-    in property <string> time-signature-label: "4/4";
-    in property <[SelectOption]> output-options;
-    in property <string> output-key;
-    in property <string> output-label;
-
-    callback close-metronome-window();
-    callback toggle-enabled(bool);
-    callback set-bpm(float);
-    callback tap();
-    callback set-time-signature(int);
-    callback set-subdivision(int);
-    callback set-timbre(int);
-    callback set-volume(float);
-    callback set-count-in(bool);
-    callback pick-output(string);
-    callback output-opened();
-    callback output-query(string);
-
     MetronomePanel {
         width: 100%;
         height: 100%;
-        metronome-enabled: root.metronome-enabled;
-        bpm: root.bpm;
-        beats-per-bar: root.beats-per-bar;
-        current-beat: root.current-beat;
-        counting-in: root.counting-in;
-        subdivision-index: root.subdivision-index;
-        subdivision-label: root.subdivision-label;
-        timbre-index: root.timbre-index;
-        timbre-label: root.timbre-label;
-        volume: root.volume;
-        count-in: root.count-in;
-        time-signature-index: root.time-signature-index;
-        time-signature-label: root.time-signature-label;
-        output-options: root.output-options;
-        output-key: root.output-key;
-        output-label: root.output-label;
         show-close-button: false;
-        close-metronome => { root.close-metronome-window(); }
-        toggle-enabled(e) => { root.toggle-enabled(e); }
-        set-bpm(v) => { root.set-bpm(v); }
-        tap => { root.tap(); }
-        set-time-signature(i) => { root.set-time-signature(i); }
-        set-subdivision(i) => { root.set-subdivision(i); }
-        set-timbre(i) => { root.set-timbre(i); }
-        set-volume(v) => { root.set-volume(v); }
-        set-count-in(c) => { root.set-count-in(c); }
-        pick-output(k) => { root.pick-output(k); }
-        output-opened => { root.output-opened(); }
-        output-query(q) => { root.output-query(q); }
     }
 }

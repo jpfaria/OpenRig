@@ -19,8 +19,8 @@ use infra_cpal::AudioDeviceDescriptor;
 use slint::SharedString;
 
 use crate::metronome_session::MetronomeSession;
-use crate::metronome_wiring::{start_click, stop_click, MetronomeCtx};
-use crate::MetronomeWindow;
+use crate::metronome_wiring::{set_power_display, start_click, stop_click, MetronomeCtx};
+use crate::MetronomeBridge;
 
 /// Dispatch a metronome command and apply the events it produced.
 pub(crate) fn dispatch(ctx: &MetronomeCtx, cmd: Command) {
@@ -49,13 +49,7 @@ pub(crate) fn apply_events(ctx: &MetronomeCtx, events: Vec<Event>) {
                 } else {
                     stop_click(ctx);
                 }
-                if let Some(mw) = ctx.window.upgrade() {
-                    mw.set_metronome_enabled(enabled);
-                    if !enabled {
-                        mw.set_current_beat(0);
-                        mw.set_counting_in(false);
-                    }
-                }
+                set_power_display(ctx, enabled);
             }
             Event::MetronomeBpmChanged { bpm } => {
                 ctx.session.borrow_mut().set_bpm(bpm);
@@ -119,9 +113,7 @@ pub(crate) fn apply_events(ctx: &MetronomeCtx, events: Vec<Event>) {
             _ => {}
         }
     }
-    if let Some(mw) = ctx.window.upgrade() {
-        render_settings(&mw, ctx);
-    }
+    render_settings(ctx);
 }
 
 /// Hand the current settings to the audio side. Cheap and idempotent: the
@@ -134,32 +126,33 @@ fn push_settings(ctx: &MetronomeCtx) {
     }
 }
 
-/// Mirror the whole session onto the window's properties. One function so no
+/// Mirror the whole session onto one surface's bridge. One function so no
 /// control can forget a derived field (a time signature changes both the label
 /// and the lamp count).
 pub(crate) fn render_settings_from(
-    window: &MetronomeWindow,
+    bridge: &MetronomeBridge,
     session: &MetronomeSession,
     output_label: &str,
 ) {
-    window.set_bpm(session.bpm());
-    window.set_beats_per_bar(session.beats_per_bar() as i32);
-    window.set_time_signature_index(session.time_signature_index());
-    window.set_time_signature_label(SharedString::from(session.time_signature_label()));
-    window.set_subdivision_index(session.subdivision_index());
-    window.set_subdivision_label(SharedString::from(session.subdivision_label()));
-    window.set_timbre_index(session.timbre_index());
-    window.set_timbre_label(SharedString::from(session.timbre_label()));
-    window.set_volume(session.volume());
-    window.set_count_in(session.count_in());
-    window.set_output_key(SharedString::from(session.output_device().unwrap_or("")));
-    window.set_output_label(SharedString::from(output_label));
+    bridge.set_bpm(session.bpm());
+    bridge.set_beats_per_bar(session.beats_per_bar() as i32);
+    bridge.set_time_signature_index(session.time_signature_index());
+    bridge.set_time_signature_label(SharedString::from(session.time_signature_label()));
+    bridge.set_subdivision_index(session.subdivision_index());
+    bridge.set_subdivision_label(SharedString::from(session.subdivision_label()));
+    bridge.set_timbre_index(session.timbre_index());
+    bridge.set_timbre_label(SharedString::from(session.timbre_label()));
+    bridge.set_volume(session.volume());
+    bridge.set_count_in(session.count_in());
+    bridge.set_output_key(SharedString::from(session.output_device().unwrap_or("")));
+    bridge.set_output_label(SharedString::from(output_label));
 }
 
-pub(crate) fn render_settings(window: &MetronomeWindow, ctx: &MetronomeCtx) {
+/// Push the whole session onto every live surface's bridge.
+pub(crate) fn render_settings(ctx: &MetronomeCtx) {
     let session = ctx.session.borrow();
     let label = output_device_label(&ctx.devices, session.output_device());
-    render_settings_from(window, &session, &label);
+    ctx.for_each_bridge(|bridge| render_settings_from(bridge, &session, &label));
 }
 
 /// Display name of the picked device. Falls back to the raw id (a device that

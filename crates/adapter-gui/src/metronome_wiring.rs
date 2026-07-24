@@ -1,8 +1,14 @@
 //! MetronomeWindow wiring (#14) — the single entry point plus the open, close
 //! and power paths for the top-bar metronome. Mirrors `tuner_wiring.rs`.
 //!
-//! The controls live in `metronome_controls_wiring.rs` and the dispatch/event
-//! application in `metronome_events.rs`; two rules shape all three:
+//! The metronome shows in two places — the standalone `MetronomeWindow`
+//! (windowed desktop) and inline over the chains page (fullscreen / touch) —
+//! and both host the same `MetronomePanel`, which reads its state from the
+//! `MetronomeBridge` global. So every state write and every callback here goes
+//! through the bridge of BOTH live surfaces via [`MetronomeCtx::for_each_bridge`]
+//! rather than a single window's properties.
+//!
+//! Two rules shape this file and its siblings:
 //!
 //! * **Every control goes through the dispatcher.** A knob callback dispatches
 //!   its `Command` and reacts to the `Event` that comes back — it never edits
@@ -17,15 +23,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use slint::{ComponentHandle, Timer, TimerMode};
+use slint::{ComponentHandle, Global, Timer, TimerMode};
 
-use crate::helpers::show_child_window;
+use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::metronome_close::metronome_close_commands;
 use crate::metronome_controls_wiring::{output_device_ids, wire_controls, wire_output_select};
 use crate::metronome_events::{dispatch, render_settings};
 use crate::metronome_session::{resolve_output_device, MetronomeSession};
 use crate::state::ProjectSession;
-use crate::{AppWindow, MetronomeWindow};
+use crate::{AppWindow, MetronomeBridge, MetronomeWindow};
 
 use application::command::{Command, MetronomeCommand};
 
@@ -34,13 +40,16 @@ use application::command::{Command, MetronomeCommand};
 const TICK_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
 
 /// Everything the metronome callbacks need to reach. Grouped because there are
-/// eleven callbacks and they all want the same five things.
+/// eleven callbacks and they all want the same handful of things.
 pub(crate) struct MetronomeCtx {
     pub(crate) project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub(crate) project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub(crate) session: Rc<RefCell<MetronomeSession>>,
     pub(crate) timer: Rc<Timer>,
+    /// The standalone window (windowed desktop mode).
     pub(crate) window: slint::Weak<MetronomeWindow>,
+    /// The main window, whose bridge drives the inline panel (fullscreen/touch).
+    pub(crate) main_window: slint::Weak<AppWindow>,
     /// Output devices as published to the select, cached so each keystroke
     /// filters the list instead of re-enumerating the host.
     pub(crate) devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -54,7 +63,20 @@ impl MetronomeCtx {
             session: self.session.clone(),
             timer: self.timer.clone(),
             window: self.window.clone(),
+            main_window: self.main_window.clone(),
             devices: self.devices.clone(),
+        }
+    }
+
+    /// Run `f` against the `MetronomeBridge` of every live surface — the
+    /// standalone window and the inline panel's main window. Both host the same
+    /// panel reading the same global, so a state write has to reach both.
+    pub(crate) fn for_each_bridge(&self, mut f: impl FnMut(&MetronomeBridge)) {
+        if let Some(mw) = self.window.upgrade() {
+            f(&MetronomeBridge::get(&mw));
+        }
+        if let Some(aw) = self.main_window.upgrade() {
+            f(&MetronomeBridge::get(&aw));
         }
     }
 }
@@ -75,14 +97,23 @@ pub fn wire_metronome(
         session: metronome_session.clone(),
         timer: metronome_timer.clone(),
         window: metronome_window.as_weak(),
+        main_window: window.as_weak(),
         devices: Rc::new(RefCell::new(Vec::new())),
     };
 
     wire_open(window, metronome_window, &ctx);
-    wire_close(metronome_window, &ctx);
-    wire_power(metronome_window, &ctx);
-    wire_controls(metronome_window, &ctx);
-    wire_output_select(metronome_window, &ctx);
+    wire_close(window, metronome_window, &ctx);
+
+    // Controls and power live on the bridge, so connect them on BOTH surfaces'
+    // bridges — whichever one the user is looking at fires the same dispatch.
+    for bridge in [
+        MetronomeBridge::get(metronome_window),
+        MetronomeBridge::get(window),
+    ] {
+        wire_power(&bridge, &ctx);
+        wire_controls(&bridge, &ctx);
+        wire_output_select(&bridge, &ctx);
+    }
 }
 
 // ── open / close ────────────────────────────────────────────────────────
@@ -92,34 +123,33 @@ fn wire_open(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &Metro
     let main_window_weak = window.as_weak();
     let ctx = ctx.clone_ctx();
     window.on_open_metronome_window(move || {
-        let (Some(mw), Some(main_w)) =
-            (metronome_window_weak.upgrade(), main_window_weak.upgrade())
-        else {
+        let Some(main_w) = main_window_weak.upgrade() else {
             return;
         };
         // Open in the resting state, like the tuner: the persisted settings are
         // on screen but the click is off until the user presses POWER.
-        render_settings(&mw, &ctx);
-        mw.set_metronome_enabled(false);
-        mw.set_current_beat(0);
-        mw.set_counting_in(false);
-        show_child_window(main_w.window(), mw.window());
+        render_settings(&ctx);
+        set_power_display(&ctx, false);
+
+        if use_inline_block_editor(&main_w) {
+            // Fullscreen / touch: the inline panel is gated by the global.
+            MetronomeBridge::get(&main_w).set_show(true);
+        } else if let Some(mw) = metronome_window_weak.upgrade() {
+            show_child_window(main_w.window(), mw.window());
+        }
     });
 }
 
-fn wire_close(metronome_window: &MetronomeWindow, ctx: &MetronomeCtx) {
-    // The in-panel close button only exists when `MetronomePanel` renders with
-    // `show-close-button: true`; in windowed mode the only way out is the OS
-    // chrome, which Slint routes through `on_close_requested`. Wire BOTH so
-    // neither path leaves the click playing to a hidden window (#544's lesson).
-    {
+fn wire_close(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &MetronomeCtx) {
+    // The panel's close button lives on the bridge; the standalone window can
+    // also be closed via the OS chrome. Wire BOTH so neither path leaves the
+    // click playing to a hidden surface (#544's lesson).
+    for bridge in [
+        MetronomeBridge::get(metronome_window),
+        MetronomeBridge::get(window),
+    ] {
         let ctx = ctx.clone_ctx();
-        metronome_window.on_close_metronome_window(move || {
-            close_metronome(&ctx);
-            if let Some(mw) = ctx.window.upgrade() {
-                let _ = mw.hide();
-            }
-        });
+        bridge.on_close_metronome(move || close_metronome(&ctx));
     }
     {
         let ctx = ctx.clone_ctx();
@@ -137,27 +167,40 @@ fn close_metronome(ctx: &MetronomeCtx) {
     // Defense in depth: with no project session open the dispatch above is a
     // no-op, so stop the stream here too rather than trust the event path.
     stop_click(ctx);
-    if let Some(mw) = ctx.window.upgrade() {
-        mw.set_metronome_enabled(false);
-        mw.set_current_beat(0);
-        mw.set_counting_in(false);
+    set_power_display(ctx, false);
+    // Hide whichever surface was showing: the inline panel (clear `show`) and
+    // the standalone window (hide it).
+    if let Some(aw) = ctx.main_window.upgrade() {
+        MetronomeBridge::get(&aw).set_show(false);
     }
+    if let Some(mw) = ctx.window.upgrade() {
+        let _ = mw.hide();
+    }
+}
+
+/// Reflect the power state (and reset the lamp) on every surface's bridge.
+pub(crate) fn set_power_display(ctx: &MetronomeCtx, enabled: bool) {
+    ctx.for_each_bridge(|bridge| {
+        bridge.set_metronome_enabled(enabled);
+        if !enabled {
+            bridge.set_current_beat(0);
+            bridge.set_counting_in(false);
+        }
+    });
 }
 
 // ── power ───────────────────────────────────────────────────────────────
 
-fn wire_power(metronome_window: &MetronomeWindow, ctx: &MetronomeCtx) {
+fn wire_power(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
     let ctx = ctx.clone_ctx();
-    metronome_window.on_toggle_enabled(move |enabled| {
+    bridge.on_toggle_enabled(move |enabled| {
         dispatch(
             &ctx,
             Command::Metronome(MetronomeCommand::SetMetronomeEnabled { enabled }),
         );
         // With no project open there is no dispatcher and therefore no event —
         // reflect the request on the switch anyway so it never looks stuck.
-        if let Some(mw) = ctx.window.upgrade() {
-            mw.set_metronome_enabled(enabled);
-        }
+        set_power_display(&ctx, enabled);
     });
 }
 
@@ -196,21 +239,21 @@ pub(crate) fn stop_click(ctx: &MetronomeCtx) {
 /// Sample the generator's position onto the beat lamps. Reading the phase (not
 /// a queue of beat events) is what makes a late frame harmless.
 fn start_lamp_timer(ctx: &MetronomeCtx) {
-    let project_runtime = ctx.project_runtime.clone();
-    let window = ctx.window.clone();
+    let ctx = ctx.clone_ctx();
     ctx.timer
+        .clone()
         .start(TimerMode::Repeated, TICK_INTERVAL, move || {
-            let Some(mw) = window.upgrade() else {
-                return;
-            };
-            let Some(position) = project_runtime
+            let Some(position) = ctx
+                .project_runtime
                 .borrow()
                 .as_ref()
                 .map(|rt| rt.metronome_shared().position())
             else {
                 return;
             };
-            mw.set_current_beat(position.beat as i32);
-            mw.set_counting_in(position.counting_in);
+            ctx.for_each_bridge(|bridge| {
+                bridge.set_current_beat(position.beat as i32);
+                bridge.set_counting_in(position.counting_in);
+            });
         });
 }
