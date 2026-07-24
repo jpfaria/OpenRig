@@ -17,7 +17,7 @@ use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -52,11 +52,11 @@ fn issue_537_native_cab_swap_keeps_cab_effect_type() {
     let project = make_project_with_native_cab("american_2x12");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ReplaceBlockModel {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ReplaceBlockModel {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_cab".to_string()),
         model_id: "brit_4x12".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let proj = project.borrow();

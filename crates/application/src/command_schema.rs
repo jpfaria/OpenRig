@@ -35,12 +35,66 @@ fn entry_variant_name(entry: &Value) -> Option<String> {
     entry["const"].as_str().map(str::to_string)
 }
 
-fn variant_entries(root: &Value) -> Vec<Value> {
-    root["oneOf"]
+fn branches(schema: &Value) -> Option<&Vec<Value>> {
+    schema["oneOf"]
         .as_array()
-        .or_else(|| root["anyOf"].as_array())
-        .cloned()
-        .unwrap_or_default()
+        .or_else(|| schema["anyOf"].as_array())
+}
+
+/// The document's definition map, whichever draft `schemars` emitted it under.
+fn definitions(root: &Value) -> Option<&serde_json::Map<String, Value>> {
+    root.get("definitions")
+        .or_else(|| root.get("$defs"))
+        .and_then(Value::as_object)
+}
+
+/// Follow one `anyOf` entry of the untagged `Command` root to the sub-enum it
+/// names, accepting both the bare `{"$ref": …}` and the
+/// `{"allOf": [{"$ref": …}]}` shape `schemars` emits when the variant carries
+/// extra metadata.
+fn resolve_ref<'a>(root: &'a Value, entry: &Value) -> Option<&'a Value> {
+    let reference = entry["$ref"]
+        .as_str()
+        .or_else(|| entry["allOf"][0]["$ref"].as_str())?;
+    let name = reference.rsplit('/').next()?;
+    definitions(root)?.get(name)
+}
+
+/// Push one entry per command, splitting the single string-`enum` entry
+/// `schemars` folds *all* of an enum's unit variants into
+/// (`{"enum":["SaveProject","CloseProject",…]}`) back into one entry each, so
+/// every unit command keeps its own tool.
+fn push_leaf(out: &mut Vec<Value>, entry: &Value) {
+    match entry["enum"].as_array() {
+        Some(names) if names.len() > 1 => out.extend(
+            names
+                .iter()
+                .map(|n| serde_json::json!({ "type": "string", "enum": [n] })),
+        ),
+        _ => out.push(entry.clone()),
+    }
+}
+
+/// Leaf variant entries of `Command`, one per command.
+///
+/// `Command` is `#[serde(untagged)]` over per-domain sub-enums, so the root
+/// schema is `anyOf: [{$ref: BlockCommand}, …]` and the tool surface lives one
+/// level down. Each `$ref` is resolved against the same document and its own
+/// `oneOf` spliced in, flattening back to the pre-split, one-entry-per-command
+/// list every adapter expects. Entries that are not sub-enum refs are kept
+/// as-is so a future inline variant still shows up.
+fn variant_entries(root: &Value) -> Vec<Value> {
+    let Some(top) = branches(root) else {
+        return Vec::new();
+    };
+    let mut leaves = Vec::new();
+    for entry in top {
+        match resolve_ref(root, entry).and_then(branches) {
+            Some(inner) => inner.iter().for_each(|e| push_leaf(&mut leaves, e)),
+            None => push_leaf(&mut leaves, entry),
+        }
+    }
+    leaves
 }
 
 /// All `Command` variant names, derived once from the static schema.
@@ -69,13 +123,19 @@ pub fn command_variant_names() -> &'static [&'static str] {
 /// See issue #489.
 pub fn command_variant_schema(variant: &str) -> Value {
     let root = command_root_schema();
-    let definitions = root.get("definitions").cloned();
+    // Keep the key `schemars` actually used — the `$ref`s point at it by name.
+    let defs_key = if root.get("definitions").is_some() {
+        "definitions"
+    } else {
+        "$defs"
+    };
+    let defs = definitions(&root).cloned();
     for entry in variant_entries(&root) {
         if entry_variant_name(&entry).as_deref() == Some(variant) {
             if let Some(args) = entry["properties"].get(variant) {
                 let mut args = args.clone();
-                if let (Some(obj), Some(defs)) = (args.as_object_mut(), definitions) {
-                    obj.insert("definitions".to_string(), defs);
+                if let (Some(obj), Some(defs)) = (args.as_object_mut(), defs) {
+                    obj.insert(defs_key.to_string(), Value::Object(defs));
                 }
                 return args;
             }

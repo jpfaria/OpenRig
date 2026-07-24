@@ -1,5 +1,5 @@
-//! Task 5 — RED-FIRST test for `Command::SetChainDiLoopSource` and
-//! `Command::SetChainDiLoopEnabled`.
+//! Task 5 — RED-FIRST test for `ChainCommand::SetChainDiLoopSource` and
+//! `ChainCommand::SetChainDiLoopEnabled`.
 //!
 //! These commands are ephemeral (not persisted to the project) and distinct
 //! from any project-level DI configuration (#324). The test mirrors the
@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
@@ -65,10 +65,10 @@ fn set_chain_di_loop_source_valid_file_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let mut events = dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: ChainId("chain_0".to_string()),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed for a valid WAV");
 
     // #693: the decode runs on its own task — the completion event
@@ -102,18 +102,18 @@ fn set_chain_di_loop_enabled_true_after_source_emits_event() {
 
     // Load a source first.
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: ChainId("chain_0".to_string()),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("source must load");
 
     // Enable it.
     let events = dispatcher
-        .dispatch(Command::SetChainDiLoopEnabled {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
             chain: ChainId("chain_0".to_string()),
             enabled: true,
-        })
+        }))
         .expect("SetChainDiLoopEnabled true must succeed");
 
     assert!(
@@ -134,10 +134,10 @@ fn set_chain_di_loop_enabled_false_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let events = dispatcher
-        .dispatch(Command::SetChainDiLoopEnabled {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
             chain: ChainId("chain_0".to_string()),
             enabled: false,
-        })
+        }))
         .expect("SetChainDiLoopEnabled false must succeed");
 
     assert!(
@@ -157,10 +157,10 @@ fn set_chain_di_loop_source_missing_file_returns_err() {
     let project = make_project("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetChainDiLoopSource {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
         chain: ChainId("chain_0".to_string()),
         source: DiLoopSource::File(std::path::PathBuf::from("/nonexistent/di.wav")),
-    });
+    }));
 
     assert!(result.is_err(), "missing file must return Err, not Ok");
 }
@@ -175,10 +175,10 @@ fn set_chain_di_loop_source_missing_chain_returns_err() {
     let project = make_project("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetChainDiLoopSource {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
         chain: ChainId("chain_MISSING".to_string()),
         source: DiLoopSource::File(wav),
-    });
+    }));
 
     assert!(result.is_err(), "missing chain must return Err");
 }
@@ -189,10 +189,10 @@ fn set_chain_di_loop_enabled_missing_chain_returns_err() {
     let project = make_project("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetChainDiLoopEnabled {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
         chain: ChainId("chain_MISSING".to_string()),
         enabled: true,
-    });
+    }));
 
     assert!(result.is_err(), "missing chain for enable must return Err");
 }

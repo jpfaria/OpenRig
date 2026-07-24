@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use crate::command::Command;
+use crate::command::{Command, ProjectCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -21,7 +21,7 @@ fn close_project_emits_project_closed_event() {
         midi: None,
     })));
     let events = disp
-        .dispatch(Command::CloseProject)
+        .dispatch(Command::Project(ProjectCommand::CloseProject))
         .expect("CloseProject deve ok");
     assert!(
         events.iter().any(|e| matches!(e, Event::ProjectClosed)),

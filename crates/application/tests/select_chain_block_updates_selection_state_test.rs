@@ -1,5 +1,5 @@
 //! Phase 6 GUI sync red-first (issue #548): dispatching
-//! `Command::SelectChainBlock` (the click callback the GUI already
+//! `SelectionCommand::SelectChainBlock` (the click callback the GUI already
 //! sends) must also update `SelectionState::active_chain` and
 //! `active_block`, so the MIDI daemon's snapshot mirrors what the user
 //! clicked — without that, "active-chain" slots (prev_preset, etc.)
@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::ChainId;
@@ -46,10 +46,10 @@ fn select_chain_block_writes_active_chain_into_selection_state() {
     assert!(sel.read().unwrap().active_chain.is_none());
 
     dispatcher
-        .dispatch(Command::SelectChainBlock {
+        .dispatch(Command::Selection(SelectionCommand::SelectChainBlock {
             chain: ChainId("chain_x".to_string()),
             block_index: 0,
-        })
+        }))
         .unwrap();
 
     let s = sel.read().unwrap();

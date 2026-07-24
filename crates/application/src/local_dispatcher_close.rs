@@ -1,4 +1,4 @@
-//! #436 E — `Command::CloseProject`: voltar ao launcher (fechar o
+//! #436 E — `ProjectCommand::CloseProject`: voltar ao launcher (fechar o
 //! projeto, parar runtime, soltar a sessão) é negócio. Precedente
 //! `SaveProject`: o adapter faz o teardown de runtime/sessão; o
 //! dispatcher registra a intenção e sinaliza via
@@ -7,17 +7,17 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{Command, ProjectCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    /// `Command::CloseProject` — registra a intenção e sinaliza
+    /// `ProjectCommand::CloseProject` — registra a intenção e sinaliza
     /// `Event::ProjectClosed`. O teardown de runtime + drop da sessão
     /// é do adapter (precedente `SaveProject`).
     pub(crate) fn handle_close_project(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::CloseProject => Ok(vec![Event::ProjectClosed]),
+            Command::Project(ProjectCommand::CloseProject) => Ok(vec![Event::ProjectClosed]),
             other => {
                 unreachable!("handle_close_project received non-close command: {other:?}")
             }

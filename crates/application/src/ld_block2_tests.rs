@@ -12,12 +12,12 @@ fn pick_block_parameter_file_writes_path_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     use std::path::PathBuf;
-    let result = dispatcher.dispatch(Command::PickBlockParameterFile {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::PickBlockParameterFile {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "ir_path".to_string(),
         file: PathBuf::from("/new/file.wav"),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -49,12 +49,12 @@ fn pick_block_parameter_file_non_existent_block_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::PickBlockParameterFile {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::PickBlockParameterFile {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         path: "ir_path".to_string(),
         file: PathBuf::from("/new/file.wav"),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     let proj = project.borrow();
@@ -75,12 +75,12 @@ fn pick_block_parameter_file_non_existent_path_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::PickBlockParameterFile {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::PickBlockParameterFile {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "no_such_param".to_string(),
         file: PathBuf::from("/new/file.wav"),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing path, got Ok");
     let err_msg = result.unwrap_err().to_string();
@@ -127,10 +127,10 @@ fn remove_block_removes_block_and_emits_event() {
     let project = make_project_two_blocks("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::RemoveBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::RemoveBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -161,10 +161,10 @@ fn remove_block_non_existent_block_returns_err() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::RemoveBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::RemoveBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     assert_eq!(
@@ -179,10 +179,10 @@ fn remove_block_non_existent_chain_returns_err() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::RemoveBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::RemoveBlock {
         chain: ChainId("chain_MISSING".to_string()),
         block: BlockId("blk_0".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     assert_eq!(
@@ -222,11 +222,11 @@ fn move_block_reorders_blocks_and_emits_event() {
     let project = make_project_three_blocks("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::MoveBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::MoveBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_2".to_string()),
         new_position: 0,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -255,11 +255,11 @@ fn move_block_past_end_clamps_to_end() {
     let project = make_project_three_blocks("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::MoveBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::MoveBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         new_position: 999,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let proj = project.borrow();
@@ -280,11 +280,11 @@ fn move_block_non_existent_block_returns_err() {
     let project = make_project_three_blocks("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::MoveBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::MoveBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         new_position: 0,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     let proj = project.borrow();
@@ -308,12 +308,12 @@ fn add_block_inserts_block_and_emits_event() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::AddBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::AddBlock {
         chain: ChainId("chain_0".to_string()),
         kind: "gain".to_string(),
         model_id: "fuzz_ge".to_string(),
         position: 0,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -340,12 +340,12 @@ fn add_block_past_end_clamps_to_end() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::AddBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::AddBlock {
         chain: ChainId("chain_0".to_string()),
         kind: "gain".to_string(),
         model_id: "fuzz_ge".to_string(),
         position: 999,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let proj = project.borrow();
@@ -366,12 +366,12 @@ fn add_block_non_existent_chain_returns_err() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::AddBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::AddBlock {
         chain: ChainId("chain_MISSING".to_string()),
         kind: "gain".to_string(),
         model_id: "fuzz_ge".to_string(),
         position: 0,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     assert_eq!(
@@ -386,12 +386,12 @@ fn add_block_unknown_model_returns_err() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::AddBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::AddBlock {
         chain: ChainId("chain_0".to_string()),
         kind: "gain".to_string(),
         model_id: "no_such_model".to_string(),
         position: 0,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for unknown model, got Ok");
     assert_eq!(
@@ -408,11 +408,11 @@ fn replace_block_model_swaps_kind_preserves_id_enabled_and_emits_event() {
     let project = make_project("chain_0", make_core_block("blk_0", false));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ReplaceBlockModel {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ReplaceBlockModel {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         model_id: "fuzz_ge".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -450,11 +450,11 @@ fn replace_block_model_non_existent_block_returns_err() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ReplaceBlockModel {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ReplaceBlockModel {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         model_id: "fuzz_ge".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
 }
@@ -464,11 +464,11 @@ fn replace_block_model_unknown_model_returns_err() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ReplaceBlockModel {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ReplaceBlockModel {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         model_id: "no_such_model_xyz".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for unknown model, got Ok");
     // Kind must not be mutated
@@ -483,4 +483,3 @@ fn replace_block_model_unknown_model_returns_err() {
 // `tests/issue_537_replace_block_model_native_cab.rs` (sibling to the
 // disk-package fixture test). Kept out of this file because the file is
 // already past the 600-line cap.
-

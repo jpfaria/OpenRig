@@ -1,4 +1,4 @@
-//! Red-first (#436 sweep): `Command::RegisterRecentProject` /
+//! Red-first (#436 sweep): `ProjectCommand::RegisterRecentProject` /
 //! `MarkRecentProjectInvalid` despacham e emitem
 //! `Event::RecentProjectRegistered` / `RecentProjectInvalidated`.
 //! Precedente `SaveProject` (persistência no adapter).
@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use crate::command::Command;
+use crate::command::{Command, ProjectCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -26,10 +26,10 @@ fn dispatcher() -> LocalDispatcher {
 #[test]
 fn register_recent_project_emits_event() {
     let events = dispatcher()
-        .dispatch(Command::RegisterRecentProject {
+        .dispatch(Command::Project(ProjectCommand::RegisterRecentProject {
             path: PathBuf::from("/p/a.yaml"),
             name: "A".to_string(),
-        })
+        }))
         .expect("RegisterRecentProject deve ok");
     assert!(
         events.iter().any(|e| matches!(
@@ -44,10 +44,10 @@ fn register_recent_project_emits_event() {
 #[test]
 fn mark_recent_project_invalid_emits_event() {
     let events = dispatcher()
-        .dispatch(Command::MarkRecentProjectInvalid {
+        .dispatch(Command::Project(ProjectCommand::MarkRecentProjectInvalid {
             path: PathBuf::from("/p/b.yaml"),
             reason: "gone".to_string(),
-        })
+        }))
         .expect("MarkRecentProjectInvalid deve ok");
     assert!(
         events.iter().any(|e| matches!(

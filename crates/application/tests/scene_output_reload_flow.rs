@@ -22,7 +22,7 @@ use project::project::Project;
 use project::rig::{RigInput, RigPreset, RigProject};
 use project::rig_sync::sync_synthetic_into_rig;
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -203,10 +203,10 @@ fn full_simulated_save_then_reload_after_rig_nav_drops_output_today() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     // 1) dispatch a scene step (live action)
-    let _ = dispatcher.dispatch(Command::ApplyRigNav {
+    let _ = dispatcher.dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
         chain: ChainId(CHAIN_ID.into()),
         kind: application::command::RigNavKind::StepScene(1),
-    });
+    }));
     assert_eq!(
         outputs_count_for_chain_id(&project.borrow(), CHAIN_ID),
         1,

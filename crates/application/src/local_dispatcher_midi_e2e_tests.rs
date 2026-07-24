@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::command::{Command, RigNavKind};
+use crate::command::{BlockCommand, ChainCommand, Command, RigNavKind, SelectionCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -99,8 +99,10 @@ fn active_block(d: &LocalDispatcher) -> Option<String> {
 #[test]
 fn bank1_a_prev_chain_seeds_first_when_none_active() {
     let d = dispatcher_with(vec![chain("a", &[]), chain("b", &[])]);
-    d.dispatch(Command::SelectActiveChainRelative { delta: -1 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveChainRelative { delta: -1 },
+    ))
+    .unwrap();
     assert_eq!(active_chain(&d).as_deref(), Some("a"));
 }
 
@@ -108,8 +110,10 @@ fn bank1_a_prev_chain_seeds_first_when_none_active() {
 fn bank1_a_prev_chain_wraps_from_first_to_last() {
     let d = dispatcher_with(vec![chain("a", &[]), chain("b", &[]), chain("c", &[])]);
     set_active(&d, Some("a"), None);
-    d.dispatch(Command::SelectActiveChainRelative { delta: -1 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveChainRelative { delta: -1 },
+    ))
+    .unwrap();
     assert_eq!(active_chain(&d).as_deref(), Some("c"));
 }
 
@@ -117,8 +121,10 @@ fn bank1_a_prev_chain_wraps_from_first_to_last() {
 fn bank1_d_next_chain_wraps_from_last_to_first() {
     let d = dispatcher_with(vec![chain("a", &[]), chain("b", &[])]);
     set_active(&d, Some("b"), None);
-    d.dispatch(Command::SelectActiveChainRelative { delta: 1 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveChainRelative { delta: 1 },
+    ))
+    .unwrap();
     assert_eq!(active_chain(&d).as_deref(), Some("a"));
 }
 
@@ -126,7 +132,9 @@ fn bank1_d_next_chain_wraps_from_last_to_first() {
 fn bank1_chain_step_emits_project_mutated_so_gui_renders() {
     let d = dispatcher_with(vec![chain("a", &[])]);
     let events = d
-        .dispatch(Command::SelectActiveChainRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        ))
         .unwrap();
     assert!(events.iter().any(|e| matches!(e, Event::ProjectMutated)));
 }
@@ -139,9 +147,9 @@ fn bank1_b_toggle_chain_enabled_flips_and_mirrors_snapshot() {
         let st = d.selection_state();
         st.write().unwrap().active_chain_enabled = true;
     }
-    d.dispatch(Command::ToggleChainEnabled {
+    d.dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
         chain: ChainId("a".to_string()),
-    })
+    }))
     .unwrap();
     assert!(!d.selection_state().read().unwrap().active_chain_enabled);
 }
@@ -149,11 +157,15 @@ fn bank1_b_toggle_chain_enabled_flips_and_mirrors_snapshot() {
 #[test]
 fn bank1_c_toggle_compact_view_flips_snapshot() {
     let d = dispatcher_with(vec![chain("a", &[])]);
-    d.dispatch(Command::SetCompactViewEnabled { enabled: true })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SetCompactViewEnabled { enabled: true },
+    ))
+    .unwrap();
     assert!(d.selection_state().read().unwrap().compact_view_enabled);
-    d.dispatch(Command::SetCompactViewEnabled { enabled: false })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SetCompactViewEnabled { enabled: false },
+    ))
+    .unwrap();
     assert!(!d.selection_state().read().unwrap().compact_view_enabled);
 }
 
@@ -165,10 +177,10 @@ fn bank2_step_preset_command_reaches_rig_handler() {
     // with "rig". Either Ok (with a rig) or Err containing "rig" proves
     // the command reached the rig arm instead of being silently dropped.
     let d = dispatcher_with(vec![chain("a", &[])]);
-    let result = d.dispatch(Command::ApplyRigNav {
+    let result = d.dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
         chain: ChainId("a".to_string()),
         kind: RigNavKind::StepPreset(1),
-    });
+    }));
     assert!(
         result.is_ok() || result.unwrap_err().to_string().contains("rig"),
         "ApplyRigNav must reach the rig handler"
@@ -178,10 +190,10 @@ fn bank2_step_preset_command_reaches_rig_handler() {
 #[test]
 fn bank2_jump_preset_n_routes_through_rig_handler_too() {
     let d = dispatcher_with(vec![chain("a", &[])]);
-    let result = d.dispatch(Command::ApplyRigNav {
+    let result = d.dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
         chain: ChainId("a".to_string()),
         kind: RigNavKind::Preset(7),
-    });
+    }));
     assert!(
         result.is_ok() || result.unwrap_err().to_string().contains("rig"),
         "Jump variant must reach the rig handler"
@@ -194,8 +206,10 @@ fn bank2_jump_preset_n_routes_through_rig_handler_too() {
 fn bank3_a_prev_block_2_skips_io_in_six_block_chain() {
     let d = dispatcher_with(vec![chain("g", &["b0", "b1", "b2", "b3", "b4", "b5"])]);
     set_active(&d, Some("g"), Some("b2"));
-    d.dispatch(Command::SelectActiveBlockRelative { delta: -2 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveBlockRelative { delta: -2 },
+    ))
+    .unwrap();
     assert_eq!(active_block(&d).as_deref(), Some("b0"));
 }
 
@@ -203,8 +217,10 @@ fn bank3_a_prev_block_2_skips_io_in_six_block_chain() {
 fn bank3_d_next_block_2_skips_io_and_wraps() {
     let d = dispatcher_with(vec![chain("g", &["b0", "b1", "b2"])]);
     set_active(&d, Some("g"), Some("b1"));
-    d.dispatch(Command::SelectActiveBlockRelative { delta: 2 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveBlockRelative { delta: 2 },
+    ))
+    .unwrap();
     assert_eq!(active_block(&d).as_deref(), Some("b0"));
 }
 
@@ -216,10 +232,10 @@ fn bank3_b_toggle_active_block_flips_and_mirrors() {
         let st = d.selection_state();
         st.write().unwrap().active_block_enabled = true;
     }
-    d.dispatch(Command::ToggleBlockEnabled {
+    d.dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
         chain: ChainId("g".to_string()),
         block: BlockId("b0".to_string()),
-    })
+    }))
     .unwrap();
     assert!(!d.selection_state().read().unwrap().active_block_enabled);
 }
@@ -228,8 +244,10 @@ fn bank3_b_toggle_active_block_flips_and_mirrors() {
 fn bank3_c_toggle_neighbor_flips_block_after_active() {
     let d = dispatcher_with(vec![chain("g", &["b0", "b1", "b2"])]);
     set_active(&d, Some("g"), Some("b0"));
-    d.dispatch(Command::ToggleActiveBlockNeighborEnabled)
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::ToggleActiveBlockNeighborEnabled,
+    ))
+    .unwrap();
     let proj = d.project.borrow();
     let b1 = proj.chains[0]
         .blocks
@@ -243,13 +261,17 @@ fn bank3_c_toggle_neighbor_flips_block_after_active() {
 fn bank3_c_toggle_neighbor_noop_without_active_chain_or_block() {
     let d = dispatcher_with(vec![chain("g", &["b0"])]);
     let events = d
-        .dispatch(Command::ToggleActiveBlockNeighborEnabled)
+        .dispatch(Command::Selection(
+            SelectionCommand::ToggleActiveBlockNeighborEnabled,
+        ))
         .unwrap();
     assert!(events.is_empty());
 
     set_active(&d, Some("g"), None);
     let events = d
-        .dispatch(Command::ToggleActiveBlockNeighborEnabled)
+        .dispatch(Command::Selection(
+            SelectionCommand::ToggleActiveBlockNeighborEnabled,
+        ))
         .unwrap();
     assert!(events.is_empty());
 }
@@ -260,32 +282,45 @@ fn bank3_c_toggle_neighbor_noop_without_active_chain_or_block() {
 fn bank4_a_toggle_tuner_round_trip() {
     let d = dispatcher_with(vec![chain("a", &[])]);
     assert!(!d.selection_state().read().unwrap().tuner_enabled);
-    d.dispatch(Command::SetTunerEnabled { enabled: true })
-        .unwrap();
+    d.dispatch(Command::Selection(SelectionCommand::SetTunerEnabled {
+        enabled: true,
+    }))
+    .unwrap();
     assert!(d.selection_state().read().unwrap().tuner_enabled);
-    d.dispatch(Command::SetTunerEnabled { enabled: false })
-        .unwrap();
+    d.dispatch(Command::Selection(SelectionCommand::SetTunerEnabled {
+        enabled: false,
+    }))
+    .unwrap();
     assert!(!d.selection_state().read().unwrap().tuner_enabled);
 }
 
 #[test]
 fn bank4_b_toggle_output_mute_round_trip() {
     let d = dispatcher_with(vec![chain("a", &[])]);
-    d.dispatch(Command::SetOutputMuted { muted: true }).unwrap();
+    d.dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+        muted: true,
+    }))
+    .unwrap();
     assert!(d.selection_state().read().unwrap().output_muted);
-    d.dispatch(Command::SetOutputMuted { muted: false })
-        .unwrap();
+    d.dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+        muted: false,
+    }))
+    .unwrap();
     assert!(!d.selection_state().read().unwrap().output_muted);
 }
 
 #[test]
 fn bank4_c_toggle_spectrum_round_trip() {
     let d = dispatcher_with(vec![chain("a", &[])]);
-    d.dispatch(Command::SetSpectrumEnabled { enabled: true })
-        .unwrap();
+    d.dispatch(Command::Selection(SelectionCommand::SetSpectrumEnabled {
+        enabled: true,
+    }))
+    .unwrap();
     assert!(d.selection_state().read().unwrap().spectrum_enabled);
-    d.dispatch(Command::SetSpectrumEnabled { enabled: false })
-        .unwrap();
+    d.dispatch(Command::Selection(SelectionCommand::SetSpectrumEnabled {
+        enabled: false,
+    }))
+    .unwrap();
     assert!(!d.selection_state().read().unwrap().spectrum_enabled);
 }
 
@@ -294,19 +329,27 @@ fn each_toggle_emits_its_own_event_for_gui_refresh() {
     let d = dispatcher_with(vec![chain("a", &[])]);
 
     let ev = d
-        .dispatch(Command::SetTunerEnabled { enabled: true })
+        .dispatch(Command::Selection(SelectionCommand::SetTunerEnabled {
+            enabled: true,
+        }))
         .unwrap();
     assert!(ev
         .iter()
         .any(|e| matches!(e, Event::TunerEnabledChanged { .. })));
 
-    let ev = d.dispatch(Command::SetOutputMuted { muted: true }).unwrap();
+    let ev = d
+        .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+            muted: true,
+        }))
+        .unwrap();
     assert!(ev
         .iter()
         .any(|e| matches!(e, Event::OutputMutedChanged { .. })));
 
     let ev = d
-        .dispatch(Command::SetSpectrumEnabled { enabled: true })
+        .dispatch(Command::Selection(SelectionCommand::SetSpectrumEnabled {
+            enabled: true,
+        }))
         .unwrap();
     assert!(ev
         .iter()
@@ -319,8 +362,10 @@ fn each_toggle_emits_its_own_event_for_gui_refresh() {
 fn switching_chains_via_midi_clears_active_block() {
     let d = dispatcher_with(vec![chain("a", &["a0", "a1"]), chain("b", &["b0"])]);
     set_active(&d, Some("a"), Some("a1"));
-    d.dispatch(Command::SelectActiveChainRelative { delta: 1 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveChainRelative { delta: 1 },
+    ))
+    .unwrap();
     assert_eq!(active_chain(&d).as_deref(), Some("b"));
     assert!(active_block(&d).is_none());
 }
@@ -328,10 +373,10 @@ fn switching_chains_via_midi_clears_active_block() {
 #[test]
 fn gui_click_select_chain_block_populates_active_chain_and_block() {
     let d = dispatcher_with(vec![chain("g", &["b0", "b1"])]);
-    d.dispatch(Command::SelectChainBlock {
+    d.dispatch(Command::Selection(SelectionCommand::SelectChainBlock {
         chain: ChainId("g".to_string()),
         block_index: 1, // 0 = Input, 1 = first audio
-    })
+    }))
     .unwrap();
     assert_eq!(active_chain(&d).as_deref(), Some("g"));
     assert_eq!(active_block(&d).as_deref(), Some("b0"));
@@ -341,16 +386,20 @@ fn gui_click_select_chain_block_populates_active_chain_and_block() {
 fn chain_with_only_io_blocks_block_nav_is_noop() {
     let d = dispatcher_with(vec![chain("empty", &[])]);
     set_active(&d, Some("empty"), None);
-    d.dispatch(Command::SelectActiveBlockRelative { delta: 1 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveBlockRelative { delta: 1 },
+    ))
+    .unwrap();
     assert!(active_block(&d).is_none());
 }
 
 #[test]
 fn block_nav_without_active_chain_is_noop() {
     let d = dispatcher_with(vec![chain("a", &["b0"])]);
-    d.dispatch(Command::SelectActiveBlockRelative { delta: 1 })
-        .unwrap();
+    d.dispatch(Command::Selection(
+        SelectionCommand::SelectActiveBlockRelative { delta: 1 },
+    ))
+    .unwrap();
     assert!(active_chain(&d).is_none());
     assert!(active_block(&d).is_none());
 }

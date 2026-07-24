@@ -16,7 +16,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use application::bridge::{self, QueryKind};
-use application::command::Command;
+use application::command::{Command, ProjectCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use application::publishing_dispatcher::PublishingDispatcher;
@@ -35,9 +35,9 @@ fn issue_693_project_yaml_query_resolves_without_frontend_tick() {
     })));
     let (sink, _events) = bridge::event_sink();
     let pd = PublishingDispatcher::new(inner, sink);
-    pd.dispatch(Command::UpdateProjectName {
+    pd.dispatch(Command::Project(ProjectCommand::UpdateProjectName {
         name: "issue 693 api reads".into(),
-    })
+    }))
     .expect("dispatch UpdateProjectName");
 
     // The frontend NEVER drains queries here — no `serve_queries`, no

@@ -61,9 +61,19 @@ fn reports_metrics_json_for_a_clean_chain() {
     let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
     let q = &v["quality"];
     assert!(q.is_object(), "envelope has a quality object: {out}");
-    assert!(q["thd_n"].as_f64().unwrap() < 0.05, "clean chain low THD+N: {out}");
-    assert!(q["noise_floor_dbfs"].as_f64().unwrap() <= -100.0, "low noise floor: {out}");
-    assert_eq!(q["clip_fraction"].as_f64().unwrap(), 0.0, "no clipping: {out}");
+    assert!(
+        q["thd_n"].as_f64().unwrap() < 0.05,
+        "clean chain low THD+N: {out}"
+    );
+    assert!(
+        q["noise_floor_dbfs"].as_f64().unwrap() <= -100.0,
+        "low noise floor: {out}"
+    );
+    assert_eq!(
+        q["clip_fraction"].as_f64().unwrap(),
+        0.0,
+        "no clipping: {out}"
+    );
 }
 
 #[test]

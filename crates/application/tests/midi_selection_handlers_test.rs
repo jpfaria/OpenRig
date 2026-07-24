@@ -14,7 +14,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::ChainId;
@@ -64,19 +64,25 @@ fn select_active_chain_relative_advances_and_wraps() {
     dispatcher.selection_state().write().unwrap().active_chain = Some("chain_a".to_string());
 
     dispatcher
-        .dispatch(Command::SelectActiveChainRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        ))
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(sel.read().unwrap().active_chain.as_deref(), Some("chain_b"));
 
     dispatcher
-        .dispatch(Command::SelectActiveChainRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        ))
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(sel.read().unwrap().active_chain.as_deref(), Some("chain_c"));
 
     dispatcher
-        .dispatch(Command::SelectActiveChainRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        ))
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
@@ -86,7 +92,9 @@ fn select_active_chain_relative_advances_and_wraps() {
     );
 
     dispatcher
-        .dispatch(Command::SelectActiveChainRelative { delta: -1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: -1 },
+        ))
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
@@ -108,7 +116,9 @@ fn select_active_chain_relative_clears_active_block_on_change() {
     }
 
     dispatcher
-        .dispatch(Command::SelectActiveChainRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        ))
         .unwrap();
 
     let sel = sel_handle.read().unwrap();
@@ -125,7 +135,9 @@ fn select_active_chain_relative_seeds_first_when_none_active() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     // no active chain yet (fresh load)
     dispatcher
-        .dispatch(Command::SelectActiveChainRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        ))
         .unwrap();
     let sel = dispatcher.selection_state();
     assert_eq!(
@@ -148,7 +160,9 @@ fn set_compact_view_enabled_stores_the_flag() {
     );
 
     dispatcher
-        .dispatch(Command::SetCompactViewEnabled { enabled: true })
+        .dispatch(Command::Selection(
+            SelectionCommand::SetCompactViewEnabled { enabled: true },
+        ))
         .unwrap();
     assert!(
         dispatcher
@@ -159,7 +173,9 @@ fn set_compact_view_enabled_stores_the_flag() {
     );
 
     dispatcher
-        .dispatch(Command::SetCompactViewEnabled { enabled: false })
+        .dispatch(Command::Selection(
+            SelectionCommand::SetCompactViewEnabled { enabled: false },
+        ))
         .unwrap();
     assert!(
         !dispatcher

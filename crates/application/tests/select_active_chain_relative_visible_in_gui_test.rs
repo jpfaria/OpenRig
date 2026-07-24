@@ -11,7 +11,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::local_dispatcher::LocalDispatcher;
@@ -43,7 +43,9 @@ fn midi_chain_step_seeds_legacy_selection_map_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let events = dispatcher
-        .dispatch(Command::SelectActiveChainRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        ))
         .unwrap();
 
     // The dispatcher's SelectionState is the single source the GUI, MIDI,

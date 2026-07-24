@@ -8,7 +8,7 @@ use anyhow::Result;
 use infra_yaml::{save_chain_preset_file, ChainBlocksPreset};
 use project::block::{AudioBlock, AudioBlockKind};
 
-use crate::command::Command;
+use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 use crate::preset_file::preset_save_path;
@@ -30,7 +30,7 @@ impl LocalDispatcher {
             // disk touch runs on the persist worker so the dispatching
             // thread never waits on I/O. Errors surface via the
             // non-blocking logger.
-            Command::SaveChainPreset { chain, name } => {
+            Command::Chain(ChainCommand::SaveChainPreset { chain, name }) => {
                 if let Some(dir) = self.presets_path.borrow().clone() {
                     let project = self.project.borrow();
                     let target =
@@ -63,7 +63,7 @@ impl LocalDispatcher {
                 }
                 Ok(vec![Event::ChainPresetSaved { name }])
             }
-            Command::DeleteChainPreset { name } => {
+            Command::Chain(ChainCommand::DeleteChainPreset { name }) => {
                 if let Some(dir) = self.presets_path.borrow().as_ref() {
                     let path = preset_save_path(dir, &name);
                     crate::persist_worker::run(move || {

@@ -3,12 +3,12 @@
 //! chain to "INVALID PROJECT: chain 'rig:input-4' has no output blocks".
 //!
 //! Hypothesis: the preset-switch path the dropdown triggers is
-//! `Command::LoadChainPreset` (preset_blocks intentionally I/O-stripped),
+//! `ChainCommand::LoadChainPreset` (preset_blocks intentionally I/O-stripped),
 //! and the handler replaces `chain.blocks` outright without preserving
 //! the existing I/O. The dispatcher fix in `local_dispatcher_rig.rs`
 //! only covers `ApplyRigNav`, so LoadChainPreset still wipes outputs.
 //!
-//! This RED test calls `Command::LoadChainPreset` with I/O-less preset
+//! This RED test calls `ChainCommand::LoadChainPreset` with I/O-less preset
 //! blocks and asserts the chain still has its user-configured output
 //! after the dispatch.
 
@@ -21,7 +21,7 @@ use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -124,11 +124,11 @@ fn load_chain_preset_with_io_less_payload_preserves_user_output() {
     // the file contains only the effect chain. The dispatcher must merge
     // those effect blocks with the chain's existing I/O endpoints.
     let preset_blocks = vec![core("preset:1"), core("preset:2")];
-    let _ = d.dispatch(Command::LoadChainPreset {
+    let _ = d.dispatch(Command::Chain(ChainCommand::LoadChainPreset {
         chain: ChainId(CHAIN_ID.into()),
         preset_instrument: "electric_guitar".to_string(),
         preset_blocks,
-    });
+    }));
 
     assert_eq!(
         outputs_count(&p),

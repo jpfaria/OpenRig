@@ -1,4 +1,4 @@
-//! Red-first (#576) integration tests for `Command::RenderChain`.
+//! Red-first (#576) integration tests for `ChainCommand::RenderChain`.
 //!
 //! Render is exposed through the Command bus so MCP/gRPC/any future
 //! transport adapter inherits the tool automatically via the
@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::local_dispatcher::LocalDispatcher;
@@ -97,7 +97,7 @@ fn render_chain_command_writes_output_wav_and_emits_completed_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let events = dispatcher
-        .dispatch(Command::RenderChain {
+        .dispatch(Command::Chain(ChainCommand::RenderChain {
             chain_path: chain.to_string_lossy().into_owned(),
             input_path: input.to_string_lossy().into_owned(),
             output_path: output.to_string_lossy().into_owned(),
@@ -107,7 +107,7 @@ fn render_chain_command_writes_output_wav_and_emits_completed_event() {
             block_size: None,
             bit_depth: None,
             tail_ms: Some(0),
-        })
+        }))
         .expect("RenderChain dispatch succeeds");
 
     // #693: the render runs on its own task — the completion event
@@ -125,7 +125,7 @@ fn render_chain_command_writes_output_wav_and_emits_completed_event() {
 
     assert!(
         output.exists(),
-        "Command::RenderChain must write the output WAV"
+        "ChainCommand::RenderChain must write the output WAV"
     );
     let render_event = events.iter().find_map(|e| match e {
         Event::RenderCompleted {
@@ -160,7 +160,7 @@ fn render_chain_command_with_invalid_bit_depth_errors_with_no_partial_output() {
     let project = empty_project();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::RenderChain {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::RenderChain {
         chain_path: chain.to_string_lossy().into_owned(),
         input_path: input.to_string_lossy().into_owned(),
         output_path: output.to_string_lossy().into_owned(),
@@ -170,7 +170,7 @@ fn render_chain_command_with_invalid_bit_depth_errors_with_no_partial_output() {
         block_size: None,
         bit_depth: Some(19),
         tail_ms: Some(0),
-    });
+    }));
     assert!(
         result.is_err(),
         "bit_depth=19 must be rejected (valid set is 16|24|32)"
@@ -191,7 +191,7 @@ fn render_chain_command_with_missing_input_wav_errors_with_no_partial_output() {
     let project = empty_project();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::RenderChain {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::RenderChain {
         chain_path: chain.to_string_lossy().into_owned(),
         input_path: input.to_string_lossy().into_owned(),
         output_path: output.to_string_lossy().into_owned(),
@@ -201,7 +201,7 @@ fn render_chain_command_with_missing_input_wav_errors_with_no_partial_output() {
         block_size: None,
         bit_depth: None,
         tail_ms: Some(0),
-    });
+    }));
     assert!(
         result.is_err(),
         "missing input WAV must fail (no live capture in the Command path)"

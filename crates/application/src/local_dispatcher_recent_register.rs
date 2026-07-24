@@ -7,20 +7,20 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{Command, ProjectCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    /// `Command::RegisterRecentProject` / `MarkRecentProjectInvalid` —
+    /// `ProjectCommand::RegisterRecentProject` / `MarkRecentProjectInvalid` —
     /// registra a intenção e sinaliza o evento. A mutação/persistência
     /// do app-config é do adapter (precedente `SaveProject`).
     pub(crate) fn handle_recent_register(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::RegisterRecentProject { path, name } => {
+            Command::Project(ProjectCommand::RegisterRecentProject { path, name }) => {
                 Ok(vec![Event::RecentProjectRegistered { path, name }])
             }
-            Command::MarkRecentProjectInvalid { path, reason } => {
+            Command::Project(ProjectCommand::MarkRecentProjectInvalid { path, reason }) => {
                 Ok(vec![Event::RecentProjectInvalidated { path, reason }])
             }
             other => unreachable!(

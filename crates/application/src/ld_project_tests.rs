@@ -20,7 +20,8 @@ fn set_midi_enabled_persists_true_to_config() {
         }));
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-        let result = dispatcher.dispatch(Command::SetMidiEnabled { enabled: true });
+        let result =
+            dispatcher.dispatch(Command::Midi(MidiCommand::SetMidiEnabled { enabled: true }));
         assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
         crate::persist_worker::flush();
 
@@ -43,7 +44,9 @@ fn set_mcp_enabled_persists_true_to_config() {
         }));
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-        let result = dispatcher.dispatch(Command::SetMcpEnabled { enabled: true });
+        let result = dispatcher.dispatch(Command::Settings(SettingsCommand::SetMcpEnabled {
+            enabled: true,
+        }));
         assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
         crate::persist_worker::flush();
 
@@ -68,13 +71,17 @@ fn set_midi_enabled_false_clears_the_switch_and_preserves_other_config() {
 
         // Seed mcp on, midi on; then turn midi off — mcp must stay on.
         dispatcher
-            .dispatch(Command::SetMcpEnabled { enabled: true })
+            .dispatch(Command::Settings(SettingsCommand::SetMcpEnabled {
+                enabled: true,
+            }))
             .unwrap();
         dispatcher
-            .dispatch(Command::SetMidiEnabled { enabled: true })
+            .dispatch(Command::Midi(MidiCommand::SetMidiEnabled { enabled: true }))
             .unwrap();
         dispatcher
-            .dispatch(Command::SetMidiEnabled { enabled: false })
+            .dispatch(Command::Midi(MidiCommand::SetMidiEnabled {
+                enabled: false,
+            }))
             .unwrap();
         crate::persist_worker::flush();
 
@@ -101,7 +108,7 @@ fn save_project_emits_project_saved_event() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveProject);
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::SaveProject));
 
     assert!(result.is_ok(), "SaveProject must return Ok: {:?}", result);
     assert!(
@@ -123,7 +130,7 @@ fn save_project_does_not_mutate_project() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let _ = dispatcher.dispatch(Command::SaveProject);
+    let _ = dispatcher.dispatch(Command::Project(ProjectCommand::SaveProject));
 
     assert_eq!(
         project.borrow().name.as_deref(),
@@ -141,7 +148,7 @@ fn save_project_is_ok_with_empty_project() {
         midi: None,
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let result = dispatcher.dispatch(Command::SaveProject);
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::SaveProject));
     assert!(result.is_ok());
 }
 
@@ -164,10 +171,10 @@ fn load_project_replaces_project_and_emits_event() {
         midi: None,
     };
 
-    let result = dispatcher.dispatch(Command::LoadProject {
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::LoadProject {
         project: new_proj,
         path: std::path::PathBuf::from("/some/path.yaml"),
-    });
+    }));
 
     assert!(result.is_ok(), "LoadProject returned Err: {:?}", result);
     let events = result.unwrap();
@@ -200,10 +207,10 @@ fn load_project_replaces_all_state() {
         midi: None,
     };
 
-    let _ = dispatcher.dispatch(Command::LoadProject {
+    let _ = dispatcher.dispatch(Command::Project(ProjectCommand::LoadProject {
         project: new_proj,
         path: std::path::PathBuf::from("/p.yaml"),
-    });
+    }));
 
     let proj = project.borrow();
     assert!(proj.name.is_none());
@@ -243,10 +250,10 @@ fn load_project_disables_blocks_with_unavailable_models() {
     };
 
     dispatcher
-        .dispatch(Command::LoadProject {
+        .dispatch(Command::Project(ProjectCommand::LoadProject {
             project: new_proj,
             path: std::path::PathBuf::from("/p.yaml"),
-        })
+        }))
         .expect("LoadProject");
 
     let proj = project.borrow();
@@ -292,10 +299,10 @@ fn toggle_block_enabled_refuses_to_enable_unavailable_model() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let events = dispatcher
-        .dispatch(Command::ToggleBlockEnabled {
+        .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
             chain: ChainId("c".into()),
             block: BlockId("ghost".into()),
-        })
+        }))
         .expect("ToggleBlockEnabled");
 
     assert!(
@@ -318,10 +325,10 @@ fn toggle_block_enabled_still_disables_an_unavailable_block_that_is_on() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     dispatcher
-        .dispatch(Command::ToggleBlockEnabled {
+        .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
             chain: ChainId("c".into()),
             block: BlockId("ghost".into()),
-        })
+        }))
         .expect("ToggleBlockEnabled");
 
     assert!(
@@ -340,7 +347,7 @@ fn load_project_emits_project_mutated() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::LoadProject {
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::LoadProject {
         project: Project {
             name: None,
             device_settings: vec![],
@@ -348,7 +355,7 @@ fn load_project_emits_project_mutated() {
             midi: None,
         },
         path: std::path::PathBuf::from("/p.yaml"),
-    });
+    }));
 
     assert!(result.is_ok());
     assert!(
@@ -379,7 +386,9 @@ fn create_project_replaces_project_and_emits_event() {
         midi: None,
     };
 
-    let result = dispatcher.dispatch(Command::CreateProject { project: new_proj });
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::CreateProject {
+        project: new_proj,
+    }));
 
     assert!(result.is_ok(), "CreateProject returned Err: {:?}", result);
     let events = result.unwrap();
@@ -403,14 +412,14 @@ fn create_project_emits_project_mutated() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::CreateProject {
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::CreateProject {
         project: Project {
             name: Some("new".to_string()),
             device_settings: vec![],
             chains: vec![],
             midi: None,
         },
-    });
+    }));
 
     assert!(result.is_ok());
     assert!(
@@ -432,18 +441,17 @@ fn create_project_replaces_all_prior_state() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let _ = dispatcher.dispatch(Command::CreateProject {
+    let _ = dispatcher.dispatch(Command::Project(ProjectCommand::CreateProject {
         project: Project {
             name: None,
             device_settings: vec![],
             chains: vec![],
             midi: None,
         },
-    });
+    }));
 
     let proj = project.borrow();
     assert!(proj.name.is_none());
     assert!(proj.device_settings.is_empty());
     assert!(proj.chains.is_empty());
 }
-

@@ -17,7 +17,7 @@ use project::param::ParameterSet;
 use project::project::Project;
 use project::rig::{RigInput, RigPreset, RigProject};
 
-use application::command::{Command, RigNavKind};
+use application::command::{Command, ProjectCommand, RigNavKind, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -175,10 +175,10 @@ macro_rules! enabled_chain_preserves_io {
             assert!(chain_enabled(&p), "precondition: chain is enabled");
             assert_eq!(outputs_count(&p), 1, "precondition: 1 output");
             assert_eq!(inputs_count(&p), 1, "precondition: 1 input");
-            let _ = d.dispatch(Command::ApplyRigNav {
+            let _ = d.dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
                 chain: ChainId(CHAIN_ID.into()),
                 kind: $kind,
-            });
+            }));
             assert!(chain_enabled(&p), "enabled flag must survive the rig-nav");
             assert_eq!(
                 outputs_count(&p),
@@ -216,10 +216,10 @@ enabled_chain_preserves_io!(enabled_chain_preset_remove, RigNavKind::Preset(-2))
 #[test]
 fn enabled_chain_rename_rig_preset_preserves_io() {
     let (d, p, _r) = dispatcher_with_enabled_chain();
-    let _ = d.dispatch(Command::RenameRigPreset {
+    let _ = d.dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
         chain: ChainId(CHAIN_ID.into()),
         name: "Coldplay - Clocks".into(),
-    });
+    }));
     assert!(chain_enabled(&p));
     assert_eq!(outputs_count(&p), 1);
     assert_eq!(inputs_count(&p), 1);
@@ -228,7 +228,7 @@ fn enabled_chain_rename_rig_preset_preserves_io() {
 #[test]
 fn enabled_chain_capture_rig_edits_preserves_io() {
     let (d, p, _r) = dispatcher_with_enabled_chain();
-    let _ = d.dispatch(Command::CaptureRigEdits);
+    let _ = d.dispatch(Command::Project(ProjectCommand::CaptureRigEdits));
     assert!(chain_enabled(&p));
     assert_eq!(outputs_count(&p), 1);
     assert_eq!(inputs_count(&p), 1);

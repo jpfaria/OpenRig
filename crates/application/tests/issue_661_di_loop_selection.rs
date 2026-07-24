@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
@@ -77,10 +77,10 @@ fn di_loop_source_for_chain_returns_selected_source() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: ChainId("chain_0".to_string()),
             source: DiLoopSource::File(wav.clone()),
-        })
+        }))
         .expect("source must load");
 
     // #693: the decode runs on its own task — wait for the completion

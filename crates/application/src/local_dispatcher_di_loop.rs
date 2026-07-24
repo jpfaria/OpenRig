@@ -23,7 +23,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{ChainCommand, Command};
 use crate::di_loader::load_di_loop;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -32,7 +32,7 @@ impl LocalDispatcher {
     /// Handle `SetChainDiLoopSource` and `SetChainDiLoopEnabled`.
     pub(crate) fn handle_di_loop(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SetChainDiLoopSource { chain, source } => {
+            Command::Chain(ChainCommand::SetChainDiLoopSource { chain, source }) => {
                 // Verify the chain exists before doing expensive I/O.
                 {
                     let proj = self.project.borrow();
@@ -70,7 +70,7 @@ impl LocalDispatcher {
                 Ok(vec![])
             }
 
-            Command::SetChainDiLoopEnabled { chain, enabled } => {
+            Command::Chain(ChainCommand::SetChainDiLoopEnabled { chain, enabled }) => {
                 // Verify the chain exists.
                 {
                     let proj = self.project.borrow();
@@ -82,7 +82,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainDiLoopEnabledChanged { chain, enabled }])
             }
 
-            Command::SetChainDiLoopOutput { chain, output } => {
+            Command::Chain(ChainCommand::SetChainDiLoopOutput { chain, output }) => {
                 // Locate the chain and persist di_output.
                 {
                     let mut proj = self.project.borrow_mut();

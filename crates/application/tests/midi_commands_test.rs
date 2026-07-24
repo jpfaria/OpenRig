@@ -3,31 +3,35 @@
 //! of `Command` so MIDI slots (Phase 3b+) can dispatch them and MCP/gRPC
 //! discover them automatically (Command enum is the parity source).
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 
 #[test]
 fn select_active_chain_relative_variant_exists() {
-    let cmd = Command::SelectActiveChainRelative { delta: 1 };
+    let cmd = Command::Selection(SelectionCommand::SelectActiveChainRelative { delta: 1 });
     match cmd {
-        Command::SelectActiveChainRelative { delta } => assert_eq!(delta, 1),
+        Command::Selection(SelectionCommand::SelectActiveChainRelative { delta }) => {
+            assert_eq!(delta, 1)
+        }
         _ => panic!("expected SelectActiveChainRelative variant"),
     }
 }
 
 #[test]
 fn select_active_block_relative_variant_exists() {
-    let cmd = Command::SelectActiveBlockRelative { delta: -2 };
+    let cmd = Command::Selection(SelectionCommand::SelectActiveBlockRelative { delta: -2 });
     match cmd {
-        Command::SelectActiveBlockRelative { delta } => assert_eq!(delta, -2),
+        Command::Selection(SelectionCommand::SelectActiveBlockRelative { delta }) => {
+            assert_eq!(delta, -2)
+        }
         _ => panic!("expected SelectActiveBlockRelative variant"),
     }
 }
 
 #[test]
 fn set_compact_view_enabled_variant_exists() {
-    let cmd = Command::SetCompactViewEnabled { enabled: true };
+    let cmd = Command::Selection(SelectionCommand::SetCompactViewEnabled { enabled: true });
     match cmd {
-        Command::SetCompactViewEnabled { enabled } => assert!(enabled),
+        Command::Selection(SelectionCommand::SetCompactViewEnabled { enabled }) => assert!(enabled),
         _ => panic!("expected SetCompactViewEnabled variant"),
     }
 }

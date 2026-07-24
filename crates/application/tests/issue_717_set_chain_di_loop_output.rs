@@ -1,4 +1,4 @@
-//! Issue #717 Task 3 — RED-FIRST test for `Command::SetChainDiLoopOutput`.
+//! Issue #717 Task 3 — RED-FIRST test for `ChainCommand::SetChainDiLoopOutput`.
 //!
 //! Dispatching `SetChainDiLoopOutput` must:
 //! - persist `chain.di_output = Some(DiOutputRef { ... })` on the matching chain,
@@ -9,7 +9,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::local_dispatcher::LocalDispatcher;
@@ -48,10 +48,10 @@ fn set_chain_di_loop_output_persists_and_emits_event() {
     };
 
     let events = dispatcher
-        .dispatch(Command::SetChainDiLoopOutput {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopOutput {
             chain: ChainId("chain_0".to_string()),
             output: output.clone(),
-        })
+        }))
         .expect("SetChainDiLoopOutput must succeed");
 
     // The event must have been emitted.
@@ -85,13 +85,13 @@ fn set_chain_di_loop_output_missing_chain_returns_err() {
     let project = make_project("chain_0");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetChainDiLoopOutput {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopOutput {
         chain: ChainId("chain_MISSING".to_string()),
         output: DiOutputRef {
             binding_id: "binding_A".to_string(),
             endpoint: "out_L".to_string(),
         },
-    });
+    }));
 
     assert!(result.is_err(), "missing chain must return Err");
 }

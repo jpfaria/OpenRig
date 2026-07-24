@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -11,13 +11,13 @@ impl LocalDispatcher {
     /// Chain I/O block replacement + preset load commands.
     pub(crate) fn handle_chain_io_replace(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SaveChainIo {
+            Command::Chain(ChainCommand::SaveChainIo {
                 chain,
                 input_block_index,
                 output_block_index,
                 io,
                 endpoint,
-            } => {
+            }) => {
                 self.with_chain(&chain, |c| {
                     // Set io/endpoint on the input block.
                     let in_blk = c.blocks.get_mut(input_block_index).ok_or_else(|| {
@@ -86,11 +86,11 @@ impl LocalDispatcher {
             }
 
             // ── Chain presets ─────────────────────────────────────────────────
-            Command::LoadChainPreset {
+            Command::Chain(ChainCommand::LoadChainPreset {
                 chain,
                 preset_instrument,
                 preset_blocks,
-            } => {
+            }) => {
                 // Guard: reject the load if the preset's instrument tag differs
                 // from the target chain's instrument (#627). This is the hard
                 // gate that applies regardless of transport (GUI / MCP / gRPC).

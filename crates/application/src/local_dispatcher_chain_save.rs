@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -12,7 +12,7 @@ impl LocalDispatcher {
     pub(crate) fn handle_chain_save(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             // ── Chain save (upsert) ───────────────────────────────────────────
-            Command::SaveChain { mut chain } => {
+            Command::Chain(ChainCommand::SaveChain { mut chain }) => {
                 // Detect upsert vs. create *before* mutating the project.
                 let is_create = !self
                     .project
@@ -79,12 +79,12 @@ impl LocalDispatcher {
             }
 
             // ── Chain I/O endpoints ───────────────────────────────────────────
-            Command::SaveChainInputEndpoints {
+            Command::Chain(ChainCommand::SaveChainInputEndpoints {
                 chain,
                 block_index,
                 io,
                 endpoint,
-            } => {
+            }) => {
                 self.with_chain(&chain, |c| {
                     let blk = c.blocks.get_mut(block_index).ok_or_else(|| {
                         anyhow::anyhow!(
@@ -125,12 +125,12 @@ impl LocalDispatcher {
                 ])
             }
 
-            Command::SaveChainOutputEndpoints {
+            Command::Chain(ChainCommand::SaveChainOutputEndpoints {
                 chain,
                 block_index,
                 io,
                 endpoint,
-            } => {
+            }) => {
                 self.with_chain(&chain, |c| {
                     let blk = c.blocks.get_mut(block_index).ok_or_else(|| {
                         anyhow::anyhow!(

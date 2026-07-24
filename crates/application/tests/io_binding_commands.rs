@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, IoBindingCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::DeviceId;
@@ -61,9 +61,9 @@ fn test_create_then_persists() {
 
     let binding = make_binding("main", "Main");
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: binding.clone(),
-        })
+        }))
         .expect("CreateIoBinding dispatch ok");
 
     // Flush the persist worker so the disk write completes before we read.
@@ -99,17 +99,17 @@ fn test_update_replaces_by_id() {
 
     let original = make_binding("rig1", "Rig 1");
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: original.clone(),
-        })
+        }))
         .expect("create ok");
 
     // Also create a second binding so we can assert count is unchanged.
     let other = make_binding("rig2", "Rig 2");
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: other.clone(),
-        })
+        }))
         .expect("create second ok");
 
     // Update rig1 with a new name.
@@ -125,9 +125,9 @@ fn test_update_replaces_by_id() {
         }],
     };
     dispatcher
-        .dispatch(Command::UpdateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::UpdateIoBinding {
             binding: updated.clone(),
-        })
+        }))
         .expect("update ok");
 
     application::persist_worker::flush();
@@ -181,16 +181,20 @@ fn test_delete_removes() {
     let b1 = make_binding("del-me", "Delete Me");
     let b2 = make_binding("keep-me", "Keep Me");
     dispatcher
-        .dispatch(Command::CreateIoBinding { binding: b1 })
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
+            binding: b1,
+        }))
         .expect("create del-me ok");
     dispatcher
-        .dispatch(Command::CreateIoBinding { binding: b2 })
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
+            binding: b2,
+        }))
         .expect("create keep-me ok");
 
     dispatcher
-        .dispatch(Command::DeleteIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::DeleteIoBinding {
             id: "del-me".to_string(),
-        })
+        }))
         .expect("delete ok");
 
     application::persist_worker::flush();
@@ -235,20 +239,20 @@ fn test_add_input_endpoint_builds_and_persists() {
     dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: empty_binding("main", "Main"),
-        })
+        }))
         .expect("create ok");
     // The GUI would only forward these raw picker values; the handler builds
     // the IoEndpoint (name, domain types) and appends it.
     dispatcher
-        .dispatch(Command::AddIoEndpoint {
+        .dispatch(Command::IoBinding(IoBindingCommand::AddIoEndpoint {
             binding_id: "main".into(),
             is_input: true,
             device_id: "devA".into(),
             channels: vec![0, 1],
             mode: ChannelMode::Stereo,
-        })
+        }))
         .expect("add ok");
     application::persist_worker::flush();
 
@@ -275,25 +279,25 @@ fn test_remove_io_endpoint() {
     dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: empty_binding("main", "Main"),
-        })
+        }))
         .expect("create");
     dispatcher
-        .dispatch(Command::AddIoEndpoint {
+        .dispatch(Command::IoBinding(IoBindingCommand::AddIoEndpoint {
             binding_id: "main".into(),
             is_input: true,
             device_id: "devA".into(),
             channels: vec![0],
             mode: ChannelMode::Mono,
-        })
+        }))
         .expect("add");
     dispatcher
-        .dispatch(Command::RemoveIoEndpoint {
+        .dispatch(Command::IoBinding(IoBindingCommand::RemoveIoEndpoint {
             binding_id: "main".into(),
             is_input: true,
             endpoint_name: "In 1".into(),
-        })
+        }))
         .expect("remove");
     application::persist_worker::flush();
 
@@ -314,15 +318,15 @@ fn test_rename_io_binding() {
     dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: empty_binding("main", "Old"),
-        })
+        }))
         .expect("create");
     dispatcher
-        .dispatch(Command::RenameIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::RenameIoBinding {
             id: "main".into(),
             name: "New Name".into(),
-        })
+        }))
         .expect("rename");
     application::persist_worker::flush();
 

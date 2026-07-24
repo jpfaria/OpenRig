@@ -1,4 +1,4 @@
-//! #436 G — `Command::SetOutputMuted`: silenciar/dessilenciar a saída
+//! #436 G — `SelectionCommand::SetOutputMuted`: silenciar/dessilenciar a saída
 //! (tuner mute) é negócio (runtime). Segue o precedente `SaveProject`:
 //! o adapter aplica no runtime (`rt.set_output_muted`); o dispatcher
 //! registra a intenção e sinaliza via `Event::OutputMutedChanged`, de
@@ -6,17 +6,17 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{Command, SelectionCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    /// `Command::SetOutputMuted` — registra o estado de mute e sinaliza
+    /// `SelectionCommand::SetOutputMuted` — registra o estado de mute e sinaliza
     /// via `Event::OutputMutedChanged`. O efeito real no runtime de
     /// áudio é do adapter (precedente `SaveProject`).
     pub(crate) fn handle_set_output_muted(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SetOutputMuted { muted } => {
+            Command::Selection(SelectionCommand::SetOutputMuted { muted }) => {
                 // #548: mirror into SelectionState so MIDI slot
                 // `toggle_output_mute` reads the current state.
                 if let Ok(mut s) = self.selection_state.write() {

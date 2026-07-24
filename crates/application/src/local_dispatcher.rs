@@ -29,7 +29,10 @@ use engine::DiPcm;
 use project::project::Project;
 use project::rig::RigProject;
 
-use crate::command::Command;
+use crate::command::{
+    BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, PluginCommand,
+    ProjectCommand, SelectionCommand, SettingsCommand,
+};
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
@@ -44,7 +47,7 @@ pub struct LocalDispatcher {
     pub(crate) project: Rc<RefCell<Project>>,
     /// #436: the rig (presets/scenes) used to live only in the GUI and
     /// be mutated by hand in a wiring closure. It now lives behind the
-    /// dispatcher so MIDI/MCP/GUI all go through `Command::ApplyRigNav`.
+    /// dispatcher so MIDI/MCP/GUI all go through `SelectionCommand::ApplyRigNav`.
     /// `None` for non-rig sessions (legacy projects) — set via
     /// [`Self::attach_rig`] at project load.
     pub(crate) rig: RefCell<Option<Rc<RefCell<RigProject>>>>,
@@ -142,63 +145,81 @@ impl CommandDispatcher for LocalDispatcher {
         // original flat match — each handler runs the original arm body
         // unchanged.
         match cmd {
-            Command::SetBlockParameterNumber { .. }
-            | Command::SetBlockParameterBool { .. }
-            | Command::SetBlockParameterText { .. }
-            | Command::SelectBlockParameterOption { .. }
-            | Command::PickBlockParameterFile { .. } => self.handle_block_param(cmd),
+            Command::Block(
+                BlockCommand::SetBlockParameterNumber { .. }
+                | BlockCommand::SetBlockParameterBool { .. }
+                | BlockCommand::SetBlockParameterText { .. }
+                | BlockCommand::SelectBlockParameterOption { .. }
+                | BlockCommand::PickBlockParameterFile { .. },
+            ) => self.handle_block_param(cmd),
 
-            Command::ToggleBlockEnabled { .. }
-            | Command::ReplaceBlockModel { .. }
-            | Command::AddBlock { .. }
-            | Command::InsertPrebuiltBlock { .. } => self.handle_block_lifecycle(cmd),
+            Command::Block(
+                BlockCommand::ToggleBlockEnabled { .. }
+                | BlockCommand::ReplaceBlockModel { .. }
+                | BlockCommand::AddBlock { .. }
+                | BlockCommand::InsertPrebuiltBlock { .. },
+            ) => self.handle_block_lifecycle(cmd),
 
-            Command::OverwriteBlock { .. }
-            | Command::RemoveBlock { .. }
-            | Command::MoveBlock { .. }
-            | Command::SaveInsertBlock { .. } => self.handle_block_edit(cmd),
+            Command::Block(
+                BlockCommand::OverwriteBlock { .. }
+                | BlockCommand::RemoveBlock { .. }
+                | BlockCommand::MoveBlock { .. }
+                | BlockCommand::SaveInsertBlock { .. },
+            ) => self.handle_block_edit(cmd),
 
-            Command::AddChain { .. }
-            | Command::ConfigureChain { .. }
-            | Command::RemoveChain { .. }
-            | Command::SetChainVolume { .. }
-            | Command::SetChainIoBindings { .. } => self.handle_chain_crud(cmd),
+            Command::Chain(
+                ChainCommand::AddChain { .. }
+                | ChainCommand::ConfigureChain { .. }
+                | ChainCommand::RemoveChain { .. }
+                | ChainCommand::SetChainVolume { .. }
+                | ChainCommand::SetChainIoBindings { .. },
+            ) => self.handle_chain_crud(cmd),
 
-            Command::MoveChainUp { .. }
-            | Command::MoveChainDown { .. }
-            | Command::ToggleChainEnabled { .. } => self.handle_chain_order(cmd),
+            Command::Chain(
+                ChainCommand::MoveChainUp { .. }
+                | ChainCommand::MoveChainDown { .. }
+                | ChainCommand::ToggleChainEnabled { .. },
+            ) => self.handle_chain_order(cmd),
 
-            Command::SaveChain { .. }
-            | Command::SaveChainInputEndpoints { .. }
-            | Command::SaveChainOutputEndpoints { .. } => self.handle_chain_save(cmd),
+            Command::Chain(
+                ChainCommand::SaveChain { .. }
+                | ChainCommand::SaveChainInputEndpoints { .. }
+                | ChainCommand::SaveChainOutputEndpoints { .. },
+            ) => self.handle_chain_save(cmd),
 
-            Command::SaveChainIo { .. } | Command::LoadChainPreset { .. } => {
-                self.handle_chain_io_replace(cmd)
+            Command::Chain(
+                ChainCommand::SaveChainIo { .. } | ChainCommand::LoadChainPreset { .. },
+            ) => self.handle_chain_io_replace(cmd),
+
+            Command::Project(
+                ProjectCommand::SaveProject
+                | ProjectCommand::LoadProject { .. }
+                | ProjectCommand::CreateProject { .. }
+                | ProjectCommand::UpdateProjectName { .. },
+            )
+            | Command::Settings(SettingsCommand::SaveAudioSettings { .. }) => {
+                self.handle_project(cmd)
             }
-
-            Command::SaveProject
-            | Command::LoadProject { .. }
-            | Command::CreateProject { .. }
-            | Command::UpdateProjectName { .. }
-            | Command::SaveAudioSettings { .. } => self.handle_project(cmd),
 
             // #513 / #493: system-side MIDI commands — no project mutation.
             // The adapter persists `config.yaml` / forwards to the daemon on
             // each event; the dispatcher just records the intent.
-            Command::SaveMidiDevices { .. }
-            | Command::StartMidiLearn
-            | Command::StopMidiLearn
-            | Command::PublishMidiEvent { .. } => self.handle_midi_system(cmd),
+            Command::Midi(
+                MidiCommand::SaveMidiDevices { .. }
+                | MidiCommand::StartMidiLearn
+                | MidiCommand::StopMidiLearn
+                | MidiCommand::PublishMidiEvent { .. },
+            ) => self.handle_midi_system(cmd),
 
             // #513 / #493: project-side MIDI mapping — writes `project.midi`.
-            Command::SaveMidiMapping { .. } => self.handle_project(cmd),
+            Command::Midi(MidiCommand::SaveMidiMapping { .. }) => self.handle_project(cmd),
 
-            Command::ApplyRigNav { .. } => self.handle_rig_nav(cmd),
+            Command::Selection(SelectionCommand::ApplyRigNav { .. }) => self.handle_rig_nav(cmd),
 
             // #576: offline render — does not mutate the live project,
             // lives on the Command bus purely for transport-adapter
             // parity (MCP/gRPC auto-derive the tool via command_schema).
-            Command::RenderChain {
+            Command::Chain(ChainCommand::RenderChain {
                 chain_path,
                 input_path,
                 output_path,
@@ -208,7 +229,7 @@ impl CommandDispatcher for LocalDispatcher {
                 block_size,
                 bit_depth,
                 tail_ms,
-            } => {
+            }) => {
                 // #693: bad args / missing input still error immediately
                 // (cheap checks); only the render itself is deferred.
                 crate::render_handler::precheck(bit_depth, &input_path)?;
@@ -242,11 +263,13 @@ impl CommandDispatcher for LocalDispatcher {
                 Ok(vec![])
             }
 
-            Command::CaptureRigEdits => self.handle_capture_rig_edits(),
+            Command::Project(ProjectCommand::CaptureRigEdits) => self.handle_capture_rig_edits(),
 
-            Command::RenameRigPreset { .. } => self.handle_rename_rig_preset(cmd),
+            Command::Selection(SelectionCommand::RenameRigPreset { .. }) => {
+                self.handle_rename_rig_preset(cmd)
+            }
 
-            Command::SelectChainBlock { chain, block_index } => {
+            Command::Selection(SelectionCommand::SelectChainBlock { chain, block_index }) => {
                 // #548: record the click in the GUI selection state that
                 // MIDI/MCP/gRPC read (`QueryKind::Selection`). Resolve the
                 // block id from the index inside the project — slots address
@@ -267,49 +290,61 @@ impl CommandDispatcher for LocalDispatcher {
                 Ok(vec![Event::ProjectMutated])
             }
 
-            Command::SelectActiveChain { chain } => self.handle_select_active_chain(chain),
-
-            Command::SetLanguage { .. } => self.handle_set_language(cmd),
-
-            Command::SetOutputMuted { .. } => self.handle_set_output_muted(cmd),
-
-            Command::RemoveRecentProject { .. } => self.handle_remove_recent_project(cmd),
-
-            Command::SaveChainPreset { .. } | Command::DeleteChainPreset { .. } => {
-                self.handle_chain_preset(cmd)
+            Command::Selection(SelectionCommand::SelectActiveChain { chain }) => {
+                self.handle_select_active_chain(chain)
             }
 
-            Command::SetTunerEnabled { .. } | Command::SetSpectrumEnabled { .. } => {
-                self.handle_diagnostic_enabled(cmd)
+            Command::Settings(SettingsCommand::SetLanguage { .. }) => self.handle_set_language(cmd),
+
+            Command::Selection(SelectionCommand::SetOutputMuted { .. }) => {
+                self.handle_set_output_muted(cmd)
             }
 
-            Command::CloseProject => self.handle_close_project(cmd),
-
-            Command::RegisterRecentProject { .. } | Command::MarkRecentProjectInvalid { .. } => {
-                self.handle_recent_register(cmd)
+            Command::Project(ProjectCommand::RemoveRecentProject { .. }) => {
+                self.handle_remove_recent_project(cmd)
             }
+
+            Command::Chain(
+                ChainCommand::SaveChainPreset { .. } | ChainCommand::DeleteChainPreset { .. },
+            ) => self.handle_chain_preset(cmd),
+
+            Command::Selection(
+                SelectionCommand::SetTunerEnabled { .. }
+                | SelectionCommand::SetSpectrumEnabled { .. },
+            ) => self.handle_diagnostic_enabled(cmd),
+
+            Command::Project(ProjectCommand::CloseProject) => self.handle_close_project(cmd),
+
+            Command::Project(
+                ProjectCommand::RegisterRecentProject { .. }
+                | ProjectCommand::MarkRecentProjectInvalid { .. },
+            ) => self.handle_recent_register(cmd),
 
             // #513: system-level paths overrides. No project mutation —
             // the adapter persists `config.yaml` on `Event::PathsSaved`,
             // mirroring `SaveMidiDevices` (ADR 0003).
-            Command::SetPresetsPath { .. }
-            | Command::SetPluginsPath { .. }
-            | Command::SetEvaluationsPath { .. } => self.handle_paths_system(cmd),
+            Command::Settings(
+                SettingsCommand::SetPresetsPath { .. }
+                | SettingsCommand::SetPluginsPath { .. }
+                | SettingsCommand::SetEvaluationsPath { .. },
+            ) => self.handle_paths_system(cmd),
 
             // #561: hot-reload the plugin catalog (no payload).
-            Command::ReloadPluginCatalog => self.handle_reload_plugin_catalog(),
+            Command::Plugin(PluginCommand::ReloadPluginCatalog) => {
+                self.handle_reload_plugin_catalog()
+            }
             // #561 (expanded scope): per-plugin load / unload.
-            Command::LoadPlugin { id } => self.handle_load_plugin(id),
-            Command::UnloadPlugin { id } => self.handle_unload_plugin(id),
+            Command::Plugin(PluginCommand::LoadPlugin { id }) => self.handle_load_plugin(id),
+            Command::Plugin(PluginCommand::UnloadPlugin { id }) => self.handle_unload_plugin(id),
 
             // #548: selection / view mutations driven by MIDI slots.
-            Command::SelectActiveChainRelative { delta } => {
+            Command::Selection(SelectionCommand::SelectActiveChainRelative { delta }) => {
                 self.handle_select_active_chain_relative(delta)
             }
-            Command::SelectActiveBlockRelative { delta } => {
+            Command::Selection(SelectionCommand::SelectActiveBlockRelative { delta }) => {
                 self.handle_select_active_block_relative(delta)
             }
-            Command::SetCompactViewEnabled { enabled } => {
+            Command::Selection(SelectionCommand::SetCompactViewEnabled { enabled }) => {
                 self.selection_state
                     .write()
                     .expect("selection state poisoned")
@@ -319,38 +354,49 @@ impl CommandDispatcher for LocalDispatcher {
                 // events and had nothing to act on before.
                 Ok(vec![Event::CompactViewEnabledChanged { enabled }])
             }
-            Command::ToggleActiveBlockNeighborEnabled => {
+            Command::Selection(SelectionCommand::ToggleActiveBlockNeighborEnabled) => {
                 self.handle_toggle_active_block_neighbor_enabled()
             }
 
             // #712: per-machine MIDI/MCP master switches → config.yaml.
-            Command::SetMidiEnabled { enabled } => self.handle_set_midi_enabled(enabled),
-            Command::SetMcpEnabled { enabled } => self.handle_set_mcp_enabled(enabled),
+            Command::Midi(MidiCommand::SetMidiEnabled { enabled }) => {
+                self.handle_set_midi_enabled(enabled)
+            }
+            Command::Settings(SettingsCommand::SetMcpEnabled { enabled }) => {
+                self.handle_set_mcp_enabled(enabled)
+            }
 
             // #614/#717: per-chain virtual DI loop (source/enabled ephemeral;
             // output persisted into project via SetChainDiLoopOutput).
-            Command::SetChainDiLoopSource { .. }
-            | Command::SetChainDiLoopEnabled { .. }
-            | Command::SetChainDiLoopOutput { .. } => self.handle_di_loop(cmd),
+            Command::Chain(
+                ChainCommand::SetChainDiLoopSource { .. }
+                | ChainCommand::SetChainDiLoopEnabled { .. }
+                | ChainCommand::SetChainDiLoopOutput { .. },
+            ) => self.handle_di_loop(cmd),
 
             // #716: per-machine I/O binding registry (persisted to config.yaml).
-            Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {
-                self.handle_create_or_update_io_binding(binding)
+            Command::IoBinding(
+                IoBindingCommand::CreateIoBinding { binding }
+                | IoBindingCommand::UpdateIoBinding { binding },
+            ) => self.handle_create_or_update_io_binding(binding),
+            Command::IoBinding(IoBindingCommand::DeleteIoBinding { id }) => {
+                self.handle_delete_io_binding(id)
             }
-            Command::DeleteIoBinding { id } => self.handle_delete_io_binding(id),
-            Command::RenameIoBinding { id, name } => self.handle_rename_io_binding(id, name),
-            Command::AddIoEndpoint {
+            Command::IoBinding(IoBindingCommand::RenameIoBinding { id, name }) => {
+                self.handle_rename_io_binding(id, name)
+            }
+            Command::IoBinding(IoBindingCommand::AddIoEndpoint {
                 binding_id,
                 is_input,
                 device_id,
                 channels,
                 mode,
-            } => self.handle_add_io_endpoint(binding_id, is_input, device_id, channels, mode),
-            Command::RemoveIoEndpoint {
+            }) => self.handle_add_io_endpoint(binding_id, is_input, device_id, channels, mode),
+            Command::IoBinding(IoBindingCommand::RemoveIoEndpoint {
                 binding_id,
                 is_input,
                 endpoint_name,
-            } => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
+            }) => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
         }
     }
 

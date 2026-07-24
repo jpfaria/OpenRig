@@ -7,7 +7,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{Command, MidiCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -22,10 +22,12 @@ impl LocalDispatcher {
     /// the mapping editor).
     pub(crate) fn handle_midi_system(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SaveMidiDevices { .. } => Ok(vec![Event::MidiDevicesSaved]),
-            Command::StartMidiLearn => Ok(vec![Event::MidiLearnStarted]),
-            Command::StopMidiLearn => Ok(vec![Event::MidiLearnStopped]),
-            Command::PublishMidiEvent { source } => Ok(vec![Event::MidiEventReceived { source }]),
+            Command::Midi(MidiCommand::SaveMidiDevices { .. }) => Ok(vec![Event::MidiDevicesSaved]),
+            Command::Midi(MidiCommand::StartMidiLearn) => Ok(vec![Event::MidiLearnStarted]),
+            Command::Midi(MidiCommand::StopMidiLearn) => Ok(vec![Event::MidiLearnStopped]),
+            Command::Midi(MidiCommand::PublishMidiEvent { source }) => {
+                Ok(vec![Event::MidiEventReceived { source }])
+            }
             other => {
                 unreachable!("handle_midi_system received non-midi-system command: {other:?}")
             }

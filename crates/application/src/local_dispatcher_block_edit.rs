@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{BlockCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -11,11 +11,11 @@ impl LocalDispatcher {
     /// Block-edit commands: overwrite/remove/move/insert-config.
     pub(crate) fn handle_block_edit(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::OverwriteBlock {
+            Command::Block(BlockCommand::OverwriteBlock {
                 chain,
                 block,
                 mut replacement,
-            } => {
+            }) => {
                 self.with_block(&chain, &block, |b| {
                     // Preserve the original block id; replace kind and enabled.
                     replacement.id = block.clone();
@@ -24,7 +24,7 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![Event::BlockReplaced { chain, block }])
             }
-            Command::RemoveBlock { chain, block } => {
+            Command::Block(BlockCommand::RemoveBlock { chain, block }) => {
                 self.with_chain(&chain, |c| {
                     let pre_len = c.blocks.len();
                     c.blocks.retain(|b| b.id != block);
@@ -35,11 +35,11 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![Event::BlockRemoved { chain, block }])
             }
-            Command::MoveBlock {
+            Command::Block(BlockCommand::MoveBlock {
                 chain,
                 block,
                 new_position,
-            } => {
+            }) => {
                 self.with_chain(&chain, |c| {
                     let Some(from_idx) = c.blocks.iter().position(|b| b.id == block) else {
                         return Err(anyhow::anyhow!("block not found: {:?}", block));
@@ -52,7 +52,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainReloaded { chain }])
             }
             // ── Insert block ──────────────────────────────────────────────────
-            Command::SaveInsertBlock { chain, block, io } => {
+            Command::Block(BlockCommand::SaveInsertBlock { chain, block, io }) => {
                 self.with_block(&chain, &block, |b| match &mut b.kind {
                     project::block::AudioBlockKind::Insert(ref mut ib) => {
                         ib.io = io;

@@ -15,7 +15,10 @@
 //! If a later change genuinely intends to alter the wire format, it has to edit
 //! these lists deliberately — which is the point.
 
-use application::command::Command;
+use application::command::{
+    BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, PluginCommand,
+    ProjectCommand, SelectionCommand, SettingsCommand,
+};
 use application::command_schema::command_variant_names;
 use domain::ids::{BlockId, ChainId};
 
@@ -127,38 +130,50 @@ fn every_command_variant_name_survives_the_grouping() {
 fn wire_format_is_unchanged_by_the_grouping() {
     let cases: Vec<(Command, &str)> = vec![
         (
-            Command::ToggleBlockEnabled {
+            Command::Block(BlockCommand::ToggleBlockEnabled {
                 chain: ChainId("c1".into()),
                 block: BlockId("b1".into()),
-            },
+            }),
             r#"{"ToggleBlockEnabled":{"chain":"c1","block":"b1"}}"#,
         ),
         (
-            Command::MoveChainUp {
+            Command::Chain(ChainCommand::MoveChainUp {
                 chain: ChainId("c1".into()),
-            },
+            }),
             r#"{"MoveChainUp":{"chain":"c1"}}"#,
         ),
-        (Command::SaveProject, r#""SaveProject""#),
-        (Command::CloseProject, r#""CloseProject""#),
-        (Command::StopMidiLearn, r#""StopMidiLearn""#),
-        (Command::ReloadPluginCatalog, r#""ReloadPluginCatalog""#),
         (
-            Command::SetLanguage {
+            Command::Project(ProjectCommand::SaveProject),
+            r#""SaveProject""#,
+        ),
+        (
+            Command::Project(ProjectCommand::CloseProject),
+            r#""CloseProject""#,
+        ),
+        (
+            Command::Midi(MidiCommand::StopMidiLearn),
+            r#""StopMidiLearn""#,
+        ),
+        (
+            Command::Plugin(PluginCommand::ReloadPluginCatalog),
+            r#""ReloadPluginCatalog""#,
+        ),
+        (
+            Command::Settings(SettingsCommand::SetLanguage {
                 language: Some("pt_BR".into()),
-            },
+            }),
             r#"{"SetLanguage":{"language":"pt_BR"}}"#,
         ),
         (
-            Command::SetTunerEnabled { enabled: true },
+            Command::Selection(SelectionCommand::SetTunerEnabled { enabled: true }),
             r#"{"SetTunerEnabled":{"enabled":true}}"#,
         ),
         (
-            Command::SetOutputMuted { muted: false },
+            Command::Selection(SelectionCommand::SetOutputMuted { muted: false }),
             r#"{"SetOutputMuted":{"muted":false}}"#,
         ),
         (
-            Command::DeleteIoBinding { id: "io1".into() },
+            Command::IoBinding(IoBindingCommand::DeleteIoBinding { id: "io1".into() }),
             r#"{"DeleteIoBinding":{"id":"io1"}}"#,
         ),
     ];
@@ -179,8 +194,15 @@ fn wire_format_is_unchanged_by_the_grouping() {
 fn commands_still_deserialize_from_the_original_wire_format() {
     let wire = r#"{"SetTunerEnabled":{"enabled":true}}"#;
     let parsed: Command = serde_json::from_str(wire).expect("wire format still parses");
-    assert!(matches!(parsed, Command::SetTunerEnabled { enabled: true }));
+    assert!(matches!(
+        parsed,
+        Command::Selection(SelectionCommand::SetTunerEnabled { enabled: true })
+    ));
 
-    let unit: Command = serde_json::from_str(r#""SaveProject""#).expect("unit variant still parses");
-    assert!(matches!(unit, Command::SaveProject));
+    let unit: Command =
+        serde_json::from_str(r#""SaveProject""#).expect("unit variant still parses");
+    assert!(matches!(
+        unit,
+        Command::Project(ProjectCommand::SaveProject)
+    ));
 }

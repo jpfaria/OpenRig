@@ -10,7 +10,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, IoBindingCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::DeviceId;
@@ -53,9 +53,9 @@ fn io_binding_registry_lands_in_system_config_not_project_sidecar() {
     dispatcher.attach_io_config_path(Some(system.clone())); // per-machine config
 
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: make_binding("main"),
-        })
+        }))
         .expect("CreateIoBinding dispatch ok");
     application::persist_worker::flush();
 

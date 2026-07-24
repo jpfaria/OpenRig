@@ -1,4 +1,4 @@
-//! Red-first (#436 H): `Command::SetTunerEnabled` /
+//! Red-first (#436 H): `SelectionCommand::SetTunerEnabled` /
 //! `SetSpectrumEnabled` despacham e emitem
 //! `Event::TunerEnabledChanged` / `SpectrumEnabledChanged`. Precedente
 //! `SaveProject` (build/teardown no adapter, Command = intenção+evento).
@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use crate::command::Command;
+use crate::command::{Command, SelectionCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -25,7 +25,9 @@ fn dispatcher() -> LocalDispatcher {
 #[test]
 fn set_tuner_enabled_emits_event() {
     let events = dispatcher()
-        .dispatch(Command::SetTunerEnabled { enabled: true })
+        .dispatch(Command::Selection(SelectionCommand::SetTunerEnabled {
+            enabled: true,
+        }))
         .expect("SetTunerEnabled deve ok");
     assert!(
         events
@@ -38,7 +40,9 @@ fn set_tuner_enabled_emits_event() {
 #[test]
 fn set_spectrum_enabled_emits_event() {
     let events = dispatcher()
-        .dispatch(Command::SetSpectrumEnabled { enabled: false })
+        .dispatch(Command::Selection(SelectionCommand::SetSpectrumEnabled {
+            enabled: false,
+        }))
         .expect("SetSpectrumEnabled deve ok");
     assert!(
         events

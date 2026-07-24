@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use application::command::Command;
+use application::command::{Command, PluginCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -25,7 +25,7 @@ fn empty_project_rc() -> Rc<RefCell<Project>> {
 fn seed_natives_and_reload(dispatcher: &LocalDispatcher) {
     engine::native_registry::register_all_natives();
     let _ = dispatcher
-        .dispatch(Command::ReloadPluginCatalog)
+        .dispatch(Command::Plugin(PluginCommand::ReloadPluginCatalog))
         .expect("reload to seed natives");
     // #693: the rescan runs on its own task — wait for the completion
     // event (poll_async_results is the frontend tick's job).

@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{Command, SettingsCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -29,19 +29,19 @@ impl LocalDispatcher {
             // non-blocking logger.
             // #731: bind the config path at dispatch time (see app_config_persist);
             // the worker must not re-resolve `$HOME` at write time.
-            Command::SetPresetsPath { path } => {
+            Command::Settings(SettingsCommand::SetPresetsPath { path }) => {
                 crate::app_config_persist::persist_app_config(move |config| {
                     config.paths.presets_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }
-            Command::SetPluginsPath { path } => {
+            Command::Settings(SettingsCommand::SetPluginsPath { path }) => {
                 crate::app_config_persist::persist_app_config(move |config| {
                     config.paths.plugins_path = path;
                 });
                 Ok(vec![Event::PathsSaved])
             }
-            Command::SetEvaluationsPath { path } => {
+            Command::Settings(SettingsCommand::SetEvaluationsPath { path }) => {
                 crate::app_config_persist::persist_app_config(move |config| {
                     config.paths.evaluations_path = path;
                 });

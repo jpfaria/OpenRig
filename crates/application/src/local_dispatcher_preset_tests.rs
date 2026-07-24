@@ -1,5 +1,5 @@
-//! Red-first (#436 F): `Command::SaveChainPreset` /
-//! `Command::DeleteChainPreset` despacham e emitem
+//! Red-first (#436 F): `ChainCommand::SaveChainPreset` /
+//! `ChainCommand::DeleteChainPreset` despacham e emitem
 //! `Event::ChainPresetSaved` / `ChainPresetDeleted`. Precedente
 //! `SaveProject` (I/O de arquivo no adapter, Command = intenção+evento).
 
@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use crate::command::Command;
+use crate::command::{ChainCommand, Command};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -25,10 +25,10 @@ fn dispatcher() -> LocalDispatcher {
 #[test]
 fn save_chain_preset_emits_event_with_name() {
     let events = dispatcher()
-        .dispatch(Command::SaveChainPreset {
+        .dispatch(Command::Chain(ChainCommand::SaveChainPreset {
             chain: domain::ids::ChainId("c1".to_string()),
             name: "lead".to_string(),
-        })
+        }))
         .expect("SaveChainPreset deve ok");
     // #693: preset I/O runs on the persist worker — wait before reading back.
     crate::persist_worker::flush();
@@ -41,7 +41,7 @@ fn save_chain_preset_emits_event_with_name() {
 }
 
 /// #555: with a presets_path attached AND a matching chain in the
-/// project, `Command::SaveChainPreset` writes the chain's FX blocks
+/// project, `ChainCommand::SaveChainPreset` writes the chain's FX blocks
 /// to disk as a YAML preset. The GUI used to do this `fs::write` in
 /// `adapter-gui::preset_save_wiring::perform_preset_save` — a
 /// violation of "tela sem regra de negócio".
@@ -73,10 +73,10 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
 
     let preset_name = "Clocks — Coldplay (rhythm)";
     let events = dispatcher
-        .dispatch(Command::SaveChainPreset {
+        .dispatch(Command::Chain(ChainCommand::SaveChainPreset {
             chain: chain_id,
             name: preset_name.to_string(),
-        })
+        }))
         .expect("SaveChainPreset should succeed");
     // #693: preset I/O runs on the persist worker — wait before reading back.
     crate::persist_worker::flush();
@@ -84,7 +84,7 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
     let preset_path = crate::preset_file::preset_save_path(&presets_dir, preset_name);
     assert!(
         preset_path.exists(),
-        "preset file at {preset_path:?} should be written by Command::SaveChainPreset"
+        "preset file at {preset_path:?} should be written by ChainCommand::SaveChainPreset"
     );
     assert!(events
         .iter()
@@ -94,9 +94,9 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
 #[test]
 fn delete_chain_preset_emits_event_with_name() {
     let events = dispatcher()
-        .dispatch(Command::DeleteChainPreset {
+        .dispatch(Command::Chain(ChainCommand::DeleteChainPreset {
             name: "old".to_string(),
-        })
+        }))
         .expect("DeleteChainPreset deve ok");
     // #693: preset I/O runs on the persist worker — wait before reading back.
     crate::persist_worker::flush();
@@ -108,7 +108,7 @@ fn delete_chain_preset_emits_event_with_name() {
     );
 }
 
-/// #555: with a presets_path attached, `Command::DeleteChainPreset`
+/// #555: with a presets_path attached, `ChainCommand::DeleteChainPreset`
 /// removes the actual preset file on disk. This used to be the GUI's
 /// job at `adapter-gui::chain_preset_wiring::on_preset_picker_delete`
 /// — a violation of "tela sem regra de negócio".
@@ -127,16 +127,16 @@ fn delete_chain_preset_removes_file_when_presets_path_attached() {
     let dispatcher = dispatcher();
     dispatcher.attach_presets_path(presets_dir.clone());
     dispatcher
-        .dispatch(Command::DeleteChainPreset {
+        .dispatch(Command::Chain(ChainCommand::DeleteChainPreset {
             name: preset_name.to_string(),
-        })
+        }))
         .expect("DeleteChainPreset deve ok");
     // #693: preset I/O runs on the persist worker — wait before reading back.
     crate::persist_worker::flush();
 
     assert!(
         !preset_path.exists(),
-        "preset file at {preset_path:?} should be gone after Command::DeleteChainPreset"
+        "preset file at {preset_path:?} should be gone after ChainCommand::DeleteChainPreset"
     );
 }
 
@@ -172,10 +172,10 @@ fn save_chain_preset_tags_preset_with_chain_instrument() {
     dispatcher.attach_presets_path(presets_dir.clone());
 
     dispatcher
-        .dispatch(Command::SaveChainPreset {
+        .dispatch(Command::Chain(ChainCommand::SaveChainPreset {
             chain: chain_id,
             name: "Violao Clean".to_string(),
-        })
+        }))
         .expect("SaveChainPreset should succeed");
     // #693: preset I/O runs on the persist worker — wait before reading back.
     crate::persist_worker::flush();
@@ -228,11 +228,11 @@ fn load_chain_preset_rejects_instrument_mismatch() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::LoadChainPreset {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::LoadChainPreset {
         chain: chain_id,
         preset_instrument: "acoustic_guitar".to_string(),
         preset_blocks: Vec::new(),
-    });
+    }));
 
     assert!(
         result.is_err(),
@@ -270,11 +270,11 @@ fn load_chain_preset_accepts_matching_instrument() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::LoadChainPreset {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::LoadChainPreset {
         chain: chain_id,
         preset_instrument: "electric_guitar".to_string(),
         preset_blocks: Vec::new(),
-    });
+    }));
 
     assert!(
         result.is_ok(),
@@ -311,11 +311,11 @@ fn load_chain_preset_back_compat_untagged_defaults_to_electric_guitar() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // "electric_guitar" is the default for untagged presets (serde default)
-    let result = dispatcher.dispatch(Command::LoadChainPreset {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::LoadChainPreset {
         chain: chain_id,
         preset_instrument: "electric_guitar".to_string(),
         preset_blocks: Vec::new(),
-    });
+    }));
 
     assert!(
         result.is_ok(),
@@ -334,9 +334,9 @@ fn delete_chain_preset_is_idempotent_when_file_missing() {
     dispatcher.attach_presets_path(tmp.path().to_path_buf());
 
     let events = dispatcher
-        .dispatch(Command::DeleteChainPreset {
+        .dispatch(Command::Chain(ChainCommand::DeleteChainPreset {
             name: "does-not-exist".to_string(),
-        })
+        }))
         .expect("DeleteChainPreset of missing file is a no-op");
     // #693: preset I/O runs on the persist worker — wait before reading back.
     crate::persist_worker::flush();

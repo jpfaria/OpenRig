@@ -6,7 +6,7 @@
 //! unreachable until the user quits and reopens the app. This RED test pins
 //! the command + event contract that closes that gap:
 //!
-//! * A new `Command::ReloadPluginCatalog` (no payload) exists.
+//! * A new `PluginCommand::ReloadPluginCatalog` (no payload) exists.
 //! * Dispatching it succeeds and emits an `Event::PluginCatalogReloaded`
 //!   that carries `native_count`, `disk_count`, and `total_count` such
 //!   that `total_count == native_count + disk_count`.
@@ -24,7 +24,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use application::command::Command;
+use application::command::{Command, PluginCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::local_dispatcher::LocalDispatcher;
@@ -49,7 +49,7 @@ fn reload_plugin_catalog_emits_plugin_catalog_reloaded_with_counts() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let mut events = dispatcher
-        .dispatch(Command::ReloadPluginCatalog)
+        .dispatch(Command::Plugin(PluginCommand::ReloadPluginCatalog))
         .expect("dispatch ReloadPluginCatalog");
     // #693: the rescan runs on its own task — the completion event
     // arrives via poll_async_results (the frontend tick's job).

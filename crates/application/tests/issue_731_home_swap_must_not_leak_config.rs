@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use project::project::Project;
@@ -62,10 +62,10 @@ fn issue_731_save_audio_settings_write_does_not_leak_to_swapped_home() {
         chains: Vec::new(),
         midi: None,
     })));
-    let _ = dispatcher.dispatch(Command::SaveAudioSettings {
+    let _ = dispatcher.dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
         input_devices: Vec::new(),
         output_devices: Vec::new(),
-    });
+    }));
 
     // Swap to HOME = B before the worker drains — exactly what
     // `with_tmp_home` does when it restores `$HOME` post-closure.

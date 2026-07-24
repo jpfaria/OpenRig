@@ -1,6 +1,6 @@
 //! #436 architectural fix: rig-nav must flow through Command/dispatcher
 //! (not be applied by hand in the GUI). The dispatcher owns the rig and
-//! `Command::ApplyRigNav` does what the old `reproject` closure did —
+//! `SelectionCommand::ApplyRigNav` does what the old `reproject` closure did —
 //! switch the active preset/scene and re-project the synthetic chain.
 
 use std::cell::RefCell;
@@ -13,7 +13,7 @@ use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
 use project::param::ParameterSet;
 use project::rig::{RigInput, RigPreset, RigProject};
 
-use crate::command::{Command, RigNavKind};
+use crate::command::{ChainCommand, Command, ProjectCommand, RigNavKind, SelectionCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -91,12 +91,12 @@ fn apply_rig_nav_switches_preset_and_reprojects_the_synthetic_chain() {
 
     // The GUI dispatches this instead of mutating session.rig itself.
     let events = dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             // Preset position 1 → 2nd bank key (2) == "p2" (the GUI
             // sends this exact sentinel today).
             kind: RigNavKind::Preset(1),
-        })
+        }))
         .expect("dispatch ok");
 
     assert_eq!(rig.borrow().inputs["in"].active_preset, 2, "rig mutated");
@@ -132,20 +132,20 @@ fn apply_rig_nav_step_preset_advances_then_wraps() {
 
     // Footswitch "next preset": relative step, no fixed position.
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::StepPreset(1),
-        })
+        }))
         .expect("dispatch ok");
     assert_eq!(rig.borrow().inputs["in"].active_preset, 2, "advanced to p2");
     assert_eq!(core_ids(&project.borrow()), vec!["B"]);
 
     // Next again wraps back to the first preset.
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::StepPreset(1),
-        })
+        }))
         .expect("dispatch ok");
     assert_eq!(rig.borrow().inputs["in"].active_preset, 1, "wrapped to p1");
 }
@@ -170,10 +170,10 @@ fn apply_rig_nav_step_scene_advances() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::StepScene(1),
-        })
+        }))
         .expect("dispatch ok");
     assert_eq!(rig.borrow().inputs["in"].active_scene, 2, "scene advanced");
 }
@@ -207,9 +207,9 @@ fn remove_chain_also_drops_the_rig_input_not_just_the_legacy_chain() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::RemoveChain {
+        .dispatch(Command::Chain(ChainCommand::RemoveChain {
             chain: ChainId("rig:in-b".into()),
-        })
+        }))
         .expect("dispatch ok");
 
     assert!(
@@ -243,7 +243,7 @@ fn capture_rig_edits_writes_synthetic_chain_back_into_the_rig() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     dispatcher.attach_rig(Rc::clone(&rig));
     dispatcher
-        .dispatch(Command::CaptureRigEdits)
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
         .expect("dispatch ok");
 
     let active = rig.borrow().inputs["in"].active_preset;
@@ -275,10 +275,10 @@ fn rename_rig_preset_changes_what_the_select_shows() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::RenameRigPreset {
+        .dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
             chain: ChainId("rig:in".into()),
             name: "SILVERCHAIR FREAK - SCARLETT".into(),
-        })
+        }))
         .expect("dispatch ok");
 
     let active = rig.borrow().inputs["in"].active_preset;
@@ -292,7 +292,7 @@ fn rename_rig_preset_changes_what_the_select_shows() {
 
 // #436: "clicar num bloco" must be reachable by MIDI/MCP, so block
 // selection has to be Command-driven and owned by the dispatcher (not
-// GUI-only state). RED: Command::SelectChainBlock + a queryable
+// GUI-only state). RED: SelectionCommand::SelectChainBlock + a queryable
 // selection don't exist yet.
 #[test]
 fn select_chain_block_command_sets_dispatcher_owned_selection() {
@@ -303,10 +303,10 @@ fn select_chain_block_command_sets_dispatcher_owned_selection() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     dispatcher
-        .dispatch(Command::SelectChainBlock {
+        .dispatch(Command::Selection(SelectionCommand::SelectChainBlock {
             chain: ChainId("rig:in".into()),
             block_index: 2,
-        })
+        }))
         .expect("dispatch ok");
 
     let selection_state = dispatcher.selection_state();
@@ -384,12 +384,12 @@ fn move_chain_up_then_capture_writes_chain_order_into_rig() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::MoveChainUp {
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp {
             chain: ChainId("rig:beta".into()),
-        })
+        }))
         .expect("MoveChainUp ok");
     dispatcher
-        .dispatch(Command::CaptureRigEdits)
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
         .expect("CaptureRigEdits ok");
 
     assert_eq!(
@@ -413,12 +413,12 @@ fn rig_to_legacy_project_after_capture_reflects_persisted_chain_order() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::MoveChainUp {
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp {
             chain: ChainId("rig:beta".into()),
-        })
+        }))
         .expect("MoveChainUp ok");
     dispatcher
-        .dispatch(Command::CaptureRigEdits)
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
         .expect("CaptureRigEdits ok");
 
     let reprojected = engine::rig_runtime::rig_to_legacy_project(
@@ -453,10 +453,10 @@ fn apply_rig_nav_add_scene_only_grows_active_preset_not_other_bank_presets() {
 
     // GUI's "+" on the scene bar dispatches this exact sentinel.
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::Scene(-1),
-        })
+        }))
         .expect("dispatch ok");
 
     assert_eq!(
@@ -486,16 +486,16 @@ fn add_scene_on_a_then_switch_to_b_keeps_b_at_one_scene_in_the_pool() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::Scene(-1),
-        })
+        }))
         .expect("add scene ok");
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::Preset(1),
-        })
+        }))
         .expect("switch ok");
 
     assert_eq!(
@@ -523,20 +523,20 @@ fn add_scene_on_a_switch_to_b_then_save_keeps_b_at_one_scene() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::Scene(-1),
-        })
+        }))
         .expect("add scene ok");
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId("rig:in".into()),
             kind: RigNavKind::Preset(1),
-        })
+        }))
         .expect("switch ok");
     // The save path runs CaptureRigEdits before serializing.
     dispatcher
-        .dispatch(Command::CaptureRigEdits)
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
         .expect("capture ok");
 
     assert_eq!(

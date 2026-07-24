@@ -1,4 +1,4 @@
-//! Red-first (#436 G): `Command::SetOutputMuted` despacha e emite
+//! Red-first (#436 G): `SelectionCommand::SetOutputMuted` despacha e emite
 //! `Event::OutputMutedChanged` — MCP/MIDI/GUI mutam a saída pela mesma
 //! porta. Precedente `SaveProject` (efeito no adapter/runtime, Command
 //! = intenção + evento).
@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use crate::command::Command;
+use crate::command::{Command, SelectionCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -25,7 +25,9 @@ fn dispatcher() -> LocalDispatcher {
 #[test]
 fn set_output_muted_true_emits_event() {
     let events = dispatcher()
-        .dispatch(Command::SetOutputMuted { muted: true })
+        .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+            muted: true,
+        }))
         .expect("SetOutputMuted deve ok");
     assert!(
         events
@@ -38,7 +40,9 @@ fn set_output_muted_true_emits_event() {
 #[test]
 fn set_output_muted_false_emits_event() {
     let events = dispatcher()
-        .dispatch(Command::SetOutputMuted { muted: false })
+        .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+            muted: false,
+        }))
         .expect("SetOutputMuted deve ok");
     assert!(
         events

@@ -8,7 +8,7 @@
 //!      the IR convolver through a preamp slot and audio becomes white
 //!      noise ("radio interference").
 //!
-//! The contract: `Command::ReplaceBlockModel` must derive the new
+//! The contract: `BlockCommand::ReplaceBlockModel` must derive the new
 //! `effect_type` from the new model's manifest `type:` field. Both
 //! marshall_4x12_v30 and v30_4x12 declare `type: cab` in their
 //! `manifest.yaml`, so after the swap the slot must still be `cab`.
@@ -30,7 +30,7 @@ use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -129,11 +129,11 @@ fn issue_537_replace_marshall_with_v30_keeps_cab_effect_type() {
     let project = make_project_with_cab("ir_marshall_4x12_v30");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ReplaceBlockModel {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ReplaceBlockModel {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_cab".to_string()),
         model_id: "ir_v30_4x12".to_string(),
-    });
+    }));
 
     assert!(
         result.is_ok(),
