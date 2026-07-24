@@ -102,6 +102,11 @@ pub use settings::audio::apply_audio_override;
 pub use settings::paths::{
     apply_evaluations_override, apply_plugins_override, apply_presets_override,
 };
+pub mod metronome_close;
+mod metronome_controls_wiring;
+mod metronome_events;
+mod metronome_session;
+mod metronome_wiring;
 mod sample_rate;
 pub mod spectrum_close;
 mod spectrum_session;

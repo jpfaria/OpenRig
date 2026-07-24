@@ -103,3 +103,8 @@ tone-doctor-genre: "Gênero"
 tone-doctor-genre-default: "Padrão"
 tone-doctor-genre-search: "Buscar gênero…"
 tone-doctor-genre-none: "Sem gêneros"
+
+# --- #14 metronome timbre names (the knob's other labels are note values)
+label-metronome-timbre-click: "Clique"
+label-metronome-timbre-wood: "Madeira"
+label-metronome-timbre-beep: "Bipe"

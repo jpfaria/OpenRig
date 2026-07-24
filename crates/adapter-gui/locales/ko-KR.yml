@@ -91,3 +91,8 @@ tone-doctor-genre: "장르"
 tone-doctor-genre-default: "기본"
 tone-doctor-genre-search: "장르 검색…"
 tone-doctor-genre-none: "장르 없음"
+
+# --- #14 metronome timbre names (the knob's other labels are note values)
+label-metronome-timbre-click: "클릭"
+label-metronome-timbre-wood: "우드"
+label-metronome-timbre-beep: "비프"

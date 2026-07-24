@@ -22,7 +22,8 @@ export component PowerFootSwitch inherits Rectangle {
         image-fit: fill;
         image-rendering: smooth;
     }
-    TouchArea {
+    // Named so the headless interaction test can find and press it.
+    ta := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.toggled(); }
     }

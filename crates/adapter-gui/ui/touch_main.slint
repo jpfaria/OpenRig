@@ -123,6 +123,7 @@ export component TouchMain inherits Rectangle {
     callback toggle-tuner-mute(bool);
     callback toggle-tuner-enabled(bool);
     callback open-spectrum-window();
+    callback open-metronome-window();
     in property <bool> show-spectrum;
     in property <[SpectrumRow]> spectrum-rows;
     in property <bool> spectrum-enabled: false;
@@ -325,6 +326,7 @@ export component TouchMain inherits Rectangle {
             configure-project => { root.configure-project(); }
             open-tuner-window => { root.open-tuner-window(); }
             open-spectrum-window => { root.open-spectrum-window(); }
+            open-metronome-window => { root.open-metronome-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }

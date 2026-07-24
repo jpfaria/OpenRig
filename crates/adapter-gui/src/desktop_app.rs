@@ -30,8 +30,8 @@ use crate::state::{
 };
 use crate::{
     latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInsertWindow,
-    ChannelOptionItem, CompactChainViewWindow, PluginInfoWindow, ProjectSettingsWindow,
-    SpectrumWindow, TunerWindow,
+    ChannelOptionItem, CompactChainViewWindow, MetronomeWindow, PluginInfoWindow,
+    ProjectSettingsWindow, SpectrumWindow, TunerWindow,
 };
 
 pub fn run_desktop_app(
@@ -251,6 +251,18 @@ pub fn run_desktop_app(
     let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
+    let metronome_window = MetronomeWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&metronome_window).set_font_family(boot_font.into());
+    }
+    // #14: the metronome's settings come from the per-machine config and outlive
+    // any project — unlike the tuner, whose session is built on power-on. What
+    // config.yaml does NOT carry is `enabled`, so the click always boots off.
+    let metronome_session = Rc::new(RefCell::new(
+        crate::metronome_session::MetronomeSession::from_config(&app_config.borrow().metronome),
+    ));
+    let metronome_timer = Rc::new(Timer::default());
 
     // settings::language needs to know how to push the new font to every Window
     // (each Slint Window is a separate root with its own Locale global, so a
@@ -263,6 +275,7 @@ pub fn run_desktop_app(
         let weak_block_editor = block_editor_window.as_weak();
         let weak_tuner = tuner_window.as_weak();
         let weak_spectrum = spectrum_window.as_weak();
+        let weak_metronome = metronome_window.as_weak();
         let chain_editor_window_for_apply = chain_editor_window.clone();
         let plugin_info_window_for_apply = plugin_info_window.clone();
         let apply_font_to_all = move |font: &str| {
@@ -283,6 +296,9 @@ pub fn run_desktop_app(
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = weak_spectrum.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_metronome.upgrade() {
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = chain_editor_window_for_apply.borrow().as_ref() {
@@ -658,6 +674,15 @@ pub fn run_desktop_app(
         &project_runtime,
         &spectrum_session,
         &spectrum_timer,
+    );
+    // ── Metronome window — top-bar feature ──
+    crate::metronome_wiring::wire_metronome(
+        &window,
+        &metronome_window,
+        &project_session,
+        &project_runtime,
+        &metronome_session,
+        &metronome_timer,
     );
     // --- Back-to-launcher callback (extracted to back_to_launcher_wiring) ---
     crate::back_to_launcher_wiring::wire(

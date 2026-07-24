@@ -87,3 +87,8 @@ tone-doctor-no-di: "先に DI ソースを選択してください"
 warn-select-binding: "このチェーンに少なくとも1つの I/O バインディングを選択してください"
 tone-doctor-analyze: "分析"
 tone-doctor-no-signal: "DI を再生するかチェーンを有効化"
+
+# --- #14 metronome timbre names (the knob's other labels are note values)
+label-metronome-timbre-click: "クリック"
+label-metronome-timbre-wood: "ウッド"
+label-metronome-timbre-beep: "ビープ"
