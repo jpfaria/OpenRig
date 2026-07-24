@@ -313,6 +313,8 @@ impl CommandDispatcher for LocalDispatcher {
                 | SelectionCommand::SetSpectrumEnabled { .. },
             ) => self.handle_diagnostic_enabled(cmd),
 
+            Command::Metronome(_) => self.handle_metronome(cmd),
+
             Command::Project(ProjectCommand::CloseProject) => self.handle_close_project(cmd),
 
             Command::Project(

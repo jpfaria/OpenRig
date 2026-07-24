@@ -22,8 +22,23 @@ use application::command::{
 use application::command_schema::command_variant_names;
 use domain::ids::{BlockId, ChainId};
 
-/// Every variant the MCP/gRPC surface exposed before the split.
+/// Every variant the MCP/gRPC surface exposed before the split, plus the
+/// metronome commands #14 adds on top of it.
+///
+/// Growing this list is a deliberate act: a new entry means a new MCP tool, and
+/// a *missing* one means a tool clients already call has disappeared.
 const EXPECTED_VARIANTS: &[&str] = &[
+    // ── Added by #14 (the metronome) ──────────────────────────────────────
+    "MetronomeTap",
+    "SetMetronomeBpm",
+    "SetMetronomeCountIn",
+    "SetMetronomeEnabled",
+    "SetMetronomeOutput",
+    "SetMetronomeSubdivision",
+    "SetMetronomeTimbre",
+    "SetMetronomeTimeSignature",
+    "SetMetronomeVolume",
+    // ── The surface that existed before the split ─────────────────────────
     "AddBlock",
     "AddChain",
     "AddIoEndpoint",

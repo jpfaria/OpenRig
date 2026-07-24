@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 pub mod block;
 pub mod chain;
 pub mod io_binding;
+pub mod metronome;
 pub mod midi;
 pub mod plugin;
 pub mod project;
@@ -30,6 +31,7 @@ pub mod settings;
 pub use block::BlockCommand;
 pub use chain::ChainCommand;
 pub use io_binding::IoBindingCommand;
+pub use metronome::MetronomeCommand;
 pub use midi::MidiCommand;
 pub use plugin::PluginCommand;
 pub use project::ProjectCommand;
@@ -60,6 +62,7 @@ pub enum Command {
     Settings(SettingsCommand),
     IoBinding(IoBindingCommand),
     Plugin(PluginCommand),
+    Metronome(MetronomeCommand),
 }
 
 /// What [`SelectionCommand::ApplyRigNav`] does to the chain's rig input.
