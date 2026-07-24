@@ -552,7 +552,7 @@ msgstr "Canaux"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr "Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise une liaison."
+msgstr ""
 "Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise "
 "une liaison."
 
@@ -736,7 +736,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr "Activez une chain avec une entrée configurée pour voir ses accordeurs ici."
+msgstr ""
 "Activez une chain avec une entrée configurée pour voir ses accordeurs ici."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:406

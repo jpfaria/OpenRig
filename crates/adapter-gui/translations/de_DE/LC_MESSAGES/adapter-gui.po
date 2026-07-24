@@ -552,7 +552,7 @@ msgstr "Kanäle"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr "Gruppiere Eingang und Ausgang derselben Schnittstelle. Jede Chain nutzt eine Verknüpfung."
+msgstr ""
 "Gruppiere Eingang und Ausgang derselben Schnittstelle. Jede Chain nutzt eine "
 "Verknüpfung."
 
@@ -566,7 +566,7 @@ msgstr "Noch keine Verknüpfungen"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
 msgid "empty-no-bindings-hint"
-msgstr "Erstelle eine, um Eingang und Ausgang einer Schnittstelle zu gruppieren."
+msgstr ""
 "Erstelle eine, um Eingang und Ausgang einer Schnittstelle zu gruppieren."
 
 #. ── Entradas ──
@@ -717,7 +717,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:251
 msgid "status-spectrum-empty-help"
-msgstr "Schalte das Spektrum ein und aktiviere eine Chain mit konfiguriertem Ausgang."
+msgstr ""
 "Schalte das Spektrum ein und aktiviere eine Chain mit konfiguriertem Ausgang."
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:279
@@ -738,7 +738,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr "Aktiviere eine Chain mit konfiguriertem Eingang, um hier die Stimmgeräte zu sehen."
+msgstr ""
 "Aktiviere eine Chain mit konfiguriertem Eingang, um hier die Stimmgeräte zu "
 "sehen."
 

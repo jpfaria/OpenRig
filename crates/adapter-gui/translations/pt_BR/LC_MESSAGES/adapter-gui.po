@@ -561,7 +561,7 @@ msgstr "Canais"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr "Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."
+msgstr ""
 "Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246

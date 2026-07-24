@@ -552,7 +552,7 @@ msgstr "チャンネル"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr "同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディングを使用します。"
+msgstr ""
 "同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディング"
 "を使用します。"
 
@@ -566,7 +566,7 @@ msgstr "バインディングがまだありません"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
 msgid "empty-no-bindings-hint"
-msgstr "インターフェースの入力と出力をまとめるバインディングを作成してください。"
+msgstr ""
 "インターフェースの入力と出力をまとめるバインディングを作成してください。"
 
 #. ── Entradas ──

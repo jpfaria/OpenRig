@@ -447,11 +447,9 @@ fn settings_screen_tr_keys_are_translated_in_pt_br() {
             })
             .collect();
         for key in keys {
-            let resolved = po.split("\n\n").any(|rec| {
-                !rec.contains("msgctxt ")
-                    && rec.contains(&format!("msgid \"{key}\""))
-                    && !rec.contains("msgstr \"\"")
-            });
+            let resolved = po
+                .split("\n\n")
+                .any(|rec| record_translates(rec, key));
             assert!(
                 resolved,
                 "{name}: no non-empty pt_BR translation for @tr(\"{key}\") \
@@ -459,6 +457,39 @@ fn settings_screen_tr_keys_are_translated_in_pt_br() {
             );
         }
     }
+}
+
+/// Whether `rec` carries a non-empty translation for `key`.
+///
+/// The naive `!rec.contains("msgstr \"\"")` check is wrong: the canonical PO
+/// form for any string too long for one line is `msgstr ""` followed by
+/// quoted continuation lines, which gettext concatenates. `msgfmt` compiles
+/// those fine, so treating them as untranslated is a false positive — and it
+/// fires exactly when a translator writes a long sentence.
+fn record_translates(rec: &str, key: &str) -> bool {
+    if rec.contains("msgctxt ") {
+        return false;
+    }
+    let lines: Vec<&str> = rec.lines().collect();
+    let target = format!("msgid \"{key}\"");
+    let Some(idx) = lines.iter().position(|l| *l == target) else {
+        return false;
+    };
+    let Some(msgstr_at) = lines[idx + 1..]
+        .iter()
+        .position(|l| l.starts_with("msgstr "))
+        .map(|o| idx + 1 + o)
+    else {
+        return false;
+    };
+    if lines[msgstr_at] != "msgstr \"\"" {
+        return true; // single-line, non-empty
+    }
+    // Multi-line: any non-empty continuation means it IS translated.
+    lines[msgstr_at + 1..]
+        .iter()
+        .take_while(|l| l.starts_with('"'))
+        .any(|l| *l != "\"\"")
 }
 
 /// Comprehensive guard (#716): EVERY symbolic `@tr("key")` used anywhere in the
@@ -535,11 +566,9 @@ fn every_gui_tr_key_translated_in_every_locale() {
         ))
         .unwrap_or_else(|e| panic!("read {loc} catalog: {e}"));
         for key in &keys {
-            let resolved = po.split("\n\n").any(|rec| {
-                !rec.contains("msgctxt ")
-                    && rec.contains(&format!("msgid \"{key}\""))
-                    && !rec.contains("msgstr \"\"")
-            });
+            let resolved = po
+                .split("\n\n")
+                .any(|rec| record_translates(rec, key));
             if !resolved {
                 missing.push(format!("{loc}: {key}"));
             }
