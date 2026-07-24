@@ -85,6 +85,15 @@ every layer instead of "it plays, ship it":
 | `adapter-gui/tests/issue_323_looper_wiring.rs` | the #614 trap: dispatching alone is dead — the runtime state must actually flip |
 | `adapter-gui/tests/issue_323_looper_panel_interaction.rs` | real pointer events on the panel: every transport button fires, disabled ones do not, each row reports its own uid |
 | `adapter-gui/src/looper_persist_tests.rs` | save → reopen round-trip of the wav sidecar, and that a missing sidecar never blocks opening a project |
+| `infra-cpal/tests/issue_323_looper_hw.rs` (`OPENRIG_HW_TESTS=1`) | the REAL stack: record + 7 overdubs + undo/redo/clear on live CoreAudio streams at buffer 64 cost **zero** xruns / underruns |
+
+The hardware test builds its rig **in the test** instead of loading a fixture
+preset: the shipped presets reference the owner's NAM/LV2 capture library, so
+on a machine without it every block is dropped, the chain never comes up, and
+the counters read zero for a runtime that does not exist — a vacuously green
+measurement. It asserts the chain is live before measuring, and drives
+`poll_pending_rebuilds` the way the app's timer does, because the cold
+activation is asynchronous (#740).
 
 ## Workspace
 

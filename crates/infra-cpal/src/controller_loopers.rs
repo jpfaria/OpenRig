@@ -20,9 +20,26 @@ use engine::{LooperOp, LooperStatus};
 use crate::controller::ProjectRuntimeController;
 
 impl ProjectRuntimeController {
-    /// Every runtime serving `chain_id`.
+    /// Every runtime serving `chain_id`, as the audio threads see them.
+    ///
+    /// The LIVE runtime of a chain lives in its `chain_slots` cell (#672): an
+    /// off-thread rebuild publishes a new `ChainRuntimeState` there while the
+    /// graph still holds the superseded one. Reading the graph would address a
+    /// runtime that no longer processes audio — the looper would answer
+    /// "no such looper" after any live edit — so the slots win and the graph
+    /// is only the fallback for runtimes that have no slot yet.
     pub fn runtimes_for_chain(&self, chain_id: &ChainId) -> Vec<Arc<ChainRuntimeState>> {
-        self.runtime_graph.runtimes_for(chain_id)
+        let mut live: Vec<(usize, Arc<ChainRuntimeState>)> = self
+            .chain_slots
+            .iter()
+            .filter(|((cid, _), _)| cid == chain_id)
+            .map(|((_, group), slot)| (*group, slot.load()))
+            .collect();
+        if live.is_empty() {
+            return self.runtime_graph.runtimes_for(chain_id);
+        }
+        live.sort_by_key(|(group, _)| *group);
+        live.into_iter().map(|(_, runtime)| runtime).collect()
     }
 
     /// Queue an op on every runtime of the chain. `make` is called once per
