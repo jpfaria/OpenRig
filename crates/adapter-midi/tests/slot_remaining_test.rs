@@ -11,7 +11,7 @@
 //!   (active_block_param_path); value is the normalised CC byte.
 
 use adapter_midi::slots::{slot_to_command, IncomingMessage};
-use application::command::{BlockId, ChainId, Command};
+use application::command::{BlockCommand, BlockId, ChainCommand, ChainId, Command};
 use application::SelectionState;
 
 fn cc(value: u8) -> IncomingMessage {
@@ -32,7 +32,7 @@ fn toggle_active_chain_enabled_flips_snapshot() {
 
     let cmd = slot_to_command("toggle_active_chain_enabled", &cc(0), &sel).unwrap();
     match cmd {
-        Command::ToggleChainEnabled { chain } => {
+        Command::Chain(ChainCommand::ToggleChainEnabled { chain }) => {
             assert_eq!(chain, ChainId("rig:guitar".to_string()));
         }
         other => panic!("expected ToggleChainEnabled, got {other:?}"),
@@ -55,7 +55,7 @@ fn toggle_active_block_enabled_emits_toggle_for_both_ids() {
 
     let cmd = slot_to_command("toggle_active_block_enabled", &cc(0), &sel).unwrap();
     match cmd {
-        Command::ToggleBlockEnabled { chain, block } => {
+        Command::Block(BlockCommand::ToggleBlockEnabled { chain, block }) => {
             assert_eq!(chain, ChainId("rig:guitar".to_string()));
             assert_eq!(block, BlockId("blk_1".to_string()));
         }
@@ -88,7 +88,7 @@ fn chain_volume_scales_cc_zero_to_zero() {
     };
     let cmd = slot_to_command("chain_volume", &cc(0), &sel).unwrap();
     match cmd {
-        Command::SetChainVolume { chain, value } => {
+        Command::Chain(ChainCommand::SetChainVolume { chain, value }) => {
             assert_eq!(chain, ChainId("rig:guitar".to_string()));
             assert!((value - 0.0).abs() < 1e-6, "got {value}");
         }
@@ -103,7 +103,7 @@ fn chain_volume_scales_cc_127_to_one() {
         ..Default::default()
     };
     let cmd = slot_to_command("chain_volume", &cc(127), &sel).unwrap();
-    if let Command::SetChainVolume { value, .. } = cmd {
+    if let Command::Chain(ChainCommand::SetChainVolume { value, .. }) = cmd {
         assert!((value - 1.0).abs() < 1e-6, "got {value}");
     } else {
         panic!("expected SetChainVolume");
@@ -117,7 +117,7 @@ fn chain_volume_scales_cc_64_to_about_half() {
         ..Default::default()
     };
     let cmd = slot_to_command("chain_volume", &cc(64), &sel).unwrap();
-    if let Command::SetChainVolume { value, .. } = cmd {
+    if let Command::Chain(ChainCommand::SetChainVolume { value, .. }) = cmd {
         assert!((value - 64.0 / 127.0).abs() < 1e-6, "got {value}");
     } else {
         panic!("expected SetChainVolume");
@@ -141,12 +141,12 @@ fn block_param_numeric_uses_active_block_and_path() {
 
     let cmd = slot_to_command("block_param_numeric", &cc(127), &sel).unwrap();
     match cmd {
-        Command::SetBlockParameterNumber {
+        Command::Block(BlockCommand::SetBlockParameterNumber {
             chain,
             block,
             path,
             value,
-        } => {
+        }) => {
             assert_eq!(chain, ChainId("rig:guitar".to_string()));
             assert_eq!(block, BlockId("blk_1".to_string()));
             assert_eq!(path, "gain");

@@ -13,7 +13,7 @@ use adapter_midi::pipeline::dispatch_midi_message;
 use adapter_midi::profile::parse_profile_yaml;
 use adapter_midi::slots::IncomingMessage;
 use anyhow::Result;
-use application::command::Command;
+use application::command::{ChainCommand, Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::SelectionState;
@@ -71,7 +71,10 @@ bindings:
 
     let seen = dispatcher.seen.borrow();
     assert_eq!(seen.len(), 1);
-    assert!(matches!(seen[0], Command::ApplyRigNav { .. }));
+    assert!(matches!(
+        seen[0],
+        Command::Selection(SelectionCommand::ApplyRigNav { .. })
+    ));
 }
 
 #[test]
@@ -176,7 +179,9 @@ bindings:
     let seen = dispatcher.seen.borrow();
     assert_eq!(seen.len(), 1);
     match &seen[0] {
-        Command::SetChainVolume { value, .. } => assert!((value - 1.0).abs() < 1e-6),
+        Command::Chain(ChainCommand::SetChainVolume { value, .. }) => {
+            assert!((value - 1.0).abs() < 1e-6)
+        }
         other => panic!("expected SetChainVolume, got {other:?}"),
     }
 }

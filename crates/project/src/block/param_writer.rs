@@ -1,7 +1,7 @@
 //! Domain-level parameter writers for `AudioBlock`.
 //!
 //! Provides typed write operations used by `LocalDispatcher` to fulfil
-//! `Command::SetBlockParameter*` variants:
+//! `BlockCommand::SetBlockParameter*` variants:
 //! - `set_parameter_number` — f64 value → `ParameterValue::Float`
 //! - `set_parameter_bool`   — bool value → `ParameterValue::Bool`
 //! - `set_parameter_text`   — string value → `ParameterValue::String`

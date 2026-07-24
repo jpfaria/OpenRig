@@ -7,7 +7,7 @@
 //! sync (already does for the tuner/mute/spectrum buttons it renders).
 
 use adapter_midi::slots::{slot_to_command, IncomingMessage};
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::SelectionState;
 
 fn any_msg() -> IncomingMessage {
@@ -23,7 +23,7 @@ fn toggle_tuner_flips_current_state() {
     let mut sel = SelectionState::default();
     assert!(!sel.tuner_enabled);
     let cmd = slot_to_command("toggle_tuner", &any_msg(), &sel).unwrap();
-    if let Command::SetTunerEnabled { enabled } = cmd {
+    if let Command::Selection(SelectionCommand::SetTunerEnabled { enabled }) = cmd {
         assert!(enabled, "off → on");
     } else {
         panic!("expected SetTunerEnabled");
@@ -31,7 +31,7 @@ fn toggle_tuner_flips_current_state() {
 
     sel.tuner_enabled = true;
     let cmd = slot_to_command("toggle_tuner", &any_msg(), &sel).unwrap();
-    if let Command::SetTunerEnabled { enabled } = cmd {
+    if let Command::Selection(SelectionCommand::SetTunerEnabled { enabled }) = cmd {
         assert!(!enabled, "on → off");
     } else {
         panic!("expected SetTunerEnabled");
@@ -43,7 +43,7 @@ fn toggle_output_mute_flips_current_state() {
     let mut sel = SelectionState::default();
     assert!(!sel.output_muted);
     let cmd = slot_to_command("toggle_output_mute", &any_msg(), &sel).unwrap();
-    if let Command::SetOutputMuted { muted } = cmd {
+    if let Command::Selection(SelectionCommand::SetOutputMuted { muted }) = cmd {
         assert!(muted, "off → on");
     } else {
         panic!("expected SetOutputMuted");
@@ -51,7 +51,7 @@ fn toggle_output_mute_flips_current_state() {
 
     sel.output_muted = true;
     let cmd = slot_to_command("toggle_output_mute", &any_msg(), &sel).unwrap();
-    if let Command::SetOutputMuted { muted } = cmd {
+    if let Command::Selection(SelectionCommand::SetOutputMuted { muted }) = cmd {
         assert!(!muted, "on → off");
     } else {
         panic!("expected SetOutputMuted");
@@ -63,7 +63,7 @@ fn toggle_spectrum_flips_current_state() {
     let mut sel = SelectionState::default();
     assert!(!sel.spectrum_enabled);
     let cmd = slot_to_command("toggle_spectrum", &any_msg(), &sel).unwrap();
-    if let Command::SetSpectrumEnabled { enabled } = cmd {
+    if let Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled }) = cmd {
         assert!(enabled, "off → on");
     } else {
         panic!("expected SetSpectrumEnabled");
@@ -71,7 +71,7 @@ fn toggle_spectrum_flips_current_state() {
 
     sel.spectrum_enabled = true;
     let cmd = slot_to_command("toggle_spectrum", &any_msg(), &sel).unwrap();
-    if let Command::SetSpectrumEnabled { enabled } = cmd {
+    if let Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled }) = cmd {
         assert!(!enabled, "on → off");
     } else {
         panic!("expected SetSpectrumEnabled");

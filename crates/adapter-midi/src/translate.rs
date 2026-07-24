@@ -20,7 +20,7 @@ pub fn resolve(map: &MidiMap, msg: &MidiMessage) -> Option<Command> {
 /// the live `velocity` / `value` / channel-on-PC fields so the result is the
 /// same shape `Binding::source` carries. Used by the learn-mode path in
 /// [`crate::daemon`] (#513 / #493): while learn-mode is active, every
-/// incoming event is published as `Command::PublishMidiEvent { source }`
+/// incoming event is published as `MidiCommand::PublishMidiEvent { source }`
 /// regardless of whether the binding map already has a row for it.
 pub fn message_to_source(msg: &MidiMessage) -> Source {
     match *msg {

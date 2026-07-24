@@ -10,7 +10,9 @@
 //! `block_param_numeric`) need parameter-schema lookup to scale 0-127
 //! → range; they are handled in a follow-up sub-phase.
 
-use application::command::{BlockId, ChainId, Command, RigNavKind};
+use application::command::{
+    BlockCommand, BlockId, ChainCommand, ChainId, Command, RigNavKind, SelectionCommand,
+};
 use application::SelectionState;
 
 /// MIDI message in the shape the daemon resolves before calling slots:
@@ -114,85 +116,101 @@ pub fn slot_to_command(
     let active_chain = || selection.active_chain.clone().map(ChainId);
     match slot {
         // --- Chain navigation ---
-        "prev_chain" => Some(Command::SelectActiveChainRelative { delta: -1 }),
-        "next_chain" => Some(Command::SelectActiveChainRelative { delta: 1 }),
+        "prev_chain" => Some(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: -1 },
+        )),
+        "next_chain" => Some(Command::Selection(
+            SelectionCommand::SelectActiveChainRelative { delta: 1 },
+        )),
 
         // --- Block navigation ---
-        "prev_block_1" => Some(Command::SelectActiveBlockRelative { delta: -1 }),
-        "next_block_1" => Some(Command::SelectActiveBlockRelative { delta: 1 }),
-        "prev_block_2" => Some(Command::SelectActiveBlockRelative { delta: -2 }),
-        "next_block_2" => Some(Command::SelectActiveBlockRelative { delta: 2 }),
+        "prev_block_1" => Some(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: -1 },
+        )),
+        "next_block_1" => Some(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: 1 },
+        )),
+        "prev_block_2" => Some(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: -2 },
+        )),
+        "next_block_2" => Some(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: 2 },
+        )),
 
         // --- Rig nav (preset / scene, on the active chain) ---
-        "prev_preset" => Some(Command::ApplyRigNav {
+        "prev_preset" => Some(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: active_chain()?,
             kind: RigNavKind::StepPreset(-1),
-        }),
-        "next_preset" => Some(Command::ApplyRigNav {
+        })),
+        "next_preset" => Some(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: active_chain()?,
             kind: RigNavKind::StepPreset(1),
-        }),
-        "prev_scene" => Some(Command::ApplyRigNav {
+        })),
+        "prev_scene" => Some(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: active_chain()?,
             kind: RigNavKind::StepScene(-1),
-        }),
-        "next_scene" => Some(Command::ApplyRigNav {
+        })),
+        "next_scene" => Some(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: active_chain()?,
             kind: RigNavKind::StepScene(1),
-        }),
-        "jump_preset_n" => Some(Command::ApplyRigNav {
+        })),
+        "jump_preset_n" => Some(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: active_chain()?,
             kind: RigNavKind::Preset(msg.value_byte() as i32),
-        }),
-        "jump_scene_n" => Some(Command::ApplyRigNav {
+        })),
+        "jump_scene_n" => Some(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: active_chain()?,
             kind: RigNavKind::Scene(msg.value_byte() as i32),
-        }),
+        })),
 
         // --- View / global toggles (read current state, dispatch !current) ---
-        "toggle_compact_view" => Some(Command::SetCompactViewEnabled {
-            enabled: !selection.compact_view_enabled,
-        }),
-        "toggle_tuner" => Some(Command::SetTunerEnabled {
+        "toggle_compact_view" => Some(Command::Selection(
+            SelectionCommand::SetCompactViewEnabled {
+                enabled: !selection.compact_view_enabled,
+            },
+        )),
+        "toggle_tuner" => Some(Command::Selection(SelectionCommand::SetTunerEnabled {
             enabled: !selection.tuner_enabled,
-        }),
-        "toggle_output_mute" => Some(Command::SetOutputMuted {
+        })),
+        "toggle_output_mute" => Some(Command::Selection(SelectionCommand::SetOutputMuted {
             muted: !selection.output_muted,
-        }),
-        "toggle_spectrum" => Some(Command::SetSpectrumEnabled {
+        })),
+        "toggle_spectrum" => Some(Command::Selection(SelectionCommand::SetSpectrumEnabled {
             enabled: !selection.spectrum_enabled,
-        }),
+        })),
 
         // --- Chain / block enable on the active selection ---
-        "toggle_active_chain_enabled" => Some(Command::ToggleChainEnabled {
+        "toggle_active_chain_enabled" => Some(Command::Chain(ChainCommand::ToggleChainEnabled {
             chain: active_chain()?,
-        }),
-        "toggle_active_block_enabled" => Some(Command::ToggleBlockEnabled {
+        })),
+        "toggle_active_block_enabled" => Some(Command::Block(BlockCommand::ToggleBlockEnabled {
             chain: active_chain()?,
             block: BlockId(selection.active_block.clone()?),
-        }),
+        })),
         "toggle_active_block_neighbor_enabled" => {
             // Both active_chain and active_block must be set; the
             // dispatcher resolves the neighbor index against the
             // project's current block list.
             let _ = active_chain()?;
             let _ = selection.active_block.clone()?;
-            Some(Command::ToggleActiveBlockNeighborEnabled)
+            Some(Command::Selection(
+                SelectionCommand::ToggleActiveBlockNeighborEnabled,
+            ))
         }
 
         // --- Continuous CC. Scaled 0..127 → 0.0..1.0; the project /
         //     parameter layer maps the normalised value to its real
         //     range. Per-param schema lookup is a later refinement.
-        "chain_volume" => Some(Command::SetChainVolume {
+        "chain_volume" => Some(Command::Chain(ChainCommand::SetChainVolume {
             chain: active_chain()?,
             value: msg.value_byte() as f32 / 127.0,
-        }),
-        "block_param_numeric" => Some(Command::SetBlockParameterNumber {
+        })),
+        "block_param_numeric" => Some(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: active_chain()?,
             block: BlockId(selection.active_block.clone()?),
             path: selection.active_block_param_path.clone()?,
             value: msg.value_byte() as f64 / 127.0,
-        }),
+        })),
 
         _ => None,
     }

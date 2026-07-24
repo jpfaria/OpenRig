@@ -7,7 +7,7 @@
 
 use adapter_midi::profile::MatchExpr;
 use adapter_midi::slots::{slot_to_command, IncomingMessage};
-use application::command::{ChainId, Command, RigNavKind};
+use application::command::{ChainId, Command, RigNavKind, SelectionCommand};
 use application::SelectionState;
 
 fn pc(channel: u8, program: u8) -> IncomingMessage {
@@ -30,7 +30,7 @@ fn prev_preset_emits_step_preset_minus_1_on_active_chain() {
     )
     .expect("slot returns a Command");
     match cmd {
-        Command::ApplyRigNav { chain, kind } => {
+        Command::Selection(SelectionCommand::ApplyRigNav { chain, kind }) => {
             assert_eq!(chain, ChainId("rig:guitar".to_string()));
             assert!(matches!(kind, RigNavKind::StepPreset(-1)));
         }
@@ -48,10 +48,10 @@ fn next_preset_emits_step_preset_plus_1() {
     .expect("slot returns a Command");
     assert!(matches!(
         cmd,
-        Command::ApplyRigNav {
+        Command::Selection(SelectionCommand::ApplyRigNav {
             kind: RigNavKind::StepPreset(1),
             ..
-        }
+        })
     ));
 }
 
@@ -59,10 +59,10 @@ fn next_preset_emits_step_preset_plus_1() {
 fn prev_next_scene_emit_step_scene() {
     for (slot, expected_delta) in [("prev_scene", -1i32), ("next_scene", 1)] {
         let cmd = slot_to_command(slot, &pc(1, 2), &selection_with_chain("g")).unwrap();
-        if let Command::ApplyRigNav {
+        if let Command::Selection(SelectionCommand::ApplyRigNav {
             kind: RigNavKind::StepScene(d),
             ..
-        } = cmd
+        }) = cmd
         {
             assert_eq!(d, expected_delta, "slot {slot}");
         } else {
@@ -81,10 +81,10 @@ fn jump_preset_n_uses_program_value_as_index() {
     .unwrap();
     assert!(matches!(
         cmd,
-        Command::ApplyRigNav {
+        Command::Selection(SelectionCommand::ApplyRigNav {
             kind: RigNavKind::Preset(42),
             ..
-        }
+        })
     ));
 }
 
@@ -93,10 +93,10 @@ fn jump_scene_n_uses_program_value_as_index() {
     let cmd = slot_to_command("jump_scene_n", &pc(1, 7), &selection_with_chain("g")).unwrap();
     assert!(matches!(
         cmd,
-        Command::ApplyRigNav {
+        Command::Selection(SelectionCommand::ApplyRigNav {
             kind: RigNavKind::Scene(7),
             ..
-        }
+        })
     ));
 }
 
@@ -104,7 +104,7 @@ fn jump_scene_n_uses_program_value_as_index() {
 fn prev_next_chain_emit_select_active_chain_relative() {
     for (slot, expected) in [("prev_chain", -1i32), ("next_chain", 1)] {
         let cmd = slot_to_command(slot, &pc(1, 0), &SelectionState::default()).unwrap();
-        if let Command::SelectActiveChainRelative { delta } = cmd {
+        if let Command::Selection(SelectionCommand::SelectActiveChainRelative { delta }) = cmd {
             assert_eq!(delta, expected, "slot {slot}");
         } else {
             panic!("expected SelectActiveChainRelative for {slot}");
@@ -121,7 +121,7 @@ fn prev_next_block_1_and_2_emit_select_active_block_relative() {
         ("next_block_2", 2),
     ] {
         let cmd = slot_to_command(slot, &pc(1, 0), &SelectionState::default()).unwrap();
-        if let Command::SelectActiveBlockRelative { delta } = cmd {
+        if let Command::Selection(SelectionCommand::SelectActiveBlockRelative { delta }) = cmd {
             assert_eq!(delta, expected, "slot {slot}");
         } else {
             panic!("expected SelectActiveBlockRelative for {slot}");
@@ -136,7 +136,7 @@ fn toggle_compact_view_inverts_selection_flag() {
         ..Default::default()
     };
     let cmd = slot_to_command("toggle_compact_view", &pc(1, 0), &sel).unwrap();
-    if let Command::SetCompactViewEnabled { enabled } = cmd {
+    if let Command::Selection(SelectionCommand::SetCompactViewEnabled { enabled }) = cmd {
         assert!(enabled, "off → on");
     } else {
         panic!("expected SetCompactViewEnabled");
@@ -144,7 +144,7 @@ fn toggle_compact_view_inverts_selection_flag() {
 
     sel.compact_view_enabled = true;
     let cmd = slot_to_command("toggle_compact_view", &pc(1, 0), &sel).unwrap();
-    if let Command::SetCompactViewEnabled { enabled } = cmd {
+    if let Command::Selection(SelectionCommand::SetCompactViewEnabled { enabled }) = cmd {
         assert!(!enabled, "on → off");
     } else {
         panic!("expected SetCompactViewEnabled");

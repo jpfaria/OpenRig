@@ -2,7 +2,7 @@
 //! the daemon callback (#513 / #493).
 //!
 //! While `is_active()` is true, the daemon publishes each raw incoming MIDI
-//! event as `Command::PublishMidiEvent` through the existing
+//! event as `MidiCommand::PublishMidiEvent` through the existing
 //! [`application::bridge::CommandBridge`] instead of resolving it through the
 //! binding map, then calls [`LearnState::on_event_captured`] to auto-disarm
 //! after the first event.

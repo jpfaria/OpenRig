@@ -1,4 +1,4 @@
-//! Issue #522 — fast-path for `Command::ToggleChainEnabled`.
+//! Issue #522 — fast-path for `ChainCommand::ToggleChainEnabled`.
 //!
 //! The legacy behaviour: `upsert_chain` with `chain.enabled = false`
 //! calls `remove_chain`, which drops the `Arc<ChainRuntimeState>` and
@@ -252,7 +252,7 @@ fn upsert_chain_enabled_resumes_every_input_group_runtime() {
     assert!(group1.is_draining());
 
     // Now re-enable via the same fast-path the controller takes on
-    // `Command::ToggleChainEnabled { enabled: true }`.
+    // `ChainCommand::ToggleChainEnabled { enabled: true }`.
     let project = empty_project();
     let enabled = empty_chain(&chain_id.0, true);
     controller

@@ -1,5 +1,5 @@
 //! Issue #591 regression: selecting a chain on the Chains screen
-//! (`Command::SelectActiveChain`) must make the footswitch slot
+//! (`SelectionCommand::SelectActiveChain`) must make the footswitch slot
 //! `toggle_active_chain_enabled` target THAT chain.
 //!
 //! The MIDI daemon mirrors `SelectionState` from the dispatcher, so the
@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adapter_midi::slots::{slot_to_command, IncomingMessage};
-use application::command::{ChainId, Command};
+use application::command::{ChainCommand, ChainId, Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use project::chain::Chain;
@@ -42,9 +42,9 @@ fn footswitch_toggle_targets_the_chain_just_selected() {
 
     // User taps chain rig:input-1 on the Chains screen.
     dispatcher
-        .dispatch(Command::SelectActiveChain {
+        .dispatch(Command::Selection(SelectionCommand::SelectActiveChain {
             chain: ChainId("rig:input-1".to_string()),
-        })
+        }))
         .unwrap();
 
     // The footswitch slot resolves against the live (mirrored) SelectionState.
@@ -61,7 +61,7 @@ fn footswitch_toggle_targets_the_chain_just_selected() {
     .expect("an active chain is selected, so the slot must resolve");
 
     match cmd {
-        Command::ToggleChainEnabled { chain } => assert_eq!(
+        Command::Chain(ChainCommand::ToggleChainEnabled { chain }) => assert_eq!(
             chain,
             ChainId("rig:input-1".to_string()),
             "the footswitch must toggle the chain the user just selected, not a stale one"

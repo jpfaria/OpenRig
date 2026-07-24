@@ -121,7 +121,7 @@ fn runtime_graph_upsert_chain_updates_existing() {
 #[test]
 fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
     // Reproduces the exact path the volume slider takes:
-    //   slider → Command::SetChainVolume (mutates Project.chain.volume)
+    //   slider → ChainCommand::SetChainVolume (mutates Project.chain.volume)
     //   → sync_live_chain_runtime → controller.upsert_chain_with_resolved
     //   → RuntimeGraph::upsert_chain (called unconditionally, ln 501 controller.rs)
     // The audio thread reads `runtime.volume_pct()` every output callback,
