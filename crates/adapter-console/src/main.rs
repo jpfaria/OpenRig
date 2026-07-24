@@ -195,6 +195,36 @@ fn main() -> Result<()> {
                     }
                     Ok(out)
                 }
+                // #323: the console adapter drives the engine directly and
+                // owns no looper runtimes, so it reports the chain's
+                // persisted loopers with no live transport state — the
+                // shape stays stable whichever adapter is mounted.
+                QueryKind::ChainLoopers { chain } => {
+                    let proj = shared.borrow();
+                    match proj.chains.iter().find(|c| &c.id == chain) {
+                        Some(c) => {
+                            // The frame counts mean nothing without the rate
+                            // this chain's streams actually resolved to — the
+                            // same resolver `build_streams` uses, never a
+                            // hardcoded 48000 (#723).
+                            let registry = infra_filesystem::FilesystemStorage::load_app_config()
+                                .map(|cfg| cfg.io_bindings)
+                                .unwrap_or_default();
+                            let rate = resolve_project_chain_sample_rates(&proj, &registry)
+                                .ok()
+                                .and_then(|rates| rates.get(&c.id).copied())
+                                .ok_or_else(|| {
+                                    format!("no resolved sample rate for chain {}", c.id.0)
+                                })?;
+                            Ok(application::query_loopers::loopers_json(
+                                c,
+                                &[],
+                                rate.round() as u32,
+                            ))
+                        }
+                        None => Err(format!("chain not found: {}", chain.0)),
+                    }
+                }
                 // #561 (expanded scope): plugin catalog reads — same
                 // pure helpers MCP would call (process-wide registry).
                 QueryKind::ListPluginCatalog => Ok(application::query::list_plugin_catalog()),

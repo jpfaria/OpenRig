@@ -185,7 +185,9 @@ export component ChainRow inherits Rectangle {
             // Preset open/save moved into this component, so the
             // chain-action cluster on the right needs ~80px less.
             // Title area now reaches further across the row.
-            width: parent.width - 72px - 252px;
+            // #323: the looper button joined the cluster at -372px, so the
+            // title stops 32px earlier and never runs under it.
+            width: parent.width - 72px - 284px;
             height: 40px;
             title: root.chain.title;
             nav: root.rig-nav;
