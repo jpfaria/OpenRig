@@ -14,6 +14,13 @@ export global BlockParamTabs {
     // including the tab bar when present. Slint must never re-derive the knob
     // wrap math; 0px means "not computed yet, fall back to the local estimate".
     in-out property <length> panel-height;
+    // #500 *inner* knob-grid dimensions. BlockPanelEditor lays out its grid from
+    // these (it never re-derives the wrap math); without them the inline grid
+    // keeps its 225px / 0-column defaults and clips a param-heavy block. The
+    // detached window sets the equivalent properties via `apply_panel_dimensions`.
+    in-out property <length> inner-height;
+    in-out property <int> grid-cols;
+    in-out property <int> grid-rows;
     // Tab click → Rust re-tags the parameter rows for the chosen group.
     callback select(int);
 }

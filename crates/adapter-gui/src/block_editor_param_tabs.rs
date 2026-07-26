@@ -221,6 +221,11 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
         has_eq_widget,
     });
     tabs.set_panel_height(dims.window_height_px + if has_tabs { 40.0 } else { 0.0 });
+    // #500 inner knob-grid dimensions: BlockPanelEditor lays out the grid from
+    // these, so the inline editor must get them exactly like the detached one.
+    tabs.set_inner_height(dims.inner_panel_height_px);
+    tabs.set_grid_cols(dims.grid_cols as i32);
+    tabs.set_grid_rows(dims.grid_rows as i32);
 }
 
 /// Number of parameter rows the grid actually renders for the active tab (rows

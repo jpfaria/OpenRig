@@ -25,3 +25,35 @@ fn inline_panel_editor_forwards_the_parameter_tab_properties() {
         );
     }
 }
+
+/// #819: the inline editor must also receive the #500 *inner* knob-grid
+/// dimensions, not just the outer panel height. `BlockPanelEditor` lays out its
+/// knob grid from `panel-grid-cols` / `panel-grid-rows` / `panel-knob-inner-height`
+/// (Slint never re-derives the wrap math); the detached window feeds them via
+/// `apply_panel_dimensions`. Without them the inline grid keeps its 225px /
+/// 0-column defaults, so a param-heavy block (e.g. the Dragonfly reverb) clips
+/// its lower knobs even though the outer container is tall enough.
+#[test]
+fn inline_panel_editor_receives_the_500_inner_grid_dimensions() {
+    let page = include_str!("../ui/pages/project_chains.slint");
+    for binding in [
+        "panel-grid-cols:",
+        "panel-grid-rows:",
+        "panel-knob-inner-height:",
+    ] {
+        assert!(
+            page.contains(binding),
+            "the inline BlockPanelEditor must bind `{binding}` from the #500 policy, \
+             or its knob grid keeps the default layout and clips a param-heavy block"
+        );
+    }
+
+    let global = include_str!("../ui/components/block_param_tabs_globals.slint");
+    for prop in ["grid-cols", "grid-rows", "inner-height"] {
+        assert!(
+            global.contains(prop),
+            "BlockParamTabs must carry `{prop}` so the inline editor can read the \
+             #500-computed knob-grid dimensions"
+        );
+    }
+}

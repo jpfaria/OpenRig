@@ -356,6 +356,12 @@ export component ProjectChainsPage inherits Rectangle {
             block-parameter-groups: BlockParamTabs.groups;
             active-parameter-group: BlockParamTabs.active;
             select-parameter-group(i) => { BlockParamTabs.select(i); }
+            // #819: same #500 inner knob-grid dimensions the detached window
+            // gets from apply_panel_dimensions, so a param-heavy block doesn't
+            // clip. Fall back to the component defaults until Rust computes them.
+            panel-knob-inner-height: BlockParamTabs.inner-height > 0px ? BlockParamTabs.inner-height : 225px;
+            panel-grid-cols: BlockParamTabs.grid-cols;
+            panel-grid-rows: BlockParamTabs.grid-rows;
             multi-slider-points: root.multi-slider-points;
             curve-editor-points: root.curve-editor-points;
             eq-total-curve: root.eq-total-curve;
