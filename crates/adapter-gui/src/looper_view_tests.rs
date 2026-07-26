@@ -106,6 +106,8 @@ fn persisted_parameters_reach_the_row_in_panel_units() {
         speed: LooperSpeed::Double,
         reverse: true,
         audio_file: None,
+        input: None,
+        output: None,
     }]);
     let rows = looper_items(&chain, &[], 48_000);
 

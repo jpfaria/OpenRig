@@ -322,6 +322,14 @@ fn loopers_round_trip_through_yaml() {
             speed: LooperSpeed::Double,
             reverse: true,
             audio_file: Some("looper-1.wav".into()),
+            input: Some(EndpointRef {
+                binding_id: "scarlett".into(),
+                endpoint: "in1".into(),
+            }),
+            output: Some(EndpointRef {
+                binding_id: "scarlett".into(),
+                endpoint: "out0".into(),
+            }),
         },
         LooperConfig::new(2),
     ];
@@ -333,6 +341,29 @@ fn loopers_round_trip_through_yaml() {
     assert_eq!(back.loopers[1].speed, LooperSpeed::Normal);
     assert_eq!(back.loopers[1].mix, 1.0, "a fresh looper plays at unity");
     assert!(back.loopers[1].audio_file.is_none());
+    // The chosen input/output endpoints survive the round-trip.
+    assert_eq!(back.loopers[0].input.as_ref().unwrap().endpoint, "in1");
+    assert_eq!(back.loopers[0].output.as_ref().unwrap().endpoint, "out0");
+    assert!(
+        back.loopers[1].input.is_none(),
+        "a fresh looper defaults to the chain's first input"
+    );
+}
+
+#[test]
+fn a_legacy_looper_without_io_fields_deserializes_to_defaults() {
+    // A project written before the input/output selectors existed.
+    let yaml = "\
+instrument: electric_guitar
+enabled: true
+loopers:
+  - uid: 1
+    mix: 1.0
+    decay: 1.0
+";
+    let chain: Chain = serde_yaml::from_str(yaml).expect("legacy looper parses");
+    assert!(chain.loopers[0].input.is_none());
+    assert!(chain.loopers[0].output.is_none());
 }
 
 #[test]

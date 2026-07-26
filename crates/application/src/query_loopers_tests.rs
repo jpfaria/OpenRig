@@ -20,6 +20,8 @@ fn chain() -> Chain {
             speed: LooperSpeed::Double,
             reverse: true,
             audio_file: None,
+            input: None,
+            output: None,
         }],
     }
 }

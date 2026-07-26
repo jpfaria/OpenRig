@@ -88,6 +88,17 @@ pub struct DiOutputRef {
     pub endpoint: String,
 }
 
+/// #323: a reference to one of a chain's already-bound I/O endpoints
+/// (binding id + endpoint name — a name alone is not unique across bindings).
+/// A looper uses one to say WHERE it records its dry signal from (an input
+/// endpoint) and WHERE its playback goes (an output endpoint). Same shape as
+/// `DiOutputRef`, kept separate so the looper does not couple to the DI type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct EndpointRef {
+    pub binding_id: String,
+    pub endpoint: String,
+}
+
 /// #323: how many loopers one chain can hold. A domain rule (it caps what a
 /// project may contain), read by the engine to size its slots.
 pub const LOOPER_MAX_PER_CHAIN: usize = 8;
@@ -126,6 +137,16 @@ pub struct LooperConfig {
     /// mixdown, when the looper has audio saved.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub audio_file: Option<String>,
+    /// #323: which of the chain's bound input endpoints this looper records
+    /// its dry signal from. `None` ⇒ the chain's first input (the default and
+    /// the legacy behaviour — a project written before the selector existed
+    /// deserializes to `None`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<EndpointRef>,
+    /// #323: which of the chain's bound output endpoints the loop plays back
+    /// to. `None` ⇒ the chain's main output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<EndpointRef>,
 }
 
 fn default_looper_mix() -> f32 {
@@ -146,6 +167,8 @@ impl LooperConfig {
             speed: LooperSpeed::default(),
             reverse: false,
             audio_file: None,
+            input: None,
+            output: None,
         }
     }
 }

@@ -89,6 +89,8 @@ fn persisted_looper_parameters_reach_the_row() {
                 speed: LooperSpeed::Double,
                 reverse: true,
                 audio_file: Some("loop.wav".into()),
+                input: None,
+                output: None,
             }],
         )],
         midi: None,
