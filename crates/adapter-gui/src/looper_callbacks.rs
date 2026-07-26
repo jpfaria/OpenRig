@@ -1,9 +1,13 @@
-//! #323 — the looper panel's callbacks: every one dispatches a `Command` and
-//! applies the result to the chain's runtimes in the same turn.
+//! #323 — the looper panel's callbacks: every one dispatches a `Command`,
+//! applies the result to the chain's runtimes, and refreshes the chain-card's
+//! looper rows in the same turn.
 //!
 //! The #614 rule: a dispatch alone is dead. The dispatcher owns the project
 //! side (which loopers exist, their parameters); `looper_wiring` turns the
-//! emitted events into audio-thread ops. Neither step is optional.
+//! emitted events into audio-thread ops; and the row rebuild gives the panel
+//! immediate feedback — without it a chain with no live stream never updated
+//! (the meter timer only visits chains with a running stream), so the user
+//! re-clicked Add until the config hit the 8-looper cap with an empty panel.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,29 +17,65 @@ use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::LooperSpeed;
+use slint::VecModel;
 
 use crate::looper_wiring::apply_looper_event;
 use crate::state::ProjectSession;
-use crate::AppWindow;
+use crate::{AppWindow, ProjectChainItem};
 
 type Session = Rc<RefCell<Option<ProjectSession>>>;
 type Runtime = Rc<RefCell<Option<ProjectRuntimeController>>>;
+type Chains = Rc<VecModel<ProjectChainItem>>;
 
 fn chain_id_at(session: &ProjectSession, index: i32) -> Option<ChainId> {
     let project = session.project.borrow();
     project.chains.get(index as usize).map(|c| c.id.clone())
 }
 
-/// Dispatch `cmd` and apply every event it produced to the chain's runtimes.
-fn dispatch_and_apply(session: &ProjectSession, runtime: &Runtime, cmd: Command) {
+/// Rebuild the chain-card's looper rows from the current project + live
+/// runtime, so an add / remove / param / transport shows at once. Reads the
+/// live status only when the chain has a running stream; otherwise the rows
+/// come from the persisted config (no fictional sample rate).
+fn refresh_row(session: &ProjectSession, runtime: &Runtime, chains: &Chains, index: i32) {
+    let project = session.project.borrow();
+    let Some(chain) = project.chains.get(index as usize) else {
+        return;
+    };
+    let runtime_borrow = runtime.borrow();
+    match runtime_borrow.as_ref() {
+        Some(controller) if !controller.runtimes_for_chain(&chain.id).is_empty() => {
+            crate::looper_view::write_chain_looper_row(
+                chains,
+                index as usize,
+                chain,
+                &controller.chain_looper_statuses(&chain.id),
+                Some(controller.sample_rate()),
+            );
+        }
+        _ => crate::looper_view::write_chain_looper_row(chains, index as usize, chain, &[], None),
+    }
+}
+
+/// Dispatch `cmd`, apply every event it produced to the chain's runtimes, then
+/// refresh the row so the panel reflects the change immediately.
+fn dispatch_and_apply(
+    session: &ProjectSession,
+    runtime: &Runtime,
+    chains: &Chains,
+    index: i32,
+    cmd: Command,
+) {
     match session.dispatcher.dispatch(cmd) {
         Ok(events) => {
-            let runtime_borrow = runtime.borrow();
-            if let Some(controller) = runtime_borrow.as_ref() {
-                for event in &events {
-                    apply_looper_event(controller, event);
+            {
+                let runtime_borrow = runtime.borrow();
+                if let Some(controller) = runtime_borrow.as_ref() {
+                    for event in &events {
+                        apply_looper_event(controller, event);
+                    }
                 }
             }
+            refresh_row(session, runtime, chains, index);
         }
         Err(err) => log::warn!("looper command failed: {err}"),
     }
@@ -50,7 +90,12 @@ fn speed_from_index(index: i32) -> LooperSpeed {
 }
 
 /// Connect every looper callback of the app window.
-pub(crate) fn wire_looper_callbacks(window: &AppWindow, session: &Session, runtime: &Runtime) {
+pub(crate) fn wire_looper_callbacks(
+    window: &AppWindow,
+    session: &Session,
+    runtime: &Runtime,
+    chains: &Chains,
+) {
     macro_rules! with_chain {
         ($session:expr, $index:expr, $body:expr) => {{
             let session_borrow = $session.borrow();
@@ -67,20 +112,24 @@ pub(crate) fn wire_looper_callbacks(window: &AppWindow, session: &Session, runti
     {
         let session = session.clone();
         let runtime = runtime.clone();
+        let chains = chains.clone();
         window.on_looper_add(move |index| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
-                dispatch_and_apply(s, &runtime, Command::AddChainLooper { chain });
+                dispatch_and_apply(s, &runtime, &chains, index, Command::AddChainLooper { chain });
             });
         });
     }
     {
         let session = session.clone();
         let runtime = runtime.clone();
+        let chains = chains.clone();
         window.on_looper_remove(move |index, uid| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 dispatch_and_apply(
                     s,
                     &runtime,
+                    &chains,
+                    index,
                     Command::RemoveChainLooper {
                         chain,
                         looper: uid as u64,
@@ -95,11 +144,14 @@ pub(crate) fn wire_looper_callbacks(window: &AppWindow, session: &Session, runti
         ($setter:ident, $action:expr) => {{
             let session = session.clone();
             let runtime = runtime.clone();
+            let chains = chains.clone();
             window.$setter(move |index, uid| {
                 with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                     dispatch_and_apply(
                         s,
                         &runtime,
+                        &chains,
+                        index,
                         Command::SetChainLooperTransport {
                             chain,
                             looper: uid as u64,
@@ -124,11 +176,14 @@ pub(crate) fn wire_looper_callbacks(window: &AppWindow, session: &Session, runti
         ($setter:ident, $make:expr) => {{
             let session = session.clone();
             let runtime = runtime.clone();
+            let chains = chains.clone();
             window.$setter(move |index, uid, value| {
                 with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                     dispatch_and_apply(
                         s,
                         &runtime,
+                        &chains,
+                        index,
                         Command::SetChainLooperParam {
                             chain,
                             looper: uid as u64,

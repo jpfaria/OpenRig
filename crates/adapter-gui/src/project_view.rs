@@ -513,7 +513,16 @@ pub(crate) fn replace_project_chains(
                 di_loop_selected_index: -1, // #661: refreshed by meter timer
                 // #323: the looper rows and the header tint start empty and
                 // are refreshed by the meter timer from the live runtimes.
-                loopers: ModelRc::from(Rc::new(VecModel::from(Vec::new()))),
+                // #323: build the looper rows from the chain's PERSISTED
+                // config so a reopened project shows its loopers immediately.
+                // The meter timer overlays the live state (position, layers,
+                // recording…) on top for a chain that has a running stream;
+                // without this seed a chain with no live stream showed an
+                // empty panel and the user re-clicked Add until the config hit
+                // the 8-looper cap.
+                loopers: ModelRc::from(Rc::new(VecModel::from(
+                    crate::looper_view::looper_items_from_config(chain),
+                ))),
                 looper_active: false,
             }
         })

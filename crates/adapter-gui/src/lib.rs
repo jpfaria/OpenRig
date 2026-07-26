@@ -212,6 +212,7 @@ mod chain_io_chip_label_tests;
 
 #[cfg(test)]
 mod project_view_stream_meters_tests;
+mod project_view_loopers_tests;
 
 #[cfg(test)]
 mod touch_window_io_parity_tests;
