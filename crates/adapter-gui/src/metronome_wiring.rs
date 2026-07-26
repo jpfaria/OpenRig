@@ -204,11 +204,31 @@ fn wire_power(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
     });
 }
 
+/// The metronome is an independent pipeline (invariant #4) — it must open with
+/// NO chain enabled. The runtime controller is created lazily on chain-enable
+/// (#808), so create it here if it does not exist yet; otherwise pressing POWER
+/// with nothing enabled opens no stream and the click never plays.
+pub(crate) fn ensure_metronome_runtime(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+) {
+    let session_borrow = project_session.borrow();
+    let Some(session) = session_borrow.as_ref() else {
+        return; // launcher / no project open — nothing to build a runtime from
+    };
+    if let Err(e) = crate::runtime_lifecycle::ensure_runtime(project_runtime, session) {
+        log::error!("[metronome] ensure_runtime failed: {e}");
+    }
+}
+
 /// Open the metronome's own output stream and start the lamp timer.
 pub(crate) fn start_click(ctx: &MetronomeCtx) {
     let settings = ctx.session.borrow().settings();
     let saved = ctx.session.borrow().output_device().map(str::to_string);
     let device = resolve_output_device(saved.as_deref(), &output_device_ids(&ctx.devices));
+    // #14: the click plays even with no chain enabled (invariant #4). The
+    // runtime is created lazily on chain-enable, so make sure it exists.
+    ensure_metronome_runtime(&ctx.project_runtime, &ctx.project_session);
     if let Some(rt) = ctx.project_runtime.borrow().as_ref() {
         rt.set_metronome_settings(settings);
         let shared = rt.metronome_shared();
@@ -257,3 +277,7 @@ fn start_lamp_timer(ctx: &MetronomeCtx) {
             });
         });
 }
+
+#[cfg(test)]
+#[path = "metronome_runtime_tests.rs"]
+mod runtime_tests;
