@@ -80,7 +80,7 @@ fn tick(controller: &ProjectRuntimeController, chain: &ChainId, level: f32) {
 #[test]
 fn create_reaches_every_runtime_of_the_chain() {
     let (controller, chain) = controller("looper-ctrl", 2);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID }));
+    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
     tick(&controller, &chain, 0.0);
 
     for runtime in controller.runtimes_for_chain(&chain) {
@@ -98,7 +98,7 @@ fn create_reaches_every_runtime_of_the_chain() {
 #[test]
 fn a_record_tap_carries_one_buffer_per_runtime() {
     let (controller, chain) = controller("looper-buffers", 2);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID }));
+    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
     controller.push_chain_looper_op(&chain, |runtime| {
         Some(LooperOp::TapRecord {
             uid: UID,
@@ -120,7 +120,7 @@ fn a_record_tap_carries_one_buffer_per_runtime() {
 #[test]
 fn the_chain_status_reports_the_runtime_that_holds_material() {
     let (controller, chain) = controller("looper-status", 2);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID }));
+    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
     // Only the FIRST runtime is armed, as if only one input was recorded.
     let runtimes = controller.runtimes_for_chain(&chain);
     let first = runtimes.first().expect("one runtime").clone();
@@ -149,7 +149,7 @@ fn the_chain_status_reports_the_runtime_that_holds_material() {
 #[test]
 fn retired_layers_are_collected_off_the_audio_thread() {
     let (controller, chain) = controller("looper-retire", 1);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID }));
+    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
     controller.push_chain_looper_op(&chain, |runtime| {
         Some(LooperOp::TapRecord {
             uid: UID,
@@ -172,7 +172,7 @@ fn ops_for_one_chain_never_reach_another() {
     let (controller_a, chain_a) = controller("looper-iso-a", 1);
     let (controller_b, chain_b) = controller("looper-iso-b", 1);
 
-    controller_a.push_chain_looper_op(&chain_a, |_| Some(LooperOp::Create { uid: UID }));
+    controller_a.push_chain_looper_op(&chain_a, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
     tick(&controller_a, &chain_a, 0.0);
     tick(&controller_b, &chain_b, 0.0);
 

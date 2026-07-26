@@ -99,3 +99,28 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
 
     ports
 }
+
+/// #323: flat index of a looper's chosen INPUT endpoint among the chain's
+/// resolved inputs — the same deterministic order the engine numbers input
+/// segments with (mirror of `engine::di_output_resolve` for outputs). `None`,
+/// a stale binding id, or a stale endpoint name all fall back to `0` (the
+/// chain's first input), so a fresh looper and legacy projects record the
+/// first input, unchanged.
+pub fn resolve_input_segment(
+    chain: &Chain,
+    registry: &[IoBinding],
+    input: Option<&crate::chain::EndpointRef>,
+) -> usize {
+    let Some(target) = input else {
+        return 0;
+    };
+    resolve_chain_ports(chain, registry)
+        .into_iter()
+        .filter(|p| p.direction == PortDirection::Input)
+        .position(|p| p.binding_id == target.binding_id && p.endpoint.name == target.endpoint)
+        .unwrap_or(0)
+}
+
+#[cfg(test)]
+#[path = "binding_discovery_looper_tests.rs"]
+mod looper_tests;

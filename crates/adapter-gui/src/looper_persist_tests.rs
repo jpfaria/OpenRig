@@ -104,7 +104,7 @@ fn record_loop(runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>, uid: u64
         let borrow = runtime.borrow();
         let c = borrow.as_ref().unwrap();
         let id = ChainId(CHAIN.into());
-        c.push_chain_looper_op(&id, |_| Some(LooperOp::Create { uid }));
+        c.push_chain_looper_op(&id, |_| Some(LooperOp::Create { uid, seg: 0 }));
         c.push_chain_looper_op(&id, |rt| {
             Some(LooperOp::TapRecord {
                 uid,

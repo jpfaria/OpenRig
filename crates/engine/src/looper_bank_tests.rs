@@ -43,7 +43,7 @@ fn max_frames_follows_the_live_sample_rate() {
 fn create_claims_a_slot_and_publishes_an_empty_status() {
     let sh = shared();
     let mut b = bank(&sh);
-    sh.push(LooperOp::Create { uid: UID }).unwrap();
+    sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
 
     b.drain_ops(&sh);
     b.publish(&sh);
@@ -61,7 +61,7 @@ fn an_empty_bank_is_idle_and_leaves_the_frames_untouched() {
     assert!(b.is_idle());
 
     let mut frames = stereo(&[[0.25, -0.25]]);
-    b.process(&mut frames, AudioChannelLayout::Stereo);
+    b.process(0, &mut frames, AudioChannelLayout::Stereo);
     assert_eq!(lr(frames[0]), [0.25, -0.25]);
 }
 
@@ -69,7 +69,7 @@ fn an_empty_bank_is_idle_and_leaves_the_frames_untouched() {
 fn recorded_material_is_summed_back_into_the_chain_input() {
     let sh = shared();
     let mut b = bank(&sh);
-    sh.push(LooperOp::Create { uid: UID }).unwrap();
+    sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
     sh.push(LooperOp::TapRecord {
         uid: UID,
         buffer: Some(layer()),
@@ -78,7 +78,7 @@ fn recorded_material_is_summed_back_into_the_chain_input() {
     b.drain_ops(&sh);
 
     let mut rec = stereo(&[[0.5, 0.5], [0.25, 0.25]]);
-    b.process(&mut rec, AudioChannelLayout::Stereo);
+    b.process(0, &mut rec, AudioChannelLayout::Stereo);
     assert_eq!(lr(rec[0]), [0.5, 0.5], "dry passes through untouched");
 
     sh.push(LooperOp::TapRecord {
@@ -90,7 +90,7 @@ fn recorded_material_is_summed_back_into_the_chain_input() {
 
     // Silent input now: what comes out is the loop.
     let mut play = stereo(&[[0.0, 0.0], [0.0, 0.0]]);
-    b.process(&mut play, AudioChannelLayout::Stereo);
+    b.process(0, &mut play, AudioChannelLayout::Stereo);
     assert_eq!(lr(play[0]), [0.5, 0.5]);
     assert_eq!(lr(play[1]), [0.25, 0.25]);
 }
@@ -100,7 +100,7 @@ fn two_loopers_record_the_same_dry_signal_not_each_other() {
     let sh = shared();
     let mut b = bank(&sh);
     for uid in [1u64, 2] {
-        sh.push(LooperOp::Create { uid }).unwrap();
+        sh.push(LooperOp::Create { uid, seg: 0 }).unwrap();
         sh.push(LooperOp::TapRecord {
             uid,
             buffer: Some(layer()),
@@ -110,14 +110,14 @@ fn two_loopers_record_the_same_dry_signal_not_each_other() {
     b.drain_ops(&sh);
 
     let mut rec = stereo(&[[1.0, 1.0]]);
-    b.process(&mut rec, AudioChannelLayout::Stereo);
+    b.process(0, &mut rec, AudioChannelLayout::Stereo);
     for uid in [1u64, 2] {
         sh.push(LooperOp::TapRecord { uid, buffer: None }).unwrap();
     }
     b.drain_ops(&sh);
 
     let mut play = stereo(&[[0.0, 0.0]]);
-    b.process(&mut play, AudioChannelLayout::Stereo);
+    b.process(0, &mut play, AudioChannelLayout::Stereo);
     assert_eq!(
         lr(play[0]),
         [2.0, 2.0],
@@ -129,7 +129,7 @@ fn two_loopers_record_the_same_dry_signal_not_each_other() {
 fn a_mono_chain_gets_the_loop_mixed_down_at_unity() {
     let sh = shared();
     let mut b = bank(&sh);
-    sh.push(LooperOp::Create { uid: UID }).unwrap();
+    sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
     sh.push(LooperOp::TapRecord {
         uid: UID,
         buffer: Some(layer()),
@@ -138,7 +138,7 @@ fn a_mono_chain_gets_the_loop_mixed_down_at_unity() {
     b.drain_ops(&sh);
 
     let mut rec = vec![AudioFrame::Mono(0.5)];
-    b.process(&mut rec, AudioChannelLayout::Mono);
+    b.process(0, &mut rec, AudioChannelLayout::Mono);
     assert_eq!(lr(rec[0]), [0.5, 0.5]);
 
     sh.push(LooperOp::TapRecord {
@@ -149,7 +149,7 @@ fn a_mono_chain_gets_the_loop_mixed_down_at_unity() {
     b.drain_ops(&sh);
 
     let mut play = vec![AudioFrame::Mono(0.0)];
-    b.process(&mut play, AudioChannelLayout::Mono);
+    b.process(0, &mut play, AudioChannelLayout::Mono);
     assert_eq!(lr(play[0]), [0.5, 0.5]);
 }
 
@@ -174,14 +174,14 @@ fn an_op_for_an_unclaimed_uid_hands_its_buffer_back() {
 fn remove_frees_the_slot_and_returns_its_layers() {
     let sh = shared();
     let mut b = bank(&sh);
-    sh.push(LooperOp::Create { uid: UID }).unwrap();
+    sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
     sh.push(LooperOp::TapRecord {
         uid: UID,
         buffer: Some(layer()),
     })
     .unwrap();
     b.drain_ops(&sh);
-    b.process(&mut stereo(&[[1.0, 1.0]]), AudioChannelLayout::Stereo);
+    b.process(0, &mut stereo(&[[1.0, 1.0]]), AudioChannelLayout::Stereo);
 
     sh.push(LooperOp::Remove { uid: UID }).unwrap();
     b.drain_ops(&sh);
@@ -196,8 +196,8 @@ fn remove_frees_the_slot_and_returns_its_layers() {
 fn statuses_lists_every_live_looper_in_slot_order() {
     let sh = shared();
     let mut b = bank(&sh);
-    sh.push(LooperOp::Create { uid: 5 }).unwrap();
-    sh.push(LooperOp::Create { uid: 9 }).unwrap();
+    sh.push(LooperOp::Create { uid: 5, seg: 0 }).unwrap();
+    sh.push(LooperOp::Create { uid: 9, seg: 0 }).unwrap();
     b.drain_ops(&sh);
     b.publish(&sh);
 
@@ -209,14 +209,14 @@ fn statuses_lists_every_live_looper_in_slot_order() {
 fn params_reach_the_slot() {
     let sh = shared();
     let mut b = bank(&sh);
-    sh.push(LooperOp::Create { uid: UID }).unwrap();
+    sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
     sh.push(LooperOp::TapRecord {
         uid: UID,
         buffer: Some(layer()),
     })
     .unwrap();
     b.drain_ops(&sh);
-    b.process(&mut stereo(&[[1.0, 1.0]]), AudioChannelLayout::Stereo);
+    b.process(0, &mut stereo(&[[1.0, 1.0]]), AudioChannelLayout::Stereo);
     sh.push(LooperOp::TapRecord {
         uid: UID,
         buffer: None,
@@ -230,7 +230,7 @@ fn params_reach_the_slot() {
     b.drain_ops(&sh);
 
     let mut play = stereo(&[[0.0, 0.0]]);
-    b.process(&mut play, AudioChannelLayout::Stereo);
+    b.process(0, &mut play, AudioChannelLayout::Stereo);
     assert_eq!(lr(play[0]), [0.5, 0.5]);
 }
 
@@ -238,7 +238,7 @@ fn params_reach_the_slot() {
 fn a_restored_layer_lands_stopped_and_plays_on_demand() {
     let sh = shared();
     let mut b = bank(&sh);
-    sh.push(LooperOp::Create { uid: UID }).unwrap();
+    sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
     let mut buf = layer();
     buf[0] = 0.75;
     buf[1] = 0.75;
@@ -253,12 +253,51 @@ fn a_restored_layer_lands_stopped_and_plays_on_demand() {
     assert_eq!(sh.status(UID).unwrap().state, LooperState::Stopped);
 
     let mut silent = stereo(&[[0.0, 0.0]]);
-    b.process(&mut silent, AudioChannelLayout::Stereo);
+    b.process(0, &mut silent, AudioChannelLayout::Stereo);
     assert_eq!(lr(silent[0]), [0.0, 0.0], "stopped is silent");
 
     sh.push(LooperOp::Play { uid: UID }).unwrap();
     b.drain_ops(&sh);
     let mut play = stereo(&[[0.0, 0.0]]);
-    b.process(&mut play, AudioChannelLayout::Stereo);
+    b.process(0, &mut play, AudioChannelLayout::Stereo);
     assert_eq!(lr(play[0]), [0.75, 0.75]);
+}
+
+#[test]
+fn a_looper_records_and_plays_only_on_its_own_segment() {
+    let sh = shared();
+    let mut b = bank(&sh);
+    // The looper lives on segment 1 — the chain's second input.
+    sh.push(LooperOp::Create { uid: UID, seg: 1 }).unwrap();
+    sh.push(LooperOp::TapRecord {
+        uid: UID,
+        buffer: Some(layer()),
+    })
+    .unwrap();
+    b.drain_ops(&sh);
+
+    assert!(b.has_segment(1));
+    assert!(!b.has_segment(0), "the looper does not touch segment 0");
+
+    // Segment 0 carries a signal the looper must NOT capture, and must pass
+    // through untouched.
+    let mut seg0 = stereo(&[[0.9, 0.9]]);
+    b.process(0, &mut seg0, AudioChannelLayout::Stereo);
+    assert_eq!(lr(seg0[0]), [0.9, 0.9], "segment 0 is left alone");
+
+    // Segment 1 is where it records.
+    let mut seg1 = stereo(&[[0.4, 0.4]]);
+    b.process(1, &mut seg1, AudioChannelLayout::Stereo);
+    sh.push(LooperOp::TapRecord {
+        uid: UID,
+        buffer: None,
+    })
+    .unwrap();
+    b.drain_ops(&sh);
+
+    // Silent segment 1 now: the loop plays back what it captured THERE, not
+    // segment 0's louder signal (the "records the wrong input" bug).
+    let mut seg1_play = stereo(&[[0.0, 0.0]]);
+    b.process(1, &mut seg1_play, AudioChannelLayout::Stereo);
+    assert_eq!(lr(seg1_play[0]), [0.4, 0.4]);
 }

@@ -82,7 +82,11 @@ pub(crate) fn restore_chain_loops(
         return;
     };
     let engine_rate = controller.sample_rate();
-    let chains: Vec<(domain::ids::ChainId, Vec<(u64, Option<String>)>)> = {
+    let registry = session.io_bindings.borrow().clone();
+    // (chain, [(uid, record segment, saved wav)]). The record segment is the
+    // looper's chosen input endpoint resolved against the chain's bindings, so
+    // a restored looper records the same input it was saved on.
+    let chains: Vec<(domain::ids::ChainId, Vec<(u64, usize, Option<String>)>)> = {
         let project = session.project.borrow();
         project
             .chains
@@ -92,7 +96,14 @@ pub(crate) fn restore_chain_loops(
                     c.id.clone(),
                     c.loopers
                         .iter()
-                        .map(|l| (l.uid, l.audio_file.clone()))
+                        .map(|l| {
+                            let seg = project::binding_discovery::resolve_input_segment(
+                                c,
+                                &registry,
+                                l.input.as_ref(),
+                            );
+                            (l.uid, seg, l.audio_file.clone())
+                        })
                         .collect(),
                 )
             })
@@ -100,8 +111,8 @@ pub(crate) fn restore_chain_loops(
     };
 
     for (chain, loopers) in chains {
-        for (uid, file) in loopers {
-            controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid }));
+        for (uid, seg, file) in loopers {
+            controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid, seg }));
 
             let Some(file) = file else { continue };
             let (pcm, file_rate) = match read_loop_wav(project_path, &file) {

@@ -235,10 +235,12 @@ pub fn process_input_f32(
             Some(_) => SegmentFeed::Silence,
             None => SegmentFeed::Live,
         };
-        // #323: the loopers record and play on the chain's FIRST segment
-        // only — like the DI loop (#699), a chain's loop material is heard
-        // exactly once, no matter how many segments share the callback.
-        let loopers = if seg_idx == 0 && !looper_bank.is_idle() {
+        // #323: each looper records and plays on the segment serving its
+        // chosen input endpoint — so a rig whose signal is on another input is
+        // captured, not silence. The bank is handed to a segment only when a
+        // looper actually lives on it; a loop is still heard exactly once
+        // because a looper belongs to a single segment (#699).
+        let loopers = if !looper_bank.is_idle() && looper_bank.has_segment(seg_idx) {
             Some(&mut *looper_bank)
         } else {
             None

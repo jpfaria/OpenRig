@@ -68,7 +68,7 @@ fn callback(runtime: &Arc<super::ChainRuntimeState>, level: f32, frames: usize) 
 fn creating_a_looper_publishes_an_empty_status() {
     let runtime = passthrough_runtime("looper-create");
     runtime
-        .push_looper_op(LooperOp::Create { uid: UID })
+        .push_looper_op(LooperOp::Create { uid: UID, seg: 0 })
         .expect("queue accepts the op");
     callback(&runtime, 0.0, 128);
 
@@ -82,7 +82,7 @@ fn creating_a_looper_publishes_an_empty_status() {
 fn looper_records_the_dry_input_and_plays_it_back() {
     let runtime = passthrough_runtime("looper-record");
     runtime
-        .push_looper_op(LooperOp::Create { uid: UID })
+        .push_looper_op(LooperOp::Create { uid: UID, seg: 0 })
         .unwrap();
     runtime
         .push_looper_op(LooperOp::TapRecord {
@@ -130,7 +130,7 @@ fn a_playing_looper_never_reaches_another_runtime() {
     let quiet = passthrough_runtime("looper-b");
 
     looping
-        .push_looper_op(LooperOp::Create { uid: UID })
+        .push_looper_op(LooperOp::Create { uid: UID, seg: 0 })
         .unwrap();
     looping
         .push_looper_op(LooperOp::TapRecord {
@@ -162,7 +162,7 @@ fn a_playing_looper_never_reaches_another_runtime() {
 fn undo_and_clear_hand_the_buffers_back_for_off_thread_drop() {
     let runtime = passthrough_runtime("looper-retire");
     runtime
-        .push_looper_op(LooperOp::Create { uid: UID })
+        .push_looper_op(LooperOp::Create { uid: UID, seg: 0 })
         .unwrap();
     runtime
         .push_looper_op(LooperOp::TapRecord {
@@ -214,7 +214,7 @@ fn an_op_for_an_unknown_looper_returns_its_buffer() {
 #[test]
 fn a_recorded_loop_survives_a_runtime_rebuild() {
     let old = passthrough_runtime("looper-swap");
-    old.push_looper_op(LooperOp::Create { uid: UID }).unwrap();
+    old.push_looper_op(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
     old.push_looper_op(LooperOp::TapRecord {
         uid: UID,
         buffer: Some(layer(&old)),
@@ -244,7 +244,7 @@ fn a_recorded_loop_survives_a_runtime_rebuild() {
 fn removing_a_looper_frees_the_slot_and_its_layers() {
     let runtime = passthrough_runtime("looper-remove");
     runtime
-        .push_looper_op(LooperOp::Create { uid: UID })
+        .push_looper_op(LooperOp::Create { uid: UID, seg: 0 })
         .unwrap();
     runtime
         .push_looper_op(LooperOp::TapRecord {

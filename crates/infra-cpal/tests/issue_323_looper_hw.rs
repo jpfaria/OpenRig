@@ -169,7 +169,7 @@ fn recording_and_overdubbing_on_real_streams_costs_no_xrun() {
         chain_id.0,
     );
     let queued =
-        controller.push_chain_looper_op(&chain_id, |_| Some(LooperOp::Create { uid: UID }));
+        controller.push_chain_looper_op(&chain_id, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
     eprintln!("[#323-probe] create queued on {queued} runtime(s)");
     std::thread::sleep(std::time::Duration::from_millis(500));
     eprintln!(

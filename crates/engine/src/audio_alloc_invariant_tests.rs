@@ -264,7 +264,7 @@ pub(super) fn looper_record_overdub_and_undo_do_not_allocate() {
     // the control thread claims a slot and allocates the two layer buffers
     // the recording and the overdub will use.
     runtime
-        .push_looper_op(LooperOp::Create { uid: 1 })
+        .push_looper_op(LooperOp::Create { uid: 1, seg: 0 })
         .expect("queue accepts create");
     let layers: Vec<Box<[f32]>> = (0..2)
         .map(|_| vec![0.0_f32; runtime.looper_max_frames() * 2].into_boxed_slice())

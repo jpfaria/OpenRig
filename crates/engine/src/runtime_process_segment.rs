@@ -178,7 +178,7 @@ pub(crate) fn process_single_segment(
     // that feeds this segment and sum their playback into it, so a loop runs
     // through the whole chain and follows every block change.
     if let Some(bank) = loopers {
-        bank.process(frame_buffer.as_mut_slice(), *processing_layout);
+        bank.process(seg_idx, frame_buffer.as_mut_slice(), *processing_layout);
     }
 
     for block in blocks.iter_mut() {

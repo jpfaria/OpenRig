@@ -36,9 +36,14 @@ const RETIRE_QUEUE_DEPTH: usize = LOOPER_MAX_PER_CHAIN * crate::looper::LOOPER_M
 /// ownership to the audio thread.
 #[derive(Debug)]
 pub enum LooperOp {
-    /// Claim a free slot for `uid`.
+    /// Claim a free slot for `uid`, recording from and playing on segment
+    /// `seg` — the chain segment that serves the looper's chosen input
+    /// endpoint (0 = the chain's first input, the default). A looper only
+    /// records / plays on its own segment, so a rig whose signal is on
+    /// another input is captured, not silence.
     Create {
         uid: u64,
+        seg: usize,
     },
     /// Free the slot and return every layer it holds.
     Remove {
@@ -93,7 +98,7 @@ pub enum LooperOp {
 impl LooperOp {
     fn uid(&self) -> u64 {
         match self {
-            Self::Create { uid }
+            Self::Create { uid, .. }
             | Self::Remove { uid }
             | Self::TapRecord { uid, .. }
             | Self::LoadLayer { uid, .. }
@@ -253,6 +258,9 @@ impl LooperShared {
 /// One slot of the bank. `uid == 0` means the slot is free.
 struct Entry {
     uid: u64,
+    /// The chain segment this looper records from and plays on (the segment
+    /// serving its chosen input endpoint).
+    seg: usize,
     slot: LooperSlot,
 }
 
@@ -271,6 +279,7 @@ impl LooperBank {
             entries: (0..LOOPER_MAX_PER_CHAIN)
                 .map(|_| Entry {
                     uid: 0,
+                    seg: 0,
                     slot: LooperSlot::new(max_frames),
                 })
                 .collect(),
@@ -299,12 +308,15 @@ impl LooperBank {
             return;
         }
 
-        if let LooperOp::Create { uid } = op {
-            if self.index_of(uid).is_none() {
-                if let Some(free) = self.entries.iter_mut().find(|e| e.uid == 0) {
-                    free.uid = uid;
-                    free.slot.clear();
-                }
+        if let LooperOp::Create { uid, seg } = op {
+            if let Some(existing) = self.index_of(uid) {
+                // Re-created (e.g. input endpoint changed): keep the recorded
+                // material, just move which segment it lives on.
+                self.entries[existing].seg = seg;
+            } else if let Some(free) = self.entries.iter_mut().find(|e| e.uid == 0) {
+                free.uid = uid;
+                free.seg = seg;
+                free.slot.clear();
             }
             self.refresh_active();
             return;
@@ -343,10 +355,23 @@ impl LooperBank {
         }
     }
 
-    /// Record the chain input into every armed looper and sum the playing
-    /// loops back into it. Called once per callback, on the chain's first
-    /// segment only (#699: a chain's loop material plays exactly once).
-    pub(crate) fn process(&mut self, frames: &mut [AudioFrame], layout: AudioChannelLayout) {
+    /// Whether any looper lives on segment `seg` — lets the caller skip the
+    /// per-frame work for a segment that has none.
+    pub(crate) fn has_segment(&self, seg: usize) -> bool {
+        self.entries.iter().any(|e| e.uid != 0 && e.seg == seg)
+    }
+
+    /// Record segment `seg`'s dry input into the loopers that live on it, and
+    /// sum their playback back into it. Called once per callback per segment
+    /// (the caller drives every segment); a looper only records / plays on its
+    /// own segment, so a rig whose signal is on another input is captured, not
+    /// silence, and a chain's loop material is still heard exactly once (#699).
+    pub(crate) fn process(
+        &mut self,
+        seg: usize,
+        frames: &mut [AudioFrame],
+        layout: AudioChannelLayout,
+    ) {
         for frame in frames.iter_mut() {
             let dry = match *frame {
                 AudioFrame::Stereo(lr) => lr,
@@ -354,11 +379,11 @@ impl LooperBank {
             };
             let mut loop_sum = [0.0f32; 2];
             for entry in self.entries.iter_mut() {
-                if entry.uid == 0 {
+                if entry.uid == 0 || entry.seg != seg {
                     continue;
                 }
-                // Every looper records the SAME dry input — a loop never
-                // feeds another loop (no wet feedback path).
+                // Every looper records the SAME dry input of its segment — a
+                // loop never feeds another loop (no wet feedback path).
                 let contribution = entry.slot.tick(dry);
                 loop_sum[0] += contribution[0];
                 loop_sum[1] += contribution[1];

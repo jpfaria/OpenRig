@@ -32,7 +32,10 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
     match event {
         Event::ChainLooperAdded { chain, looper } => {
             let uid = *looper;
-            controller.push_chain_looper_op(chain, |_| Some(LooperOp::Create { uid }));
+            // A fresh looper records the chain's first input (seg 0); picking
+            // another input re-issues Create with the resolved segment (the
+            // bank keeps the recorded material and just moves segments).
+            controller.push_chain_looper_op(chain, |_| Some(LooperOp::Create { uid, seg: 0 }));
         }
 
         Event::ChainLooperRemoved { chain, looper } => {
