@@ -27,7 +27,7 @@ Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. S
 **Toda vez que eu terminar algo que precisa da validação do usuário (ouvido, visual, hardware, comportamento em app real), eu ESCREVO um checklist — no chat E na issue (`gh issue comment`) — sem ele pedir.** É obrigatório, é a única lista permitida no chat, e o formato é sempre:
 
 1. O comando de atualização primeiro, num bloco de código: `git fetch && git checkout {tipo}/issue-N && git pull`.
-2. Itens em checkbox `- [ ]`, um por linha, curtos — cada um UMA coisa a validar.
+2. Itens ENUMERADOS em checkbox — `1. [ ]`, `2. [ ]`, … — um por linha, curtos, cada um UMA coisa a validar.
 3. **Só o que ELE precisa validar** — nunca os testes/build que eu já rodei (isso é meu, já está verde).
 
 O mesmo checklist vai no `gh issue comment` da issue. Sem prosa em volta: o comando + os checkboxes, nada mais.
