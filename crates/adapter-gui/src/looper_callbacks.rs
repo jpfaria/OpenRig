@@ -74,19 +74,30 @@ fn dispatch_and_apply(
     index: i32,
     cmd: Command,
 ) {
+    eprintln!("[looper-probe] dispatch {cmd:?} (chain index {index})");
     match session.dispatcher.dispatch(cmd) {
         Ok(events) => {
             {
                 let runtime_borrow = runtime.borrow();
-                if let Some(controller) = runtime_borrow.as_ref() {
-                    for event in &events {
-                        apply_looper_event(controller, event);
+                match runtime_borrow.as_ref() {
+                    Some(controller) => {
+                        for event in &events {
+                            eprintln!(
+                                "[looper-probe] apply {event:?} — runtimes={}",
+                                event
+                                    .chain()
+                                    .map(|c| controller.runtimes_for_chain(c).len())
+                                    .unwrap_or(0)
+                            );
+                            apply_looper_event(controller, event);
+                        }
                     }
+                    None => eprintln!("[looper-probe] NO controller — chain not started"),
                 }
             }
             refresh_row(session, runtime, chains, index);
         }
-        Err(err) => log::warn!("looper command failed: {err}"),
+        Err(err) => eprintln!("[looper-probe] looper command failed: {err}"),
     }
 }
 
