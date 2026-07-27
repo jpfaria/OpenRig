@@ -822,3 +822,12 @@ msgstr "Overdub"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-state-stopped"
 msgstr "Parado"
+# Looper input/output selectors (#323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-input"
+msgstr "Gravar de"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-output"
+msgstr "Tocar em"

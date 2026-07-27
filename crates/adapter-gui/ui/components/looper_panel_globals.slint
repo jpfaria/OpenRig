@@ -12,4 +12,9 @@ export global LooperPanel {
     in-out property <int> chain-index;
     // which row has its parameter drawer open; -1 = none.
     in-out property <int> expanded-uid: -1;
+    // #323: the chain's bound input / output endpoint labels — the options for
+    // every looper's input/output select (the choice per looper is the row's
+    // input_index / output_index).
+    in-out property <[string]> input-options;
+    in-out property <[string]> output-options;
 }

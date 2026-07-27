@@ -307,3 +307,62 @@ fn the_sentinel_fails_when_the_chain_has_no_looper() {
         })
         .is_err());
 }
+
+// ── input / output endpoint selection (#323 v2) ─────────────────────────
+
+#[test]
+fn set_input_and_output_persist_on_the_looper_and_emit() {
+    use project::chain::EndpointRef;
+    let (d, project) = dispatcher_with_chain("c1");
+    let chain = ChainId("c1".into());
+    d.dispatch(Command::AddChainLooper {
+        chain: chain.clone(),
+    })
+    .unwrap();
+    let uid = looper_uids(&project, &chain)[0];
+
+    let input = EndpointRef {
+        binding_id: "scarlett".into(),
+        endpoint: "in1".into(),
+    };
+    let events = d
+        .dispatch(Command::SetChainLooperInput {
+            chain: chain.clone(),
+            looper: uid,
+            input: Some(input.clone()),
+        })
+        .expect("set input");
+    assert_eq!(
+        events,
+        vec![Event::ChainLooperInputChanged {
+            chain: chain.clone(),
+            looper: uid,
+        }]
+    );
+
+    d.dispatch(Command::SetChainLooperOutput {
+        chain: chain.clone(),
+        looper: uid,
+        output: Some(EndpointRef {
+            binding_id: "scarlett".into(),
+            endpoint: "out0".into(),
+        }),
+    })
+    .expect("set output");
+
+    let cfg = project.borrow().chains[0].loopers[0].clone();
+    assert_eq!(cfg.input, Some(input));
+    assert_eq!(cfg.output.unwrap().endpoint, "out0");
+}
+
+#[test]
+fn set_input_for_an_unknown_looper_fails() {
+    let (d, _project) = dispatcher_with_chain("c1");
+    assert!(d
+        .dispatch(Command::SetChainLooperInput {
+            chain: ChainId("c1".into()),
+            looper: 999,
+            input: None,
+        })
+        .is_err());
+}

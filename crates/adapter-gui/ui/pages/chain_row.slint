@@ -228,6 +228,8 @@ export component ChainRow inherits Rectangle {
             x: parent.width - 372px;
             y: 12px;
             active: root.chain.looper_active;
+            input-options: root.chain.looper_input_options;
+            output-options: root.chain.looper_output_options;
             chain-index: root.chain-index;
         }
         // #614/#749: DI loop trigger — the fone opens the DI panel (root overlay).

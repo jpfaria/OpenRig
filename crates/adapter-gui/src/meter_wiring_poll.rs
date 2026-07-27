@@ -188,8 +188,7 @@ fn refresh_chain_meter_row(
         .find(|(c, _)| c == cid)
         .map(|(_, streams)| streams.clone())
         .unwrap_or_default();
-    let project_streams =
-        project_input_count(&project.chains[idx], &session.io_bindings.borrow());
+    let project_streams = project_input_count(&project.chains[idx], &session.io_bindings.borrow());
     // #750: a disabled chain renders no per-stream rows. The timer
     // still visits it (a stale tap may report a tick after toggle-off),
     // so the `enabled` flag — not just the resolved count — gates the
@@ -207,8 +206,8 @@ fn refresh_chain_meter_row(
                 (a.in_dbfs - b.in_dbfs).abs() > 0.05 || (a.out_dbfs - b.out_dbfs).abs() > 0.05
             })
     };
-    let aggregate_changed = (row.meter_in_dbfs - in_db).abs() > 0.05
-        || (row.meter_out_dbfs - out_db).abs() > 0.05;
+    let aggregate_changed =
+        (row.meter_in_dbfs - in_db).abs() > 0.05 || (row.meter_out_dbfs - out_db).abs() > 0.05;
     // #614/#717: poll DI loop playing state so the chain-tile icon (and
     // the dedicated DI graph) reflect the engine's armed/disarmed state.
     // The DI now plays on its own dedicated stream, so "playing" is
@@ -217,10 +216,8 @@ fn refresh_chain_meter_row(
     let di_changed = row.di_loop_playing != di_playing_now;
     // #771: the DI meter row reads the isolated playback's OWN peaks
     // (maintained by the output callback's mix) — not the chain's.
-    let di_meter_now = crate::di_meter::di_meter_from_peaks(
-        controller.di_playback_peaks(cid),
-        di_playing_now,
-    );
+    let di_meter_now =
+        crate::di_meter::di_meter_from_peaks(controller.di_playback_peaks(cid), di_playing_now);
     let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
         || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
     // #661: re-derive the loaded source from the dispatcher so the
@@ -264,10 +261,12 @@ fn refresh_chain_meter_row(
     let cur_underruns = controller.chain_underrun_count(cid);
     let prev_xruns = last_xruns.borrow().get(cid).copied().unwrap_or(0);
     let prev_underruns = last_underruns.borrow().get(cid).copied().unwrap_or(0);
-    let overloaded = chain_overloaded(prev_xruns, cur_xruns)
-        || chain_overloaded(prev_underruns, cur_underruns);
+    let overloaded =
+        chain_overloaded(prev_xruns, cur_xruns) || chain_overloaded(prev_underruns, cur_underruns);
     last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
-    last_underruns.borrow_mut().insert(cid.clone(), cur_underruns);
+    last_underruns
+        .borrow_mut()
+        .insert(cid.clone(), cur_underruns);
     // One concise warning only on the transition INTO overload (not
     // every event) so it never spams the log.
     if overloaded && !row.audio_overload {
@@ -286,6 +285,7 @@ fn refresh_chain_meter_row(
         &project.chains[idx],
         &controller.chain_looper_statuses(cid),
         controller.sample_rate(),
+        &session.io_bindings.borrow(),
     );
     let looper_active_now = crate::looper_view::any_looper_active(&looper_rows);
     let loopers_changed = {

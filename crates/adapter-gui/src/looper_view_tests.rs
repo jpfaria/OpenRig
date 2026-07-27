@@ -38,7 +38,7 @@ fn status(
 #[test]
 fn a_looper_with_no_runtime_row_renders_as_empty() {
     let chain = chain_with(vec![LooperConfig::new(1)]);
-    let rows = looper_items(&chain, &[], 48_000);
+    let rows = looper_items(&chain, &[], 48_000, &[]);
 
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].uid, 1);
@@ -57,6 +57,7 @@ fn live_state_progress_and_time_come_from_the_runtime_at_the_live_rate() {
         &chain,
         &[status(1, LooperState::Playing, 48_000, 384_000, 3)],
         48_000,
+        &[],
     );
 
     assert_eq!(rows[0].state_code, 2);
@@ -73,6 +74,7 @@ fn time_label_follows_a_44100_stream_not_a_hardcoded_48000() {
         &chain,
         &[status(1, LooperState::Playing, 0, 44_100 * 5, 1)],
         44_100,
+        &[],
     );
     assert_eq!(rows[0].time_label, "0:00 / 0:05");
 }
@@ -85,6 +87,7 @@ fn redo_is_offered_only_while_an_undone_layer_is_still_there() {
         &chain,
         &[status(1, LooperState::Playing, 0, 48_000, 1)],
         48_000,
+        &[],
     );
     assert!(!rows[0].can_redo, "nothing is known to be undone yet");
 
@@ -93,6 +96,7 @@ fn redo_is_offered_only_while_an_undone_layer_is_still_there() {
         &[status(1, LooperState::Playing, 0, 48_000, 1)],
         48_000,
         &[(1u64, 2usize)],
+        &[],
     );
     assert!(rows[0].can_redo);
 }
@@ -109,7 +113,7 @@ fn persisted_parameters_reach_the_row_in_panel_units() {
         input: None,
         output: None,
     }]);
-    let rows = looper_items(&chain, &[], 48_000);
+    let rows = looper_items(&chain, &[], 48_000, &[]);
 
     assert_eq!(rows[0].mix, 50);
     assert_eq!(rows[0].decay, 25);
@@ -120,12 +124,13 @@ fn persisted_parameters_reach_the_row_in_panel_units() {
 #[test]
 fn a_chain_is_active_while_any_looper_records_or_plays() {
     let chain = chain_with(vec![LooperConfig::new(1), LooperConfig::new(2)]);
-    assert!(!any_looper_active(&looper_items(&chain, &[], 48_000)));
+    assert!(!any_looper_active(&looper_items(&chain, &[], 48_000, &[])));
 
     let rows = looper_items(
         &chain,
         &[status(2, LooperState::Recording, 0, 0, 1)],
         48_000,
+        &[],
     );
     assert!(any_looper_active(&rows));
 
@@ -133,6 +138,7 @@ fn a_chain_is_active_while_any_looper_records_or_plays() {
         &chain,
         &[status(2, LooperState::Stopped, 0, 48_000, 1)],
         48_000,
+        &[],
     );
     assert!(
         !any_looper_active(&stopped),

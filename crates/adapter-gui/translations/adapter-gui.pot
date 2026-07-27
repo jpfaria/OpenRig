@@ -810,3 +810,12 @@ msgstr ""
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-state-stopped"
 msgstr ""
+# Looper input/output selectors (#323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-input"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-output"
+msgstr ""

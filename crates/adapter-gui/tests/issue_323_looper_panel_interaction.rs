@@ -52,6 +52,8 @@ fn item(uid: i32, state_code: i32) -> LooperItem {
         reverse: false,
         can_undo: true,
         can_redo: true,
+        input_index: 0,
+        output_index: 0,
     }
 }
 

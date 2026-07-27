@@ -816,3 +816,12 @@ msgstr "Overdubbing"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-state-stopped"
 msgstr "Stopped"
+# Looper input/output selectors (#323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-input"
+msgstr "Record from"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-output"
+msgstr "Play to"

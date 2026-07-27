@@ -124,10 +124,14 @@ fn write_row_without_a_runtime_reflects_the_config() {
 
     // A looper was just added to the config (no stream, so `sample_rate` None).
     chain.loopers.push(LooperConfig::new(1));
-    crate::looper_view::write_chain_looper_row(&model, 0, &chain, &[], None);
+    crate::looper_view::write_chain_looper_row(&model, 0, &chain, &[], None, &[]);
 
     let rows: Vec<crate::LooperItem> = model.row_data(0).unwrap().loopers.iter().collect();
-    assert_eq!(rows.len(), 1, "the added looper must appear without a stream");
+    assert_eq!(
+        rows.len(),
+        1,
+        "the added looper must appear without a stream"
+    );
     assert_eq!(rows[0].uid, 1);
     assert_eq!(rows[0].state_code, 0);
     assert!(

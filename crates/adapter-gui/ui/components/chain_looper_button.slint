@@ -8,6 +8,10 @@ import { LooperPanel } from "looper_panel_globals.slint";
 export component ChainLooperButton inherits Rectangle {
     in property <bool> active: false;      // any looper recording or playing
     in property <int> chain-index;
+    // #323: the chain's input / output endpoint labels — the options every
+    // looper's record-from / play-to select shows. Seeded into the panel on open.
+    in property <[string]> input-options;
+    in property <[string]> output-options;
 
     width: 28px;
     height: 28px;
@@ -35,6 +39,8 @@ export component ChainLooperButton inherits Rectangle {
         clicked => {
             LooperPanel.chain-index = root.chain-index;
             LooperPanel.expanded-uid = -1;
+            LooperPanel.input-options = root.input-options;
+            LooperPanel.output-options = root.output-options;
             // Open below the button, the panel's right edge near it.
             LooperPanel.x = root.absolute-position.x - 572px;
             LooperPanel.y = root.absolute-position.y + 32px;

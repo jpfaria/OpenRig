@@ -15,6 +15,10 @@ export component LooperPanelView inherits Rectangle {
     in property <[LooperItem]> loopers;
     in property <int> expanded-uid: -1;
     in property <bool> can-add: true;
+    // #323: the chain's input / output endpoint labels, shared by every row's
+    // record-from / play-to selects.
+    in property <[string]> input-options;
+    in property <[string]> output-options;
 
     callback add();
     callback record(int);
@@ -28,9 +32,11 @@ export component LooperPanelView inherits Rectangle {
     callback decay-changed(int, int);
     callback speed-picked(int, int);
     callback reverse-toggled(int, bool);
+    callback input-picked(int, int);
+    callback output-picked(int, int);
 
     private property <length> row-height: 60px;
-    private property <length> drawer-extra: 118px;
+    private property <length> drawer-extra: 182px;
     private property <bool> is-empty: root.loopers.length == 0;
 
     width: 600px;
@@ -142,6 +148,8 @@ export component LooperPanelView inherits Rectangle {
         for item[index] in root.loopers: LooperRow {
             looper: item;
             expanded: item.uid == root.expanded-uid;
+            input-options: root.input-options;
+            output-options: root.output-options;
             record => { root.record(item.uid); }
             play-stop => { root.play-stop(item.uid); }
             undo => { root.undo(item.uid); }
@@ -153,6 +161,8 @@ export component LooperPanelView inherits Rectangle {
             decay-changed(v) => { root.decay-changed(item.uid, v); }
             speed-picked(v) => { root.speed-picked(item.uid, v); }
             reverse-toggled(v) => { root.reverse-toggled(item.uid, v); }
+            input-picked(v) => { root.input-picked(item.uid, v); }
+            output-picked(v) => { root.output-picked(item.uid, v); }
         }
     }
 }

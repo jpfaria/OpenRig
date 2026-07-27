@@ -813,3 +813,12 @@ msgstr "ओवरडब"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-state-stopped"
 msgstr "रुका"
+# Looper input/output selectors (#323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-input"
+msgstr "यहाँ से रिकॉर्ड"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-output"
+msgstr "यहाँ चलाएँ"

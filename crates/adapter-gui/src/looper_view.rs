@@ -45,7 +45,9 @@ pub fn looper_items_with_recorded(
     statuses: &[LooperStatus],
     sample_rate: u32,
     recorded: &[(u64, usize)],
+    registry: &[domain::io_binding::IoBinding],
 ) -> Vec<LooperItem> {
+    use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
     chain
         .loopers
         .iter()
@@ -79,14 +81,21 @@ pub fn looper_items_with_recorded(
                 reverse: cfg.reverse,
                 can_undo: layers > 0,
                 can_redo: total > layers,
+                input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
+                output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
             }
         })
         .collect()
 }
 
 /// Rows for one chain's loopers, without redo bookkeeping.
-pub fn looper_items(chain: &Chain, statuses: &[LooperStatus], sample_rate: u32) -> Vec<LooperItem> {
-    looper_items_with_recorded(chain, statuses, sample_rate, &[])
+pub fn looper_items(
+    chain: &Chain,
+    statuses: &[LooperStatus],
+    sample_rate: u32,
+    registry: &[domain::io_binding::IoBinding],
+) -> Vec<LooperItem> {
+    looper_items_with_recorded(chain, statuses, sample_rate, &[], registry)
 }
 
 /// Rows built from the chain's PERSISTED config alone — no live runtime yet.
@@ -98,9 +107,12 @@ pub fn looper_items(chain: &Chain, statuses: &[LooperStatus], sample_rate: u32) 
 /// the time label is `0:00 / 0:00` and no sample rate is involved — passing a
 /// live rate through here would be a fiction, so there is deliberately no rate
 /// parameter.
-pub fn looper_items_from_config(chain: &Chain) -> Vec<LooperItem> {
+pub fn looper_items_from_config(
+    chain: &Chain,
+    registry: &[domain::io_binding::IoBinding],
+) -> Vec<LooperItem> {
     // 1 Hz keeps `clock` total-safe; every frame count is 0 so it never shows.
-    looper_items_with_recorded(chain, &[], 1, &[])
+    looper_items_with_recorded(chain, &[], 1, &[], registry)
 }
 
 /// Whether any of the chain's loopers is currently making sound — drives the
@@ -126,14 +138,15 @@ pub fn write_chain_looper_row(
     chain: &Chain,
     statuses: &[LooperStatus],
     sample_rate: Option<u32>,
+    registry: &[domain::io_binding::IoBinding],
 ) {
     use slint::Model;
     let Some(mut row) = project_chains.row_data(index) else {
         return;
     };
     let rows = match sample_rate {
-        Some(rate) => looper_items(chain, statuses, rate),
-        None => looper_items_from_config(chain),
+        Some(rate) => looper_items(chain, statuses, rate, registry),
+        None => looper_items_from_config(chain, registry),
     };
     row.looper_active = any_looper_active(&rows);
     row.loopers = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(rows)));

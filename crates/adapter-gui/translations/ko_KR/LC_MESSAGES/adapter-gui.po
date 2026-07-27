@@ -813,3 +813,12 @@ msgstr "오버더빙"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-state-stopped"
 msgstr "정지됨"
+# Looper input/output selectors (#323)
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-input"
+msgstr "녹음 입력"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-output"
+msgstr "재생 출력"

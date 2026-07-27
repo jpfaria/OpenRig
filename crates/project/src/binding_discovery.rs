@@ -121,6 +121,74 @@ pub fn resolve_input_segment(
         .unwrap_or(0)
 }
 
+/// #323: flat index of a looper's chosen OUTPUT endpoint among the chain's
+/// resolved outputs (the same order the engine numbers output routes with).
+/// `None` / stale ⇒ `0` (the chain's main output).
+pub fn resolve_output_segment(
+    chain: &Chain,
+    registry: &[IoBinding],
+    output: Option<&crate::chain::EndpointRef>,
+) -> usize {
+    let Some(target) = output else {
+        return 0;
+    };
+    resolve_chain_ports(chain, registry)
+        .into_iter()
+        .filter(|p| p.direction == PortDirection::Output)
+        .position(|p| p.binding_id == target.binding_id && p.endpoint.name == target.endpoint)
+        .unwrap_or(0)
+}
+
+/// #323: the chain's bound input / output endpoint labels, in the deterministic
+/// order the selectors index into. Each label is `"<binding> · <endpoint>"`.
+pub fn chain_endpoint_labels(chain: &Chain, registry: &[IoBinding]) -> (Vec<String>, Vec<String>) {
+    let mut inputs = Vec::new();
+    let mut outputs = Vec::new();
+    for port in resolve_chain_ports(chain, registry) {
+        let label = format!("{} · {}", port.binding_id, port.endpoint.name);
+        match port.direction {
+            PortDirection::Input => inputs.push(label),
+            PortDirection::Output => outputs.push(label),
+        }
+    }
+    (inputs, outputs)
+}
+
+/// #323: the `EndpointRef` for the input at flat index `index`, or `None` when
+/// out of range (which a caller treats as "the chain's first input").
+pub fn input_endpoint_ref(
+    chain: &Chain,
+    registry: &[IoBinding],
+    index: usize,
+) -> Option<crate::chain::EndpointRef> {
+    endpoint_ref(chain, registry, PortDirection::Input, index)
+}
+
+/// #323: the `EndpointRef` for the output at flat index `index`.
+pub fn output_endpoint_ref(
+    chain: &Chain,
+    registry: &[IoBinding],
+    index: usize,
+) -> Option<crate::chain::EndpointRef> {
+    endpoint_ref(chain, registry, PortDirection::Output, index)
+}
+
+fn endpoint_ref(
+    chain: &Chain,
+    registry: &[IoBinding],
+    direction: PortDirection,
+    index: usize,
+) -> Option<crate::chain::EndpointRef> {
+    resolve_chain_ports(chain, registry)
+        .into_iter()
+        .filter(|p| p.direction == direction)
+        .nth(index)
+        .map(|p| crate::chain::EndpointRef {
+            binding_id: p.binding_id,
+            endpoint: p.endpoint.name,
+        })
+}
+
 #[cfg(test)]
 #[path = "binding_discovery_looper_tests.rs"]
 mod looper_tests;

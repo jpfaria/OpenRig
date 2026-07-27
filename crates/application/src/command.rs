@@ -15,12 +15,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub use crate::di_loader::DiLoopSource;
-pub use project::chain::LooperSpeed;
 pub use domain::ids::{BlockId, ChainId};
 pub use domain::io_binding::{ChannelMode, IoBinding};
 use project::block::AudioBlock;
 use project::chain::Chain;
 pub use project::chain::DiOutputRef;
+pub use project::chain::EndpointRef;
+pub use project::chain::LooperSpeed;
 
 /// Every state change the UI or any controller can request.
 ///
@@ -592,6 +593,24 @@ pub enum Command {
         chain: ChainId,
         looper: u64,
         param: LooperParam,
+    },
+
+    /// #323: choose which of the chain's bound input endpoints a looper
+    /// records its dry signal from. `None` ⇒ the chain's first input. Persists
+    /// on the chain and re-issues the looper's segment binding so REC captures
+    /// the chosen input instead of always the first.
+    SetChainLooperInput {
+        chain: ChainId,
+        looper: u64,
+        input: Option<EndpointRef>,
+    },
+
+    /// #323: choose which of the chain's bound output endpoints a looper plays
+    /// back to. `None` ⇒ the chain's main output. Persists on the chain.
+    SetChainLooperOutput {
+        chain: ChainId,
+        looper: u64,
+        output: Option<EndpointRef>,
     },
 
     /// #323: remember (or forget) the file holding a looper's recorded audio.

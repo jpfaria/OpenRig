@@ -521,9 +521,29 @@ pub(crate) fn replace_project_chains(
                 // empty panel and the user re-clicked Add until the config hit
                 // the 8-looper cap.
                 loopers: ModelRc::from(Rc::new(VecModel::from(
-                    crate::looper_view::looper_items_from_config(chain),
+                    crate::looper_view::looper_items_from_config(chain, io_bindings),
                 ))),
                 looper_active: false,
+                looper_input_options: {
+                    let (inputs, _) =
+                        project::binding_discovery::chain_endpoint_labels(chain, io_bindings);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        inputs
+                            .into_iter()
+                            .map(SharedString::from)
+                            .collect::<Vec<_>>(),
+                    )))
+                },
+                looper_output_options: {
+                    let (_, outputs) =
+                        project::binding_discovery::chain_endpoint_labels(chain, io_bindings);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        outputs
+                            .into_iter()
+                            .map(SharedString::from)
+                            .collect::<Vec<_>>(),
+                    )))
+                },
             }
         })
         .collect::<Vec<_>>();

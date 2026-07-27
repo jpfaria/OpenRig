@@ -13,6 +13,10 @@ import { LooperIconButton, LooperSlider, LooperSegmented } from "looper_controls
 export component LooperRow inherits Rectangle {
     in property <LooperItem> looper;
     in property <bool> expanded;
+    // #323: the chain's input / output endpoint labels — options for the
+    // record-from and play-to selects in this row's drawer.
+    in property <[string]> input-options;
+    in property <[string]> output-options;
 
     callback record();
     callback play-stop();
@@ -25,6 +29,8 @@ export component LooperRow inherits Rectangle {
     callback decay-changed(int);
     callback speed-picked(int);
     callback reverse-toggled(bool);
+    callback input-picked(int);
+    callback output-picked(int);
 
     // 0 empty · 1 recording · 2 playing · 3 overdubbing · 4 stopped
     private property <bool> recording: root.looper.state_code == 1 || root.looper.state_code == 3;
@@ -37,7 +43,7 @@ export component LooperRow inherits Rectangle {
         : root.looper.state_code == 4 ? #c5cad4     // stopped
         : #8a94a2;                                  // empty
 
-    height: root.expanded ? 178px : 60px;
+    height: root.expanded ? 242px : 60px;
     border-radius: 10px;
     background: Theme.palette.card-secondary;
     border-width: 1px;
@@ -196,12 +202,26 @@ export component LooperRow inherits Rectangle {
         x: 12px;
         y: 58px;
         width: parent.width - 24px;
-        height: 112px;
+        height: 176px;
         spacing: 8px;
 
         Rectangle {
             height: 1px;
             background: Theme.palette.border;
+        }
+
+        LooperSegmented {
+            label: @tr("looper-input");
+            options: root.input-options;
+            selected-index: root.looper.input_index;
+            picked(i) => { root.input-picked(i); }
+        }
+
+        LooperSegmented {
+            label: @tr("looper-output");
+            options: root.output-options;
+            selected-index: root.looper.output_index;
+            picked(i) => { root.output-picked(i); }
         }
 
         LooperSlider {

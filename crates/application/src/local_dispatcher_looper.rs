@@ -120,8 +120,47 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperAudioFileChanged { chain, looper }])
             }
 
+            Command::SetChainLooperInput {
+                chain,
+                looper,
+                input,
+            } => {
+                self.with_looper(&chain, looper, |cfg| cfg.input = input)?;
+                Ok(vec![Event::ChainLooperInputChanged { chain, looper }])
+            }
+
+            Command::SetChainLooperOutput {
+                chain,
+                looper,
+                output,
+            } => {
+                self.with_looper(&chain, looper, |cfg| cfg.output = output)?;
+                Ok(vec![Event::ChainLooperOutputChanged { chain, looper }])
+            }
+
             other => unreachable!("handle_looper received a non-looper command: {other:?}"),
         }
+    }
+
+    /// Locate a looper's config and mutate it, or fail loudly.
+    fn with_looper(
+        &self,
+        chain: &domain::ids::ChainId,
+        looper: u64,
+        edit: impl FnOnce(&mut project::chain::LooperConfig),
+    ) -> Result<()> {
+        let mut proj = self.project.borrow_mut();
+        let cfg = proj
+            .chains
+            .iter_mut()
+            .find(|c| &c.id == chain)
+            .ok_or_else(|| anyhow!("chain not found: {chain:?}"))?
+            .loopers
+            .iter_mut()
+            .find(|l| l.uid == looper)
+            .ok_or_else(|| anyhow!("looper not found: {looper}"))?;
+        edit(cfg);
+        Ok(())
     }
 
     /// Resolve the looper a transport action addresses.

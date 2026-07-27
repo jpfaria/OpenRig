@@ -48,7 +48,10 @@ fn chain() -> Chain {
 
 #[test]
 fn none_resolves_to_the_first_input() {
-    assert_eq!(resolve_input_segment(&chain(), &two_input_binding(), None), 0);
+    assert_eq!(
+        resolve_input_segment(&chain(), &two_input_binding(), None),
+        0
+    );
 }
 
 #[test]

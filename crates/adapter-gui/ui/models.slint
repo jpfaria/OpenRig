@@ -95,6 +95,11 @@ export struct LooperItem {
     /// Whether an undo / redo would do anything right now.
     can_undo: bool,
     can_redo: bool,
+    /// Index into the chain's input endpoints of the input this looper records
+    /// from (0 = first input). The option labels live on the LooperPanel global.
+    input_index: int,
+    /// Index into the chain's output endpoints of where this looper plays back.
+    output_index: int,
 }
 
 export struct ProjectChainItem {
@@ -148,6 +153,10 @@ export struct ProjectChainItem {
     loopers: [LooperItem],
     /// #323: true while any of them is recording, overdubbing or playing.
     looper_active: bool,
+    /// #323: the chain's bound input / output endpoint labels — the options a
+    /// looper's record-from / play-to select shows.
+    looper_input_options: [string],
+    looper_output_options: [string],
     /// Issue #771: the DI stream's OWN in/out levels (dBFS), read from the
     /// isolated playback's peaks — never a mirror of the chain meters.
     /// Refreshed by the meter timer via `di_playback_peaks`.

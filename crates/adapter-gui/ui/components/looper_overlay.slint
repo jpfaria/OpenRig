@@ -23,6 +23,8 @@ export component LooperOverlay inherits Rectangle {
     callback decay-changed(int, int, int);
     callback speed-picked(int, int, int);
     callback reverse-toggled(int, int, bool);
+    callback input-picked(int, int, int);
+    callback output-picked(int, int, int);
 
     x: 0; y: 0;
     visible: LooperPanel.open;
@@ -33,6 +35,8 @@ export component LooperOverlay inherits Rectangle {
         y: LooperPanel.y;
         loopers: root.loopers;
         expanded-uid: LooperPanel.expanded-uid;
+        input-options: LooperPanel.input-options;
+        output-options: LooperPanel.output-options;
         add => { root.add(LooperPanel.chain-index); }
         record(uid) => { root.record(LooperPanel.chain-index, uid); }
         play-stop(uid) => { root.play-stop(LooperPanel.chain-index, uid); }
@@ -47,5 +51,7 @@ export component LooperOverlay inherits Rectangle {
         decay-changed(uid, v) => { root.decay-changed(LooperPanel.chain-index, uid, v); }
         speed-picked(uid, v) => { root.speed-picked(LooperPanel.chain-index, uid, v); }
         reverse-toggled(uid, v) => { root.reverse-toggled(LooperPanel.chain-index, uid, v); }
+        input-picked(uid, v) => { root.input-picked(LooperPanel.chain-index, uid, v); }
+        output-picked(uid, v) => { root.output-picked(LooperPanel.chain-index, uid, v); }
     }
 }

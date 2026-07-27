@@ -205,6 +205,8 @@ export component AppWindow inherits Window {
     callback looper-decay-changed(int, int, int);
     callback looper-speed-picked(int, int, int);
     callback looper-reverse-toggled(int, int, bool);
+    callback looper-input-picked(int, int, int);
+    callback looper-output-picked(int, int, int);
 
     /// #771: an output endpoint was picked in the DI panel.
     /// Args: chain-index, index into the chain's di_loop_outputs.
@@ -874,6 +876,8 @@ export component AppWindow inherits Window {
         decay-changed(ci, uid, v) => { root.looper-decay-changed(ci, uid, v); }
         speed-picked(ci, uid, v) => { root.looper-speed-picked(ci, uid, v); }
         reverse-toggled(ci, uid, v) => { root.looper-reverse-toggled(ci, uid, v); }
+        input-picked(ci, uid, v) => { root.looper-input-picked(ci, uid, v); }
+        output-picked(ci, uid, v) => { root.looper-output-picked(ci, uid, v); }
     }
     ToneDoctorOverlay {
         width: root.width; height: root.height;

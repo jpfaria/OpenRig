@@ -41,6 +41,7 @@ fn refresh_row(session: &ProjectSession, runtime: &Runtime, chains: &Chains, ind
     let Some(chain) = project.chains.get(index as usize) else {
         return;
     };
+    let registry = session.io_bindings.borrow();
     let runtime_borrow = runtime.borrow();
     match runtime_borrow.as_ref() {
         Some(controller) if !controller.runtimes_for_chain(&chain.id).is_empty() => {
@@ -50,9 +51,17 @@ fn refresh_row(session: &ProjectSession, runtime: &Runtime, chains: &Chains, ind
                 chain,
                 &controller.chain_looper_statuses(&chain.id),
                 Some(controller.sample_rate()),
+                &registry,
             );
         }
-        _ => crate::looper_view::write_chain_looper_row(chains, index as usize, chain, &[], None),
+        _ => crate::looper_view::write_chain_looper_row(
+            chains,
+            index as usize,
+            chain,
+            &[],
+            None,
+            &registry,
+        ),
     }
 }
 
@@ -115,7 +124,13 @@ pub(crate) fn wire_looper_callbacks(
         let chains = chains.clone();
         window.on_looper_add(move |index| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
-                dispatch_and_apply(s, &runtime, &chains, index, Command::AddChainLooper { chain });
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::AddChainLooper { chain },
+                );
             });
         });
     }
@@ -204,4 +219,90 @@ pub(crate) fn wire_looper_callbacks(
         speed_from_index(v)
     ));
     param!(on_looper_reverse_toggled, |v: bool| LooperParam::Reverse(v));
+
+    // ── input / output endpoint selection ───────────────────────────────
+    // Picking the record input re-issues the looper's segment binding so REC
+    // captures the chosen input; picking the output persists the choice.
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        window.on_looper_input_picked(move |index, uid, endpoint_index| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                let registry = s.io_bindings.borrow();
+                let input = s.project.borrow().chains.get(index as usize).and_then(|c| {
+                    project::binding_discovery::input_endpoint_ref(
+                        c,
+                        &registry,
+                        endpoint_index as usize,
+                    )
+                });
+                drop(registry);
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::SetChainLooperInput {
+                        chain: chain.clone(),
+                        looper: uid as u64,
+                        input,
+                    },
+                );
+                // Re-bind the looper to the chosen segment so REC captures it
+                // (the bank keeps whatever was already recorded).
+                let seg = endpoint_index.max(0) as usize;
+                let uid = uid as u64;
+                controller_op(&runtime, &chain, engine::LooperOp::Create { uid, seg });
+            });
+        });
+    }
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        window.on_looper_output_picked(move |index, uid, endpoint_index| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                let registry = s.io_bindings.borrow();
+                let output = s.project.borrow().chains.get(index as usize).and_then(|c| {
+                    project::binding_discovery::output_endpoint_ref(
+                        c,
+                        &registry,
+                        endpoint_index as usize,
+                    )
+                });
+                drop(registry);
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::SetChainLooperOutput {
+                        chain,
+                        looper: uid as u64,
+                        output,
+                    },
+                );
+            });
+        });
+    }
+}
+
+/// Push a raw looper op to every runtime of a chain (used for the segment
+/// re-bind on input change, which is not carried by an event).
+fn controller_op(runtime: &Runtime, chain: &ChainId, op: engine::LooperOp) {
+    let borrow = runtime.borrow();
+    let Some(controller) = borrow.as_ref() else {
+        return;
+    };
+    // The op carries no buffer, so a single instance is enough per runtime.
+    let uid = match &op {
+        engine::LooperOp::Create { uid, .. } => *uid,
+        _ => return,
+    };
+    let seg = match &op {
+        engine::LooperOp::Create { seg, .. } => *seg,
+        _ => 0,
+    };
+    controller.push_chain_looper_op(chain, |_| Some(engine::LooperOp::Create { uid, seg }));
 }

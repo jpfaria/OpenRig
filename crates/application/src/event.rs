@@ -348,10 +348,16 @@ pub enum Event {
     /// #323: a looper was added to a chain; `looper` is the uid the
     /// dispatcher assigned. The adapter wiring claims the matching slot on
     /// the chain's runtimes.
-    ChainLooperAdded { chain: ChainId, looper: u64 },
+    ChainLooperAdded {
+        chain: ChainId,
+        looper: u64,
+    },
 
     /// #323: a looper was removed from a chain.
-    ChainLooperRemoved { chain: ChainId, looper: u64 },
+    ChainLooperRemoved {
+        chain: ChainId,
+        looper: u64,
+    },
 
     /// #323: a transport action was requested for a looper. The adapter
     /// wiring turns it into the matching `engine::LooperOp` — allocating the
@@ -363,7 +369,23 @@ pub enum Event {
     },
 
     /// #323: a looper's recorded-audio pointer changed on the chain.
-    ChainLooperAudioFileChanged { chain: ChainId, looper: u64 },
+    ChainLooperAudioFileChanged {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323: a looper's chosen input endpoint changed. The adapter re-binds
+    /// the looper to the segment serving that input so REC captures it.
+    ChainLooperInputChanged {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323: a looper's chosen output endpoint changed.
+    ChainLooperOutputChanged {
+        chain: ChainId,
+        looper: u64,
+    },
 
     /// #323: a looper parameter changed and was persisted on the chain.
     ChainLooperParamChanged {
@@ -422,7 +444,9 @@ impl Event {
             | Event::ChainLooperRemoved { chain, .. }
             | Event::ChainLooperTransportChanged { chain, .. }
             | Event::ChainLooperParamChanged { chain, .. }
-            | Event::ChainLooperAudioFileChanged { chain, .. } => Some(chain),
+            | Event::ChainLooperAudioFileChanged { chain, .. }
+            | Event::ChainLooperInputChanged { chain, .. }
+            | Event::ChainLooperOutputChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

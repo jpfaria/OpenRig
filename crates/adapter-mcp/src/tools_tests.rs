@@ -41,7 +41,9 @@ use application::command_schema::command_variant_names;
 /// footswitch use.
 /// #323 bumped to 78 with `SetChainLooperAudioFile` — the pointer to the wav
 /// a recorded loop was saved into.
-const COMMAND_VARIANT_COUNT: usize = 78;
+/// #323 bumped to 80 with `SetChainLooperInput` / `SetChainLooperOutput` —
+/// the looper's chosen record input and playback output endpoints.
+const COMMAND_VARIANT_COUNT: usize = 80;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {
