@@ -4,6 +4,7 @@
 // absolute position (the DI button's proven pattern, #749).
 
 import { LooperPanel } from "looper_panel_globals.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 
 export component ChainLooperButton inherits Rectangle {
     in property <bool> active: false;      // any looper recording or playing
@@ -47,6 +48,8 @@ export component ChainLooperButton inherits Rectangle {
             LooperPanel.open = true;
         }
     }
+
+    IconTooltip { text: @tr("looper-button-label"); show: ta.has-hover; }
 
     accessible-role: button;
     accessible-label: @tr("looper-button-label");
