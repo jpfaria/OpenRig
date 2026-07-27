@@ -140,15 +140,37 @@ pub fn resolve_output_segment(
 }
 
 /// #323: the chain's bound input / output endpoint labels, in the deterministic
-/// order the selectors index into. Each label is `"<binding> · <endpoint>"`.
+/// order the selectors index into. Each label is the endpoint name, prefixed
+/// with the binding's NAME (not its id) only when the same endpoint name
+/// repeats across bindings — mirrors the DI output picker.
 pub fn chain_endpoint_labels(chain: &Chain, registry: &[IoBinding]) -> (Vec<String>, Vec<String>) {
+    let ports = resolve_chain_ports(chain, registry);
+    let binding_name = |id: &str| -> String {
+        registry
+            .iter()
+            .find(|b| b.id == id)
+            .map(|b| b.name.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| id.to_string())
+    };
+    let label = |port: &crate::binding_discovery::ChainPort| -> String {
+        let same_name = ports
+            .iter()
+            .filter(|q| q.direction == port.direction && q.endpoint.name == port.endpoint.name)
+            .count()
+            > 1;
+        if same_name {
+            format!("{} · {}", binding_name(&port.binding_id), port.endpoint.name)
+        } else {
+            port.endpoint.name.clone()
+        }
+    };
     let mut inputs = Vec::new();
     let mut outputs = Vec::new();
-    for port in resolve_chain_ports(chain, registry) {
-        let label = format!("{} · {}", port.binding_id, port.endpoint.name);
+    for port in &ports {
         match port.direction {
-            PortDirection::Input => inputs.push(label),
-            PortDirection::Output => outputs.push(label),
+            PortDirection::Input => inputs.push(label(port)),
+            PortDirection::Output => outputs.push(label(port)),
         }
     }
     (inputs, outputs)

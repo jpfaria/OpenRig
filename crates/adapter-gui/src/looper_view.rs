@@ -123,6 +123,38 @@ pub fn any_looper_active(items: &[LooperItem]) -> bool {
         .any(|i| i.state_code == 1 || i.state_code == 2 || i.state_code == 3)
 }
 
+/// Populate every chain row's looper Record-from / Play-to endpoint options
+/// from the live bindings — offline, no device needed, so a chain that is not
+/// started still shows its options (mirrors the DI output picker's
+/// `apply_di_outputs_to_rows`). Writes a row back only when its options change.
+pub fn apply_looper_endpoints_to_rows(
+    project_chains: &slint::VecModel<crate::ProjectChainItem>,
+    project: &project::project::Project,
+    registry: &[domain::io_binding::IoBinding],
+) {
+    use slint::Model;
+    for (idx, chain) in project.chains.iter().enumerate() {
+        let Some(mut row) = project_chains.row_data(idx) else {
+            continue;
+        };
+        let (inputs, outputs) =
+            project::binding_discovery::chain_endpoint_labels(chain, registry);
+        let cur_in: Vec<String> = row.looper_input_options.iter().map(|s| s.to_string()).collect();
+        let cur_out: Vec<String> =
+            row.looper_output_options.iter().map(|s| s.to_string()).collect();
+        if cur_in == inputs && cur_out == outputs {
+            continue;
+        }
+        row.looper_input_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+            inputs.into_iter().map(slint::SharedString::from).collect::<Vec<_>>(),
+        )));
+        row.looper_output_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+            outputs.into_iter().map(slint::SharedString::from).collect::<Vec<_>>(),
+        )));
+        project_chains.set_row_data(idx, row);
+    }
+}
+
 /// Rebuild the looper rows of one chain-card row in place.
 ///
 /// `sample_rate` is `Some` only when the chain has a live runtime — then the
