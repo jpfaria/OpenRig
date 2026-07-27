@@ -159,23 +159,7 @@ fn recording_and_overdubbing_on_real_streams_costs_no_xrun() {
     let x0 = controller.chain_xrun_count(&chain_id);
     let u0 = controller.chain_underrun_count(&chain_id);
 
-    // [#323-probe] temporary: how many runtimes answer for this chain, and
-    // how many accepted the op.
-    eprintln!(
-        "[#323-probe] runtimes_for_chain={} chain_runtime={} xruns={} chain_id={}",
-        controller.runtimes_for_chain(&chain_id).len(),
-        controller.chain_runtime(&chain_id).is_some(),
-        controller.chain_xrun_count(&chain_id),
-        chain_id.0,
-    );
-    let queued =
-        controller.push_chain_looper_op(&chain_id, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    eprintln!("[#323-probe] create queued on {queued} runtime(s)");
-    std::thread::sleep(std::time::Duration::from_millis(500));
-    eprintln!(
-        "[#323-probe] statuses after create: {:?}",
-        controller.chain_looper_statuses(&chain_id)
-    );
+    controller.push_chain_looper_op(&chain_id, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
 
     // Record an 8-second loop off the live input.
     tap_record(&controller, &chain_id, true);
