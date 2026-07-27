@@ -1,4 +1,4 @@
-use crate::{AppWindow, BlockEditorWindow};
+use crate::AppWindow;
 use slint::{ComponentHandle, Timer, TimerMode};
 use std::fmt::Display;
 use std::time::Duration;
@@ -88,23 +88,4 @@ pub(crate) fn clear_status(window: &AppWindow, toast_timer: &Timer) {
     window.set_status_message("".into());
     window.set_toast_message("".into());
     window.set_toast_level("info".into());
-}
-
-pub(crate) fn sync_block_editor_window(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-) {
-    block_editor_window.set_block_type_options(window.get_block_type_options());
-    block_editor_window.set_block_model_options(window.get_block_model_options());
-    block_editor_window.set_block_model_option_labels(window.get_block_model_option_labels());
-    block_editor_window.set_block_drawer_title(window.get_block_drawer_title());
-    block_editor_window.set_block_drawer_confirm_label(window.get_block_drawer_confirm_label());
-    block_editor_window.set_block_drawer_status_message(window.get_block_drawer_status_message());
-    block_editor_window.set_block_drawer_edit_mode(window.get_block_drawer_edit_mode());
-    block_editor_window
-        .set_block_drawer_selected_type_index(window.get_block_drawer_selected_type_index());
-    block_editor_window
-        .set_block_drawer_selected_model_index(window.get_block_drawer_selected_model_index());
-    block_editor_window.set_block_drawer_enabled(window.get_block_drawer_enabled());
-    block_editor_window.set_block_parameter_items(window.get_block_parameter_items());
 }

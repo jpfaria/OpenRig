@@ -43,6 +43,6 @@ Both flows use it: editing an existing block passes `block_index: Some(i)`; addi
 a new block passes `block_index: None` (add-mode — no auto-persist, no stream
 timer, "add" confirm label, and the block is created only on save, where
 `persist_block_editor_draft` inserts when the index is `None`). Because both share
-this one setup, the #780 parameter tabs render identically on add and edit. Add
-previously went through a separate persistent-window wiring that never built the
-tabs — that path is being retired.
+this one setup, the #780 parameter tabs render identically on add and edit. The
+old persistent-window wiring that add used to go through (and that never built
+the tabs) was retired in #819 — there is now a single detached-editor wiring.

@@ -17,16 +17,15 @@ mod block_delete_wiring;
 mod block_drawer_close_wiring;
 mod block_drawer_save_delete_wiring;
 pub mod block_editor_param_tabs;
-mod block_editor_window_lifecycle;
 mod block_editor_window_delete;
+mod block_editor_window_lifecycle;
 mod block_editor_window_params;
 mod block_editor_window_setup;
-mod block_editor_window_wiring;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
 mod block_panel_dimensions;
-mod block_parameter_wiring;
 mod block_parameter_extras;
+mod block_parameter_wiring;
 mod block_picker_wiring;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
@@ -48,10 +47,12 @@ mod cli;
 mod compact_block_layout;
 mod compact_block_tabs;
 mod compact_block_view;
-mod compact_chain_block_handlers;
 mod compact_chain_block_delete;
+mod compact_chain_block_handlers;
 pub mod compact_chain_callbacks;
 mod compact_chain_delete_wiring;
+/// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
+pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
 mod device_refresh_wiring;
@@ -62,11 +63,7 @@ mod di_loop_chooser_wiring;
 /// #614: pure source-list builder + string→DiLoopSource mapper for the
 /// chain-tile DI loop ComboBox (Task 7).
 pub mod di_loop_ui_sources;
-/// #614: DI loop wiring — apply_di_loop_event + di_loop_commands.
-pub mod compact_chain_di_callbacks;
 pub mod di_loop_wiring;
-pub mod tone_doctor_compact_wiring;
-pub mod tone_doctor_wiring;
 /// #771: DI meter row values from the isolated playback's own peaks.
 pub mod di_meter;
 /// #771: pure option list + index mapping for the DI panel's output select.
@@ -92,6 +89,8 @@ mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
 pub(crate) mod settings;
+pub mod tone_doctor_compact_wiring;
+pub mod tone_doctor_wiring;
 /// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
 /// in sync with a `SaveAudioSettings` disk write so that a subsequent
 /// whole-config re-save does not clobber the user's buffer-size pick.
@@ -121,7 +120,7 @@ pub use cli::{
 };
 pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_block_toggle,
-    sync_live_chain_runtime, sync_project_runtime, system_language, ui_index_to_real_block_index,
+    sync_live_chain_runtime, sync_project_runtime, ui_index_to_real_block_index,
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.
@@ -145,6 +144,8 @@ mod helpers;
 mod issue_692_project_open_time_tests;
 #[cfg(test)]
 mod issue_815_add_block_tabs_tests;
+#[cfg(test)]
+mod issue_819_retire_persistent_window_tests;
 mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;

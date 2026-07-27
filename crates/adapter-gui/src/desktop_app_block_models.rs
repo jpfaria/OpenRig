@@ -1,10 +1,6 @@
-//! Block-editor `VecModel`s shared between the main `AppWindow` and the
-//! detached `BlockEditorWindow`.
-//!
-//! Both windows render the same drawer layout (type picker → model picker →
-//! parameter editor → EQ widgets) and need the same backing models. We build
-//! them once here and bind both windows to the same `Rc<VecModel<...>>`
-//! handles so a change reaches both.
+//! Block-editor `VecModel`s bound to the main `AppWindow` (the inline editor
+//! and pickers). The detached editor builds its own per-window models in
+//! `block_editor_window_setup::create_and_wire` (#819).
 //!
 //! The 8 models cover:
 //!
@@ -18,17 +14,14 @@
 //!   shape editors.
 //! * `eq_band_curves` — per-band curve strings rendered behind the points.
 //!
-//! Also resets the BlockEditorWindow drawer to the "no selection" state so
-//! reopening it after a previous edit doesn't show stale data.
-
 use std::rc::Rc;
 
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::project_view::block_type_picker_items;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
-    CurveEditorPoint, MultiSliderPoint,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, CurveEditorPoint,
+    MultiSliderPoint,
 };
 
 pub(crate) struct BlockEditorModels {
@@ -42,10 +35,7 @@ pub(crate) struct BlockEditorModels {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
 }
 
-pub(crate) fn init(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-) -> BlockEditorModels {
+pub(crate) fn init(window: &AppWindow) -> BlockEditorModels {
     let block_type_options = Rc::new(VecModel::from(block_type_picker_items(
         block_core::INST_GENERIC,
     )));
@@ -65,24 +55,6 @@ pub(crate) fn init(
     window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
     window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
     window.set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
-
-    block_editor_window.set_block_type_options(ModelRc::from(block_type_options.clone()));
-    block_editor_window.set_block_model_options(ModelRc::from(block_model_options.clone()));
-    block_editor_window
-        .set_filtered_block_model_options(ModelRc::from(filtered_block_model_options.clone()));
-    block_editor_window
-        .set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
-    block_editor_window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
-    block_editor_window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
-    block_editor_window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
-    block_editor_window.set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
-    block_editor_window.set_block_drawer_title("".into());
-    block_editor_window.set_block_drawer_confirm_label(rust_i18n::t!("btn-add").as_ref().into());
-    block_editor_window.set_block_drawer_status_message("".into());
-    block_editor_window.set_block_drawer_edit_mode(false);
-    block_editor_window.set_block_drawer_selected_type_index(-1);
-    block_editor_window.set_block_drawer_selected_model_index(-1);
-    block_editor_window.set_block_drawer_enabled(true);
 
     BlockEditorModels {
         block_type_options,

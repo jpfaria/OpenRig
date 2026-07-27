@@ -10,8 +10,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use crate::state::BlockEditorDraft;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint,
-    MultiSliderPoint,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
 };
 
 pub(crate) struct BlockPickerCtx {
@@ -26,11 +25,7 @@ pub(crate) struct BlockPickerCtx {
     pub block_editor_persist_timer: Rc<Timer>,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: BlockPickerCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: BlockPickerCtx) {
     let BlockPickerCtx {
         block_editor_draft,
         block_model_options,
@@ -43,7 +38,6 @@ pub(crate) fn wire(
         block_editor_persist_timer,
     } = ctx;
     let weak_window = window.as_weak();
-    let weak_block_editor_window = block_editor_window.as_weak();
     window.on_cancel_block_picker(move || {
         let Some(window) = weak_window.upgrade() else {
             return;
@@ -63,8 +57,5 @@ pub(crate) fn wire(
         window.set_show_block_type_picker(false);
         window.set_show_block_drawer(false);
         window.set_block_drawer_status_message("".into());
-        if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-            let _ = block_editor_window.hide();
-        }
     });
 }
