@@ -438,7 +438,9 @@ fn assert_full_chain_load_matches_rebuild(name: &str, file: &str) {
 #[test]
 fn clean_full_chain_load_matches_rebuild() {
     let Some(root) = owner_plugins_root() else {
-        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        eprintln!(
+            "[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
         return;
     };
     init_registry(&root);
@@ -448,7 +450,9 @@ fn clean_full_chain_load_matches_rebuild() {
 #[test]
 fn od_full_chain_load_matches_rebuild() {
     let Some(root) = owner_plugins_root() else {
-        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        eprintln!(
+            "[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
         return;
     };
     init_registry(&root);
@@ -458,7 +462,9 @@ fn od_full_chain_load_matches_rebuild() {
 #[test]
 fn crunch_full_chain_load_matches_rebuild() {
     let Some(root) = owner_plugins_root() else {
-        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        eprintln!(
+            "[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
         return;
     };
     init_registry(&root);
@@ -468,7 +474,9 @@ fn crunch_full_chain_load_matches_rebuild() {
 #[test]
 fn clean_preset_load_matches_rebuild() {
     let Some(root) = owner_plugins_root() else {
-        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        eprintln!(
+            "[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
         return;
     };
     init_registry(&root);
@@ -478,7 +486,9 @@ fn clean_preset_load_matches_rebuild() {
 #[test]
 fn od_preset_load_matches_rebuild() {
     let Some(root) = owner_plugins_root() else {
-        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        eprintln!(
+            "[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
         return;
     };
     init_registry(&root);
@@ -488,7 +498,9 @@ fn od_preset_load_matches_rebuild() {
 #[test]
 fn crunch_preset_load_matches_rebuild() {
     let Some(root) = owner_plugins_root() else {
-        eprintln!("[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run");
+        eprintln!(
+            "[#592] SKIPPED — set OPENRIG_OWNER_PLUGINS=<OpenRig-plugins/plugins/source> to run"
+        );
         return;
     };
     init_registry(&root);

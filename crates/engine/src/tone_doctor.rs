@@ -22,7 +22,6 @@ use feature_dsp::tone_descriptors::{analyze, Symptom, SymptomLimits, ToneDescrip
 use project::block::AudioBlockKind;
 use project::chain::Chain;
 
-
 /// Tail (in frames) appended to each render so time-based blocks flush.
 const DIAGNOSE_TAIL_FRAMES: usize = 4_096;
 
@@ -112,7 +111,13 @@ pub fn diagnose(
     input: &[[f32; 2]],
     block_size: usize,
 ) -> Result<Diagnosis> {
-    diagnose_with_limits(chain, sample_rate, input, block_size, &SymptomLimits::DEFAULT)
+    diagnose_with_limits(
+        chain,
+        sample_rate,
+        input,
+        block_size,
+        &SymptomLimits::DEFAULT,
+    )
 }
 
 /// Diagnose against explicit limits (a genre-calibrated profile). [`diagnose`]

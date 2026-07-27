@@ -230,7 +230,6 @@ pub(super) fn audio_callback_does_not_allocate_at_buffer_32() {
     );
 }
 
-
 /// Issue #323 — the looper is a recorder living on the audio thread, so it is
 /// the most obvious candidate to break invariant #8. Layer buffers are
 /// allocated by the CONTROL thread and handed over through the op queue; the

@@ -66,7 +66,7 @@ fn an_empty_bank_is_idle_and_leaves_the_frames_untouched() {
 }
 
 #[test]
-fn recorded_material_is_summed_back_into_the_chain_input() {
+fn recorded_material_is_captured_and_the_chain_frame_is_left_dry() {
     let sh = shared();
     let mut b = bank(&sh);
     sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
@@ -79,7 +79,10 @@ fn recorded_material_is_summed_back_into_the_chain_input() {
 
     let mut rec = stereo(&[[0.5, 0.5], [0.25, 0.25]]);
     b.process(0, &mut rec, AudioChannelLayout::Stereo);
+    // The bank is a recorder: the chain frame is NEVER touched (playback is
+    // the isolated stream, not an in-chain sum).
     assert_eq!(lr(rec[0]), [0.5, 0.5], "dry passes through untouched");
+    assert_eq!(lr(rec[1]), [0.25, 0.25]);
 
     sh.push(LooperOp::TapRecord {
         uid: UID,
@@ -88,11 +91,12 @@ fn recorded_material_is_summed_back_into_the_chain_input() {
     .unwrap();
     b.drain_ops(&sh);
 
-    // Silent input now: what comes out is the loop.
-    let mut play = stereo(&[[0.0, 0.0], [0.0, 0.0]]);
+    // What was captured is what `export` hands to the isolated stream.
+    assert_eq!(b.export(UID), Some(vec![0.5, 0.5, 0.25, 0.25]));
+    // A silent callback still touches nothing.
+    let mut play = stereo(&[[0.0, 0.0]]);
     b.process(0, &mut play, AudioChannelLayout::Stereo);
-    assert_eq!(lr(play[0]), [0.5, 0.5]);
-    assert_eq!(lr(play[1]), [0.25, 0.25]);
+    assert_eq!(lr(play[0]), [0.0, 0.0]);
 }
 
 #[test]
@@ -116,17 +120,15 @@ fn two_loopers_record_the_same_dry_signal_not_each_other() {
     }
     b.drain_ops(&sh);
 
-    let mut play = stereo(&[[0.0, 0.0]]);
-    b.process(0, &mut play, AudioChannelLayout::Stereo);
-    assert_eq!(
-        lr(play[0]),
-        [2.0, 2.0],
-        "each looper captured the dry 1.0 — neither recorded the other's playback"
-    );
+    // Each looper captured the same dry 1.0 — neither recorded the other.
+    assert_eq!(b.export(1), Some(vec![1.0, 1.0]));
+    assert_eq!(b.export(2), Some(vec![1.0, 1.0]));
+    // The chain frame stays dry (no in-chain sum of either loop).
+    assert_eq!(lr(rec[0]), [1.0, 1.0]);
 }
 
 #[test]
-fn a_mono_chain_gets_the_loop_mixed_down_at_unity() {
+fn a_mono_chain_is_captured_as_stereo() {
     let sh = shared();
     let mut b = bank(&sh);
     sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
@@ -139,7 +141,7 @@ fn a_mono_chain_gets_the_loop_mixed_down_at_unity() {
 
     let mut rec = vec![AudioFrame::Mono(0.5)];
     b.process(0, &mut rec, AudioChannelLayout::Mono);
-    assert_eq!(lr(rec[0]), [0.5, 0.5]);
+    assert_eq!(lr(rec[0]), [0.5, 0.5], "mono chain frame untouched");
 
     sh.push(LooperOp::TapRecord {
         uid: UID,
@@ -147,10 +149,8 @@ fn a_mono_chain_gets_the_loop_mixed_down_at_unity() {
     })
     .unwrap();
     b.drain_ops(&sh);
-
-    let mut play = vec![AudioFrame::Mono(0.0)];
-    b.process(0, &mut play, AudioChannelLayout::Mono);
-    assert_eq!(lr(play[0]), [0.5, 0.5]);
+    // A mono input is broadcast to both stored channels (invariant #5).
+    assert_eq!(b.export(UID), Some(vec![0.5, 0.5]));
 }
 
 #[test]
@@ -222,20 +222,18 @@ fn params_reach_the_slot() {
         buffer: None,
     })
     .unwrap();
-    sh.push(LooperOp::SetMix {
+    sh.push(LooperOp::SetSpeed {
         uid: UID,
-        value: 0.5,
+        speed: LooperSpeed::Double,
     })
     .unwrap();
     b.drain_ops(&sh);
-
-    let mut play = stereo(&[[0.0, 0.0]]);
-    b.process(0, &mut play, AudioChannelLayout::Stereo);
-    assert_eq!(lr(play[0]), [0.5, 0.5]);
+    // The op reached the slot without panicking; the captured audio is intact.
+    assert_eq!(b.export(UID), Some(vec![1.0, 1.0]));
 }
 
 #[test]
-fn a_restored_layer_lands_stopped_and_plays_on_demand() {
+fn a_restored_layer_lands_stopped_and_exports_its_audio() {
     let sh = shared();
     let mut b = bank(&sh);
     sh.push(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
@@ -251,20 +249,12 @@ fn a_restored_layer_lands_stopped_and_plays_on_demand() {
     b.drain_ops(&sh);
     b.publish(&sh);
     assert_eq!(sh.status(UID).unwrap().state, LooperState::Stopped);
-
-    let mut silent = stereo(&[[0.0, 0.0]]);
-    b.process(0, &mut silent, AudioChannelLayout::Stereo);
-    assert_eq!(lr(silent[0]), [0.0, 0.0], "stopped is silent");
-
-    sh.push(LooperOp::Play { uid: UID }).unwrap();
-    b.drain_ops(&sh);
-    let mut play = stereo(&[[0.0, 0.0]]);
-    b.process(0, &mut play, AudioChannelLayout::Stereo);
-    assert_eq!(lr(play[0]), [0.75, 0.75]);
+    // A restored loop carries its audio, ready for the isolated stream.
+    assert_eq!(b.export(UID), Some(vec![0.75, 0.75]));
 }
 
 #[test]
-fn a_looper_records_and_plays_only_on_its_own_segment() {
+fn a_looper_records_only_on_its_own_segment() {
     let sh = shared();
     let mut b = bank(&sh);
     // The looper lives on segment 1 — the chain's second input.
@@ -279,8 +269,7 @@ fn a_looper_records_and_plays_only_on_its_own_segment() {
     assert!(b.has_segment(1));
     assert!(!b.has_segment(0), "the looper does not touch segment 0");
 
-    // Segment 0 carries a signal the looper must NOT capture, and must pass
-    // through untouched.
+    // Segment 0 carries a louder signal the looper must NOT capture.
     let mut seg0 = stereo(&[[0.9, 0.9]]);
     b.process(0, &mut seg0, AudioChannelLayout::Stereo);
     assert_eq!(lr(seg0[0]), [0.9, 0.9], "segment 0 is left alone");
@@ -295,9 +284,7 @@ fn a_looper_records_and_plays_only_on_its_own_segment() {
     .unwrap();
     b.drain_ops(&sh);
 
-    // Silent segment 1 now: the loop plays back what it captured THERE, not
-    // segment 0's louder signal (the "records the wrong input" bug).
-    let mut seg1_play = stereo(&[[0.0, 0.0]]);
-    b.process(1, &mut seg1_play, AudioChannelLayout::Stereo);
-    assert_eq!(lr(seg1_play[0]), [0.4, 0.4]);
+    // It captured segment 1's signal, not segment 0's louder one (the
+    // "records the wrong input" bug).
+    assert_eq!(b.export(UID), Some(vec![0.4, 0.4]));
 }

@@ -79,7 +79,7 @@ fn creating_a_looper_publishes_an_empty_status() {
 }
 
 #[test]
-fn looper_records_the_dry_input_and_plays_it_back() {
+fn looper_captures_the_dry_input_without_touching_the_chain_output() {
     let runtime = passthrough_runtime("looper-record");
     runtime
         .push_looper_op(LooperOp::Create { uid: UID, seg: 0 })
@@ -91,7 +91,9 @@ fn looper_records_the_dry_input_and_plays_it_back() {
         })
         .unwrap();
 
-    // Record two callbacks of a steady 0.5 signal, then close the loop.
+    // Record two callbacks of a steady 0.5 signal, then close the loop. The
+    // bank is a recorder — it never sums the loop back into the chain, so the
+    // output of the record chain is unaffected by the looper.
     callback(&runtime, 0.5, 128);
     callback(&runtime, 0.5, 128);
     runtime
@@ -109,12 +111,15 @@ fn looper_records_the_dry_input_and_plays_it_back() {
         "two 128-frame callbacks were captured"
     );
 
-    // With a silent device input, the output is the recorded loop.
-    let peak = callback(&runtime, 0.0, 128);
-    assert!(
-        peak > 0.1,
-        "the recorded loop did not reach the output (peak {peak})"
-    );
+    // The captured audio is what the isolated stream will play — 256 stereo
+    // frames of the recorded 0.5.
+    let pcm = runtime.export_looper(UID).expect("captured audio");
+    assert_eq!(pcm.len(), 256 * 2);
+    assert!(pcm.iter().all(|s| (*s - 0.5).abs() < 1e-6));
+
+    // A silent device callback produces silence at the output — the loop is
+    // NOT injected into the record chain (playback is the isolated stream).
+    assert!(callback(&runtime, 0.0, 128) < 1e-6);
 }
 
 #[test]
@@ -125,7 +130,7 @@ fn a_chain_without_loopers_is_byte_identical_silence() {
 }
 
 #[test]
-fn a_playing_looper_never_reaches_another_runtime() {
+fn a_looper_belongs_to_one_runtime_only() {
     let looping = passthrough_runtime("looper-a");
     let quiet = passthrough_runtime("looper-b");
 
@@ -146,16 +151,14 @@ fn a_playing_looper_never_reaches_another_runtime() {
         })
         .unwrap();
     callback(&looping, 0.0, 128);
-    assert!(
-        callback(&looping, 0.0, 128) > 0.1,
-        "chain A must be looping"
-    );
 
-    let peak_b = callback(&quiet, 0.0, 128);
-    assert!(
-        peak_b < 1e-6,
-        "chain B must stay silent — a looper belongs to ONE runtime (peak {peak_b})"
-    );
+    // Runtime A holds the recorded looper; runtime B never sees it (invariant
+    // #4 — nothing shared across runtimes).
+    assert!(looping.export_looper(UID).is_some());
+    assert!(quiet.looper_status(UID).is_none());
+    // Neither runtime injects the loop into its chain output.
+    assert!(callback(&looping, 0.0, 128) < 1e-6);
+    assert!(callback(&quiet, 0.0, 128) < 1e-6);
 }
 
 #[test]
@@ -214,7 +217,8 @@ fn an_op_for_an_unknown_looper_returns_its_buffer() {
 #[test]
 fn a_recorded_loop_survives_a_runtime_rebuild() {
     let old = passthrough_runtime("looper-swap");
-    old.push_looper_op(LooperOp::Create { uid: UID, seg: 0 }).unwrap();
+    old.push_looper_op(LooperOp::Create { uid: UID, seg: 0 })
+        .unwrap();
     old.push_looper_op(LooperOp::TapRecord {
         uid: UID,
         buffer: Some(layer(&old)),
@@ -234,10 +238,11 @@ fn a_recorded_loop_survives_a_runtime_rebuild() {
     let status = new.looper_status(UID).expect("the looper moved over");
     assert_eq!(status.state, LooperState::Playing);
     assert_eq!(status.len_frames, 128);
-    assert!(
-        callback(&new, 0.0, 128) > 0.1,
-        "the adopted loop must keep playing after the rebuild"
-    );
+    // The recorded audio survived the rebuild — the rebuilt runtime can still
+    // hand it to the isolated stream.
+    let pcm = new.export_looper(UID).expect("captured audio survived");
+    assert_eq!(pcm.len(), 128 * 2);
+    assert!(pcm.iter().all(|s| (*s - 0.5).abs() < 1e-6));
 }
 
 #[test]

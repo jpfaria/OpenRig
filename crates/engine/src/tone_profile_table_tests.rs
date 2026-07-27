@@ -24,7 +24,10 @@ fn embedded_table_resolves_a_known_genre_to_its_calibrated_limits() {
 fn unknown_or_absent_genre_falls_back_to_defaults() {
     let table = ProfileTable::embedded();
     assert_eq!(table.limits_for(None), SymptomLimits::DEFAULT);
-    assert_eq!(table.limits_for(Some("no-such-genre")), SymptomLimits::DEFAULT);
+    assert_eq!(
+        table.limits_for(Some("no-such-genre")),
+        SymptomLimits::DEFAULT
+    );
 }
 
 #[test]

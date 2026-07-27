@@ -15,7 +15,9 @@ use std::sync::Arc;
 
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
-use engine::{LooperOp, LooperStatus};
+use engine::{DiPcm, LooperOp, LooperState, LooperStatus};
+use project::binding_discovery::resolve_output_segment;
+use project::chain::Chain;
 
 use crate::controller::ProjectRuntimeController;
 
@@ -100,5 +102,71 @@ impl ProjectRuntimeController {
             .iter()
             .map(|rt| rt.drain_retired_layers().len())
             .sum()
+    }
+
+    /// The recorded mixdown of one looper (interleaved stereo), from whichever
+    /// runtime holds it. `None` when the looper is unknown or empty.
+    pub fn export_chain_looper(&self, chain_id: &ChainId, uid: u64) -> Option<Vec<f32>> {
+        self.runtimes_for_chain(chain_id)
+            .iter()
+            .find_map(|rt| rt.export_looper(uid))
+    }
+
+    /// #323: reconcile each looper's ISOLATED playback stream with its recorded
+    /// state — the same pipeline the DI uses (`arm_looper_stream`), so a loop
+    /// plays out its chosen output, through a routed copy of the chain,
+    /// independent of the input it was recorded from.
+    ///
+    /// A looper that is Playing/Overdubbing arms (or re-arms, when its content
+    /// `(len, layers)` changed since the last arm) its stream on
+    /// `LooperConfig.output`; anything else disarms. Re-arm is gated on the
+    /// content signature so this runs every meter tick without respawning a
+    /// render each time. Called off the audio thread (the GUI tick).
+    pub fn sync_looper_streams(&self, chain: &Chain) {
+        for cfg in &chain.loopers {
+            let uid = cfg.uid;
+            let key = (chain.id.clone(), uid);
+            let state = self
+                .chain_looper_status(&chain.id, uid)
+                .map(|s| s.state)
+                .unwrap_or(LooperState::Empty);
+            let playing = matches!(state, LooperState::Playing | LooperState::Overdubbing);
+
+            if !playing {
+                if self.looper_armed.borrow_mut().remove(&key).is_some() {
+                    self.disarm_looper_stream(&chain.id, uid);
+                }
+                continue;
+            }
+
+            let status = match self.chain_looper_status(&chain.id, uid) {
+                Some(s) => s,
+                None => continue,
+            };
+            let content = (status.len_frames, status.layers);
+            if self.looper_armed.borrow().get(&key) == Some(&content) {
+                continue; // already streaming this exact take
+            }
+            let Some(samples) = self.export_chain_looper(&chain.id, uid) else {
+                continue;
+            };
+            let output_index =
+                resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
+            let pcm = Arc::new(DiPcm::new(samples, self.sample_rate, 2));
+            if self
+                .arm_looper_stream(chain, uid, output_index, pcm)
+                .is_ok()
+            {
+                self.looper_armed.borrow_mut().insert(key, content);
+            }
+        }
+    }
+
+    /// Drop the looper stream bookkeeping for a chain (chain removed / project
+    /// closed); the streams themselves are torn down by `drop_di_state_for_chain`.
+    pub fn forget_chain_looper_streams(&self, chain_id: &ChainId) {
+        self.looper_armed
+            .borrow_mut()
+            .retain(|(cid, _), _| cid != chain_id);
     }
 }

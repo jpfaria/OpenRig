@@ -182,3 +182,115 @@ fn ops_for_one_chain_never_reach_another() {
         "a looper belongs to ONE chain's runtimes"
     );
 }
+
+// ── #323 v2: the looper plays on an isolated stream at its chosen output ──
+
+use project::chain::{EndpointRef, LooperConfig};
+
+/// A chain with a two-output binding, so a looper can pick output 1 while
+/// recording input 0 — the "no link between input and output" case.
+fn two_output_controller(id: &str) -> (ProjectRuntimeController, Chain) {
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![IoEndpoint {
+            name: "in0".into(),
+            device_id: DeviceId("dev".into()),
+            mode: ChannelMode::Stereo,
+            channels: vec![0, 1],
+        }],
+        outputs: vec![
+            IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            },
+            IoEndpoint {
+                name: "out1".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![2, 3],
+            },
+        ],
+    }];
+    let mut chain = Chain {
+        id: ChainId(id.into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
+        di_output: None,
+        loopers: vec![LooperConfig {
+            uid: UID,
+            output: Some(EndpointRef {
+                binding_id: "io".into(),
+                endpoint: "out1".into(),
+            }),
+            ..LooperConfig::new(UID)
+        }],
+    };
+    let mut chains = HashMap::new();
+    chains.insert(
+        (chain.id.clone(), 0usize),
+        Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &registry).expect("runtime")),
+    );
+    let mut controller =
+        ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, 48_000);
+    controller.set_io_bindings(registry);
+    chain.loopers[0].output = Some(EndpointRef {
+        binding_id: "io".into(),
+        endpoint: "out1".into(),
+    });
+    (controller, chain)
+}
+
+#[test]
+fn a_playing_looper_arms_an_isolated_stream_and_stop_disarms_it() {
+    let (controller, chain) = two_output_controller("looper-iso-out");
+    let id = chain.id.clone();
+
+    // Record one callback, close the loop.
+    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
+    controller.push_chain_looper_op(&id, |rt| {
+        Some(LooperOp::TapRecord {
+            uid: UID,
+            buffer: Some(vec![0.5f32; rt.looper_max_frames() * 2].into_boxed_slice()),
+        })
+    });
+    tick(&controller, &id, 0.5);
+    controller.push_chain_looper_op(&id, |_| {
+        Some(LooperOp::TapRecord {
+            uid: UID,
+            buffer: None,
+        })
+    });
+    tick(&controller, &id, 0.0);
+    assert_eq!(
+        controller.chain_looper_status(&id, UID).unwrap().state,
+        LooperState::Playing
+    );
+
+    // The meter tick reconciles the stream: a Playing looper arms its own
+    // isolated stream (separate from the DI's).
+    controller.sync_looper_streams(&chain);
+    assert!(
+        controller.looper_stream_active(&id, UID),
+        "a playing looper must arm its isolated playback stream"
+    );
+    assert!(
+        !controller.di_stream_active(&id),
+        "the looper stream is separate from the DI (invariant #4)"
+    );
+
+    // Stop → next reconcile disarms it.
+    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Stop { uid: UID }));
+    tick(&controller, &id, 0.0);
+    controller.sync_looper_streams(&chain);
+    assert!(
+        !controller.looper_stream_active(&id, UID),
+        "stopping the looper must disarm its stream"
+    );
+}

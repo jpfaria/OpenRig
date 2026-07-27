@@ -1,8 +1,8 @@
 //! Audio-alloc invariant tests — real-rig (#670/#781) (issue #792 split).
 //! Shared allocator instrumentation + fixtures live in the base file.
 #![allow(unused_imports)]
-use super::*;
 use super::audio_alloc_invariant::*;
+use super::*;
 
 // ── Issue #670: the pipe chain above never runs a DSP block. The user's
 // buffer-64 crackle is an OFF-CPU stall during a real block's process (an

@@ -94,7 +94,12 @@ pub(super) fn neutral_params(effect_type: &str, model: &str) -> ParameterSet {
         .expect("defaults must normalize")
 }
 
-pub(super) fn core_block(id: &str, effect_type: &str, model: &str, params: ParameterSet) -> AudioBlock {
+pub(super) fn core_block(
+    id: &str,
+    effect_type: &str,
+    model: &str,
+    params: ParameterSet,
+) -> AudioBlock {
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
@@ -132,7 +137,10 @@ pub(super) fn chain_with_blocks(
     (chain, registry)
 }
 
-pub(super) fn build_runtime(chain: &Chain, registry: &[IoBinding]) -> Arc<super::ChainRuntimeState> {
+pub(super) fn build_runtime(
+    chain: &Chain,
+    registry: &[IoBinding],
+) -> Arc<super::ChainRuntimeState> {
     Arc::new(
         build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], registry)
             .expect("runtime state should build"),

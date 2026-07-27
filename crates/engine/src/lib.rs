@@ -8,6 +8,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod chain_quality;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
@@ -15,14 +16,8 @@ pub mod elastic_prime;
 pub mod input_tap;
 pub mod looper;
 pub mod looper_bank;
-mod runtime_looper_api;
 pub mod native_registry;
-pub mod chain_quality;
 pub mod offline;
-pub mod tone_doctor;
-pub mod tone_profile_table;
-pub mod tone_doctor_fix;
-pub mod tone_doctor_suggestion;
 pub mod output_meter;
 pub mod probe;
 pub mod rig_runtime;
@@ -41,14 +36,19 @@ mod runtime_graph_update;
 pub mod runtime_io;
 pub mod runtime_layout;
 pub mod runtime_load;
+mod runtime_looper_api;
 pub mod runtime_probe;
 mod runtime_process_segment;
+mod runtime_processor_model;
 pub mod runtime_segments;
 pub mod runtime_state;
-mod runtime_processor_model;
 mod runtime_state_taps;
 pub mod spsc;
 pub mod stream_tap;
+pub mod tone_doctor;
+pub mod tone_doctor_fix;
+pub mod tone_doctor_suggestion;
+pub mod tone_profile_table;
 pub use di_loop::{DiFrame, DiLoop, DiPcm};
 pub use looper::{LooperSlot, LooperSpeed, LooperState, LOOPER_MAX_LAYERS};
 pub use looper_bank::{LooperOp, LooperStatus, LOOPER_MAX_PER_CHAIN, LOOPER_MAX_SECONDS};

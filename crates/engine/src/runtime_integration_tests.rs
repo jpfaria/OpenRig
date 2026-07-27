@@ -1,9 +1,8 @@
 //! Engine runtime tests (issue #792 split from runtime_tests.rs).
 //! Grouped by responsibility; shared fixtures live in `runtime_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::tests::*;
-
+use super::*;
 
 #[test]
 #[ignore] // requires asset_paths initialization
@@ -47,7 +46,6 @@ fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
 
     assert!(error.to_string().contains("sample_rate"));
 }
-
 
 #[test]
 #[ignore] // requires asset_paths initialization
@@ -98,7 +96,6 @@ fn dual_mono_chain_does_not_leak_left_into_right() {
     );
 }
 
-
 #[test]
 #[ignore] // requires asset_paths initialization
 fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
@@ -147,7 +144,6 @@ fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
     );
 }
 
-
 #[test]
 fn build_runtime_graph_errors_on_missing_sample_rate() {
     let project = Project {
@@ -173,7 +169,6 @@ fn build_runtime_graph_errors_on_missing_sample_rate() {
         "should error when chain has no sample rate"
     );
 }
-
 
 // ── process passthrough chain round-trip ────────────────────────────────
 
@@ -210,7 +205,6 @@ fn passthrough_chain_round_trip_preserves_signal() {
     }
 }
 
-
 // ── processor_scratch tests ─────────────────────────────────────────────
 
 #[test]
@@ -227,7 +221,6 @@ fn processor_scratch_mono_creates_mono_scratch() {
     assert!(matches!(scratch, ProcessorScratch::Mono(_)));
 }
 
-
 #[test]
 fn processor_scratch_stereo_creates_stereo_scratch() {
     use super::processor_scratch;
@@ -241,7 +234,6 @@ fn processor_scratch_stereo_creates_stereo_scratch() {
     let scratch = processor_scratch(&proc);
     assert!(matches!(scratch, ProcessorScratch::Stereo(_)));
 }
-
 
 #[test]
 fn processor_scratch_dual_mono_creates_dual_mono_scratch() {
@@ -260,7 +252,6 @@ fn processor_scratch_dual_mono_creates_dual_mono_scratch() {
     assert!(matches!(scratch, ProcessorScratch::DualMono { .. }));
 }
 
-
 // ── #723: no hardcoded sample rate in the latency-probe beep ──────────────
 
 #[test]
@@ -273,7 +264,6 @@ fn chain_runtime_state_reports_its_build_sample_rate() {
         .expect("runtime state should build");
     assert_eq!(rt.sample_rate(), 44_100.0);
 }
-
 
 #[test]
 fn write_probe_beep_depends_on_the_passed_sample_rate() {
@@ -301,4 +291,3 @@ fn write_probe_beep_depends_on_the_passed_sample_rate() {
     // Both channels carry the same mono beep.
     assert_eq!(at_44100[f * channels], at_44100[f * channels + 1]);
 }
-

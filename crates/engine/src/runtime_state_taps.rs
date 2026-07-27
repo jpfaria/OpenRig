@@ -143,8 +143,7 @@ impl ChainRuntimeState {
             return;
         }
         self.loopers.adopt_status_from(&superseded.loopers);
-        if let (Ok(mut fresh), Ok(mut old)) =
-            (self.processing.lock(), superseded.processing.lock())
+        if let (Ok(mut fresh), Ok(mut old)) = (self.processing.lock(), superseded.processing.lock())
         {
             std::mem::swap(&mut fresh.looper_bank, &mut old.looper_bank);
         }

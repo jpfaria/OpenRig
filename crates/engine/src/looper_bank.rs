@@ -361,41 +361,38 @@ impl LooperBank {
         self.entries.iter().any(|e| e.uid != 0 && e.seg == seg)
     }
 
-    /// Record segment `seg`'s dry input into the loopers that live on it, and
-    /// sum their playback back into it. Called once per callback per segment
-    /// (the caller drives every segment); a looper only records / plays on its
-    /// own segment, so a rig whose signal is on another input is captured, not
-    /// silence, and a chain's loop material is still heard exactly once (#699).
+    /// Capture segment `seg`'s dry input into the loopers that live on it.
+    ///
+    /// The bank is a RECORDER only: it writes the dry signal into the armed
+    /// loopers' layers and leaves the chain frame untouched. Playback does NOT
+    /// happen here — each looper plays on its own isolated stream routed to its
+    /// chosen output (`arm_looper_stream`), independent of the record input.
+    /// The `tick` return (the loop's own audio) is intentionally dropped: the
+    /// loop is never summed back into the record chain.
+    ///
+    /// Called once per callback per segment (the caller drives every segment);
+    /// a looper only records on its own segment, so a rig whose signal is on
+    /// another input is captured, not silence.
     pub(crate) fn process(
         &mut self,
         seg: usize,
         frames: &mut [AudioFrame],
-        layout: AudioChannelLayout,
+        _layout: AudioChannelLayout,
     ) {
-        for frame in frames.iter_mut() {
+        for frame in frames.iter() {
             let dry = match *frame {
                 AudioFrame::Stereo(lr) => lr,
                 AudioFrame::Mono(s) => [s, s],
             };
-            let mut loop_sum = [0.0f32; 2];
             for entry in self.entries.iter_mut() {
                 if entry.uid == 0 || entry.seg != seg {
                     continue;
                 }
-                // Every looper records the SAME dry input of its segment — a
-                // loop never feeds another loop (no wet feedback path).
-                let contribution = entry.slot.tick(dry);
-                loop_sum[0] += contribution[0];
-                loop_sum[1] += contribution[1];
+                // Advances the slot's cursors and writes the dry frame into
+                // the recording layer; the returned loop audio is discarded —
+                // the isolated stream is what the listener hears.
+                let _ = entry.slot.tick(dry);
             }
-            *frame = match layout {
-                AudioChannelLayout::Stereo => {
-                    AudioFrame::Stereo([dry[0] + loop_sum[0], dry[1] + loop_sum[1]])
-                }
-                AudioChannelLayout::Mono => AudioFrame::Mono(
-                    dry[0].mul_add(0.5, dry[1] * 0.5) + (loop_sum[0] + loop_sum[1]) * 0.5,
-                ),
-            };
         }
     }
 

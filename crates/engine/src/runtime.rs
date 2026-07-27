@@ -81,11 +81,11 @@ use crate::runtime_process_segment::{process_single_segment, SegmentFeed};
 // runtime.rs's production body, but runtime_tests.rs (and sibling #[path] test
 // modules that `use super::*`) still reference them via `super::`.
 #[cfg(test)]
+pub(crate) use crate::runtime_dsp::blend_frame;
+#[cfg(test)]
 pub(crate) use crate::runtime_process_segment::{
     apply_block_processor, downcast_panic_message, process_audio_block,
 };
-#[cfg(test)]
-pub(crate) use crate::runtime_dsp::blend_frame;
 #[cfg(test)]
 pub(crate) use crate::runtime_state::{BlockRuntimeNode, FadeState, RuntimeProcessor};
 #[cfg(test)]

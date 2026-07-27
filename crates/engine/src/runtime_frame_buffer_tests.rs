@@ -1,9 +1,8 @@
 //! Engine runtime tests (issue #792 split from runtime_tests.rs).
 //! Grouped by responsibility; shared fixtures live in `runtime_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::tests::*;
-
+use super::*;
 
 // --- ElasticBuffer tests ---
 
@@ -19,7 +18,6 @@ fn elastic_buffer_push_pop_basic() {
     assert!(matches!(f2, AudioFrame::Mono(v) if (v - 0.7).abs() < 1e-6));
 }
 
-
 #[test]
 fn elastic_buffer_underrun_returns_silence_not_last_frame() {
     // Issue #496: was `..._repeats_last_frame` and pinned the
@@ -33,14 +31,12 @@ fn elastic_buffer_underrun_returns_silence_not_last_frame() {
     assert!(matches!(next, AudioFrame::Mono(v) if v.abs() < 1e-6));
 }
 
-
 #[test]
 fn elastic_buffer_underrun_before_any_push_returns_silence() {
     let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
     let frame = buf.pop();
     assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
 }
-
 
 #[test]
 fn elastic_buffer_overrun_drops_newest() {
@@ -59,7 +55,6 @@ fn elastic_buffer_overrun_drops_newest() {
     assert!(matches!(buf.pop(), AudioFrame::Mono(v) if v == 0.0));
 }
 
-
 #[test]
 fn elastic_buffer_stabilizes_around_target() {
     let target = 256;
@@ -73,7 +68,6 @@ fn elastic_buffer_stabilizes_around_target() {
     // Should not have grown unbounded
     assert!(buf.len() <= target * 2);
 }
-
 
 // ── ElasticBuffer edge cases ─────────────────────────────────────────────
 
@@ -89,7 +83,6 @@ fn elastic_buffer_target_one_limits_to_two() {
     );
 }
 
-
 #[test]
 fn elastic_buffer_stereo_push_pop_preserves_channels() {
     let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
@@ -104,7 +97,6 @@ fn elastic_buffer_stereo_push_pop_preserves_channels() {
     }
 }
 
-
 #[test]
 fn elastic_buffer_multiple_pops_on_empty_return_silence() {
     // Issue #496: was `..._repeat_last`. Pinned the buggy form.
@@ -116,7 +108,6 @@ fn elastic_buffer_multiple_pops_on_empty_return_silence() {
         assert!(matches!(f, AudioFrame::Mono(v) if v.abs() < 1e-6));
     }
 }
-
 
 // ── FadeState transition tests ───────────────────────────────────────────
 
@@ -139,7 +130,6 @@ fn fade_in_completes_to_active_after_enough_frames() {
         "fade-in should complete to Active when frames_remaining reaches 0"
     );
 }
-
 
 #[test]
 fn fade_in_partial_keeps_fading_in() {
@@ -165,7 +155,6 @@ fn fade_in_partial_keeps_fading_in() {
     }
 }
 
-
 #[test]
 fn fade_out_completes_to_bypassed_after_enough_frames() {
     let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -185,7 +174,6 @@ fn fade_out_completes_to_bypassed_after_enough_frames() {
         "fade-out should complete to Bypassed when frames_remaining reaches 0"
     );
 }
-
 
 #[test]
 fn fade_out_partial_keeps_fading_out() {
@@ -211,7 +199,6 @@ fn fade_out_partial_keeps_fading_out() {
     }
 }
 
-
 #[test]
 fn fade_out_applies_processing_during_transition() {
     let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -231,7 +218,6 @@ fn fade_out_applies_processing_during_transition() {
     );
 }
 
-
 // ── ElasticBuffer push/pop FIFO order ───────────────────────────────────
 
 #[test]
@@ -249,4 +235,3 @@ fn elastic_buffer_fifo_order() {
         );
     }
 }
-

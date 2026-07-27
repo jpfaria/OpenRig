@@ -127,6 +127,10 @@ pub struct ProjectRuntimeController {
     /// freed on a LATER cycle so the audio callback is never the last owner of a
     /// multi-MB render buffer (invariant #8).
     pub(crate) di_retired: crate::di_playback::DiRetired,
+    /// #323: the loop content `(len_frames, layers)` each looper's isolated
+    /// stream was last armed with, so `sync_looper_streams` re-arms only when
+    /// the recording actually changed — not every meter tick.
+    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (usize, usize)>>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -164,6 +168,7 @@ impl ProjectRuntimeController {
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
+            looper_armed: RefCell::new(HashMap::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -202,6 +207,7 @@ impl ProjectRuntimeController {
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
+            looper_armed: RefCell::new(HashMap::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -778,6 +784,8 @@ impl ProjectRuntimeController {
         self.runtime_graph.remove_chain(chain_id);
         // #771: never leak a parked render buffer past its chain.
         self.drop_di_state_for_chain(chain_id);
+        // #323: drop the looper stream bookkeeping too.
+        self.forget_chain_looper_streams(chain_id);
     }
 
     pub fn stop(&mut self) {

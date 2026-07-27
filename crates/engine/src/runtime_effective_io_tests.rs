@@ -1,9 +1,8 @@
 //! Engine runtime tests (issue #792 split from runtime_tests.rs).
 //! Grouped by responsibility; shared fixtures live in `runtime_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::tests::*;
-
+use super::*;
 
 #[test]
 fn effective_inputs_includes_insert_return() {
@@ -17,7 +16,6 @@ fn effective_inputs_includes_insert_return() {
     assert_eq!(cpal_indices.len(), 2);
 }
 
-
 #[test]
 fn effective_outputs_includes_insert_send() {
     let chain = insert_chain();
@@ -28,7 +26,6 @@ fn effective_outputs_includes_insert_send() {
     assert_eq!(eff_outputs.len(), 2);
     assert_eq!(eff_outputs.len(), 2);
 }
-
 
 // ── effective_inputs with mono multi-channel splitting ────────────────────
 
@@ -56,7 +53,6 @@ fn effective_inputs_splits_mono_multichannel_entry() {
     assert_eq!(cpal_indices[1], cpal_indices[2]);
 }
 
-
 // ── effective_inputs / outputs fallback ───────────────────────────────────
 
 #[test]
@@ -73,7 +69,6 @@ fn effective_inputs_fallback_when_no_input_blocks() {
     assert_eq!(cpal_indices, vec![0]);
 }
 
-
 #[test]
 fn effective_outputs_fallback_when_no_output_blocks() {
     let chain = empty_chain("chain:fallback");
@@ -86,7 +81,6 @@ fn effective_outputs_fallback_when_no_output_blocks() {
     );
 }
 
-
 #[test]
 fn insert_return_as_input_entry_copies_return_endpoint() {
     use super::insert_return_as_input_entry;
@@ -97,7 +91,6 @@ fn insert_return_as_input_entry_copies_return_endpoint() {
     assert_eq!(entry.channels, vec![2]);
     assert!(matches!(entry.mode, ChainInputMode::Mono));
 }
-
 
 // ── insert_send_as_output_entry tests ───────────────────────────────────
 
@@ -112,7 +105,6 @@ fn insert_send_as_output_entry_mono_mode() {
     assert!(matches!(entry.mode, ChainOutputMode::Mono));
 }
 
-
 #[test]
 fn insert_send_as_output_entry_stereo_mode() {
     use super::insert_send_as_output_entry;
@@ -121,7 +113,6 @@ fn insert_send_as_output_entry_stereo_mode() {
     let entry = insert_send_as_output_entry(&fx_insert(), &reg).expect("send resolves");
     assert!(matches!(entry.mode, ChainOutputMode::Stereo));
 }
-
 
 #[test]
 fn insert_send_as_output_entry_dual_mono_becomes_stereo() {
@@ -137,7 +128,6 @@ fn insert_send_as_output_entry_dual_mono_becomes_stereo() {
     assert!(matches!(entry.mode, ChainOutputMode::Stereo));
 }
 
-
 // ── build_output_routing_state tests ────────────────────────────────────
 
 #[test]
@@ -152,7 +142,6 @@ fn build_output_routing_state_mono_single_channel() {
     assert_eq!(state.output_channels, vec![0]);
 }
 
-
 #[test]
 fn build_output_routing_state_stereo_two_channels() {
     use super::build_output_routing_state;
@@ -164,7 +153,6 @@ fn build_output_routing_state_stereo_two_channels() {
     let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0);
     assert_eq!(state.output_channels, vec![0, 1]);
 }
-
 
 #[test]
 fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
@@ -178,7 +166,6 @@ fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
     // Mono mode with 2 channels: layout should be Mono per the logic
     // Just verifying it doesn't panic and runs correctly
 }
-
 
 // ── input tap ───────────────────────────────────────────────────────────
 
@@ -211,7 +198,6 @@ fn subscribe_input_tap_receives_pre_fx_samples() {
     assert_eq!(received, vec![0.1, 0.2, 0.3, 0.4]);
 }
 
-
 #[test]
 fn subscribe_input_tap_only_targets_matching_input_index() {
     let chain = io_passthrough_chain("chain:0");
@@ -234,7 +220,6 @@ fn subscribe_input_tap_only_targets_matching_input_index() {
         "tap on input 0 must ignore input 99"
     );
 }
-
 
 #[test]
 fn prune_dead_input_taps_removes_unused() {
@@ -259,7 +244,6 @@ fn prune_dead_input_taps_removes_unused() {
     runtime.prune_dead_input_taps();
     assert_eq!(runtime.input_taps.load().len(), 0);
 }
-
 
 // ── stream tap ──────────────────────────────────────────────────────────
 
@@ -296,7 +280,6 @@ fn subscribe_stream_tap_receives_post_fx_stereo() {
     assert_eq!(right.len(), 4, "right ring got {right:?}");
 }
 
-
 #[test]
 fn subscribe_stream_tap_only_targets_matching_stream_index() {
     let chain = io_passthrough_chain("chain:0");
@@ -319,7 +302,6 @@ fn subscribe_stream_tap_only_targets_matching_stream_index() {
     );
     assert!(r_ring.pop().is_none());
 }
-
 
 #[test]
 fn stream_tap_publishes_independent_of_output_mute() {
@@ -361,7 +343,6 @@ fn stream_tap_publishes_independent_of_output_mute() {
     assert_eq!(right.len(), 4);
 }
 
-
 #[test]
 fn prune_dead_stream_taps_removes_unused() {
     let chain = io_passthrough_chain("chain:0");
@@ -383,7 +364,6 @@ fn prune_dead_stream_taps_removes_unused() {
     assert_eq!(runtime.stream_taps.load().len(), 0);
 }
 
-
 // ── output_muted flag ────────────────────────────────────────────────────
 
 #[test]
@@ -401,7 +381,6 @@ fn output_muted_defaults_to_false() {
 
     assert!(!runtime.is_output_muted());
 }
-
 
 #[test]
 fn set_output_muted_round_trips() {
@@ -422,7 +401,6 @@ fn set_output_muted_round_trips() {
     runtime.set_output_muted(false);
     assert!(!runtime.is_output_muted());
 }
-
 
 #[test]
 fn output_muted_zeros_process_output_buffer() {
@@ -451,7 +429,6 @@ fn output_muted_zeros_process_output_buffer() {
     );
 }
 
-
 #[test]
 fn output_muted_unset_does_not_zero_buffer() {
     let chain = io_passthrough_chain("chain:0");
@@ -479,7 +456,6 @@ fn output_muted_unset_does_not_zero_buffer() {
     );
 }
 
-
 // ── effective_inputs with stereo entry does not split ────────────────────
 
 #[test]
@@ -494,7 +470,6 @@ fn effective_inputs_stereo_entry_not_split() {
     assert_eq!(eff_inputs.len(), 1, "stereo entry should not be split");
     assert_eq!(eff_inputs[0].channels, vec![0, 1]);
 }
-
 
 // ── effective_inputs with multiple input blocks ─────────────────────────
 
@@ -523,7 +498,6 @@ fn effective_inputs_multiple_input_blocks() {
     assert_ne!(cpal_indices[0], cpal_indices[1]);
 }
 
-
 // ── effective_inputs same device shares cpal index ──────────────────────
 
 #[test]
@@ -550,4 +524,3 @@ fn effective_inputs_same_device_shares_cpal_index() {
         "same device should share CPAL index"
     );
 }
-

@@ -176,6 +176,7 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_retired: Default::default(),
+        looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -398,6 +399,7 @@ fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_retired: Default::default(),
+        looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
