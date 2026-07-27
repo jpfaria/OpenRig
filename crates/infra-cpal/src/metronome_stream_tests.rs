@@ -2,7 +2,7 @@
 //!
 //! `fill_metronome_buffer` is the whole body of the metronome's audio callback,
 //! extracted so it can be exercised with no device open. What it must get right
-//! is narrow and testable: silence when off, the same click on every channel,
+//! is narrow and testable: silence when off, the click routed to the endpoint's channels,
 //! and picking up control-side changes without re-reading settings per buffer.
 
 use super::*;
@@ -30,6 +30,7 @@ fn silent_when_disabled() {
         &mut scratch,
         &mut out,
         2,
+        &[],
         &mut generation,
     );
 
@@ -40,11 +41,43 @@ fn silent_when_disabled() {
 }
 
 #[test]
-fn writes_the_same_click_to_every_channel() {
+fn routes_the_click_only_to_the_endpoint_channels() {
     let shared = MetronomeShared::new(MetronomeSettings::default());
     shared.set_enabled(true);
     let (mut generator, mut scratch, mut generation) = callback_state();
     let channels = 4;
+    let mut out = vec![0.0f32; 256 * channels];
+
+    // The project's output endpoint is on channels 2 and 3 of a 4-out device.
+    fill_metronome_buffer(
+        &mut generator,
+        &shared,
+        &mut scratch,
+        &mut out,
+        channels,
+        &[2, 3],
+        &mut generation,
+    );
+
+    let mut on_target = false;
+    for frame in out.chunks(channels) {
+        assert_eq!(frame[0], 0.0, "channel 0 is not the endpoint — must stay silent");
+        assert_eq!(frame[1], 0.0, "channel 1 is not the endpoint — must stay silent");
+        assert_eq!(frame[2], frame[3], "the click is the same mono signal on both endpoint channels");
+        if frame[2] != 0.0 {
+            on_target = true;
+        }
+    }
+    assert!(on_target, "the downbeat must have played on the endpoint channels");
+}
+
+#[test]
+fn broadcasts_to_all_channels_when_no_target_is_in_range() {
+    // A stale/empty endpoint must not go silent — fall back to every channel.
+    let shared = MetronomeShared::new(MetronomeSettings::default());
+    shared.set_enabled(true);
+    let (mut generator, mut scratch, mut generation) = callback_state();
+    let channels = 2;
     let mut out = vec![0.0f32; 256 * channels];
 
     fill_metronome_buffer(
@@ -53,20 +86,16 @@ fn writes_the_same_click_to_every_channel() {
         &mut scratch,
         &mut out,
         channels,
+        &[9], // out of range for a 2-channel device
         &mut generation,
     );
 
     assert!(
         out.iter().any(|s| *s != 0.0),
-        "an enabled metronome should have rendered its downbeat"
+        "an out-of-range endpoint must still make sound, not silence"
     );
     for frame in out.chunks(channels) {
-        for s in frame {
-            assert_eq!(
-                *s, frame[0],
-                "every channel carries the same mono click, undivided"
-            );
-        }
+        assert_eq!(frame[0], frame[1], "the fallback writes the same click to every channel");
     }
 }
 
@@ -83,6 +112,7 @@ fn picks_up_a_settings_change_via_generation() {
         &mut scratch,
         &mut out,
         2,
+        &[],
         &mut generation,
     );
     let after_first = generation;
@@ -97,6 +127,7 @@ fn picks_up_a_settings_change_via_generation() {
         &mut scratch,
         &mut out,
         2,
+        &[],
         &mut generation,
     );
 
@@ -124,6 +155,7 @@ fn a_restart_request_is_consumed() {
         &mut scratch,
         &mut out,
         2,
+        &[],
         &mut generation,
     );
 
@@ -151,6 +183,7 @@ fn the_position_reaches_the_ui() {
         &mut scratch,
         &mut out,
         2,
+        &[],
         &mut generation,
     );
 

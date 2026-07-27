@@ -769,3 +769,11 @@ msgstr "⌨"
 # I/O Bindings UI strings (added #716)
 #~ msgid "label-io-binding"
 #~ msgstr "I/O 바인딩"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint
+msgid "label-metronome-output"
+msgstr "출력"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint
+msgid "status-no-outputs"
+msgstr "구성된 프로젝트 출력 없음"

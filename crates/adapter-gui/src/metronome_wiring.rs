@@ -22,14 +22,14 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::metronome_close::metronome_close_commands;
-use crate::metronome_controls_wiring::{output_device_ids, wire_controls, wire_output_select};
+use crate::metronome_controls_wiring::{refresh_metronome_outputs, wire_controls, wire_output_select};
 use crate::metronome_events::{dispatch, render_settings};
-use crate::metronome_session::{resolve_output_device, MetronomeSession};
+use crate::metronome_session::{resolve_output_endpoint, MetronomeOutput, MetronomeSession};
 use crate::state::ProjectSession;
 use crate::{AppWindow, MetronomeBridge, MetronomeWindow};
 
@@ -50,9 +50,9 @@ pub(crate) struct MetronomeCtx {
     pub(crate) window: slint::Weak<MetronomeWindow>,
     /// The main window, whose bridge drives the inline panel (fullscreen/touch).
     pub(crate) main_window: slint::Weak<AppWindow>,
-    /// Output devices as published to the select, cached so each keystroke
-    /// filters the list instead of re-enumerating the host.
-    pub(crate) devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    /// The project's output endpoints as published to the select, cached so
+    /// each keystroke filters the list instead of re-reading the bindings.
+    pub(crate) outputs: Rc<RefCell<Vec<MetronomeOutput>>>,
 }
 
 impl MetronomeCtx {
@@ -64,7 +64,7 @@ impl MetronomeCtx {
             timer: self.timer.clone(),
             window: self.window.clone(),
             main_window: self.main_window.clone(),
-            devices: self.devices.clone(),
+            outputs: self.outputs.clone(),
         }
     }
 
@@ -98,7 +98,7 @@ pub fn wire_metronome(
         timer: metronome_timer.clone(),
         window: metronome_window.as_weak(),
         main_window: window.as_weak(),
-        devices: Rc::new(RefCell::new(Vec::new())),
+        outputs: Rc::new(RefCell::new(Vec::new())),
     };
 
     wire_open(window, metronome_window, &ctx);
@@ -225,7 +225,10 @@ pub(crate) fn ensure_metronome_runtime(
 pub(crate) fn start_click(ctx: &MetronomeCtx) {
     let settings = ctx.session.borrow().settings();
     let saved = ctx.session.borrow().output_device().map(str::to_string);
-    let device = resolve_output_device(saved.as_deref(), &output_device_ids(&ctx.devices));
+    // The metronome plays through one of the project's configured output
+    // endpoints (#14) — same device and channels the guitar's output uses.
+    let outputs = refresh_metronome_outputs(&ctx.project_session, &ctx.outputs);
+    let target = resolve_output_endpoint(saved.as_deref(), &outputs);
     // #14: the click plays even with no chain enabled (invariant #4). The
     // runtime is created lazily on chain-enable, so make sure it exists.
     ensure_metronome_runtime(&ctx.project_runtime, &ctx.project_session);
@@ -236,13 +239,13 @@ pub(crate) fn start_click(ctx: &MetronomeCtx) {
         // Start from beat one of the bar instead of wherever a previous run
         // left the phase.
         shared.request_restart();
-        match device {
-            Some(device_id) => {
-                if let Err(e) = rt.start_metronome(&device_id) {
-                    log::warn!("[metronome] start on '{device_id}' failed: {e}");
+        match target {
+            Some(out) => {
+                if let Err(e) = rt.start_metronome(&out.device_id, &out.channels) {
+                    log::warn!("[metronome] start on '{}' failed: {e}", out.label);
                 }
             }
-            None => log::warn!("[metronome] no output device available"),
+            None => log::warn!("[metronome] no project output endpoint to play through"),
         }
     }
     start_lamp_timer(ctx);

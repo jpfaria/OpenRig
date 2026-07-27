@@ -173,12 +173,11 @@ fn every_metronome_control_fires_its_callback() {
     );
 }
 
-/// The output select's FIELD is a plain TouchArea, so opening it — the moment
-/// the Rust side enumerates the devices and publishes the options — is
-/// provable. The rows inside the dropdown are not: `PopupWindow` content is a
-/// separate surface the testing backend cannot reach.
+/// Clicking the output field asks Rust for the endpoint list AND opens the
+/// picker overlay. The overlay is a plain in-panel surface (not a PopupWindow),
+/// so — unlike before — the whole flow is provable headlessly.
 #[test]
-fn opening_the_output_select_asks_rust_for_the_device_list() {
+fn opening_the_output_field_requests_the_endpoints_and_opens_the_picker() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = MetronomeWindow::new().unwrap();
@@ -189,44 +188,63 @@ fn opening_the_output_select_asks_rust_for_the_device_list() {
     w.show().unwrap();
 
     assert!(
-        click_id(&w, "Select::ta", 0),
-        "the output select field must be hittable"
+        click_id(&w, "OutputField::ta", 0),
+        "the output field must be hittable"
     );
     assert_eq!(
         opened.get(),
         1,
-        "opening the select must ask Rust to publish the output devices"
+        "opening the field must ask Rust to publish the project's output endpoints"
+    );
+    assert!(
+        bridge.get_output_picker_open(),
+        "clicking the field must open the picker overlay"
     );
 }
 
-/// What the dropdown SHOWS is provable; what a click on one of its rows does is
-/// not. Verified on this window: after opening, `Select::row-ta` enumerates both
-/// device rows, but a pointer event dispatched at one never reaches it —
-/// `PopupWindow` content is a separate surface the testing backend cannot
-/// actuate, the same limitation found in #749 and #761. So this test pins the
-/// list the user sees; the `picked(key)` → `SetMetronomeOutput` half stays
-/// unproven headlessly and needs a click in the running app.
+/// The whole point of dropping `PopupWindow`: a click on an endpoint row now
+/// actually selects it. This is the path that could not be proven before
+/// (#749/#761) and was the reported bug — the user could not pick an output.
 #[test]
-fn the_open_dropdown_lists_every_output_device() {
+fn picking_an_output_row_selects_it_and_closes_the_picker() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = MetronomeWindow::new().unwrap();
-    MetronomeBridge::get(&w).set_output_options(slint::ModelRc::new(slint::VecModel::from(vec![
+    let bridge = MetronomeBridge::get(&w);
+    bridge.set_output_options(slint::ModelRc::new(slint::VecModel::from(vec![
         adapter_gui::SelectOption {
-            key: "dev:a".into(),
-            label: "Scarlett 2i2".into(),
+            key: "main\u{1f}Out 1-2".into(),
+            label: "Scarlett 2i2 · Out 1-2".into(),
         },
         adapter_gui::SelectOption {
-            key: "dev:b".into(),
-            label: "MacBook Speakers".into(),
+            key: "monitor\u{1f}Phones".into(),
+            label: "Headphones · Phones".into(),
         },
     ])));
+    // Open the overlay directly (the field's open path is covered above).
+    bridge.set_output_picker_open(true);
+
+    let picked: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+    let p = picked.clone();
+    bridge.on_pick_output(move |key| *p.borrow_mut() = Some(key.to_string()));
     w.show().unwrap();
 
-    assert!(click_id(&w, "Select::ta", 0), "the select field must open");
     assert_eq!(
-        count_id(&w, "Select::row-ta"),
+        count_id(&w, "OutputRow::ta"),
         2,
-        "the open dropdown must list one row per output device"
+        "the open picker must list one row per output endpoint"
+    );
+    assert!(
+        click_id(&w, "OutputRow::ta", 1),
+        "the second endpoint row must be hittable"
+    );
+    assert_eq!(
+        picked.borrow().as_deref(),
+        Some("monitor\u{1f}Phones"),
+        "clicking a row must select that endpoint by key"
+    );
+    assert!(
+        !bridge.get_output_picker_open(),
+        "picking must close the overlay"
     );
 }

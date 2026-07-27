@@ -771,3 +771,11 @@ msgstr "⌨"
 # I/O Bindings UI strings (added #716)
 #~ msgid "label-io-binding"
 #~ msgstr "I/O Binding"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint
+msgid "label-metronome-output"
+msgstr "OUTPUT"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint
+msgid "status-no-outputs"
+msgstr "No project outputs configured"

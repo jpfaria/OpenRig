@@ -20,6 +20,9 @@ use crate::ProjectRuntimeController;
 /// change can tell "already running there" from "must reopen".
 pub(crate) struct MetronomeStreamHandle {
     pub(crate) device_id: String,
+    /// The endpoint channels this stream routes the click to. Kept so a re-open
+    /// on the same device but a DIFFERENT output endpoint rebuilds the stream.
+    pub(crate) targets: Vec<usize>,
     #[allow(dead_code)] // Dropping the handle is what stops the stream.
     stream: cpal::Stream,
 }
@@ -39,6 +42,7 @@ pub(crate) fn fill_metronome_buffer(
     scratch: &mut Vec<f32>,
     out: &mut [f32],
     channels: usize,
+    targets: &[usize],
     last_generation: &mut u64,
 ) {
     if channels == 0 {
@@ -68,8 +72,22 @@ pub(crate) fn fill_metronome_buffer(
     let mono = &mut scratch[..frames];
     generator.render(mono);
 
+    // Route the click only to the endpoint's channels — the project's configured
+    // output — so it lands where the guitar's output does and nowhere else. A
+    // target beyond the device's channel count is skipped; if none are in range
+    // (a stale binding) the click goes to every channel rather than vanishing.
+    let any_in_range = targets.iter().any(|&ch| ch < channels);
     for (frame, click) in out.chunks_mut(channels).zip(mono.iter()) {
-        frame.fill(*click);
+        if any_in_range {
+            frame.fill(0.0);
+            for &ch in targets {
+                if let Some(s) = frame.get_mut(ch) {
+                    *s = *click;
+                }
+            }
+        } else {
+            frame.fill(*click);
+        }
     }
 
     shared.publish_position(generator.position());
@@ -90,14 +108,14 @@ impl ProjectRuntimeController {
     /// device already in use is a no-op, so a settings change never restarts a
     /// running click.
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    pub fn start_metronome(&self, device_id: &str) -> Result<()> {
+    pub fn start_metronome(&self, device_id: &str, target_channels: &[usize]) -> Result<()> {
         use cpal::traits::{DeviceTrait, StreamTrait};
 
         if self
             .metronome_stream
             .borrow()
             .as_ref()
-            .is_some_and(|h| h.device_id == device_id)
+            .is_some_and(|h| h.device_id == device_id && h.targets == target_channels)
         {
             return Ok(());
         }
@@ -123,6 +141,8 @@ impl ProjectRuntimeController {
         let mut scratch: Vec<f32> = vec![0.0; buffer_frames as usize];
         let mut last_generation = shared.generation();
         let error_label = device_id.to_string();
+        let targets = target_channels.to_vec();
+        let callback_targets = targets.clone();
 
         let stream = device.build_output_stream(
             &config,
@@ -134,6 +154,7 @@ impl ProjectRuntimeController {
                         &mut scratch,
                         out,
                         channels,
+                        &callback_targets,
                         &mut last_generation,
                     );
                 }));
@@ -145,6 +166,7 @@ impl ProjectRuntimeController {
 
         *self.metronome_stream.borrow_mut() = Some(MetronomeStreamHandle {
             device_id: device_id.to_string(),
+            targets,
             stream,
         });
         Ok(())
@@ -153,7 +175,7 @@ impl ProjectRuntimeController {
     /// JACK build (Orange Pi) does not open a dedicated cpal stream; the
     /// metronome stays silent there until the JACK path is wired.
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    pub fn start_metronome(&self, _device_id: &str) -> Result<()> {
+    pub fn start_metronome(&self, _device_id: &str, _target_channels: &[usize]) -> Result<()> {
         Ok(())
     }
 

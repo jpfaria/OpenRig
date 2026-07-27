@@ -7,18 +7,16 @@
 //! three surfaces the GUI's own knob does, and the dispatcher's clamps and enum
 //! validation are the only definition of what a legal value is.
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::Instant;
 
 use application::app_config_persist::persist_metronome;
 use application::command::{Command, MetronomeCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
-use infra_cpal::AudioDeviceDescriptor;
 use slint::SharedString;
 
-use crate::metronome_session::MetronomeSession;
+use crate::metronome_controls_wiring::refresh_metronome_outputs;
+use crate::metronome_session::{resolve_output_endpoint, MetronomeSession};
 use crate::metronome_wiring::{set_power_display, start_click, stop_click, MetronomeCtx};
 use crate::MetronomeBridge;
 
@@ -82,18 +80,23 @@ pub(crate) fn apply_events(ctx: &MetronomeCtx, events: Vec<Event>) {
                 push_settings(ctx);
             }
             Event::MetronomeOutputChanged { device_id } => {
+                // `device_id` now carries the chosen output-endpoint key (#14).
                 ctx.session
                     .borrow_mut()
                     .set_output_device(device_id.clone());
                 let persisted = device_id.clone();
                 persist_metronome(None, move |config| config.output_device = persisted);
-                // A running click follows the new device immediately; a stopped
+                // A running click follows the new endpoint immediately; a stopped
                 // one simply opens there next time.
                 if let Some(rt) = ctx.project_runtime.borrow().as_ref() {
                     if rt.metronome_active() {
-                        if let Some(id) = device_id.as_deref() {
-                            if let Err(e) = rt.start_metronome(id) {
-                                log::warn!("[metronome] reopen on '{id}' failed: {e}");
+                        let outputs =
+                            refresh_metronome_outputs(&ctx.project_session, &ctx.outputs);
+                        if let Some(out) =
+                            resolve_output_endpoint(device_id.as_deref(), &outputs)
+                        {
+                            if let Err(e) = rt.start_metronome(&out.device_id, &out.channels) {
+                                log::warn!("[metronome] reopen on '{}' failed: {e}", out.label);
                             }
                         }
                     }
@@ -132,6 +135,7 @@ fn push_settings(ctx: &MetronomeCtx) {
 pub(crate) fn render_settings_from(
     bridge: &MetronomeBridge,
     session: &MetronomeSession,
+    output_key: &str,
     output_label: &str,
 ) {
     bridge.set_bpm(session.bpm());
@@ -144,31 +148,18 @@ pub(crate) fn render_settings_from(
     bridge.set_timbre_label(SharedString::from(session.timbre_label()));
     bridge.set_volume(session.volume());
     bridge.set_count_in(session.count_in());
-    bridge.set_output_key(SharedString::from(session.output_device().unwrap_or("")));
+    bridge.set_output_key(SharedString::from(output_key));
     bridge.set_output_label(SharedString::from(output_label));
 }
 
 /// Push the whole session onto every live surface's bridge.
 pub(crate) fn render_settings(ctx: &MetronomeCtx) {
+    // Re-read the project's endpoints so the field shows the resolved label even
+    // on the very first open, before the picker has been touched.
+    let outputs = refresh_metronome_outputs(&ctx.project_session, &ctx.outputs);
     let session = ctx.session.borrow();
-    let label = output_device_label(&ctx.devices, session.output_device());
-    ctx.for_each_bridge(|bridge| render_settings_from(bridge, &session, &label));
-}
-
-/// Display name of the picked device. Falls back to the raw id (a device that
-/// is saved but currently unplugged still shows what it was), and to an empty
-/// label when nothing is picked — the select then renders its placeholder.
-fn output_device_label(
-    cache: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    device_id: Option<&str>,
-) -> String {
-    let Some(device_id) = device_id else {
-        return String::new();
-    };
-    cache
-        .borrow()
-        .iter()
-        .find(|d| d.id == device_id)
-        .map(|d| d.name.clone())
-        .unwrap_or_else(|| device_id.to_string())
+    let resolved = resolve_output_endpoint(session.output_device(), &outputs);
+    let key = resolved.as_ref().map(|o| o.key.clone()).unwrap_or_default();
+    let label = resolved.map(|o| o.label).unwrap_or_default();
+    ctx.for_each_bridge(|bridge| render_settings_from(bridge, &session, &key, &label));
 }

@@ -32,8 +32,10 @@ pub struct MetronomeConfig {
     pub volume: f32,
     #[serde(default)]
     pub count_in: bool,
-    /// Device the metronome's own output stream opens. `None` follows the
-    /// system default output.
+    /// The chosen project output endpoint, as the key
+    /// `"{binding_id}\u{1f}{endpoint_name}"` (#14). `None`, or a key that no
+    /// longer resolves, falls back to the first output endpoint. (The field name
+    /// predates #14, when this held a raw device id.)
     #[serde(default)]
     pub output_device: Option<String>,
 }

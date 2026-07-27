@@ -13,11 +13,83 @@
 // bound properties, so the same component serves the standalone window and the
 // inline (fullscreen/touch) placement without either one threading ~16 values
 // through the widget tree.
-import { Select } from "../components/select.slint";
+import { ScrollView } from "std-widgets.slint";
 import { SelectorKnob } from "../components/selector_knob.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { PowerFootSwitch, BeatLamp, ControlCell, PillButton } from "../components/metronome_controls.slint";
 import { MetronomeBridge } from "../components/metronome_globals.slint";
+
+// Closed field showing the current output endpoint; click opens the picker.
+component OutputField inherits Rectangle {
+    in property <string> label;
+    callback open();
+
+    height: 38px;
+    border-radius: 6px;
+    background: #0a0d12;
+    border-width: 1px;
+    border-color: ta.has-hover ? #4d5868 : #2b3340;
+
+    Image {
+        x: 10px; y: (parent.height - 16px) / 2;
+        width: 16px; height: 16px;
+        source: @image-url("../assets/headphones.svg");
+        colorize: #8a94a2;
+    }
+    Text {
+        x: 34px;
+        width: parent.width - 64px;
+        height: parent.height;
+        text: root.label != "" ? root.label : @tr("placeholder-metronome-output");
+        color: root.label != "" ? #f1f4f8 : #6a6a82;
+        font-size: 14px;
+        font-weight: 600;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    Image {
+        x: parent.width - 30px; y: (parent.height - 16px) / 2;
+        width: 16px; height: 16px;
+        source: @image-url("../assets/arrow-down.svg");
+        colorize: #8a94a2;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.open(); }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}
+
+// One clickable endpoint row in the picker. A plain Rectangle+TouchArea — NOT a
+// PopupWindow, whose rows do not receive clicks in this app (#749/#761).
+component OutputRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    callback pick();
+
+    height: 40px;
+    border-radius: 5px;
+    background: root.active ? #1d4e73 : (ta.has-hover ? #1b2230 : transparent);
+
+    Text {
+        x: 12px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.label;
+        color: #f1f4f8;
+        font-size: 15px;
+        font-weight: root.active ? 700 : 500;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.pick(); }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}
 
 // ── MetronomePanel — reusable content (Window and inline modes) ───────────
 export component MetronomePanel inherits Rectangle {
@@ -271,22 +343,75 @@ export component MetronomePanel inherits Rectangle {
             clicked => { MetronomeBridge.set-count-in(!MetronomeBridge.count-in); }
         }
 
-        Select {
+        OutputField {
             x: 142px; y: 0;
             width: parent.width - 142px;
-            options: MetronomeBridge.output-options;
-            active-key: MetronomeBridge.output-key;
-            field-label: MetronomeBridge.output-label;
-            field-icon: @image-url("../assets/headphones.svg");
-            placeholder: @tr("placeholder-metronome-output");
-            search-placeholder: @tr("placeholder-search-device");
-            empty-text: @tr("status-no-devices");
-            field-font-size: 14px;
-            field-font-weight: 600;
-            popup-width: parent.width - 142px;
-            picked(key) => { MetronomeBridge.pick-output(key); }
-            opened => { MetronomeBridge.output-opened(); }
-            query-changed(q) => { MetronomeBridge.output-query(q); }
+            label: MetronomeBridge.output-label;
+            open => {
+                MetronomeBridge.output-opened();
+                MetronomeBridge.output-picker-open = true;
+            }
+        }
+    }
+
+    // ── Output picker overlay — clickable rows, click-outside to dismiss ──
+    if MetronomeBridge.output-picker-open : Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000cc;
+
+        TouchArea {
+            clicked => { MetronomeBridge.output-picker-open = false; }
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 80px;
+            width: parent.width - 96px;
+            height: min(parent.height - 130px,
+                MetronomeBridge.output-options.length * 44px + 56px);
+            border-radius: 8px;
+            background: #0f131b;
+            border-width: 1px;
+            border-color: #2b3340;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+
+            Text {
+                x: 16px; y: 14px;
+                width: parent.width - 32px; height: 20px;
+                text: @tr("label-metronome-output");
+                color: #93a1b7;
+                font-family: "Bebas Neue";
+                font-size: 14px;
+                letter-spacing: 2.0px;
+            }
+
+            if MetronomeBridge.output-options.length == 0 : Text {
+                x: 0; y: 0; width: parent.width; height: parent.height;
+                text: @tr("status-no-outputs");
+                color: #6a6a82;
+                font-size: 14px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            ScrollView {
+                x: 8px; y: 44px;
+                width: parent.width - 16px;
+                height: parent.height - 52px;
+                VerticalLayout {
+                    spacing: 4px;
+                    for opt in MetronomeBridge.output-options : OutputRow {
+                        label: opt.label;
+                        active: opt.key == MetronomeBridge.output-key;
+                        pick => {
+                            MetronomeBridge.pick-output(opt.key);
+                            MetronomeBridge.output-picker-open = false;
+                        }
+                    }
+                }
+            }
         }
     }
 }

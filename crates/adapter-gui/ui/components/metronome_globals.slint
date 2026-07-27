@@ -12,6 +12,8 @@ import { SelectOption } from "../models.slint";
 export global MetronomeBridge {
     // Whether the inline panel is shown (the standalone window ignores this).
     in-out property <bool> show;
+    // Whether the output-endpoint picker overlay is open.
+    in-out property <bool> output-picker-open;
 
     // ── Display state, mirrored from the session by the wiring ──
     in-out property <bool> metronome-enabled;

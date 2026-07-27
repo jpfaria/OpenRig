@@ -166,32 +166,90 @@ fn a_config_written_by_hand_cannot_push_the_generator_out_of_range() {
     assert_eq!(s.timbre_key(), "click");
 }
 
-// ── output device resolution ─────────────────────────────────────────────
+// ── #14: output selection from the project's I/O bindings ─────────────────
 
-#[test]
-fn the_saved_output_device_is_used_while_it_is_connected() {
-    let devices = vec!["dev:a".to_string(), "dev:b".to_string()];
-    assert_eq!(
-        resolve_output_device(Some("dev:b"), &devices),
-        Some("dev:b".to_string())
-    );
+use infra_filesystem::{ChannelMode, IoBinding, IoEndpoint};
+
+fn binding(id: &str, name: &str, outputs: Vec<IoEndpoint>) -> IoBinding {
+    IoBinding {
+        id: id.into(),
+        name: name.into(),
+        inputs: vec![],
+        outputs,
+    }
+}
+
+fn endpoint(name: &str, device: &str, channels: Vec<usize>) -> IoEndpoint {
+    IoEndpoint {
+        name: name.into(),
+        device_id: domain::ids::DeviceId(device.into()),
+        mode: ChannelMode::Stereo,
+        channels,
+    }
 }
 
 #[test]
-fn an_unplugged_output_device_falls_back_to_the_first_available() {
-    let devices = vec!["dev:a".to_string()];
-    assert_eq!(
-        resolve_output_device(Some("dev:gone"), &devices),
-        Some("dev:a".to_string())
-    );
-    assert_eq!(
-        resolve_output_device(None, &devices),
-        Some("dev:a".to_string())
-    );
+fn output_endpoints_flattens_every_bindings_outputs() {
+    let bindings = vec![
+        binding(
+            "main",
+            "Scarlett 2i2",
+            vec![endpoint("Main Out 1-2", "dev:scarlett", vec![0, 1])],
+        ),
+        binding(
+            "monitor",
+            "Headphones",
+            vec![
+                endpoint("Phones L", "dev:hp", vec![0]),
+                endpoint("Phones R", "dev:hp", vec![1]),
+            ],
+        ),
+    ];
+    let outs = output_endpoints(&bindings);
+    assert_eq!(outs.len(), 3, "one entry per output endpoint across bindings");
+    assert_eq!(outs[0].label, "Scarlett 2i2 · Main Out 1-2");
+    assert_eq!(outs[0].device_id, "dev:scarlett");
+    assert_eq!(outs[0].channels, vec![0, 1]);
+    assert_eq!(outs[2].label, "Headphones · Phones R");
+    assert_eq!(outs[2].channels, vec![1]);
+    // Keys are unique so the select can round-trip a pick.
+    assert_ne!(outs[1].key, outs[2].key);
 }
 
 #[test]
-fn a_machine_with_no_output_resolves_to_nothing() {
-    assert_eq!(resolve_output_device(Some("dev:a"), &[]), None);
-    assert_eq!(resolve_output_device(None, &[]), None);
+fn resolve_output_endpoint_prefers_the_saved_one() {
+    let bindings = vec![binding(
+        "main",
+        "Scarlett",
+        vec![
+            endpoint("Out A", "dev:x", vec![0, 1]),
+            endpoint("Out B", "dev:x", vec![2, 3]),
+        ],
+    )];
+    let outs = output_endpoints(&bindings);
+    let saved = outs[1].key.clone();
+    let picked = resolve_output_endpoint(Some(&saved), &outs).expect("saved endpoint resolves");
+    assert_eq!(picked.channels, vec![2, 3], "the saved endpoint is chosen");
+}
+
+#[test]
+fn resolve_output_endpoint_falls_back_to_the_first() {
+    let bindings = vec![binding(
+        "main",
+        "Scarlett",
+        vec![endpoint("Out A", "dev:x", vec![0, 1])],
+    )];
+    let outs = output_endpoints(&bindings);
+    // A saved key from another machine / a renamed binding no longer resolves.
+    let picked = resolve_output_endpoint(Some("gone::whatever"), &outs)
+        .expect("falls back rather than going silent");
+    assert_eq!(picked.channels, vec![0, 1]);
+    // And with nothing saved.
+    assert!(resolve_output_endpoint(None, &outs).is_some());
+}
+
+#[test]
+fn resolve_output_endpoint_is_none_without_any_output() {
+    assert!(resolve_output_endpoint(Some("main::x"), &[]).is_none());
+    assert!(resolve_output_endpoint(None, &[]).is_none());
 }

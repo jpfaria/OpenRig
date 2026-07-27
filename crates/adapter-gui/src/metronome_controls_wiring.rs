@@ -10,12 +10,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, MetronomeCommand};
-use infra_cpal::AudioDeviceDescriptor;
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::metronome_events::dispatch;
-use crate::metronome_session::{subdivision_key, timbre_key, time_signature_beats};
+use crate::metronome_session::{
+    output_endpoints, subdivision_key, timbre_key, time_signature_beats, MetronomeOutput,
+};
 use crate::metronome_wiring::MetronomeCtx;
+use crate::state::ProjectSession;
 use crate::{MetronomeBridge, SelectOption};
 
 /// Connect the tempo row, the four knobs and the count-in pill on one surface's
@@ -96,9 +98,9 @@ pub(crate) fn wire_output_select(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
     {
         let ctx = ctx.clone_ctx();
         bridge.on_output_opened(move || {
-            // Re-enumerate on open so a device plugged in since the last look
-            // shows up; the host list is cached, so this is cheap.
-            output_device_ids(&ctx.devices);
+            // Re-read the project's bindings on open so an endpoint added since
+            // the last look shows up.
+            refresh_metronome_outputs(&ctx.project_session, &ctx.outputs);
             publish_output_options(&ctx, "");
         });
     }
@@ -121,32 +123,31 @@ pub(crate) fn wire_output_select(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
     }
 }
 
-/// Refresh the cached device list from the host and return the ids. On an
-/// enumeration failure the previous snapshot is kept — a transient host error
-/// must not blank a select the user is looking at.
-pub(crate) fn output_device_ids(cache: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>) -> Vec<String> {
-    match infra_cpal::list_output_device_descriptors() {
-        Ok(devices) => {
-            let ids = devices.iter().map(|d| d.id.clone()).collect();
-            *cache.borrow_mut() = devices;
-            ids
-        }
-        Err(e) => {
-            log::warn!("[metronome] output device enumeration failed: {e}");
-            cache.borrow().iter().map(|d| d.id.clone()).collect()
-        }
-    }
+/// Refresh the cached output-endpoint list from the project's I/O bindings and
+/// return it. The metronome plays through the SAME outputs the project is
+/// configured with (#14), not a raw device list.
+pub(crate) fn refresh_metronome_outputs(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    cache: &Rc<RefCell<Vec<MetronomeOutput>>>,
+) -> Vec<MetronomeOutput> {
+    let outputs = project_session
+        .borrow()
+        .as_ref()
+        .map(|session| output_endpoints(&session.io_bindings.borrow()))
+        .unwrap_or_default();
+    *cache.borrow_mut() = outputs.clone();
+    outputs
 }
 
-/// Publish the (filtered) device rows onto every surface's select. Filtering
+/// Publish the (filtered) endpoint rows onto every surface's select. Filtering
 /// lives here because Slint has no string `contains`.
 fn publish_output_options(ctx: &MetronomeCtx, query: &str) {
-    let devices = ctx.devices.borrow();
-    let options: Vec<SelectOption> = filter_output_devices(&devices, query)
+    let outputs = ctx.outputs.borrow();
+    let options: Vec<SelectOption> = filter_outputs(&outputs, query)
         .into_iter()
-        .map(|d| SelectOption {
-            key: SharedString::from(d.id.as_str()),
-            label: SharedString::from(d.name.as_str()),
+        .map(|o| SelectOption {
+            key: SharedString::from(o.key.as_str()),
+            label: SharedString::from(o.label.as_str()),
         })
         .collect();
     // A fresh model per bridge — a ModelRc is single-owner, and both surfaces
@@ -156,16 +157,13 @@ fn publish_output_options(ctx: &MetronomeCtx, query: &str) {
     });
 }
 
-/// Case-insensitive substring match on the device name, original order kept.
-/// An empty (trimmed) query returns every device.
-pub fn filter_output_devices<'a>(
-    devices: &'a [AudioDeviceDescriptor],
-    query: &str,
-) -> Vec<&'a AudioDeviceDescriptor> {
+/// Case-insensitive substring match on the endpoint label, original order kept.
+/// An empty (trimmed) query returns every endpoint.
+pub fn filter_outputs<'a>(outputs: &'a [MetronomeOutput], query: &str) -> Vec<&'a MetronomeOutput> {
     let needle = query.trim().to_lowercase();
-    devices
+    outputs
         .iter()
-        .filter(|d| needle.is_empty() || d.name.to_lowercase().contains(&needle))
+        .filter(|o| needle.is_empty() || o.label.to_lowercase().contains(&needle))
         .collect()
 }
 
