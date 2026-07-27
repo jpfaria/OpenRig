@@ -307,7 +307,13 @@ export component ProjectChainsPage inherits Rectangle {
                 600px;
         property <length> panel-width:
             use-panel-editor ?
-                (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+                // #819: the knob grid width MUST match the #500 policy (capped at
+                // MAX_COLS), or it disagrees with the policy's inner height and the
+                // bottom knob row clips. Fall back to the local estimate only until
+                // Rust publishes the computed width.
+                (has-eq-widget
+                    ? eq-panel-width
+                    : (BlockParamTabs.panel-width > 0px ? BlockParamTabs.panel-width : Math.max(900px, needed-width))) :
                 520px;
         property <length> eq-widget-height:
             root.curve-editor-points.length > 0 ? 200px :
@@ -335,27 +341,12 @@ export component ProjectChainsPage inherits Rectangle {
             clicked => { root.close-block-drawer(); }
         }
 
-        // Panel editor (preamp/amp with knobs). #819: hosted in a Flickable so a
-        // panel taller than the fullscreen screen scrolls to its lower knobs
-        // instead of clipping them. BlockPanelEditor grows to fit and never
-        // scrolls on its own — the detached OS window grows with it, but the
-        // inline overlay is bounded by the screen, so we bound the visible area
-        // to the page height (Math.min) and let the full panel be the viewport.
-        if use-panel-editor : Flickable {
-            property <length> full-height: parent.panel-height;
-            property <length> pw: parent.panel-width;
-            property <length> visible-height: Math.min(self.full-height, parent.height);
-            x: (parent.width - self.pw) / 2;
-            y: (parent.height - self.visible-height) / 2;
-            width: self.pw;
-            height: self.visible-height;
-            viewport-width: self.pw;
-            viewport-height: self.full-height;
-            BlockPanelEditor {
-            x: 0;
-            y: 0;
-            width: parent.pw;
-            height: parent.full-height;
+        // Panel editor (preamp/amp with knobs)
+        if use-panel-editor : BlockPanelEditor {
+            x: (parent.width - parent.panel-width) / 2;
+            y: (parent.height - parent.panel-height) / 2;
+            width: parent.panel-width;
+            height: parent.panel-height;
             block-type-options: root.block-type-options;
             block-model-options: root.block-model-options;
             filtered-block-model-options: root.filtered-block-model-options;
@@ -395,7 +386,6 @@ export component ProjectChainsPage inherits Rectangle {
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
             update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
-            }
         }
 
         // Form editor (other block types)

@@ -226,6 +226,7 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     tabs.set_inner_height(dims.inner_panel_height_px);
     tabs.set_grid_cols(dims.grid_cols as i32);
     tabs.set_grid_rows(dims.grid_rows as i32);
+    tabs.set_panel_width(dims.window_width_px);
 }
 
 /// Number of parameter rows the grid actually renders for the active tab (rows

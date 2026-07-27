@@ -21,6 +21,10 @@ export global BlockParamTabs {
     in-out property <length> inner-height;
     in-out property <int> grid-cols;
     in-out property <int> grid-rows;
+    // #500 policy width (capped at MAX_COLS). The inline overlay MUST use this,
+    // not a param-count formula, or the width disagrees with `inner-height` and
+    // the bottom knob row clips. 0px = not computed yet.
+    in-out property <length> panel-width;
     // Tab click → Rust re-tags the parameter rows for the chosen group.
     callback select(int);
 }
