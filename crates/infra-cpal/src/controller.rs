@@ -111,14 +111,18 @@ pub struct ProjectRuntimeController {
     /// fed by the loop — never the guitar runtime. `&self` arm/disarm mutate
     /// this, so it needs interior mutability; the controller is frontend-thread
     /// owned (cpal `Stream` is `!Send`), so a `RefCell` suffices.
-    pub(crate) di_streams: RefCell<HashMap<ChainId, crate::di_stream::DiStreamHandle>>,
-    /// Issue #771: one playback cell per (chain, flat output index). The
+    /// #323: keyed by `(chain, source)` — the DI loop and each looper are
+    /// independent isolated streams sharing one lifecycle (`IsolatedSource`).
+    pub(crate) di_streams:
+        RefCell<HashMap<crate::di_stream::IsolatedKey, crate::di_stream::DiStreamHandle>>,
+    /// Issue #771: one playback cell per (chain, source, flat output index). The
     /// output stream's callback clones its cell at build time and mixes
     /// whatever playback is parked there (wait-free load); arming parks the
     /// pre-rendered loop on the CHOSEN output's cell only. Entries are
     /// created on demand and survive stream rebuilds.
-    pub(crate) di_playback_cells:
-        RefCell<HashMap<(ChainId, usize), crate::di_playback::DiPlaybackCell>>,
+    pub(crate) di_playback_cells: RefCell<
+        HashMap<(crate::di_stream::IsolatedKey, usize), crate::di_playback::DiPlaybackCell>,
+    >,
     /// Issue #771/#785: playbacks swapped out by a disarm or a gapless hand-off,
     /// freed on a LATER cycle so the audio callback is never the last owner of a
     /// multi-MB render buffer (invariant #8).
