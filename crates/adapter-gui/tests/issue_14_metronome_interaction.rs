@@ -101,11 +101,11 @@ fn every_metronome_control_fires_its_callback() {
         "pressing POWER while off must ask to turn the click ON"
     );
 
-    // ── Tempo row: −, TAP, +, and the count-in pill in the footer ───────
+    // ── Tempo row: −, TAP, + (count-in is a separate vintage toggle) ────
     assert_eq!(
         count_id(&w, "PillButton::ta"),
-        4,
-        "three tempo pills plus the count-in pill"
+        3,
+        "the tempo row has exactly three pills: −, TAP, +"
     );
 
     assert!(
@@ -128,14 +128,15 @@ fn every_metronome_control_fires_its_callback() {
     );
     assert_eq!(taps.get(), 1, "TAP must fire exactly one tap");
 
+    // ── Count-in vintage toggle ─────────────────────────────────────────
     assert!(
-        click_id(&w, "PillButton::ta", 3),
-        "the count-in pill must be hittable"
+        click_id(&w, "VintageToggle::ta", 0),
+        "the count-in toggle must be hittable"
     );
     assert_eq!(
         count_in.get(),
         Some(true),
-        "the count-in pill must toggle the current value"
+        "the count-in toggle must flip the current value"
     );
 
     // ── Knob row: time signature, subdivision, timbre ───────────────────

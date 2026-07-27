@@ -82,7 +82,67 @@ export component ControlCell inherits Rectangle {
     }
 }
 
-// Small pill button — the tempo nudges, TAP, and the count-in toggle.
+// Vintage toggle switch with a label above and a red LED beside it — same
+// sprite vocabulary as the Tuner's MUTE switch. Used for count-in.
+export component VintageToggle inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    callback toggled();
+
+    width: 76px;
+    height: 52px;
+
+    Text {
+        x: 0; y: 0;
+        width: parent.width; height: 12px;
+        text: root.label;
+        color: root.active ? #d8b268 : #8a95a5;
+        font-family: "Bebas Neue";
+        font-size: 9px;
+        letter-spacing: 1.0px;
+        horizontal-alignment: left;
+    }
+
+    // Toggle sprite (26×34 per frame, two frames stacked horizontally).
+    Rectangle {
+        x: 7px; y: 16px;
+        width: 26px; height: 34px;
+        clip: true;
+        Image {
+            source: @image-url("../assets/sprites/toggleswitch.png");
+            x: root.active ? -parent.width : 0;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+        ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggled(); }
+        }
+    }
+
+    // Red LED to the right of the toggle, lit when on.
+    Rectangle {
+        x: 40px; y: 26px;
+        width: 14px; height: 14px;
+        clip: true;
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.active ? 0 : -parent.width;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+    accessible-role: button;
+    accessible-label: root.label;
+}
+
+// Small pill button — the tempo nudges and TAP.
 export component PillButton inherits Rectangle {
     in property <string> label;
     in property <bool> emphasis: false;
