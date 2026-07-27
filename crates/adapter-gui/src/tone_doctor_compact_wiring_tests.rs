@@ -71,7 +71,12 @@ fn session_with_gain_chain(volume_pct: f32) -> ProjectSession {
         midi: None,
     };
     // A temp presets path the test never writes to (no SaveProject dispatched).
-    ProjectSession::new(project, None, None, std::env::temp_dir().join("openrig-808-tests"))
+    ProjectSession::new(
+        project,
+        None,
+        None,
+        std::env::temp_dir().join("openrig-808-tests"),
+    )
 }
 
 /// Set the gain's `volume` far from its current value so the fix is unmistakable.

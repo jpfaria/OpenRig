@@ -444,4 +444,3 @@ fn preset_picker_overlay_tr_keys_are_translated_in_pt_br() {
         );
     }
 }
-

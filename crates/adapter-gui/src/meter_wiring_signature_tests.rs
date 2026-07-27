@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use engine::spsc::SpscRing;
 
-
 // ── timer-shape signature: tracks engine runtime layout, not just
 //     project-side bits. User-reported bug: toggle off → on, meters
 //     never recover. Project state alone (`chain.enabled`) flips

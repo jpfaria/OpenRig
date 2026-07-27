@@ -1,15 +1,9 @@
 //! Block-parameter select + toggle/file callback wiring (issue #792 split
 //! from block_parameter_wiring.rs).
 
-use rfd::FileDialog;
-use slint::{ComponentHandle};
-use application::command::Command;
-use application::dispatcher::CommandDispatcher;
-use application::event::Event;
 use crate::block_editor::{
     block_editor_data_with_selected, block_parameter_extensions, block_parameter_items_for_editor,
-    internal_block_parameter_value, schedule_block_editor_persist,
-    set_block_parameter_option,
+    internal_block_parameter_value, schedule_block_editor_persist, set_block_parameter_option,
     set_block_parameter_text,
 };
 use crate::project_ops::sync_project_dirty;
@@ -18,9 +12,12 @@ use crate::project_view::{
     replace_project_chains,
 };
 use crate::runtime_lifecycle::sync_live_chain_runtime;
-use crate::{
-    AppWindow, BlockEditorWindow, SELECT_SELECTED_BLOCK_ID,
-};
+use crate::{AppWindow, BlockEditorWindow, SELECT_SELECTED_BLOCK_ID};
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+use application::event::Event;
+use rfd::FileDialog;
+use slint::ComponentHandle;
 
 use crate::block_parameter_wiring::BlockParameterCtx;
 
@@ -211,7 +208,6 @@ pub(crate) fn wire_select_param(
             );
         });
     }
-
 }
 
 pub(crate) fn wire_toggle_and_file(
@@ -398,6 +394,4 @@ pub(crate) fn wire_toggle_and_file(
             );
         });
     }
-
 }
-

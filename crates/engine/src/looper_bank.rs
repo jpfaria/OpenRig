@@ -132,6 +132,10 @@ pub struct LooperStatus {
     pub position_frames: usize,
     pub len_frames: usize,
     pub layers: usize,
+    /// #323: changes whenever the exported mixdown would change (record close,
+    /// overdub, undo/redo, clear, level/decay/reverse) — the controller re-arms
+    /// the isolated stream only when this moves.
+    pub content_rev: u64,
 }
 
 /// Lock-free mirror of one slot, written by the audio thread once per
@@ -143,6 +147,7 @@ struct StatusCell {
     position: AtomicUsize,
     len: AtomicUsize,
     layers: AtomicUsize,
+    content_rev: AtomicU64,
 }
 
 fn state_code(state: LooperState) -> u8 {
@@ -217,6 +222,7 @@ impl LooperShared {
                 position_frames: c.position.load(Ordering::Relaxed),
                 len_frames: c.len.load(Ordering::Relaxed),
                 layers: c.layers.load(Ordering::Relaxed),
+                content_rev: c.content_rev.load(Ordering::Relaxed),
             })
     }
 
@@ -232,6 +238,7 @@ impl LooperShared {
                     position_frames: c.position.load(Ordering::Relaxed),
                     len_frames: c.len.load(Ordering::Relaxed),
                     layers: c.layers.load(Ordering::Relaxed),
+                    content_rev: c.content_rev.load(Ordering::Relaxed),
                 })
             })
             .collect()
@@ -251,6 +258,8 @@ impl LooperShared {
                 .store(src.len.load(Ordering::Relaxed), Ordering::Relaxed);
             dst.layers
                 .store(src.layers.load(Ordering::Relaxed), Ordering::Relaxed);
+            dst.content_rev
+                .store(src.content_rev.load(Ordering::Relaxed), Ordering::Relaxed);
         }
     }
 }
@@ -408,6 +417,8 @@ impl LooperBank {
             cell.len.store(entry.slot.len_frames(), Ordering::Relaxed);
             cell.layers
                 .store(entry.slot.active_layers(), Ordering::Relaxed);
+            cell.content_rev
+                .store(entry.slot.content_revision(), Ordering::Relaxed);
 
             while let Some(buf) = entry.slot.take_retired() {
                 push_retired(shared, buf);

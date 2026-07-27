@@ -510,4 +510,3 @@ fn save_chain_output_endpoints_preserves_other_blocks() {
         assert_eq!(ob.endpoint, "ep2");
     }
 }
-

@@ -98,8 +98,13 @@ fn spawn<F, D>(
                 if input.len() > cap {
                     input.truncate(cap);
                 }
-                let (view, suggestion) =
-                    crate::tone_doctor_wiring::diagnose_to_view(&chain, &input, sr, DIAGNOSE_BLOCK, limits);
+                let (view, suggestion) = crate::tone_doctor_wiring::diagnose_to_view(
+                    &chain,
+                    &input,
+                    sr,
+                    DIAGNOSE_BLOCK,
+                    limits,
+                );
                 if let Ok(mut c) = cache.lock() {
                     *c = suggestion;
                 }
@@ -180,11 +185,18 @@ fn start_run(
     if let Some(source) = session.dispatcher.di_loop_source_for_chain(&chain_id) {
         st.set_can_diagnose(true);
         st.set_source_kind("di".into());
-        spawn(chain, limits, cache, seconds, move || {
-            load_di_loop(&source)
-                .ok()
-                .map(|di| (di.stereo_frames(), di.src_sr() as f32))
-        }, on_done);
+        spawn(
+            chain,
+            limits,
+            cache,
+            seconds,
+            move || {
+                load_di_loop(&source)
+                    .ok()
+                    .map(|di| (di.stereo_frames(), di.src_sr() as f32))
+            },
+            on_done,
+        );
         return;
     }
 
@@ -197,7 +209,14 @@ fn start_run(
     if let Some((ring, sr)) = tap {
         st.set_can_diagnose(true);
         st.set_source_kind("live".into());
-        spawn(chain, limits, cache, seconds, move || Some((record(ring, sr, seconds), sr)), on_done);
+        spawn(
+            chain,
+            limits,
+            cache,
+            seconds,
+            move || Some((record(ring, sr, seconds), sr)),
+            on_done,
+        );
         return;
     }
 
@@ -299,11 +318,18 @@ pub(crate) fn wire(
                 return;
             };
             let w2 = win.as_weak();
-            start_run(&st, session, &project_runtime, chain_index, cache.clone(), move |view| {
-                if let Some(win) = w2.upgrade() {
-                    apply_view(&win.global::<ToneDoctorState>(), &view);
-                }
-            });
+            start_run(
+                &st,
+                session,
+                &project_runtime,
+                chain_index,
+                cache.clone(),
+                move |view| {
+                    if let Some(win) = w2.upgrade() {
+                        apply_view(&win.global::<ToneDoctorState>(), &view);
+                    }
+                },
+            );
         });
     }
     {
@@ -362,11 +388,18 @@ pub(crate) fn wire_main(
                 return;
             };
             let w2 = win.as_weak();
-            start_run(&st, session, &project_runtime, ci, cache.clone(), move |view| {
-                if let Some(win) = w2.upgrade() {
-                    apply_view(&win.global::<ToneDoctorState>(), &view);
-                }
-            });
+            start_run(
+                &st,
+                session,
+                &project_runtime,
+                ci,
+                cache.clone(),
+                move |view| {
+                    if let Some(win) = w2.upgrade() {
+                        apply_view(&win.global::<ToneDoctorState>(), &view);
+                    }
+                },
+            );
         });
     }
     {

@@ -542,4 +542,3 @@ fn save_audio_settings_persists_input_and_output_separately() {
         );
     });
 }
-

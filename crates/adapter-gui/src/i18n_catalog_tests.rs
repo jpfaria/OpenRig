@@ -1,7 +1,6 @@
 //! Slint @tr-key ↔ .po catalog consistency tests (issue #792 split from
 //! i18n_tests.rs).
 
-
 /// Catches: a string added in Slint without a `.po` entry; a `.po` entry
 /// dedup'd with an empty msgstr; a key renamed in Slint but stale in `.po`.
 #[test]

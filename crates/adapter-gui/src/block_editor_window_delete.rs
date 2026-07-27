@@ -34,7 +34,6 @@ pub(crate) fn wire_block_delete(
     let open_block_windows = &ctx.open_block_windows;
     let auto_save = ctx.auto_save;
 
-
     // on_delete_block_drawer (trash icon) — opens the in-window overlay.
     // Issue #360: the actual delete moved to on_confirm_delete_block below;
     // the previous native-dialog path is gone (native popup did not suit
@@ -59,7 +58,6 @@ pub(crate) fn wire_block_delete(
         });
     }
 
-
     // on_cancel_delete_block — just hide the overlay.
     {
         let weak_win = win.as_weak();
@@ -69,7 +67,6 @@ pub(crate) fn wire_block_delete(
             }
         });
     }
-
 
     // on_confirm_delete_block — execute the deletion the overlay just gated.
     {
@@ -171,7 +168,6 @@ pub(crate) fn wire_plugin_info_close(
     let chain_index = ctx.chain_index;
     let block_index = ctx.block_index;
 
-
     // on_show_plugin_info
     {
         let weak_main = weak_main_window.clone();
@@ -238,7 +234,6 @@ pub(crate) fn wire_plugin_info_close(
         });
     }
 
-
     // on_close_block_drawer (close without saving)
     {
         let win_draft = win_draft.clone();
@@ -266,7 +261,6 @@ pub(crate) fn wire_plugin_info_close(
         });
     }
 
-
     // Clean up stream timer when block editor is closed via the window X button.
     {
         let open_block_windows_close = open_block_windows.clone();
@@ -280,4 +274,3 @@ pub(crate) fn wire_plugin_info_close(
         });
     }
 }
-

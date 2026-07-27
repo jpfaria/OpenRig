@@ -446,4 +446,3 @@ fn create_project_replaces_all_prior_state() {
     assert!(proj.device_settings.is_empty());
     assert!(proj.chains.is_empty());
 }
-

@@ -310,4 +310,3 @@ fn chain_signature_stable_when_only_param_value_changes() {
          must keep the signature stable"
     );
 }
-

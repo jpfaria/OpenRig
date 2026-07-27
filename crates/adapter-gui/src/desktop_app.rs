@@ -950,7 +950,10 @@ pub fn run_desktop_app(
                             }
                             // #791: objective quality report, measured offline.
                             application::bridge::QueryKind::ChainQualityReport { chain } => {
-                                application::query_chain_quality::chain_quality_report(&project.borrow(), chain)
+                                application::query_chain_quality::chain_quality_report(
+                                    &project.borrow(),
+                                    chain,
+                                )
                             }
                             application::bridge::QueryKind::ChainLoopers { chain } => {
                                 // #323: persisted params (project) merged with
@@ -972,11 +975,9 @@ pub fn run_desktop_app(
                                                     controller.sample_rate(),
                                                 ))
                                             }
-                                            None => Err(
-                                                "no live audio runtime — loopers report \
+                                            None => Err("no live audio runtime — loopers report \
                                                  nothing until the project is started"
-                                                    .to_string(),
-                                            ),
+                                                .to_string()),
                                         }
                                     }
                                     None => Err(format!("chain not found: {}", chain.0)),

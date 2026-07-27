@@ -6,7 +6,12 @@ use super::local_dispatcher_tests::*;
 // ── Chain-level test helpers ──────────────────────────────────────────────────
 
 /// Build a chain with an InputBlock on device `dev_id`, channel `ch`.
-pub(super) fn make_chain_with_input(chain_id: &str, _dev_id: &str, _ch: usize, enabled: bool) -> Chain {
+pub(super) fn make_chain_with_input(
+    chain_id: &str,
+    _dev_id: &str,
+    _ch: usize,
+    enabled: bool,
+) -> Chain {
     Chain {
         id: ChainId(chain_id.to_string()),
         description: Some(chain_id.to_string()),
@@ -558,4 +563,3 @@ fn add_chain_enabled_false_no_conflict_check() {
     );
     assert_eq!(project.borrow().chains.len(), 3);
 }
-

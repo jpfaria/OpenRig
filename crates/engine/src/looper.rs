@@ -76,6 +76,9 @@ pub struct LooperSlot {
     decay: f32,
     speed: LooperSpeed,
     reverse: bool,
+    /// Bumped whenever the exported mixdown would change (see
+    /// [`Self::content_revision`]).
+    content_rev: u64,
 }
 
 impl LooperSlot {
@@ -93,6 +96,7 @@ impl LooperSlot {
             decay: 1.0,
             speed: LooperSpeed::Normal,
             reverse: false,
+            content_rev: 0,
         }
     }
 
@@ -153,6 +157,7 @@ impl LooperSlot {
             LooperState::Overdubbing => {
                 self.retire(buffer);
                 self.state = LooperState::Playing;
+                self.content_rev += 1;
             }
         }
     }
@@ -186,12 +191,14 @@ impl LooperSlot {
     /// the redo tail until something new is recorded over it.
     pub fn undo(&mut self) {
         self.active = self.active.saturating_sub(1);
+        self.content_rev += 1;
     }
 
     /// Restore the layer the last undo silenced, if it is still there.
     pub fn redo(&mut self) {
         if self.active < self.layers.len() {
             self.active += 1;
+            self.content_rev += 1;
         }
     }
 
@@ -205,16 +212,19 @@ impl LooperSlot {
         self.write_pos = 0;
         self.read_pos = 0.0;
         self.state = LooperState::Empty;
+        self.content_rev += 1;
     }
 
     /// Loop level, 0..=1 (values outside are clamped).
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);
+        self.content_rev += 1;
     }
 
     /// Per-layer-of-age gain applied to older layers, 0..=1. 1.0 = no decay.
     pub fn set_decay(&mut self, decay: f32) {
         self.decay = decay.clamp(0.0, 1.0);
+        self.content_rev += 1;
     }
 
     pub fn set_speed(&mut self, speed: LooperSpeed) {
@@ -223,6 +233,7 @@ impl LooperSlot {
 
     pub fn set_reverse(&mut self, reverse: bool) {
         self.reverse = reverse;
+        self.content_rev += 1;
     }
 
     /// Install a layer recorded in an earlier session (restored from disk) as
@@ -237,6 +248,7 @@ impl LooperSlot {
         self.write_pos = self.len_frames;
         self.read_pos = 0.0;
         self.state = LooperState::Stopped;
+        self.content_rev += 1;
     }
 
     /// Interleaved-stereo mixdown of the audible layers, one loop long — what
@@ -244,24 +256,42 @@ impl LooperSlot {
     ///
     /// Allocates, so it is for the CONTROL thread only (project save), never
     /// the audio callback. Returns `None` when nothing is recorded.
+    /// The mixdown of the audible layers, with `decay` on the older layers,
+    /// `mix` as overall level, and `reverse` flipping playback order. `speed`
+    /// is NOT applied here (a rate change is the isolated stream's job, not a
+    /// buffer rewrite) — tracked as follow-up.
     pub fn export_mixdown(&self) -> Option<Vec<f32>> {
         if self.active == 0 || self.len_frames == 0 {
             return None;
         }
         let mut out = Vec::with_capacity(self.len_frames * 2);
         for frame in 0..self.len_frames {
+            // Play the loop backwards when reversed.
+            let f = if self.reverse {
+                self.len_frames - 1 - frame
+            } else {
+                frame
+            };
             let mut acc = [0.0f32; 2];
             let mut gain = 1.0f32;
             for layer in (0..self.active).rev() {
                 let buf = &self.layers[layer];
-                acc[0] += buf[frame * 2] * gain;
-                acc[1] += buf[frame * 2 + 1] * gain;
+                acc[0] += buf[f * 2] * gain;
+                acc[1] += buf[f * 2 + 1] * gain;
                 gain *= self.decay;
             }
-            out.push(acc[0]);
-            out.push(acc[1]);
+            out.push(acc[0] * self.mix);
+            out.push(acc[1] * self.mix);
         }
         Some(out)
+    }
+
+    /// A counter that changes whenever the exported mixdown would change
+    /// (record close, overdub, undo/redo, clear, load, level/decay/reverse).
+    /// The controller re-arms the isolated stream only when this moves, so the
+    /// level/reverse controls take effect without a re-render every tick.
+    pub fn content_revision(&self) -> u64 {
+        self.content_rev
     }
 
     /// Collect one buffer the slot is done with, so the control thread can
@@ -332,6 +362,7 @@ impl LooperSlot {
         self.len_frames = self.write_pos.max(1).min(self.max_frames);
         self.read_pos = 0.0;
         self.state = LooperState::Playing;
+        self.content_rev += 1;
     }
 
     fn write_frame(&mut self, layer: usize, frame: usize, v: [f32; 2]) {

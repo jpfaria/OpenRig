@@ -130,7 +130,7 @@ pub struct ProjectRuntimeController {
     /// #323: the loop content `(len_frames, layers)` each looper's isolated
     /// stream was last armed with, so `sync_looper_streams` re-arms only when
     /// the recording actually changed — not every meter tick.
-    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (usize, usize)>>,
+    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (u64, u64)>>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).

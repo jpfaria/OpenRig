@@ -32,6 +32,7 @@ fn status(
         position_frames: position,
         len_frames: len,
         layers,
+        content_rev: 0,
     }
 }
 

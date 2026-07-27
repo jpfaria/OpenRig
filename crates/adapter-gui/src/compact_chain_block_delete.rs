@@ -1,16 +1,16 @@
 //! Compact-chain block delete + reorder callback wiring (issue #792 split
 //! from compact_chain_block_handlers.rs).
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
-use application::command::Command;
-use application::dispatcher::CommandDispatcher;
 use crate::compact_block_view::build_compact_blocks;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::sync_live_chain_runtime;
 use crate::{AppWindow, CompactChainViewWindow};
+use application::command::Command;
+use application::dispatcher::CommandDispatcher;
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::compact_chain_block_handlers::CompactChainBlockHandlersCtx;
 
@@ -149,8 +149,6 @@ pub(crate) fn wire_block_delete(
             );
         });
     }
-
-
 }
 
 pub(crate) fn wire_block_reorder(
@@ -238,6 +236,4 @@ pub(crate) fn wire_block_reorder(
             sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
         });
     }
-
 }
-

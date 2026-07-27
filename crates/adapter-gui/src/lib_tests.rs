@@ -593,4 +593,3 @@ fn parse_cli_args_fullscreen_flag() {
     let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/p.yaml"]);
     assert!(!fullscreen);
 }
-

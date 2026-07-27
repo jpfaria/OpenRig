@@ -40,9 +40,7 @@ use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{
-    block_model_picker_items, replace_project_chains, set_selected_block,
-};
+use crate::project_view::{block_model_picker_items, replace_project_chains, set_selected_block};
 use crate::runtime_lifecycle::sync_block_toggle;
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
 use crate::{
@@ -136,7 +134,6 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub auto_save: bool,
 }
 
-
 pub(crate) fn wire(
     win: &BlockEditorWindow,
     weak_main_window: slint::Weak<AppWindow>,
@@ -169,7 +166,6 @@ fn wire_model_selection(
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
     let auto_save = ctx.auto_save;
-
 
     // on_choose_block_model
     {
@@ -299,7 +295,6 @@ fn wire_drawer_toggle_save(
     let open_block_windows = &ctx.open_block_windows;
     let auto_save = ctx.auto_save;
 
-
     // on_toggle_block_drawer_enabled
     {
         let win_draft = win_draft.clone();
@@ -409,7 +404,6 @@ fn wire_drawer_toggle_save(
         });
     }
 
-
     // on_save_block_drawer (edit mode - saves and closes)
     {
         let win_draft = win_draft.clone();
@@ -465,4 +459,3 @@ fn wire_drawer_toggle_save(
         });
     }
 }
-

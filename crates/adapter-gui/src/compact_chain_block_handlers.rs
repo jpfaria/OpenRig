@@ -41,7 +41,6 @@ pub(crate) struct CompactChainBlockHandlersCtx {
     pub auto_save: bool,
 }
 
-
 pub(crate) fn wire(
     main_window: &AppWindow,
     compact_win: &CompactChainViewWindow,
@@ -266,8 +265,6 @@ fn wire_block_toggle_and_model(
             );
         });
     }
-
-
 }
 
 fn wire_chain_toggle(
@@ -456,7 +453,4 @@ fn wire_chain_toggle(
             cw.set_chain_enabled(will_enable);
         });
     }
-
-
 }
-

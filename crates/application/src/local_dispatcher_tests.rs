@@ -53,7 +53,11 @@ pub(super) fn make_core_block_with_param(id: &str, param_path: &str, value: f32)
     }
 }
 
-pub(super) fn make_core_block_with_bool_param(id: &str, param_path: &str, value: bool) -> AudioBlock {
+pub(super) fn make_core_block_with_bool_param(
+    id: &str,
+    param_path: &str,
+    value: bool,
+) -> AudioBlock {
     let mut params = ParameterSet::default();
     params.insert(param_path, ParameterValue::Bool(value));
     AudioBlock {
@@ -67,7 +71,11 @@ pub(super) fn make_core_block_with_bool_param(id: &str, param_path: &str, value:
     }
 }
 
-pub(super) fn make_core_block_with_string_param(id: &str, param_path: &str, value: &str) -> AudioBlock {
+pub(super) fn make_core_block_with_string_param(
+    id: &str,
+    param_path: &str,
+    value: &str,
+) -> AudioBlock {
     let mut params = ParameterSet::default();
     params.insert(param_path, ParameterValue::String(value.to_string()));
     AudioBlock {
@@ -102,7 +110,6 @@ pub(super) fn make_project(chain_id: &str, block: AudioBlock) -> Rc<RefCell<Proj
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-
 pub(crate) fn empty_project_rc() -> std::rc::Rc<std::cell::RefCell<Project>> {
     std::rc::Rc::new(std::cell::RefCell::new(Project {
         name: None,
@@ -112,9 +119,13 @@ pub(crate) fn empty_project_rc() -> std::rc::Rc<std::cell::RefCell<Project>> {
     }))
 }
 
-pub(super) use super::ld_chain::{make_chain_with_input, make_empty_chain, make_project_three_chains};
-pub(super) use super::ld_savechain::{make_output_block, make_project_with_input_chain, make_project_with_io_chain};
+pub(super) use super::ld_chain::{
+    make_chain_with_input, make_empty_chain, make_project_three_chains,
+};
 pub(super) use super::ld_insert::make_device_settings;
+pub(super) use super::ld_savechain::{
+    make_output_block, make_project_with_input_chain, make_project_with_io_chain,
+};
 
 #[test]
 fn toggle_block_enabled_flips_true_to_false_and_emits_event() {
@@ -573,4 +584,3 @@ fn select_block_parameter_option_non_existent_path_returns_err() {
         "mode must not be mutated when path is not found"
     );
 }
-

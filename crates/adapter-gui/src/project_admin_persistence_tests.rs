@@ -565,4 +565,3 @@ fn toggle_block_enabled_persists() {
         .expect("g1 present");
     assert!(!enabled, "ToggleBlockEnabled (true→false) did not persist");
 }
-

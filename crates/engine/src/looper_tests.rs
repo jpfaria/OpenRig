@@ -351,3 +351,47 @@ fn export_mixdown_honours_undo_and_is_none_when_empty() {
         "an undone layer must not land in the saved file"
     );
 }
+
+#[test]
+fn export_mixdown_applies_level_and_reverse_and_bumps_revision() {
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0], [2.0, 2.0], [4.0, 4.0]]);
+    let rev_before = s.content_revision();
+    s.tap_record(None); // freeze
+    assert!(
+        s.content_revision() > rev_before,
+        "closing the recording must bump the content revision"
+    );
+
+    // Level halves every sample.
+    s.set_mix(0.5);
+    assert_eq!(
+        s.export_mixdown().unwrap(),
+        vec![0.5, 0.5, 1.0, 1.0, 2.0, 2.0]
+    );
+
+    // Reverse plays the frames back to front (at the current 0.5 level).
+    s.set_reverse(true);
+    assert_eq!(
+        s.export_mixdown().unwrap(),
+        vec![2.0, 2.0, 1.0, 1.0, 0.5, 0.5]
+    );
+}
+
+#[test]
+fn setting_level_bumps_the_revision_so_the_stream_re_arms() {
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0]]);
+    s.tap_record(None);
+    let r0 = s.content_revision();
+    s.set_mix(0.5);
+    assert!(s.content_revision() > r0, "level change must be observable");
+    let r1 = s.content_revision();
+    s.set_reverse(true);
+    assert!(
+        s.content_revision() > r1,
+        "reverse change must be observable"
+    );
+}

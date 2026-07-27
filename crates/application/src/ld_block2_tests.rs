@@ -485,4 +485,3 @@ fn replace_block_model_unknown_model_returns_err() {
 // `tests/issue_537_replace_block_model_native_cab.rs` (sibling to the
 // disk-package fixture test). Kept out of this file because the file is
 // already past the 600-line cap.
-

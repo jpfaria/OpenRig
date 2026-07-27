@@ -33,6 +33,7 @@ fn status(uid: u64) -> engine::LooperStatus {
         position_frames: 512,
         len_frames: 48_000,
         layers: 3,
+        content_rev: 0,
     }
 }
 

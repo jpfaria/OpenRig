@@ -155,7 +155,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     wire_chain_mutations(window, &ctx);
     crate::chain_row_wiring_actions::wire_reorder(window, &ctx);
     // #771 on_di_loop_output_selected
-    crate::di_output_select_wiring::wire_main(window, ctx.project_session.clone(), ctx.project_runtime.clone());
+    crate::di_output_select_wiring::wire_main(
+        window,
+        ctx.project_session.clone(),
+        ctx.project_runtime.clone(),
+    );
     crate::chain_row_wiring_actions::wire_di_loop(window, &ctx);
     // #323: the looper panel's actions (dispatch + apply to the runtimes).
     crate::looper_callbacks::wire_looper_callbacks(
@@ -295,7 +299,6 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
     let toast_timer = &ctx.toast_timer;
     let auto_save = ctx.auto_save;
 
-
     // ── on_toggle_chain_enabled ──────────────────────────────────────────────
     // Channel-conflict validation is now inside the dispatcher
     // (chain_validation::validate_no_channel_conflict).
@@ -415,7 +418,6 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
         });
     }
 }
-
 
 #[cfg(test)]
 #[path = "chain_row_wiring_tests.rs"]

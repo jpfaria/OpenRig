@@ -143,7 +143,12 @@ impl ProjectRuntimeController {
                 Some(s) => s,
                 None => continue,
             };
-            let content = (status.len_frames, status.layers);
+            // The content revision moves on any change that alters the exported
+            // mixdown (record close, overdub, undo/redo, level, decay, reverse),
+            // so the level/reverse controls take effect via a re-arm — but a
+            // steady loop never respawns a render. `len_frames` is kept in the
+            // signature so a rebuild that changed the loop length also re-arms.
+            let content = (status.len_frames as u64, status.content_rev);
             if self.looper_armed.borrow().get(&key) == Some(&content) {
                 continue; // already streaming this exact take
             }
