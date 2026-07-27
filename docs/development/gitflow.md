@@ -86,6 +86,8 @@ Identificação: o **corpo** começa com `> **Sibling issues (co-evoluem neste c
 
 A issue é o log de auditoria. Comentar em: plano antes de começar; cada push (hash + arquivos + build/teste); mudança de plano; cada problema com evidência; análise técnica; merges; validação em hardware; resumo final. Após `git push` ou análise técnica, próximo comando é `gh issue comment <N>`. Opções A/B/C ao usuário vão na issue ANTES da pergunta.
 
+**Checklist de validação — obrigatório em toda entrega que depende do usuário.** Quando a entrega precisa da validação dele (ouvido, visual, hardware, comportamento em app real), o comentário na issue E a resposta no chat levam um checklist com: (1) `git fetch && git checkout {tipo}/issue-N && git pull` num bloco de código, (2) itens em checkbox `- [ ]`, um por linha, só o que ELE valida — nunca os testes/build que o agent já rodou. Sem prosa em volta. É a única lista permitida no chat (exceção à LEI ZERO "RESPOSTA CURTA"). Ver CLAUDE.md → LEI ZERO "CHECKLIST DE VALIDAÇÃO SEMPRE".
+
 ## Release mechanics
 
 - Tag `vX.Y.Z` is created on **develop's tip** (not main). `release.yml` triggers on `v*` tag push and derives the version from `GITHUB_REF_NAME`. `main` is updated by merging develop (API merge, not fast-forward). Re-trigger a failed release by deleting and recreating the tag ref at the new develop tip.

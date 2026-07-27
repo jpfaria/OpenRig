@@ -22,6 +22,20 @@ Só estende a resposta quando o usuário pedir explicitamente ("explica em detal
 
 Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
 
+## LEI ZERO — CHECKLIST DE VALIDAÇÃO SEMPRE (a ÚNICA exceção ao "sem checklist no chat")
+
+**Toda vez que eu terminar algo que precisa da validação do usuário (ouvido, visual, hardware, comportamento em app real), eu ESCREVO um checklist — no chat E na issue (`gh issue comment`) — sem ele pedir.** É obrigatório, é a única lista permitida no chat, e o formato é sempre:
+
+1. O comando de atualização primeiro, num bloco de código: `git fetch && git checkout {tipo}/issue-N && git pull`.
+2. Itens em checkbox `- [ ]`, um por linha, curtos — cada um UMA coisa a validar.
+3. **Só o que ELE precisa validar** — nunca os testes/build que eu já rodei (isso é meu, já está verde).
+
+O mesmo checklist vai no `gh issue comment` da issue. Sem prosa em volta: o comando + os checkboxes, nada mais.
+
+**Why:** ele precisa do checklist toda entrega e cansou de pedir; sem o comando de checkout + os checkboxes ele não consegue puxar e validar rápido. Uma resposta de "9 frases" NÃO é checklist — checkbox é checkbox.
+
+**How to apply:** terminou algo que depende da validação dele → antes de responder, montar o bloco (comando + `- [ ]`), colar no chat e mandar `gh issue comment` com o mesmo. Se não precisa de validação dele (pergunta, diagnóstico, WIP), não força checklist.
+
 ## LEI ZERO — PERGUNTA CURTA E OBJETIVA, SEMPRE
 
 **PROIBIDO pergunta confusa ou com textão.** Pergunta = uma coisa, mínimo de palavras, direto. Sem contexto longo, sem opções aninhadas, sem explicação antes. Se não cabe em uma linha, corta. Confundir o usuário com pergunta enorme é falha grave.
@@ -110,7 +124,7 @@ Feature nova **não justifica** regressão. Trade-off → discutir antes.
 
 **Mudanças.** Nunca reverter commit nem apagar arquivo que o agente criou/editou (refazer por cima sim); verificar git antes de restaurar; nunca reescrever do zero. Delete só o escopo literal pedido — nunca expandir. Proibido script regex/sed pra migrar conteúdo — análise caso a caso.
 
-**Git / gitflow** (detalhe em `docs/development/gitflow.md`). PR e merge só com pedido explícito — o trabalho termina no push. Branch `{tipo}/issue-N` (zero sufixo) a partir de develop atualizado + merge develop antes. `.solvers/issue-N/` é exclusivo do agente; pasta principal é exclusiva do usuário (agente nunca faz git lá). Stage paths explícitos — NUNCA `git add -A` no `.solvers`. Push direto após cada commit. **Quality gate compartilhado roda só na criação do PR (o CI roda no PR); NUNCA rodar o gate por push.** Após CADA push: `gh issue comment` (hash + arquivos + build/teste) e incluir o bloco `git checkout feature/issue-N && git pull` na resposta. Antes de fechar issue, atribuir milestone (close not-planned/duplicate/superseded NÃO leva milestone). Checar `docs/superpowers/specs/` + `gh issue list` antes de planejar. Não proliferar issues (cada uma vira branch+workspace de GBs). `@claude` no GitHub: seguir o template de premissas obrigatórias. **Limpeza de `.solvers/issue-N/` só com a issue FECHADA (#568)** — `rm -rf` é destrutivo: leva qualquer WIP não-commitado junto, e o WIP não volta do remote. Confirmar com `gh issue view N --json state` antes de apagar; issue OPEN = off-limits mesmo com pedido genérico tipo "limpa o solver / limpa o lixo / lima o solver".
+**Git / gitflow** (detalhe em `docs/development/gitflow.md`). PR e merge só com pedido explícito — o trabalho termina no push. Branch `{tipo}/issue-N` (zero sufixo) a partir de develop atualizado + merge develop antes. `.solvers/issue-N/` é exclusivo do agente; pasta principal é exclusiva do usuário (agente nunca faz git lá). Stage paths explícitos — NUNCA `git add -A` no `.solvers`. Push direto após cada commit. **Quality gate compartilhado roda só na criação do PR (o CI roda no PR); NUNCA rodar o gate por push.** Após CADA push: `gh issue comment` (hash + arquivos + build/teste). **Se a entrega precisa da validação do usuário, o comentário E a resposta no chat levam o CHECKLIST de validação — ver a LEI ZERO "CHECKLIST DE VALIDAÇÃO SEMPRE" (comando `git fetch && git checkout {tipo}/issue-N && git pull` + itens `- [ ]`).** Antes de fechar issue, atribuir milestone (close not-planned/duplicate/superseded NÃO leva milestone). Checar `docs/superpowers/specs/` + `gh issue list` antes de planejar. Não proliferar issues (cada uma vira branch+workspace de GBs). `@claude` no GitHub: seguir o template de premissas obrigatórias. **Limpeza de `.solvers/issue-N/` só com a issue FECHADA (#568)** — `rm -rf` é destrutivo: leva qualquer WIP não-commitado junto, e o WIP não volta do remote. Confirmar com `gh issue view N --json state` antes de apagar; issue OPEN = off-limits mesmo com pedido genérico tipo "limpa o solver / limpa o lixo / lima o solver".
 
 **UI/Slint.** **OBRIGATÓRIO antes de qualquer trabalho de tela/layout (`.slint`, posicionamento, espaçamento, hierarquia, componente visual): invocar `ui-ux-pro-max` (design/UX) + `slint:slint` + `slint-best-practices`. PROIBIDO supor/inventar layout — RENDERIZE com `tools/slint-render` (PNG headless via slint-interpreter; ver LEI do `openrig-code-quality`) e confira o PNG ANTES de dizer "pronto"; depois feche o visual em loop curto com o usuário.** Nunca glifo como ícone (vira tofu no Orange Pi) — sempre SVG via `@image-url` + colorize. Bebas Neue é a fonte default por escolha — não propor trocar. Manter consistência visual cross-screen.
 
