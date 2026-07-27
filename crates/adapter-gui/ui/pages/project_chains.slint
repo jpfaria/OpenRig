@@ -5,6 +5,7 @@ import { ChainRow } from "./chain_row.slint";
 import { BlockEditorPanel } from "./block_editor_panel.slint";
 import { HeaderIconAction } from "../components/chain_chips.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
+import { MetronomeBridge } from "../components/metronome_globals.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -166,6 +167,9 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 160px;
             y: 14px;
             icon: @image-url("../assets/metronome.svg");
+            // Lit while the click is playing, so a closed metronome is still
+            // visibly running from the top bar.
+            active: MetronomeBridge.metronome-enabled;
             tooltip: @tr("tooltip-metronome");
             clicked => { root.open-metronome-window(); }
         }
