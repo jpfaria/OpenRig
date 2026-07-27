@@ -22,6 +22,8 @@ Só estende a resposta quando o usuário pedir explicitamente ("explica em detal
 
 Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. Se não couber em 2 frases é diagnóstico — vai pra issue.
 
+**Reforço (2026-07-27):** o usuário NÃO LÊ texto longo. Explicação técnica de arquitetura/fatias/trade-off no chat = falha — ele para de ler e a decisão se perde. Mesmo quando o trabalho foi grande, o resumo no chat é 1–2 frases + a pergunta/decisão; o detalhe vai pra issue. Nunca justificar tamanho de resposta com "o trabalho foi complexo".
+
 ## LEI ZERO — PERGUNTA CURTA E OBJETIVA, SEMPRE
 
 **PROIBIDO pergunta confusa ou com textão.** Pergunta = uma coisa, mínimo de palavras, direto. Sem contexto longo, sem opções aninhadas, sem explicação antes. Se não cabe em uma linha, corta. Confundir o usuário com pergunta enorme é falha grave.
