@@ -26,7 +26,6 @@ use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
-use crate::metronome_close::metronome_close_commands;
 use crate::metronome_controls_wiring::{refresh_metronome_outputs, wire_controls, wire_output_select};
 use crate::metronome_events::{dispatch, render_settings};
 use crate::metronome_session::{resolve_output_endpoint, MetronomeOutput, MetronomeSession};
@@ -126,10 +125,16 @@ fn wire_open(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &Metro
         let Some(main_w) = main_window_weak.upgrade() else {
             return;
         };
-        // Open in the resting state, like the tuner: the persisted settings are
-        // on screen but the click is off until the user presses POWER.
+        // Show the CURRENT state: the persisted settings, and POWER reflecting
+        // whether the click is actually playing — closing the window only hides
+        // it (the click keeps going), so reopening must not look stopped.
         render_settings(&ctx);
-        set_power_display(&ctx, false);
+        let playing = ctx
+            .project_runtime
+            .borrow()
+            .as_ref()
+            .is_some_and(|rt| rt.metronome_shared().enabled());
+        set_power_display(&ctx, playing);
 
         if use_inline_block_editor(&main_w) {
             // Fullscreen / touch: the inline panel is gated by the global.
@@ -142,8 +147,8 @@ fn wire_open(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &Metro
 
 fn wire_close(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &MetronomeCtx) {
     // The panel's close button lives on the bridge; the standalone window can
-    // also be closed via the OS chrome. Wire BOTH so neither path leaves the
-    // click playing to a hidden surface (#544's lesson).
+    // also be closed via the OS chrome. Wire BOTH so either path hides the
+    // surface — the click keeps playing regardless (only POWER stops it).
     for bridge in [
         MetronomeBridge::get(metronome_window),
         MetronomeBridge::get(window),
@@ -160,16 +165,12 @@ fn wire_close(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &Metr
     }
 }
 
+/// Closing the metronome only HIDES it — the click keeps playing, and only
+/// POWER stops it. So a player can start the click, close the window, and keep
+/// working in the chains screen with the tempo still going.
 fn close_metronome(ctx: &MetronomeCtx) {
-    for cmd in metronome_close_commands() {
-        dispatch(ctx, cmd);
-    }
-    // Defense in depth: with no project session open the dispatch above is a
-    // no-op, so stop the stream here too rather than trust the event path.
-    stop_click(ctx);
-    set_power_display(ctx, false);
     // Hide whichever surface was showing: the inline panel (clear `show`) and
-    // the standalone window (hide it).
+    // the standalone window (hide it). Do NOT stop the click or the timer.
     if let Some(aw) = ctx.main_window.upgrade() {
         MetronomeBridge::get(&aw).set_show(false);
     }
