@@ -865,6 +865,12 @@ export component AppWindow inherits Window {
         loopers: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
             ? root.project-chains[LooperPanel.chain-index].loopers
             : [];
+        input-options: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
+            ? root.project-chains[LooperPanel.chain-index].looper_input_options
+            : [];
+        output-options: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
+            ? root.project-chains[LooperPanel.chain-index].looper_output_options
+            : [];
         add(ci) => { root.looper-add(ci); }
         record(ci, uid) => { root.looper-record(ci, uid); }
         play-stop(ci, uid) => { root.looper-play-stop(ci, uid); }

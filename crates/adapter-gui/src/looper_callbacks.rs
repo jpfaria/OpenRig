@@ -74,30 +74,26 @@ fn dispatch_and_apply(
     index: i32,
     cmd: Command,
 ) {
-    eprintln!("[looper-probe] dispatch {cmd:?} (chain index {index})");
+    // #323/#808: the looper is independent of the chain being enabled — like
+    // the DI loop, it needs a runtime to record/play even when no chain is
+    // started. Create one on demand (no-op when it already exists); this also
+    // restores the chain's loopers into fresh runtimes.
+    if let Err(e) = crate::runtime_lifecycle::ensure_runtime(runtime, session) {
+        log::warn!("looper: could not start a runtime: {e}");
+    }
     match session.dispatcher.dispatch(cmd) {
         Ok(events) => {
             {
                 let runtime_borrow = runtime.borrow();
-                match runtime_borrow.as_ref() {
-                    Some(controller) => {
-                        for event in &events {
-                            eprintln!(
-                                "[looper-probe] apply {event:?} — runtimes={}",
-                                event
-                                    .chain()
-                                    .map(|c| controller.runtimes_for_chain(c).len())
-                                    .unwrap_or(0)
-                            );
-                            apply_looper_event(controller, event);
-                        }
+                if let Some(controller) = runtime_borrow.as_ref() {
+                    for event in &events {
+                        apply_looper_event(controller, event);
                     }
-                    None => eprintln!("[looper-probe] NO controller — chain not started"),
                 }
             }
             refresh_row(session, runtime, chains, index);
         }
-        Err(err) => eprintln!("[looper-probe] looper command failed: {err}"),
+        Err(err) => log::warn!("looper command failed: {err}"),
     }
 }
 

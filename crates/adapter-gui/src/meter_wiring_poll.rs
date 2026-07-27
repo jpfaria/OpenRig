@@ -292,6 +292,22 @@ fn refresh_chain_meter_row(
         let current: Vec<crate::LooperItem> = row.loopers.iter().collect();
         current != looper_rows
     };
+    // #323: refresh the looper's Record-from / Play-to endpoint options from the
+    // LIVE bindings (they are empty at load time before the registry is set —
+    // that is the "GRAVAR DE / TOCAR EM" empty-list bug).
+    let (looper_inputs, looper_outputs) = project::binding_discovery::chain_endpoint_labels(
+        &project.chains[idx],
+        &session.io_bindings.borrow(),
+    );
+    let looper_input_opts_changed = {
+        let current: Vec<String> = row.looper_input_options.iter().map(|s| s.to_string()).collect();
+        current != looper_inputs
+    };
+    let looper_output_opts_changed = {
+        let current: Vec<String> =
+            row.looper_output_options.iter().map(|s| s.to_string()).collect();
+        current != looper_outputs
+    };
     // Layer buffers the audio thread finished with come back here — dropping
     // them is forbidden on the audio thread (invariant #8).
     controller.drain_chain_looper_layers(cid);
@@ -304,8 +320,26 @@ fn refresh_chain_meter_row(
         row.loopers = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(looper_rows)));
         row.looper_active = looper_active_now;
     }
+    if looper_input_opts_changed {
+        row.looper_input_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+            looper_inputs
+                .into_iter()
+                .map(slint::SharedString::from)
+                .collect::<Vec<_>>(),
+        )));
+    }
+    if looper_output_opts_changed {
+        row.looper_output_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+            looper_outputs
+                .into_iter()
+                .map(slint::SharedString::from)
+                .collect::<Vec<_>>(),
+        )));
+    }
     if loopers_changed
         || looper_active_changed
+        || looper_input_opts_changed
+        || looper_output_opts_changed
         || aggregate_changed
         || stream_meters_changed
         || di_changed

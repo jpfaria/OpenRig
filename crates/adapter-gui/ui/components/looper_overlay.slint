@@ -12,6 +12,10 @@ export component LooperOverlay inherits Rectangle {
     // Fed from the host's live chain model, so the panel keeps updating while
     // it is open (the meter timer refreshes those rows ~15×/s).
     in property <[LooperItem]> loopers;
+    // Live too — the endpoint options are empty at load and fill in once the
+    // meter timer resolves the chain's bindings.
+    in property <[string]> input-options;
+    in property <[string]> output-options;
     callback add(int);
     callback record(int, int);
     callback play-stop(int, int);
@@ -35,8 +39,8 @@ export component LooperOverlay inherits Rectangle {
         y: LooperPanel.y;
         loopers: root.loopers;
         expanded-uid: LooperPanel.expanded-uid;
-        input-options: LooperPanel.input-options;
-        output-options: LooperPanel.output-options;
+        input-options: root.input-options;
+        output-options: root.output-options;
         add => { root.add(LooperPanel.chain-index); }
         record(uid) => { root.record(LooperPanel.chain-index, uid); }
         play-stop(uid) => { root.play-stop(LooperPanel.chain-index, uid); }
