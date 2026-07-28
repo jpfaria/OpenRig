@@ -139,16 +139,6 @@ pub fn apply_looper_endpoints_to_rows(
         };
         let (inputs, outputs) =
             project::binding_discovery::chain_endpoint_labels(chain, registry);
-        {
-            let di = crate::di_output_options::build_di_output_options(chain, registry);
-            eprintln!(
-                "[out-probe] chain={} looper_out={:?} looper_in={:?} DI_out={:?}",
-                chain.id.0,
-                outputs,
-                inputs,
-                di.iter().map(|o| &o.label).collect::<Vec<_>>()
-            );
-        }
         let cur_in: Vec<String> = row.looper_input_options.iter().map(|s| s.to_string()).collect();
         let cur_out: Vec<String> =
             row.looper_output_options.iter().map(|s| s.to_string()).collect();
