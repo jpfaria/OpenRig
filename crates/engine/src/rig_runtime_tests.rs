@@ -88,6 +88,7 @@ pub(super) fn input(binding_id: &str, bank: &[(usize, &str)], active: usize) -> 
         io: String::new(),
         endpoint: String::new(),
         io_binding_ids: vec![binding_id.to_string()],
+        loopers: Vec::new(),
     }
 }
 
@@ -121,6 +122,30 @@ fn bridge_one_input_input_fx_output() {
     assert_eq!(outputs.len(), 1);
     assert_eq!(outputs[0].device_id, DeviceId("sc".into()));
     assert_eq!(outputs[0].channels, vec![0, 1]);
+}
+
+#[test]
+fn bridge_projects_rig_input_loopers_onto_the_chain() {
+    // #323: the projected synthetic chain is rebuilt from the rig on every
+    // open, so a loop persisted on the RigInput must reappear on the chain
+    // — otherwise a reopened project loses every looper.
+    let mut ri = input("io1", &[(1, "clean")], 1);
+    ri.loopers = vec![project::chain::LooperConfig {
+        audio_file: Some("input-1.7.wav".into()),
+        ..project::chain::LooperConfig::new(7)
+    }];
+    let r = rig(vec![("input-1", ri)], vec![("clean", vec![fx("d")])]);
+
+    let chains = rig_to_chains(&r);
+
+    assert_eq!(
+        chains[0].loopers,
+        vec![project::chain::LooperConfig {
+            audio_file: Some("input-1.7.wav".into()),
+            ..project::chain::LooperConfig::new(7)
+        }],
+        "the rig input's looper must project onto the synthetic chain"
+    );
 }
 
 #[test]

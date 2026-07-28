@@ -39,6 +39,7 @@ fn rig() -> RigProject {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: vec!["io1".to_string()],
+            loopers: Vec::new(),
         },
     );
     RigProject {

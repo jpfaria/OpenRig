@@ -96,6 +96,7 @@ fn rig_with_presets_and_scenes() -> RigProject {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     RigProject {

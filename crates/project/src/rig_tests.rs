@@ -40,6 +40,7 @@ pub(super) fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
         io: String::new(),
         endpoint: String::new(),
         io_binding_ids: Vec::new(),
+        loopers: Vec::new(),
     }
 }
 

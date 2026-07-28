@@ -125,6 +125,7 @@ fn rig_with(input_label: Option<&str>, preset_name: Option<&str>) -> RigProject 
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     RigProject {
