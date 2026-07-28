@@ -52,6 +52,7 @@ fn item(uid: i32, state_code: i32) -> LooperItem {
         reverse: false,
         can_undo: true,
         can_redo: true,
+        can_record: true,
         input_index: 0,
         output_index: 0,
     }
@@ -160,6 +161,31 @@ fn a_disabled_button_does_not_fire() {
         fired.get(),
         0,
         "play / clear / undo are disabled on an empty looper and must not fire"
+    );
+}
+
+#[test]
+fn rec_is_disabled_when_the_chain_is_off() {
+    i_slint_backend_testing::init_no_event_loop();
+    // The chain is not running, so its runtime cannot capture — REC must be a
+    // dead target ("REC só fica ativo se a chain tiver ligada"). Play/undo/etc.
+    // are unaffected; only REC gates on `can_record`.
+    let mut off = item(9, 2);
+    off.can_record = false;
+    let w = harness(vec![off]);
+
+    let recorded = Rc::new(Cell::new(0));
+    let r = recorded.clone();
+    w.on_record(move |_| r.set(r.get() + 1));
+    w.show().unwrap();
+
+    click_id(&w, "LooperRow::rec-btn", 0);
+
+    assert_eq!(
+        recorded.get(),
+        0,
+        "REC must not fire while the chain is off — recording needs the chain \
+         running to capture the live input"
     );
 }
 

@@ -58,6 +58,9 @@ export component LooperRow inherits Rectangle {
         label: @tr("looper-record");
         tint: root.recording ? #ffffff : #ff5f6d;
         active-background: root.recording ? #ff5f6d : transparent;
+        // REC only arms while the chain is running — recording captures the
+        // live input through the chain's runtime, which exists only then.
+        is-enabled: root.looper.can_record;
         clicked => { root.record(); }
     }
 

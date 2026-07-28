@@ -52,6 +52,30 @@ fn a_looper_with_no_runtime_row_renders_as_empty() {
 }
 
 #[test]
+fn rec_is_offered_only_while_the_chain_is_enabled() {
+    // REC captures the live input through the chain's runtime, which exists
+    // only while the chain runs — so the row offers REC iff the chain is on.
+    let mut chain = chain_with(vec![LooperConfig::new(1)]);
+
+    chain.enabled = true;
+    assert!(
+        looper_items(&chain, &[], 48_000, &[])[0].can_record,
+        "a running chain offers REC"
+    );
+
+    chain.enabled = false;
+    assert!(
+        !looper_items(&chain, &[], 48_000, &[])[0].can_record,
+        "a stopped chain must not offer REC — recording has no runtime to capture into"
+    );
+    // The config-only (project-open) path must gate the same way.
+    assert!(
+        !looper_items_from_config(&chain, &[])[0].can_record,
+        "the offline row gates REC on enabled too"
+    );
+}
+
+#[test]
 fn live_state_progress_and_time_come_from_the_runtime_at_the_live_rate() {
     let chain = chain_with(vec![LooperConfig::new(1)]);
     let rows = looper_items(

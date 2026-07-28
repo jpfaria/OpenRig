@@ -95,6 +95,11 @@ export struct LooperItem {
     /// Whether an undo / redo would do anything right now.
     can_undo: bool,
     can_redo: bool,
+    /// #323: whether REC may be armed — true only while the chain is running
+    /// (enabled). Recording captures the live input through the chain's
+    /// runtime, which exists only when the chain is on; the transport's REC
+    /// button is disabled otherwise so it is not a dead press.
+    can_record: bool,
     /// Index into the chain's input endpoints of the input this looper records
     /// from (0 = first input). The option labels live on the LooperPanel global.
     input_index: int,

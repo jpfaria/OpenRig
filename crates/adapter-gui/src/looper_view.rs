@@ -81,6 +81,12 @@ pub fn looper_items_with_recorded(
                 reverse: cfg.reverse,
                 can_undo: layers > 0,
                 can_redo: total > layers,
+                // REC captures the live input through the chain's runtime,
+                // which exists only while the chain is running — so recording
+                // is offered only when the chain is enabled (the user's rule:
+                // "REC só fica ativo se a chain tiver ligada"). Play/undo/etc.
+                // act on already-recorded material and stay independent of it.
+                can_record: chain.enabled,
                 input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
                 output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
             }
