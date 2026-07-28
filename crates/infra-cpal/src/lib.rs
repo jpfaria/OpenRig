@@ -80,6 +80,7 @@ mod device_enum;
 mod di_playback;
 mod di_stream;
 mod di_stream_worker;
+pub mod looper_store;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_enum::jack_is_running;
 pub use device_enum::{
