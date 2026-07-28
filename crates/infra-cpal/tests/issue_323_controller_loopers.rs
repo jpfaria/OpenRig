@@ -295,6 +295,58 @@ fn a_playing_looper_arms_an_isolated_stream_and_stop_disarms_it() {
     );
 }
 
+/// A looper the project carries but whose runtime has NO slot for it (the
+/// `Create` was issued while the runtime was not live, or a rebuild replaced
+/// the runtime) records nothing: the tap lands on a runtime that does not hold
+/// the looper. `sync_looper_slots` must repair that so REC works after the
+/// runtime comes up — the "activated the chain, pressed REC, nothing recorded"
+/// intermittency.
+#[test]
+fn sync_looper_slots_creates_project_loopers_missing_from_the_runtime() {
+    // A chain that carries a looper in its config, with a live runtime that was
+    // never told about it (no Create reached it).
+    let (chain, registry) = chain_and_registry("looper-slot-sync");
+    let mut chain = chain;
+    chain.loopers = vec![project::chain::LooperConfig::new(UID)];
+    let mut chains = HashMap::new();
+    chains.insert(
+        (chain.id.clone(), 0usize),
+        Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &registry).expect("runtime")),
+    );
+    let mut controller =
+        ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, 48_000);
+    controller.set_io_bindings(registry);
+
+    // Precondition (the bug): the runtime has no slot, so REC would capture
+    // nothing.
+    assert!(
+        controller.chain_looper_status(&chain.id, UID).is_none(),
+        "precondition: the runtime does not hold the project's looper yet"
+    );
+
+    controller.sync_looper_slots(&chain);
+    tick(&controller, &chain.id, 0.0);
+
+    assert!(
+        controller.chain_looper_status(&chain.id, UID).is_some(),
+        "the reconcile must create the project's looper in the live runtime"
+    );
+
+    // And now recording actually captures.
+    controller.push_chain_looper_op(&chain.id, |rt| {
+        Some(LooperOp::TapRecord {
+            uid: UID,
+            buffer: Some(vec![0.5f32; rt.looper_max_frames() * 2].into_boxed_slice()),
+        })
+    });
+    tick(&controller, &chain.id, 0.5);
+    assert_eq!(
+        controller.chain_looper_status(&chain.id, UID).unwrap().state,
+        LooperState::Recording,
+        "with the slot present, REC records"
+    );
+}
+
 /// Removing a looper must stop its isolated playback. The user deletes a
 /// looper (the × button) but the loop keeps sounding: the command drops the
 /// looper from `chain.loopers`, and the reconciler only visits the loopers

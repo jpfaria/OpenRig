@@ -16,7 +16,7 @@ use std::sync::Arc;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 use engine::{DiPcm, LooperOp, LooperState, LooperStatus};
-use project::binding_discovery::resolve_output_segment;
+use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
 use project::chain::Chain;
 
 use crate::controller::ProjectRuntimeController;
@@ -110,6 +110,30 @@ impl ProjectRuntimeController {
         self.runtimes_for_chain(chain_id)
             .iter()
             .find_map(|rt| rt.export_looper(uid))
+    }
+
+    /// #323: make sure every looper the PROJECT carries has a live slot in the
+    /// chain's current runtime(s).
+    ///
+    /// Looper slots live inside the `ChainRuntimeState`, which is created and
+    /// rebuilt asynchronously — on cold-start activation and on every enable
+    /// toggle. A `Create` issued while the runtime was not live, or a rebuild
+    /// that replaced the runtime, leaves the project's looper with NO slot in
+    /// the runtime that is now processing audio; the record tap then lands on a
+    /// runtime that does not hold the looper and nothing is captured ("I press
+    /// REC and nothing records — sometimes"). Re-issuing `Create` for a looper
+    /// the runtime is missing repairs that. `Create` is idempotent: for a slot
+    /// that already exists it only re-sets the input segment (keeps the recorded
+    /// material); it claims + clears only a genuinely fresh slot.
+    pub fn sync_looper_slots(&self, chain: &Chain) {
+        for cfg in &chain.loopers {
+            let uid = cfg.uid;
+            if self.chain_looper_status(&chain.id, uid).is_some() {
+                continue; // already present in the live runtime(s)
+            }
+            let seg = resolve_input_segment(chain, &self.io_bindings, cfg.input.as_ref());
+            self.push_chain_looper_op(&chain.id, |_| Some(LooperOp::Create { uid, seg }));
+        }
     }
 
     /// #323: reconcile each looper's ISOLATED playback stream with its recorded

@@ -308,6 +308,10 @@ fn refresh_chain_meter_row(
     // Layer buffers the audio thread finished with come back here — dropping
     // them is forbidden on the audio thread (invariant #8).
     controller.drain_chain_looper_layers(cid);
+    // #323: make sure every looper the project carries has a live slot in the
+    // current runtime — repairs slots lost to an async activation or an enable
+    // toggle that rebuilt the runtime, so REC works once the chain is up.
+    controller.sync_looper_slots(&project.chains[idx]);
     // #323: reconcile each looper's isolated playback stream with its recorded
     // state — arms/disarms on the chosen output as the loop is closed, edited
     // or stopped (re-arm only fires when the take actually changed).
