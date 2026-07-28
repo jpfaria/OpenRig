@@ -63,6 +63,53 @@ fn drain_recording_captures_dry_samples_from_the_tap_ring() {
     );
 }
 
+fn block(id: &str) -> AudioBlock {
+    use project::block::{AudioBlockKind, CoreBlock};
+    AudioBlock {
+        id: domain::ids::BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: "gain".into(),
+            model: "clean".into(),
+            params: project::param::ParameterSet::default(),
+        }),
+    }
+}
+
+#[test]
+fn playback_blocks_store_and_bump_rev_only_on_real_change() {
+    // #323 phase 2: the loop's linked-preset blocks live in the store so the
+    // controller stays preset-agnostic. The re-arm generation must bump when
+    // the blocks change (preset edited/reassigned) and stay put on an
+    // idempotent tick, so a steady loop never respawns its render.
+    let mut store = LooperStore::default();
+    store.create(&cid(), 1);
+    assert!(store.playback_blocks(&cid(), 1).is_none());
+    assert_eq!(store.playback_rev(&cid(), 1), 0);
+
+    store.set_playback_blocks(&cid(), 1, Some(vec![block("a")]));
+    let rev1 = store.playback_rev(&cid(), 1);
+    assert_eq!(rev1, 1, "installing blocks bumps the generation");
+    assert_eq!(store.playback_blocks(&cid(), 1).unwrap().len(), 1);
+
+    // Same blocks again — idempotent, no bump.
+    store.set_playback_blocks(&cid(), 1, Some(vec![block("a")]));
+    assert_eq!(
+        store.playback_rev(&cid(), 1),
+        rev1,
+        "an unchanged tick must not respawn the render"
+    );
+
+    // Different blocks — a real change bumps.
+    store.set_playback_blocks(&cid(), 1, Some(vec![block("b")]));
+    assert_eq!(store.playback_rev(&cid(), 1), rev1 + 1);
+
+    // Clearing back to the chain's own blocks also counts as a change.
+    store.set_playback_blocks(&cid(), 1, None);
+    assert_eq!(store.playback_rev(&cid(), 1), rev1 + 2);
+    assert!(store.playback_blocks(&cid(), 1).is_none());
+}
+
 #[test]
 fn each_loop_is_isolated_and_carries_its_routing() {
     let mut store = LooperStore::default();

@@ -147,6 +147,14 @@ pub struct LooperConfig {
     /// to. `None` ⇒ the chain's main output.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output: Option<EndpointRef>,
+    /// #323 phase 2: id of the preset whose effects this loop plays through.
+    /// The loop records DRY (clean) and carries a reference to WHICH preset
+    /// renders it, so switching the chain's live preset to solo does not
+    /// change the loop's tone. Linked to the chain's active preset on RECORD
+    /// and reassignable via the drawer's picker. `None` ⇒ the chain's current
+    /// preset (the pre-phase-2 behaviour and legacy projects).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<String>,
 }
 
 fn default_looper_mix() -> f32 {
@@ -169,6 +177,7 @@ impl LooperConfig {
             audio_file: None,
             input: None,
             output: None,
+            preset: None,
         }
     }
 }

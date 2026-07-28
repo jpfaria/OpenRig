@@ -91,6 +91,7 @@ fn persisted_looper_parameters_reach_the_row() {
                 audio_file: Some("loop.wav".into()),
                 input: None,
                 output: None,
+                preset: None,
             }],
         )],
         midi: None,

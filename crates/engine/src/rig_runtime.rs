@@ -179,6 +179,27 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
     chains
 }
 
+/// #323 phase 2: the processing blocks a loop LINKED to `preset_id` plays
+/// through, resolved against `rig`. Mirrors [`rig_to_chains`]'s block build for
+/// one input: the linked preset's blocks with the input's active scene applied,
+/// and — for a binding-bound input (#716) — the synthesized I/O stripped, since
+/// the isolated playback stream resolves I/O from the chain's bindings, not from
+/// blocks. `None` when the input or the linked preset no longer exists (a
+/// deleted preset ⇒ the caller falls back to the chain's current blocks).
+pub fn looper_playback_blocks(
+    rig: &RigProject,
+    input_name: &str,
+    preset_id: &str,
+) -> Option<Vec<AudioBlock>> {
+    let input = rig.inputs.get(input_name)?;
+    let preset = rig.presets.get(preset_id)?;
+    let mut blocks = preset.apply_scene(input.active_scene);
+    if !input.io_binding_ids.is_empty() {
+        blocks.retain(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
+    }
+    Some(blocks)
+}
+
 /// Build the iteration order for [`rig_to_chains`]: honour
 /// `rig.chain_order` first (filtering to names that actually exist in
 /// `rig.inputs`, dropping duplicates), then append any remaining inputs

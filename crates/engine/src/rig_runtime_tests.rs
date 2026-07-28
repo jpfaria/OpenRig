@@ -149,6 +149,27 @@ fn bridge_projects_rig_input_loopers_onto_the_chain() {
 }
 
 #[test]
+fn looper_playback_blocks_resolve_the_linked_preset_stripped_of_io() {
+    // #323 phase 2: a loop linked to "lead" plays through LEAD's effects even
+    // while the input is showing "clean" — the whole point of recording dry and
+    // referencing a preset. A bound input strips synthesized I/O so the isolated
+    // stream routes from the chain's bindings, not from blocks.
+    let r = rig(
+        vec![("input-1", input("io1", &[(1, "clean"), (2, "lead")], 1))],
+        vec![("clean", vec![fx("clean-fx")]), ("lead", vec![fx("lead-fx")])],
+    );
+
+    let blocks = super::looper_playback_blocks(&r, "input-1", "lead")
+        .expect("the linked preset resolves");
+    let ids: Vec<_> = blocks.iter().map(|b| b.id.0.clone()).collect();
+    assert_eq!(ids, vec!["lead-fx"], "plays LEAD, not the active CLEAN preset");
+
+    // A deleted / unknown preset falls back (None ⇒ chain's current blocks).
+    assert!(super::looper_playback_blocks(&r, "input-1", "gone").is_none());
+    assert!(super::looper_playback_blocks(&r, "no-input", "lead").is_none());
+}
+
+#[test]
 fn bridge_distinct_chain_ids_isolation() {
     let r = rig(
         vec![

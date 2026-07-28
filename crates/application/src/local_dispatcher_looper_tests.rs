@@ -199,6 +199,40 @@ fn params_are_persisted_on_the_chain() {
 }
 
 #[test]
+fn linking_a_looper_to_a_preset_persists_on_the_chain() {
+    // #323 phase 2: RECORD links the loop to the chain's active preset and the
+    // drawer picker reassigns it. The id must land on the chain's LooperConfig
+    // (and survive save via the rig loopers path).
+    let (d, project) = dispatcher_with_chain("c1");
+    let chain = ChainId("c1".into());
+    d.dispatch(Command::AddChainLooper {
+        chain: chain.clone(),
+    })
+    .unwrap();
+    let uid = looper_uids(&project, &chain)[0];
+
+    d.dispatch(Command::SetChainLooperPreset {
+        chain: chain.clone(),
+        looper: uid,
+        preset: Some("lead".into()),
+    })
+    .expect("linking the preset succeeds");
+    assert_eq!(
+        project.borrow().chains[0].loopers[0].preset.as_deref(),
+        Some("lead")
+    );
+
+    // Reassigning to None restores playing through the chain's current preset.
+    d.dispatch(Command::SetChainLooperPreset {
+        chain: chain.clone(),
+        looper: uid,
+        preset: None,
+    })
+    .expect("clearing the link succeeds");
+    assert!(project.borrow().chains[0].loopers[0].preset.is_none());
+}
+
+#[test]
 fn mix_and_decay_are_clamped_to_the_audible_range() {
     let (d, project) = dispatcher_with_chain("c1");
     let chain = ChainId("c1".into());

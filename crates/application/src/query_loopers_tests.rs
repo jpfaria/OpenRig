@@ -22,6 +22,7 @@ fn chain() -> Chain {
             audio_file: None,
             input: None,
             output: None,
+            preset: None,
         }],
     }
 }

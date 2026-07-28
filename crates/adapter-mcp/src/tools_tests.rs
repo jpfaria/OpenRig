@@ -43,7 +43,9 @@ use application::command_schema::command_variant_names;
 /// a recorded loop was saved into.
 /// #323 bumped to 80 with `SetChainLooperInput` / `SetChainLooperOutput` —
 /// the looper's chosen record input and playback output endpoints.
-const COMMAND_VARIANT_COUNT: usize = 80;
+/// #323 bumped to 81 with `SetChainLooperPreset` — links a loop to the preset
+/// whose effects render it (phase 2: record dry, play through a fixed tone).
+const COMMAND_VARIANT_COUNT: usize = 81;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

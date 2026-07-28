@@ -17,6 +17,7 @@ use std::sync::Arc;
 use domain::ids::ChainId;
 use engine::spsc::SpscRing;
 use engine::{LooperSlot, LooperSpeed, LooperState, LooperStatus, LOOPER_MAX_SECONDS};
+use project::block::AudioBlock;
 use project::chain::EndpointRef;
 
 /// One looper's state plus the routing it records from / plays to.
@@ -29,6 +30,15 @@ struct LoopEntry {
     /// Task 2: the input-tap rings this loop drains while Recording (one per
     /// captured channel). Empty when not recording.
     rings: Vec<Arc<SpscRing<f32>>>,
+    /// #323 phase 2: the effect blocks the loop plays THROUGH — resolved from
+    /// its linked preset by the adapter and pushed here. `None` = play through
+    /// the chain's current blocks (pre-phase-2 behaviour). The controller stays
+    /// preset-agnostic: it only holds a block graph, never the rig/preset pool.
+    playback_blocks: Option<Vec<AudioBlock>>,
+    /// Bumps whenever `playback_blocks` actually changes, so the isolated
+    /// stream re-arms when the linked preset is edited or reassigned even
+    /// though the recorded loop content is unchanged.
+    playback_rev: u64,
 }
 
 impl LoopEntry {
@@ -38,6 +48,8 @@ impl LoopEntry {
             input: None,
             output: None,
             rings: Vec::new(),
+            playback_blocks: None,
+            playback_rev: 0,
         }
     }
 }
@@ -247,6 +259,39 @@ impl LooperStore {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
             e.output = output;
         }
+    }
+    /// #323 phase 2: the effect blocks the loop plays through (its linked
+    /// preset's blocks), if the adapter has resolved them.
+    pub fn playback_blocks(&self, chain: &ChainId, uid: u64) -> Option<Vec<AudioBlock>> {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .and_then(|e| e.playback_blocks.clone())
+    }
+    /// #323 phase 2: install (or clear) the loop's linked-preset playback
+    /// blocks. `None` restores playing through the chain's current blocks.
+    /// Bumps `playback_rev` only on a real change so a steady loop never
+    /// respawns its render on an idempotent tick.
+    pub fn set_playback_blocks(
+        &mut self,
+        chain: &ChainId,
+        uid: u64,
+        blocks: Option<Vec<AudioBlock>>,
+    ) {
+        if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
+            if e.playback_blocks != blocks {
+                e.playback_blocks = blocks;
+                e.playback_rev = e.playback_rev.wrapping_add(1);
+            }
+        }
+    }
+    /// #323 phase 2: the current playback-blocks generation (see
+    /// [`Self::set_playback_blocks`]); folded into the isolated stream's
+    /// re-arm key so a preset edit takes effect.
+    pub fn playback_rev(&self, chain: &ChainId, uid: u64) -> u64 {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| e.playback_rev)
+            .unwrap_or(0)
     }
 
     /// The published reading of one looper.

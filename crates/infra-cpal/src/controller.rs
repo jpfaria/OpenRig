@@ -127,10 +127,11 @@ pub struct ProjectRuntimeController {
     /// freed on a LATER cycle so the audio callback is never the last owner of a
     /// multi-MB render buffer (invariant #8).
     pub(crate) di_retired: crate::di_playback::DiRetired,
-    /// #323: the loop content `(len_frames, layers)` each looper's isolated
-    /// stream was last armed with, so `sync_looper_streams` re-arms only when
-    /// the recording actually changed — not every meter tick.
-    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (u64, u64)>>,
+    /// #323: the loop content `(len_frames, content_rev, playback_rev)` each
+    /// looper's isolated stream was last armed with, so `sync_looper_streams`
+    /// re-arms only when the recording OR the linked-preset blocks actually
+    /// changed — not every meter tick.
+    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (u64, u64, u64)>>,
     /// #323: controller-owned looper state — the recorded material and transport
     /// of every loop live HERE (reusing `LooperSlot`), off the volatile chain
     /// runtime. Recording drains an input tap into it off the audio thread;

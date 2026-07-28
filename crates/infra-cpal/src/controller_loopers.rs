@@ -22,6 +22,27 @@ use crate::controller::ProjectRuntimeController;
 /// tick never drops recorded samples before the drain runs.
 const RECORD_RING_CAP: usize = 48_000;
 
+/// #323 phase 2: the chain the loop's isolated stream plays through. With a
+/// linked preset the adapter has resolved (`Some(blocks)`), it is the chain
+/// with its processing blocks swapped for the preset's — same id and
+/// `io_binding_ids`, so routing, output resolution and stream isolation
+/// (invariant #4) are untouched and only the tone differs. Without one, the
+/// chain plays through its own current blocks (pre-phase-2 behaviour).
+pub(crate) fn looper_playback_chain(
+    chain: &Chain,
+    linked_blocks: Option<Vec<project::block::AudioBlock>>,
+) -> Chain {
+    let mut c = chain.clone();
+    if let Some(blocks) = linked_blocks {
+        c.blocks = blocks;
+    }
+    c
+}
+
+#[cfg(test)]
+#[path = "controller_loopers_tests.rs"]
+mod tests;
+
 impl ProjectRuntimeController {
     /// Every runtime serving `chain_id`, as the audio threads see them (the live
     /// slot wins over the graph, #672). Still used for the record tap and the DI.
@@ -135,6 +156,20 @@ impl ProjectRuntimeController {
     pub fn looper_set_output(&self, chain_id: &ChainId, uid: u64, output: Option<EndpointRef>) {
         self.looper_store.borrow_mut().set_output(chain_id, uid, output);
     }
+    /// #323 phase 2: install the effect blocks the loop plays through — its
+    /// LINKED preset's blocks, resolved by the adapter (which owns the rig).
+    /// `None` restores playing through the chain's current blocks. Idempotent:
+    /// the store bumps its re-arm generation only on a real change.
+    pub fn looper_set_playback_blocks(
+        &self,
+        chain_id: &ChainId,
+        uid: u64,
+        blocks: Option<Vec<project::block::AudioBlock>>,
+    ) {
+        self.looper_store
+            .borrow_mut()
+            .set_playback_blocks(chain_id, uid, blocks);
+    }
 
     /// Make sure every looper the PROJECT carries has a store entry — so a
     /// looper added by ANY transport (GUI, MCP, MIDI) or loaded from disk is
@@ -236,8 +271,11 @@ impl ProjectRuntimeController {
             };
             // Content moves on any mixdown-altering change (close, overdub,
             // undo/redo, level/decay/reverse) so those take effect via a re-arm;
-            // a steady loop never respawns a render.
-            let content = (status.len_frames as u64, status.content_rev);
+            // a steady loop never respawns a render. The playback-blocks
+            // generation is folded in so editing/reassigning the linked preset
+            // (#323 phase 2) also re-renders the loop through the new tone.
+            let playback_rev = self.looper_store.borrow().playback_rev(&chain.id, uid);
+            let content = (status.len_frames as u64, status.content_rev, playback_rev);
             if self.looper_armed.borrow().get(&key) == Some(&content) {
                 continue;
             }
@@ -247,7 +285,16 @@ impl ProjectRuntimeController {
             };
             let output_index = resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
             let pcm = Arc::new(DiPcm::new(samples, self.sample_rate, 2));
-            if self.arm_looper_stream(chain, uid, output_index, pcm).is_ok() {
+            // #323 phase 2: play through the loop's LINKED preset when the
+            // adapter has resolved its blocks — a routed copy of the chain with
+            // its processing swapped, same id/I/O so isolation is unchanged
+            // (invariant #4). No linked preset ⇒ the chain's current blocks.
+            let linked = self.looper_store.borrow().playback_blocks(&chain.id, uid);
+            let playback_chain = looper_playback_chain(chain, linked);
+            if self
+                .arm_looper_stream(&playback_chain, uid, output_index, pcm)
+                .is_ok()
+            {
                 self.looper_armed.borrow_mut().insert(key, content);
             }
         }

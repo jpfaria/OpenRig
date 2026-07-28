@@ -138,6 +138,15 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperOutputChanged { chain, looper }])
             }
 
+            Command::SetChainLooperPreset {
+                chain,
+                looper,
+                preset,
+            } => {
+                self.with_looper(&chain, looper, |cfg| cfg.preset = preset)?;
+                Ok(vec![Event::ChainLooperPresetChanged { chain, looper }])
+            }
+
             other => unreachable!("handle_looper received a non-looper command: {other:?}"),
         }
     }

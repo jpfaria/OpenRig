@@ -345,6 +345,16 @@ pub(crate) fn strip_io_blocks(blocks: Vec<AudioBlock>) -> Vec<AudioBlock> {
 /// Returns `None` for chains that are not projected from a rig input
 /// (i.e. no `rig:` prefix, or the input/preset is missing) — the
 /// caller decides the fallback (typically the chain's own slug).
+/// #323 phase 2: the id (bank key) of the preset a rig chain is currently
+/// playing — what RECORD links a fresh loop to, so the loop keeps that tone
+/// even after the chain switches preset to solo. `None` for a non-rig chain or
+/// a missing input.
+pub(crate) fn active_preset_id(chain_id: &ChainId, rig: &RigProject) -> Option<String> {
+    let input_name = chain_id.0.strip_prefix("rig:")?;
+    let input = rig.inputs.get(input_name)?;
+    input.bank.get(&input.active_preset).cloned()
+}
+
 pub(crate) fn default_preset_filename_slug(chain_id: &ChainId, rig: &RigProject) -> Option<String> {
     let input_name = chain_id.0.strip_prefix("rig:")?;
     let input = rig.inputs.get(input_name)?;

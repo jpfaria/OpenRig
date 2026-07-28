@@ -622,6 +622,18 @@ pub enum Command {
         file: Option<String>,
     },
 
+    /// #323 phase 2: link a looper to the preset whose effects it plays
+    /// through. The loop records DRY; this id says WHICH preset renders it, so
+    /// switching the chain's live preset to solo does not change the loop's
+    /// tone. Set to the chain's active preset on RECORD and reassignable via
+    /// the drawer's picker. `None` ⇒ the chain's current preset. Persists on
+    /// the chain (and, on the rig path, into the `RigInput`'s loopers).
+    SetChainLooperPreset {
+        chain: ChainId,
+        looper: u64,
+        preset: Option<String>,
+    },
+
     /// #717 Task 3: persist the chosen DI output endpoint for a chain.
     ///
     /// Sets `chain.di_output = Some(output)` on the matching chain in the

@@ -107,6 +107,44 @@ fn dispatch_and_apply(
     }
 }
 
+/// #323 phase 2: when the user starts a FRESH recording (the loop holds no
+/// material yet), link it to the chain's currently-active preset so it keeps
+/// that tone even after the chain switches preset to solo. An overdub (the loop
+/// already has audio) never relinks. No-op for a non-rig chain or when no
+/// preset is active.
+fn link_active_preset_on_fresh_record(
+    session: &ProjectSession,
+    runtime: &Runtime,
+    chain: &ChainId,
+    uid: u64,
+) {
+    let Some(preset_id) = session
+        .rig
+        .as_deref()
+        .and_then(|r| crate::chain_preset_wiring::active_preset_id(chain, &r.borrow()))
+    else {
+        return;
+    };
+    // Fresh = no recorded material yet (Empty, or no runtime entry at all).
+    let fresh = runtime
+        .borrow()
+        .as_ref()
+        .map(|c| {
+            matches!(
+                c.chain_looper_status(chain, uid).map(|s| s.state),
+                None | Some(engine::LooperState::Empty)
+            )
+        })
+        .unwrap_or(true);
+    if fresh {
+        let _ = session.dispatcher.dispatch(Command::SetChainLooperPreset {
+            chain: chain.clone(),
+            looper: uid,
+            preset: Some(preset_id),
+        });
+    }
+}
+
 fn speed_from_index(index: i32) -> LooperSpeed {
     match index {
         0 => LooperSpeed::Half,
@@ -194,7 +232,31 @@ pub(crate) fn wire_looper_callbacks(
             });
         }};
     }
-    transport!(on_looper_record, LooperAction::Record);
+    // RECORD is special (#323 phase 2): starting a FRESH recording links the
+    // loop to the chain's currently-active preset, so it keeps that tone even
+    // after the chain switches preset to solo. Overdubs (loop already has
+    // material) never relink. Then the Record transport proceeds as usual.
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        window.on_looper_record(move |index, uid| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                link_active_preset_on_fresh_record(s, &runtime, &chain, uid as u64);
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::SetChainLooperTransport {
+                        chain,
+                        looper: uid as u64,
+                        action: LooperAction::Record,
+                    },
+                );
+            });
+        });
+    }
     transport!(on_looper_undo, LooperAction::Undo);
     transport!(on_looper_redo, LooperAction::Redo);
     transport!(on_looper_clear, LooperAction::Clear);

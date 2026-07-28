@@ -312,6 +312,14 @@ fn refresh_chain_meter_row(
     // Recording loop from its input tap, then reconcile the playback streams.
     controller.sync_looper_slots(&project.chains[idx]);
     controller.drain_looper_recording(&project.chains[idx]);
+    // #323 phase 2: resolve each looper's LINKED preset into the blocks it plays
+    // through BEFORE reconciling the streams, so a Playing loop renders its
+    // fixed tone regardless of the chain's current preset.
+    crate::looper_wiring::sync_looper_playback_presets(
+        controller,
+        &project.chains[idx],
+        session.rig.as_deref(),
+    );
     controller.sync_looper_streams(&project.chains[idx]);
     let looper_active_changed = row.looper_active != looper_active_now;
     if loopers_changed || looper_active_changed {

@@ -387,6 +387,14 @@ pub enum Event {
         looper: u64,
     },
 
+    /// #323 phase 2: a looper's linked preset changed — the loop now plays
+    /// through a different preset's effects (or back to the chain's current
+    /// one). The adapter re-resolves the playback blocks on the next tick.
+    ChainLooperPresetChanged {
+        chain: ChainId,
+        looper: u64,
+    },
+
     /// #323: a looper parameter changed and was persisted on the chain.
     ChainLooperParamChanged {
         chain: ChainId,
@@ -446,7 +454,8 @@ impl Event {
             | Event::ChainLooperParamChanged { chain, .. }
             | Event::ChainLooperAudioFileChanged { chain, .. }
             | Event::ChainLooperInputChanged { chain, .. }
-            | Event::ChainLooperOutputChanged { chain, .. } => Some(chain),
+            | Event::ChainLooperOutputChanged { chain, .. }
+            | Event::ChainLooperPresetChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

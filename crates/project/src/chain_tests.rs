@@ -330,6 +330,7 @@ fn loopers_round_trip_through_yaml() {
                 binding_id: "scarlett".into(),
                 endpoint: "out0".into(),
             }),
+            preset: Some("lead".into()),
         },
         LooperConfig::new(2),
     ];
@@ -344,6 +345,9 @@ fn loopers_round_trip_through_yaml() {
     // The chosen input/output endpoints survive the round-trip.
     assert_eq!(back.loopers[0].input.as_ref().unwrap().endpoint, "in1");
     assert_eq!(back.loopers[0].output.as_ref().unwrap().endpoint, "out0");
+    // The linked preset id survives the round-trip (#323 phase 2).
+    assert_eq!(back.loopers[0].preset.as_deref(), Some("lead"));
+    assert!(back.loopers[1].preset.is_none());
     assert!(
         back.loopers[1].input.is_none(),
         "a fresh looper defaults to the chain's first input"

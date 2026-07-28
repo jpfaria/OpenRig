@@ -341,7 +341,8 @@ impl CommandDispatcher for LocalDispatcher {
             | Command::SetChainLooperParam { .. }
             | Command::SetChainLooperAudioFile { .. }
             | Command::SetChainLooperInput { .. }
-            | Command::SetChainLooperOutput { .. } => self.handle_looper(cmd),
+            | Command::SetChainLooperOutput { .. }
+            | Command::SetChainLooperPreset { .. } => self.handle_looper(cmd),
 
             // #716: per-machine I/O binding registry (persisted to config.yaml).
             Command::CreateIoBinding { binding } | Command::UpdateIoBinding { binding } => {
