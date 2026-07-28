@@ -20,7 +20,7 @@ use crate::command::{Command, ToneDoctorCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher};
-use crate::tone_doctor_report::{diagnose, fix_commands, DIAGNOSE_BLOCK};
+use crate::tone_doctor_report::{diagnose, fix_commands, ToneRun, DIAGNOSE_BLOCK};
 
 /// How much signal to analyse when the caller does not say.
 const DEFAULT_ANALYZE_SECONDS: u32 = 5;
@@ -63,6 +63,15 @@ impl LocalDispatcher {
                     ));
                 };
 
+                // Accepted: a reader must be able to tell "working on it" from
+                // "nothing ever happened" — the tool call itself returns no
+                // events, so this is the only signal a non-event transport has.
+                {
+                    let mut runs = self.tone_doctor_runs.borrow_mut();
+                    let previous = runs.get(&chain).and_then(|run| run.tone.clone());
+                    runs.insert(chain.clone(), ToneRun::running(previous));
+                }
+
                 let tx = self.async_done_tx.clone();
                 std::thread::Builder::new()
                     .name("tone-doctor".into())
@@ -86,10 +95,10 @@ impl LocalDispatcher {
 
             ToneDoctorCommand::ApplyToneDoctorFix { chain } => {
                 let report = self
-                    .tone_doctor_reports
+                    .tone_doctor_runs
                     .borrow()
                     .get(&chain)
-                    .cloned()
+                    .and_then(|run| run.tone.clone())
                     .ok_or_else(|| {
                         anyhow!(
                             "no diagnosis for chain '{}': run DiagnoseChainTone first",

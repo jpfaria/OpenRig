@@ -70,6 +70,61 @@ pub struct ToneReport {
     pub suggestion: Option<ToneFix>,
 }
 
+/// The last diagnosis run of one chain, as a reader sees it.
+///
+/// A transport that only reads (MCP's resource today, gRPC's getter next) never
+/// observes the events, so "it failed" and "it is still working" have to be
+/// readable states — otherwise a failed run is indistinguishable from one that
+/// never happened, and the client waits forever.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ToneRun {
+    /// `idle`, `running`, `ok` or `failed`.
+    pub state: String,
+    /// Why the run failed, when it did.
+    pub error: Option<String>,
+    /// The verdict of the last SUCCESSFUL run, kept across a later failure so a
+    /// client still knows what the panel is showing.
+    pub tone: Option<ToneReport>,
+}
+
+impl ToneRun {
+    /// A run was accepted and is working.
+    pub fn running(previous: Option<ToneReport>) -> Self {
+        Self {
+            state: "running".into(),
+            error: None,
+            tone: previous,
+        }
+    }
+
+    /// A run produced a verdict.
+    pub fn finished(report: ToneReport) -> Self {
+        Self {
+            state: "ok".into(),
+            error: None,
+            tone: Some(report),
+        }
+    }
+
+    /// A run failed; `error` says why.
+    pub fn failed(error: String) -> Self {
+        Self {
+            state: "failed".into(),
+            error: Some(error),
+            tone: None,
+        }
+    }
+
+    /// Nothing has been asked for this chain yet.
+    pub fn idle() -> Self {
+        Self {
+            state: "idle".into(),
+            error: None,
+            tone: None,
+        }
+    }
+}
+
 /// Run the ablation over `input` and measure a correction for what it finds.
 ///
 /// Renders the chain once per block, so never call this on the audio thread or

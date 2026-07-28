@@ -162,6 +162,11 @@ The diagnosis and its fix are `Command`s, not GUI behaviour:
 The verdict is read back with `QueryKind::ChainToneReport { chain }` (MCP:
 `openrig://chains/{chain}/tone`), served from dispatcher state — MCP reads
 exactly the report the GUI panel is showing rather than re-rendering its own.
+The read carries the whole run, not only its happy result: `state` is `idle`,
+`running`, `ok` or `failed`, with `error` saying why. A transport that only
+reads never sees `Event::Error`, so without this a failed run is
+indistinguishable from one still working or one that never happened, and the
+client waits forever.
 `application::tone_doctor_report` owns the report shape and the report → commands
 mapping; it is transport-agnostic and names blocks by `BlockId`, never by index.
 

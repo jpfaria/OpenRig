@@ -69,12 +69,14 @@ follow-up.
     report for one chain (THD+N, noise floor, peak/RMS level, dynamic
     range, clipping) under a `quality` envelope (JSON).
   - `openrig://chains/{chain}/tone` (#791) — the chain's last Tone
-    Doctor verdict under a `tone` envelope: `symptom`, `severity`,
+    Doctor run: `state` (`idle` / `running` / `ok` / `failed`), `error`
+    (why it failed), and `tone` — the verdict: `symptom`, `severity`,
     `culprit` (block id) + `culprit_label`, the `fizz`/`mud`/`boom`/
     `clip` measurements with the limit each is judged by, and
     `suggestion` (the measured fix: block, param path, current,
-    suggested, optional `enable_path`). `{"tone": null}` until
-    `diagnose_chain_tone` has run for that chain.
+    suggested, optional `enable_path`). `diagnose_chain_tone` returns
+    as soon as the run is accepted, so poll this until `state` leaves
+    `running`.
   - `openrig://paths` (#582) — effective resolved system paths
     (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
     as a JSON object. Every value is an absolute path: when the user

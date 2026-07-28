@@ -12,6 +12,7 @@ use engine::DiPcm;
 use crate::di_loader::DiLoopSource;
 use crate::local_dispatcher::LocalDispatcher;
 use crate::selection_state::SelectionState;
+use crate::tone_doctor_report::ToneRun;
 
 impl LocalDispatcher {
     /// Shared handle to the GUI selection state. `Arc<RwLock<…>>` so
@@ -66,15 +67,24 @@ impl LocalDispatcher {
             .cloned()
     }
 
-    /// #791: the chain's last Tone Doctor verdict as `{"tone": …}`, or
-    /// `{"tone": null}` when nothing has been diagnosed yet.
+    /// #791: the chain's last Tone Doctor run as
+    /// `{"state": …, "error": …, "tone": …}`.
     ///
-    /// Serving this from the dispatcher (rather than from whichever frontend
-    /// ran the diagnosis) is what lets MCP read the same verdict the GUI panel
-    /// is showing, instead of paying for a second render of its own.
+    /// `state` is `idle` (never asked), `running`, `ok` or `failed` — a reader
+    /// with no access to the events (MCP, gRPC) learns from this alone whether
+    /// the verdict it is holding is fresh, still coming, or never arrived.
+    /// Serving it from the dispatcher rather than from whichever frontend ran
+    /// the diagnosis is what makes MCP see exactly what the GUI panel shows,
+    /// instead of paying for a second render of its own.
     pub fn tone_report_json(&self, chain: &ChainId) -> String {
-        let report = self.tone_doctor_reports.borrow().get(chain).cloned();
-        serde_json::json!({ "tone": report }).to_string()
+        let run = self
+            .tone_doctor_runs
+            .borrow()
+            .get(chain)
+            .cloned()
+            .unwrap_or_else(ToneRun::idle);
+        serde_json::to_string(&run)
+            .unwrap_or_else(|e| format!("{{\"state\":\"failed\",\"error\":\"{e}\",\"tone\":null}}"))
     }
 
     /// #661: retrieve WHICH source is currently loaded for `chain`, if any.

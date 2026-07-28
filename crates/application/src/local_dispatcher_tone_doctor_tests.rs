@@ -116,6 +116,77 @@ fn drain(d: &LocalDispatcher) -> Vec<Event> {
     Vec::new()
 }
 
+/// Red-first: a run that fails must be visible to a transport that only reads.
+///
+/// A client (MCP today, gRPC next) calls the tool, gets an empty accept, and
+/// then polls the resource. When the run fails off-thread — a silent window, a
+/// render error — the failure reaches the GUI as an `Event::Error` and the
+/// reader sees nothing at all: `{"tone": null}` forever, indistinguishable from
+/// "still running" and from "never asked". The read side must carry the state
+/// of the last run, not only its happy result.
+#[test]
+fn the_read_side_reports_the_state_of_the_last_run() {
+    let (d, _project) = dispatcher_with_chain();
+    // A source that yields digital silence: the diagnosis rejects it.
+    d.attach_tone_doctor_input(Box::new(|_chain, _seconds| {
+        Some(Box::new(|| Some((vec![[0.0f32; 2]; SR as usize], SR))))
+    }));
+    let chain = ChainId("chain:1".into());
+
+    let idle = d.tone_report_json(&chain);
+    assert!(
+        idle.contains("\"state\":\"idle\""),
+        "before any run the reader must see it never ran: {idle}"
+    );
+
+    d.dispatch(Command::ToneDoctor(ToneDoctorCommand::DiagnoseChainTone {
+        chain: chain.clone(),
+        genre: None,
+        seconds: None,
+    }))
+    .expect("DiagnoseChainTone dispatches");
+
+    let running = d.tone_report_json(&chain);
+    assert!(
+        running.contains("\"state\":\"running\""),
+        "an accepted run must be visible as in-flight, not as nothing: {running}"
+    );
+
+    drain(&d);
+
+    let failed = d.tone_report_json(&chain);
+    assert!(
+        failed.contains("\"state\":\"failed\""),
+        "the failed run must be visible to a reader: {failed}"
+    );
+    assert!(
+        failed.contains("no usable signal"),
+        "and it must carry WHY it failed: {failed}"
+    );
+}
+
+#[test]
+fn a_finished_run_reads_as_ok_with_its_verdict() {
+    let (d, _project) = dispatcher_with_chain();
+    attach_sine_source(&d);
+    let chain = ChainId("chain:1".into());
+
+    d.dispatch(Command::ToneDoctor(ToneDoctorCommand::DiagnoseChainTone {
+        chain: chain.clone(),
+        genre: None,
+        seconds: None,
+    }))
+    .expect("DiagnoseChainTone dispatches");
+    drain(&d);
+
+    let done = d.tone_report_json(&chain);
+    assert!(done.contains("\"state\":\"ok\""), "{done}");
+    assert!(
+        done.contains("\"symptom\":\"Fizz\""),
+        "the verdict still travels under `tone`: {done}"
+    );
+}
+
 #[test]
 fn diagnose_chain_tone_reports_the_symptom_the_culprit_and_the_fix() {
     let (d, _project) = dispatcher_with_chain();
