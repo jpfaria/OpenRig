@@ -27,6 +27,7 @@ dependencies = [
  "anyhow",
  "application",
  "cpal",
+ "domain",
  "engine",
  "env_logger",
  "infra-cpal",

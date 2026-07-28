@@ -28,6 +28,8 @@ use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
+mod tick;
+
 #[derive(Debug, Deserialize, Default)]
 struct AppConfigYaml {
     #[serde(default, rename = "presets_path")]
@@ -174,7 +176,7 @@ fn main() -> Result<()> {
     );
 
     loop {
-        let changed = !drain.drain(&dispatcher, 64).is_empty();
+        let changed = !tick::tick(&dispatcher, drain.drain(&dispatcher, 64)).is_empty();
         drain.serve_queries(
             |kind| match kind {
                 QueryKind::ProjectYaml => {
