@@ -149,6 +149,11 @@ The diagnosis and its fix are `Command`s, not GUI behaviour:
   the ablation off-thread, and lands `Event::ChainToneDiagnosed { chain, report }`
   through `poll_async_results`. With neither source the command errors instead of
   guessing. The dispatcher caches the verdict per chain.
+  A window whose RMS sits under -60 dBFS is rejected with "no usable signal"
+  instead of being diagnosed: a silent stretch scores every descriptor at zero
+  and would otherwise come back `Ok` — a green light meaning "nothing was
+  heard". The bundled `fabiano-antunes-STRATO-clean` DI opens with ~3 s of
+  near-silence, which is exactly how this was found.
 - `ToneDoctorCommand::ApplyToneDoctorFix { chain }` — replays the cached fix as
   ordinary `SetBlockParameterBool` (the group gate, when present) +
   `SetBlockParameterNumber`, so every observer sees the same events a knob turn

@@ -23,6 +23,13 @@ use crate::command::{BlockCommand, Command};
 /// Fixed block size for the offline diagnosis render.
 pub const DIAGNOSE_BLOCK: usize = 512;
 
+/// RMS floor, in dBFS, below which the analysed window carries no tone to judge.
+///
+/// Far under any real take (a quiet performance still sits well above -60) and
+/// far over digital silence or converter noise, so it only rejects windows that
+/// truly have nothing in them.
+const SIGNAL_FLOOR_DBFS: f32 = -60.0;
+
 /// The measured correction: which knob, on which block, from what to what.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ToneFix {
@@ -74,6 +81,17 @@ pub fn diagnose(
     block_size: usize,
     limits: &SymptomLimits,
 ) -> Result<ToneReport, String> {
+    // A silent window would sail through the descriptors with every ratio at
+    // zero and come back "Ok" — a green light that says "your tone is fine"
+    // when nothing was heard. The head of a DI take is often exactly that.
+    let level = rms_dbfs(input);
+    if level < SIGNAL_FLOOR_DBFS {
+        return Err(format!(
+            "no usable signal in the analysed window ({level:.0} dBFS): play while it runs, \
+             or pick a part of the DI that has sound"
+        ));
+    }
+
     let diagnosis = diagnose_with_limits(chain, sample_rate, input, block_size, limits)
         .map_err(|e| format!("tone diagnosis failed: {e}"))?;
 
@@ -158,6 +176,23 @@ fn culprit_label(chain: &Chain, culprit: Option<usize>) -> String {
         .unwrap_or_default()
 }
 
+/// Level of the analysed window, both channels together. `-inf` reads as a very
+/// low number, which is what the floor check wants.
+fn rms_dbfs(input: &[[f32; 2]]) -> f32 {
+    if input.is_empty() {
+        return f32::NEG_INFINITY;
+    }
+    let sum: f64 = input
+        .iter()
+        .map(|f| f64::from(f[0]) * f64::from(f[0]) + f64::from(f[1]) * f64::from(f[1]))
+        .sum();
+    let rms = (sum / (input.len() * 2) as f64).sqrt();
+    if rms <= 0.0 {
+        return f32::NEG_INFINITY;
+    }
+    20.0 * (rms as f32).log10()
+}
+
 /// Traffic-light severity: green (0), amber (1), red (2).
 fn severity(s: Symptom) -> i32 {
     match s {
@@ -179,3 +214,7 @@ fn symptom_name(s: Symptom) -> &'static str {
         Symptom::Clipping => "Clipping",
     }
 }
+
+#[cfg(test)]
+#[path = "tone_doctor_report_tests.rs"]
+mod tests;

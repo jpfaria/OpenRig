@@ -75,16 +75,22 @@ pub(crate) fn apply(events: &[Event]) {
     }
 }
 
-/// Clear the panel's spinner on both windows.
+/// Clear the panel's spinner on both windows and fall back to the "nothing to
+/// analyse" line — a run that failed (silent window, render error) must not
+/// leave the previous verdict standing as if it were fresh.
 pub(crate) fn stop_running() {
+    let clear = |st: &ToneDoctorState| {
+        st.set_running(false);
+        st.set_can_diagnose(false);
+    };
     MAIN.with(|m| {
         if let Some(win) = m.borrow().as_ref().and_then(|w| w.upgrade()) {
-            win.global::<ToneDoctorState>().set_running(false);
+            clear(&win.global::<ToneDoctorState>());
         }
     });
     COMPACT.with(|c| {
         if let Some(win) = c.borrow().as_ref().and_then(|w| w.upgrade()) {
-            win.global::<ToneDoctorState>().set_running(false);
+            clear(&win.global::<ToneDoctorState>());
         }
     });
 }
