@@ -66,6 +66,17 @@ impl LocalDispatcher {
             .cloned()
     }
 
+    /// #791: the chain's last Tone Doctor verdict as `{"tone": …}`, or
+    /// `{"tone": null}` when nothing has been diagnosed yet.
+    ///
+    /// Serving this from the dispatcher (rather than from whichever frontend
+    /// ran the diagnosis) is what lets MCP read the same verdict the GUI panel
+    /// is showing, instead of paying for a second render of its own.
+    pub fn tone_report_json(&self, chain: &ChainId) -> String {
+        let report = self.tone_doctor_reports.borrow().get(chain).cloned();
+        serde_json::json!({ "tone": report }).to_string()
+    }
+
     /// #661: retrieve WHICH source is currently loaded for `chain`, if any.
     ///
     /// Parity twin of [`Self::di_loop_for_chain`]: the GUI reads this back so

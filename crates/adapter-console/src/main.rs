@@ -184,6 +184,11 @@ fn main() -> Result<()> {
                     .map(|d| d.join("\n"))
                     .map_err(|e| e.to_string()),
                 QueryKind::Ids => Ok(application::query::list_ids(&shared.borrow())),
+                // #791: the console owns no doctor state of its own; the
+                // dispatcher's last verdict is the answer for every transport.
+                QueryKind::ChainToneReport { chain } => {
+                    Ok(dispatcher.inner().tone_report_json(chain))
+                }
                 QueryKind::ChainMeters => {
                     // Console adapter has no live meter source — emit a
                     // silent record per chain so the MCP resource shape

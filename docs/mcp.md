@@ -38,7 +38,15 @@ follow-up.
   applies a chain/preset YAML to a WAV and writes the processed output
   WAV via the same `adapter-render` call site as `openrig-render`. Paths
   are local to the host; live capture stays in the binary. See
-  `docs/render.md`.
+  `docs/render.md`. Includes the Tone Doctor pair (#791):
+  `diagnose_chain_tone` (`ToneDoctorCommand::DiagnoseChainTone` — runs
+  the offline blame-by-ablation over the chain's DI, or its live input
+  when no DI is loaded) and `apply_tone_doctor_fix`
+  (`ApplyToneDoctorFix` — applies the measured correction from that
+  chain's last diagnosis). The diagnosis is expensive and completes
+  asynchronously: the tool call returns once accepted, and the verdict
+  is read back from `openrig://chains/{chain}/tone`. See
+  `docs/tone-doctor.md`.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
@@ -57,6 +65,16 @@ follow-up.
     parameter snapshot: schema **plus** `current_value` per parameter
     (JSON, wrapped under a `params` envelope). Unknown chain / block
     → error from the bridge.
+  - `openrig://chains/{chain}/quality` (#791) — objective quality
+    report for one chain (THD+N, noise floor, peak/RMS level, dynamic
+    range, clipping) under a `quality` envelope (JSON).
+  - `openrig://chains/{chain}/tone` (#791) — the chain's last Tone
+    Doctor verdict under a `tone` envelope: `symptom`, `severity`,
+    `culprit` (block id) + `culprit_label`, the `fizz`/`mud`/`boom`/
+    `clip` measurements with the limit each is judged by, and
+    `suggestion` (the measured fix: block, param path, current,
+    suggested, optional `enable_path`). `{"tone": null}` until
+    `diagnose_chain_tone` has run for that chain.
   - `openrig://paths` (#582) — effective resolved system paths
     (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
     as a JSON object. Every value is an absolute path: when the user

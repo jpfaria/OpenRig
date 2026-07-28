@@ -1,4 +1,25 @@
-use super::{parse_chain_presets_uri, parse_chain_quality_uri};
+use super::{parse_chain_presets_uri, parse_chain_quality_uri, parse_chain_tone_uri};
+
+#[test]
+fn parses_chain_tone_uri() {
+    assert_eq!(
+        parse_chain_tone_uri("openrig://chains/rig:input-1/tone"),
+        Some("rig:input-1".to_string())
+    );
+}
+
+#[test]
+fn rejects_non_tone_uris() {
+    // The tone verdict and the objective quality report are different reads —
+    // an agent asking for one must never silently get the other.
+    assert_eq!(
+        parse_chain_tone_uri("openrig://chains/rig:x/quality"),
+        None,
+        "quality is a different resource"
+    );
+    assert_eq!(parse_chain_tone_uri("openrig://chains//tone"), None);
+    assert_eq!(parse_chain_tone_uri("openrig://project"), None);
+}
 
 #[test]
 fn parses_chain_quality_uri() {
