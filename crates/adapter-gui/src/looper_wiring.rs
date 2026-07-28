@@ -40,6 +40,10 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
 
         Event::ChainLooperRemoved { chain, looper } => {
             let uid = *looper;
+            // Silence the isolated playback on the user's intent, before the
+            // bank op — a removed looper is gone from the chain, so nothing
+            // would ever disarm it via the status-driven reconcile otherwise.
+            controller.disarm_looper_playback(chain, uid);
             controller.push_chain_looper_op(chain, |_| Some(LooperOp::Remove { uid }));
         }
 
@@ -49,6 +53,31 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
             action,
         } => {
             let uid = *looper;
+            // Stopping-type actions silence the isolated playback on intent,
+            // not on the bank's next published status — so the loop stops even
+            // when the chain audio callback is not running (see
+            // `disarm_looper_playback`). `PlayStop` stops only when the loop is
+            // currently sounding; otherwise it is a Play and arming stays with
+            // the status-driven reconcile.
+            let stops_playback = match action {
+                LooperAction::Stop | LooperAction::Clear => true,
+                LooperAction::PlayStop => controller
+                    .chain_looper_status(chain, uid)
+                    .is_some_and(|s| {
+                        matches!(s.state, LooperState::Playing | LooperState::Overdubbing)
+                    }),
+                _ => false,
+            };
+            if stops_playback {
+                controller.disarm_looper_playback(chain, uid);
+            } else if matches!(
+                action,
+                LooperAction::Record | LooperAction::Play | LooperAction::PlayStop
+            ) {
+                // A fresh play/record intent means the user wants sound again —
+                // lift any stop suppression so the next reconcile can re-arm.
+                controller.allow_looper_playback(chain, uid);
+            }
             controller.push_chain_looper_op(chain, |runtime| {
                 Some(match action {
                     LooperAction::Record => {

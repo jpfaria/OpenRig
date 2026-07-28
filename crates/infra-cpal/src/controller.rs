@@ -131,6 +131,12 @@ pub struct ProjectRuntimeController {
     /// stream was last armed with, so `sync_looper_streams` re-arms only when
     /// the recording actually changed — not every meter tick.
     pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (u64, u64)>>,
+    /// #323: loopers the user just stopped/cleared/removed. The bank op that
+    /// changes the state is applied inside the chain callback, which may not be
+    /// running — so the published status can still read Playing for a while.
+    /// `sync_looper_streams` must not re-arm a suppressed looper from that stale
+    /// status; the entry is dropped once the status finally agrees it stopped.
+    pub(crate) looper_suppressed: RefCell<std::collections::HashSet<(ChainId, u64)>>,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -169,6 +175,7 @@ impl ProjectRuntimeController {
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
             looper_armed: RefCell::new(HashMap::new()),
+            looper_suppressed: RefCell::new(std::collections::HashSet::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -208,6 +215,7 @@ impl ProjectRuntimeController {
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
             looper_armed: RefCell::new(HashMap::new()),
+            looper_suppressed: RefCell::new(std::collections::HashSet::new()),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),

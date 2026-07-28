@@ -137,7 +137,9 @@ impl ProjectRuntimeController {
             .map(|(_, uid)| *uid)
             .collect();
         for uid in stale {
-            self.looper_armed.borrow_mut().remove(&(chain.id.clone(), uid));
+            let key = (chain.id.clone(), uid);
+            self.looper_armed.borrow_mut().remove(&key);
+            self.looper_suppressed.borrow_mut().remove(&key);
             self.disarm_looper_stream(&chain.id, uid);
         }
 
@@ -151,9 +153,19 @@ impl ProjectRuntimeController {
             let playing = matches!(state, LooperState::Playing | LooperState::Overdubbing);
 
             if !playing {
+                // The bank now agrees the looper is not playing: the intent and
+                // the status match, so drop any suppression and disarm.
+                self.looper_suppressed.borrow_mut().remove(&key);
                 if self.looper_armed.borrow_mut().remove(&key).is_some() {
                     self.disarm_looper_stream(&chain.id, uid);
                 }
+                continue;
+            }
+
+            // The user stopped/cleared this looper but the bank has not caught
+            // up yet (its callback is not running) — do NOT re-arm from the
+            // stale Playing status.
+            if self.looper_suppressed.borrow().contains(&key) {
                 continue;
             }
 
@@ -185,11 +197,42 @@ impl ProjectRuntimeController {
         }
     }
 
+    /// #323: silence one looper's isolated playback NOW, on the user's intent
+    /// (stop / clear / remove) — not on the bank's next published status.
+    ///
+    /// The loop plays on its own worker thread, but the bank ops that change a
+    /// looper's state are applied inside the CHAIN's audio callback. When that
+    /// callback is not running (the chain is not actively streaming), the Stop
+    /// op never drains, the published status stays Playing, and the status-
+    /// driven reconcile keeps the stream armed forever — the loop never stops.
+    /// Disarming here breaks that dependency: the sound stops immediately, and
+    /// the bank state settles whenever the callback next runs.
+    pub fn disarm_looper_playback(&self, chain_id: &ChainId, uid: u64) {
+        let key = (chain_id.clone(), uid);
+        self.looper_armed.borrow_mut().remove(&key);
+        // Suppress re-arm until the bank's published status agrees the looper
+        // stopped — otherwise the very next reconcile re-arms it from the stale
+        // Playing status and the loop never goes silent.
+        self.looper_suppressed.borrow_mut().insert(key);
+        self.disarm_looper_stream(chain_id, uid);
+    }
+
+    /// #323: lift the stop suppression on a looper — a fresh Play/Record intent
+    /// means the user wants it sounding again, so the next reconcile may re-arm.
+    pub fn allow_looper_playback(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_suppressed
+            .borrow_mut()
+            .remove(&(chain_id.clone(), uid));
+    }
+
     /// Drop the looper stream bookkeeping for a chain (chain removed / project
     /// closed); the streams themselves are torn down by `drop_di_state_for_chain`.
     pub fn forget_chain_looper_streams(&self, chain_id: &ChainId) {
         self.looper_armed
             .borrow_mut()
             .retain(|(cid, _), _| cid != chain_id);
+        self.looper_suppressed
+            .borrow_mut()
+            .retain(|(cid, _)| cid != chain_id);
     }
 }

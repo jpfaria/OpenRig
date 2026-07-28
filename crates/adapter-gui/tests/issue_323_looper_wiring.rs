@@ -255,6 +255,65 @@ fn record_and_arm(controller: &ProjectRuntimeController, chain: &Chain) {
 }
 
 #[test]
+fn stop_disarms_the_stream_even_when_the_chain_is_not_streaming() {
+    // The real bug: the loop plays on its OWN worker thread, but stop/clear are
+    // applied to the bank inside the CHAIN's audio callback. When that callback
+    // is not running (the chain is not actively streaming — e.g. after leaving
+    // and returning to the screen), the Stop op sits in the queue, the published
+    // status stays Playing, and the status-driven reconcile keeps the stream
+    // armed forever: the loop never stops. Pressing stop must disarm the
+    // playback on the user's intent, independent of the chain callback.
+    let (controller, chain) = chain_with_looper("wire-stop-no-stream");
+    record_and_arm(&controller, &chain);
+
+    apply_looper_event(
+        &controller,
+        &Event::ChainLooperTransportChanged {
+            chain: chain.id.clone(),
+            looper: UID,
+            action: LooperAction::Stop,
+        },
+    );
+    // The chain callback does NOT run (no tick) — the bank never drains the op.
+    controller.sync_looper_streams(&chain);
+
+    assert!(
+        !controller.looper_stream_active(&chain.id, UID),
+        "stop must silence the loop even when the chain audio callback is not \
+         running — the playback worker is independent of it"
+    );
+}
+
+#[test]
+fn play_after_stop_re_arms_even_without_the_chain_streaming() {
+    // After an intent-stop suppresses re-arm, a fresh Play must lift the
+    // suppression so the loop sounds again — the user can stop and replay.
+    let (controller, chain) = chain_with_looper("wire-replay");
+    record_and_arm(&controller, &chain);
+
+    let ev = |a| Event::ChainLooperTransportChanged {
+        chain: chain.id.clone(),
+        looper: UID,
+        action: a,
+    };
+    apply_looper_event(&controller, &ev(LooperAction::Stop));
+    controller.sync_looper_streams(&chain);
+    assert!(
+        !controller.looper_stream_active(&chain.id, UID),
+        "precondition: stop silenced it"
+    );
+
+    // The status still reads Playing (the callback never ran), but a deliberate
+    // Play must re-arm anyway.
+    apply_looper_event(&controller, &ev(LooperAction::Play));
+    controller.sync_looper_streams(&chain);
+    assert!(
+        controller.looper_stream_active(&chain.id, UID),
+        "play after stop must re-arm the loop"
+    );
+}
+
+#[test]
 fn play_stop_button_stops_the_isolated_playback() {
     // "I press play, it plays, but I can't stop it." Pressing play/stop while
     // playing must disarm the isolated stream — the sound must stop.
