@@ -407,6 +407,9 @@ pub enum Event {
     /// mutated (create, update, or delete). MCP/gRPC adapters that cache
     /// the registry invalidate their cache on receipt.
     IoBindingRegistryChanged,
+
+    /// #829: the audio device list was re-enumerated (USB hot-swap).
+    AudioDevicesRefreshed,
 }
 
 impl Event {
@@ -486,7 +489,9 @@ impl Event {
             | Event::RenderCompleted { .. }
             | Event::Error { .. }
             // #716: I/O binding registry is a system-level concern, not tied to any chain.
-            | Event::IoBindingRegistryChanged => None,
+            | Event::IoBindingRegistryChanged
+            // #829: device enumeration is machine-wide, not chain-scoped.
+            | Event::AudioDevicesRefreshed => None,
         }
     }
 }

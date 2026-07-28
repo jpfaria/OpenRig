@@ -21,7 +21,7 @@ use std::rc::Rc;
 use crate::TunerRow;
 
 /// Tuner default reference (440 Hz). Per-row reference would require a UI control.
-const REFERENCE_HZ: f32 = 440.0;
+pub const REFERENCE_HZ: f32 = 440.0;
 /// Capacity per channel ring: ≥ BUFFER_SIZE × 2 so we never lose samples between
 /// UI ticks under any reasonable timer cadence.
 const RING_CAPACITY: usize = BUFFER_SIZE * 4;
@@ -93,9 +93,45 @@ fn project_input_fingerprint(project: &Project, registry: &[IoBinding]) -> Strin
     s
 }
 
+/// Which tap a tuner row reads. The Slint row carries only a display
+/// label; other transports (#829) need the structured identity to line a
+/// reading up with a chain/input/channel.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RowIdentity {
+    pub chain: String,
+    pub input: usize,
+    pub channel: usize,
+}
+
+/// Pair each row's live values with its tap identity, in the shape every
+/// transport reads (`openrig://tuner`). Rows without a matching identity
+/// are skipped — the two vectors are built together and stay aligned.
+pub fn readings_from(
+    identities: &[RowIdentity],
+    rows: &VecModel<TunerRow>,
+) -> Vec<application::query_analyzers::TunerReading> {
+    identities
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, id)| rows.row_data(idx).map(|row| (id, row)))
+        .map(|(id, row)| application::query_analyzers::TunerReading {
+            chain: id.chain.clone(),
+            input: id.input,
+            channel: id.channel,
+            label: row.label.to_string(),
+            note: row.note.to_string(),
+            octave: row.octave,
+            cents: row.cents,
+            frequency: row.frequency,
+            active: row.active,
+        })
+        .collect()
+}
+
 pub struct TunerSession {
     rows_model: Rc<VecModel<TunerRow>>,
     row_states: Vec<RowState>,
+    identities: Vec<RowIdentity>,
     fingerprint: String,
 }
 
@@ -109,6 +145,7 @@ impl TunerSession {
     ) -> Self {
         let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::<TunerRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
+        let mut identities: Vec<RowIdentity> = Vec::new();
 
         // The rate the live streams actually run at — authoritative fallback
         // for inputs without a saved per-device setting (issue #723).
@@ -176,6 +213,11 @@ impl TunerSession {
                     );
                     rows_model.push(placeholder_row(label));
                     row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
+                    identities.push(RowIdentity {
+                        chain: chain.id.0.clone(),
+                        input: input_index,
+                        channel: *channel,
+                    });
                 }
             }
         }
@@ -183,12 +225,19 @@ impl TunerSession {
         Self {
             rows_model,
             row_states,
+            identities,
             fingerprint: project_input_fingerprint(project, registry),
         }
     }
 
     pub fn rows_model_rc(&self) -> ModelRc<TunerRow> {
         ModelRc::from(self.rows_model.clone())
+    }
+
+    /// #829: the live readings as every transport reads them
+    /// (`openrig://tuner`) — same rows the window renders.
+    pub fn readings(&self) -> Vec<application::query_analyzers::TunerReading> {
+        readings_from(&self.identities, &self.rows_model)
     }
 
     /// Cheap re-fingerprint check. Returns `true` when the input topology
@@ -256,3 +305,7 @@ impl TunerSession {
 #[cfg(test)]
 #[path = "tuner_session_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tuner_session_readings_tests.rs"]
+mod readings_tests;

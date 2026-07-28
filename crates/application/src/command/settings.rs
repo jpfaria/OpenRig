@@ -59,4 +59,13 @@ pub enum SettingsCommand {
     /// `config.yaml` (`mcp_enabled`). Same per-machine, restart-to-apply
     /// contract as [`Command::SetMidiEnabled`].
     SetMcpEnabled { enabled: bool },
+
+    /// #829: re-enumerate the audio interfaces (USB hot-swap).
+    ///
+    /// The GUI had this behind a refresh button only. The dispatcher
+    /// invalidates the cached device list and emits
+    /// [`crate::event::Event::AudioDevicesRefreshed`]; each frontend then
+    /// re-reads `openrig://devices` (or rebuilds its pickers) and
+    /// re-checks I/O bindings that reference a now-absent device.
+    RefreshAudioDevices,
 }
