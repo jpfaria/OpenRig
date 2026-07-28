@@ -105,6 +105,12 @@ impl LooperSlot {
     }
 
     pub fn len_frames(&self) -> usize {
+        // While recording the first layer the length is not fixed yet (`freeze`
+        // sets it), but the UI must not read a frozen 0 — report the frames
+        // captured so far so the clock counts up. Playback keeps the real length.
+        if matches!(self.state, LooperState::Recording) {
+            return self.write_pos.min(self.max_frames);
+        }
         self.len_frames
     }
 
@@ -118,6 +124,11 @@ impl LooperSlot {
     }
 
     pub fn position_frames(&self) -> usize {
+        // During recording the active cursor is the WRITE head, not the (idle)
+        // read head — so the elapsed time the UI shows advances while recording.
+        if matches!(self.state, LooperState::Recording) {
+            return self.write_pos.min(self.max_frames);
+        }
         self.read_pos as usize
     }
 

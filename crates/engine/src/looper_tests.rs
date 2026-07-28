@@ -31,6 +31,30 @@ fn new_slot_is_empty_and_silent() {
 }
 
 #[test]
+fn while_recording_the_elapsed_time_advances() {
+    // The user's bug: "it records but the seconds don't move." During the first
+    // recording `read_pos`/`len_frames` are both 0 (length is fixed only at
+    // freeze), so the status the UI reads stays 0/0 and the clock looks frozen.
+    // The published position must instead follow the recording cursor so the
+    // elapsed time counts up while recording.
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[0.2, 0.2]; 5]);
+    assert_eq!(s.state(), LooperState::Recording);
+
+    assert_eq!(
+        s.position_frames(),
+        5,
+        "the recording cursor (elapsed frames) must be visible so the clock ticks"
+    );
+    assert_eq!(
+        s.len_frames(),
+        5,
+        "while recording, the length so far is the elapsed frames — not a frozen 0"
+    );
+}
+
+#[test]
 fn record_then_tap_plays_back_the_recorded_frames() {
     let mut s = slot();
     s.tap_record(Some(spare(MAX)));

@@ -123,6 +123,24 @@ impl ProjectRuntimeController {
     /// content signature so this runs every meter tick without respawning a
     /// render each time. Called off the audio thread (the GUI tick).
     pub fn sync_looper_streams(&self, chain: &Chain) {
+        // A looper the user removed is no longer in `chain.loopers`, so the
+        // per-looper loop below never visits it — its armed stream would play
+        // on forever ("deleting the looper doesn't stop it"). Disarm every
+        // armed stream of this chain whose looper is gone, first.
+        let live: std::collections::HashSet<u64> =
+            chain.loopers.iter().map(|c| c.uid).collect();
+        let stale: Vec<u64> = self
+            .looper_armed
+            .borrow()
+            .keys()
+            .filter(|(cid, uid)| cid == &chain.id && !live.contains(uid))
+            .map(|(_, uid)| *uid)
+            .collect();
+        for uid in stale {
+            self.looper_armed.borrow_mut().remove(&(chain.id.clone(), uid));
+            self.disarm_looper_stream(&chain.id, uid);
+        }
+
         for cfg in &chain.loopers {
             let uid = cfg.uid;
             let key = (chain.id.clone(), uid);

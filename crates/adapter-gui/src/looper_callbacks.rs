@@ -89,6 +89,16 @@ fn dispatch_and_apply(
                     for event in &events {
                         apply_looper_event(controller, event);
                     }
+                    // Reconcile the isolated playback stream on the user's
+                    // action, not only on the next meter tick — a removed
+                    // looper is gone from `chain.loopers`, so its armed stream
+                    // is disarmed here immediately ("delete stops the sound"),
+                    // instead of playing on until the ~15 Hz poll happens to
+                    // run. Stop/Clear still settle via the poll once the audio
+                    // thread has published the new state.
+                    if let Some(chain) = session.project.borrow().chains.get(index as usize) {
+                        controller.sync_looper_streams(chain);
+                    }
                 }
             }
             refresh_row(session, runtime, chains, index);

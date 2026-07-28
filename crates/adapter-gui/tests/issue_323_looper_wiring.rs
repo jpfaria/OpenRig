@@ -214,6 +214,94 @@ fn param_events_reach_the_runtime_and_the_loop_keeps_playing() {
     assert!(controller.export_chain_looper(&chain, UID).is_some());
 }
 
+/// A chain that carries the looper in its config — needed so
+/// `sync_looper_streams` (which iterates `chain.loopers`) can arm/disarm the
+/// isolated playback stream, the real path the meter timer drives.
+fn chain_with_looper(id: &str) -> (ProjectRuntimeController, Chain) {
+    let (controller, cid) = controller(id);
+    let chain = Chain {
+        id: cid,
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
+        di_output: None,
+        loopers: vec![project::chain::LooperConfig::new(UID)],
+    };
+    (controller, chain)
+}
+
+/// Record + close one loop through the event path and arm its stream.
+fn record_and_arm(controller: &ProjectRuntimeController, chain: &Chain) {
+    let id = chain.id.clone();
+    apply_looper_event(controller, &Event::ChainLooperAdded { chain: id.clone(), looper: UID });
+    tick(controller, &id, 0.0);
+    let rec = Event::ChainLooperTransportChanged {
+        chain: id.clone(),
+        looper: UID,
+        action: LooperAction::Record,
+    };
+    apply_looper_event(controller, &rec);
+    tick(controller, &id, 0.5);
+    apply_looper_event(controller, &rec); // close the loop → Playing
+    tick(controller, &id, 0.0);
+    controller.sync_looper_streams(chain);
+    assert!(
+        controller.looper_stream_active(&id, UID),
+        "precondition: a closed loop arms its isolated playback stream"
+    );
+}
+
+#[test]
+fn play_stop_button_stops_the_isolated_playback() {
+    // "I press play, it plays, but I can't stop it." Pressing play/stop while
+    // playing must disarm the isolated stream — the sound must stop.
+    let (controller, chain) = chain_with_looper("wire-playstop");
+    record_and_arm(&controller, &chain);
+
+    apply_looper_event(
+        &controller,
+        &Event::ChainLooperTransportChanged {
+            chain: chain.id.clone(),
+            looper: UID,
+            action: LooperAction::PlayStop,
+        },
+    );
+    tick(&controller, &chain.id, 0.0);
+    controller.sync_looper_streams(&chain);
+
+    assert!(
+        !controller.looper_stream_active(&chain.id, UID),
+        "pressing stop must disarm the isolated stream — the loop must go silent"
+    );
+}
+
+#[test]
+fn clear_stops_the_isolated_playback() {
+    // "I can't clear (trash) it." Clearing a playing loop must disarm its
+    // isolated stream, not just empty the bank.
+    let (controller, chain) = chain_with_looper("wire-clear");
+    record_and_arm(&controller, &chain);
+
+    apply_looper_event(
+        &controller,
+        &Event::ChainLooperTransportChanged {
+            chain: chain.id.clone(),
+            looper: UID,
+            action: LooperAction::Clear,
+        },
+    );
+    tick(&controller, &chain.id, 0.0);
+    controller.sync_looper_streams(&chain);
+
+    assert!(
+        !controller.looper_stream_active(&chain.id, UID),
+        "clearing must disarm the isolated stream — the loop must go silent"
+    );
+}
+
 #[test]
 fn removed_event_frees_the_slot_and_the_layer_memory() {
     let (controller, chain) = controller("wire-remove");

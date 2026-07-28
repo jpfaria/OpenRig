@@ -294,3 +294,45 @@ fn a_playing_looper_arms_an_isolated_stream_and_stop_disarms_it() {
         "stopping the looper must disarm its stream"
     );
 }
+
+/// Removing a looper must stop its isolated playback. The user deletes a
+/// looper (the × button) but the loop keeps sounding: the command drops the
+/// looper from `chain.loopers`, and the reconciler only visits the loopers
+/// STILL in the chain, so the armed stream is never disarmed. RED until the
+/// reconciler disarms streams for loopers that are gone.
+#[test]
+fn removing_a_playing_looper_disarms_its_isolated_stream() {
+    let (controller, chain) = two_output_controller("looper-remove-iso");
+    let id = chain.id.clone();
+
+    // Record + close so the looper plays, then arm its stream.
+    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
+    controller.push_chain_looper_op(&id, |rt| {
+        Some(LooperOp::TapRecord {
+            uid: UID,
+            buffer: Some(vec![0.5f32; rt.looper_max_frames() * 2].into_boxed_slice()),
+        })
+    });
+    tick(&controller, &id, 0.5);
+    controller.push_chain_looper_op(&id, |_| Some(LooperOp::TapRecord { uid: UID, buffer: None }));
+    tick(&controller, &id, 0.0);
+    controller.sync_looper_streams(&chain);
+    assert!(
+        controller.looper_stream_active(&id, UID),
+        "precondition: the loop is armed and playing"
+    );
+
+    // The user presses × : the command removes the looper from the chain and
+    // frees the runtime slot.
+    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Remove { uid: UID }));
+    tick(&controller, &id, 0.0);
+    let mut without = chain.clone();
+    without.loopers.clear();
+
+    // The very next reconcile must silence it.
+    controller.sync_looper_streams(&without);
+    assert!(
+        !controller.looper_stream_active(&id, UID),
+        "removing a looper must disarm its isolated stream — the loop must stop"
+    );
+}
