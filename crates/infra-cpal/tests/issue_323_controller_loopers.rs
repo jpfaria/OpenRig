@@ -189,6 +189,24 @@ fn removing_a_playing_looper_disarms_its_isolated_stream() {
 }
 
 #[test]
+fn sync_looper_slots_creates_store_entries_for_project_loopers() {
+    // A looper added by any transport (MCP/MIDI) lands in the project but not
+    // the store until reconciled — so the read query would be empty. The tick's
+    // reconcile creates the missing entry.
+    let chain = chain_with_looper("slot-sync");
+    let c = controller_for(&chain, &registry());
+    assert!(
+        c.chain_looper_status(&chain.id, UID).is_none(),
+        "precondition: no store entry yet"
+    );
+    c.sync_looper_slots(&chain);
+    assert!(
+        c.chain_looper_status(&chain.id, UID).is_some(),
+        "the reconcile gives the project's looper a store entry"
+    );
+}
+
+#[test]
 fn a_loop_belongs_to_one_chain_only() {
     let chain_a = chain_with_looper("iso-a");
     let chain_b = chain_with_looper("iso-b");

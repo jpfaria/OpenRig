@@ -307,9 +307,10 @@ fn refresh_chain_meter_row(
     // front by `apply_looper_endpoints_to_rows`, active or not.)
     // Layer buffers the audio thread finished with come back here — dropping
     // them is forbidden on the audio thread (invariant #8).
-    // #323: feed every Recording loop from its input tap into the store (off
-    // the audio thread), then reconcile each loop's isolated playback stream
-    // with the store's state (arm on play, disarm on stop/clear/remove).
+    // #323: make sure the store has an entry for every looper the project
+    // carries (added via any transport, or loaded from disk), then feed every
+    // Recording loop from its input tap, then reconcile the playback streams.
+    controller.sync_looper_slots(&project.chains[idx]);
     controller.drain_looper_recording(&project.chains[idx]);
     controller.sync_looper_streams(&project.chains[idx]);
     let looper_active_changed = row.looper_active != looper_active_now;

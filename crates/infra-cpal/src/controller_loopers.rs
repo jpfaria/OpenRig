@@ -136,6 +136,24 @@ impl ProjectRuntimeController {
         self.looper_store.borrow_mut().set_output(chain_id, uid, output);
     }
 
+    /// Make sure every looper the PROJECT carries has a store entry — so a
+    /// looper added by ANY transport (GUI, MCP, MIDI) or loaded from disk is
+    /// readable and controllable, not only the ones routed through
+    /// `apply_looper_event`. Idempotent: an existing entry keeps its material
+    /// and rings; only a brand-new one is created and seeded with its routing.
+    /// Called on the meter tick.
+    pub fn sync_looper_slots(&self, chain: &Chain) {
+        let mut store = self.looper_store.borrow_mut();
+        store.set_sample_rate(self.sample_rate);
+        for cfg in &chain.loopers {
+            if store.status(&chain.id, cfg.uid).is_none() {
+                store.create(&chain.id, cfg.uid);
+                store.set_input(&chain.id, cfg.uid, cfg.input.clone());
+                store.set_output(&chain.id, cfg.uid, cfg.output.clone());
+            }
+        }
+    }
+
     // ── recording: subscribe the input tap + drain, off the audio thread ──
 
     /// Feed each Recording loop from its input tap. Called on the meter tick.
