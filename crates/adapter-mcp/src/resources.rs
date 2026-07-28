@@ -11,6 +11,15 @@ pub const URI_PROJECT: &str = "openrig://project";
 pub const URI_DEVICES: &str = "openrig://devices";
 pub const URI_IDS: &str = "openrig://ids";
 pub const URI_METERS: &str = "openrig://meters";
+/// #829: live tuner readings — read parity for `SetTunerEnabled`.
+pub const URI_TUNER: &str = "openrig://tuner";
+/// #829: live spectrum readings — read parity for `SetSpectrumEnabled`.
+pub const URI_SPECTRUM: &str = "openrig://spectrum";
+/// #829: per-chain DI loop state — read parity for the DI commands.
+pub const URI_DI: &str = "openrig://di";
+/// #829: per-chain latency probe. Concrete URIs look like
+/// `openrig://chains/<chain_id>/latency`.
+pub const URI_CHAIN_LATENCY_TEMPLATE: &str = "openrig://chains/{chain}/latency";
 pub const URI_PRESETS: &str = "openrig://presets";
 /// #582: effective resolved system paths (data root + every
 /// configurable directory). Lets skills and other MCP clients read
@@ -74,6 +83,34 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_TUNER,
+                "Live tuner readings (note / cents / frequency per tap) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_SPECTRUM,
+                "Live spectrum readings (per-band levels and peak holds) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_DI,
+                "Per-chain DI loop state (playing, playback peaks, source) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_CHAIN_LATENCY_TEMPLATE,
+                "Measured chain latency (replace {chain} with a chain id) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_PRESETS,
                 "Project preset pool (all names in RigProject.presets) — JSON",
             ),
@@ -130,6 +167,20 @@ pub fn resources() -> Vec<Resource> {
 
 /// Resolve a resource URI by querying the frontend.
 pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResult> {
+    let kind = kind_for_uri(uri)?;
+    let text = bridge
+        .query(kind)
+        .await
+        .map_err(|_| anyhow::anyhow!("frontend dropped the bridge"))?
+        .map_err(|e| anyhow::anyhow!(e))?;
+    Ok(ReadResourceResult::new(vec![ResourceContents::text(
+        text, uri,
+    )]))
+}
+
+/// Pure URI → [`QueryKind`] resolution. Split out of [`read`] so the
+/// read-parity guard can round-trip every kind without a live bridge.
+pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
     // #572: `openrig://plugins/<id>/params` and
     // `openrig://chains/<cid>/blocks/<bid>/params` are sub-resources
     // of namespaces matched by simpler patterns — match BEFORE the
@@ -138,6 +189,10 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
         QueryKind::GetBlockParams {
             chain: ChainId(chain),
             block: domain::ids::BlockId(block),
+        }
+    } else if let Some(chain_id) = parse_chain_latency_uri(uri) {
+        QueryKind::ChainLatency {
+            chain: ChainId(chain_id),
         }
     } else if let Some(chain_id) = parse_chain_quality_uri(uri) {
         QueryKind::ChainQualityReport {
@@ -159,6 +214,9 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
             URI_DEVICES => QueryKind::Devices,
             URI_IDS => QueryKind::Ids,
             URI_METERS => QueryKind::ChainMeters,
+            URI_TUNER => QueryKind::TunerReadings,
+            URI_SPECTRUM => QueryKind::SpectrumReadings,
+            URI_DI => QueryKind::DiLoopState,
             URI_PRESETS => QueryKind::ListProjectPresets,
             URI_PLUGINS => QueryKind::ListPluginCatalog,
             URI_PATHS => QueryKind::Paths,
@@ -171,14 +229,48 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
             other => anyhow::bail!("unknown resource: {other}"),
         }
     };
-    let text = bridge
-        .query(kind)
-        .await
-        .map_err(|_| anyhow::anyhow!("frontend dropped the bridge"))?
-        .map_err(|e| anyhow::anyhow!(e))?;
-    Ok(ReadResourceResult::new(vec![ResourceContents::text(
-        text, uri,
-    )]))
+    Ok(kind)
+}
+
+/// #829 read-parity guard: the URI that serves each [`QueryKind`].
+///
+/// The match has **no wildcard arm** on purpose — adding a query kind
+/// without exposing it over MCP is a build error right here, so "every
+/// window the user reads is readable by every transport" cannot regress
+/// silently. Templated kinds render a concrete URI from their arguments.
+pub fn uri_for(kind: &QueryKind) -> String {
+    match kind {
+        QueryKind::ProjectYaml => URI_PROJECT.to_string(),
+        QueryKind::Devices => URI_DEVICES.to_string(),
+        QueryKind::Ids => URI_IDS.to_string(),
+        QueryKind::ChainMeters => URI_METERS.to_string(),
+        QueryKind::TunerReadings => URI_TUNER.to_string(),
+        QueryKind::SpectrumReadings => URI_SPECTRUM.to_string(),
+        QueryKind::DiLoopState => URI_DI.to_string(),
+        QueryKind::ChainLatency { chain } => {
+            format!("openrig://chains/{}/latency", chain.0)
+        }
+        QueryKind::ListProjectPresets => URI_PRESETS.to_string(),
+        QueryKind::ListPluginCatalog => URI_PLUGINS.to_string(),
+        QueryKind::Paths => URI_PATHS.to_string(),
+        QueryKind::ListChainPresets { chain } => {
+            format!("openrig://chains/{}/presets", chain.0)
+        }
+        QueryKind::ChainQualityReport { chain } => {
+            format!("openrig://chains/{}/quality", chain.0)
+        }
+        QueryKind::ChainToneReport { chain } => {
+            format!("openrig://chains/{}/tone", chain.0)
+        }
+        QueryKind::GetBlockParams { chain, block } => {
+            format!("openrig://chains/{}/blocks/{}/params", chain.0, block.0)
+        }
+        QueryKind::GetPluginParams { plugin_id } => {
+            format!("{URI_PLUGIN_PREFIX}{plugin_id}/params")
+        }
+        QueryKind::GetPlugin { id } => format!("{URI_PLUGIN_PREFIX}{id}"),
+        QueryKind::FindPlugins { query } => format!("{URI_PLUGIN_SEARCH_PREFIX}{query}"),
+    }
 }
 
 /// Extract `<chain>` from `openrig://chains/<chain>/presets`. Returns
@@ -186,6 +278,15 @@ pub async fn read(bridge: &CommandBridge, uri: &str) -> Result<ReadResourceResul
 fn parse_chain_presets_uri(uri: &str) -> Option<String> {
     uri.strip_prefix("openrig://chains/")
         .and_then(|rest| rest.strip_suffix("/presets"))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Extract `<chain>` from `openrig://chains/<chain>/latency`. Returns
+/// `None` for any other URI shape. #829.
+fn parse_chain_latency_uri(uri: &str) -> Option<String> {
+    uri.strip_prefix("openrig://chains/")
+        .and_then(|rest| rest.strip_suffix("/latency"))
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
 }

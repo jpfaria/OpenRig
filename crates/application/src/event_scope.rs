@@ -87,7 +87,9 @@ impl Event {
             | Event::RenderCompleted { .. }
             | Event::Error { .. }
             // #716: I/O binding registry is a system-level concern, not tied to any chain.
-            | Event::IoBindingRegistryChanged => None,
+            | Event::IoBindingRegistryChanged
+            // #829: device enumeration is machine-wide, not chain-scoped.
+            | Event::AudioDevicesRefreshed => None,
         }
     }
 }

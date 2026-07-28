@@ -55,6 +55,7 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
 /// #614: wires on_di_loop_choose_file (uses rfd — separate from chain_row_wiring
@@ -101,6 +102,7 @@ pub use settings::audio::apply_audio_override;
 pub use settings::paths::{
     apply_evaluations_override, apply_plugins_override, apply_presets_override,
 };
+mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
 mod metronome_session;
@@ -172,7 +174,6 @@ mod project_ops_recents;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
-mod query_resolver;
 mod tone_doctor_events;
 mod state;
 mod ui_state;

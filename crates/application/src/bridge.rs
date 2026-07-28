@@ -108,12 +108,28 @@ pub enum QueryKind {
     /// running the synthetic battery through the offline render, so it resolves
     /// off-frontend. MCP serves this as `openrig://chains/{chain}/quality`.
     ChainQualityReport { chain: domain::ids::ChainId },
-    /// #791: the chain's last Tone Doctor verdict (symptom, culprit block,
-    /// measurements, measured fix) as `{"tone": …}`, or `{"tone": null}` when
-    /// no diagnosis has run yet. Lives in dispatcher state, not the snapshot,
-    /// so it resolves on the frontend. MCP serves it as
-    /// `openrig://chains/{chain}/tone`.
+    /// #791: the chain's last Tone Doctor run (state + verdict). Lives in
+    /// dispatcher state, not the snapshot, so it resolves on the frontend.
+    /// MCP serves it as `openrig://chains/{chain}/tone`.
     ChainToneReport { chain: domain::ids::ChainId },
+    /// #829: live tuner readings (note / cents / frequency per tap), the
+    /// same numbers the Tuner window shows. Serialized by
+    /// [`crate::query_analyzers::tuner_readings_json`]. `running: false`
+    /// when the analyzer is powered off — the caller dispatches
+    /// `SetTunerEnabled` first.
+    TunerReadings,
+    /// #829: live spectrum readings (per-band levels and peak holds), the
+    /// same numbers the Spectrum window shows. Serialized by
+    /// [`crate::query_analyzers::spectrum_readings_json`].
+    SpectrumReadings,
+    /// #829: per-chain DI loop state (playing, playback peaks, loaded
+    /// source) — read parity for the DI commands. Serialized by
+    /// [`crate::query_di::di_loop_state_json`].
+    DiLoopState,
+    /// #829: measured DSP latency for one chain, probed at the chain
+    /// input's real rate and buffer (never a hardcoded 48 kHz — #723).
+    /// Serialized by [`crate::query_latency::chain_latency_report`].
+    ChainLatency { chain: domain::ids::ChainId },
 }
 
 struct QueryRequest {
@@ -176,9 +192,15 @@ impl CommandBridge {
                 crate::query_chain_quality::chain_quality_report(&snap.project, chain),
             ),
             // Live runtime / GUI-coupled reads keep the frontend path.
-            // #791: the tone report lives in dispatcher state (the frontend
-            // owns it), so it queues like the meters do.
-            QueryKind::Devices | QueryKind::ChainMeters | QueryKind::ChainToneReport { .. } => None,
+            // #791: the tone run lives in dispatcher state (the frontend owns
+            // it), so it queues like the meters do.
+            QueryKind::Devices
+            | QueryKind::ChainMeters
+            | QueryKind::TunerReadings
+            | QueryKind::SpectrumReadings
+            | QueryKind::DiLoopState
+            | QueryKind::ChainLatency { .. }
+            | QueryKind::ChainToneReport { .. } => None,
             // Handled above; unreachable here.
             QueryKind::ListPluginCatalog
             | QueryKind::GetPlugin { .. }

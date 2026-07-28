@@ -842,6 +842,12 @@ pub fn run_desktop_app(
         // Cloned for the meter resolver closure (the moves above
         // consumed `project_chains` for the rig-nav ctx).
         let chains_for_meters = mcp_ctx.project_chains.clone();
+        // #829: analyzer readings are served from the same live sessions the
+        // Tuner / Spectrum windows render, so every transport reads the very
+        // numbers on screen instead of a parallel derivation.
+        let tuner_for_queries = tuner_session.clone();
+        let spectrum_for_queries = spectrum_session.clone();
+        let runtime_for_queries = project_runtime.clone();
         let timer = Timer::default();
         timer.start(
             slint::TimerMode::Repeated,
@@ -862,7 +868,16 @@ pub fn run_desktop_app(
                         events.extend(session.dispatcher.poll_async_results());
                     }
                     drain.serve_queries(
-                        |kind| crate::query_resolver::resolve(kind, session, &chains_for_meters),
+                        |kind| {
+                            crate::mcp_query_resolver::QueryResolver {
+                                session,
+                                chain_rows: &chains_for_meters,
+                                tuner: &tuner_for_queries,
+                                spectrum: &spectrum_for_queries,
+                                runtime: &runtime_for_queries,
+                            }
+                            .resolve(kind)
+                        },
                         32,
                     );
                     events

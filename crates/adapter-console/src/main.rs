@@ -187,9 +187,18 @@ fn main() -> Result<()> {
                     .map_err(|e| e.to_string()),
                 QueryKind::Ids => Ok(application::query::list_ids(&shared.borrow())),
                 // #791: the console owns no doctor state of its own; the
-                // dispatcher's last verdict is the answer for every transport.
+                // dispatcher's last run is the answer for every transport.
                 QueryKind::ChainToneReport { chain } => {
                     Ok(dispatcher.inner().tone_report_json(chain))
+                }
+                // #829: reads that need a live analyzer/runtime the console
+                // does not host — answer with the empty shape so the resource
+                // is still addressable on this transport.
+                QueryKind::TunerReadings
+                | QueryKind::SpectrumReadings
+                | QueryKind::DiLoopState
+                | QueryKind::ChainLatency { .. } => {
+                    Err("not available on the console adapter".to_string())
                 }
                 QueryKind::ChainMeters => {
                     // Console adapter has no live meter source — emit a

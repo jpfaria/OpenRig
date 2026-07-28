@@ -426,6 +426,9 @@ pub enum Event {
     /// mutated (create, update, or delete). MCP/gRPC adapters that cache
     /// the registry invalidate their cache on receipt.
     IoBindingRegistryChanged,
+
+    /// #829: the audio device list was re-enumerated (USB hot-swap).
+    AudioDevicesRefreshed,
 }
 
 #[cfg(test)]

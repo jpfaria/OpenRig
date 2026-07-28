@@ -37,6 +37,7 @@ mod local_dispatcher_language;
 mod local_dispatcher_metronome;
 mod local_dispatcher_midi_system;
 mod local_dispatcher_output;
+mod local_dispatcher_parity_829;
 mod local_dispatcher_paths;
 mod local_dispatcher_plugin_catalog;
 mod local_dispatcher_preset;
@@ -55,7 +56,10 @@ pub mod preset_file;
 pub mod project_save;
 pub mod publishing_dispatcher;
 pub mod query;
+pub mod query_analyzers;
 pub mod query_chain_quality;
+pub mod query_di;
+pub mod query_latency;
 pub mod render_handler;
 pub mod selection_state;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
@@ -108,6 +112,10 @@ mod local_dispatcher_midi_e2e_tests;
 #[cfg(test)]
 #[path = "local_dispatcher_paths_tests.rs"]
 mod local_dispatcher_paths_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_parity_829_tests.rs"]
+mod local_dispatcher_parity_829_tests;
 
 #[cfg(test)]
 #[path = "local_dispatcher_rig_tests.rs"]

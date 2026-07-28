@@ -39,10 +39,12 @@ use application::command_schema::command_variant_names;
 /// #14 bumped to 82 with the nine `MetronomeCommand` leaves
 /// (`SetMetronomeEnabled`/`Bpm`/`TimeSignature`/`Subdivision`/`Volume`/
 /// `Timbre`/`CountIn`/`Output` and `MetronomeTap`).
-/// #791 bumped to 84 with `DiagnoseChainTone` and `ApplyToneDoctorFix` —
+/// #829 bumped to 83 with `RefreshAudioDevices` — device re-enumeration
+/// was reachable only by clicking the GUI's refresh button.
+/// #791 bumped to 85 with `DiagnoseChainTone` and `ApplyToneDoctorFix` —
 /// the Tone Doctor moved onto the bus, so MCP/gRPC reach the same
 /// diagnosis and the same measured fix the GUI panel shows.
-const COMMAND_VARIANT_COUNT: usize = 84;
+const COMMAND_VARIANT_COUNT: usize = 85;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {
