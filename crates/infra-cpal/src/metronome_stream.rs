@@ -10,7 +10,7 @@
 //! click is synthesized, so the callback renders it directly and the whole
 //! producer side disappears.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use engine::metronome_state::{MetronomeGenerator, MetronomeSettings, MetronomeShared};
 
@@ -18,6 +18,9 @@ use crate::ProjectRuntimeController;
 
 /// A live metronome stream, plus the device it was opened on so a device
 /// change can tell "already running there" from "must reopen".
+// The JACK build never opens this stream (`start_metronome` is a stub there), so
+// the handle is never constructed and its fields go unread on that target only.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 pub(crate) struct MetronomeStreamHandle {
     pub(crate) device_id: String,
     /// The endpoint channels this stream routes the click to. Kept so a re-open
@@ -36,6 +39,9 @@ pub(crate) struct MetronomeStreamHandle {
 /// `last_generation` is the callback's own copy of the settings version: the
 /// settings are only re-read when the control side actually changed something,
 /// which on the overwhelming majority of buffers is never.
+// On the JACK build no cpal stream drives this from production (the tests still
+// exercise it), so the lib target sees it unused on that target only.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 pub(crate) fn fill_metronome_buffer(
     generator: &mut MetronomeGenerator,
     shared: &MetronomeShared,
@@ -123,7 +129,7 @@ impl ProjectRuntimeController {
 
         let host = crate::host::get_host();
         let device = crate::find_output_device_by_id(host, device_id)?
-            .ok_or_else(|| anyhow!("metronome output device '{device_id}' not found"))?;
+            .ok_or_else(|| anyhow::anyhow!("metronome output device '{device_id}' not found"))?;
         let supported = device.default_output_config()?;
         let sample_rate = supported.sample_rate();
         let channels = supported.channels() as usize;
