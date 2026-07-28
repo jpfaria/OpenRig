@@ -55,6 +55,7 @@ fn item(uid: i32, state_code: i32) -> LooperItem {
         can_record: true,
         input_index: 0,
         output_index: 0,
+        preset_index: 0,
     }
 }
 

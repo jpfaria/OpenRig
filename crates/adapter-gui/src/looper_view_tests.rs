@@ -39,7 +39,7 @@ fn status(
 #[test]
 fn a_looper_with_no_runtime_row_renders_as_empty() {
     let chain = chain_with(vec![LooperConfig::new(1)]);
-    let rows = looper_items(&chain, &[], 48_000, &[], true);
+    let rows = looper_items(&chain, &[], 48_000, &[], true, &[]);
 
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].uid, 1);
@@ -61,16 +61,16 @@ fn rec_is_offered_only_when_the_runtime_is_live() {
     chain.enabled = true;
 
     assert!(
-        looper_items(&chain, &[], 48_000, &[], true)[0].can_record,
+        looper_items(&chain, &[], 48_000, &[], true, &[])[0].can_record,
         "a live runtime offers REC"
     );
     assert!(
-        !looper_items(&chain, &[], 48_000, &[], false)[0].can_record,
+        !looper_items(&chain, &[], 48_000, &[], false, &[])[0].can_record,
         "no live runtime ⇒ REC disabled even for an enabled chain"
     );
     // The config-only (project-open) path never has a live runtime yet.
     assert!(
-        !looper_items_from_config(&chain, &[])[0].can_record,
+        !looper_items_from_config(&chain, &[], &[])[0].can_record,
         "no live runtime yet ⇒ REC disabled"
     );
 }
@@ -84,6 +84,7 @@ fn live_state_progress_and_time_come_from_the_runtime_at_the_live_rate() {
         48_000,
         &[],
         true,
+        &[],
     );
 
     assert_eq!(rows[0].state_code, 2);
@@ -102,6 +103,7 @@ fn time_label_follows_a_44100_stream_not_a_hardcoded_48000() {
         44_100,
         &[],
         true,
+        &[],
     );
     assert_eq!(rows[0].time_label, "0:00 / 0:05");
 }
@@ -116,6 +118,7 @@ fn redo_is_offered_only_while_an_undone_layer_is_still_there() {
         48_000,
         &[],
         true,
+        &[],
     );
     assert!(!rows[0].can_redo, "nothing is known to be undone yet");
 
@@ -126,6 +129,7 @@ fn redo_is_offered_only_while_an_undone_layer_is_still_there() {
         &[(1u64, 2usize)],
         &[],
         true,
+        &[],
     );
     assert!(rows[0].can_redo);
 }
@@ -143,7 +147,7 @@ fn persisted_parameters_reach_the_row_in_panel_units() {
         output: None,
         preset: None,
     }]);
-    let rows = looper_items(&chain, &[], 48_000, &[], true);
+    let rows = looper_items(&chain, &[], 48_000, &[], true, &[]);
 
     assert_eq!(rows[0].mix, 50);
     assert_eq!(rows[0].decay, 25);
@@ -154,7 +158,7 @@ fn persisted_parameters_reach_the_row_in_panel_units() {
 #[test]
 fn a_chain_is_active_while_any_looper_records_or_plays() {
     let chain = chain_with(vec![LooperConfig::new(1), LooperConfig::new(2)]);
-    assert!(!any_looper_active(&looper_items(&chain, &[], 48_000, &[], true)));
+    assert!(!any_looper_active(&looper_items(&chain, &[], 48_000, &[], true, &[])));
 
     let rows = looper_items(
         &chain,
@@ -162,6 +166,7 @@ fn a_chain_is_active_while_any_looper_records_or_plays() {
         48_000,
         &[],
         true,
+        &[],
     );
     assert!(any_looper_active(&rows));
 
@@ -171,6 +176,7 @@ fn a_chain_is_active_while_any_looper_records_or_plays() {
         48_000,
         &[],
         true,
+        &[],
     );
     assert!(
         !any_looper_active(&stopped),

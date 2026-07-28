@@ -17,4 +17,9 @@ export global LooperPanel {
     // input_index / output_index).
     in-out property <[string]> input-options;
     in-out property <[string]> output-options;
+    // #323 phase 2: which looper's preset picker is open; -1 = none. The picker
+    // is a root-level modal (click-reachable), so a single uid drives it.
+    in-out property <int> preset-picker-uid: -1;
+    // The open loop's current preset option index, so the modal marks it.
+    in-out property <int> preset-picker-selected;
 }

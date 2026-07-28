@@ -822,3 +822,15 @@ msgstr "录音输入"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-output"
 msgstr "播放输出"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset"
+msgstr "预设"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-follow"
+msgstr "跟随链"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-picker-title"
+msgstr "通过预设播放"

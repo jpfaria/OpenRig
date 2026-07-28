@@ -105,6 +105,11 @@ export struct LooperItem {
     input_index: int,
     /// Index into the chain's output endpoints of where this looper plays back.
     output_index: int,
+    /// #323 phase 2: index into the chain's `looper_preset_options` of the
+    /// preset this loop plays through. 0 = "follow the chain" (no fixed link);
+    /// 1.. = a bank preset. Drives the drawer's preset button label and the
+    /// picker's current-selection checkmark.
+    preset_index: int,
 }
 
 export struct ProjectChainItem {
@@ -162,6 +167,11 @@ export struct ProjectChainItem {
     /// looper's record-from / play-to select shows.
     looper_input_options: [string],
     looper_output_options: [string],
+    /// #323 phase 2: the preset options a looper can play through — index 0 is
+    /// "follow the chain" (no fixed link), the rest are this chain's bank preset
+    /// names. Shared by every row's preset picker; the per-loop choice is the
+    /// LooperItem's `preset_index`.
+    looper_preset_options: [string],
     /// Issue #771: the DI stream's OWN in/out levels (dBFS), read from the
     /// isolated playback's peaks — never a mirror of the chain meters.
     /// Refreshed by the meter timer via `di_playback_peaks`.

@@ -831,3 +831,15 @@ msgstr "Gravar de"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-output"
 msgstr "Tocar em"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset"
+msgstr "Preset"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-follow"
+msgstr "Seguir a chain"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-picker-title"
+msgstr "Tocar com o preset"

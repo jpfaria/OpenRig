@@ -42,6 +42,7 @@ fn refresh_row(session: &ProjectSession, runtime: &Runtime, chains: &Chains, ind
         return;
     };
     let registry = session.io_bindings.borrow();
+    let preset_ids = crate::looper_view::chain_preset_ids(chain, session.rig.as_deref());
     let runtime_borrow = runtime.borrow();
     match runtime_borrow.as_ref() {
         Some(controller) if !controller.runtimes_for_chain(&chain.id).is_empty() => {
@@ -52,6 +53,7 @@ fn refresh_row(session: &ProjectSession, runtime: &Runtime, chains: &Chains, ind
                 &controller.chain_looper_statuses(&chain.id),
                 Some(controller.sample_rate()),
                 &registry,
+                &preset_ids,
             );
         }
         _ => crate::looper_view::write_chain_looper_row(
@@ -61,6 +63,7 @@ fn refresh_row(session: &ProjectSession, runtime: &Runtime, chains: &Chains, ind
             &[],
             None,
             &registry,
+            &preset_ids,
         ),
     }
 }
@@ -365,6 +368,39 @@ pub(crate) fn wire_looper_callbacks(
                 if let Some(controller) = runtime.borrow().as_ref() {
                     controller.looper_set_output(&chain, uid as u64, output);
                 }
+            });
+        });
+    }
+    // #323 phase 2: a preset was picked in the drawer's modal. Option 0 =
+    // "follow the chain" (clear the link → None); k = the chain's bank slot k.
+    // The linked-preset playback blocks re-resolve on the next meter tick.
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        window.on_looper_preset_picked(move |index, uid, option_index| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                let preset = if option_index <= 0 {
+                    None
+                } else {
+                    s.rig.as_deref().and_then(|r| {
+                        crate::chain_preset_wiring::chain_preset_bank(&chain, &r.borrow())
+                            .into_iter()
+                            .nth((option_index - 1) as usize)
+                            .map(|(id, _)| id)
+                    })
+                };
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::SetChainLooperPreset {
+                        chain,
+                        looper: uid as u64,
+                        preset,
+                    },
+                );
             });
         });
     }

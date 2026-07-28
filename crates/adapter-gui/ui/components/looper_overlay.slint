@@ -4,6 +4,7 @@
 // backdrop. Callbacks bubble to the host with the chain index, so the dispatch
 // path stays in Rust.
 
+import { Theme } from "../theme.slint";
 import { LooperPanel } from "looper_panel_globals.slint";
 import { LooperPanelView } from "looper_panel.slint";
 import { LooperItem } from "../models.slint";
@@ -16,6 +17,8 @@ export component LooperOverlay inherits Rectangle {
     // meter timer resolves the chain's bindings.
     in property <[string]> input-options;
     in property <[string]> output-options;
+    // #323 phase 2: the chain's preset options (index 0 = follow the chain).
+    in property <[string]> preset-options;
     callback add(int);
     callback record(int, int);
     callback play-stop(int, int);
@@ -29,6 +32,9 @@ export component LooperOverlay inherits Rectangle {
     callback reverse-toggled(int, int, bool);
     callback input-picked(int, int, int);
     callback output-picked(int, int, int);
+    // #323 phase 2: (chain-index, uid, option-index) — the picked preset. Index
+    // 0 means "follow the chain" (clear the link).
+    callback preset-picked(int, int, int);
 
     x: 0; y: 0;
     visible: LooperPanel.open;
@@ -41,6 +47,7 @@ export component LooperOverlay inherits Rectangle {
         expanded-uid: LooperPanel.expanded-uid;
         input-options: root.input-options;
         output-options: root.output-options;
+        preset-options: root.preset-options;
         add => { root.add(LooperPanel.chain-index); }
         record(uid) => { root.record(LooperPanel.chain-index, uid); }
         play-stop(uid) => { root.play-stop(LooperPanel.chain-index, uid); }
@@ -57,5 +64,145 @@ export component LooperOverlay inherits Rectangle {
         reverse-toggled(uid, v) => { root.reverse-toggled(LooperPanel.chain-index, uid, v); }
         input-picked(uid, v) => { root.input-picked(LooperPanel.chain-index, uid, v); }
         output-picked(uid, v) => { root.output-picked(LooperPanel.chain-index, uid, v); }
+        preset-open(uid, sel) => {
+            LooperPanel.preset-picker-uid = uid;
+            LooperPanel.preset-picker-selected = sel;
+        }
+    }
+
+    // #323 phase 2: the preset picker modal — a root-level overlay (never a
+    // PopupWindow, so every option is a reachable in-tree TouchArea, the
+    // #749/#761 lesson). Lists the chain's preset options; index 0 is "follow
+    // the chain" (clears the fixed link).
+    if LooperPanel.preset-picker-uid >= 0 : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        background: #000000a8;
+
+        // Click-outside closes without changing the link.
+        TouchArea { clicked => { LooperPanel.preset-picker-uid = -1; } }
+
+        Rectangle {
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2;
+            width: 360px;
+            // +1 row for the "follow the chain" option the picker injects at 0.
+            height: min(root.height - 80px, 96px + (root.preset-options.length + 1) * 48px);
+            background: #1e1f22;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.palette.border-strong;
+
+            VerticalLayout {
+                padding: 16px;
+                spacing: 8px;
+
+                Text {
+                    text: @tr("looper-preset-picker-title");
+                    color: Theme.palette.text-primary;
+                    font-size: 15px;
+                    font-weight: 700;
+                }
+
+                Flickable {
+                    viewport-height: options-col.preferred-height;
+                    options-col := VerticalLayout {
+                        spacing: 4px;
+
+                        // Option 0 — "follow the chain" (clears the fixed link).
+                        follow-row := Rectangle {
+                            height: 44px;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: LooperPanel.preset-picker-selected == 0
+                                ? #6e8aff : transparent;
+                            background: follow-ta.has-hover
+                                ? #6e8aff28
+                                : (LooperPanel.preset-picker-selected == 0 ? #6e8aff14 : #2a2c31);
+
+                            Text {
+                                x: 12px;
+                                width: parent.width - 44px;
+                                height: parent.height;
+                                vertical-alignment: center;
+                                text: @tr("looper-preset-follow");
+                                color: Theme.palette.text-secondary;
+                                font-size: 13px;
+                                overflow: elide;
+                            }
+
+                            Text {
+                                x: parent.width - 30px;
+                                width: 20px;
+                                height: parent.height;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                                text: LooperPanel.preset-picker-selected == 0 ? "✓" : "";
+                                color: #6e8aff;
+                                font-size: 14px;
+                                font-weight: 700;
+                            }
+
+                            follow-ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.preset-picked(LooperPanel.chain-index, LooperPanel.preset-picker-uid, 0);
+                                    LooperPanel.preset-picker-uid = -1;
+                                }
+                            }
+
+                            accessible-role: button;
+                            accessible-label: @tr("looper-preset-follow");
+                        }
+
+                        // Options 1..N — the chain's bank presets.
+                        for option[i] in root.preset-options : Rectangle {
+                            height: 44px;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: (i + 1) == LooperPanel.preset-picker-selected
+                                ? #6e8aff : transparent;
+                            background: opt-ta.has-hover
+                                ? #6e8aff28
+                                : ((i + 1) == LooperPanel.preset-picker-selected ? #6e8aff14 : #2a2c31);
+
+                            Text {
+                                x: 12px;
+                                width: parent.width - 44px;
+                                height: parent.height;
+                                vertical-alignment: center;
+                                text: option;
+                                color: Theme.palette.text-primary;
+                                font-size: 13px;
+                                overflow: elide;
+                            }
+
+                            Text {
+                                x: parent.width - 30px;
+                                width: 20px;
+                                height: parent.height;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                                text: (i + 1) == LooperPanel.preset-picker-selected ? "✓" : "";
+                                color: #6e8aff;
+                                font-size: 14px;
+                                font-weight: 700;
+                            }
+
+                            opt-ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.preset-picked(LooperPanel.chain-index, LooperPanel.preset-picker-uid, i + 1);
+                                    LooperPanel.preset-picker-uid = -1;
+                                }
+                            }
+
+                            accessible-role: button;
+                            accessible-label: option;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

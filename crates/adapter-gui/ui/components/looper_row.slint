@@ -17,6 +17,9 @@ export component LooperRow inherits Rectangle {
     // record-from and play-to selects in this row's drawer.
     in property <[string]> input-options;
     in property <[string]> output-options;
+    // #323 phase 2: the preset options this loop can play through (index 0 =
+    // "follow the chain"); the picker button shows the current one.
+    in property <[string]> preset-options;
 
     callback record();
     callback play-stop();
@@ -31,6 +34,7 @@ export component LooperRow inherits Rectangle {
     callback reverse-toggled(bool);
     callback input-picked(int);
     callback output-picked(int);
+    callback preset-open();
 
     // 0 empty · 1 recording · 2 playing · 3 overdubbing · 4 stopped
     private property <bool> recording: root.looper.state_code == 1 || root.looper.state_code == 3;
@@ -43,7 +47,7 @@ export component LooperRow inherits Rectangle {
         : root.looper.state_code == 4 ? #c5cad4     // stopped
         : #8a94a2;                                  // empty
 
-    height: root.expanded ? 242px : 60px;
+    height: root.expanded ? 282px : 60px;
     border-radius: 10px;
     background: Theme.palette.card-secondary;
     border-width: 1px;
@@ -205,7 +209,7 @@ export component LooperRow inherits Rectangle {
         x: 12px;
         y: 58px;
         width: parent.width - 24px;
-        height: 176px;
+        height: 216px;
         spacing: 8px;
 
         Rectangle {
@@ -225,6 +229,71 @@ export component LooperRow inherits Rectangle {
             options: root.output-options;
             selected-index: root.looper.output_index;
             picked(i) => { root.output-picked(i); }
+        }
+
+        // #323 phase 2: which preset renders this loop. A modal picker (not a
+        // segmented row) because a bank can hold many presets with long names.
+        preset-btn := Rectangle {
+            height: 28px;
+
+            Text {
+                x: 0;
+                width: 74px;
+                height: parent.height;
+                vertical-alignment: center;
+                text: @tr("looper-preset");
+                color: Theme.palette.text-muted;
+                font-size: 12px;
+            }
+
+            Rectangle {
+                x: 80px;
+                width: parent.width - 80px;
+                height: parent.height;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: root.looper.preset_index > 0 ? #6e8aff : Theme.palette.border;
+                background: preset-ta.has-hover
+                    ? #6e8aff28
+                    : (root.looper.preset_index > 0 ? #6e8aff14 : transparent);
+
+                Text {
+                    x: 10px;
+                    width: parent.width - 34px;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    // Option 0 is "follow the chain" (translated here); 1..N map
+                    // to preset-options[index - 1], the chain's bank names.
+                    text: root.looper.preset_index == 0
+                        ? @tr("looper-preset-follow")
+                        : root.preset-options[root.looper.preset_index - 1];
+                    color: root.looper.preset_index > 0
+                        ? Theme.palette.text-primary
+                        : Theme.palette.text-muted;
+                    font-size: 12px;
+                    overflow: elide;
+                }
+
+                Text {
+                    x: parent.width - 22px;
+                    width: 16px;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                    text: "▸";
+                    color: Theme.palette.text-muted;
+                    font-size: 11px;
+                }
+
+                preset-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.preset-open(); }
+                }
+
+                accessible-role: button;
+                accessible-label: @tr("looper-preset");
+                accessible-action-default => { root.preset-open(); }
+            }
         }
 
         LooperSlider {

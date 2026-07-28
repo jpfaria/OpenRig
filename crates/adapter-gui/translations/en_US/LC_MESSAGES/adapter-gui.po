@@ -825,3 +825,15 @@ msgstr "Record from"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-output"
 msgstr "Play to"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset"
+msgstr "Preset"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-follow"
+msgstr "Follow the chain"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-picker-title"
+msgstr "Play through preset"

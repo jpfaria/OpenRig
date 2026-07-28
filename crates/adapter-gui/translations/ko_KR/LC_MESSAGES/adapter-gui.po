@@ -822,3 +822,15 @@ msgstr "녹음 입력"
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-output"
 msgstr "재생 출력"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset"
+msgstr "프리셋"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-follow"
+msgstr "체인 따르기"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-picker-title"
+msgstr "프리셋으로 재생"

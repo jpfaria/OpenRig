@@ -15,6 +15,7 @@ export component LooperHarness inherits Window {
     in property <bool> can-add: true;
     in property <[string]> input-options;
     in property <[string]> output-options;
+    in property <[string]> preset-options;
 
     callback add();
     callback record(int);
@@ -30,6 +31,7 @@ export component LooperHarness inherits Window {
     callback reverse-toggled(int, bool);
     callback input-picked(int, int);
     callback output-picked(int, int);
+    callback preset-open(int, int);
 
     LooperPanelView {
         x: 20px;
@@ -39,6 +41,7 @@ export component LooperHarness inherits Window {
         can-add: root.can-add;
         input-options: root.input-options;
         output-options: root.output-options;
+        preset-options: root.preset-options;
         add => { root.add(); }
         record(uid) => { root.record(uid); }
         play-stop(uid) => { root.play-stop(uid); }
@@ -53,5 +56,6 @@ export component LooperHarness inherits Window {
         reverse-toggled(uid, v) => { root.reverse-toggled(uid, v); }
         input-picked(uid, v) => { root.input-picked(uid, v); }
         output-picked(uid, v) => { root.output-picked(uid, v); }
+        preset-open(uid, sel) => { root.preset-open(uid, sel); }
     }
 }

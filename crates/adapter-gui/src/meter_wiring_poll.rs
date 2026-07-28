@@ -79,6 +79,14 @@ pub fn start_meter_polling(
             &project,
             &session.io_bindings.borrow(),
         );
+        // #323 phase 2: the preset options each looper can play through (the
+        // chain's bank), for the drawer's preset picker — offline like the
+        // endpoints, so a stopped chain still lists them.
+        crate::looper_view::apply_looper_presets_to_rows(
+            &project_chains,
+            &project,
+            session.rig.as_deref(),
+        );
         let rt_borrow = project_runtime.borrow();
         // Detect chains whose runtime-layout signature changed since
         // the last tick. Signature mixes project bits (enabled, per
@@ -291,12 +299,15 @@ fn refresh_chain_meter_row(
     // REC is armable only when the chain actually has a LIVE runtime to capture
     // into — an enabled chain whose runtime is still cold-starting has none yet.
     let runtime_live = !controller.runtimes_for_chain(cid).is_empty();
+    let looper_preset_ids =
+        crate::looper_view::chain_preset_ids(&project.chains[idx], session.rig.as_deref());
     let looper_rows = crate::looper_view::looper_items(
         &project.chains[idx],
         &controller.chain_looper_statuses(cid),
         controller.sample_rate(),
         &session.io_bindings.borrow(),
         runtime_live,
+        &looper_preset_ids,
     );
     let looper_active_now = crate::looper_view::any_looper_active(&looper_rows);
     let loopers_changed = {

@@ -819,3 +819,15 @@ msgstr ""
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-output"
 msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-follow"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_row.slint:1
+msgid "looper-preset-picker-title"
+msgstr ""

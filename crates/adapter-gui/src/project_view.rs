@@ -521,7 +521,9 @@ pub(crate) fn replace_project_chains(
                 // empty panel and the user re-clicked Add until the config hit
                 // the 8-looper cap.
                 loopers: ModelRc::from(Rc::new(VecModel::from(
-                    crate::looper_view::looper_items_from_config(chain, io_bindings),
+                    // #323 phase 2: the meter tick fills preset_index (needs the
+                    // rig); the initial seed has no bank ⇒ every loop "follows".
+                    crate::looper_view::looper_items_from_config(chain, io_bindings, &[]),
                 ))),
                 looper_active: false,
                 looper_input_options: {
@@ -544,6 +546,9 @@ pub(crate) fn replace_project_chains(
                             .collect::<Vec<_>>(),
                     )))
                 },
+                // #323 phase 2: filled by the meter tick (needs the rig's bank);
+                // the initial seed is empty ⇒ the picker shows just "follow".
+                looper_preset_options: ModelRc::default(),
             }
         })
         .collect::<Vec<_>>();

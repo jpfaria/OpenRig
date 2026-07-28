@@ -19,6 +19,8 @@ export component LooperPanelView inherits Rectangle {
     // record-from / play-to selects.
     in property <[string]> input-options;
     in property <[string]> output-options;
+    // #323 phase 2: the chain's preset options (index 0 = follow the chain).
+    in property <[string]> preset-options;
 
     callback add();
     callback record(int);
@@ -34,9 +36,10 @@ export component LooperPanelView inherits Rectangle {
     callback reverse-toggled(int, bool);
     callback input-picked(int, int);
     callback output-picked(int, int);
+    callback preset-open(int, int);
 
     private property <length> row-height: 60px;
-    private property <length> drawer-extra: 182px;
+    private property <length> drawer-extra: 222px;
     private property <bool> is-empty: root.loopers.length == 0;
 
     width: 600px;
@@ -150,6 +153,7 @@ export component LooperPanelView inherits Rectangle {
             expanded: item.uid == root.expanded-uid;
             input-options: root.input-options;
             output-options: root.output-options;
+            preset-options: root.preset-options;
             record => { root.record(item.uid); }
             play-stop => { root.play-stop(item.uid); }
             undo => { root.undo(item.uid); }
@@ -163,6 +167,7 @@ export component LooperPanelView inherits Rectangle {
             reverse-toggled(v) => { root.reverse-toggled(item.uid, v); }
             input-picked(v) => { root.input-picked(item.uid, v); }
             output-picked(v) => { root.output-picked(item.uid, v); }
+            preset-open => { root.preset-open(item.uid, item.preset_index); }
         }
     }
 }

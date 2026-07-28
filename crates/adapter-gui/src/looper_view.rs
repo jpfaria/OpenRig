@@ -40,6 +40,22 @@ fn clock(frames: usize, sample_rate: u32) -> String {
 /// Rows for one chain's loopers. `recorded` carries, per looper, how many
 /// layers exist including the ones an undo silenced — that is what makes redo
 /// available; pass an empty slice when it is not known.
+/// #323 phase 2: the option index a loop's linked preset maps to, for the
+/// drawer button + picker. `preset_ids[k]` is the id of option `k + 1` (option
+/// 0 is "follow the chain"), so a linked id present in the bank is `pos + 1` and
+/// an absent / `None` link is 0 (follow).
+pub(crate) fn preset_option_index(linked: Option<&str>, preset_ids: &[String]) -> i32 {
+    match linked {
+        Some(id) => preset_ids
+            .iter()
+            .position(|p| p == id)
+            .map(|pos| pos as i32 + 1)
+            .unwrap_or(0),
+        None => 0,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn looper_items_with_recorded(
     chain: &Chain,
     statuses: &[LooperStatus],
@@ -47,6 +63,7 @@ pub fn looper_items_with_recorded(
     recorded: &[(u64, usize)],
     registry: &[domain::io_binding::IoBinding],
     runtime_live: bool,
+    preset_ids: &[String],
 ) -> Vec<LooperItem> {
     use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
     chain
@@ -93,6 +110,7 @@ pub fn looper_items_with_recorded(
                 can_record: runtime_live,
                 input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
                 output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
+                preset_index: preset_option_index(cfg.preset.as_deref(), preset_ids),
             }
         })
         .collect()
@@ -105,8 +123,9 @@ pub fn looper_items(
     sample_rate: u32,
     registry: &[domain::io_binding::IoBinding],
     runtime_live: bool,
+    preset_ids: &[String],
 ) -> Vec<LooperItem> {
-    looper_items_with_recorded(chain, statuses, sample_rate, &[], registry, runtime_live)
+    looper_items_with_recorded(chain, statuses, sample_rate, &[], registry, runtime_live, preset_ids)
 }
 
 /// Rows built from the chain's PERSISTED config alone — no live runtime yet.
@@ -121,10 +140,11 @@ pub fn looper_items(
 pub fn looper_items_from_config(
     chain: &Chain,
     registry: &[domain::io_binding::IoBinding],
+    preset_ids: &[String],
 ) -> Vec<LooperItem> {
     // 1 Hz keeps `clock` total-safe; every frame count is 0 so it never shows.
     // No live runtime here (project-open path) ⇒ REC is not armable yet.
-    looper_items_with_recorded(chain, &[], 1, &[], registry, false)
+    looper_items_with_recorded(chain, &[], 1, &[], registry, false, preset_ids)
 }
 
 /// Whether any of the chain's loopers is currently making sound — drives the
@@ -167,6 +187,56 @@ pub fn apply_looper_endpoints_to_rows(
     }
 }
 
+/// #323 phase 2: populate every chain row's looper preset options — the chain's
+/// bank preset names, in slot order — so the drawer's preset picker lists them
+/// even on a chain that is not started (mirrors `apply_looper_endpoints_to_rows`).
+/// The "follow the chain" entry is option 0 and is added by the Slint picker
+/// (@tr, so it stays translatable); these are the bank names for options 1..N,
+/// matching each loop's `preset_index` (0 = follow, k = bank slot k). A non-rig
+/// chain gets an empty list. Writes a row back only when its options change.
+pub fn apply_looper_presets_to_rows(
+    project_chains: &slint::VecModel<crate::ProjectChainItem>,
+    project: &project::project::Project,
+    rig: Option<&std::cell::RefCell<project::rig::RigProject>>,
+) {
+    use slint::Model;
+    for (idx, chain) in project.chains.iter().enumerate() {
+        let Some(mut row) = project_chains.row_data(idx) else {
+            continue;
+        };
+        let options: Vec<String> = match rig {
+            Some(rig) => crate::chain_preset_wiring::chain_preset_bank(&chain.id, &rig.borrow())
+                .into_iter()
+                .map(|(_, label)| label)
+                .collect(),
+            None => Vec::new(),
+        };
+        let cur: Vec<String> = row.looper_preset_options.iter().map(|s| s.to_string()).collect();
+        if cur == options {
+            continue;
+        }
+        row.looper_preset_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
+            options.into_iter().map(slint::SharedString::from).collect::<Vec<_>>(),
+        )));
+        project_chains.set_row_data(idx, row);
+    }
+}
+
+/// #323 phase 2: the bank preset ids (option order) a chain's loopers map their
+/// `preset_index` against. Empty for a non-rig chain.
+pub(crate) fn chain_preset_ids(
+    chain: &Chain,
+    rig: Option<&std::cell::RefCell<project::rig::RigProject>>,
+) -> Vec<String> {
+    match rig {
+        Some(rig) => crate::chain_preset_wiring::chain_preset_bank(&chain.id, &rig.borrow())
+            .into_iter()
+            .map(|(id, _)| id)
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
 /// Rebuild the looper rows of one chain-card row in place.
 ///
 /// `sample_rate` is `Some` only when the chain has a live runtime — then the
@@ -183,6 +253,7 @@ pub fn write_chain_looper_row(
     statuses: &[LooperStatus],
     sample_rate: Option<u32>,
     registry: &[domain::io_binding::IoBinding],
+    preset_ids: &[String],
 ) {
     use slint::Model;
     let Some(mut row) = project_chains.row_data(index) else {
@@ -191,8 +262,8 @@ pub fn write_chain_looper_row(
     // `Some(rate)` is passed only when the chain has a LIVE runtime (see the
     // callers), so it doubles as the "REC is armable" signal.
     let rows = match sample_rate {
-        Some(rate) => looper_items(chain, statuses, rate, registry, true),
-        None => looper_items_from_config(chain, registry),
+        Some(rate) => looper_items(chain, statuses, rate, registry, true, preset_ids),
+        None => looper_items_from_config(chain, registry, preset_ids),
     };
     row.looper_active = any_looper_active(&rows);
     row.loopers = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(rows)));

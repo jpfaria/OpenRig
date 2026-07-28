@@ -355,6 +355,31 @@ pub(crate) fn active_preset_id(chain_id: &ChainId, rig: &RigProject) -> Option<S
     input.bank.get(&input.active_preset).cloned()
 }
 
+/// #323 phase 2: a rig chain's bank as `(id, display-name)` pairs, in bank-slot
+/// order — the source for the looper preset picker's options and its id map.
+/// Empty for a non-rig chain.
+pub(crate) fn chain_preset_bank(chain_id: &ChainId, rig: &RigProject) -> Vec<(String, String)> {
+    let Some(input_name) = chain_id.0.strip_prefix("rig:") else {
+        return Vec::new();
+    };
+    let Some(input) = rig.inputs.get(input_name) else {
+        return Vec::new();
+    };
+    // BTreeMap ⇒ ascending slot order, matching the preset combobox.
+    input
+        .bank
+        .values()
+        .map(|id| {
+            let label = rig
+                .presets
+                .get(id)
+                .and_then(|p| p.name.clone())
+                .unwrap_or_else(|| humanize_preset_label(id));
+            (id.clone(), label)
+        })
+        .collect()
+}
+
 pub(crate) fn default_preset_filename_slug(chain_id: &ChainId, rig: &RigProject) -> Option<String> {
     let input_name = chain_id.0.strip_prefix("rig:")?;
     let input = rig.inputs.get(input_name)?;
