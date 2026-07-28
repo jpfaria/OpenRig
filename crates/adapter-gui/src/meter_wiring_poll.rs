@@ -288,11 +288,15 @@ fn refresh_chain_meter_row(
     let overload_changed = row.audio_overload != overloaded;
     // #323: refresh the looper rows the panel renders. Cheap wait-free atomic
     // reads (`chain_looper_statuses`), never the `processing` lock (#580).
+    // REC is armable only when the chain actually has a LIVE runtime to capture
+    // into — an enabled chain whose runtime is still cold-starting has none yet.
+    let runtime_live = !controller.runtimes_for_chain(cid).is_empty();
     let looper_rows = crate::looper_view::looper_items(
         &project.chains[idx],
         &controller.chain_looper_statuses(cid),
         controller.sample_rate(),
         &session.io_bindings.borrow(),
+        runtime_live,
     );
     let looper_active_now = crate::looper_view::any_looper_active(&looper_rows);
     let loopers_changed = {

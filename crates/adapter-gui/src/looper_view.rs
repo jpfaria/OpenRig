@@ -46,6 +46,7 @@ pub fn looper_items_with_recorded(
     sample_rate: u32,
     recorded: &[(u64, usize)],
     registry: &[domain::io_binding::IoBinding],
+    runtime_live: bool,
 ) -> Vec<LooperItem> {
     use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
     chain
@@ -81,12 +82,15 @@ pub fn looper_items_with_recorded(
                 reverse: cfg.reverse,
                 can_undo: layers > 0,
                 can_redo: total > layers,
-                // REC captures the live input through the chain's runtime,
-                // which exists only while the chain is running — so recording
-                // is offered only when the chain is enabled (the user's rule:
-                // "REC só fica ativo se a chain tiver ligada"). Play/undo/etc.
-                // act on already-recorded material and stay independent of it.
-                can_record: chain.enabled,
+                // REC captures the live input through the chain's runtime — so
+                // it is armable only when that runtime is actually LIVE, not
+                // merely when the chain is enabled. An enabled chain whose
+                // runtime is still cold-starting (right after reopening a
+                // project) has nowhere to record yet; offering REC there queues
+                // the op onto zero runtimes and records nothing (the "reopened,
+                // pressed REC and it didn't go — sometimes" intermittency).
+                // Play/undo/etc. act on recorded material and stay independent.
+                can_record: runtime_live,
                 input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
                 output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
             }
@@ -100,8 +104,9 @@ pub fn looper_items(
     statuses: &[LooperStatus],
     sample_rate: u32,
     registry: &[domain::io_binding::IoBinding],
+    runtime_live: bool,
 ) -> Vec<LooperItem> {
-    looper_items_with_recorded(chain, statuses, sample_rate, &[], registry)
+    looper_items_with_recorded(chain, statuses, sample_rate, &[], registry, runtime_live)
 }
 
 /// Rows built from the chain's PERSISTED config alone — no live runtime yet.
@@ -118,7 +123,8 @@ pub fn looper_items_from_config(
     registry: &[domain::io_binding::IoBinding],
 ) -> Vec<LooperItem> {
     // 1 Hz keeps `clock` total-safe; every frame count is 0 so it never shows.
-    looper_items_with_recorded(chain, &[], 1, &[], registry)
+    // No live runtime here (project-open path) ⇒ REC is not armable yet.
+    looper_items_with_recorded(chain, &[], 1, &[], registry, false)
 }
 
 /// Whether any of the chain's loopers is currently making sound — drives the
@@ -182,8 +188,10 @@ pub fn write_chain_looper_row(
     let Some(mut row) = project_chains.row_data(index) else {
         return;
     };
+    // `Some(rate)` is passed only when the chain has a LIVE runtime (see the
+    // callers), so it doubles as the "REC is armable" signal.
     let rows = match sample_rate {
-        Some(rate) => looper_items(chain, statuses, rate, registry),
+        Some(rate) => looper_items(chain, statuses, rate, registry, true),
         None => looper_items_from_config(chain, registry),
     };
     row.looper_active = any_looper_active(&rows);
