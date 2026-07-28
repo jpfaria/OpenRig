@@ -12,7 +12,7 @@ use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::{build_chain_runtime_state, RuntimeGraph};
-use engine::{LooperOp, LooperState};
+use engine::LooperState;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 use project::project::Project;
@@ -98,29 +98,27 @@ fn tick(runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>, level: f32) {
     }
 }
 
-/// Record one callback of a steady signal into looper `uid` and close it.
-fn record_loop(runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>, uid: u64) {
+/// Record one callback of a steady signal into looper `uid` and close it,
+/// through the store + the chain's input tap.
+fn record_loop(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    chain: &Chain,
+    uid: u64,
+) {
     {
         let borrow = runtime.borrow();
         let c = borrow.as_ref().unwrap();
-        let id = ChainId(CHAIN.into());
-        c.push_chain_looper_op(&id, |_| Some(LooperOp::Create { uid, seg: 0 }));
-        c.push_chain_looper_op(&id, |rt| {
-            Some(LooperOp::TapRecord {
-                uid,
-                buffer: Some(vec![0.0f32; rt.looper_max_frames() * 2].into_boxed_slice()),
-            })
-        });
+        c.looper_create(&chain.id, uid);
+        c.looper_tap_record(&chain.id, uid); // → Recording
+        c.drain_looper_recording(chain); // subscribe the input tap
     }
-    tick(runtime, 0.5);
+    tick(runtime, 0.5); // fill the tap ring
     {
         let borrow = runtime.borrow();
         let c = borrow.as_ref().unwrap();
-        c.push_chain_looper_op(&ChainId(CHAIN.into()), |_| {
-            Some(LooperOp::TapRecord { uid, buffer: None })
-        });
+        c.drain_looper_recording(chain); // drain into the loop
+        c.looper_tap_record(&chain.id, uid); // close → Playing
     }
-    tick(runtime, 0.0);
 }
 
 #[test]
@@ -137,7 +135,8 @@ fn a_recorded_loop_is_written_beside_the_project_and_comes_back_on_reopen() {
         })
         .expect("add");
     let uid = session.project.borrow().chains[0].loopers[0].uid;
-    record_loop(&runtime, uid);
+    let recorded_chain = session.project.borrow().chains[0].clone();
+    record_loop(&runtime, &recorded_chain, uid);
 
     save_chain_loops(&session, &runtime, &project_path);
 

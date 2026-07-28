@@ -1,35 +1,30 @@
-//! Issue #323 — the controller's looper facade.
+//! Issue #323 — the controller's looper facade (redesigned).
 //!
-//! A chain can be served by SEVERAL parallel runtimes (one per input entry,
-//! #703). Each of them owns its own looper slots, records its own input and
-//! plays its own material back into its own pipeline — the stream-isolation
-//! law: nothing is shared, nothing is mixed across runtimes in our code.
-//!
-//! So a chain-level op is applied to every runtime of the chain, each with its
-//! OWN layer buffer, and a chain-level status is the reading of whichever
-//! runtime actually holds material (the input the user played into). Reads are
-//! wait-free atomic loads — never the `processing` lock the audio thread
-//! try-locks (#580).
+//! Looper state lives in the controller-owned [`crate::looper_store::LooperStore`],
+//! NOT inside the volatile `ChainRuntimeState`. Recording drains the chain's
+//! lock-free input tap into the store off the audio thread; control ops mutate
+//! the store directly, so stop/clear/remove are deterministic and a loop
+//! survives a chain rebuild or enable toggle. Playback stays the isolated
+//! stream (`IsolatedSource::Looper`), sourcing the store's exported mixdown.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
-use engine::{DiPcm, LooperOp, LooperState, LooperStatus};
+use engine::{DiPcm, LooperState, LooperStatus};
 use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
-use project::chain::Chain;
+use project::chain::{Chain, EndpointRef, LooperSpeed};
 
 use crate::controller::ProjectRuntimeController;
 
+/// Record-tap ring capacity per channel — ~1 s at 48 kHz, so a delayed meter
+/// tick never drops recorded samples before the drain runs.
+const RECORD_RING_CAP: usize = 48_000;
+
 impl ProjectRuntimeController {
-    /// Every runtime serving `chain_id`, as the audio threads see them.
-    ///
-    /// The LIVE runtime of a chain lives in its `chain_slots` cell (#672): an
-    /// off-thread rebuild publishes a new `ChainRuntimeState` there while the
-    /// graph still holds the superseded one. Reading the graph would address a
-    /// runtime that no longer processes audio — the looper would answer
-    /// "no such looper" after any live edit — so the slots win and the graph
-    /// is only the fallback for runtimes that have no slot yet.
+    /// Every runtime serving `chain_id`, as the audio threads see them (the live
+    /// slot wins over the graph, #672). Still used for the record tap and the DI.
     pub fn runtimes_for_chain(&self, chain_id: &ChainId) -> Vec<Arc<ChainRuntimeState>> {
         let mut live: Vec<(usize, Arc<ChainRuntimeState>)> = self
             .chain_slots
@@ -44,115 +39,153 @@ impl ProjectRuntimeController {
         live.into_iter().map(|(_, runtime)| runtime).collect()
     }
 
-    /// Queue an op on every runtime of the chain. `make` is called once per
-    /// runtime so an op carrying a layer buffer allocates one buffer PER
-    /// runtime — two audio threads must never write the same memory.
-    /// Returns how many runtimes accepted the op.
-    pub fn push_chain_looper_op(
-        &self,
-        chain_id: &ChainId,
-        make: impl Fn(&Arc<ChainRuntimeState>) -> Option<LooperOp>,
-    ) -> usize {
-        let mut queued = 0;
-        for runtime in self.runtimes_for_chain(chain_id) {
-            if let Some(op) = make(&runtime) {
-                if runtime.push_looper_op(op).is_ok() {
-                    queued += 1;
-                }
-            }
-        }
-        queued
-    }
+    // ── read (from the store — the single source of truth) ────────────────
 
-    /// The chain-level reading of one looper: the runtime that holds the most
-    /// material wins, so a chain whose second input never recorded still
-    /// reports the loop the user actually played.
     pub fn chain_looper_status(&self, chain_id: &ChainId, uid: u64) -> Option<LooperStatus> {
-        self.runtimes_for_chain(chain_id)
-            .iter()
-            .filter_map(|rt| rt.looper_status(uid))
-            .max_by_key(|s| (s.len_frames, s.layers))
+        self.looper_store.borrow().status(chain_id, uid)
     }
 
-    /// Chain-level reading of every looper, in slot order.
     pub fn chain_looper_statuses(&self, chain_id: &ChainId) -> Vec<LooperStatus> {
-        let mut out: Vec<LooperStatus> = Vec::new();
-        for runtime in self.runtimes_for_chain(chain_id) {
-            for status in runtime.looper_statuses() {
-                match out.iter_mut().find(|s| s.uid == status.uid) {
-                    Some(existing) => {
-                        if (status.len_frames, status.layers)
-                            > (existing.len_frames, existing.layers)
-                        {
-                            *existing = status;
-                        }
-                    }
-                    None => out.push(status),
-                }
-            }
-        }
-        out
+        self.looper_store.borrow().statuses(chain_id)
     }
 
-    /// Collect and drop the layer buffers the audio threads handed back.
-    /// Called from the GUI tick; freeing memory is forbidden on the audio
-    /// thread (invariant #8). Returns how many buffers were dropped.
-    pub fn drain_chain_looper_layers(&self, chain_id: &ChainId) -> usize {
-        self.runtimes_for_chain(chain_id)
-            .iter()
-            .map(|rt| rt.drain_retired_layers().len())
-            .sum()
-    }
-
-    /// The recorded mixdown of one looper (interleaved stereo), from whichever
-    /// runtime holds it. `None` when the looper is unknown or empty.
+    /// The recorded mixdown (interleaved stereo), or `None` when empty.
     pub fn export_chain_looper(&self, chain_id: &ChainId, uid: u64) -> Option<Vec<f32>> {
-        self.runtimes_for_chain(chain_id)
-            .iter()
-            .find_map(|rt| rt.export_looper(uid))
+        self.looper_store.borrow().export(chain_id, uid)
     }
 
-    /// #323: make sure every looper the PROJECT carries has a live slot in the
-    /// chain's current runtime(s).
-    ///
-    /// Looper slots live inside the `ChainRuntimeState`, which is created and
-    /// rebuilt asynchronously — on cold-start activation and on every enable
-    /// toggle. A `Create` issued while the runtime was not live, or a rebuild
-    /// that replaced the runtime, leaves the project's looper with NO slot in
-    /// the runtime that is now processing audio; the record tap then lands on a
-    /// runtime that does not hold the looper and nothing is captured ("I press
-    /// REC and nothing records — sometimes"). Re-issuing `Create` for a looper
-    /// the runtime is missing repairs that. `Create` is idempotent: for a slot
-    /// that already exists it only re-sets the input segment (keeps the recorded
-    /// material); it claims + clears only a genuinely fresh slot.
-    pub fn sync_looper_slots(&self, chain: &Chain) {
-        for cfg in &chain.loopers {
-            let uid = cfg.uid;
-            if self.chain_looper_status(&chain.id, uid).is_some() {
-                continue; // already present in the live runtime(s)
+    // ── control (mutate the store; deterministic, no runtime needed) ──────
+
+    /// Claim a slot for `uid` (idempotent). Routing is `None` (first input /
+    /// main output) until a pick or a project restore sets it via
+    /// [`Self::looper_set_input`] / [`Self::looper_set_output`].
+    pub fn looper_create(&self, chain_id: &ChainId, uid: u64) {
+        let mut store = self.looper_store.borrow_mut();
+        store.set_sample_rate(self.sample_rate);
+        store.create(chain_id, uid);
+    }
+
+    /// Install a saved loop (project-open path). Sizes the slot at the current
+    /// rate; the loop lands Stopped.
+    pub fn looper_load(&self, chain_id: &ChainId, uid: u64, pcm: &[f32]) {
+        let mut store = self.looper_store.borrow_mut();
+        store.set_sample_rate(self.sample_rate);
+        store.create(chain_id, uid);
+        store.load(chain_id, uid, pcm);
+    }
+
+    pub fn looper_remove(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_store.borrow_mut().remove(chain_id, uid);
+        self.looper_armed.borrow_mut().remove(&(chain_id.clone(), uid));
+        self.disarm_looper_stream(chain_id, uid);
+    }
+
+    /// The record/overdub footswitch tap.
+    pub fn looper_tap_record(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_store.borrow_mut().tap_record(chain_id, uid);
+    }
+
+    pub fn looper_stop(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_store.borrow_mut().stop(chain_id, uid);
+    }
+
+    pub fn looper_play(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_store.borrow_mut().play(chain_id, uid);
+    }
+
+    pub fn looper_clear(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_store.borrow_mut().clear(chain_id, uid);
+    }
+
+    pub fn looper_undo(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_store.borrow_mut().undo(chain_id, uid);
+    }
+
+    pub fn looper_redo(&self, chain_id: &ChainId, uid: u64) {
+        self.looper_store.borrow_mut().redo(chain_id, uid);
+    }
+
+    /// Whether the loop is currently sounding — the `PlayStop` toggle reads this.
+    pub fn looper_is_playing(&self, chain_id: &ChainId, uid: u64) -> bool {
+        matches!(
+            self.looper_store.borrow().status(chain_id, uid).map(|s| s.state),
+            Some(LooperState::Playing | LooperState::Overdubbing)
+        )
+    }
+
+    pub fn looper_set_mix(&self, chain_id: &ChainId, uid: u64, v: f32) {
+        self.looper_store.borrow_mut().set_mix(chain_id, uid, v);
+    }
+    pub fn looper_set_decay(&self, chain_id: &ChainId, uid: u64, v: f32) {
+        self.looper_store.borrow_mut().set_decay(chain_id, uid, v);
+    }
+    pub fn looper_set_speed(&self, chain_id: &ChainId, uid: u64, v: LooperSpeed) {
+        self.looper_store.borrow_mut().set_speed(chain_id, uid, v);
+    }
+    pub fn looper_set_reverse(&self, chain_id: &ChainId, uid: u64, v: bool) {
+        self.looper_store.borrow_mut().set_reverse(chain_id, uid, v);
+    }
+    pub fn looper_set_input(&self, chain_id: &ChainId, uid: u64, input: Option<EndpointRef>) {
+        // A new input means re-subscribing the record tap; drop the current
+        // rings so the next drain re-arms from the chosen segment.
+        let mut store = self.looper_store.borrow_mut();
+        store.set_input(chain_id, uid, input);
+        store.set_recording_rings(chain_id, uid, Vec::new());
+    }
+    pub fn looper_set_output(&self, chain_id: &ChainId, uid: u64, output: Option<EndpointRef>) {
+        self.looper_store.borrow_mut().set_output(chain_id, uid, output);
+    }
+
+    // ── recording: subscribe the input tap + drain, off the audio thread ──
+
+    /// Feed each Recording loop from its input tap. Called on the meter tick.
+    /// Subscribes the chosen input segment's tap once per recording, then drains
+    /// whatever the audio thread pushed into the loop's buffer.
+    pub fn drain_looper_recording(&self, chain: &Chain) {
+        // Snapshot which loops need arming, WITHOUT holding the store borrow
+        // across the tap subscription (which borrows other controller state).
+        let to_arm: Vec<(u64, Option<EndpointRef>)> = {
+            let store = self.looper_store.borrow();
+            chain
+                .loopers
+                .iter()
+                .filter_map(|cfg| {
+                    let uid = cfg.uid;
+                    let recording = matches!(
+                        store.status(&chain.id, uid).map(|s| s.state),
+                        Some(LooperState::Recording | LooperState::Overdubbing)
+                    );
+                    if recording && !store.is_recording_armed(&chain.id, uid) {
+                        Some((uid, store.input(&chain.id, uid)))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        };
+        for (uid, input) in to_arm {
+            let seg = resolve_input_segment(chain, &self.io_bindings, input.as_ref());
+            if let Some(ring) = self.subscribe_stream_input_tap(&chain.id, seg, RECORD_RING_CAP) {
+                self.looper_store
+                    .borrow_mut()
+                    .set_recording_rings(&chain.id, uid, vec![ring]);
             }
-            let seg = resolve_input_segment(chain, &self.io_bindings, cfg.input.as_ref());
-            self.push_chain_looper_op(&chain.id, |_| Some(LooperOp::Create { uid, seg }));
+        }
+        // Drain every recording loop.
+        let mut store = self.looper_store.borrow_mut();
+        for cfg in &chain.loopers {
+            store.drain_recording(&chain.id, cfg.uid);
         }
     }
 
-    /// #323: reconcile each looper's ISOLATED playback stream with its recorded
-    /// state — the same pipeline the DI uses (`arm_looper_stream`), so a loop
-    /// plays out its chosen output, through a routed copy of the chain,
-    /// independent of the input it was recorded from.
-    ///
-    /// A looper that is Playing/Overdubbing arms (or re-arms, when its content
-    /// `(len, layers)` changed since the last arm) its stream on
-    /// `LooperConfig.output`; anything else disarms. Re-arm is gated on the
-    /// content signature so this runs every meter tick without respawning a
-    /// render each time. Called off the audio thread (the GUI tick).
+    // ── reconcile the isolated playback stream from store state ───────────
+
+    /// Arm a Playing/Overdubbing loop's isolated stream (re-arm only when its
+    /// content changed) and disarm anything else — including a looper the user
+    /// removed. Reads the store, which is authoritative and updated on the same
+    /// thread, so there is no stale-status race and no suppression is needed.
     pub fn sync_looper_streams(&self, chain: &Chain) {
-        // A looper the user removed is no longer in `chain.loopers`, so the
-        // per-looper loop below never visits it — its armed stream would play
-        // on forever ("deleting the looper doesn't stop it"). Disarm every
-        // armed stream of this chain whose looper is gone, first.
-        let live: std::collections::HashSet<u64> =
-            chain.loopers.iter().map(|c| c.uid).collect();
+        let live: HashSet<u64> = chain.loopers.iter().map(|c| c.uid).collect();
         let stale: Vec<u64> = self
             .looper_armed
             .borrow()
@@ -161,92 +194,45 @@ impl ProjectRuntimeController {
             .map(|(_, uid)| *uid)
             .collect();
         for uid in stale {
-            let key = (chain.id.clone(), uid);
-            self.looper_armed.borrow_mut().remove(&key);
-            self.looper_suppressed.borrow_mut().remove(&key);
+            self.looper_armed.borrow_mut().remove(&(chain.id.clone(), uid));
             self.disarm_looper_stream(&chain.id, uid);
         }
 
         for cfg in &chain.loopers {
             let uid = cfg.uid;
             let key = (chain.id.clone(), uid);
-            let state = self
-                .chain_looper_status(&chain.id, uid)
-                .map(|s| s.state)
-                .unwrap_or(LooperState::Empty);
-            let playing = matches!(state, LooperState::Playing | LooperState::Overdubbing);
-
+            let status = self.looper_store.borrow().status(&chain.id, uid);
+            let playing = matches!(
+                status.map(|s| s.state),
+                Some(LooperState::Playing | LooperState::Overdubbing)
+            );
             if !playing {
-                // The bank now agrees the looper is not playing: the intent and
-                // the status match, so drop any suppression and disarm.
-                self.looper_suppressed.borrow_mut().remove(&key);
                 if self.looper_armed.borrow_mut().remove(&key).is_some() {
                     self.disarm_looper_stream(&chain.id, uid);
                 }
                 continue;
             }
-
-            // The user stopped/cleared this looper but the bank has not caught
-            // up yet (its callback is not running) — do NOT re-arm from the
-            // stale Playing status.
-            if self.looper_suppressed.borrow().contains(&key) {
-                continue;
-            }
-
-            let status = match self.chain_looper_status(&chain.id, uid) {
+            let status = match status {
                 Some(s) => s,
                 None => continue,
             };
-            // The content revision moves on any change that alters the exported
-            // mixdown (record close, overdub, undo/redo, level, decay, reverse),
-            // so the level/reverse controls take effect via a re-arm — but a
-            // steady loop never respawns a render. `len_frames` is kept in the
-            // signature so a rebuild that changed the loop length also re-arms.
+            // Content moves on any mixdown-altering change (close, overdub,
+            // undo/redo, level/decay/reverse) so those take effect via a re-arm;
+            // a steady loop never respawns a render.
             let content = (status.len_frames as u64, status.content_rev);
             if self.looper_armed.borrow().get(&key) == Some(&content) {
-                continue; // already streaming this exact take
-            }
-            let Some(samples) = self.export_chain_looper(&chain.id, uid) else {
                 continue;
+            }
+            let samples = match self.looper_store.borrow().export(&chain.id, uid) {
+                Some(s) => s,
+                None => continue,
             };
-            let output_index =
-                resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
+            let output_index = resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
             let pcm = Arc::new(DiPcm::new(samples, self.sample_rate, 2));
-            if self
-                .arm_looper_stream(chain, uid, output_index, pcm)
-                .is_ok()
-            {
+            if self.arm_looper_stream(chain, uid, output_index, pcm).is_ok() {
                 self.looper_armed.borrow_mut().insert(key, content);
             }
         }
-    }
-
-    /// #323: silence one looper's isolated playback NOW, on the user's intent
-    /// (stop / clear / remove) — not on the bank's next published status.
-    ///
-    /// The loop plays on its own worker thread, but the bank ops that change a
-    /// looper's state are applied inside the CHAIN's audio callback. When that
-    /// callback is not running (the chain is not actively streaming), the Stop
-    /// op never drains, the published status stays Playing, and the status-
-    /// driven reconcile keeps the stream armed forever — the loop never stops.
-    /// Disarming here breaks that dependency: the sound stops immediately, and
-    /// the bank state settles whenever the callback next runs.
-    pub fn disarm_looper_playback(&self, chain_id: &ChainId, uid: u64) {
-        let key = (chain_id.clone(), uid);
-        self.looper_armed.borrow_mut().remove(&key);
-        // Suppress re-arm until the bank's published status agrees the looper
-        // stopped — otherwise the very next reconcile re-arms it from the stale
-        // Playing status and the loop never goes silent.
-        self.looper_suppressed.borrow_mut().insert(key);
-        self.disarm_looper_stream(chain_id, uid);
-    }
-
-    /// #323: lift the stop suppression on a looper — a fresh Play/Record intent
-    /// means the user wants it sounding again, so the next reconcile may re-arm.
-    pub fn allow_looper_playback(&self, chain_id: &ChainId, uid: u64) {
-        self.looper_suppressed
-            .borrow_mut()
-            .remove(&(chain_id.clone(), uid));
     }
 
     /// Drop the looper stream bookkeeping for a chain (chain removed / project
@@ -255,8 +241,5 @@ impl ProjectRuntimeController {
         self.looper_armed
             .borrow_mut()
             .retain(|(cid, _), _| cid != chain_id);
-        self.looper_suppressed
-            .borrow_mut()
-            .retain(|(cid, _)| cid != chain_id);
     }
 }

@@ -177,6 +177,18 @@ impl LooperStore {
         }
     }
 
+    /// Install a saved loop (interleaved stereo) as the loop's single layer,
+    /// landing it in Stopped (never auto-playing) — the project-open path.
+    pub fn load(&mut self, chain: &ChainId, uid: u64, pcm: &[f32]) {
+        let max = self.max_frames();
+        if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
+            let frames = (pcm.len() / 2).min(max);
+            let mut buffer = vec![0.0f32; max * 2].into_boxed_slice();
+            buffer[..frames * 2].copy_from_slice(&pcm[..frames * 2]);
+            entry.slot.load_layer(buffer, frames);
+        }
+    }
+
     pub fn stop(&mut self, chain: &ChainId, uid: u64) {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
             e.slot.stop();

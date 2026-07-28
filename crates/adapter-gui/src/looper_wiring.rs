@@ -1,50 +1,25 @@
-//! Issue #323 — turn looper events into audio-thread ops.
+//! Issue #323 — turn looper events into controller-store mutations.
 //!
-//! A dispatch alone is dead (#614): the dispatcher records intent and emits
-//! an event; THIS is where the chain's runtimes learn about it. Layer buffers
-//! are allocated here, on the GUI thread, and handed to the audio thread
-//! inside the op — the audio thread never allocates (invariant #8).
+//! A dispatch alone is dead (#614): the dispatcher records intent and emits an
+//! event; THIS is where the controller's looper store learns about it. State
+//! lives in the store (off the volatile chain runtime), so every op below is a
+//! deterministic, immediate mutation — no queue to an audio callback that may
+//! not be running, no suppression race.
 
 use application::command::{LooperAction, LooperParam};
 use application::event::Event;
-use engine::runtime::ChainRuntimeState;
-use engine::{LooperOp, LooperState};
 use infra_cpal::ProjectRuntimeController;
-use std::sync::Arc;
 
-/// Whether a record tap in this state needs a fresh layer buffer: it does
-/// when the tap STARTS something (a first recording or an overdub), and does
-/// not when it closes what is already running.
-fn tap_needs_layer(state: LooperState) -> bool {
-    matches!(
-        state,
-        LooperState::Empty | LooperState::Playing | LooperState::Stopped
-    )
-}
-
-fn fresh_layer(runtime: &Arc<ChainRuntimeState>) -> Box<[f32]> {
-    vec![0.0f32; runtime.looper_max_frames() * 2].into_boxed_slice()
-}
-
-/// Apply one looper event to the chain's runtimes. Unknown events are ignored,
-/// so callers can hand it the whole event stream.
+/// Apply one looper event to the controller's looper store. Unknown events are
+/// ignored, so callers can hand it the whole event stream.
 pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) {
     match event {
         Event::ChainLooperAdded { chain, looper } => {
-            let uid = *looper;
-            // A fresh looper records the chain's first input (seg 0); picking
-            // another input re-issues Create with the resolved segment (the
-            // bank keeps the recorded material and just moves segments).
-            controller.push_chain_looper_op(chain, |_| Some(LooperOp::Create { uid, seg: 0 }));
+            controller.looper_create(chain, *looper);
         }
 
         Event::ChainLooperRemoved { chain, looper } => {
-            let uid = *looper;
-            // Silence the isolated playback on the user's intent, before the
-            // bank op — a removed looper is gone from the chain, so nothing
-            // would ever disarm it via the status-driven reconcile otherwise.
-            controller.disarm_looper_playback(chain, uid);
-            controller.push_chain_looper_op(chain, |_| Some(LooperOp::Remove { uid }));
+            controller.looper_remove(chain, *looper);
         }
 
         Event::ChainLooperTransportChanged {
@@ -53,63 +28,22 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
             action,
         } => {
             let uid = *looper;
-            // Stopping-type actions silence the isolated playback on intent,
-            // not on the bank's next published status — so the loop stops even
-            // when the chain audio callback is not running (see
-            // `disarm_looper_playback`). `PlayStop` stops only when the loop is
-            // currently sounding; otherwise it is a Play and arming stays with
-            // the status-driven reconcile.
-            let stops_playback = match action {
-                LooperAction::Stop | LooperAction::Clear => true,
-                LooperAction::PlayStop => controller
-                    .chain_looper_status(chain, uid)
-                    .is_some_and(|s| {
-                        matches!(s.state, LooperState::Playing | LooperState::Overdubbing)
-                    }),
-                _ => false,
-            };
-            if stops_playback {
-                controller.disarm_looper_playback(chain, uid);
-            } else if matches!(
-                action,
-                LooperAction::Record | LooperAction::Play | LooperAction::PlayStop
-            ) {
-                // A fresh play/record intent means the user wants sound again —
-                // lift any stop suppression so the next reconcile can re-arm.
-                controller.allow_looper_playback(chain, uid);
+            match action {
+                LooperAction::Record => controller.looper_tap_record(chain, uid),
+                LooperAction::Stop => controller.looper_stop(chain, uid),
+                LooperAction::Play => controller.looper_play(chain, uid),
+                LooperAction::PlayStop => {
+                    // One button, both actions — the store's current state decides.
+                    if controller.looper_is_playing(chain, uid) {
+                        controller.looper_stop(chain, uid);
+                    } else {
+                        controller.looper_play(chain, uid);
+                    }
+                }
+                LooperAction::Undo => controller.looper_undo(chain, uid),
+                LooperAction::Redo => controller.looper_redo(chain, uid),
+                LooperAction::Clear => controller.looper_clear(chain, uid),
             }
-            controller.push_chain_looper_op(chain, |runtime| {
-                Some(match action {
-                    LooperAction::Record => {
-                        // Each runtime decides for ITSELF whether this tap
-                        // starts or closes a recording — they are independent
-                        // pipelines and may not be in the same state.
-                        let state = runtime
-                            .looper_status(uid)
-                            .map_or(LooperState::Empty, |s| s.state);
-                        LooperOp::TapRecord {
-                            uid,
-                            buffer: tap_needs_layer(state).then(|| fresh_layer(runtime)),
-                        }
-                    }
-                    LooperAction::PlayStop => {
-                        // One footswitch, both actions: the runtime decides.
-                        let playing = runtime.looper_status(uid).is_some_and(|s| {
-                            matches!(s.state, LooperState::Playing | LooperState::Overdubbing)
-                        });
-                        if playing {
-                            LooperOp::Stop { uid }
-                        } else {
-                            LooperOp::Play { uid }
-                        }
-                    }
-                    LooperAction::Play => LooperOp::Play { uid },
-                    LooperAction::Stop => LooperOp::Stop { uid },
-                    LooperAction::Undo => LooperOp::Undo { uid },
-                    LooperAction::Redo => LooperOp::Redo { uid },
-                    LooperAction::Clear => LooperOp::Clear { uid },
-                })
-            });
         }
 
         Event::ChainLooperParamChanged {
@@ -118,22 +52,14 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
             param,
         } => {
             let uid = *looper;
-            controller.push_chain_looper_op(chain, |_| {
-                Some(match *param {
-                    LooperParam::Mix(value) => LooperOp::SetMix { uid, value },
-                    LooperParam::Decay(value) => LooperOp::SetDecay { uid, value },
-                    LooperParam::Speed(speed) => LooperOp::SetSpeed { uid, speed },
-                    LooperParam::Reverse(value) => LooperOp::SetReverse { uid, value },
-                })
-            });
+            match *param {
+                LooperParam::Mix(v) => controller.looper_set_mix(chain, uid, v),
+                LooperParam::Decay(v) => controller.looper_set_decay(chain, uid, v),
+                LooperParam::Speed(s) => controller.looper_set_speed(chain, uid, s),
+                LooperParam::Reverse(v) => controller.looper_set_reverse(chain, uid, v),
+            }
         }
 
-        _ => return,
-    }
-
-    // Free whatever the audio thread handed back (cleared layers, refused
-    // buffers). Dropping here keeps `free` off the audio thread.
-    if let Some(chain) = event.chain() {
-        controller.drain_chain_looper_layers(chain);
+        _ => {}
     }
 }

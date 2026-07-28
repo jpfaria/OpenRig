@@ -263,14 +263,14 @@ pub(crate) fn wire_looper_callbacks(
                     Command::SetChainLooperInput {
                         chain: chain.clone(),
                         looper: uid as u64,
-                        input,
+                        input: input.clone(),
                     },
                 );
-                // Re-bind the looper to the chosen segment so REC captures it
-                // (the bank keeps whatever was already recorded).
-                let seg = endpoint_index.max(0) as usize;
-                let uid = uid as u64;
-                controller_op(&runtime, &chain, engine::LooperOp::Create { uid, seg });
+                // Tell the store to record from the chosen input next time REC
+                // starts (drops the current record tap so it re-subscribes).
+                if let Some(controller) = runtime.borrow().as_ref() {
+                    controller.looper_set_input(&chain, uid as u64, input);
+                }
             });
         });
     }
@@ -295,31 +295,15 @@ pub(crate) fn wire_looper_callbacks(
                     &chains,
                     index,
                     Command::SetChainLooperOutput {
-                        chain,
+                        chain: chain.clone(),
                         looper: uid as u64,
-                        output,
+                        output: output.clone(),
                     },
                 );
+                if let Some(controller) = runtime.borrow().as_ref() {
+                    controller.looper_set_output(&chain, uid as u64, output);
+                }
             });
         });
     }
-}
-
-/// Push a raw looper op to every runtime of a chain (used for the segment
-/// re-bind on input change, which is not carried by an event).
-fn controller_op(runtime: &Runtime, chain: &ChainId, op: engine::LooperOp) {
-    let borrow = runtime.borrow();
-    let Some(controller) = borrow.as_ref() else {
-        return;
-    };
-    // The op carries no buffer, so a single instance is enough per runtime.
-    let uid = match &op {
-        engine::LooperOp::Create { uid, .. } => *uid,
-        _ => return,
-    };
-    let seg = match &op {
-        engine::LooperOp::Create { seg, .. } => *seg,
-        _ => 0,
-    };
-    controller.push_chain_looper_op(chain, |_| Some(engine::LooperOp::Create { uid, seg }));
 }

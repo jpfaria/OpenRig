@@ -1,7 +1,7 @@
-//! Issue #323 — the controller's looper facade: ops reach every runtime of a
-//! chain (each one records its OWN input — stream isolation), the published
-//! status is readable without touching the audio thread, and retired layer
-//! buffers are collected off it.
+//! Issue #323 — the controller's looper facade, redesigned around the
+//! controller-owned `LooperStore`: control is deterministic with no runtime
+//! running, recording drains the chain's input tap into the store, and the
+//! isolated playback stream arms/disarms from store state.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,188 +9,14 @@ use std::sync::Arc;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::{build_chain_runtime_state, RuntimeGraph};
-use engine::{LooperOp, LooperState};
+use engine::LooperState;
 use infra_cpal::ProjectRuntimeController;
-use project::chain::Chain;
+use project::chain::{Chain, EndpointRef, LooperConfig};
 
 const UID: u64 = 3;
 
-fn chain_and_registry(id: &str) -> (Chain, Vec<IoBinding>) {
-    let chain = Chain {
-        id: ChainId(id.into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec!["io".into()],
-        blocks: vec![],
-        di_output: None,
-        loopers: vec![],
-    };
-    let registry = vec![IoBinding {
-        id: "io".into(),
-        name: "IO".into(),
-        inputs: vec![IoEndpoint {
-            name: "in0".into(),
-            device_id: DeviceId("dev".into()),
-            mode: ChannelMode::Stereo,
-            channels: vec![0, 1],
-        }],
-        outputs: vec![IoEndpoint {
-            name: "out0".into(),
-            device_id: DeviceId("dev".into()),
-            mode: ChannelMode::Stereo,
-            channels: vec![0, 1],
-        }],
-    }];
-    (chain, registry)
-}
-
-/// Controller holding one chain with `runtime_count` parallel runtimes — the
-/// per-entry isolation of #703.
-fn controller(id: &str, runtime_count: usize) -> (ProjectRuntimeController, ChainId) {
-    let (chain, registry) = chain_and_registry(id);
-    let mut chains = HashMap::new();
-    for idx in 0..runtime_count {
-        chains.insert(
-            (chain.id.clone(), idx),
-            Arc::new(
-                build_chain_runtime_state(&chain, 48_000.0, &[256], &registry).expect("runtime"),
-            ),
-        );
-    }
-    let mut controller =
-        ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, 48_000);
-    controller.set_io_bindings(registry);
-    (controller, chain.id)
-}
-
-/// Run one audio callback on every runtime of the chain, so queued ops are
-/// applied and the status mirror is refreshed.
-fn tick(controller: &ProjectRuntimeController, chain: &ChainId, level: f32) {
-    let frames = 128usize;
-    let input = vec![level; frames * 2];
-    let mut output = vec![0.0f32; frames * 2];
-    for runtime in controller.runtimes_for_chain(chain) {
-        engine::runtime::process_input_f32(&runtime, 0, &input, 2);
-        engine::runtime::process_output_f32(&runtime, 0, &mut output, 2);
-    }
-}
-
-#[test]
-fn create_reaches_every_runtime_of_the_chain() {
-    let (controller, chain) = controller("looper-ctrl", 2);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    tick(&controller, &chain, 0.0);
-
-    for runtime in controller.runtimes_for_chain(&chain) {
-        assert!(
-            runtime.looper_status(UID).is_some(),
-            "every parallel runtime of the chain owns its own slot for the looper"
-        );
-    }
-    assert_eq!(
-        controller.chain_looper_status(&chain, UID).unwrap().state,
-        LooperState::Empty
-    );
-}
-
-#[test]
-fn a_record_tap_carries_one_buffer_per_runtime() {
-    let (controller, chain) = controller("looper-buffers", 2);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    controller.push_chain_looper_op(&chain, |runtime| {
-        Some(LooperOp::TapRecord {
-            uid: UID,
-            // Each runtime gets ITS OWN buffer — sharing one would mean two
-            // audio threads writing the same memory.
-            buffer: Some(vec![0.0f32; runtime.looper_max_frames() * 2].into_boxed_slice()),
-        })
-    });
-    tick(&controller, &chain, 0.5);
-
-    for runtime in controller.runtimes_for_chain(&chain) {
-        assert_eq!(
-            runtime.looper_status(UID).unwrap().state,
-            LooperState::Recording
-        );
-    }
-}
-
-#[test]
-fn the_chain_status_reports_the_runtime_that_holds_material() {
-    let (controller, chain) = controller("looper-status", 2);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    // Only the FIRST runtime is armed, as if only one input was recorded.
-    let runtimes = controller.runtimes_for_chain(&chain);
-    let first = runtimes.first().expect("one runtime").clone();
-    first
-        .push_looper_op(LooperOp::TapRecord {
-            uid: UID,
-            buffer: Some(vec![0.0f32; first.looper_max_frames() * 2].into_boxed_slice()),
-        })
-        .expect("queued");
-    tick(&controller, &chain, 0.5);
-    first
-        .push_looper_op(LooperOp::TapRecord {
-            uid: UID,
-            buffer: None,
-        })
-        .expect("queued");
-    tick(&controller, &chain, 0.0);
-
-    let status = controller
-        .chain_looper_status(&chain, UID)
-        .expect("the chain reports a status");
-    assert_eq!(status.state, LooperState::Playing);
-    assert_eq!(status.len_frames, 128);
-}
-
-#[test]
-fn retired_layers_are_collected_off_the_audio_thread() {
-    let (controller, chain) = controller("looper-retire", 1);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    controller.push_chain_looper_op(&chain, |runtime| {
-        Some(LooperOp::TapRecord {
-            uid: UID,
-            buffer: Some(vec![0.0f32; runtime.looper_max_frames() * 2].into_boxed_slice()),
-        })
-    });
-    tick(&controller, &chain, 0.5);
-    controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Clear { uid: UID }));
-    tick(&controller, &chain, 0.0);
-
-    assert_eq!(
-        controller.drain_chain_looper_layers(&chain),
-        1,
-        "the cleared layer is dropped here, never on the audio thread"
-    );
-}
-
-#[test]
-fn ops_for_one_chain_never_reach_another() {
-    let (controller_a, chain_a) = controller("looper-iso-a", 1);
-    let (controller_b, chain_b) = controller("looper-iso-b", 1);
-
-    controller_a.push_chain_looper_op(&chain_a, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    tick(&controller_a, &chain_a, 0.0);
-    tick(&controller_b, &chain_b, 0.0);
-
-    assert!(controller_a.chain_looper_status(&chain_a, UID).is_some());
-    assert!(
-        controller_b.chain_looper_status(&chain_b, UID).is_none(),
-        "a looper belongs to ONE chain's runtimes"
-    );
-}
-
-// ── #323 v2: the looper plays on an isolated stream at its chosen output ──
-
-use project::chain::{EndpointRef, LooperConfig};
-
-/// A chain with a two-output binding, so a looper can pick output 1 while
-/// recording input 0 — the "no link between input and output" case.
-fn two_output_controller(id: &str) -> (ProjectRuntimeController, Chain) {
-    let registry = vec![IoBinding {
+fn registry() -> Vec<IoBinding> {
+    vec![IoBinding {
         id: "io".into(),
         name: "IO".into(),
         inputs: vec![IoEndpoint {
@@ -213,8 +39,11 @@ fn two_output_controller(id: &str) -> (ProjectRuntimeController, Chain) {
                 channels: vec![2, 3],
             },
         ],
-    }];
-    let mut chain = Chain {
+    }]
+}
+
+fn chain_with_looper(id: &str) -> Chain {
+    Chain {
         id: ChainId(id.into()),
         description: None,
         instrument: "electric_guitar".into(),
@@ -224,167 +53,150 @@ fn two_output_controller(id: &str) -> (ProjectRuntimeController, Chain) {
         blocks: vec![],
         di_output: None,
         loopers: vec![LooperConfig {
-            uid: UID,
             output: Some(EndpointRef {
                 binding_id: "io".into(),
                 endpoint: "out1".into(),
             }),
             ..LooperConfig::new(UID)
         }],
-    };
+    }
+}
+
+fn controller_for(chain: &Chain, registry: &[IoBinding]) -> ProjectRuntimeController {
     let mut chains = HashMap::new();
     chains.insert(
         (chain.id.clone(), 0usize),
-        Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &registry).expect("runtime")),
+        Arc::new(build_chain_runtime_state(chain, 48_000.0, &[256], registry).expect("runtime")),
     );
-    let mut controller =
+    let mut c =
         ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, 48_000);
-    controller.set_io_bindings(registry);
-    chain.loopers[0].output = Some(EndpointRef {
-        binding_id: "io".into(),
-        endpoint: "out1".into(),
-    });
-    (controller, chain)
+    c.set_io_bindings(registry.to_vec());
+    c
 }
 
-#[test]
-fn a_playing_looper_arms_an_isolated_stream_and_stop_disarms_it() {
-    let (controller, chain) = two_output_controller("looper-iso-out");
+/// One audio callback on the chain's runtime — fills any subscribed input tap.
+fn feed_input(c: &ProjectRuntimeController, chain: &ChainId, level: f32) {
+    let frames = 128usize;
+    let input = vec![level; frames * 2];
+    let mut out = vec![0.0f32; frames * 2];
+    for rt in c.runtimes_for_chain(chain) {
+        engine::runtime::process_input_f32(&rt, 0, &input, 2);
+        engine::runtime::process_output_f32(&rt, 0, &mut out, 2);
+    }
+}
+
+/// Record + close one loop through the store + tap so it is Playing.
+fn record_and_close(c: &ProjectRuntimeController, chain: &Chain) {
     let id = chain.id.clone();
-
-    // Record one callback, close the loop.
-    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    controller.push_chain_looper_op(&id, |rt| {
-        Some(LooperOp::TapRecord {
-            uid: UID,
-            buffer: Some(vec![0.5f32; rt.looper_max_frames() * 2].into_boxed_slice()),
-        })
-    });
-    tick(&controller, &id, 0.5);
-    controller.push_chain_looper_op(&id, |_| {
-        Some(LooperOp::TapRecord {
-            uid: UID,
-            buffer: None,
-        })
-    });
-    tick(&controller, &id, 0.0);
-    assert_eq!(
-        controller.chain_looper_status(&id, UID).unwrap().state,
-        LooperState::Playing
-    );
-
-    // The meter tick reconciles the stream: a Playing looper arms its own
-    // isolated stream (separate from the DI's).
-    controller.sync_looper_streams(&chain);
-    assert!(
-        controller.looper_stream_active(&id, UID),
-        "a playing looper must arm its isolated playback stream"
-    );
-    assert!(
-        !controller.di_stream_active(&id),
-        "the looper stream is separate from the DI (invariant #4)"
-    );
-
-    // Stop → next reconcile disarms it.
-    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Stop { uid: UID }));
-    tick(&controller, &id, 0.0);
-    controller.sync_looper_streams(&chain);
-    assert!(
-        !controller.looper_stream_active(&id, UID),
-        "stopping the looper must disarm its stream"
-    );
+    c.looper_create(&id, UID);
+    c.looper_tap_record(&id, UID); // Empty → Recording
+    c.drain_looper_recording(chain); // subscribe the input tap
+    feed_input(c, &id, 0.5); // fill the ring
+    c.drain_looper_recording(chain); // drain into the loop
+    c.looper_tap_record(&id, UID); // close → Playing
 }
 
-/// A looper the project carries but whose runtime has NO slot for it (the
-/// `Create` was issued while the runtime was not live, or a rebuild replaced
-/// the runtime) records nothing: the tap lands on a runtime that does not hold
-/// the looper. `sync_looper_slots` must repair that so REC works after the
-/// runtime comes up — the "activated the chain, pressed REC, nothing recorded"
-/// intermittency.
 #[test]
-fn sync_looper_slots_creates_project_loopers_missing_from_the_runtime() {
-    // A chain that carries a looper in its config, with a live runtime that was
-    // never told about it (no Create reached it).
-    let (chain, registry) = chain_and_registry("looper-slot-sync");
-    let mut chain = chain;
-    chain.loopers = vec![project::chain::LooperConfig::new(UID)];
-    let mut chains = HashMap::new();
-    chains.insert(
-        (chain.id.clone(), 0usize),
-        Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &registry).expect("runtime")),
-    );
-    let mut controller =
-        ProjectRuntimeController::for_testing_with_sample_rate(RuntimeGraph { chains }, 48_000);
-    controller.set_io_bindings(registry);
-
-    // Precondition (the bug): the runtime has no slot, so REC would capture
-    // nothing.
-    assert!(
-        controller.chain_looper_status(&chain.id, UID).is_none(),
-        "precondition: the runtime does not hold the project's looper yet"
-    );
-
-    controller.sync_looper_slots(&chain);
-    tick(&controller, &chain.id, 0.0);
-
-    assert!(
-        controller.chain_looper_status(&chain.id, UID).is_some(),
-        "the reconcile must create the project's looper in the live runtime"
-    );
-
-    // And now recording actually captures.
-    controller.push_chain_looper_op(&chain.id, |rt| {
-        Some(LooperOp::TapRecord {
-            uid: UID,
-            buffer: Some(vec![0.5f32; rt.looper_max_frames() * 2].into_boxed_slice()),
-        })
+fn control_is_deterministic_with_no_runtime() {
+    // No runtime at all — the store alone answers.
+    let c = ProjectRuntimeController::for_testing(RuntimeGraph {
+        chains: HashMap::new(),
     });
-    tick(&controller, &chain.id, 0.5);
+    let id = ChainId("x".into());
+    c.looper_create(&id, UID);
     assert_eq!(
-        controller.chain_looper_status(&chain.id, UID).unwrap().state,
-        LooperState::Recording,
-        "with the slot present, REC records"
+        c.chain_looper_status(&id, UID).unwrap().state,
+        LooperState::Empty
+    );
+    c.looper_remove(&id, UID);
+    assert!(c.chain_looper_status(&id, UID).is_none());
+}
+
+#[test]
+fn recording_captures_from_the_input_tap_and_closing_defines_the_loop() {
+    let chain = chain_with_looper("rec");
+    let c = controller_for(&chain, &registry());
+    record_and_close(&c, &chain);
+
+    let s = c.chain_looper_status(&chain.id, UID).expect("status");
+    assert_eq!(s.state, LooperState::Playing);
+    assert!(
+        s.len_frames > 0,
+        "the captured input defines the loop length"
+    );
+    assert!(c.export_chain_looper(&chain.id, UID).is_some());
+}
+
+#[test]
+fn a_playing_looper_arms_its_isolated_stream_and_stop_disarms_it() {
+    let chain = chain_with_looper("arm");
+    let c = controller_for(&chain, &registry());
+    record_and_close(&c, &chain);
+
+    c.sync_looper_streams(&chain);
+    assert!(
+        c.looper_stream_active(&chain.id, UID),
+        "a playing loop arms its isolated stream"
+    );
+    assert!(!c.di_stream_active(&chain.id), "separate from the DI (#4)");
+
+    c.looper_stop(&chain.id, UID);
+    assert_eq!(
+        c.chain_looper_status(&chain.id, UID).unwrap().state,
+        LooperState::Stopped
+    );
+    c.sync_looper_streams(&chain);
+    assert!(
+        !c.looper_stream_active(&chain.id, UID),
+        "stop disarms the stream"
     );
 }
 
-/// Removing a looper must stop its isolated playback. The user deletes a
-/// looper (the × button) but the loop keeps sounding: the command drops the
-/// looper from `chain.loopers`, and the reconciler only visits the loopers
-/// STILL in the chain, so the armed stream is never disarmed. RED until the
-/// reconciler disarms streams for loopers that are gone.
+#[test]
+fn stop_disarms_even_with_the_chain_not_streaming() {
+    // The redesign's whole point: stop is authoritative regardless of the
+    // chain callback. Record + arm, then stop with NO further tick/drain.
+    let chain = chain_with_looper("no-stream");
+    let c = controller_for(&chain, &registry());
+    record_and_close(&c, &chain);
+    c.sync_looper_streams(&chain);
+    assert!(c.looper_stream_active(&chain.id, UID));
+
+    c.looper_stop(&chain.id, UID); // store updates immediately, no runtime needed
+    c.sync_looper_streams(&chain);
+    assert!(
+        !c.looper_stream_active(&chain.id, UID),
+        "stop silences the loop even when nothing is streaming"
+    );
+}
+
 #[test]
 fn removing_a_playing_looper_disarms_its_isolated_stream() {
-    let (controller, chain) = two_output_controller("looper-remove-iso");
-    let id = chain.id.clone();
+    let chain = chain_with_looper("remove");
+    let c = controller_for(&chain, &registry());
+    record_and_close(&c, &chain);
+    c.sync_looper_streams(&chain);
+    assert!(c.looper_stream_active(&chain.id, UID));
 
-    // Record + close so the looper plays, then arm its stream.
-    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Create { uid: UID, seg: 0 }));
-    controller.push_chain_looper_op(&id, |rt| {
-        Some(LooperOp::TapRecord {
-            uid: UID,
-            buffer: Some(vec![0.5f32; rt.looper_max_frames() * 2].into_boxed_slice()),
-        })
-    });
-    tick(&controller, &id, 0.5);
-    controller.push_chain_looper_op(&id, |_| Some(LooperOp::TapRecord { uid: UID, buffer: None }));
-    tick(&controller, &id, 0.0);
-    controller.sync_looper_streams(&chain);
-    assert!(
-        controller.looper_stream_active(&id, UID),
-        "precondition: the loop is armed and playing"
-    );
-
-    // The user presses × : the command removes the looper from the chain and
-    // frees the runtime slot.
-    controller.push_chain_looper_op(&id, |_| Some(LooperOp::Remove { uid: UID }));
-    tick(&controller, &id, 0.0);
+    c.looper_remove(&chain.id, UID);
     let mut without = chain.clone();
     without.loopers.clear();
-
-    // The very next reconcile must silence it.
-    controller.sync_looper_streams(&without);
+    c.sync_looper_streams(&without);
     assert!(
-        !controller.looper_stream_active(&id, UID),
-        "removing a looper must disarm its isolated stream — the loop must stop"
+        !c.looper_stream_active(&chain.id, UID),
+        "removing a looper must stop its isolated stream"
+    );
+}
+
+#[test]
+fn a_loop_belongs_to_one_chain_only() {
+    let chain_a = chain_with_looper("iso-a");
+    let chain_b = chain_with_looper("iso-b");
+    let c = controller_for(&chain_a, &registry());
+    c.looper_create(&chain_a.id, UID);
+    assert!(c.chain_looper_status(&chain_a.id, UID).is_some());
+    assert!(
+        c.chain_looper_status(&chain_b.id, UID).is_none(),
+        "a loop belongs to the chain it was created on"
     );
 }

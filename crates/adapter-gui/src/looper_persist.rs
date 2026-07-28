@@ -15,7 +15,6 @@ use std::rc::Rc;
 use application::command::Command;
 use application::dispatcher::CommandDispatcher;
 use application::looper_audio::{read_loop_wav, resample_loop, write_loop_wav};
-use engine::LooperOp;
 use infra_cpal::ProjectRuntimeController;
 
 use crate::state::ProjectSession;
@@ -41,10 +40,7 @@ pub(crate) fn save_chain_loops(session: &ProjectSession, runtime: &Runtime, proj
 
     for (chain, loopers) in chains {
         for uid in loopers {
-            let pcm = controller
-                .runtimes_for_chain(&chain)
-                .iter()
-                .find_map(|rt| rt.export_looper(uid));
+            let pcm = controller.export_chain_looper(&chain, uid);
             let file = match pcm {
                 Some(pcm) => match write_loop_wav(project_path, &chain, uid, &pcm, rate) {
                     Ok(name) => Some(name),
@@ -82,11 +78,19 @@ pub(crate) fn restore_chain_loops(
         return;
     };
     let engine_rate = controller.sample_rate();
-    let registry = session.io_bindings.borrow().clone();
-    // (chain, [(uid, record segment, saved wav)]). The record segment is the
-    // looper's chosen input endpoint resolved against the chain's bindings, so
-    // a restored looper records the same input it was saved on.
-    let chains: Vec<(domain::ids::ChainId, Vec<(u64, usize, Option<String>)>)> = {
+    // (chain, [(uid, input, output, saved wav)]). The chosen input/output are
+    // seeded into the store so a restored loop records the same input and plays
+    // to the same output it was saved with.
+    #[allow(clippy::type_complexity)]
+    let chains: Vec<(
+        domain::ids::ChainId,
+        Vec<(
+            u64,
+            Option<project::chain::EndpointRef>,
+            Option<project::chain::EndpointRef>,
+            Option<String>,
+        )>,
+    )> = {
         let project = session.project.borrow();
         project
             .chains
@@ -96,14 +100,7 @@ pub(crate) fn restore_chain_loops(
                     c.id.clone(),
                     c.loopers
                         .iter()
-                        .map(|l| {
-                            let seg = project::binding_discovery::resolve_input_segment(
-                                c,
-                                &registry,
-                                l.input.as_ref(),
-                            );
-                            (l.uid, seg, l.audio_file.clone())
-                        })
+                        .map(|l| (l.uid, l.input.clone(), l.output.clone(), l.audio_file.clone()))
                         .collect(),
                 )
             })
@@ -111,8 +108,10 @@ pub(crate) fn restore_chain_loops(
     };
 
     for (chain, loopers) in chains {
-        for (uid, seg, file) in loopers {
-            controller.push_chain_looper_op(&chain, |_| Some(LooperOp::Create { uid, seg }));
+        for (uid, input, output, file) in loopers {
+            controller.looper_create(&chain, uid);
+            controller.looper_set_input(&chain, uid, input);
+            controller.looper_set_output(&chain, uid, output);
 
             let Some(file) = file else { continue };
             let (pcm, file_rate) = match read_loop_wav(project_path, &file) {
@@ -126,18 +125,7 @@ pub(crate) fn restore_chain_loops(
             // A loop recorded at 44.1 kHz would play 9 % fast on a 48 kHz
             // stream (#669) — resample to the rate the streams actually run.
             let pcm = resample_loop(&pcm, file_rate, engine_rate);
-            let frames = pcm.len() / 2;
-            controller.push_chain_looper_op(&chain, |rt| {
-                let max = rt.looper_max_frames();
-                let len = frames.min(max);
-                let mut buffer = vec![0.0f32; max * 2].into_boxed_slice();
-                buffer[..len * 2].copy_from_slice(&pcm[..len * 2]);
-                Some(LooperOp::LoadLayer {
-                    uid,
-                    buffer,
-                    len_frames: len,
-                })
-            });
+            controller.looper_load(&chain, uid, &pcm);
         }
     }
 }
