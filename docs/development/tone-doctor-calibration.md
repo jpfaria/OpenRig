@@ -34,9 +34,10 @@ this; the classifier now scores both directions.
 This tool derives **measured, per-genre limits** from real isolated-guitar
 reference stems instead of guessing them.
 
-> Scope: this is **Piece 1** — the offline calibration pipeline that produces
-> the limit table. Consuming the table at runtime (a genre selector on the
-> chain, `symptom()` reading the active profile) is Piece 2, a separate issue.
+> Scope: this document is the offline calibration pipeline that produces the
+> limit table. Consuming it at runtime — the genre selector in the Tone Doctor
+> panel and the classifier reading the selected profile — shipped in the same
+> issue (#809) and is documented in [`../tone-doctor.md`](../tone-doctor.md).
 
 ## How it works
 
@@ -138,9 +139,12 @@ musical intent.
   `*-rock`) would give sturdier buckets, but that is a slicing choice, not a
   licence to invent labels.
 - **Live activation.** Every calibrated limit — excess and deficit alike — flows
-  into the doctor through `diagnose_with_limits` / `measure_fix_with_limits`.
-  Wiring the *selected genre* onto the chain (so the live doctor picks a genre's
-  limits instead of the global defaults) is the remaining Piece-2 plumbing.
+  into the doctor through `diagnose_with_limits` / `measure_fix_with_limits`,
+  and the panel's genre selector picks the row. The selection is **session-only**:
+  it is not persisted to the project or `config.yaml` and is not a `Command`, so
+  each Diagnose run starts from whatever the panel currently shows. With no genre
+  selected the global defaults apply, which keeps the deficit floors at zero and
+  therefore disabled.
 
 ## Constants (single source of truth)
 

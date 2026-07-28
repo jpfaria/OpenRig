@@ -8,7 +8,7 @@
 | **Amp** | Preamp + power amp + cab | 142 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva/Uberschall/Helios/Goldfinger/Ecstasy 101B, Dumble ODS/Steel String Singer/ODS 100W, EVH 5150/5150 III/5150 III 50W Red, Friedman BE100/BE-50/BE 100/Dirty Shirley, Marshall JCM800/JVM/JMP-1/Plexi/Super Lead/JCM2000 TSL/DSL/JCM900/JTM45/1959HW/DSL40CR/Plexi 50W/6100 30th/1959 SLP, Mesa Mark V/Rectifier/Mark IV/Mark IIC/Mark VII/JP2C/Triple Rectifier/Dual Rectifier, Peavey 5150/6505/JSX, Ampeg SVT/SVT Classic, Fender Bassman/Deluxe Reverb/Super Reverb/Hot Rod Deluxe/Twin Reverb/Princeton Reverb/Princeton Reverb 1972/Blues Junior/Showman, Roland JC-120B, Vox AC30/Fawn/AC15, Diezel Herbert/Hagen, ENGL Ironball/Powerball/Fireball/Gigmaster 30/E530, Orange OR15/Rockerverb/Tiny Terror, PRS Archon/MT15, Tone King Imperial, Driftwood Purple Nightmare, Splawn Quickrod, Soldano SLO 100/SLO 30, Laney/VH100R/Ironheart, Bad Cat Lynx, Hughes & Kettner TubeMeister 18, Ceriatone OTS Mini 20, Matchless Clubman 35, Sunn Model T, Supro Black Magick, Jet City JCA22H, Randall RG100es (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
 | **Cab** | Caixa/falante | 29 | American 2x12, Brit 4x12, Vintage 1x12 (native); Celestion Cream, Fender Deluxe Reverb Oxford/Twin Reverb 2x12/Super Reverb 4x10/Bassman 2x15, Greenback, G12T-75, Marshall 4x12 V30/1960AV/1960BV/1960TV Greenback, Mesa OS/Standard/Traditional 4x12/Recto V30, Roland JC-120, Vox AC30 Blue, Vox AC50, Orange 2x12 V30, EVH 5150III 4x12 G12-EVH, ENGL E412 Karnivore, Ampeg SVT 4x10/8x10 (IR); GxUltraCab (LV2) |
 | **Gain** | Overdrive, distortion, fuzz, boost | 204 | TS9 (native); Boss DS-1/HM-2/FZ-1W/MT-2/BD-2, Klon, RAT/RAT2, OCD, OD808, TS808, Darkglass Alpha Omega/B7K, JHS Bonsai, Bluesbreaker, Vemuram Jan Ray + 34 outros (NAM); Guitarix ×40, CAPS, OJD, Wolf Shaper, MDA, Airwindows distortion family, Calf saturators, ChowCentaur (LV2 — 96 modelos pós-#379) |
-| **Delay** | Eco | 43 | Analog Warm, Digital Clean, Slapback, Reverse, Modulated, Tape Vintage, Multi-Tap, BBD, Tape Echo, Chorus Echo, Rhythmic, Granular, Pitch, Ping-Pong (native); MDA DubDelay, TAP Doubler/Echo/Reflector, Bollie, Avocado, Floaty, Modulay, Calf Vintage Delay/Reverse Delay, ArtyFX Della/Masha, Granulator, Invada Mono/Sum, MOD CAPS Scape, Rakarrack Arpie (LV2 — 28 modelos pós-#379) |
+| **Delay** | Eco | 43 | Analog Warm, Digital Clean, Slapback, Reverse, Modulated, Tape Vintage, Multi-Tap Delay, BBD Analog Delay, Tape Echo, Chorus Echo, Rhythmic Delay, Granular Delay, Pitch Delay, Ping-Pong Delay (native — #388, ver detalhe abaixo); MDA DubDelay, TAP Doubler/Echo/Reflector, Bollie, Avocado, Floaty, Modulay, Calf Vintage Delay/Reverse Delay, ArtyFX Della/Masha, Granulator, Invada Mono/Sum, MOD CAPS Scape, Rakarrack Arpie (LV2 — 28 modelos pós-#379) |
 | **Reverb** | Ambiência | 51 | Hall, Plate Foundation, Room, Spring (native); Dragonfly Hall/Room/Plate/Early, CAPS Plate/X2/Scape, TAP Reflector/Reverberator, MDA Ambience, MVerb, B Reverb, Roomy, Shiroverb, Floaty, ZeroConvo Mono/Stereo, Calf Reverb, Rakarrack Eco/Reve/Reverbtron, Airwindows StarChild (LV2 — 46 modelos pós-#379) |
 | **Modulation** | Chorus, flanger, tremolo, vibrato | 58 | Classic/Stereo/Ensemble Chorus, Sine Tremolo, Vibrato (native); TAP Chorus/Flanger/Tremolo/Rotary, MDA Leslie/RingMod/ThruZero, FOMP, CAPS Phaser II/ChorusI, Harmless, Larynx, Calf Multi Chorus/Pulsator, Guitarix Detune/Hornet, b_whirl Leslie sim, ChowMatrix, ChowPhaser (LV2 — 52 modelos pós-#379) |
 | **Dynamics** | Compressor e gate | 35 | Studio Clean Compressor, Noise Gate, Brick Wall Limiter (native); TAP DeEsser/Dynamics/Limiter, ZamComp, ZamGate, ZaMultiComp, Calf Compressor/Multiband Gate/Sidechain Compressor, ArtyFX Bitta, abGate, Squeezer (LV2 — 31 modelos pós-#379) |
@@ -29,7 +29,7 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 
 - **Preamp/Amp nativos**: input, gain, bass, middle, treble, presence, depth, sag, master, bright
 - **NAM preamp**: volume (50–70%), gain (10–100%) em steps
-- **Delay**: time_ms (1–2000), feedback (0–100%), mix (0–100%)
+- **Delay**: `time_ms` (1–2000), `feedback` (0–100%), `mix` (0–100%). Every native delay shares these three; the eight algorithms of #388 each add one character knob on top — see [Native delay algorithms](#native-delay-algorithms-388).
 - **Reverb (native)**: room_size, damping, mix (0–100%)
 - **Reverb (IR convolution, `backend: ir` — #733)**: mix (0–100%, default 30%), pre_delay_ms (0–200), level (wet trim, −24..+24 dB). Convolves a reverb impulse response (same FFT engine as the IR cab) and blends it with the dry signal — distinct from a cab block (100% wet). True-stereo for 2-channel IRs; a mono IR is dual-mono wrapped in a stereo chain.
 - **Compressor**: threshold, ratio, attack_ms, release_ms, makeup_gain, mix
@@ -46,6 +46,32 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 - **Autotune Chromatic**: speed (0–100ms), mix, detune (±50 cents), sensitivity
 - **Autotune Scale**: + key (C–B), scale (Major, Minor, Pent Maj/Min, Harmonic Minor, Melodic Minor, Blues, Dorian)
 - **Pitch Shifter** (`native_pitch_shifter`): `shift_semitones` (-24/+24), `shift_cents` (-100/+100), `mix` (0–100%). **Pitch shifter time-domain granular** (dual-tap overlap-add, mesma família que DigiTech Whammy/Drop) — delay line lida por 2 taps defasados meio-grão, janelas Hann defasadas π que somam exatamente 1 (amplitude plana, sem warble). Sem FFT, sem detecção de pitch → aguenta acorde, CPU ínfima. Em #488 substituiu o phase vocoder (remap de bin `round(bin·pitch)` colapsava o lóbulo de cada parcial e fazia a nota "cortar/silenciar" em sinal multi-parcial; e tinha ~69 ms de latência, inutilizável ao vivo). Grão = 1024 amostras: latência ≈12 ms @ 48 kHz para −2 semitons, ≈5 ms oitava acima (comparável a pedal comercial; gigável). Grão maior = menos warble de grão, mais latência. Foundation reusada pelo autotune nativo (Wave 2 do #381).
+
+### Native delay algorithms (#388)
+
+Eight pure-Rust delay models, all `brand: native`, `backend: Native`. They share
+`time_ms` (1–2000 ms), `feedback` (0–100 %) and `mix` (0–100 %); the fourth knob
+is what separates them. Feedback is divided by 100 and clamped to **0.95**
+internally, so a knob at 100 % is 95 % recirculation and never self-oscillates
+away (`block-delay::shared`). All are `DualMono` except Ping-Pong.
+
+| Model id | Display name | 4th knob | Character |
+|---|---|---|---|
+| `tape_echo` | Tape Echo | `flutter` 0–100 % (def 35) | Random-walk wow/flutter (not a sine LFO — the tape signature), hot magnetic saturation, 3 kHz tone roll-off per repeat |
+| `bbd` | BBD Analog Delay | `tone` 0–100 % (def 40) | Two cascaded low-pass poles reproduce bucket-brigade reconstruction — far steeper HF loss per repeat than a one-pole "warm" delay; `tone` sweeps 1.2→4.5 kHz |
+| `multitap` | Multi-Tap Delay | `taps` 2–6 (def 4) | Taps on even sub-divisions of the base time (time/n … time), gains falling as 1/i and normalized; only the longest tap recirculates. No filtering or saturation — clean taps |
+| `rhythmic` | Rhythmic Delay | `subdivision` 0–2 (def 0) | `time_ms` is the **beat** (quarter note); the subdivision puts echoes on a syncopated grid — `0` dotted-eighth (0.75), `1` triplet (2/3), `2` eighth (0.5). Fixed 6 kHz roll-off. Resolved once when the block is built, not modulated per sample |
+| `chorus_echo` | Chorus Echo | `depth` 0–100 % (def 45) | A slow 1.6 Hz sine sweeps the delay time (up to 4.5 ms) so the repeats chorus; BBD-style 3.2 kHz roll-off + soft saturation. Periodic modulation is what distinguishes it from Tape Echo's random walk |
+| `ping_pong` | Ping-Pong Delay | *(none — 3 params)* | **`TrueStereo`.** Each input enters the opposite line and each line recirculates into the other, so the echo bounces L↔R. In a mono layout it is wrapped (broadcast in, sum out) |
+| `pitch_delay` | Pitch Delay | `semitones` −24…+24 (def 12) | Pitch-shifts the repeat with a granular dual-tap overlap-add shifter (2048-sample window, no FFT); with feedback the shift cascades into a shimmer |
+| `granular` | Granular Delay | `spread` 0–100 % (def 45) | Each grain respawns at the base delay plus a random offset (up to 6000 samples at full `spread`), scattering the signal into a cloud; two 2048-sample Hann grains overlap for continuous output |
+
+Defaults for `time_ms` / `feedback` / `mix` per model: Tape Echo 280/40/32, BBD
+320/35/30, Multi-Tap 400/25/35, Rhythmic 500/38/32, Chorus Echo 350/35/32,
+Ping-Pong 300/40/35, Pitch Delay 350/35/35, Granular 300/30/40.
+
+⚠️ `pitch_delay` (Delay block, 2048-sample grain) is **not** `native_pitch_shifter`
+(Pitch block, 1024-sample grain) — different models, different blocks.
 
 ## Backends de áudio
 
@@ -88,7 +114,9 @@ Mass-import LV2 (issue #379, 2026-05-04): adicionou ~246 plugins LV2 ao catálog
 ### NAM block editor tabs (#786)
 
 A NAM block's controls have always-known origins, so the block editor tabs them
-with no per-plugin authoring:
+with no per-plugin authoring. Since #815 these tabs render when **adding** a
+block too, not only when editing one — the add flow opens the same detached
+editor in add-mode:
 
 - **Capture** — the axes the manifest declares under `parameters:` (`channel`,
   `gain`, `mic`, …). They pick which `.nam` capture is loaded; the `captures:`
