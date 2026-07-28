@@ -4,7 +4,7 @@
 //! the chain re-projects from the rig (reload, scene switch, runtime
 //! resync), the edit is gone.
 //!
-//! Cause: `Command::SaveChainOutputEndpoints` (and the matching Input /
+//! Cause: `ChainCommand::SaveChainOutputEndpoints` (and the matching Input /
 //! SaveChainIo handlers) only writes the I/O blocks into the legacy
 //! `Project`. `rig.outputs` stays empty for the chain. Any subsequent
 //! `rig_to_legacy_project` rebuild therefore drops the edited output.
@@ -27,7 +27,7 @@ use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, AudioBlockKind, OutputBlock};
 use project::rig::{RigInput, RigPreset, RigProject};
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -109,12 +109,12 @@ fn save_chain_output_endpoints_persists_through_rig_reload() {
     }
     // The chain is now [Input(idx 0), Output(idx 1)].
     // User dispatches SaveChainOutputEndpoints to bind the output.
-    let res = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+    let res = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
         block_index: 1,
         io: String::new(),
         endpoint: String::new(),
-    });
+    }));
     assert!(
         res.is_ok(),
         "SaveChainOutputEndpoints dispatch failed: {:?}",
@@ -172,13 +172,13 @@ fn save_chain_io_persists_both_endpoints_through_rig_reload() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     // Chain is now [Input(idx 0), Output(idx 1)].
-    let res = dispatcher.dispatch(Command::SaveChainIo {
+    let res = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainIo {
         chain: ChainId(CHAIN_ID.into()),
         input_block_index: 0,
         output_block_index: 1,
         io: String::new(),
         endpoint: String::new(),
-    });
+    }));
     assert!(res.is_ok(), "SaveChainIo dispatch failed: {:?}", res.err());
 
     let reloaded = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());

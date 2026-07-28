@@ -14,9 +14,11 @@
 //! OS-X click would just hide the window while the polling timer and
 //! per-output stream taps stayed alive.
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 
 /// Command the dispatcher must receive when the spectrum window closes.
 pub fn spectrum_close_commands() -> Vec<Command> {
-    vec![Command::SetSpectrumEnabled { enabled: false }]
+    vec![Command::Selection(SelectionCommand::SetSpectrumEnabled {
+        enabled: false,
+    })]
 }

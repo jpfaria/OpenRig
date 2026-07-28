@@ -24,7 +24,9 @@ fn select_active_chain_relative_is_a_known_command() {
     )
     .expect("build from MCP payload");
     match cmd {
-        application::command::Command::SelectActiveChainRelative { delta } => {
+        application::command::Command::Selection(
+            application::command::SelectionCommand::SelectActiveChainRelative { delta },
+        ) => {
             assert_eq!(delta, 1);
         }
         other => panic!("expected SelectActiveChainRelative, got {other:?}"),
@@ -45,7 +47,9 @@ fn select_active_block_relative_is_a_known_command() {
     )
     .expect("build from MCP payload");
     match cmd {
-        application::command::Command::SelectActiveBlockRelative { delta } => {
+        application::command::Command::Selection(
+            application::command::SelectionCommand::SelectActiveBlockRelative { delta },
+        ) => {
             assert_eq!(delta, -2);
         }
         other => panic!("expected SelectActiveBlockRelative, got {other:?}"),
@@ -66,7 +70,9 @@ fn set_compact_view_enabled_is_a_known_command() {
     )
     .expect("build from MCP payload");
     match cmd {
-        application::command::Command::SetCompactViewEnabled { enabled } => {
+        application::command::Command::Selection(
+            application::command::SelectionCommand::SetCompactViewEnabled { enabled },
+        ) => {
             assert!(enabled);
         }
         other => panic!("expected SetCompactViewEnabled, got {other:?}"),

@@ -16,7 +16,7 @@
 //! click would just hide the window while the polling timer and the
 //! auto-engaged mute stayed alive.
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 
 /// Commands the dispatcher must receive when the tuner window closes.
 ///
@@ -26,7 +26,7 @@ use application::command::Command;
 /// off.
 pub fn tuner_close_commands() -> Vec<Command> {
     vec![
-        Command::SetTunerEnabled { enabled: false },
-        Command::SetOutputMuted { muted: false },
+        Command::Selection(SelectionCommand::SetTunerEnabled { enabled: false }),
+        Command::Selection(SelectionCommand::SetOutputMuted { muted: false }),
     ]
 }

@@ -8,7 +8,7 @@
 //! RED-first: written before the variants existed in command_schema so the
 //! tests fail with "create_io_binding is not a known variant".
 
-use application::command::Command;
+use application::command::{Command, IoBindingCommand};
 use application::command_schema::{command_from_variant, command_variant_names, tool_name};
 
 fn sample_binding_json() -> serde_json::Value {
@@ -52,7 +52,7 @@ fn create_io_binding_deserializes_from_mcp_payload() {
     let cmd = command_from_variant("CreateIoBinding", sample_binding_json())
         .expect("command_from_variant must parse CreateIoBinding payload");
     match cmd {
-        Command::CreateIoBinding { binding } => {
+        Command::IoBinding(IoBindingCommand::CreateIoBinding { binding }) => {
             assert_eq!(binding.id, "main");
             assert_eq!(binding.name, "Main Rig");
             assert_eq!(binding.inputs.len(), 1);
@@ -85,7 +85,7 @@ fn update_io_binding_deserializes_from_mcp_payload() {
     let cmd = command_from_variant("UpdateIoBinding", sample_binding_json())
         .expect("command_from_variant must parse UpdateIoBinding payload");
     match cmd {
-        Command::UpdateIoBinding { binding } => {
+        Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding }) => {
             assert_eq!(binding.id, "main");
         }
         other => panic!("expected UpdateIoBinding, got {other:?}"),
@@ -115,7 +115,7 @@ fn delete_io_binding_deserializes_from_mcp_payload() {
     let cmd = command_from_variant("DeleteIoBinding", serde_json::json!({ "id": "main" }))
         .expect("command_from_variant must parse DeleteIoBinding payload");
     match cmd {
-        Command::DeleteIoBinding { id } => {
+        Command::IoBinding(IoBindingCommand::DeleteIoBinding { id }) => {
             assert_eq!(id, "main");
         }
         other => panic!("expected DeleteIoBinding, got {other:?}"),

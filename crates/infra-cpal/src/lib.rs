@@ -111,6 +111,7 @@ mod dsp_worker;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "dsp_worker_recovery_tests.rs"]
 mod dsp_worker_recovery_tests;
+mod metronome_stream;
 mod stream_builder;
 mod stream_config;
 pub use stream_builder::build_streams_for_project;

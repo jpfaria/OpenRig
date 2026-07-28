@@ -1,5 +1,5 @@
 use super::*;
-use crate::command::Command;
+use crate::command::{Command, ProjectCommand};
 use crate::local_dispatcher::LocalDispatcher;
 use project::project::Project;
 use std::cell::RefCell;
@@ -19,7 +19,7 @@ fn drain_dispatches_request_and_replies() {
     let dispatcher = LocalDispatcher::new(test_project());
     let (bridge, drain) = channel();
 
-    let mut reply_rx = bridge.submit(Command::SaveProject);
+    let mut reply_rx = bridge.submit(Command::Project(ProjectCommand::SaveProject));
 
     // Nothing dispatched until the frontend drains.
     assert!(reply_rx.try_recv().unwrap().is_none());
@@ -43,7 +43,7 @@ fn drain_returns_dispatched_events_so_midi_path_can_refresh() {
     // it only returns a count and the events are lost.
     let dispatcher = LocalDispatcher::new(test_project());
     let (bridge, drain) = channel();
-    let _rx = bridge.submit(Command::SaveProject);
+    let _rx = bridge.submit(Command::Project(ProjectCommand::SaveProject));
 
     let events = drain.drain(&dispatcher, 16);
 
@@ -58,7 +58,7 @@ fn drain_respects_cap() {
     let dispatcher = LocalDispatcher::new(test_project());
     let (bridge, drain) = channel();
     for _ in 0..5 {
-        let _rx = bridge.submit(Command::SaveProject);
+        let _rx = bridge.submit(Command::Project(ProjectCommand::SaveProject));
     }
     // SaveProject yields exactly one ProjectSaved, so the event count
     // tracks the command count: cap=2 ⇒ 2 handled, then the remaining 3.

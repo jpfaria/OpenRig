@@ -5,7 +5,7 @@
 
 use adapter_midi::profile::{parse_profile_yaml, CATALOG};
 use adapter_midi::slots::{slot_to_command, IncomingMessage};
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::SelectionState;
 
 #[test]
@@ -65,7 +65,7 @@ fn slot_returns_command_for_neighbor_when_chain_and_block_active() {
     // with the active chain so the dispatcher can resolve "next block"
     // from the project.
     match cmd {
-        Command::ToggleActiveBlockNeighborEnabled => {}
+        Command::Selection(SelectionCommand::ToggleActiveBlockNeighborEnabled) => {}
         other => panic!("expected ToggleActiveBlockNeighborEnabled, got {other:?}"),
     }
 }

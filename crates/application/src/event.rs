@@ -209,6 +209,54 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #14: the metronome was started or stopped. The adapter opens or closes
+    /// the metronome's dedicated output stream; the dispatcher only records
+    /// that the request came through the bus.
+    MetronomeEnabledChanged {
+        enabled: bool,
+    },
+
+    /// #14: the tempo changed. Already clamped to the supported range — the
+    /// adapter can hand this straight to the generator.
+    MetronomeBpmChanged {
+        bpm: f32,
+    },
+
+    /// #14: beats per bar changed, already clamped.
+    MetronomeTimeSignatureChanged {
+        beats_per_bar: u32,
+    },
+
+    /// #14: the subdivision changed. Parsed and validated by the dispatcher.
+    MetronomeSubdivisionChanged {
+        subdivision: String,
+    },
+
+    /// #14: the click level changed, already clamped to `0.0..=1.0`.
+    MetronomeVolumeChanged {
+        volume: f32,
+    },
+
+    /// #14: the click timbre changed. Parsed and validated by the dispatcher.
+    MetronomeTimbreChanged {
+        timbre: String,
+    },
+
+    /// #14: the count-in bar was turned on or off.
+    MetronomeCountInChanged {
+        enabled: bool,
+    },
+
+    /// #14: the metronome's output device changed. The adapter reopens the
+    /// dedicated stream on the new device.
+    MetronomeOutputChanged {
+        device_id: Option<String>,
+    },
+
+    /// #14: the tap-tempo button was tapped. The adapter owns the tap history
+    /// and dispatches the resulting `SetMetronomeBpm`.
+    MetronomeTapped,
+
     /// #591: the compact view was toggled (MIDI slot `toggle_compact_view`
     /// → `SetCompactViewEnabled`). The adapter opens/closes the per-chain
     /// compact window for the active chain; without this event the MIDI
@@ -406,6 +454,15 @@ impl Event {
             | Event::ChainPresetDeleted { .. }
             | Event::TunerEnabledChanged { .. }
             | Event::SpectrumEnabledChanged { .. }
+            | Event::MetronomeEnabledChanged { .. }
+            | Event::MetronomeBpmChanged { .. }
+            | Event::MetronomeTimeSignatureChanged { .. }
+            | Event::MetronomeSubdivisionChanged { .. }
+            | Event::MetronomeVolumeChanged { .. }
+            | Event::MetronomeTimbreChanged { .. }
+            | Event::MetronomeCountInChanged { .. }
+            | Event::MetronomeOutputChanged { .. }
+            | Event::MetronomeTapped
             | Event::CompactViewEnabledChanged { .. }
             | Event::MidiEnabledChanged { .. }
             | Event::McpEnabledChanged { .. }

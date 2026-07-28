@@ -27,7 +27,7 @@ use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, AudioBlockKind, OutputBlock};
 use project::rig::{RigInput, RigPreset, RigProject};
 
-use application::command::{Command, RigNavKind};
+use application::command::{Command, RigNavKind, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -140,10 +140,10 @@ fn rename_rig_preset_must_preserve_user_output_endpoint() {
     );
 
     dispatcher
-        .dispatch(Command::RenameRigPreset {
+        .dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
             chain: ChainId(CHAIN_ID.into()),
             name: "Coldplay - Clocks".into(),
-        })
+        }))
         .expect("dispatch ok");
 
     let outputs_after = output_blocks_on(&project, CHAIN_ID);
@@ -166,10 +166,10 @@ fn apply_rig_nav_scene_switch_must_preserve_user_output_endpoint() {
     assert_eq!(output_blocks_on(&project, CHAIN_ID).len(), 1);
 
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId(CHAIN_ID.into()),
             kind: RigNavKind::StepScene(1),
-        })
+        }))
         .expect("dispatch ok");
 
     assert_eq!(
@@ -185,10 +185,10 @@ fn apply_rig_nav_preset_step_must_preserve_user_output_endpoint() {
     assert_eq!(output_blocks_on(&project, CHAIN_ID).len(), 1);
 
     dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId(CHAIN_ID.into()),
             kind: RigNavKind::StepPreset(1),
-        })
+        }))
         .expect("dispatch ok");
 
     assert_eq!(

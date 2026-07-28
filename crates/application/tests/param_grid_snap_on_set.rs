@@ -4,7 +4,7 @@
 //!  MODEL 'nam_vox_ac30': VALUE -5.7059765 DOES NOT ALI...[gn with step 0.1]".
 //!
 //! Source of the off-grid value: the GUI slider emits continuous floats
-//! through `Command::SetBlockParameterNumber` (`set_parameter_number`
+//! through `BlockCommand::SetBlockParameterNumber` (`set_parameter_number`
 //! stores the value as-is). The scene snapshot then captures the
 //! off-grid value, and on the next apply + validate the runtime is
 //! rejected.
@@ -22,7 +22,7 @@ use project::chain::Chain;
 use project::param::ParameterSet;
 use project::project::Project;
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use application::validate::validate_project;
@@ -104,12 +104,12 @@ fn validate_project_accepts_off_grid_continuous_slider_value() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // Live action: continuous slider sets output_db.
-    let _ = dispatcher.dispatch(Command::SetBlockParameterNumber {
+    let _ = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
         chain: ChainId(CHAIN_ID.into()),
         block: BlockId(BLOCK_ID.into()),
         path: "output_db".into(),
         value: -5.7059765,
-    });
+    }));
 
     let res = validate_project(&project.borrow());
     assert!(

@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use domain::ids::ChainId;
 use engine::di_loop::{DiLoop, DiPcm};
@@ -128,13 +128,13 @@ fn di_loop_commands_play_with_new_source_returns_two_commands() {
 
     assert_eq!(cmds.len(), 2, "expected 2 commands, got {cmds:?}");
     assert!(
-        matches!(&cmds[0], Command::SetChainDiLoopSource { chain: c, source: s }
+        matches!(&cmds[0], Command::Chain(ChainCommand::SetChainDiLoopSource { chain: c, source: s })
             if c.0 == "chain_x" && matches!(s, DiLoopSource::File(_))),
         "first command must be SetChainDiLoopSource, got {:?}",
         cmds[0]
     );
     assert!(
-        matches!(&cmds[1], Command::SetChainDiLoopEnabled { chain: c, enabled: true }
+        matches!(&cmds[1], Command::Chain(ChainCommand::SetChainDiLoopEnabled { chain: c, enabled: true })
             if c.0 == "chain_x"),
         "second command must be SetChainDiLoopEnabled(true), got {:?}",
         cmds[1]
@@ -151,7 +151,7 @@ fn di_loop_commands_play_returns_enable_command() {
 
     assert_eq!(cmds.len(), 1, "expected 1 command, got {cmds:?}");
     assert!(
-        matches!(&cmds[0], Command::SetChainDiLoopEnabled { chain: c, enabled: true }
+        matches!(&cmds[0], Command::Chain(ChainCommand::SetChainDiLoopEnabled { chain: c, enabled: true })
             if c.0 == "chain_y"),
         "command must be SetChainDiLoopEnabled(true), got {:?}",
         cmds[0]
@@ -168,7 +168,7 @@ fn di_loop_commands_stop_returns_disable_command() {
 
     assert_eq!(cmds.len(), 1, "expected 1 command, got {cmds:?}");
     assert!(
-        matches!(&cmds[0], Command::SetChainDiLoopEnabled { chain: c, enabled: false }
+        matches!(&cmds[0], Command::Chain(ChainCommand::SetChainDiLoopEnabled { chain: c, enabled: false })
             if c.0 == "chain_z"),
         "command must be SetChainDiLoopEnabled(false), got {:?}",
         cmds[0]
@@ -191,7 +191,7 @@ fn di_loop_commands_select_source_returns_source_command() {
 
     assert_eq!(cmds.len(), 1, "expected 1 command, got {cmds:?}");
     assert!(
-        matches!(&cmds[0], Command::SetChainDiLoopSource { chain: c, source: s }
+        matches!(&cmds[0], Command::Chain(ChainCommand::SetChainDiLoopSource { chain: c, source: s })
             if c.0 == "chain_w" && matches!(s, DiLoopSource::File(_))),
         "command must be SetChainDiLoopSource, got {:?}",
         cmds[0]

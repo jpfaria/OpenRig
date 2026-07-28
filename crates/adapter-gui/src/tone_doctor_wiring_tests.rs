@@ -66,13 +66,29 @@ fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
     init();
     let c = chain(vec![
         core_block("vol", "volume", params("volume", &[("volume", 80.0)])),
-        core_block("fz", "fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
+        core_block(
+            "fz",
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
+            ),
+        ),
     ]);
-    let (view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF, feature_dsp::tone_descriptors::SymptomLimits::DEFAULT);
+    let (view, suggestion) = diagnose_to_view(
+        &c,
+        &di_sine(),
+        SR,
+        BUF,
+        feature_dsp::tone_descriptors::SymptomLimits::DEFAULT,
+    );
 
     assert!(view.has_result, "{view:?}");
     assert!(!view.running, "run completed: {view:?}");
-    assert_eq!(view.symptom_level, 2, "fizz is a red-level symptom: {view:?}");
+    assert_eq!(
+        view.symptom_level, 2,
+        "fizz is a red-level symptom: {view:?}"
+    );
     assert_eq!(view.symptom_text, "Fizz", "{view:?}");
     assert_eq!(
         view.culprit_label,
@@ -80,10 +96,19 @@ fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
         "the panel shows the plugin's display name, not the id: {view:?}"
     );
     assert!(view.has_suggestion, "{view:?}");
-    assert!(!view.suggestion_text.is_empty(), "shows the measured move: {view:?}");
+    assert!(
+        !view.suggestion_text.is_empty(),
+        "shows the measured move: {view:?}"
+    );
     // The measurements travel to the panel meters.
-    assert!(view.fizz_value > view.fizz_limit, "fizz over its limit: {view:?}");
-    assert_eq!(view.fizz_limit, feature_dsp::tone_descriptors::FIZZ_RATIO_LIMIT);
+    assert!(
+        view.fizz_value > view.fizz_limit,
+        "fizz over its limit: {view:?}"
+    );
+    assert_eq!(
+        view.fizz_limit,
+        feature_dsp::tone_descriptors::FIZZ_RATIO_LIMIT
+    );
     // Measured, not guessed: the fix targets the culprit and lowers a knob.
     // (Which knob is whichever measurably clears the fizz — proven in engine's
     // tone_doctor_fix tests.)
@@ -95,8 +120,18 @@ fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
 #[test]
 fn healthy_chain_view_has_no_result_flag_set_but_no_culprit() {
     init();
-    let c = chain(vec![core_block("vol", "volume", params("volume", &[("volume", 80.0)]))]);
-    let (view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF, feature_dsp::tone_descriptors::SymptomLimits::DEFAULT);
+    let c = chain(vec![core_block(
+        "vol",
+        "volume",
+        params("volume", &[("volume", 80.0)]),
+    )]);
+    let (view, suggestion) = diagnose_to_view(
+        &c,
+        &di_sine(),
+        SR,
+        BUF,
+        feature_dsp::tone_descriptors::SymptomLimits::DEFAULT,
+    );
 
     assert!(view.has_result, "a run happened: {view:?}");
     assert_eq!(view.symptom_level, 0, "healthy = green: {view:?}");
@@ -111,15 +146,33 @@ fn apply_command_targets_the_culprit_block() {
     init();
     let c = chain(vec![
         core_block("vol", "volume", params("volume", &[("volume", 80.0)])),
-        core_block("fz", "fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
+        core_block(
+            "fz",
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
+            ),
+        ),
     ]);
-    let (_view, suggestion) = diagnose_to_view(&c, &di_sine(), SR, BUF, feature_dsp::tone_descriptors::SymptomLimits::DEFAULT);
+    let (_view, suggestion) = diagnose_to_view(
+        &c,
+        &di_sine(),
+        SR,
+        BUF,
+        feature_dsp::tone_descriptors::SymptomLimits::DEFAULT,
+    );
     let s = suggestion.expect("suggestion");
     let cmds = apply_commands(&c, &c.id, &s);
     // A native fuzz knob is always live (no enable gate) → a single command.
     assert_eq!(cmds.len(), 1, "{cmds:?}");
     match &cmds[0] {
-        Command::SetBlockParameterNumber { chain, block, path, value } => {
+        Command::Block(BlockCommand::SetBlockParameterNumber {
+            chain,
+            block,
+            path,
+            value,
+        }) => {
             assert_eq!(*chain, c.id);
             assert_eq!(*block, BlockId("fz".into()), "targets the fuzz");
             assert_eq!(path, &s.param_path);

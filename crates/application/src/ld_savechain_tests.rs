@@ -16,7 +16,9 @@ fn configure_chain_updates_metadata_and_emits_event() {
     updated.description = Some("Updated Name".to_string());
     updated.instrument = "bass".to_string();
 
-    let result = dispatcher.dispatch(Command::ConfigureChain { chain: updated });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::ConfigureChain {
+        chain: updated,
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -48,7 +50,9 @@ fn configure_chain_preserves_enabled_state() {
     let mut updated = project.borrow().chains[0].clone();
     updated.enabled = true; // caller tries to sneak in enabled=true via ConfigureChain
 
-    let result = dispatcher.dispatch(Command::ConfigureChain { chain: updated });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::ConfigureChain {
+        chain: updated,
+    }));
 
     assert!(result.is_ok());
     let proj = project.borrow();
@@ -67,7 +71,9 @@ fn configure_chain_non_existent_returns_err() {
     let mut ghost = make_empty_chain("chain_ghost", false);
     ghost.id = ChainId("chain_MISSING".to_string());
 
-    let result = dispatcher.dispatch(Command::ConfigureChain { chain: ghost });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::ConfigureChain {
+        chain: ghost,
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     assert_eq!(
@@ -89,7 +95,7 @@ fn save_chain_replaces_existing_and_emits_event() {
     updated.description = Some("Chain B Updated".to_string());
     updated.instrument = "bass".to_string();
 
-    let result = dispatcher.dispatch(Command::SaveChain { chain: updated });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChain { chain: updated }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -120,7 +126,7 @@ fn save_chain_appends_when_id_not_found() {
 
     let new_chain = make_empty_chain("chain_brand_new", false);
 
-    let result = dispatcher.dispatch(Command::SaveChain { chain: new_chain });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChain { chain: new_chain }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     assert_eq!(
@@ -145,7 +151,7 @@ fn save_chain_preserves_enabled_state() {
     let mut updated = project.borrow().chains[0].clone();
     updated.enabled = true; // sneaking in enabled=true
 
-    let result = dispatcher.dispatch(Command::SaveChain { chain: updated });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChain { chain: updated }));
 
     assert!(result.is_ok());
     let proj = project.borrow();
@@ -202,12 +208,12 @@ fn save_chain_input_endpoints_sets_io_and_endpoint_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // The chain built by make_project_with_input_chain has the input block at index 0.
-    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainInputEndpoints {
         chain: chain_id.clone(),
         block_index: 0,
         io: "main".to_string(),
         endpoint: "Guitar In".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -236,12 +242,12 @@ fn save_chain_input_endpoints_out_of_bounds_returns_err() {
     let (project, chain_id) = make_project_with_input_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainInputEndpoints {
         chain: chain_id.clone(),
         block_index: 999,
         io: "main".to_string(),
         endpoint: "Guitar In".to_string(),
-    });
+    }));
 
     assert!(
         result.is_err(),
@@ -274,12 +280,12 @@ fn save_chain_input_endpoints_wrong_block_type_returns_err() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // block_index 1 is a core Insert block, not an InputBlock → must fail.
-    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainInputEndpoints {
         chain: chain_id.clone(),
         block_index: 1,
         io: "main".to_string(),
         endpoint: "Guitar In".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for wrong block type");
 }
@@ -289,12 +295,12 @@ fn save_chain_input_endpoints_non_existent_chain_returns_err() {
     let (project, _) = make_project_with_input_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainInputEndpoints {
         chain: ChainId("chain_MISSING".to_string()),
         block_index: 0,
         io: "main".to_string(),
         endpoint: "Guitar In".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -326,12 +332,12 @@ fn save_chain_input_endpoints_preserves_other_blocks() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainInputEndpoints {
         chain: chain_id.clone(),
         block_index: 0,
         io: "binding1".to_string(),
         endpoint: "ep1".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let proj = project.borrow();
@@ -378,12 +384,12 @@ fn save_chain_output_endpoints_sets_io_and_endpoint_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // io chain: [Input(idx 0), Output(idx 1)]
-    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: chain_id.clone(),
         block_index: 1,
         io: "main".to_string(),
         endpoint: "Monitor Out".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -413,12 +419,12 @@ fn save_chain_output_endpoints_out_of_bounds_returns_err() {
     let (project, chain_id) = make_project_with_io_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: chain_id.clone(),
         block_index: 999,
         io: "main".to_string(),
         endpoint: "Monitor Out".to_string(),
-    });
+    }));
 
     assert!(
         result.is_err(),
@@ -432,12 +438,12 @@ fn save_chain_output_endpoints_wrong_block_type_returns_err() {
     let (project, chain_id) = make_project_with_io_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: chain_id.clone(),
         block_index: 0, // This is an Input block
         io: "main".to_string(),
         endpoint: "Monitor Out".to_string(),
-    });
+    }));
 
     assert!(
         result.is_err(),
@@ -450,12 +456,12 @@ fn save_chain_output_endpoints_non_existent_chain_returns_err() {
     let (project, _) = make_project_with_io_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: ChainId("chain_MISSING".to_string()),
         block_index: 0,
         io: "main".to_string(),
         endpoint: "Monitor Out".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -486,12 +492,12 @@ fn save_chain_output_endpoints_preserves_other_blocks() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: chain_id.clone(),
         block_index: 3,
         io: "binding2".to_string(),
         endpoint: "ep2".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let proj = project.borrow();
@@ -506,4 +512,3 @@ fn save_chain_output_endpoints_preserves_other_blocks() {
         assert_eq!(ob.endpoint, "ep2");
     }
 }
-

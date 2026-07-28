@@ -330,7 +330,7 @@ pub struct ChainRuntimeState {
     pub(crate) stream_count: AtomicUsize,
     /// Lock-free producer/consumer queue for pending block-toggle
     /// requests (issue #580 follow-up). The GUI's
-    /// `Command::ToggleBlockEnabled` handler calls `set_block_enabled`,
+    /// `BlockCommand::ToggleBlockEnabled` handler calls `set_block_enabled`,
     /// which pushes `(block_id, enabled)` here without taking any lock.
     /// The audio thread drains and applies the toggle inside its
     /// `process_input_f32` `try_lock`'d section (one cheap walk over

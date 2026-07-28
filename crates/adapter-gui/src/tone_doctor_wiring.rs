@@ -7,7 +7,7 @@
 //! the actual closure wiring in `compact_chain_callbacks` just calls these and
 //! copies the fields onto the global.
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use domain::ids::ChainId;
 use engine::tone_doctor::diagnose_with_limits;
 use engine::tone_doctor_fix::measure_fix_with_limits;
@@ -53,9 +53,10 @@ pub fn diagnose_to_view(
         Err(_) => return (ToneDoctorView::default(), None),
     };
     // Measured, not guessed: prove the fix actually clears the symptom.
-    let suggestion = measure_fix_with_limits(chain, sample_rate, input, block_size, &diagnosis, &limits)
-        .ok()
-        .flatten();
+    let suggestion =
+        measure_fix_with_limits(chain, sample_rate, input, block_size, &diagnosis, &limits)
+            .ok()
+            .flatten();
 
     let culprit_label = culprit_label(chain, diagnosis.culprit);
 
@@ -152,19 +153,19 @@ pub fn apply_commands(chain: &Chain, chain_id: &ChainId, suggestion: &Suggestion
     };
     let mut cmds = Vec::new();
     if let Some(enable) = &suggestion.enable_path {
-        cmds.push(Command::SetBlockParameterBool {
+        cmds.push(Command::Block(BlockCommand::SetBlockParameterBool {
             chain: chain_id.clone(),
             block: block.id.clone(),
             path: enable.clone(),
             value: true,
-        });
+        }));
     }
-    cmds.push(Command::SetBlockParameterNumber {
+    cmds.push(Command::Block(BlockCommand::SetBlockParameterNumber {
         chain: chain_id.clone(),
         block: block.id.clone(),
         path: suggestion.param_path.clone(),
         value: suggestion.suggested as f64,
-    });
+    }));
     cmds
 }
 

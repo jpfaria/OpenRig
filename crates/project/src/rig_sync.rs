@@ -16,7 +16,7 @@ use crate::rig::RigProject;
 ///
 /// Also captures the user-defined chain order (issue #502, regression of
 /// #246). The `rig:` prefix is stripped from each chain id and the result
-/// stored in `rig.chain_order` so a reorder via `Command::MoveChainUp` /
+/// stored in `rig.chain_order` so a reorder via `ChainCommand::MoveChainUp` /
 /// `MoveChainDown` survives save+reload. When the projected chain list
 /// matches the alphabetical `inputs` order exactly, `chain_order` is
 /// cleared so legacy `.openrig` files keep their lean shape.

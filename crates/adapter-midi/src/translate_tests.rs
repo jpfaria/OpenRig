@@ -1,5 +1,6 @@
 use super::*;
 use crate::mapping::Scale;
+use application::command::{BlockCommand, ProjectCommand};
 
 fn map(yaml: &str) -> MidiMap {
     serde_yaml::from_str(yaml).unwrap()
@@ -22,7 +23,7 @@ bindings:
         },
     );
     match cmd {
-        Some(Command::ToggleBlockEnabled { chain, block }) => {
+        Some(Command::Block(BlockCommand::ToggleBlockEnabled { chain, block })) => {
             assert_eq!(chain.0, "chain:a");
             assert_eq!(block.0, "block:b");
         }
@@ -66,7 +67,7 @@ bindings:
         },
     );
     match cmd {
-        Some(Command::SetBlockParameterNumber { value, path, .. }) => {
+        Some(Command::Block(BlockCommand::SetBlockParameterNumber { value, path, .. })) => {
             assert_eq!(path, "gain");
             assert!((value - 100.0).abs() < 1e-9);
         }
@@ -91,7 +92,7 @@ bindings:
         },
     );
     match cmd {
-        Some(Command::SetBlockParameterNumber { value, .. }) => {
+        Some(Command::Block(BlockCommand::SetBlockParameterNumber { value, .. })) => {
             assert!((value - 64.0).abs() < 1e-9);
         }
         other => panic!("unexpected: {other:?}"),
@@ -113,7 +114,7 @@ bindings:
                 program: 5
             }
         ),
-        Some(Command::SaveProject)
+        Some(Command::Project(ProjectCommand::SaveProject))
     ));
 }
 
@@ -136,7 +137,7 @@ bindings:
                 velocity: 1
             }
         ),
-        Some(Command::SaveProject)
+        Some(Command::Project(ProjectCommand::SaveProject))
     ));
 }
 

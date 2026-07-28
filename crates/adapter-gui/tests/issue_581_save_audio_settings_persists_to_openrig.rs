@@ -3,7 +3,7 @@
 //! is lost on restart, so the user re-picks the device every cold
 //! start.
 //!
-//! Root cause: `Command::SaveAudioSettings`
+//! Root cause: `SettingsCommand::SaveAudioSettings`
 //! (`crates/application/src/local_dispatcher_project.rs`) writes the
 //! new `device_settings` into the in-memory `Project` and emits
 //! `Event::AudioSettingsSaved`, but never touches durable storage.
@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Mutex;
 
-use application::command::Command;
+use application::command::{Command, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::DeviceId;
@@ -110,10 +110,10 @@ fn issue_581_save_audio_settings_persists_into_config_yaml() {
         // handler for MCP and gRPC clients to behave the same way.
         let picked = picked_device();
         dispatcher
-            .dispatch(Command::SaveAudioSettings {
+            .dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
                 input_devices: vec![picked.clone()],
                 output_devices: vec![],
-            })
+            }))
             .expect("SaveAudioSettings dispatch");
         // #693: the config write runs on the persist worker — wait for
         // durability before reading config.yaml back.
@@ -136,7 +136,7 @@ fn issue_581_save_audio_settings_persists_into_config_yaml() {
             .collect();
         assert!(
             persisted_device_ids.contains(&picked.device_id.0.as_str()),
-            "REGRESSION: Command::SaveAudioSettings did not persist `{}` into config.yaml — \
+            "REGRESSION: SettingsCommand::SaveAudioSettings did not persist `{}` into config.yaml — \
              the user's audio device pick survives in memory only and is lost on the next \
              app start. Persist inside the handler so MCP and gRPC clients dispatching the \
              same command get persistence too. Persisted ids: {:?}",

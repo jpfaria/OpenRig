@@ -226,6 +226,7 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [ ] Looper, multi-capa ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / reproductor de audio ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Mapeado de pedal de expresión por MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
+- [x] Metrónomo integrado — tempo, compás, subdivisiones, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [ ] Tap tempo global / BPM por preset ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Routing paralelo / splits de cadena ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))

@@ -13,11 +13,11 @@ fn insert_prebuilt_block_adds_block_at_position_and_emits_event() {
     let new_block = make_core_block("blk_new", true);
     let new_block_id = new_block.id.clone();
 
-    let result = dispatcher.dispatch(Command::InsertPrebuiltBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
         chain: chain_id.clone(),
         block: new_block,
         position: 0,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -38,11 +38,11 @@ fn insert_prebuilt_block_non_existent_chain_returns_err() {
     let (project, _) = make_project_with_input_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::InsertPrebuiltBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
         chain: ChainId("chain_MISSING".to_string()),
         block: make_core_block("blk_x", true),
         position: 0,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -53,11 +53,11 @@ fn insert_prebuilt_block_position_clamps_to_len() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let new_block = make_core_block("blk_tail", true);
-    let result = dispatcher.dispatch(Command::InsertPrebuiltBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
         chain: chain_id.clone(),
         block: new_block,
         position: 9999,
-    });
+    }));
 
     assert!(result.is_ok());
     let proj = project.borrow();
@@ -90,11 +90,11 @@ fn overwrite_block_replaces_kind_preserves_id_and_emits_event() {
     // Overwrite with a disabled block
     let mut replacement = make_core_block("blk_replacement_id_ignored", false);
     replacement.enabled = false;
-    let result = dispatcher.dispatch(Command::OverwriteBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::OverwriteBlock {
         chain: chain_id.clone(),
         block: block_id.clone(),
         replacement,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -114,11 +114,11 @@ fn overwrite_block_non_existent_chain_returns_err() {
     let (project, _) = make_project_with_input_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::OverwriteBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::OverwriteBlock {
         chain: ChainId("chain_MISSING".to_string()),
         block: BlockId("blk_x".to_string()),
         replacement: make_core_block("blk_x", true),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain");
 }
@@ -128,11 +128,11 @@ fn overwrite_block_non_existent_block_returns_err() {
     let (project, chain_id) = make_project_with_input_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::OverwriteBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::OverwriteBlock {
         chain: chain_id.clone(),
         block: BlockId("blk_MISSING".to_string()),
         replacement: make_core_block("blk_x", true),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block");
 }
@@ -145,13 +145,13 @@ fn save_chain_io_replaces_both_endpoints_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // io chain: [Input(idx 0), Output(idx 1)]
-    let result = dispatcher.dispatch(Command::SaveChainIo {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainIo {
         chain: chain_id.clone(),
         input_block_index: 0,
         output_block_index: 1,
         io: "main".to_string(),
         endpoint: "Guitar In".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -188,13 +188,13 @@ fn save_chain_io_non_existent_chain_returns_err() {
     let (project, _) = make_project_with_io_chain();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveChainIo {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainIo {
         chain: ChainId("chain_MISSING".to_string()),
         input_block_index: 0,
         output_block_index: 1,
         io: String::new(),
         endpoint: String::new(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -219,13 +219,13 @@ fn save_chain_io_missing_input_block_returns_err() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // Block at index 0 is an OutputBlock, not InputBlock → must return Err.
-    let result = dispatcher.dispatch(Command::SaveChainIo {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainIo {
         chain: ChainId("chain_no_input".to_string()),
         input_block_index: 0,
         output_block_index: 0,
         io: String::new(),
         endpoint: String::new(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err when chain has no InputBlock");
 }
@@ -270,11 +270,11 @@ fn save_insert_block_updates_binding_and_emits_event() {
     let (project, chain_id, block_id) = make_project_with_insert();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveInsertBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SaveInsertBlock {
         chain: chain_id.clone(),
         block: block_id.clone(),
         io: "mk300".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -302,11 +302,11 @@ fn save_insert_block_non_existent_block_returns_err() {
     let (project, chain_id, _) = make_project_with_insert();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveInsertBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SaveInsertBlock {
         chain: chain_id,
         block: BlockId("blk_MISSING".to_string()),
         io: "fx".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
 }
@@ -317,11 +317,11 @@ fn save_insert_block_non_insert_kind_returns_err() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SaveInsertBlock {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SaveInsertBlock {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         io: "fx".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for non-Insert block kind");
 }
@@ -342,9 +342,9 @@ fn update_project_name_writes_name_and_emits_event() {
     let project = make_named_project("old name");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::UpdateProjectName {
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::UpdateProjectName {
         name: "new name".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -365,9 +365,9 @@ fn update_project_name_sets_name_to_none_when_empty() {
     let project = make_named_project("old name");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::UpdateProjectName {
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::UpdateProjectName {
         name: "".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     assert_eq!(
@@ -382,9 +382,9 @@ fn update_project_name_trims_whitespace() {
     let project = make_named_project("old");
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::UpdateProjectName {
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::UpdateProjectName {
         name: "  trimmed  ".to_string(),
-    });
+    }));
 
     assert!(result.is_ok());
     assert_eq!(
@@ -427,10 +427,10 @@ fn save_audio_settings_writes_device_settings_and_emits_event() {
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
         let settings = vec![make_device_settings("dev_a"), make_device_settings("dev_b")];
-        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+        let result = dispatcher.dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
             input_devices: settings.clone(),
             output_devices: vec![],
-        });
+        }));
 
         assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
         let events = result.unwrap();
@@ -459,10 +459,10 @@ fn save_audio_settings_replaces_previous_settings() {
         }));
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+        let result = dispatcher.dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
             input_devices: vec![make_device_settings("new_dev")],
             output_devices: vec![],
-        });
+        }));
 
         assert!(result.is_ok());
         let proj = project.borrow();
@@ -482,10 +482,10 @@ fn save_audio_settings_empty_clears_settings() {
         }));
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+        let result = dispatcher.dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
             input_devices: vec![],
             output_devices: vec![],
-        });
+        }));
 
         assert!(result.is_ok());
         assert!(project.borrow().device_settings.is_empty());
@@ -508,10 +508,10 @@ fn save_audio_settings_persists_input_and_output_separately() {
         }));
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-        let result = dispatcher.dispatch(Command::SaveAudioSettings {
+        let result = dispatcher.dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
             input_devices: vec![make_device_settings("dev:in")],
             output_devices: vec![make_device_settings("dev:out")],
-        });
+        }));
         assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
         // #693: the config write is queued to the persist worker — wait
         // for durability before reading it back.
@@ -540,4 +540,3 @@ fn save_audio_settings_persists_input_and_output_separately() {
         );
     });
 }
-

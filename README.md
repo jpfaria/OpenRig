@@ -226,6 +226,7 @@ Every open item below is tracked as a [GitHub issue](https://github.com/jpfaria/
 - [ ] Looper, multi-layer ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / audio player ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Expression pedal mapping over MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
+- [x] Built-in metronome — tempo, time signature, subdivisions, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))
 - [ ] Global tap tempo / preset BPM ([#322](https://github.com/jpfaria/OpenRig/issues/322))
 - [ ] Parallel routing / chain splits ([#328](https://github.com/jpfaria/OpenRig/issues/328))
 - [ ] A/B compare ([#327](https://github.com/jpfaria/OpenRig/issues/327))

@@ -1,4 +1,5 @@
 use super::*;
+use application::command::ProjectCommand;
 use application::command_schema::command_variant_names;
 
 /// `Command` has exactly this many variants. If you add/remove one,
@@ -35,7 +36,10 @@ use application::command_schema::command_variant_names;
 /// bindings it uses; the tool auto-derives via `command_schema`.
 /// #717 bumped to 73 with `SetChainDiLoopOutput` — persists the chain's
 /// chosen DI output endpoint.
-const COMMAND_VARIANT_COUNT: usize = 73;
+/// #14 bumped to 82 with the nine `MetronomeCommand` leaves
+/// (`SetMetronomeEnabled`/`Bpm`/`TimeSignature`/`Subdivision`/`Volume`/
+/// `Timbre`/`CountIn`/`Output` and `MetronomeTap`).
+const COMMAND_VARIANT_COUNT: usize = 82;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {
@@ -79,7 +83,7 @@ fn parity_guard_every_command_variant_is_a_tool() {
 #[test]
 fn build_command_maps_unit_variant() {
     let cmd = build_command("save_project", Value::Null).unwrap();
-    assert!(matches!(cmd, Command::SaveProject));
+    assert!(matches!(cmd, Command::Project(ProjectCommand::SaveProject)));
 }
 
 #[test]
@@ -88,7 +92,7 @@ fn build_command_unit_variant_with_empty_object_args() {
     // externally-tagged unit variant rejects a map, so build_command
     // must emit the bare string for unit variants.
     let cmd = build_command("save_project", serde_json::json!({})).unwrap();
-    assert!(matches!(cmd, Command::SaveProject));
+    assert!(matches!(cmd, Command::Project(ProjectCommand::SaveProject)));
 }
 
 #[test]
@@ -99,7 +103,7 @@ fn build_command_maps_struct_variant() {
     )
     .unwrap();
     match cmd {
-        Command::UpdateProjectName { name } => assert_eq!(name, "Rig X"),
+        Command::Project(ProjectCommand::UpdateProjectName { name }) => assert_eq!(name, "Rig X"),
         other => panic!("unexpected: {other:?}"),
     }
 }

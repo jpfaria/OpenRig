@@ -11,7 +11,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, PluginCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use project::project::Project;
@@ -35,7 +35,7 @@ fn catalog_loads_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let mut events = dispatcher
-        .dispatch(Command::ReloadPluginCatalog)
+        .dispatch(Command::Plugin(PluginCommand::ReloadPluginCatalog))
         .expect("dispatch ReloadPluginCatalog");
     // #693: rescan runs on its own task — completion arrives via poll.
     {

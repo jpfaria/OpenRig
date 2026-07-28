@@ -20,7 +20,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command, IoBindingCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{BlockId, DeviceId};
@@ -152,12 +152,12 @@ fn save_input_endpoints_sets_reference() {
     dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     // Dispatch the NEW-shape command.
-    let res = dispatcher.dispatch(Command::SaveChainInputEndpoints {
+    let res = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainInputEndpoints {
         chain: domain::ids::ChainId(chain_id_str.to_string()),
         block_index: 0,
         io: "main".to_string(),
         endpoint: "Guitar In".to_string(),
-    });
+    }));
     assert!(
         res.is_ok(),
         "SaveChainInputEndpoints (new shape) dispatch failed: {:?}",
@@ -263,12 +263,12 @@ fn save_output_endpoints_sets_reference() {
     dispatcher.attach_rig(Rc::clone(&rig));
     dispatcher.attach_io_config_path(Some(cfg_path));
 
-    let res = dispatcher.dispatch(Command::SaveChainOutputEndpoints {
+    let res = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: domain::ids::ChainId(chain_id_str.to_string()),
         block_index: output_idx,
         io: "main".to_string(),
         endpoint: "Monitor Out".to_string(),
-    });
+    }));
     assert!(
         res.is_ok(),
         "SaveChainOutputEndpoints (new shape) dispatch failed: {:?}",
@@ -345,9 +345,9 @@ fn delete_referenced_binding_rejected() {
 
     // Create the binding first.
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: make_binding("main", "Main"),
-        })
+        }))
         .expect("CreateIoBinding ok");
 
     // Create a project with a chain whose input block references "main".
@@ -380,16 +380,16 @@ fn delete_referenced_binding_rejected() {
 
     // Also pre-seed the binding so it exists in config.
     dispatcher2
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: make_binding("main", "Main"),
-        })
+        }))
         .expect("seed binding ok");
     application::persist_worker::flush();
 
     // Now attempt to delete the referenced binding.
-    let result = dispatcher2.dispatch(Command::DeleteIoBinding {
+    let result = dispatcher2.dispatch(Command::IoBinding(IoBindingCommand::DeleteIoBinding {
         id: "main".to_string(),
-    });
+    }));
 
     assert!(
         result.is_err(),
@@ -451,15 +451,15 @@ fn delete_unreferenced_binding_ok() {
     dispatcher.attach_io_config_path(Some(cfg_path.clone()));
 
     dispatcher
-        .dispatch(Command::CreateIoBinding {
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
             binding: make_binding("main", "Main"),
-        })
+        }))
         .expect("CreateIoBinding ok");
 
     // No chain references "main", so delete must succeed.
-    let result = dispatcher.dispatch(Command::DeleteIoBinding {
+    let result = dispatcher.dispatch(Command::IoBinding(IoBindingCommand::DeleteIoBinding {
         id: "main".to_string(),
-    });
+    }));
     assert!(
         result.is_ok(),
         "DeleteIoBinding must succeed when no chain block references it; got: {:?}",

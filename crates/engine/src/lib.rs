@@ -8,18 +8,15 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+pub mod chain_quality;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
 pub mod elastic_prime;
 pub mod input_tap;
+pub mod metronome_state;
 pub mod native_registry;
-pub mod chain_quality;
 pub mod offline;
-pub mod tone_doctor;
-pub mod tone_profile_table;
-pub mod tone_doctor_fix;
-pub mod tone_doctor_suggestion;
 pub mod output_meter;
 pub mod probe;
 pub mod rig_runtime;
@@ -40,10 +37,14 @@ pub mod runtime_layout;
 pub mod runtime_load;
 pub mod runtime_probe;
 mod runtime_process_segment;
+mod runtime_processor_model;
 pub mod runtime_segments;
 pub mod runtime_state;
-mod runtime_processor_model;
 mod runtime_state_taps;
 pub mod spsc;
 pub mod stream_tap;
+pub mod tone_doctor;
+pub mod tone_doctor_fix;
+pub mod tone_doctor_suggestion;
+pub mod tone_profile_table;
 pub use di_loop::{DiFrame, DiLoop, DiPcm};

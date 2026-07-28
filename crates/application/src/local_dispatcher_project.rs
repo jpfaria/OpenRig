@@ -1,6 +1,6 @@
 //! Project lifecycle/settings handler.
 //!
-//! #555 round 2: `Command::SaveProject` now owns the actual file
+//! #555 round 2: `ProjectCommand::SaveProject` now owns the actual file
 //! writes (project YAML + sidecar config + sibling presets/ dir).
 //! The GUI used to do them inline in
 //! `adapter-gui::project_ops::save_project_session` before dispatching
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use infra_filesystem::GuiAudioDeviceSettings;
 
-use crate::command::Command;
+use crate::command::{Command, MidiCommand, ProjectCommand, SettingsCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -24,7 +24,7 @@ impl LocalDispatcher {
     pub(crate) fn handle_project(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             // ── Project lifecycle ─────────────────────────────────────────────
-            Command::SaveProject => {
+            Command::Project(ProjectCommand::SaveProject) => {
                 // The path is set by the GUI on session bootstrap and
                 // re-attached on Save As via `attach_project_path`.
                 // Older tests dispatch `SaveProject` without attaching
@@ -37,10 +37,10 @@ impl LocalDispatcher {
                 Ok(vec![Event::ProjectSaved])
             }
 
-            Command::LoadProject {
+            Command::Project(ProjectCommand::LoadProject {
                 mut project,
                 path: _,
-            } => {
+            }) => {
                 // #606: disable blocks whose model is not installed (or is
                 // unsupported on this platform) so the chain plays without a
                 // silently-faulted "on" pedal. Parity with the GUI load path
@@ -53,13 +53,13 @@ impl LocalDispatcher {
                 Ok(vec![Event::ProjectLoaded, Event::ProjectMutated])
             }
 
-            Command::CreateProject { project } => {
+            Command::Project(ProjectCommand::CreateProject { project }) => {
                 *self.project.borrow_mut() = project;
                 Ok(vec![Event::ProjectCreated, Event::ProjectMutated])
             }
 
             // ── Project settings ──────────────────────────────────────────────
-            Command::UpdateProjectName { name } => {
+            Command::Project(ProjectCommand::UpdateProjectName { name }) => {
                 let trimmed = name.trim().to_string();
                 self.project.borrow_mut().name = if trimmed.is_empty() {
                     None
@@ -69,10 +69,10 @@ impl LocalDispatcher {
                 Ok(vec![Event::ProjectMutated])
             }
 
-            Command::SaveAudioSettings {
+            Command::Settings(SettingsCommand::SaveAudioSettings {
                 input_devices,
                 output_devices,
-            } => {
+            }) => {
                 // The in-memory project carries a single flat selection (the
                 // deduplicated union of both directions); per-direction ids
                 // live only in `config.yaml`.
@@ -136,7 +136,7 @@ impl LocalDispatcher {
             // creates `project.midi` (absent on pre-#513 projects), then
             // overwrites the bindings — caller is responsible for sending
             // the full desired list.
-            Command::SaveMidiMapping { bindings } => {
+            Command::Midi(MidiCommand::SaveMidiMapping { bindings }) => {
                 let mut project = self.project.borrow_mut();
                 let midi = project.midi.get_or_insert_with(Default::default);
                 midi.bindings = bindings;
@@ -147,7 +147,7 @@ impl LocalDispatcher {
         }
     }
 
-    /// Side-effect for `Command::SaveProject`. Writes:
+    /// Side-effect for `ProjectCommand::SaveProject`. Writes:
     ///
     /// 1. The canonical `.openrig` (always — `load_project_any` prefers
     ///    it on reload regardless of the user-visible path's extension).
@@ -165,7 +165,7 @@ impl LocalDispatcher {
     /// the single worker. Write errors surface via `log::error!`;
     /// `persist_worker::flush()` is the durability barrier.
     fn save_project_to_disk(&self, project_path: &PathBuf) -> Result<()> {
-        log::info!("Command::SaveProject: queueing write to {project_path:?}");
+        log::info!("ProjectCommand::SaveProject: queueing write to {project_path:?}");
 
         let parent_dir = project_path
             .parent()
@@ -182,7 +182,7 @@ impl LocalDispatcher {
         // Ignore errors here — capture is best-effort and the worst
         // case is "saved without the very latest edit", same as the
         // pre-#555 GUI behaviour on dispatch failure.
-        let _ = self.dispatch(Command::CaptureRigEdits);
+        let _ = self.dispatch(Command::Project(ProjectCommand::CaptureRigEdits));
 
         // Build the rig that will hit disk.
         let project_snapshot = self.project.borrow().clone();

@@ -15,7 +15,7 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use application::command::Command;
+use application::command::{ChainCommand, Command, PluginCommand, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use project::project::Project;
@@ -42,10 +42,10 @@ fn issue_693_save_audio_settings_returns_immediately_with_stuck_config() {
             midi: None,
         })));
         let t0 = Instant::now();
-        let _ = dispatcher.dispatch(Command::SaveAudioSettings {
+        let _ = dispatcher.dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
             input_devices: Vec::new(),
             output_devices: Vec::new(),
-        });
+        }));
         let _ = done_tx.send(t0.elapsed());
     });
 
@@ -111,10 +111,10 @@ fn issue_693_save_chain_preset_returns_immediately_with_stuck_preset_file() {
         })));
         dispatcher.attach_presets_path(presets_for_caller);
         let t0 = Instant::now();
-        let _ = dispatcher.dispatch(Command::SaveChainPreset {
+        let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SaveChainPreset {
             chain: chain_id,
             name: "p".into(),
-        });
+        }));
         let _ = done_tx.send(t0.elapsed());
     });
 
@@ -173,10 +173,10 @@ fn issue_693_set_di_loop_source_returns_immediately_with_stuck_wav() {
             midi: None,
         })));
         let t0 = Instant::now();
-        let _ = dispatcher.dispatch(Command::SetChainDiLoopSource {
+        let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id,
             source: DiLoopSource::File(wav_for_caller),
-        });
+        }));
         let _ = done_tx.send(t0.elapsed());
     });
 
@@ -220,7 +220,7 @@ fn issue_693_reload_plugin_catalog_completes_via_poll() {
     })));
 
     let events = dispatcher
-        .dispatch(Command::ReloadPluginCatalog)
+        .dispatch(Command::Plugin(PluginCommand::ReloadPluginCatalog))
         .expect("ReloadPluginCatalog dispatch");
     assert!(
         events.is_empty(),
@@ -263,7 +263,7 @@ fn issue_693_render_chain_returns_immediately_with_stuck_chain_file() {
             midi: None,
         })));
         let t0 = Instant::now();
-        let _ = dispatcher.dispatch(Command::RenderChain {
+        let _ = dispatcher.dispatch(Command::Chain(ChainCommand::RenderChain {
             chain_path: chain_for_caller.to_string_lossy().to_string(),
             input_path: input.to_string_lossy().to_string(),
             output_path: output.to_string_lossy().to_string(),
@@ -273,7 +273,7 @@ fn issue_693_render_chain_returns_immediately_with_stuck_chain_file() {
             block_size: None,
             bit_depth: None,
             tail_ms: None,
-        });
+        }));
         let _ = done_tx.send(t0.elapsed());
     });
 

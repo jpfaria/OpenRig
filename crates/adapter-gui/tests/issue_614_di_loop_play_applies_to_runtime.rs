@@ -17,7 +17,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
@@ -106,10 +106,10 @@ fn play_chain_di_loop_arms_runtime() {
 
     // Load a source into the dispatcher's ephemeral store.
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id.clone(),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed");
     // #693: wait for the off-thread decode to land before playing.
     {
@@ -164,10 +164,10 @@ fn stop_chain_di_loop_disarms_runtime() {
 
     // Load + play so the runtime is armed.
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id.clone(),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed");
     // #693: wait for the off-thread decode to land before playing.
     {
@@ -222,10 +222,10 @@ fn play_leaves_the_guitar_runtime_unarmed() {
     let controller = RefCell::new(Some(make_controller(&chain_id)));
 
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain_id.clone(),
             source: DiLoopSource::File(wav),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed");
     {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);

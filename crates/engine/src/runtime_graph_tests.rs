@@ -1,9 +1,8 @@
 //! Engine runtime tests (issue #792 split from runtime_tests.rs).
 //! Grouped by responsibility; shared fixtures live in `runtime_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::tests::*;
-
+use super::*;
 
 // ── build_runtime_graph edge cases ───────────────────────────────────────
 
@@ -33,7 +32,6 @@ fn build_runtime_graph_skips_disabled_chains() {
     );
 }
 
-
 // ── RuntimeGraph methods ─────────────────────────────────────────────────
 
 #[test]
@@ -53,7 +51,6 @@ fn runtime_graph_remove_chain_removes_entry() {
     assert!(graph.chains.is_empty());
 }
 
-
 #[test]
 fn runtime_graph_runtime_for_chain_returns_none_for_unknown() {
     use super::RuntimeGraph;
@@ -64,7 +61,6 @@ fn runtime_graph_runtime_for_chain_returns_none_for_unknown() {
         .runtime_for_chain(&ChainId("nonexistent".into()))
         .is_none());
 }
-
 
 #[test]
 fn runtime_graph_upsert_chain_creates_new_entry() {
@@ -84,7 +80,6 @@ fn runtime_graph_upsert_chain_creates_new_entry() {
     assert!(result.is_ok());
     assert_eq!(graph.chains.len(), 1);
 }
-
 
 #[test]
 fn runtime_graph_upsert_chain_updates_existing() {
@@ -117,11 +112,10 @@ fn runtime_graph_upsert_chain_updates_existing() {
     assert_eq!(graph.chains.len(), 1);
 }
 
-
 #[test]
 fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
     // Reproduces the exact path the volume slider takes:
-    //   slider → Command::SetChainVolume (mutates Project.chain.volume)
+    //   slider → ChainCommand::SetChainVolume (mutates Project.chain.volume)
     //   → sync_live_chain_runtime → controller.upsert_chain_with_resolved
     //   → RuntimeGraph::upsert_chain (called unconditionally, ln 501 controller.rs)
     // The audio thread reads `runtime.volume_pct()` every output callback,
@@ -167,7 +161,6 @@ fn runtime_graph_upsert_chain_propagates_volume_change_to_live_runtime() {
         "volume change did NOT reach the live runtime — slider is dead"
     );
 }
-
 
 #[test]
 fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_input() {
@@ -243,7 +236,6 @@ fn runtime_graph_upsert_volume_change_reaches_runtime_held_by_callback_multi_inp
     }
 }
 
-
 #[test]
 fn poll_errors_drains_and_returns_all() {
     let chain = tuner_track("chain:0", Vec::new());
@@ -270,7 +262,6 @@ fn poll_errors_drains_and_returns_all() {
     let errors2 = runtime.poll_errors();
     assert!(errors2.is_empty(), "poll_errors should drain the queue");
 }
-
 
 #[test]
 fn split_chain_with_insert_produces_two_segments() {
@@ -312,7 +303,6 @@ fn split_chain_with_insert_produces_two_segments() {
     );
 }
 
-
 #[test]
 fn split_chain_with_disabled_insert_produces_one_segment() {
     let mut chain = insert_chain();
@@ -340,7 +330,6 @@ fn split_chain_with_disabled_insert_produces_one_segment() {
         "disabled insert should not split the chain"
     );
 }
-
 
 // ── #716: per-binding routing (no cross-binding) ──────────────────────────
 
@@ -395,7 +384,6 @@ fn split_two_bindings_pairs_each_input_with_its_own_binding_output() {
     );
 }
 
-
 // ── runtime graph with multiple chains ──────────────────────────────────
 
 #[test]
@@ -417,7 +405,6 @@ fn build_runtime_graph_with_multiple_enabled_chains() {
         .expect("should build with multiple chains");
     assert_eq!(runtime.chains.len(), 2);
 }
-
 
 #[test]
 fn build_runtime_graph_mixed_enabled_and_disabled() {
@@ -446,4 +433,3 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
     assert_eq!(runtime.chains.len(), 1);
     assert!(!runtime.runtimes_for(&ChainId("enabled".into())).is_empty());
 }
-

@@ -15,11 +15,11 @@ fn load_chain_preset_replaces_blocks_and_emits_event() {
     let new_block_b = make_core_block("blk_new_b", false);
     let preset_blocks = vec![new_block_a, new_block_b];
 
-    let result = dispatcher.dispatch(Command::LoadChainPreset {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::LoadChainPreset {
         chain: ChainId("chain_preset".to_string()),
         preset_instrument: "electric_guitar".to_string(),
         preset_blocks: preset_blocks.clone(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -47,11 +47,11 @@ fn load_chain_preset_non_existent_chain_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::LoadChainPreset {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::LoadChainPreset {
         chain: ChainId("chain_MISSING".to_string()),
         preset_instrument: "electric_guitar".to_string(),
         preset_blocks: vec![make_core_block("new_blk", true)],
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     // Original chain must be unchanged
@@ -67,11 +67,11 @@ fn load_chain_preset_empty_blocks_succeeds() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // A zero-block preset is valid — the chain becomes empty.
-    let result = dispatcher.dispatch(Command::LoadChainPreset {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::LoadChainPreset {
         chain: ChainId("chain_preset".to_string()),
         preset_instrument: "electric_guitar".to_string(),
         preset_blocks: vec![],
-    });
+    }));
 
     assert!(
         result.is_ok(),
@@ -129,10 +129,10 @@ fn dispatch_panics_if_caller_holds_external_immutable_borrow_of_project() {
         midi: None,
     };
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        dispatcher.dispatch(Command::LoadProject {
+        dispatcher.dispatch(Command::Project(ProjectCommand::LoadProject {
             project: new_project,
             path: std::path::PathBuf::from("/tmp/x"),
-        })
+        }))
     }));
 
     assert!(
@@ -163,10 +163,10 @@ fn dispatch_succeeds_when_caller_drops_borrow_before_calling() {
         chains: vec![],
         midi: None,
     };
-    let result = dispatcher.dispatch(Command::LoadProject {
+    let result = dispatcher.dispatch(Command::Project(ProjectCommand::LoadProject {
         project: new_project,
         path: std::path::PathBuf::from("/tmp/x"),
-    });
+    }));
 
     assert!(
         result.is_ok(),
@@ -204,10 +204,10 @@ fn set_chain_volume_updates_value_and_emits_event() {
     let project = make_project_with_volume("chain_0", 100.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetChainVolume {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainVolume {
         chain: ChainId("chain_0".to_string()),
         value: 150.0,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -240,10 +240,10 @@ fn set_chain_volume_non_existent_chain_returns_err() {
     let project = make_project_with_volume("chain_0", 100.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetChainVolume {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainVolume {
         chain: ChainId("chain_MISSING".to_string()),
         value: 150.0,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     assert!(
@@ -259,10 +259,10 @@ fn set_chain_volume_passes_extreme_values_verbatim() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     dispatcher
-        .dispatch(Command::SetChainVolume {
+        .dispatch(Command::Chain(ChainCommand::SetChainVolume {
             chain: ChainId("chain_0".to_string()),
             value: 0.0,
-        })
+        }))
         .expect("dispatch 0.0 should succeed");
     assert!(
         project.borrow().chains[0].volume.abs() < f32::EPSILON,
@@ -270,10 +270,10 @@ fn set_chain_volume_passes_extreme_values_verbatim() {
     );
 
     dispatcher
-        .dispatch(Command::SetChainVolume {
+        .dispatch(Command::Chain(ChainCommand::SetChainVolume {
             chain: ChainId("chain_0".to_string()),
             value: 250.0,
-        })
+        }))
         .expect("dispatch 250.0 should succeed");
     assert!(
         (project.borrow().chains[0].volume - 250.0).abs() < f32::EPSILON,
@@ -295,9 +295,9 @@ fn save_midi_mapping_writes_bindings_into_project_midi() {
     }];
 
     let events = dispatcher
-        .dispatch(Command::SaveMidiMapping {
+        .dispatch(Command::Midi(MidiCommand::SaveMidiMapping {
             bindings: bindings.clone(),
-        })
+        }))
         .unwrap();
 
     assert_eq!(events, vec![Event::MidiMappingSaved, Event::ProjectMutated]);

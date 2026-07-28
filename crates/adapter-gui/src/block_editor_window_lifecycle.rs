@@ -28,7 +28,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 
@@ -40,9 +40,7 @@ use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{
-    block_model_picker_items, replace_project_chains, set_selected_block,
-};
+use crate::project_view::{block_model_picker_items, replace_project_chains, set_selected_block};
 use crate::runtime_lifecycle::sync_block_toggle;
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
 use crate::{
@@ -136,7 +134,6 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub auto_save: bool,
 }
 
-
 pub(crate) fn wire(
     win: &BlockEditorWindow,
     weak_main_window: slint::Weak<AppWindow>,
@@ -169,7 +166,6 @@ fn wire_model_selection(
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
     let auto_save = ctx.auto_save;
-
 
     // on_choose_block_model
     {
@@ -299,7 +295,6 @@ fn wire_drawer_toggle_save(
     let open_block_windows = &ctx.open_block_windows;
     let auto_save = ctx.auto_save;
 
-
     // on_toggle_block_drawer_enabled
     {
         let win_draft = win_draft.clone();
@@ -344,16 +339,18 @@ fn wire_drawer_toggle_save(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            // Step 2: dispatch Command::ToggleBlockEnabled — mutates project via shared Rc.
+            // Step 2: dispatch BlockCommand::ToggleBlockEnabled — mutates project via shared Rc.
             let new_enabled = {
                 let session_borrow = project_session.borrow();
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match session.dispatcher.dispatch(Command::ToggleBlockEnabled {
-                    chain: chain_id.clone(),
-                    block: block_id.clone(),
-                }) {
+                match session.dispatcher.dispatch(Command::Block(
+                    BlockCommand::ToggleBlockEnabled {
+                        chain: chain_id.clone(),
+                        block: block_id.clone(),
+                    },
+                )) {
                     Ok(events) => events.into_iter().find_map(|e| {
                         if let Event::BlockEnabledChanged { enabled, .. } = e {
                             Some(enabled)
@@ -408,7 +405,6 @@ fn wire_drawer_toggle_save(
             win.set_block_drawer_enabled(new_enabled);
         });
     }
-
 
     // on_save_block_drawer (edit mode - saves and closes)
     {
@@ -465,4 +461,3 @@ fn wire_drawer_toggle_save(
         });
     }
 }
-

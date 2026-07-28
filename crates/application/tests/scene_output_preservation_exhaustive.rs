@@ -20,7 +20,9 @@ use project::param::ParameterSet;
 use project::project::Project;
 use project::rig::{RigInput, RigPreset, RigProject};
 
-use application::command::{Command, RigNavKind};
+use application::command::{
+    BlockCommand, ChainCommand, Command, ProjectCommand, RigNavKind, SelectionCommand,
+};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 
@@ -167,10 +169,10 @@ macro_rules! preserve_io_after_dispatch {
             let (d, p, _r) = dispatcher_with_user_io();
             assert_eq!(outputs_count(&p, CHAIN_ID), 1, "precondition: 1 output");
             assert_eq!(inputs_count(&p, CHAIN_ID), 1, "precondition: 1 input");
-            let _ = d.dispatch(Command::ApplyRigNav {
+            let _ = d.dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
                 chain: ChainId(CHAIN_ID.into()),
                 kind: $kind,
-            });
+            }));
             assert_eq!(
                 outputs_count(&p, CHAIN_ID),
                 1,
@@ -208,10 +210,10 @@ preserve_io_after_dispatch!(apply_rig_nav_preset_remove, RigNavKind::Preset(-2))
 #[test]
 fn rename_rig_preset_preserves_io() {
     let (d, p, _r) = dispatcher_with_user_io();
-    let _ = d.dispatch(Command::RenameRigPreset {
+    let _ = d.dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
         chain: ChainId(CHAIN_ID.into()),
         name: "Renamed".into(),
-    });
+    }));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1, "rename must keep output");
     assert_eq!(inputs_count(&p, CHAIN_ID), 1, "rename must keep input");
 }
@@ -219,7 +221,7 @@ fn rename_rig_preset_preserves_io() {
 #[test]
 fn capture_rig_edits_preserves_io() {
     let (d, p, _r) = dispatcher_with_user_io();
-    let _ = d.dispatch(Command::CaptureRigEdits);
+    let _ = d.dispatch(Command::Project(ProjectCommand::CaptureRigEdits));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
     assert_eq!(inputs_count(&p, CHAIN_ID), 1);
 }
@@ -229,12 +231,12 @@ fn capture_rig_edits_preserves_io() {
 #[test]
 fn add_block_preserves_io() {
     let (d, p, _r) = dispatcher_with_user_io();
-    let _ = d.dispatch(Command::AddBlock {
+    let _ = d.dispatch(Command::Block(BlockCommand::AddBlock {
         chain: ChainId(CHAIN_ID.into()),
         kind: "gain".into(),
         model_id: "volume".into(),
         position: 2,
-    });
+    }));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
     assert_eq!(inputs_count(&p, CHAIN_ID), 1);
 }
@@ -242,10 +244,10 @@ fn add_block_preserves_io() {
 #[test]
 fn remove_block_preserves_io() {
     let (d, p, _r) = dispatcher_with_user_io();
-    let _ = d.dispatch(Command::RemoveBlock {
+    let _ = d.dispatch(Command::Block(BlockCommand::RemoveBlock {
         chain: ChainId(CHAIN_ID.into()),
         block: BlockId("filter:1".into()),
-    });
+    }));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
     assert_eq!(inputs_count(&p, CHAIN_ID), 1);
 }
@@ -253,10 +255,10 @@ fn remove_block_preserves_io() {
 #[test]
 fn toggle_block_enabled_preserves_io() {
     let (d, p, _r) = dispatcher_with_user_io();
-    let _ = d.dispatch(Command::ToggleBlockEnabled {
+    let _ = d.dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
         chain: ChainId(CHAIN_ID.into()),
         block: BlockId("filter:1".into()),
-    });
+    }));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
     assert_eq!(inputs_count(&p, CHAIN_ID), 1);
 }
@@ -337,9 +339,9 @@ fn configure_chain_without_output_in_payload_loses_output_today() {
     // does not call ConfigureChain, so this is informational. If it
     // becomes a UX issue, the dispatcher should merge instead of replace.
     let (d, p, _r) = dispatcher_with_user_io();
-    let _ = d.dispatch(Command::ConfigureChain {
+    let _ = d.dispatch(Command::Chain(ChainCommand::ConfigureChain {
         chain: replacement_chain_without_output(),
-    });
+    }));
     assert_eq!(
         outputs_count(&p, CHAIN_ID),
         0,
@@ -353,12 +355,12 @@ fn configure_chain_without_output_in_payload_loses_output_today() {
 fn save_chain_output_endpoints_preserves_output_block() {
     let (d, p, _r) = dispatcher_with_user_io();
     // The chain has [input, filter:1, amp:2, output] — output is at index 3.
-    let _ = d.dispatch(Command::SaveChainOutputEndpoints {
+    let _ = d.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
         block_index: 3,
         io: String::new(),
         endpoint: String::new(),
-    });
+    }));
     assert_eq!(
         outputs_count(&p, CHAIN_ID),
         1,
@@ -370,12 +372,12 @@ fn save_chain_output_endpoints_preserves_output_block() {
 fn save_chain_output_endpoints_with_io_binding_keeps_one() {
     let (d, p, _r) = dispatcher_with_user_io();
     // The chain has [input, filter:1, amp:2, output] — output is at index 3.
-    let _ = d.dispatch(Command::SaveChainOutputEndpoints {
+    let _ = d.dispatch(Command::Chain(ChainCommand::SaveChainOutputEndpoints {
         chain: ChainId(CHAIN_ID.into()),
         block_index: 3,
         io: "main".to_string(),
         endpoint: "Line Out".to_string(),
-    });
+    }));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
 }
 
@@ -395,10 +397,10 @@ fn full_simulated_cabelinho_flow_keeps_output_across_every_rig_nav() {
         RigNavKind::Preset(0),
     ];
     for kind in cmds {
-        let _ = d.dispatch(Command::ApplyRigNav {
+        let _ = d.dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: ChainId(CHAIN_ID.into()),
             kind: kind.clone(),
-        });
+        }));
         assert!(
             outputs_count(&p, CHAIN_ID) >= 1,
             "output dropped after ApplyRigNav {kind:?}"

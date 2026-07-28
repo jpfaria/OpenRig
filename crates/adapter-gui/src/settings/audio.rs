@@ -28,7 +28,7 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiSystemSettings};
 use project::device::DeviceSettings;
 
-use application::command::Command;
+use application::command::{Command, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::selected_device_settings;
@@ -249,14 +249,13 @@ pub(crate) fn wire(
                                 // GUI mode carries a proper input/output split
                                 // (two separate device models), so persist each
                                 // direction's ids into its own config field.
-                                let _ = session.dispatcher.dispatch(Command::SaveAudioSettings {
-                                    input_devices: project_device_settings_from_rows(
-                                        settings.input_devices.clone(),
-                                    ),
-                                    output_devices: project_device_settings_from_rows(
-                                        settings.output_devices.clone(),
-                                    ),
-                                });
+                                let inputs = settings.input_devices.clone();
+                                let outputs = settings.output_devices.clone();
+                                let cmd = SettingsCommand::SaveAudioSettings {
+                                    input_devices: project_device_settings_from_rows(inputs),
+                                    output_devices: project_device_settings_from_rows(outputs),
+                                };
+                                let _ = session.dispatcher.dispatch(Command::Settings(cmd));
                                 // #716 Task 13: create/update the "default" I/O
                                 // binding when the audio wizard finishes.
                                 if let (Some(input), Some(output)) = (
@@ -315,16 +314,16 @@ pub(crate) fn wire(
                     }
                     let input_descriptors = input_chain_devices.borrow();
                     let output_descriptors = output_chain_devices.borrow();
-                    let (input_device_settings, output_device_settings) =
-                        split_device_settings_by_direction(
-                            &new_device_settings,
-                            &input_descriptors,
-                            &output_descriptors,
-                        );
-                    if let Err(e) = session.dispatcher.dispatch(Command::SaveAudioSettings {
-                        input_devices: input_device_settings,
-                        output_devices: output_device_settings,
-                    }) {
+                    let (input_devices, output_devices) = split_device_settings_by_direction(
+                        &new_device_settings,
+                        &input_descriptors,
+                        &output_descriptors,
+                    );
+                    let cmd = SettingsCommand::SaveAudioSettings {
+                        input_devices,
+                        output_devices,
+                    };
+                    if let Err(e) = session.dispatcher.dispatch(Command::Settings(cmd)) {
                         set_status_error(&window, &toast_timer, &e.to_string());
                         return;
                     }
@@ -473,16 +472,16 @@ pub(crate) fn wire(
                     }
                     let input_descriptors = input_chain_devices.borrow();
                     let output_descriptors = output_chain_devices.borrow();
-                    let (input_device_settings, output_device_settings) =
-                        split_device_settings_by_direction(
-                            &new_device_settings,
-                            &input_descriptors,
-                            &output_descriptors,
-                        );
-                    if let Err(e) = session.dispatcher.dispatch(Command::SaveAudioSettings {
-                        input_devices: input_device_settings,
-                        output_devices: output_device_settings,
-                    }) {
+                    let (input_devices, output_devices) = split_device_settings_by_direction(
+                        &new_device_settings,
+                        &input_descriptors,
+                        &output_descriptors,
+                    );
+                    let cmd = SettingsCommand::SaveAudioSettings {
+                        input_devices,
+                        output_devices,
+                    };
+                    if let Err(e) = session.dispatcher.dispatch(Command::Settings(cmd)) {
                         settings_window.set_status_message(e.to_string().into());
                         return;
                     }

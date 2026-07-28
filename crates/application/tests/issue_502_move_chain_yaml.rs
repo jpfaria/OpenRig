@@ -1,5 +1,5 @@
 //! Regression test for issue #502 (regression of #246): reordering chains via
-//! `Command::MoveChainUp` / `MoveChainDown` must mutate the live `Project`
+//! `ChainCommand::MoveChainUp` / `MoveChainDown` must mutate the live `Project`
 //! such that re-serialising it to YAML reflects the new order.
 //!
 //! This integration test pins the dispatcher contract from the application
@@ -10,7 +10,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::ChainId;
@@ -57,9 +57,9 @@ fn move_chain_up_mutates_project_so_yaml_reflects_new_order() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     dispatcher
-        .dispatch(Command::MoveChainUp {
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp {
             chain: ChainId("chain_b".into()),
-        })
+        }))
         .expect("MoveChainUp must succeed");
 
     let yaml = serde_yaml::to_string(&*project.borrow()).expect("serialise project");
@@ -77,9 +77,9 @@ fn move_chain_down_mutates_project_so_yaml_reflects_new_order() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     dispatcher
-        .dispatch(Command::MoveChainDown {
+        .dispatch(Command::Chain(ChainCommand::MoveChainDown {
             chain: ChainId("chain_a".into()),
-        })
+        }))
         .expect("MoveChainDown must succeed");
 
     let yaml = serde_yaml::to_string(&*project.borrow()).expect("serialise project");
