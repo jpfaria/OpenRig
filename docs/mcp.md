@@ -38,12 +38,28 @@ follow-up.
   applies a chain/preset YAML to a WAV and writes the processed output
   WAV via the same `adapter-render` call site as `openrig-render`. Paths
   are local to the host; live capture stays in the binary. See
-  `docs/render.md`.
+  `docs/render.md`. Also includes `refresh_audio_devices`
+  (`Command::RefreshAudioDevices`, #829) — re-enumerate the interfaces
+  after a USB hot-swap without touching the GUI.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
   - `openrig://ids` — chain/block IDs (for `midi-map.yaml`).
   - `openrig://meters` — per-chain peak meters (dBFS).
+  - `openrig://tuner` (#829) — live tuner readings: `running`,
+    `reference_hz`, and one row per (chain, input, channel) tap with
+    `note`, `octave`, `cents`, `frequency`, `active` (JSON). The rows
+    are empty and `running` is `false` while the analyzer is powered
+    off — dispatch `SetTunerEnabled` first.
+  - `openrig://spectrum` (#829) — live spectrum readings: `running`,
+    the shared `band_hz` center frequencies, and one row per tap with
+    `levels` / `peaks` (0.0..1.0 per band) (JSON). Powered on with
+    `SetSpectrumEnabled`.
+  - `openrig://di` (#829) — per-chain DI loop state: `playing`, the
+    playback `in_dbfs` / `out_dbfs`, and the loaded `source` (JSON).
+  - `openrig://chains/{chain}/latency` (#829) — measured DSP latency for
+    one chain, probed at that chain input's real rate and buffer (never a
+    hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used.
   - `openrig://presets` — project preset pool (JSON).
   - `openrig://chains/{chain}/presets` — chain preset bank (JSON).
   - `openrig://plugins` — full plugin catalog (JSON).

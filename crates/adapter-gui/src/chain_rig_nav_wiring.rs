@@ -163,6 +163,9 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         match ev {
             Event::MidiLearnStarted => adapter_midi::learn_state().start(),
             Event::MidiLearnStopped => adapter_midi::learn_state().stop(),
+            // #829: a refresh asked for over MCP/gRPC must re-enumerate for
+            // real — dispatching alone would only emit the event (#614).
+            Event::AudioDevicesRefreshed => crate::device_refresh_apply::refresh_now(false),
             _ => {}
         }
     }

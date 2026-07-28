@@ -160,6 +160,10 @@ impl CommandDispatcher for LocalDispatcher {
                 | BlockCommand::InsertPrebuiltBlock { .. },
             ) => self.handle_block_lifecycle(cmd),
 
+            Command::Settings(SettingsCommand::RefreshAudioDevices) => {
+                self.handle_refresh_audio_devices()
+            }
+
             Command::Block(
                 BlockCommand::OverwriteBlock { .. }
                 | BlockCommand::RemoveBlock { .. }

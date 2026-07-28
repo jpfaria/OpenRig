@@ -39,7 +39,9 @@ use application::command_schema::command_variant_names;
 /// #14 bumped to 82 with the nine `MetronomeCommand` leaves
 /// (`SetMetronomeEnabled`/`Bpm`/`TimeSignature`/`Subdivision`/`Volume`/
 /// `Timbre`/`CountIn`/`Output` and `MetronomeTap`).
-const COMMAND_VARIANT_COUNT: usize = 82;
+/// #829 bumped to 83 with `RefreshAudioDevices` — device re-enumeration
+/// was reachable only by clicking the GUI's refresh button.
+const COMMAND_VARIANT_COUNT: usize = 83;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {
