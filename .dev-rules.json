@@ -7,6 +7,5 @@
     "**/*_test*.rs",
     "**/tests/**",
     "**/*test*.rs"
-  ],
-  "pr_gate": false
+  ]
 }
