@@ -41,7 +41,10 @@ use application::command_schema::command_variant_names;
 /// `Timbre`/`CountIn`/`Output` and `MetronomeTap`).
 /// #829 bumped to 83 with `RefreshAudioDevices` — device re-enumeration
 /// was reachable only by clicking the GUI's refresh button.
-const COMMAND_VARIANT_COUNT: usize = 83;
+/// #791 bumped to 85 with `DiagnoseChainTone` and `ApplyToneDoctorFix` —
+/// the Tone Doctor moved onto the bus, so MCP/gRPC reach the same
+/// diagnosis and the same measured fix the GUI panel shows.
+const COMMAND_VARIANT_COUNT: usize = 85;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

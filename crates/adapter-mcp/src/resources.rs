@@ -56,6 +56,11 @@ pub const URI_BLOCK_PARAMS_TEMPLATE: &str = "openrig://chains/{chain}/blocks/{bl
 /// floor, level, dynamic range, clipping). Concrete URIs look like
 /// `openrig://chains/<chain_id>/quality`.
 pub const URI_CHAIN_QUALITY_TEMPLATE: &str = "openrig://chains/{chain}/quality";
+/// #791: URI template for the chain's last Tone Doctor verdict (symptom,
+/// culprit block, measurements, measured fix). Concrete URIs look like
+/// `openrig://chains/<chain_id>/tone`. The verdict is produced by
+/// `diagnose_chain_tone`; this is how a client reads the result back.
+pub const URI_CHAIN_TONE_TEMPLATE: &str = "openrig://chains/{chain}/tone";
 
 /// Static list of resources this server exposes.
 pub fn resources() -> Vec<Resource> {
@@ -145,6 +150,13 @@ pub fn resources() -> Vec<Resource> {
         ),
         Annotated::new(
             RawResource::new(
+                URI_CHAIN_TONE_TEMPLATE,
+                "Last Tone Doctor verdict for a chain (replace {chain} with a chain id) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
                 URI_BLOCK_PARAMS_TEMPLATE,
                 "Placed-block parameter snapshot (schema + current_value) — JSON",
             ),
@@ -184,6 +196,10 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
         }
     } else if let Some(chain_id) = parse_chain_quality_uri(uri) {
         QueryKind::ChainQualityReport {
+            chain: ChainId(chain_id),
+        }
+    } else if let Some(chain_id) = parse_chain_tone_uri(uri) {
+        QueryKind::ChainToneReport {
             chain: ChainId(chain_id),
         }
     } else if let Some(chain_id) = parse_chain_presets_uri(uri) {
@@ -243,6 +259,9 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::ChainQualityReport { chain } => {
             format!("openrig://chains/{}/quality", chain.0)
         }
+        QueryKind::ChainToneReport { chain } => {
+            format!("openrig://chains/{}/tone", chain.0)
+        }
         QueryKind::GetBlockParams { chain, block } => {
             format!("openrig://chains/{}/blocks/{}/params", chain.0, block.0)
         }
@@ -277,6 +296,15 @@ fn parse_chain_latency_uri(uri: &str) -> Option<String> {
 fn parse_chain_quality_uri(uri: &str) -> Option<String> {
     uri.strip_prefix("openrig://chains/")
         .and_then(|rest| rest.strip_suffix("/quality"))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Extract `<chain>` from `openrig://chains/<chain>/tone`. Returns
+/// `None` for any other URI shape. #791.
+fn parse_chain_tone_uri(uri: &str) -> Option<String> {
+    uri.strip_prefix("openrig://chains/")
+        .and_then(|rest| rest.strip_suffix("/tone"))
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
 }

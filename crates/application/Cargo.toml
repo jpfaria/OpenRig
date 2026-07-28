@@ -14,6 +14,7 @@ schemars.workspace = true
 futures.workspace = true
 project = { path = "../project" }
 engine = { path = "../engine" }
+feature-dsp = { path = "../feature-dsp" }
 block-core = { path = "../block-core" }
 domain = { path = "../domain" }
 infra-filesystem = { path = "../infra-filesystem" }
@@ -24,6 +25,8 @@ adapter-render = { path = "../adapter-render" }
 [dev-dependencies]
 block-core = { path = "../block-core" }
 block-delay = { path = "../block-delay" }
+# #791: the Tone Doctor tests need a chain that measurably fizzes.
+block-gain = { path = "../block-gain" }
 block-reverb = { path = "../block-reverb" }
 hound = "3.5"
 serde_yaml.workspace = true

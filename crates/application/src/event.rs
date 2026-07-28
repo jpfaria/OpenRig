@@ -402,6 +402,25 @@ pub enum Event {
         chain: ChainId,
     },
 
+    // ── Tone Doctor (#791) ────────────────────────────────────────────────────
+    /// #791: a diagnosis finished for a chain. Carries the whole verdict —
+    /// symptom, culprit block, the measurements behind it, and the measured
+    /// fix when one exists — so every transport shows the same result.
+    ChainToneDiagnosed {
+        chain: ChainId,
+        report: crate::tone_doctor_report::ToneReport,
+    },
+
+    /// #791: the diagnosed fix was applied to the culprit's knob. The
+    /// underlying `BlockParameterChanged` is emitted too; this one names the
+    /// doctor as the author so an adapter can report it as such.
+    ChainToneFixApplied {
+        chain: ChainId,
+        block: BlockId,
+        path: String,
+        value: f32,
+    },
+
     // ── I/O binding registry (#716) ───────────────────────────────────────────
     /// #716: the per-machine I/O binding registry in `config.yaml` was
     /// mutated (create, update, or delete). MCP/gRPC adapters that cache
@@ -410,90 +429,6 @@ pub enum Event {
 
     /// #829: the audio device list was re-enumerated (USB hot-swap).
     AudioDevicesRefreshed,
-}
-
-impl Event {
-    /// The chain this event affected, if any. Project-wide events
-    /// (`ProjectSaved`, `ProjectMutated`, …) return `None`. Used by the
-    /// MIDI/MCP drain to re-sync exactly the chains a footswitch touched.
-    pub fn chain(&self) -> Option<&ChainId> {
-        match self {
-            Event::ChainReloaded { chain }
-            | Event::BlockParameterChanged { chain, .. }
-            | Event::BlockEnabledChanged { chain, .. }
-            | Event::BlockReplaced { chain, .. }
-            | Event::BlockAdded { chain, .. }
-            | Event::BlockRemoved { chain, .. }
-            | Event::DeviceChanged { chain, .. }
-            | Event::ChainAdded { chain }
-            | Event::ChainRemoved { chain }
-            | Event::ChainEnabledChanged { chain, .. }
-            | Event::ChainMoved { chain, .. }
-            | Event::ChainConfigured { chain }
-            | Event::ChainSaved { chain }
-            | Event::ChainInputEndpointsSaved { chain }
-            | Event::ChainOutputEndpointsSaved { chain }
-            | Event::ChainIoSaved { chain }
-            | Event::InsertBlockSaved { chain, .. }
-            | Event::ChainPresetLoaded { chain }
-            | Event::ChainVolumeChanged { chain, .. }
-            | Event::ChainIoBindingsChanged { chain, .. }
-            | Event::BlockSelectionChanged { chain, .. }
-            | Event::ChainDiLoopSourceChanged { chain }
-            | Event::ChainDiLoopEnabledChanged { chain, .. }
-            | Event::ChainDiLoopOutputChanged { chain } => Some(chain),
-            Event::ProjectMutated
-            | Event::AudioSettingsSaved
-            | Event::ProjectLoaded
-            | Event::ProjectSaved
-            | Event::ProjectCreated
-            // #436 F/G/H/E + sweep: app/project-wide events, no ChainId.
-            | Event::LanguageChanged { .. }
-            | Event::OutputMutedChanged { .. }
-            | Event::RecentProjectRemoved { .. }
-            | Event::RecentProjectRegistered { .. }
-            | Event::RecentProjectInvalidated { .. }
-            | Event::ChainPresetSaved { .. }
-            | Event::ChainPresetDeleted { .. }
-            | Event::TunerEnabledChanged { .. }
-            | Event::SpectrumEnabledChanged { .. }
-            | Event::MetronomeEnabledChanged { .. }
-            | Event::MetronomeBpmChanged { .. }
-            | Event::MetronomeTimeSignatureChanged { .. }
-            | Event::MetronomeSubdivisionChanged { .. }
-            | Event::MetronomeVolumeChanged { .. }
-            | Event::MetronomeTimbreChanged { .. }
-            | Event::MetronomeCountInChanged { .. }
-            | Event::MetronomeOutputChanged { .. }
-            | Event::MetronomeTapped
-            | Event::CompactViewEnabledChanged { .. }
-            | Event::MidiEnabledChanged { .. }
-            | Event::McpEnabledChanged { .. }
-            | Event::ProjectClosed
-            // #513 / #493: MIDI device / mapping / learn events live at the
-            // system or project root, not a single chain.
-            | Event::MidiDevicesSaved
-            | Event::MidiMappingSaved
-            | Event::MidiLearnStarted
-            | Event::MidiLearnStopped
-            | Event::MidiEventReceived { .. }
-            // #513: system-level paths event, never tied to a chain.
-            | Event::PathsSaved
-            // #561: catalog-wide reload, never tied to a single chain.
-            | Event::PluginCatalogReloaded { .. }
-            // #561 (expanded scope): per-plugin load/unload, also catalog-scope.
-            | Event::PluginLoaded { .. }
-            | Event::PluginUnloaded { .. }
-            | Event::PluginLoadFailed { .. }
-            // #576: offline render does not touch any chain in the live project.
-            | Event::RenderCompleted { .. }
-            | Event::Error { .. }
-            // #716: I/O binding registry is a system-level concern, not tied to any chain.
-            | Event::IoBindingRegistryChanged
-            // #829: device enumeration is machine-wide, not chain-scoped.
-            | Event::AudioDevicesRefreshed => None,
-        }
-    }
 }
 
 #[cfg(test)]

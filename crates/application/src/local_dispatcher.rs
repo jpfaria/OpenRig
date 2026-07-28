@@ -37,6 +37,7 @@ use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::selection_state::SelectionState;
+use crate::tone_doctor_report::{ToneReport, ToneRun};
 
 /// In-process dispatcher backed by a shared `Project`.
 ///
@@ -103,16 +104,40 @@ pub struct LocalDispatcher {
     /// tick) drains the receiver, applies state and emits the events.
     pub(crate) async_done_tx: std::sync::mpsc::Sender<AsyncDone>,
     pub(crate) async_done_rx: std::sync::mpsc::Receiver<AsyncDone>,
+    /// #791: the last Tone Doctor run per chain — in flight, finished, or
+    /// failed. `ApplyToneDoctorFix` reads the measured correction back from
+    /// here (so the caller applies exactly what it was shown), and the read
+    /// side serves the whole state: a transport that only reads has no other
+    /// way to learn a run failed.
+    pub(crate) tone_doctor_runs: RefCell<HashMap<ChainId, ToneRun>>,
+    /// #791: the adapter's live-input source for the doctor. `None` until
+    /// attached — a chain with a loaded DI is diagnosable without it.
+    pub(crate) tone_doctor_input: RefCell<Option<ToneDoctorInput>>,
 }
 
 /// Completed off-thread command work (#693).
 pub(crate) enum AsyncDone {
     /// DI-loop decode: install into `di_loop_state` + emit the event.
     DiLoad(ChainId, DiLoopSource, Result<Arc<DiPcm>, String>),
+    /// #791: Tone Doctor verdict — cache it (the apply reads it back) and
+    /// emit the report.
+    ToneDiagnosis(ChainId, Result<ToneReport, String>),
     /// Work whose state lives elsewhere (e.g. the global plugin
     /// registry): just surface the completion events.
     Events(Vec<Event>),
 }
+
+/// #791: the captured signal for one Tone Doctor run, produced off-thread
+/// (a live tap fills over N seconds, a DI decode is a blocking read).
+pub type ToneDoctorCapture = Box<dyn FnOnce() -> Option<(Vec<[f32; 2]>, f32)> + Send>;
+
+/// #791: how the adapter offers the chain's live input to the doctor.
+///
+/// Called on the dispatching thread with the chain and the analysis window in
+/// seconds; it must only *prepare* the capture (subscribing to the tap is
+/// cheap) and hand back the blocking part as a `Send` closure. `None` means
+/// this chain has no live signal right now.
+pub type ToneDoctorInput = Box<dyn Fn(&ChainId, usize) -> Option<ToneDoctorCapture>>;
 
 impl LocalDispatcher {
     /// Create a dispatcher that operates on the given shared `Project` handle.
@@ -134,7 +159,16 @@ impl LocalDispatcher {
             engine_sr: RefCell::new(48_000),
             async_done_tx,
             async_done_rx,
+            tone_doctor_runs: RefCell::new(HashMap::new()),
+            tone_doctor_input: RefCell::new(None),
         }
+    }
+
+    /// #791: register how the doctor reaches this chain's live input. The
+    /// adapter that owns the audio runtime (today `adapter-gui`) attaches it at
+    /// startup; MCP and gRPC inherit it because the dispatcher is shared.
+    pub fn attach_tone_doctor_input(&self, provider: ToneDoctorInput) {
+        *self.tone_doctor_input.borrow_mut() = Some(provider);
     }
 }
 
@@ -319,6 +353,10 @@ impl CommandDispatcher for LocalDispatcher {
 
             Command::Metronome(_) => self.handle_metronome(cmd),
 
+            // #791: the Tone Doctor — diagnosis and its measured fix, on the
+            // bus so MCP/gRPC reach the same verdict the GUI panel shows.
+            Command::ToneDoctor(_) => self.handle_tone_doctor(cmd),
+
             Command::Project(ProjectCommand::CloseProject) => self.handle_close_project(cmd),
 
             Command::Project(
@@ -421,6 +459,24 @@ impl CommandDispatcher for LocalDispatcher {
                         events.push(Event::ChainDiLoopSourceChanged { chain });
                     }
                     Err(e) => log::error!("DI loop load failed for chain '{}': {e}", chain.0),
+                },
+                AsyncDone::ToneDiagnosis(chain, result) => match result {
+                    Ok(report) => {
+                        self.tone_doctor_runs
+                            .borrow_mut()
+                            .insert(chain.clone(), ToneRun::finished(report.clone()));
+                        events.push(Event::ChainToneDiagnosed { chain, report });
+                    }
+                    Err(e) => {
+                        // A reader-only transport never sees this event, so the
+                        // failure is recorded where it can read it back.
+                        self.tone_doctor_runs
+                            .borrow_mut()
+                            .insert(chain.clone(), ToneRun::failed(e.clone()));
+                        events.push(Event::Error {
+                            message: format!("tone diagnosis failed for chain '{}': {e}", chain.0),
+                        });
+                    }
                 },
                 AsyncDone::Events(completed) => events.extend(completed),
             }

@@ -108,6 +108,10 @@ pub enum QueryKind {
     /// running the synthetic battery through the offline render, so it resolves
     /// off-frontend. MCP serves this as `openrig://chains/{chain}/quality`.
     ChainQualityReport { chain: domain::ids::ChainId },
+    /// #791: the chain's last Tone Doctor run (state + verdict). Lives in
+    /// dispatcher state, not the snapshot, so it resolves on the frontend.
+    /// MCP serves it as `openrig://chains/{chain}/tone`.
+    ChainToneReport { chain: domain::ids::ChainId },
     /// #829: live tuner readings (note / cents / frequency per tap), the
     /// same numbers the Tuner window shows. Serialized by
     /// [`crate::query_analyzers::tuner_readings_json`]. `running: false`
@@ -188,12 +192,15 @@ impl CommandBridge {
                 crate::query_chain_quality::chain_quality_report(&snap.project, chain),
             ),
             // Live runtime / GUI-coupled reads keep the frontend path.
+            // #791: the tone run lives in dispatcher state (the frontend owns
+            // it), so it queues like the meters do.
             QueryKind::Devices
             | QueryKind::ChainMeters
             | QueryKind::TunerReadings
             | QueryKind::SpectrumReadings
             | QueryKind::DiLoopState
-            | QueryKind::ChainLatency { .. } => None,
+            | QueryKind::ChainLatency { .. }
+            | QueryKind::ChainToneReport { .. } => None,
             // Handled above; unreachable here.
             QueryKind::ListPluginCatalog
             | QueryKind::GetPlugin { .. }

@@ -174,6 +174,7 @@ mod project_ops_recents;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
+mod tone_doctor_events;
 mod state;
 mod ui_state;
 slint::include_modules!();

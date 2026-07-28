@@ -92,6 +92,11 @@ impl QueryResolver<'_> {
             QueryKind::ChainQualityReport { chain } => {
                 application::query_chain_quality::chain_quality_report(&project.borrow(), chain)
             }
+            // #791: the Tone Doctor's last run, read back from dispatcher
+            // state — MCP sees exactly what the panel is showing.
+            QueryKind::ChainToneReport { chain } => {
+                Ok(self.session.dispatcher.tone_report_json(chain))
+            }
         }
     }
 

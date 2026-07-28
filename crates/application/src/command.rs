@@ -27,6 +27,7 @@ pub mod plugin;
 pub mod project;
 pub mod selection;
 pub mod settings;
+pub mod tone_doctor;
 
 pub use block::BlockCommand;
 pub use chain::ChainCommand;
@@ -37,6 +38,7 @@ pub use plugin::PluginCommand;
 pub use project::ProjectCommand;
 pub use selection::SelectionCommand;
 pub use settings::SettingsCommand;
+pub use tone_doctor::ToneDoctorCommand;
 
 pub use crate::di_loader::DiLoopSource;
 pub use ::project::chain::DiOutputRef;
@@ -63,6 +65,7 @@ pub enum Command {
     IoBinding(IoBindingCommand),
     Plugin(PluginCommand),
     Metronome(MetronomeCommand),
+    ToneDoctor(ToneDoctorCommand),
 }
 
 /// What [`SelectionCommand::ApplyRigNav`] does to the chain's rig input.
