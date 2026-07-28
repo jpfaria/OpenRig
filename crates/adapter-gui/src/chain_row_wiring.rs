@@ -159,7 +159,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     wire_chain_mutations(window, &ctx);
     crate::chain_row_wiring_actions::wire_reorder(window, &ctx);
     // #771 on_di_loop_output_selected
-    crate::di_output_select_wiring::wire_main(window, ctx.project_session.clone(), ctx.project_runtime.clone());
+    crate::di_output_select_wiring::wire_main(
+        window,
+        ctx.project_session.clone(),
+        ctx.project_runtime.clone(),
+    );
     crate::chain_row_wiring_actions::wire_di_loop(window, &ctx);
 }
 
@@ -237,11 +241,13 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            if let Err(err) = session
-                .dispatcher
-                .dispatch(Command::Chain(ChainCommand::RemoveChain {
-                    chain: chain_id.clone(),
-                })) {
+            if let Err(err) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Chain(ChainCommand::RemoveChain {
+                        chain: chain_id.clone(),
+                    }))
+            {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
@@ -294,7 +300,6 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
     let toast_timer = &ctx.toast_timer;
     let auto_save = ctx.auto_save;
 
-
     // ── on_toggle_chain_enabled ──────────────────────────────────────────────
     // Channel-conflict validation is now inside the dispatcher
     // (chain_validation::validate_no_channel_conflict).
@@ -329,11 +334,13 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 chain.id.clone()
             };
             // Dispatch — validation + mutation inside the dispatcher.
-            if let Err(err) = session.dispatcher.dispatch(Command::Chain(
-                ChainCommand::ToggleChainEnabled {
-                    chain: chain_id.clone(),
-                },
-            )) {
+            if let Err(err) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
+                        chain: chain_id.clone(),
+                    }))
+            {
                 // Error could be a channel conflict or a missing chain.
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
@@ -388,12 +395,14 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 };
                 chain.id.clone()
             };
-            if let Err(err) = session.dispatcher.dispatch(Command::Chain(
-                ChainCommand::SetChainVolume {
-                    chain: chain_id.clone(),
-                    value: value as f32,
-                },
-            )) {
+            if let Err(err) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Chain(ChainCommand::SetChainVolume {
+                        chain: chain_id.clone(),
+                        value: value as f32,
+                    }))
+            {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
@@ -418,7 +427,6 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
         });
     }
 }
-
 
 #[cfg(test)]
 #[path = "chain_row_wiring_tests.rs"]

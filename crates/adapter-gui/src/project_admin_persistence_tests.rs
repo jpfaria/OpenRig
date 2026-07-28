@@ -264,7 +264,9 @@ fn move_chain_up_persists_order() {
         .expect("B exists");
     session
         .dispatcher
-        .dispatch(Command::Chain(ChainCommand::MoveChainUp { chain: target_b }))
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp {
+            chain: target_b,
+        }))
         .expect("MoveChainUp");
     s.save(&session);
 
@@ -325,7 +327,9 @@ fn toggle_chain_enabled_persists() {
     let initial = session.project.borrow().chains[0].enabled;
     session
         .dispatcher
-        .dispatch(Command::Chain(ChainCommand::ToggleChainEnabled { chain: id }))
+        .dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
+            chain: id,
+        }))
         .expect("ToggleChainEnabled");
     s.save(&session);
 
@@ -567,4 +571,3 @@ fn toggle_block_enabled_persists() {
         .expect("g1 present");
     assert!(!enabled, "ToggleBlockEnabled (true→false) did not persist");
 }
-

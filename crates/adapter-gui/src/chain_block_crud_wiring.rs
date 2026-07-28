@@ -156,12 +156,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                 };
                 (block_index, chain.id.clone(), block.id.clone())
             };
-            if let Err(error) = session.dispatcher.dispatch(Command::Block(
-                BlockCommand::ToggleBlockEnabled {
-                    chain: chain_id.clone(),
-                    block: block_id.clone(),
-                },
-            )) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
+                        chain: chain_id.clone(),
+                        block: block_id.clone(),
+                    }))
+            {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }

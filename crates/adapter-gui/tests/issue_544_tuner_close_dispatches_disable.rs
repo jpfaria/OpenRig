@@ -37,11 +37,10 @@ use application::command::{Command, SelectionCommand};
 fn close_intent_disables_tuner() {
     let cmds = tuner_close_commands();
     assert!(
-        cmds.iter()
-            .any(|c| matches!(
-                c,
-                Command::Selection(SelectionCommand::SetTunerEnabled { enabled: false })
-            )),
+        cmds.iter().any(|c| matches!(
+            c,
+            Command::Selection(SelectionCommand::SetTunerEnabled { enabled: false })
+        )),
         "closing the tuner window must dispatch SetTunerEnabled(false); \
          got {cmds:?}"
     );
@@ -51,11 +50,10 @@ fn close_intent_disables_tuner() {
 fn close_intent_releases_auto_engaged_mute() {
     let cmds = tuner_close_commands();
     assert!(
-        cmds.iter()
-            .any(|c| matches!(
-                c,
-                Command::Selection(SelectionCommand::SetOutputMuted { muted: false })
-            )),
+        cmds.iter().any(|c| matches!(
+            c,
+            Command::Selection(SelectionCommand::SetOutputMuted { muted: false })
+        )),
         "closing the tuner window must release the mute that power-on \
          auto-engaged (commit b616bde13); got {cmds:?}"
     );

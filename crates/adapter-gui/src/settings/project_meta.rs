@@ -52,11 +52,13 @@ pub fn install(
         let Some(session) = session.as_ref() else {
             return;
         };
-        if let Err(e) = session
-            .dispatcher
-            .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
-                name: new.unwrap_or_default(),
-            })) {
+        if let Err(e) =
+            session
+                .dispatcher
+                .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
+                    name: new.unwrap_or_default(),
+                }))
+        {
             log::warn!("[project_meta] Command::UpdateProjectName failed: {e}");
         }
     });
@@ -84,11 +86,13 @@ pub fn install_secondary(
         let Some(session) = session.as_ref() else {
             return;
         };
-        if let Err(e) = session
-            .dispatcher
-            .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
-                name: new.unwrap_or_default(),
-            })) {
+        if let Err(e) =
+            session
+                .dispatcher
+                .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
+                    name: new.unwrap_or_default(),
+                }))
+        {
             log::warn!("[project_meta] Command::UpdateProjectName failed: {e}");
         }
     });

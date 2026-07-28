@@ -105,12 +105,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
                 (chain.id.clone(), block.id.clone())
             };
             // Dispatch BlockCommand::RemoveBlock — mutates project via shared Rc.
-            if let Err(error) = session.dispatcher.dispatch(Command::Block(
-                BlockCommand::RemoveBlock {
-                    chain: chain_id.clone(),
-                    block: block_id,
-                },
-            )) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Block(BlockCommand::RemoveBlock {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                    }))
+            {
                 log::error!("[adapter-gui] block-drawer.delete dispatch: {error}");
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;

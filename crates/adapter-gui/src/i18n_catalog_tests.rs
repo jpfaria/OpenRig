@@ -1,7 +1,6 @@
 //! Slint @tr-key ↔ .po catalog consistency tests (issue #792 split from
 //! i18n_tests.rs).
 
-
 /// Catches: a string added in Slint without a `.po` entry; a `.po` entry
 /// dedup'd with an empty msgstr; a key renamed in Slint but stale in `.po`.
 #[test]
@@ -447,9 +446,7 @@ fn settings_screen_tr_keys_are_translated_in_pt_br() {
             })
             .collect();
         for key in keys {
-            let resolved = po
-                .split("\n\n")
-                .any(|rec| record_translates(rec, key));
+            let resolved = po.split("\n\n").any(|rec| record_translates(rec, key));
             assert!(
                 resolved,
                 "{name}: no non-empty pt_BR translation for @tr(\"{key}\") \
@@ -566,9 +563,7 @@ fn every_gui_tr_key_translated_in_every_locale() {
         ))
         .unwrap_or_else(|e| panic!("read {loc} catalog: {e}"));
         for key in &keys {
-            let resolved = po
-                .split("\n\n")
-                .any(|rec| record_translates(rec, key));
+            let resolved = po.split("\n\n").any(|rec| record_translates(rec, key));
             if !resolved {
                 missing.push(format!("{loc}: {key}"));
             }

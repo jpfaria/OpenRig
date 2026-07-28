@@ -143,7 +143,11 @@ fn callback_size_does_not_move_onsets() {
         for chunk in out.chunks_mut(block) {
             generator.render(chunk);
         }
-        assert_eq!(onsets(&out), expected, "block size {block} moved the onsets");
+        assert_eq!(
+            onsets(&out),
+            expected,
+            "block size {block} moved the onsets"
+        );
     }
 }
 

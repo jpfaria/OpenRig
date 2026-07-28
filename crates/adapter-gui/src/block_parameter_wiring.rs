@@ -135,14 +135,14 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match session
-                    .dispatcher
-                    .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
+                match session.dispatcher.dispatch(Command::Block(
+                    BlockCommand::SetBlockParameterNumber {
                         chain: chain_id.clone(),
                         block: block_id,
                         path: path.to_string(),
                         value,
-                    })) {
+                    },
+                )) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),

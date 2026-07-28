@@ -252,12 +252,14 @@ fn perform_preset_save(
             // chosen name and refresh the chain-rig-nav so the
             // combobox in the chain title reflects the new label
             // immediately.
-            if let Err(e) = session.dispatcher.dispatch(Command::Selection(
-                SelectionCommand::RenameRigPreset {
-                    chain: chain_id.clone(),
-                    name: name.to_string(),
-                },
-            )) {
+            if let Err(e) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
+                        chain: chain_id.clone(),
+                        name: name.to_string(),
+                    }))
+            {
                 log::warn!("[preset-save] Command::RenameRigPreset failed: {e}");
             }
             crate::chain_rig_nav_wiring::refresh_chain_rig_nav(window, session);

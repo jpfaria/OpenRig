@@ -31,8 +31,8 @@ use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, Proje
 #[path = "io_bindings_endpoint.rs"]
 mod io_bindings_endpoint;
 pub(crate) use io_bindings_endpoint::{
-    apply_channel_toggle, build_input_endpoint, build_output_endpoint,
-    build_update_command, build_update_removing_endpoint, build_update_replacing_endpoint,
+    apply_channel_toggle, build_input_endpoint, build_output_endpoint, build_update_command,
+    build_update_removing_endpoint, build_update_replacing_endpoint,
     build_update_with_input_endpoint, build_update_with_output_endpoint, channel_items_for_device,
     channel_mode_from_str, endpoint_prefill, next_endpoint_name,
 };

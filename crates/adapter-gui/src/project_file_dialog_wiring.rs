@@ -100,14 +100,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     // sessão/runtime é adapter-side (precedente SaveProject).
                     {
                         let project = session.project.borrow().clone();
-                        if let Err(e) =
-                            session
-                                .dispatcher
-                                .dispatch(Command::Project(ProjectCommand::LoadProject {
-                                    project,
-                                    path: canonical_path.clone(),
-                                }))
-                        {
+                        if let Err(e) = session.dispatcher.dispatch(Command::Project(
+                            ProjectCommand::LoadProject {
+                                project,
+                                path: canonical_path.clone(),
+                            },
+                        )) {
                             log::warn!("[open-project] Command::LoadProject falhou: {e}");
                         }
                     }
@@ -247,11 +245,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     log::warn!("[new-project] Command::CreateProject falhou: {e}");
                 }
             }
-            let _ = session
-                .dispatcher
-                .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
-                    name: name.clone(),
-                }));
+            let _ =
+                session
+                    .dispatcher
+                    .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
+                        name: name.clone(),
+                    }));
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),

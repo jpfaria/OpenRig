@@ -53,9 +53,10 @@ pub fn diagnose_to_view(
         Err(_) => return (ToneDoctorView::default(), None),
     };
     // Measured, not guessed: prove the fix actually clears the symptom.
-    let suggestion = measure_fix_with_limits(chain, sample_rate, input, block_size, &diagnosis, &limits)
-        .ok()
-        .flatten();
+    let suggestion =
+        measure_fix_with_limits(chain, sample_rate, input, block_size, &diagnosis, &limits)
+            .ok()
+            .flatten();
 
     let culprit_label = culprit_label(chain, diagnosis.culprit);
 

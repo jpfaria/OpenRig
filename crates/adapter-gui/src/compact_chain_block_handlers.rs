@@ -41,7 +41,6 @@ pub(crate) struct CompactChainBlockHandlersCtx {
     pub auto_save: bool,
 }
 
-
 pub(crate) fn wire(
     main_window: &AppWindow,
     compact_win: &CompactChainViewWindow,
@@ -106,12 +105,14 @@ fn wire_block_toggle_and_model(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            if let Err(error) = session.dispatcher.dispatch(Command::Block(
-                BlockCommand::ToggleBlockEnabled {
-                    chain: chain_id.clone(),
-                    block: block_id.clone(),
-                },
-            )) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
+                        chain: chain_id.clone(),
+                        block: block_id.clone(),
+                    }))
+            {
                 log::error!("[compact] toggle-block-enabled dispatch error: {error}");
                 return;
             }
@@ -237,13 +238,15 @@ fn wire_block_toggle_and_model(
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(error) = session.dispatcher.dispatch(Command::Block(
-                BlockCommand::ReplaceBlockModel {
-                    chain: chain_id.clone(),
-                    block: block_id,
-                    model_id: new_model_id,
-                },
-            )) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Block(BlockCommand::ReplaceBlockModel {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                        model_id: new_model_id,
+                    }))
+            {
                 log::error!("compact choose-model dispatch error: {error}");
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
@@ -270,8 +273,6 @@ fn wire_block_toggle_and_model(
             );
         });
     }
-
-
 }
 
 fn wire_chain_toggle(
@@ -323,11 +324,13 @@ fn wire_chain_toggle(
                 chain.id.clone()
             };
             // Dispatch toggles the enabled flag via the command bus.
-            if let Err(error) = session.dispatcher.dispatch(Command::Chain(
-                ChainCommand::ToggleChainEnabled {
-                    chain: chain_id.clone(),
-                },
-            )) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
+                        chain: chain_id.clone(),
+                    }))
+            {
                 log::error!("[compact] toggle-chain-enabled dispatch error: {error}");
                 return;
             }
@@ -462,7 +465,4 @@ fn wire_chain_toggle(
             cw.set_chain_enabled(will_enable);
         });
     }
-
-
 }
-

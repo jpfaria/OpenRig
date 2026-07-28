@@ -155,15 +155,15 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match session
-                    .dispatcher
-                    .dispatch(Command::Block(BlockCommand::SelectBlockParameterOption {
+                match session.dispatcher.dispatch(Command::Block(
+                    BlockCommand::SelectBlockParameterOption {
                         chain: chain_id.clone(),
                         block: block_id,
                         path: path.to_string(),
                         value: option_value,
                         index: index as usize,
-                    })) {
+                    },
+                )) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
@@ -334,14 +334,14 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
                 let Some(session) = session_borrow.as_ref() else {
                     return;
                 };
-                match session
-                    .dispatcher
-                    .dispatch(Command::Block(BlockCommand::PickBlockParameterFile {
+                match session.dispatcher.dispatch(Command::Block(
+                    BlockCommand::PickBlockParameterFile {
                         chain: chain_id.clone(),
                         block: block_id,
                         path: path.to_string(),
                         file: file.clone(),
-                    })) {
+                    },
+                )) {
                     Ok(events) => events
                         .into_iter()
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),

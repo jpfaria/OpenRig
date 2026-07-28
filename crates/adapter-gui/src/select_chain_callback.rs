@@ -54,8 +54,7 @@ pub(crate) fn wire(
             .dispatcher
             .dispatch(application::command::Command::Selection(
                 application::command::SelectionCommand::SelectActiveChain { chain: chain_id },
-            ))
-        {
+            )) {
             Ok(_) => {
                 // Reflect the selection markers from the dispatcher-owned
                 // SelectionState (single source of truth, shared with MIDI).

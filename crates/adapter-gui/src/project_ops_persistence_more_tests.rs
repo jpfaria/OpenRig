@@ -1,6 +1,7 @@
 //! Marker/tone-block persistence tests (issue #792 split from
 //! project_ops_persistence_tests.rs). Shares session fixtures via super.
 
+use super::project_ops_persistence_tests::{chain_descriptions, chain_for, new_session_at};
 use crate::project_ops::{load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::command::{BlockCommand, ChainCommand, Command};
@@ -11,7 +12,6 @@ use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
 use project::param::ParameterSet;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use super::project_ops_persistence_tests::{chain_descriptions, chain_for, new_session_at};
 
 // ────────────────────────────────────────────────────────────────────
 // 5. Save-path / filename edge cases

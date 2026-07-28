@@ -61,14 +61,26 @@ fn routes_the_click_only_to_the_endpoint_channels() {
 
     let mut on_target = false;
     for frame in out.chunks(channels) {
-        assert_eq!(frame[0], 0.0, "channel 0 is not the endpoint — must stay silent");
-        assert_eq!(frame[1], 0.0, "channel 1 is not the endpoint — must stay silent");
-        assert_eq!(frame[2], frame[3], "the click is the same mono signal on both endpoint channels");
+        assert_eq!(
+            frame[0], 0.0,
+            "channel 0 is not the endpoint — must stay silent"
+        );
+        assert_eq!(
+            frame[1], 0.0,
+            "channel 1 is not the endpoint — must stay silent"
+        );
+        assert_eq!(
+            frame[2], frame[3],
+            "the click is the same mono signal on both endpoint channels"
+        );
         if frame[2] != 0.0 {
             on_target = true;
         }
     }
-    assert!(on_target, "the downbeat must have played on the endpoint channels");
+    assert!(
+        on_target,
+        "the downbeat must have played on the endpoint channels"
+    );
 }
 
 #[test]
@@ -95,7 +107,10 @@ fn broadcasts_to_all_channels_when_no_target_is_in_range() {
         "an out-of-range endpoint must still make sound, not silence"
     );
     for frame in out.chunks(channels) {
-        assert_eq!(frame[0], frame[1], "the fallback writes the same click to every channel");
+        assert_eq!(
+            frame[0], frame[1],
+            "the fallback writes the same click to every channel"
+        );
     }
 }
 

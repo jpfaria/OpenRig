@@ -217,12 +217,9 @@ fn wire_power(
         // teardown da sessão de análise + timer abaixo é adapter-side
         // (precedente SaveProject).
         if let Some(session) = project_session.borrow().as_ref() {
-            if let Err(e) = session
-                .dispatcher
-                .dispatch(Command::Selection(SelectionCommand::SetSpectrumEnabled {
-                    enabled,
-                }))
-            {
+            if let Err(e) = session.dispatcher.dispatch(Command::Selection(
+                SelectionCommand::SetSpectrumEnabled { enabled },
+            )) {
                 log::warn!("[spectrum] Command::SetSpectrumEnabled falhou: {e}");
             }
         }

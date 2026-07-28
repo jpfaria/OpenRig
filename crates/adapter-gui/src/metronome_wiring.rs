@@ -26,7 +26,9 @@ use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
-use crate::metronome_controls_wiring::{refresh_metronome_outputs, wire_controls, wire_output_select};
+use crate::metronome_controls_wiring::{
+    refresh_metronome_outputs, wire_controls, wire_output_select,
+};
 use crate::metronome_events::{dispatch, render_settings};
 use crate::metronome_session::{resolve_output_endpoint, MetronomeOutput, MetronomeSession};
 use crate::state::ProjectSession;

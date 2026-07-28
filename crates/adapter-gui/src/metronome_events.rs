@@ -90,11 +90,8 @@ pub(crate) fn apply_events(ctx: &MetronomeCtx, events: Vec<Event>) {
                 // one simply opens there next time.
                 if let Some(rt) = ctx.project_runtime.borrow().as_ref() {
                     if rt.metronome_active() {
-                        let outputs =
-                            refresh_metronome_outputs(&ctx.project_session, &ctx.outputs);
-                        if let Some(out) =
-                            resolve_output_endpoint(device_id.as_deref(), &outputs)
-                        {
+                        let outputs = refresh_metronome_outputs(&ctx.project_session, &ctx.outputs);
+                        if let Some(out) = resolve_output_endpoint(device_id.as_deref(), &outputs) {
                             if let Err(e) = rt.start_metronome(&out.device_id, &out.channels) {
                                 log::warn!("[metronome] reopen on '{}' failed: {e}", out.label);
                             }

@@ -206,7 +206,11 @@ fn output_endpoints_flattens_every_bindings_outputs() {
         ),
     ];
     let outs = output_endpoints(&bindings);
-    assert_eq!(outs.len(), 3, "one entry per output endpoint across bindings");
+    assert_eq!(
+        outs.len(),
+        3,
+        "one entry per output endpoint across bindings"
+    );
     assert_eq!(outs[0].label, "Scarlett 2i2 · Main Out 1-2");
     assert_eq!(outs[0].device_id, "dev:scarlett");
     assert_eq!(outs[0].channels, vec![0, 1]);

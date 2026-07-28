@@ -213,7 +213,9 @@ fn full_admin_sequence_round_trips() {
         .expect("vol");
     session
         .dispatcher
-        .dispatch(Command::Chain(ChainCommand::MoveChainUp { chain: c2.clone() }))
+        .dispatch(Command::Chain(ChainCommand::MoveChainUp {
+            chain: c2.clone(),
+        }))
         .expect("move up");
     s.save(&session);
 

@@ -134,11 +134,12 @@ fn apply_evaluations_path(
     let Some(session) = session.as_ref() else {
         return;
     };
-    if let Err(e) = session
-        .dispatcher
-        .dispatch(Command::Settings(SettingsCommand::SetEvaluationsPath {
-            path,
-        }))
+    if let Err(e) =
+        session
+            .dispatcher
+            .dispatch(Command::Settings(SettingsCommand::SetEvaluationsPath {
+                path,
+            }))
     {
         log::warn!("[paths] Command::SetEvaluationsPath failed: {e}");
     }

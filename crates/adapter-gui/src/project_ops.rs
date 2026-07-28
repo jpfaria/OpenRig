@@ -265,11 +265,12 @@ pub(crate) fn load_project_session(
         .first()
         .map(|c| c.id.clone());
     if let Some(first_chain) = first_chain {
-        let _ = session
-            .dispatcher
-            .dispatch(Command::Selection(SelectionCommand::SelectActiveChain {
-                chain: first_chain,
-            }));
+        let _ =
+            session
+                .dispatcher
+                .dispatch(Command::Selection(SelectionCommand::SelectActiveChain {
+                    chain: first_chain,
+                }));
     }
 
     Ok(session)

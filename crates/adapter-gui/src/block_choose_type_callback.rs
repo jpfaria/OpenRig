@@ -157,12 +157,15 @@ pub(crate) fn wire(
                 chain.id.clone()
             };
             // Dispatch BlockCommand::AddBlock — mutates project via shared Rc.
-            if let Err(e) = session.dispatcher.dispatch(Command::Block(BlockCommand::AddBlock {
-                chain: chain_id.clone(),
-                kind: "insert".to_string(),
-                model_id: "standard".to_string(),
-                position: before_index,
-            })) {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::Block(BlockCommand::AddBlock {
+                    chain: chain_id.clone(),
+                    kind: "insert".to_string(),
+                    model_id: "standard".to_string(),
+                    position: before_index,
+                }))
+            {
                 log::error!("insert block AddBlock dispatch error: {e}");
                 return;
             }

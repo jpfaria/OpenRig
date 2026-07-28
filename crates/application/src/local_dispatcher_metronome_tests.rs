@@ -140,10 +140,9 @@ fn each_metronome_command_emits_its_event() {
             }),
             |e| matches!(e, Event::MetronomeOutputChanged { .. }),
         ),
-        (
-            Command::Metronome(MetronomeCommand::MetronomeTap),
-            |e| matches!(e, Event::MetronomeTapped),
-        ),
+        (Command::Metronome(MetronomeCommand::MetronomeTap), |e| {
+            matches!(e, Event::MetronomeTapped)
+        }),
     ];
 
     for (command, matches_event) in cases {

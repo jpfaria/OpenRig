@@ -31,11 +31,10 @@ use application::command::{Command, SelectionCommand};
 fn close_intent_disables_spectrum() {
     let cmds = spectrum_close_commands();
     assert!(
-        cmds.iter()
-            .any(|c| matches!(
-                c,
-                Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled: false })
-            )),
+        cmds.iter().any(|c| matches!(
+            c,
+            Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled: false })
+        )),
         "closing the spectrum window must dispatch SetSpectrumEnabled(false); \
          got {cmds:?}"
     );

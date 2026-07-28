@@ -226,7 +226,8 @@ fn dispatch_and_persist(
             .dispatcher
             .dispatch(Command::Midi(MidiCommand::SaveMidiDevices {
                 devices: rows.to_vec(),
-            })) {
+            }))
+        {
             log::warn!("[midi_devices] Command::SaveMidiDevices failed: {e}");
         }
     }

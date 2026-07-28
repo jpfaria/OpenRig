@@ -169,9 +169,9 @@ impl ProjectRuntimeController {
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
             metronome_stream: RefCell::new(None),
-            metronome_shared: std::sync::Arc::new(
-                engine::metronome_state::MetronomeShared::new(Default::default()),
-            ),
+            metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+                Default::default(),
+            )),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -211,9 +211,9 @@ impl ProjectRuntimeController {
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
             metronome_stream: RefCell::new(None),
-            metronome_shared: std::sync::Arc::new(
-                engine::metronome_state::MetronomeShared::new(Default::default()),
-            ),
+            metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+                Default::default(),
+            )),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),

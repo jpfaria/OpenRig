@@ -128,14 +128,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     // (precedente SaveProject).
                     {
                         let project = session.project.borrow().clone();
-                        if let Err(e) =
-                            session
-                                .dispatcher
-                                .dispatch(Command::Project(ProjectCommand::LoadProject {
-                                    project,
-                                    path: canonical_path.clone(),
-                                }))
-                        {
+                        if let Err(e) = session.dispatcher.dispatch(Command::Project(
+                            ProjectCommand::LoadProject {
+                                project,
+                                path: canonical_path.clone(),
+                            },
+                        )) {
                             log::warn!("[open-recent] Command::LoadProject falhou: {e}");
                         }
                     }
@@ -309,12 +307,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 // mutação/persistência do app-config + render abaixo é
                 // adapter-side (precedente SaveProject).
                 if let Some(session) = project_session.borrow().as_ref() {
-                    if let Err(e) = session
-                        .dispatcher
-                        .dispatch(Command::Project(ProjectCommand::RemoveRecentProject {
-                            index,
-                        }))
-                    {
+                    if let Err(e) = session.dispatcher.dispatch(Command::Project(
+                        ProjectCommand::RemoveRecentProject { index },
+                    )) {
                         log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
                     }
                 }
