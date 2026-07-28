@@ -6,6 +6,7 @@ import { BlockEditorPanel } from "./block_editor_panel.slint";
 import { HeaderIconAction } from "../components/chain_chips.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
 import { MetronomeBridge } from "../components/metronome_globals.slint";
+import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
 
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
@@ -319,7 +320,13 @@ export component ProjectChainsPage inherits Rectangle {
                 600px;
         property <length> panel-width:
             use-panel-editor ?
-                (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+                // #819: the knob grid width MUST match the #500 policy (capped at
+                // MAX_COLS), or it disagrees with the policy's inner height and the
+                // bottom knob row clips. Fall back to the local estimate only until
+                // Rust publishes the computed width.
+                (has-eq-widget
+                    ? eq-panel-width
+                    : (BlockParamTabs.panel-width > 0px ? BlockParamTabs.panel-width : Math.max(900px, needed-width))) :
                 520px;
         property <length> eq-widget-height:
             root.curve-editor-points.length > 0 ? 200px :
@@ -329,9 +336,14 @@ export component ProjectChainsPage inherits Rectangle {
             && root.block-stream-data.stream-kind != "spectrum";
         property <length> eq-extra-height:
             has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
+        // #819: prefer the #500 Rust policy (knob wrap + tab bar) so the panel
+        // never clips its knobs; fall back to the local estimate until Rust
+        // publishes a height.
         property <length> panel-height:
             use-panel-editor
-                ? (has-stream-data ? Math.max(420px, eq-extra-height) : eq-extra-height)
+                ? (BlockParamTabs.panel-height > 0px
+                    ? BlockParamTabs.panel-height
+                    : (has-stream-data ? Math.max(420px, eq-extra-height) : eq-extra-height))
                 : parent.height;
 
         TouchArea {
@@ -359,6 +371,16 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-enabled: root.block-drawer-enabled;
             block-knob-overlays: root.block-knob-overlays;
             block-parameter-items: root.block-parameter-items;
+            // #819: same parameter tabs the detached editor shows.
+            block-parameter-groups: BlockParamTabs.groups;
+            active-parameter-group: BlockParamTabs.active;
+            select-parameter-group(i) => { BlockParamTabs.select(i); }
+            // #819: same #500 inner knob-grid dimensions the detached window
+            // gets from apply_panel_dimensions, so a param-heavy block doesn't
+            // clip. Fall back to the component defaults until Rust computes them.
+            panel-knob-inner-height: BlockParamTabs.inner-height > 0px ? BlockParamTabs.inner-height : 225px;
+            panel-grid-cols: BlockParamTabs.grid-cols;
+            panel-grid-rows: BlockParamTabs.grid-rows;
             multi-slider-points: root.multi-slider-points;
             curve-editor-points: root.curve-editor-points;
             eq-total-curve: root.eq-total-curve;
