@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::{anyhow, Context, Result};
 use application::bridge::CommandBridge;
-use application::command::Command;
+use application::command::{Command, MidiCommand};
 use application::SelectionState;
 use midir::MidiInput;
 
@@ -127,7 +127,7 @@ pub fn run_blocking(bridge: CommandBridge, map_path: &Path, learn: Arc<LearnStat
 ///
 /// `learn` is the process-wide single-shot learn-mode flag (#513 / #493).
 /// While `learn.is_active()`, each parseable incoming event is submitted as
-/// `Command::PublishMidiEvent { source }` and the flag auto-clears via
+/// `MidiCommand::PublishMidiEvent { source }` and the flag auto-clears via
 /// `learn.on_event_captured()`. The binding-resolution path is **skipped**
 /// while learning so the user does not accidentally fire whatever the
 /// pedal is already mapped to. When the flag is off, behaviour is
@@ -178,7 +178,8 @@ pub fn run_blocking_with_map(
                     // single relaxed-ish read with no side effects.
                     if learn.is_active() {
                         if let Some(source) = source_from_bytes(bytes) {
-                            drop(bridge.submit(Command::PublishMidiEvent { source }));
+                            let cmd = MidiCommand::PublishMidiEvent { source };
+                            drop(bridge.submit(Command::Midi(cmd)));
                             learn.on_event_captured();
                             return;
                         }
@@ -316,7 +317,8 @@ fn attach_port(
             move |_stamp, bytes, _| {
                 if learn.is_active() {
                     if let Some(source) = source_from_bytes(bytes) {
-                        drop(bridge.submit(Command::PublishMidiEvent { source }));
+                        let cmd = MidiCommand::PublishMidiEvent { source };
+                        drop(bridge.submit(Command::Midi(cmd)));
                         learn.on_event_captured();
                         return;
                     }

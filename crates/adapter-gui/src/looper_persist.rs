@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, LooperCommand};
 use application::dispatcher::CommandDispatcher;
 use application::looper_audio::{read_loop_wav, resample_loop, write_loop_wav};
 use infra_cpal::ProjectRuntimeController;
@@ -54,11 +54,11 @@ pub(crate) fn save_chain_loops(session: &ProjectSession, runtime: &Runtime, proj
             };
             if let Err(err) = session
                 .dispatcher
-                .dispatch(Command::SetChainLooperAudioFile {
+                .dispatch(Command::Looper(LooperCommand::SetChainLooperAudioFile {
                     chain: chain.clone(),
                     looper: uid,
                     file,
-                })
+                }))
             {
                 log::warn!("recording the loop file of {uid}: {err}");
             }

@@ -139,6 +139,14 @@ pub struct ProjectRuntimeController {
     /// loop survives a chain rebuild/toggle. Replaces the bank-in-runtime and
     /// the suppression band-aid it forced.
     pub(crate) looper_store: RefCell<crate::looper_store::LooperStore>,
+    /// Issue #14: the metronome's OWN output stream, alive only while the
+    /// metronome is on. Never shares a chain stream — the backend sums it on
+    /// the device (invariant #4), so a chain rebuild cannot chop the click and
+    /// the click can never reach the guitar's buffers.
+    pub(crate) metronome_stream: RefCell<Option<crate::metronome_stream::MetronomeStreamHandle>>,
+    /// Issue #14: lock-free settings/position shared with that stream's
+    /// callback. Outlives the stream so settings survive a stop/start.
+    pub(crate) metronome_shared: engine::metronome_state::MetronomeCell,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -178,6 +186,10 @@ impl ProjectRuntimeController {
             di_retired: Default::default(),
             looper_armed: RefCell::new(HashMap::new()),
             looper_store: RefCell::new(crate::looper_store::LooperStore::default()),
+            metronome_stream: RefCell::new(None),
+            metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+                Default::default(),
+            )),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -218,6 +230,10 @@ impl ProjectRuntimeController {
             di_retired: Default::default(),
             looper_armed: RefCell::new(HashMap::new()),
             looper_store: RefCell::new(crate::looper_store::LooperStore::default()),
+            metronome_stream: RefCell::new(None),
+            metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+                Default::default(),
+            )),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),

@@ -24,12 +24,12 @@ fn tool_name_is_snake_case() {
 
 mod command_from_variant {
     use super::super::command_from_variant;
-    use crate::command::Command;
+    use crate::command::{BlockCommand, Command, ProjectCommand};
 
     #[test]
     fn builds_unit_variant_with_empty_args() {
         let cmd = command_from_variant("SaveProject", serde_json::json!({})).unwrap();
-        assert!(matches!(cmd, Command::SaveProject));
+        assert!(matches!(cmd, Command::Project(ProjectCommand::SaveProject)));
     }
 
     #[test]
@@ -40,7 +40,7 @@ mod command_from_variant {
         )
         .unwrap();
         match cmd {
-            Command::ToggleBlockEnabled { chain, block } => {
+            Command::Block(BlockCommand::ToggleBlockEnabled { chain, block }) => {
                 assert_eq!(chain.0, "chain:a");
                 assert_eq!(block.0, "block:b");
             }
@@ -59,7 +59,7 @@ mod command_from_variant {
         )
         .unwrap();
         match cmd {
-            Command::SetBlockParameterNumber { value, path, .. } => {
+            Command::Block(BlockCommand::SetBlockParameterNumber { value, path, .. }) => {
                 assert_eq!(path, "gain");
                 assert!((value - 75.0).abs() < 1e-9);
             }

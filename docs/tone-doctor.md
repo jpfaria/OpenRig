@@ -139,6 +139,37 @@ Applying dispatches `SetBlockParameterNumber`, preceded by
 `SetBlockParameterBool` on the group's `.enabled` path when the target knob
 sits in a group that is switched off.
 
+## Transport parity — the doctor itself is on the command bus
+
+The diagnosis and its fix are `Command`s, not GUI behaviour:
+
+- `ToneDoctorCommand::DiagnoseChainTone { chain, genre, seconds }` — picks the
+  signal (the chain's loaded DI loop when there is one, otherwise the live input
+  the adapter registered via `LocalDispatcher::attach_tone_doctor_input`), runs
+  the ablation off-thread, and lands `Event::ChainToneDiagnosed { chain, report }`
+  through `poll_async_results`. With neither source the command errors instead of
+  guessing. The dispatcher caches the verdict per chain.
+  A window whose RMS sits under -60 dBFS is rejected with "no usable signal"
+  instead of being diagnosed: a silent stretch scores every descriptor at zero
+  and would otherwise come back `Ok` — a green light meaning "nothing was
+  heard". The bundled `fabiano-antunes-STRATO-clean` DI opens with ~3 s of
+  near-silence, which is exactly how this was found.
+- `ToneDoctorCommand::ApplyToneDoctorFix { chain }` — replays the cached fix as
+  ordinary `SetBlockParameterBool` (the group gate, when present) +
+  `SetBlockParameterNumber`, so every observer sees the same events a knob turn
+  emits, then emits `Event::ChainToneFixApplied`.
+
+The verdict is read back with `QueryKind::ChainToneReport { chain }` (MCP:
+`openrig://chains/{chain}/tone`), served from dispatcher state — MCP reads
+exactly the report the GUI panel is showing rather than re-rendering its own.
+The read carries the whole run, not only its happy result: `state` is `idle`,
+`running`, `ok` or `failed`, with `error` saying why. A transport that only
+reads never sees `Event::Error`, so without this a failed run is
+indistinguishable from one still working or one that never happened, and the
+client waits forever.
+`application::tone_doctor_report` owns the report shape and the report → commands
+mapping; it is transport-agnostic and names blocks by `BlockId`, never by index.
+
 ## Transport parity — objective report query
 
 Layer 3 is exposed read-side for every transport via
@@ -157,14 +188,16 @@ A stethoscope button sits in every chain header (`chain_row.slint` main page +
 via `tone_doctor_overlay`, rendered at the window root — never a `PopupWindow`,
 per #749/#761), scoped to that chain.
 
-The panel's **Diagnose** button runs the offline ablation over the chain's
-selected DI (`di_loop_source_for_chain` → `di_loader::load_di_loop` →
-`DiPcm::stereo_frames`), then shows a symptom traffic light, the culprit block,
-and the suggested fix as `Tone 70 → 45` with an **Apply** button that dispatches
-the existing `SetBlockParameterNumber` command. When no DI is selected it shows
-an amber "select a DI" line. The glue lives in `tone_doctor_compact_wiring`
-(both the main page and the compact window reuse it); the diagnosis→view and
-suggestion→command mapping is the pure, unit-tested `tone_doctor_wiring`.
+The panel's **Diagnose** button dispatches `DiagnoseChainTone`; the verdict
+arrives on the frontend drain as `Event::ChainToneDiagnosed` and
+`tone_doctor_events` paints it on whichever window has the panel open. It shows
+a symptom traffic light, the culprit block, and the suggested fix as
+`Tone 70 → 45`, with an **Apply** button that dispatches `ApplyToneDoctorFix`
+and then re-syncs the chain's live runtime (#808). With no DI and no live chain
+the command errors and the panel says there is nothing to analyse. The glue
+lives in `tone_doctor_compact_wiring` (both the main page and the compact window
+reuse it); the report → view mapping is the pure, unit-tested
+`tone_doctor_wiring`.
 
 Strings are translated across all nine locales. The dynamic symptom words
 (Fizz/Mud/Boomy/Thin/Squash/Clipping/OK) are the descriptor names, kept as-is

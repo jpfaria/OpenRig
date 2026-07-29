@@ -178,6 +178,10 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
         di_retired: Default::default(),
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
+        metronome_stream: std::cell::RefCell::new(None),
+        metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+            Default::default(),
+        )),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),
@@ -402,6 +406,10 @@ fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
         di_retired: Default::default(),
         looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
         looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
+        metronome_stream: std::cell::RefCell::new(None),
+        metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+            Default::default(),
+        )),
         #[cfg(all(target_os = "linux", feature = "jack"))]
         supervisor: super::jack_supervisor::JackSupervisor::new(
             super::jack_supervisor::LiveJackBackend::new(),

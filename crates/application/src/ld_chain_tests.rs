@@ -82,9 +82,9 @@ fn remove_chain_removes_chain_and_emits_event() {
     let project = make_project_two_chains();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::RemoveChain {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::RemoveChain {
         chain: ChainId("chain_0".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -110,9 +110,9 @@ fn remove_chain_non_existent_returns_err_no_mutation() {
     let project = make_project_two_chains();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::RemoveChain {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::RemoveChain {
         chain: ChainId("chain_MISSING".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     assert_eq!(
@@ -130,9 +130,9 @@ fn move_chain_up_reorders_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // Move chain_b (index 1) up → should become index 0.
-    let result = dispatcher.dispatch(Command::MoveChainUp {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::MoveChainUp {
         chain: ChainId("chain_b".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -156,9 +156,9 @@ fn move_chain_up_at_index_zero_returns_ok_no_op() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // chain_a is at index 0 — already at top, should be a no-op.
-    let result = dispatcher.dispatch(Command::MoveChainUp {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::MoveChainUp {
         chain: ChainId("chain_a".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "no-op should return Ok");
     let events = result.unwrap();
@@ -177,9 +177,9 @@ fn move_chain_up_non_existent_returns_err() {
     let project = make_project_three_chains();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::MoveChainUp {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::MoveChainUp {
         chain: ChainId("chain_MISSING".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -192,9 +192,9 @@ fn move_chain_down_reorders_and_emits_event() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // Move chain_b (index 1) down → should become index 2.
-    let result = dispatcher.dispatch(Command::MoveChainDown {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::MoveChainDown {
         chain: ChainId("chain_b".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -218,9 +218,9 @@ fn move_chain_down_at_last_index_returns_ok_no_op() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // chain_c is at the last index — should be a no-op.
-    let result = dispatcher.dispatch(Command::MoveChainDown {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::MoveChainDown {
         chain: ChainId("chain_c".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "no-op should return Ok");
     let events = result.unwrap();
@@ -239,9 +239,9 @@ fn move_chain_down_non_existent_returns_err() {
     let project = make_project_three_chains();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::MoveChainDown {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::MoveChainDown {
         chain: ChainId("chain_MISSING".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -272,9 +272,9 @@ fn toggle_chain_enabled_refuses_chain_without_io_binding() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
         chain: ChainId("chain_noio".to_string()),
-    });
+    }));
 
     assert!(
         result.is_err(),
@@ -300,9 +300,9 @@ fn toggle_chain_enabled_enables_disabled_chain() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project_no_conflict));
 
-    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
         chain: ChainId("chain_1".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -333,10 +333,10 @@ fn set_chain_io_bindings_updates_selection_and_emits_event() {
     }));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetChainIoBindings {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainIoBindings {
         chain: ChainId("chain_0".to_string()),
         binding_ids: vec!["xyz".to_string(), "abc".to_string()],
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     assert_eq!(
@@ -369,10 +369,10 @@ fn set_chain_io_bindings_replaces_previous_selection() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     dispatcher
-        .dispatch(Command::SetChainIoBindings {
+        .dispatch(Command::Chain(ChainCommand::SetChainIoBindings {
             chain: ChainId("chain_0".to_string()),
             binding_ids: vec!["new".to_string()],
-        })
+        }))
         .expect("dispatch ok");
 
     assert_eq!(
@@ -388,9 +388,9 @@ fn toggle_chain_enabled_disables_enabled_chain() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     // Toggle chain_0 (currently enabled) → should disable it.
-    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
         chain: ChainId("chain_0".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -420,9 +420,9 @@ fn toggle_chain_enabled_non_existent_returns_err() {
     let project = make_project_two_chains();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ToggleChainEnabled {
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
         chain: ChainId("chain_MISSING".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -448,9 +448,9 @@ fn select_active_chain_sets_active_chain_clears_block_and_snapshots_enabled() {
         s.active_chain_enabled = true;
     }
 
-    let result = dispatcher.dispatch(Command::SelectActiveChain {
+    let result = dispatcher.dispatch(Command::Selection(SelectionCommand::SelectActiveChain {
         chain: ChainId("chain_1".to_string()),
-    });
+    }));
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
 
     let sel = dispatcher.selection_state();
@@ -475,9 +475,9 @@ fn select_active_chain_non_existent_returns_err() {
     let project = make_project_two_chains();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SelectActiveChain {
+    let result = dispatcher.dispatch(Command::Selection(SelectionCommand::SelectActiveChain {
         chain: ChainId("chain_MISSING".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
 }
@@ -492,7 +492,9 @@ fn set_compact_view_enabled_emits_event_so_the_gui_can_react() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let events = dispatcher
-        .dispatch(Command::SetCompactViewEnabled { enabled: true })
+        .dispatch(Command::Selection(
+            SelectionCommand::SetCompactViewEnabled { enabled: true },
+        ))
         .expect("dispatch ok");
 
     assert!(
@@ -513,7 +515,7 @@ fn add_chain_appends_chain_and_emits_event() {
     let new_chain = make_empty_chain("chain_new", false);
     let new_id = new_chain.id.clone();
 
-    let result = dispatcher.dispatch(Command::AddChain { chain: new_chain });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::AddChain { chain: new_chain }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -555,7 +557,7 @@ fn add_chain_enabled_false_no_conflict_check() {
 
     let new_chain = make_chain_with_input("chain_new", "dev_a", 0, false); // enabled=false
 
-    let result = dispatcher.dispatch(Command::AddChain { chain: new_chain });
+    let result = dispatcher.dispatch(Command::Chain(ChainCommand::AddChain { chain: new_chain }));
 
     assert!(
         result.is_ok(),

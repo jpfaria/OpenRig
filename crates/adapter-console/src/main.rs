@@ -28,6 +28,8 @@ use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
+mod tick;
+
 #[derive(Debug, Deserialize, Default)]
 struct AppConfigYaml {
     #[serde(default, rename = "presets_path")]
@@ -174,7 +176,7 @@ fn main() -> Result<()> {
     );
 
     loop {
-        let changed = !drain.drain(&dispatcher, 64).is_empty();
+        let changed = !tick::tick(&dispatcher, drain.drain(&dispatcher, 64)).is_empty();
         drain.serve_queries(
             |kind| match kind {
                 QueryKind::ProjectYaml => {
@@ -184,6 +186,20 @@ fn main() -> Result<()> {
                     .map(|d| d.join("\n"))
                     .map_err(|e| e.to_string()),
                 QueryKind::Ids => Ok(application::query::list_ids(&shared.borrow())),
+                // #791: the console owns no doctor state of its own; the
+                // dispatcher's last run is the answer for every transport.
+                QueryKind::ChainToneReport { chain } => {
+                    Ok(dispatcher.inner().tone_report_json(chain))
+                }
+                // #829: reads that need a live analyzer/runtime the console
+                // does not host — answer with the empty shape so the resource
+                // is still addressable on this transport.
+                QueryKind::TunerReadings
+                | QueryKind::SpectrumReadings
+                | QueryKind::DiLoopState
+                | QueryKind::ChainLatency { .. } => {
+                    Err("not available on the console adapter".to_string())
+                }
                 QueryKind::ChainMeters => {
                     // Console adapter has no live meter source — emit a
                     // silent record per chain so the MCP resource shape

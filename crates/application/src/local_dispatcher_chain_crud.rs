@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -12,7 +12,7 @@ impl LocalDispatcher {
     pub(crate) fn handle_chain_crud(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
-            Command::AddChain { mut chain } => {
+            Command::Chain(ChainCommand::AddChain { mut chain }) => {
                 // #716 (model A): the per-block cross-chain channel-conflict
                 // check is gone — device endpoints no longer live on the chain,
                 // they are resolved from the per-machine binding registry at
@@ -34,7 +34,7 @@ impl LocalDispatcher {
                     Event::ProjectMutated,
                 ])
             }
-            Command::ConfigureChain { chain } => {
+            Command::Chain(ChainCommand::ConfigureChain { chain }) => {
                 let chain_id = chain.id.clone();
                 self.with_chain(&chain_id, |existing| {
                     // Preserve runtime-only state (enabled) — callers must use
@@ -49,7 +49,7 @@ impl LocalDispatcher {
                     Event::ProjectMutated,
                 ])
             }
-            Command::RemoveChain { chain } => {
+            Command::Chain(ChainCommand::RemoveChain { chain }) => {
                 {
                     let mut proj = self.project.borrow_mut();
                     let pre_len = proj.chains.len();
@@ -69,7 +69,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainRemoved { chain }, Event::ProjectMutated])
             }
             // ── Chain volume (issue #440) ─────────────────────────────────────
-            Command::SetChainVolume { chain, value } => {
+            Command::Chain(ChainCommand::SetChainVolume { chain, value }) => {
                 self.with_chain(&chain, |c| {
                     c.volume = value;
                     Ok(())
@@ -80,7 +80,7 @@ impl LocalDispatcher {
                 ])
             }
             // ── Chain I/O binding selection (issue #716) ──────────────────────
-            Command::SetChainIoBindings { chain, binding_ids } => {
+            Command::Chain(ChainCommand::SetChainIoBindings { chain, binding_ids }) => {
                 self.with_chain(&chain, |c| {
                     c.io_binding_ids = binding_ids.clone();
                     Ok(())

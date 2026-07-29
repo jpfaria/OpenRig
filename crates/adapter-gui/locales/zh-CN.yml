@@ -91,3 +91,8 @@ tone-doctor-genre: "风格"
 tone-doctor-genre-default: "默认"
 tone-doctor-genre-search: "搜索风格…"
 tone-doctor-genre-none: "无风格"
+
+# --- #14 metronome timbre names (the knob's other labels are note values)
+label-metronome-timbre-click: "咔嗒"
+label-metronome-timbre-wood: "木鱼"
+label-metronome-timbre-beep: "蜂鸣"

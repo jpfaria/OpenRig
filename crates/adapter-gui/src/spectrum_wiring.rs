@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
@@ -217,10 +217,9 @@ fn wire_power(
         // teardown da sessão de análise + timer abaixo é adapter-side
         // (precedente SaveProject).
         if let Some(session) = project_session.borrow().as_ref() {
-            if let Err(e) = session
-                .dispatcher
-                .dispatch(Command::SetSpectrumEnabled { enabled })
-            {
+            if let Err(e) = session.dispatcher.dispatch(Command::Selection(
+                SelectionCommand::SetSpectrumEnabled { enabled },
+            )) {
                 log::warn!("[spectrum] Command::SetSpectrumEnabled falhou: {e}");
             }
         }

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use application::command::Command;
+use application::command::{Command, LooperCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{ChainId, DeviceId};
@@ -130,9 +130,9 @@ fn a_recorded_loop_is_written_beside_the_project_and_comes_back_on_reopen() {
 
     session
         .dispatcher
-        .dispatch(Command::AddChainLooper {
+        .dispatch(Command::Looper(LooperCommand::AddChainLooper {
             chain: ChainId(CHAIN.into()),
-        })
+        }))
         .expect("add");
     let uid = session.project.borrow().chains[0].loopers[0].uid;
     let recorded_chain = session.project.borrow().chains[0].clone();
@@ -177,9 +177,9 @@ fn an_empty_looper_saves_no_file_and_clears_a_stale_pointer() {
 
     session
         .dispatcher
-        .dispatch(Command::AddChainLooper {
+        .dispatch(Command::Looper(LooperCommand::AddChainLooper {
             chain: ChainId(CHAIN.into()),
-        })
+        }))
         .expect("add");
     let uid = session.project.borrow().chains[0].loopers[0].uid;
     session.project.borrow_mut().chains[0].loopers[0].audio_file = Some("stale.wav".into());
@@ -202,9 +202,9 @@ fn a_missing_sidecar_does_not_break_opening_the_project() {
     let session = session(project_path.clone());
     session
         .dispatcher
-        .dispatch(Command::AddChainLooper {
+        .dispatch(Command::Looper(LooperCommand::AddChainLooper {
             chain: ChainId(CHAIN.into()),
-        })
+        }))
         .expect("add");
     let uid = session.project.borrow().chains[0].loopers[0].uid;
     session.project.borrow_mut().chains[0].loopers[0].audio_file = Some("gone.wav".into());

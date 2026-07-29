@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::command::Command;
+use crate::command::{Command, SelectionCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::local_dispatcher::LocalDispatcher;
 use domain::ids::{BlockId, ChainId};
@@ -94,7 +94,9 @@ fn first_block_nav_skips_input_block() {
     }
 
     dispatcher
-        .dispatch(Command::SelectActiveBlockRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: 1 },
+        ))
         .unwrap();
 
     let sel = dispatcher.selection_state();
@@ -121,7 +123,9 @@ fn forward_step_after_last_audio_wraps_to_first_audio_not_output() {
     }
 
     dispatcher
-        .dispatch(Command::SelectActiveBlockRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: 1 },
+        ))
         .unwrap();
 
     let sel = dispatcher.selection_state();
@@ -148,7 +152,9 @@ fn backward_step_from_first_audio_wraps_to_last_audio_not_input() {
     }
 
     dispatcher
-        .dispatch(Command::SelectActiveBlockRelative { delta: -1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: -1 },
+        ))
         .unwrap();
 
     let sel = dispatcher.selection_state();
@@ -176,7 +182,9 @@ fn two_step_navigation_skips_io_too() {
     }
 
     dispatcher
-        .dispatch(Command::SelectActiveBlockRelative { delta: 2 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: 2 },
+        ))
         .unwrap();
 
     let active = dispatcher
@@ -201,7 +209,9 @@ fn no_navigable_blocks_is_noop() {
     }
 
     dispatcher
-        .dispatch(Command::SelectActiveBlockRelative { delta: 1 })
+        .dispatch(Command::Selection(
+            SelectionCommand::SelectActiveBlockRelative { delta: 1 },
+        ))
         .unwrap();
 
     assert!(dispatcher

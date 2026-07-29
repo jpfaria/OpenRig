@@ -91,3 +91,8 @@ tone-doctor-genre: "शैली"
 tone-doctor-genre-default: "डिफ़ॉल्ट"
 tone-doctor-genre-search: "शैली खोजें…"
 tone-doctor-genre-none: "कोई शैली नहीं"
+
+# --- #14 metronome timbre names (the knob's other labels are note values)
+label-metronome-timbre-click: "क्लिक"
+label-metronome-timbre-wood: "लकड़ी"
+label-metronome-timbre-beep: "बीप"

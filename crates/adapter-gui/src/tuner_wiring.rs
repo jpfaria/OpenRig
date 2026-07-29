@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
@@ -220,15 +220,18 @@ fn wire_mute_inline(
         if !mw.get_tuner_enabled() {
             return;
         }
-        // #436 G: mute é negócio → Command::SetOutputMuted no dispatcher
+        // #436 G: mute é negócio → SelectionCommand::SetOutputMuted no dispatcher
         // compartilhado (alcançável MCP/MIDI, observável via
         // Event::OutputMutedChanged). O efeito no runtime de áudio
         // (rt.set_output_muted) continua adapter-side (precedente
         // SaveProject). set_tuner_mute_active = render do sprite/LED.
         if let Some(session) = project_session.borrow().as_ref() {
-            if let Err(e) = session
-                .dispatcher
-                .dispatch(Command::SetOutputMuted { muted })
+            if let Err(e) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+                        muted,
+                    }))
             {
                 log::warn!("[tuner.mute] Command::SetOutputMuted falhou: {e}");
             }
@@ -258,11 +261,14 @@ fn wire_mute_windowed(
         if !tw.get_tuner_enabled() {
             return;
         }
-        // #436 G: mute via Command::SetOutputMuted (ver wire_mute_inline).
+        // #436 G: mute via SelectionCommand::SetOutputMuted (ver wire_mute_inline).
         if let Some(session) = project_session.borrow().as_ref() {
-            if let Err(e) = session
-                .dispatcher
-                .dispatch(Command::SetOutputMuted { muted })
+            if let Err(e) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+                        muted,
+                    }))
             {
                 log::warn!("[tuner.mute] Command::SetOutputMuted falhou: {e}");
             }
@@ -291,72 +297,72 @@ fn wire_power(
     let main_window_weak = window.as_weak();
     let tuner_window_weak = tuner_window.as_weak();
 
-    let on_toggle_enabled = move |enabled: bool| {
-        // #436 H: power do tuner é negócio → Command no dispatcher
-        // compartilhado (MCP/MIDI, observável via
-        // Event::TunerEnabledChanged) quando há sessão. O build/teardown
-        // da sessão + timer + mute abaixo é adapter-side (precedente
-        // SaveProject).
-        if let Some(session) = project_session.borrow().as_ref() {
-            if let Err(e) = session
-                .dispatcher
-                .dispatch(Command::SetTunerEnabled { enabled })
-            {
-                log::warn!("[tuner] Command::SetTunerEnabled falhou: {e}");
+    let on_toggle_enabled =
+        move |enabled: bool| {
+            // #436 H: power do tuner é negócio → Command no dispatcher
+            // compartilhado (MCP/MIDI, observável via
+            // Event::TunerEnabledChanged) quando há sessão. O build/teardown
+            // da sessão + timer + mute abaixo é adapter-side (precedente
+            // SaveProject).
+            if let Some(session) = project_session.borrow().as_ref() {
+                if let Err(e) = session.dispatcher.dispatch(Command::Selection(
+                    SelectionCommand::SetTunerEnabled { enabled },
+                )) {
+                    log::warn!("[tuner] Command::SetTunerEnabled falhou: {e}");
+                }
             }
-        }
-        if enabled {
-            let new_session = build_session(&project_session, &project_runtime);
-            let rows = new_session
-                .as_ref()
-                .map(TunerSession::rows_model_rc)
-                .unwrap_or_else(empty_rows_model);
-            // Powering on auto-engages mute so the user can tune silently
-            // without an extra click. They can still toggle it off after.
-            if let Some(rt) = project_runtime.borrow().as_ref() {
-                rt.set_output_muted(true);
+            if enabled {
+                let new_session = build_session(&project_session, &project_runtime);
+                let rows = new_session
+                    .as_ref()
+                    .map(TunerSession::rows_model_rc)
+                    .unwrap_or_else(empty_rows_model);
+                // Powering on auto-engages mute so the user can tune silently
+                // without an extra click. They can still toggle it off after.
+                if let Some(rt) = project_runtime.borrow().as_ref() {
+                    rt.set_output_muted(true);
+                }
+                // Always reflect the new enabled state on the UI, even when
+                // no session could be built (no runtime / no active chain).
+                // Otherwise the sprite would stay stuck at OFF and the user
+                // would have to find another way to power the tuner back on.
+                if let Some(tw) = tuner_window_weak.upgrade() {
+                    tw.set_tuner_rows(rows.clone());
+                    tw.set_mute_active(true);
+                    tw.set_tuner_enabled(true);
+                }
+                if let Some(mw) = main_window_weak.upgrade() {
+                    mw.set_tuner_rows(rows);
+                    mw.set_tuner_mute_active(true);
+                    mw.set_tuner_enabled(true);
+                }
+                *tuner_session.borrow_mut() = new_session;
+                start_polling_timer(
+                    &tuner_timer,
+                    &tuner_session,
+                    &project_session,
+                    &project_runtime,
+                    &tuner_window_weak,
+                    &main_window_weak,
+                );
+            } else {
+                teardown_session(&tuner_timer, &tuner_session, &project_runtime);
+                // Power off also clears the row list and mute toggle so the
+                // window reflects the "stopped" state instead of stale rows
+                // or a stuck red LED.
+                let empty = empty_rows_model();
+                if let Some(tw) = tuner_window_weak.upgrade() {
+                    tw.set_tuner_rows(empty.clone());
+                    tw.set_mute_active(false);
+                    tw.set_tuner_enabled(false);
+                }
+                if let Some(mw) = main_window_weak.upgrade() {
+                    mw.set_tuner_rows(empty);
+                    mw.set_tuner_mute_active(false);
+                    mw.set_tuner_enabled(false);
+                }
             }
-            // Always reflect the new enabled state on the UI, even when
-            // no session could be built (no runtime / no active chain).
-            // Otherwise the sprite would stay stuck at OFF and the user
-            // would have to find another way to power the tuner back on.
-            if let Some(tw) = tuner_window_weak.upgrade() {
-                tw.set_tuner_rows(rows.clone());
-                tw.set_mute_active(true);
-                tw.set_tuner_enabled(true);
-            }
-            if let Some(mw) = main_window_weak.upgrade() {
-                mw.set_tuner_rows(rows);
-                mw.set_tuner_mute_active(true);
-                mw.set_tuner_enabled(true);
-            }
-            *tuner_session.borrow_mut() = new_session;
-            start_polling_timer(
-                &tuner_timer,
-                &tuner_session,
-                &project_session,
-                &project_runtime,
-                &tuner_window_weak,
-                &main_window_weak,
-            );
-        } else {
-            teardown_session(&tuner_timer, &tuner_session, &project_runtime);
-            // Power off also clears the row list and mute toggle so the
-            // window reflects the "stopped" state instead of stale rows
-            // or a stuck red LED.
-            let empty = empty_rows_model();
-            if let Some(tw) = tuner_window_weak.upgrade() {
-                tw.set_tuner_rows(empty.clone());
-                tw.set_mute_active(false);
-                tw.set_tuner_enabled(false);
-            }
-            if let Some(mw) = main_window_weak.upgrade() {
-                mw.set_tuner_rows(empty);
-                mw.set_tuner_mute_active(false);
-                mw.set_tuner_enabled(false);
-            }
-        }
-    };
+        };
     let cloned = on_toggle_enabled.clone();
     window.on_toggle_tuner_enabled(cloned);
     tuner_window.on_toggle_enabled(on_toggle_enabled);

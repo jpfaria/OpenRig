@@ -20,7 +20,10 @@ pub(super) use project::chain::Chain;
 pub(super) use project::param::ParameterSet;
 pub(super) use project::project::Project;
 
-pub(super) use crate::command::Command;
+pub(super) use crate::command::{
+    BlockCommand, ChainCommand, Command, MidiCommand, ProjectCommand, SelectionCommand,
+    SettingsCommand,
+};
 pub(super) use crate::dispatcher::CommandDispatcher;
 pub(super) use crate::event::Event;
 pub(super) use crate::local_dispatcher::LocalDispatcher;
@@ -132,10 +135,10 @@ fn toggle_block_enabled_flips_true_to_false_and_emits_event() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ToggleBlockEnabled {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -164,10 +167,10 @@ fn toggle_block_enabled_non_existent_block_returns_err_no_mutation() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ToggleBlockEnabled {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     assert!(
@@ -181,10 +184,10 @@ fn toggle_block_enabled_non_existent_chain_returns_err_no_mutation() {
     let project = make_project("chain_0", make_core_block("blk_0", true));
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::ToggleBlockEnabled {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
         chain: ChainId("chain_MISSING".to_string()),
         block: BlockId("blk_0".to_string()),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
     assert!(
@@ -201,12 +204,12 @@ fn set_block_parameter_number_writes_value_and_emits_event() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterNumber {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "gain".to_string(),
         value: 0.8,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -242,12 +245,12 @@ fn set_block_parameter_number_non_existent_block_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterNumber {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         path: "gain".to_string(),
         value: 0.8,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     // Original value must be unchanged
@@ -275,12 +278,12 @@ fn set_block_parameter_number_unknown_path_inserts_without_touching_other_params
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterNumber {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "newly_exposed_param".to_string(),
         value: 0.8,
-    });
+    }));
 
     assert!(
         result.is_ok(),
@@ -311,12 +314,12 @@ fn set_block_parameter_bool_writes_value_and_emits_event() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterBool {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterBool {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "bypass".to_string(),
         value: true,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -347,12 +350,12 @@ fn set_block_parameter_bool_non_existent_block_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterBool {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterBool {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         path: "bypass".to_string(),
         value: true,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     let proj = project.borrow();
@@ -372,12 +375,12 @@ fn set_block_parameter_bool_non_existent_path_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterBool {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterBool {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "no_such_param".to_string(),
         value: true,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing path, got Ok");
     let err_msg = result.unwrap_err().to_string();
@@ -404,12 +407,12 @@ fn set_block_parameter_text_writes_value_and_emits_event() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterText {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterText {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "label".to_string(),
         value: "new_value".to_string(),
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -440,12 +443,12 @@ fn set_block_parameter_text_non_existent_block_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterText {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterText {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         path: "label".to_string(),
         value: "new_value".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     let proj = project.borrow();
@@ -465,12 +468,12 @@ fn set_block_parameter_text_non_existent_path_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SetBlockParameterText {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SetBlockParameterText {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "no_such_param".to_string(),
         value: "new_value".to_string(),
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing path, got Ok");
     let err_msg = result.unwrap_err().to_string();
@@ -497,13 +500,13 @@ fn select_block_parameter_option_writes_value_and_emits_event() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SelectBlockParameterOption {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SelectBlockParameterOption {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "mode".to_string(),
         value: "option_b".to_string(),
         index: 1,
-    });
+    }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
@@ -534,13 +537,13 @@ fn select_block_parameter_option_non_existent_block_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SelectBlockParameterOption {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SelectBlockParameterOption {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         path: "mode".to_string(),
         value: "option_b".to_string(),
         index: 1,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");
     let proj = project.borrow();
@@ -560,13 +563,13 @@ fn select_block_parameter_option_non_existent_path_returns_err() {
     let project = make_project("chain_0", block);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
-    let result = dispatcher.dispatch(Command::SelectBlockParameterOption {
+    let result = dispatcher.dispatch(Command::Block(BlockCommand::SelectBlockParameterOption {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         path: "no_such_param".to_string(),
         value: "option_b".to_string(),
         index: 1,
-    });
+    }));
 
     assert!(result.is_err(), "expected Err for missing path, got Ok");
     let err_msg = result.unwrap_err().to_string();

@@ -1,59 +1,34 @@
 //! #791 — Tone Doctor closures for the chain windows (main + compact).
 //!
-//! The diagnosis is EXPENSIVE (re-renders the chain many times, NAM reloads
-//! from disk) so it runs on a background thread; the result is marshalled back
-//! with `invoke_from_event_loop`.
+//! These are dispatchers, nothing more: Diagnose and Apply are `Command`s the
+//! `LocalDispatcher` owns, so MCP and gRPC reach the same doctor (the panel
+//! used to run the ablation itself, which is exactly the gap that reopened
+//! this issue). The verdict comes back as `Event::ChainToneDiagnosed` on the
+//! frontend drain and lands on the panel via `tone_doctor_events`.
 //!
 //! Signal source, gated (the user's rule "a DI must be running OR the chain
-//! must be active"):
-//!   - a DI is selected for the chain → render that DI file, analyse the OUTPUT.
-//!   - else the chain has a live runtime → capture N seconds of the player's
-//!     guitar from the input tap, render it, analyse the OUTPUT.
-//!   - neither → the panel shows "play a DI or enable the chain".
-//! The measurement is ALWAYS the chain output (the whole tone). The user picks
-//! N (the analyse duration) in the panel.
+//! must be active"): the dispatcher prefers the chain's loaded DI loop and
+//! falls back to the live input this module registers. Neither → the command
+//! errors and the panel says there is nothing to analyse. The measurement is
+//! ALWAYS the chain output (the whole tone); the user picks the window length
+//! (N seconds) in the panel.
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use application::di_loader::load_di_loop;
+use application::command::{Command, ToneDoctorCommand};
 use application::dispatcher::CommandDispatcher;
 use engine::spsc::SpscRing;
-use engine::tone_doctor_suggestion::Suggestion;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, Weak};
 
 use crate::helpers::set_status_error;
 use crate::state::ProjectSession;
-use crate::tone_doctor_wiring::ToneDoctorView;
 use crate::{AppWindow, CompactChainViewWindow, ToneDoctorState};
 
-/// Fixed block size for the offline diagnosis render.
-const DIAGNOSE_BLOCK: usize = 512;
-
-type SuggestionCache = Arc<Mutex<Option<Suggestion>>>;
 type ProjectRuntime = Rc<RefCell<Option<ProjectRuntimeController>>>;
-
-/// Push a `ToneDoctorView` onto the panel's global.
-fn apply_view(st: &ToneDoctorState, view: &ToneDoctorView) {
-    st.set_running(view.running);
-    st.set_has_result(view.has_result);
-    st.set_symptom_level(view.symptom_level);
-    st.set_symptom_text(view.symptom_text.clone().into());
-    st.set_culprit_label(view.culprit_label.clone().into());
-    st.set_has_suggestion(view.has_suggestion);
-    st.set_suggestion_text(view.suggestion_text.clone().into());
-    st.set_fizz_value(view.fizz_value);
-    st.set_fizz_limit(view.fizz_limit);
-    st.set_mud_value(view.mud_value);
-    st.set_mud_limit(view.mud_limit);
-    st.set_boom_value(view.boom_value);
-    st.set_boom_limit(view.boom_limit);
-    st.set_clip_value(view.clip_value);
-    st.set_clip_limit(view.clip_limit);
-}
 
 /// Record up to `seconds` of the mono input tap, broadcast to stereo frames.
 /// Polls the lock-free ring; the player should be playing during the window.
@@ -78,42 +53,22 @@ fn record(ring: Arc<SpscRing<f32>>, sr: f32, seconds: usize) -> Vec<[f32; 2]> {
     mono.into_iter().map(|s| [s, s]).collect()
 }
 
-/// Run the diagnosis on a background thread. `produce` yields the input frames +
-/// sample rate (DI decode or live capture — both blocking, hence off-thread).
-fn spawn<F, D>(
-    chain: project::chain::Chain,
-    limits: feature_dsp::tone_descriptors::SymptomLimits,
-    cache: SuggestionCache,
-    seconds: usize,
-    produce: F,
-    on_done: D,
-) where
-    F: FnOnce() -> Option<(Vec<[f32; 2]>, f32)> + Send + 'static,
-    D: FnOnce(ToneDoctorView) + Send + 'static,
-{
-    std::thread::spawn(move || {
-        let view = match produce() {
-            Some((mut input, sr)) => {
-                let cap = seconds * sr as usize;
-                if input.len() > cap {
-                    input.truncate(cap);
-                }
-                let (view, suggestion) = crate::tone_doctor_wiring::diagnose_to_view(
-                    &chain,
-                    &input,
-                    sr,
-                    DIAGNOSE_BLOCK,
-                    limits,
-                );
-                if let Ok(mut c) = cache.lock() {
-                    *c = suggestion;
-                }
-                view
-            }
-            None => ToneDoctorView::default(),
-        };
-        let _ = slint::invoke_from_event_loop(move || on_done(view));
-    });
+/// Give the dispatcher a way to capture this machine's live input, so a chain
+/// with no DI is diagnosable from any transport, not just from the GUI.
+/// Subscribing to the tap happens on the calling thread; only the fill blocks.
+fn attach_live_input(session: &ProjectSession, project_runtime: &ProjectRuntime) {
+    let project_runtime = project_runtime.clone();
+    session
+        .dispatcher
+        .attach_tone_doctor_input(Box::new(move |chain_id, seconds| {
+            let rt_borrow = project_runtime.borrow();
+            let rt = rt_borrow.as_ref()?;
+            let sr = rt.sample_rate();
+            let ring = rt.subscribe_stream_input_tap(chain_id, 0, seconds * sr as usize)?;
+            Some(Box::new(move || {
+                Some((record(ring, sr as f32, seconds), sr as f32))
+            }))
+        }));
 }
 
 /// Genres from the calibrated table matching `query` (case-insensitive
@@ -147,97 +102,66 @@ fn genre_options(query: &str) -> slint::ModelRc<crate::SelectOption> {
     slint::ModelRc::new(slint::VecModel::from(rows))
 }
 
-/// Resolve the culprit's chain by index.
-fn resolve_chain(
-    session: &ProjectSession,
-    chain_index: i32,
-) -> Option<(project::chain::Chain, domain::ids::ChainId)> {
-    let proj = session.project.borrow();
-    proj.chains
+/// The chain id at `chain_index`, if it still exists.
+fn chain_id_at(session: &ProjectSession, chain_index: i32) -> Option<domain::ids::ChainId> {
+    session
+        .project
+        .borrow()
+        .chains
         .get(chain_index as usize)
-        .map(|c| (c.clone(), c.id.clone()))
+        .map(|c| c.id.clone())
 }
 
-/// Kick off a run: flip the panel to running, pick the signal source (DI or
-/// live capture) per the gate, and spawn. On no signal, disable the button.
-fn start_run(
-    st: &ToneDoctorState,
-    session: &ProjectSession,
-    project_runtime: &ProjectRuntime,
-    chain_index: i32,
-    cache: SuggestionCache,
-    on_done: impl FnOnce(ToneDoctorView) + Send + 'static,
-) {
-    st.set_running(true);
-    let seconds = (st.get_analyze_seconds().max(1)) as usize;
-    let Some((chain, chain_id)) = resolve_chain(session, chain_index) else {
+/// Ask the dispatcher for a diagnosis. The panel flips to "running" and waits
+/// for `Event::ChainToneDiagnosed`; a command error (no DI, no live chain)
+/// clears it right away.
+fn start_run(st: &ToneDoctorState, session: &ProjectSession, chain_index: i32) {
+    let Some(chain) = chain_id_at(session, chain_index) else {
         st.set_running(false);
         return;
     };
-
+    let seconds = st.get_analyze_seconds().max(1) as u32;
     // The player's selected genre (empty ⇒ none) picks the calibrated limits;
     // unknown/none falls back to the global defaults inside the table.
     let genre = st.get_tone_genre();
     let genre = (!genre.is_empty()).then(|| genre.to_string());
-    let limits = engine::tone_profile_table::ProfileTable::embedded().limits_for(genre.as_deref());
 
-    // 1) a DI selected for the chain → render that file.
-    if let Some(source) = session.dispatcher.di_loop_source_for_chain(&chain_id) {
-        st.set_can_diagnose(true);
-        st.set_source_kind("di".into());
-        spawn(
+    // Which source the dispatcher will use, for the panel's label.
+    let has_di = session
+        .dispatcher
+        .di_loop_source_for_chain(&chain)
+        .is_some();
+    st.set_source_kind(if has_di { "di".into() } else { "live".into() });
+    st.set_running(true);
+
+    match session
+        .dispatcher
+        .dispatch(Command::ToneDoctor(ToneDoctorCommand::DiagnoseChainTone {
             chain,
-            limits,
-            cache,
-            seconds,
-            move || {
-                load_di_loop(&source)
-                    .ok()
-                    .map(|di| (di.stereo_frames(), di.src_sr() as f32))
-            },
-            on_done,
-        );
-        return;
+            genre,
+            seconds: Some(seconds),
+        })) {
+        Ok(_) => st.set_can_diagnose(true),
+        Err(_) => {
+            // No DI and no live runtime: nothing to analyse.
+            st.set_can_diagnose(false);
+            st.set_source_kind(slint::SharedString::new());
+            st.set_running(false);
+        }
     }
-
-    // 2) the chain is live → capture N seconds of the input tap.
-    let tap = project_runtime.borrow().as_ref().and_then(|rt| {
-        let sr = rt.sample_rate();
-        rt.subscribe_stream_input_tap(&chain_id, 0, seconds * sr as usize)
-            .map(|ring| (ring, sr as f32))
-    });
-    if let Some((ring, sr)) = tap {
-        st.set_can_diagnose(true);
-        st.set_source_kind("live".into());
-        spawn(
-            chain,
-            limits,
-            cache,
-            seconds,
-            move || Some((record(ring, sr, seconds), sr)),
-            on_done,
-        );
-        return;
-    }
-
-    // 3) neither → nothing to analyse.
-    st.set_can_diagnose(false);
-    st.set_source_kind(slint::SharedString::new());
-    st.set_running(false);
 }
 
-/// Dispatch the cached suggestion (enable gate + set number) for `chain_index`,
-/// then re-sync the chain's live runtime so the change is heard at once. Errors
-/// surface as a toast on the main window.
-fn apply_suggestion(
+/// Dispatch the diagnosed fix for `chain_index`, then re-sync that chain's live
+/// runtime so the change is heard at once. Errors surface as a toast on the
+/// main window.
+fn apply_fix(
     session: &ProjectSession,
     project_runtime: &ProjectRuntime,
     chain_index: i32,
-    cache: &SuggestionCache,
     main_weak: &Weak<AppWindow>,
     toast_timer: &Rc<slint::Timer>,
 ) {
-    let result = apply_cached_suggestion(session, chain_index, cache, |chain_id| {
+    let result = apply_fix_inner(session, chain_index, |chain_id| {
         crate::sync_live_chain_runtime(project_runtime, session, chain_id)
     });
     if let Err(err) = result {
@@ -247,39 +171,35 @@ fn apply_suggestion(
     }
 }
 
-/// Windowless core: dispatch the cached suggestion's commands, then re-sync the
-/// chain's live runtime via `sync_runtime` so the change is audible at once.
+/// Windowless core: dispatch the fix, then re-sync the chain's live runtime via
+/// `sync_runtime` so the change is audible at once.
 ///
 /// #808: this used to stop right after `dispatch`. The command mutated the
 /// project model but nothing re-synced the runtime, so a doctor fix changed no
 /// sound — and, while monitoring a DI (a dedicated pre-render, #717/#771),
 /// NOTHING changed until a block toggle happened to re-arm it. Every other
 /// param surface (`block_parameter_wiring`, `block_editor_persist`) syncs after
-/// dispatch; the doctor's apply is now on the same footing.
-fn apply_cached_suggestion(
+/// dispatch; the doctor's apply is on the same footing.
+fn apply_fix_inner(
     session: &ProjectSession,
     chain_index: i32,
-    cache: &SuggestionCache,
     sync_runtime: impl FnOnce(&domain::ids::ChainId) -> anyhow::Result<()>,
 ) -> anyhow::Result<()> {
-    let Some(suggestion) = cache.lock().ok().and_then(|c| c.clone()) else {
+    let Some(chain) = chain_id_at(session, chain_index) else {
         return Ok(());
     };
-    let Some((chain_clone, chain_id)) = resolve_chain(session, chain_index) else {
-        return Ok(());
-    };
-    for cmd in crate::tone_doctor_wiring::apply_commands(&chain_clone, &chain_id, &suggestion) {
-        session
-            .dispatcher
-            .dispatch(cmd)
-            .map_err(|e| anyhow::anyhow!(e))?;
-    }
-    sync_runtime(&chain_id)
+    session
+        .dispatcher
+        .dispatch(Command::ToneDoctor(ToneDoctorCommand::ApplyToneDoctorFix {
+            chain: chain.clone(),
+        }))
+        .map_err(|e| anyhow::anyhow!(e))?;
+    sync_runtime(&chain)
 }
 
 #[cfg(test)]
 #[path = "tone_doctor_compact_wiring_tests.rs"]
-mod apply_suggestion_tests;
+mod tests;
 
 /// Wire the compact window's Tone Doctor run/apply for its single `chain_index`.
 pub(crate) fn wire(
@@ -290,7 +210,7 @@ pub(crate) fn wire(
     main_weak: Weak<AppWindow>,
     toast_timer: Rc<slint::Timer>,
 ) {
-    let cache: SuggestionCache = Arc::new(Mutex::new(None));
+    crate::tone_doctor_events::register_compact(compact_win.as_weak());
     {
         let st = compact_win.global::<ToneDoctorState>();
         st.set_genre_options(genre_options(""));
@@ -305,7 +225,6 @@ pub(crate) fn wire(
     {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();
-        let cache = cache.clone();
         let weak = compact_win.as_weak();
         compact_win.on_tone_doctor_run(move |_ci| {
             let Some(win) = weak.upgrade() else {
@@ -317,19 +236,10 @@ pub(crate) fn wire(
                 st.set_running(false);
                 return;
             };
-            let w2 = win.as_weak();
-            start_run(
-                &st,
-                session,
-                &project_runtime,
-                chain_index,
-                cache.clone(),
-                move |view| {
-                    if let Some(win) = w2.upgrade() {
-                        apply_view(&win.global::<ToneDoctorState>(), &view);
-                    }
-                },
-            );
+            // Re-registered per run so a device change (new runtime) is picked
+            // up without restarting the app.
+            attach_live_input(session, &project_runtime);
+            start_run(&st, session, chain_index);
         });
     }
     {
@@ -340,11 +250,10 @@ pub(crate) fn wire(
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_suggestion(
+            apply_fix(
                 session,
                 &project_runtime,
                 chain_index,
-                &cache,
                 &main_weak,
                 &toast_timer,
             );
@@ -359,8 +268,8 @@ pub(crate) fn wire_main(
     project_runtime: ProjectRuntime,
     toast_timer: Rc<slint::Timer>,
 ) {
-    let cache: SuggestionCache = Arc::new(Mutex::new(None));
     let main_weak = window.as_weak();
+    crate::tone_doctor_events::register_main(window.as_weak());
     {
         let st = window.global::<ToneDoctorState>();
         st.set_genre_options(genre_options(""));
@@ -375,7 +284,6 @@ pub(crate) fn wire_main(
     {
         let project_session = project_session.clone();
         let project_runtime = project_runtime.clone();
-        let cache = cache.clone();
         let weak = window.as_weak();
         window.on_tone_doctor_run(move |ci| {
             let Some(win) = weak.upgrade() else {
@@ -387,19 +295,8 @@ pub(crate) fn wire_main(
                 st.set_running(false);
                 return;
             };
-            let w2 = win.as_weak();
-            start_run(
-                &st,
-                session,
-                &project_runtime,
-                ci,
-                cache.clone(),
-                move |view| {
-                    if let Some(win) = w2.upgrade() {
-                        apply_view(&win.global::<ToneDoctorState>(), &view);
-                    }
-                },
-            );
+            attach_live_input(session, &project_runtime);
+            start_run(&st, session, ci);
         });
     }
     {
@@ -410,18 +307,7 @@ pub(crate) fn wire_main(
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_suggestion(
-                session,
-                &project_runtime,
-                ci,
-                &cache,
-                &main_weak,
-                &toast_timer,
-            );
+            apply_fix(session, &project_runtime, ci, &main_weak, &toast_timer);
         });
     }
 }
-
-#[cfg(test)]
-#[path = "tone_doctor_compact_wiring_tests.rs"]
-mod tests;

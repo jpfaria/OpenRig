@@ -18,7 +18,7 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use application::command::Command;
+use application::command::{Command, ProjectCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use project::project::Project;
@@ -47,7 +47,7 @@ fn issue_693_dispatch_returns_immediately_even_when_side_effect_io_is_stuck() {
         })));
         dispatcher.attach_project_path(fifo_for_caller);
         let t0 = Instant::now();
-        let _ = dispatcher.dispatch(Command::SaveProject);
+        let _ = dispatcher.dispatch(Command::Project(ProjectCommand::SaveProject));
         let _ = done_tx.send(t0.elapsed());
     });
 

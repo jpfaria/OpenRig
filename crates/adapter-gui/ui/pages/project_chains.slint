@@ -5,6 +5,7 @@ import { ChainRow } from "./chain_row.slint";
 import { BlockEditorPanel } from "./block_editor_panel.slint";
 import { HeaderIconAction } from "../components/chain_chips.slint";
 import { BlockTypeCard } from "../components/block_value_widgets.slint";
+import { MetronomeBridge } from "../components/metronome_globals.slint";
 import { BlockParamTabs } from "../components/block_param_tabs_globals.slint";
 
 export component ProjectChainsPage inherits Rectangle {
@@ -51,6 +52,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-project();
     callback open-tuner-window();
     callback open-spectrum-window();
+    callback open-metronome-window();
     callback remove-chain(int);
     in property <[ChainRigNav]> chain-rig-nav;
     callback switch-chain-preset(int, int);
@@ -139,7 +141,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         if !root.skip-launcher : HeaderIconAction {
-            x: parent.width - 240px;
+            x: parent.width - 280px;
             y: 14px;
             icon: @image-url("../assets/arrow-left.svg");
             tooltip: @tr("tooltip-back");
@@ -147,7 +149,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 200px;
+            x: parent.width - 240px;
             y: 14px;
             icon: @image-url("../assets/spectrum.svg");
             tooltip: @tr("tooltip-spectrum");
@@ -155,11 +157,22 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 160px;
+            x: parent.width - 200px;
             y: 14px;
             icon: @image-url("../assets/tuner.svg");
             tooltip: @tr("tooltip-tuner");
             clicked => { root.open-tuner-window(); }
+        }
+
+        HeaderIconAction {
+            x: parent.width - 160px;
+            y: 14px;
+            icon: @image-url("../assets/metronome.svg");
+            // Lit while the click is playing, so a closed metronome is still
+            // visibly running from the top bar.
+            active: MetronomeBridge.metronome-enabled;
+            tooltip: @tr("tooltip-metronome");
+            clicked => { root.open-metronome-window(); }
         }
 
         HeaderIconAction {

@@ -1,195 +1,97 @@
-//! Tests for the Tone Doctor GUI wiring (pure functions).
+//! Tests for the Tone Doctor GUI mapping (pure function).
+//!
+//! The diagnosis itself is the dispatcher's (`application`'s tests pin it);
+//! what the panel owns is turning that verdict into fields a human reads.
 
-use std::sync::Once;
-
-use domain::ids::{BlockId, ChainId};
-use domain::value_objects::ParameterValue;
-use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
-use project::chain::Chain;
-use project::param::ParameterSet;
+use application::tone_doctor_report::{ToneFix, ToneMeasurement, ToneReport};
+use domain::ids::BlockId;
 
 use super::*;
 
-const SR: f32 = 48_000.0;
-const BUF: usize = 64;
-
-fn init() {
-    static I: Once = Once::new();
-    I.call_once(|| engine::native_registry::register_all_natives());
+fn measurement(value: f32, limit: f32) -> ToneMeasurement {
+    ToneMeasurement { value, limit }
 }
 
-fn params(model: &str, values: &[(&str, f32)]) -> ParameterSet {
-    let schema = schema_for_block_model("gain", model).unwrap();
-    let mut ps = ParameterSet::default();
-    for (k, v) in values {
-        ps.insert(*k, ParameterValue::Float(*v));
-    }
-    ps.normalized_against(&schema).unwrap()
-}
-
-fn core_block(id: &str, model: &str, ps: ParameterSet) -> AudioBlock {
-    AudioBlock {
-        id: BlockId(id.into()),
-        enabled: true,
-        kind: AudioBlockKind::Core(CoreBlock {
-            effect_type: "gain".into(),
-            model: model.into(),
-            params: ps,
-        }),
+fn report(symptom: &str, severity: i32, suggestion: Option<ToneFix>) -> ToneReport {
+    ToneReport {
+        symptom: symptom.into(),
+        severity,
+        culprit: suggestion.as_ref().map(|s| s.block.clone()),
+        culprit_label: if suggestion.is_some() {
+            "Silicon Fuzz".into()
+        } else {
+            String::new()
+        },
+        fizz: measurement(0.30, 0.18),
+        mud: measurement(0.10, 0.35),
+        boom: measurement(0.08, 0.30),
+        clip: measurement(0.00, 0.01),
+        suggestion,
     }
 }
 
-fn chain(blocks: Vec<AudioBlock>) -> Chain {
-    Chain {
-        id: ChainId("c".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec![],
-        blocks,
-        di_output: None,
-        loopers: vec![],
+fn fix(enable_path: Option<&str>) -> ToneFix {
+    ToneFix {
+        block: BlockId("fz".into()),
+        param_path: "tone".into(),
+        param_label: "Tone".into(),
+        current: 70.0,
+        suggested: 45.0,
+        enable_path: enable_path.map(str::to_string),
+        rationale: String::new(),
     }
-}
-
-fn di_sine() -> Vec<[f32; 2]> {
-    (0..SR as usize)
-        .map(|i| {
-            let s = 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / SR).sin();
-            [s, s]
-        })
-        .collect()
 }
 
 #[test]
-fn fuzz_chain_view_reports_fizz_culprit_and_suggestion() {
-    init();
-    let c = chain(vec![
-        core_block("vol", "volume", params("volume", &[("volume", 80.0)])),
-        core_block(
-            "fz",
-            "fuzz_si",
-            params(
-                "fuzz_si",
-                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
-            ),
-        ),
-    ]);
-    let (view, suggestion) = diagnose_to_view(
-        &c,
-        &di_sine(),
-        SR,
-        BUF,
-        feature_dsp::tone_descriptors::SymptomLimits::DEFAULT,
-    );
+fn a_fizz_verdict_becomes_a_red_panel_with_culprit_and_move() {
+    let view = view_from_report(&report("Fizz", 2, Some(fix(None))));
 
     assert!(view.has_result, "{view:?}");
-    assert!(!view.running, "run completed: {view:?}");
-    assert_eq!(
-        view.symptom_level, 2,
-        "fizz is a red-level symptom: {view:?}"
-    );
+    assert!(!view.running, "the run is over: {view:?}");
+    assert_eq!(view.symptom_level, 2, "fizz is red: {view:?}");
     assert_eq!(view.symptom_text, "Fizz", "{view:?}");
-    assert_eq!(
-        view.culprit_label,
-        project::catalog::model_display_name("gain", "fuzz_si"),
-        "the panel shows the plugin's display name, not the id: {view:?}"
-    );
+    assert_eq!(view.culprit_label, "Silicon Fuzz", "{view:?}");
     assert!(view.has_suggestion, "{view:?}");
-    assert!(
-        !view.suggestion_text.is_empty(),
-        "shows the measured move: {view:?}"
+    assert_eq!(
+        view.suggestion_text, "Tone 70 → 45",
+        "the panel shows the measured move: {view:?}"
     );
     // The measurements travel to the panel meters.
     assert!(
         view.fizz_value > view.fizz_limit,
         "fizz over its limit: {view:?}"
     );
-    assert_eq!(
-        view.fizz_limit,
-        feature_dsp::tone_descriptors::FIZZ_RATIO_LIMIT
-    );
-    // Measured, not guessed: the fix targets the culprit and lowers a knob.
-    // (Which knob is whichever measurably clears the fizz — proven in engine's
-    // tone_doctor_fix tests.)
-    let s = suggestion.expect("a suggestion is cached for Apply");
-    assert_eq!(s.block_index, 1, "targets the fuzz");
-    assert!(s.suggested < s.current, "lowers it: {s:?}");
+    assert_eq!(view.fizz_limit, 0.18, "{view:?}");
 }
 
 #[test]
-fn healthy_chain_view_has_no_result_flag_set_but_no_culprit() {
-    init();
-    let c = chain(vec![core_block(
-        "vol",
-        "volume",
-        params("volume", &[("volume", 80.0)]),
-    )]);
-    let (view, suggestion) = diagnose_to_view(
-        &c,
-        &di_sine(),
-        SR,
-        BUF,
-        feature_dsp::tone_descriptors::SymptomLimits::DEFAULT,
+fn a_gated_knob_says_which_group_gets_switched_on() {
+    let view = view_from_report(&report("Mud", 1, Some(fix(Some("eq.enabled")))));
+
+    assert_eq!(
+        view.suggestion_text, "EQ on · Tone 70 → 45",
+        "the panel warns that applying also switches the group on: {view:?}"
     );
+}
+
+#[test]
+fn a_healthy_verdict_reads_ok_with_no_culprit() {
+    let view = view_from_report(&report("Ok", 0, None));
 
     assert!(view.has_result, "a run happened: {view:?}");
     assert_eq!(view.symptom_level, 0, "healthy = green: {view:?}");
-    assert_eq!(view.symptom_text, "OK", "{view:?}");
+    assert_eq!(view.symptom_text, "OK", "on screen it reads OK: {view:?}");
     assert!(view.culprit_label.is_empty(), "{view:?}");
     assert!(!view.has_suggestion, "{view:?}");
-    assert!(suggestion.is_none(), "{view:?}");
+    assert!(view.suggestion_text.is_empty(), "{view:?}");
 }
 
 #[test]
-fn apply_command_targets_the_culprit_block() {
-    init();
-    let c = chain(vec![
-        core_block("vol", "volume", params("volume", &[("volume", 80.0)])),
-        core_block(
-            "fz",
-            "fuzz_si",
-            params(
-                "fuzz_si",
-                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
-            ),
-        ),
-    ]);
-    let (_view, suggestion) = diagnose_to_view(
-        &c,
-        &di_sine(),
-        SR,
-        BUF,
-        feature_dsp::tone_descriptors::SymptomLimits::DEFAULT,
-    );
-    let s = suggestion.expect("suggestion");
-    let cmds = apply_commands(&c, &c.id, &s);
-    // A native fuzz knob is always live (no enable gate) → a single command.
-    assert_eq!(cmds.len(), 1, "{cmds:?}");
-    match &cmds[0] {
-        Command::SetBlockParameterNumber {
-            chain,
-            block,
-            path,
-            value,
-        } => {
-            assert_eq!(*chain, c.id);
-            assert_eq!(*block, BlockId("fz".into()), "targets the fuzz");
-            assert_eq!(path, &s.param_path);
-            assert!((*value as f32) < s.current, "lowers the knob: {value}");
-        }
-        other => panic!("wrong command: {other:?}"),
-    }
-}
+fn a_fractional_knob_keeps_one_decimal() {
+    let mut f = fix(None);
+    f.current = 5.5;
+    f.suggested = 3.0;
+    let view = view_from_report(&report("Fizz", 2, Some(f)));
 
-#[test]
-fn culprit_label_shows_the_plugin_name_not_the_internal_id() {
-    init();
-    let c = chain(vec![core_block("fz", "fuzz_si", params("fuzz_si", &[]))]);
-    let label = culprit_label(&c, Some(0));
-    let friendly = project::catalog::model_display_name("gain", "fuzz_si");
-    assert!(!friendly.is_empty(), "the model has a display name");
-    assert_eq!(label, friendly, "the panel shows the plugin's display name");
-    assert_ne!(label, "gain:fuzz_si", "never the internal effect:model id");
+    assert_eq!(view.suggestion_text, "Tone 5.5 → 3", "{view:?}");
 }

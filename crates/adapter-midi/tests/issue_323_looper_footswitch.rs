@@ -3,7 +3,7 @@
 //! first looper (uid 0 = the sentinel the dispatcher resolves).
 
 use adapter_midi::slots::{slot_to_command, IncomingMessage};
-use application::command::{Command, LooperAction};
+use application::command::{Command, LooperAction, LooperCommand};
 use application::SelectionState;
 
 fn selection() -> SelectionState {
@@ -32,11 +32,11 @@ fn every_looper_slot_maps_to_its_transport_action() {
         let cmd = slot_to_command(slot, &press(), &selection())
             .unwrap_or_else(|| panic!("{slot} must be a known slot"));
         match cmd {
-            Command::SetChainLooperTransport {
+            Command::Looper(LooperCommand::SetChainLooperTransport {
                 chain,
                 looper,
                 action: got,
-            } => {
+            }) => {
                 assert_eq!(chain.0, "chain:1");
                 assert_eq!(looper, 0, "a footswitch addresses the first looper");
                 assert_eq!(got, action);

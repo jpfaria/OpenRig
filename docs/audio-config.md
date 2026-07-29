@@ -385,6 +385,28 @@ language: pt-BR  # ou en-US, ou null para seguir o OS
 
 `load_project_session()` popula `project.device_settings` em memória. YAML do projeto **não persiste** `device_settings` (`skip_serializing`), mas YAML antigo com o campo ainda deserializa.
 
+## Metronome output stream (#14)
+
+The metronome does **not** run inside any chain. It opens its **own** cpal output stream on the device the user picks, and the operating system sums it with whatever else that device is playing — the same shape the DI adopted in #808, and invariant #4 applied literally:
+
+```
+guitar:     [in] -> [chain] -> [out dev A]  \
+                                             > backend sums
+metronome:            [click] -> [out dev A] /
+```
+
+What this buys, and why it is not negotiable:
+
+- **Nothing was added to the guitar's audio path.** `process_output_f32`, `process_output_f32_mixed`, `runtime_process_segment` and the output limiter are untouched, so the metronome cannot regress latency, the volume invariants, or stream stability.
+- **Neither side can break the other.** A chain rebuild, a live block edit or a chain failure cannot chop the click; a missing metronome device cannot stop guitar audio.
+- **The click cannot leak.** It never enters a chain's buffers, so it stays out of that chain's meters, taps, and anything recorded off another output.
+
+There is no ring and no worker thread, unlike the DI: the click is synthesized, so the callback renders it directly from a pre-allocated scratch buffer. Settings reach the callback through atomics versioned by a generation counter (`engine/metronome_state.rs`), so the audio thread neither locks nor allocates (invariant #8). The stream's sample rate comes from the resolved device config — never a constant.
+
+Settings live in **system** config (`config.yaml`), per ADR 0003; `enabled` is not persisted, so the app always starts with the click off.
+
+On the Linux JACK build the dedicated cpal stream is `cfg`-guarded off, matching how `build_di_output_stream` handles the same case.
+
 ## Multi-rate streams (#736)
 
 Two interfaces running at **different sample rates at the same time, in the

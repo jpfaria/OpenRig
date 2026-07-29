@@ -11,11 +11,11 @@
 //! * `Query::GetPlugin { id }` — single entry by id, `null` when not
 //!   present. Lets the agent "find" or "get" without paging the full
 //!   list every time.
-//! * `Command::LoadPlugin { id }` — bring a single plugin into the
+//! * `PluginCommand::LoadPlugin { id }` — bring a single plugin into the
 //!   registry. Re-scans the known plugin roots and adds the one whose
 //!   manifest id matches. Errors cleanly when no package on disk
 //!   carries that id.
-//! * `Command::UnloadPlugin { id }` — remove a single disk plugin
+//! * `PluginCommand::UnloadPlugin { id }` — remove a single disk plugin
 //!   from the in-memory registry. Refuses natives (compiled-in;
 //!   cannot be dropped without restarting the process).
 //!
@@ -32,7 +32,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use application::command::Command;
+use application::command::{Command, PluginCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use application::local_dispatcher::LocalDispatcher;
@@ -51,7 +51,7 @@ fn empty_project_rc() -> Rc<RefCell<Project>> {
 fn seed_natives_and_reload(dispatcher: &LocalDispatcher) {
     engine::native_registry::register_all_natives();
     let _ = dispatcher
-        .dispatch(Command::ReloadPluginCatalog)
+        .dispatch(Command::Plugin(PluginCommand::ReloadPluginCatalog))
         .expect("reload to seed natives");
     // #693: the rescan runs on its own task — wait for the completion.
     wait_async(dispatcher, |e| {
@@ -133,9 +133,9 @@ fn unload_plugin_command_errors_when_id_is_unknown() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let err = dispatcher
-        .dispatch(Command::UnloadPlugin {
+        .dispatch(Command::Plugin(PluginCommand::UnloadPlugin {
             id: "definitely_not_a_real_plugin_id_561".into(),
-        })
+        }))
         .expect_err("unloading an unknown id must error cleanly");
     let msg = err.to_string();
     assert!(
@@ -154,9 +154,9 @@ fn unload_plugin_command_refuses_to_drop_a_native() {
     let native_id = first_id_in_listing(&listing);
 
     let err = dispatcher
-        .dispatch(Command::UnloadPlugin {
+        .dispatch(Command::Plugin(PluginCommand::UnloadPlugin {
             id: native_id.clone(),
-        })
+        }))
         .expect_err("unloading a native must error");
     let msg = err.to_string();
     assert!(
@@ -173,9 +173,9 @@ fn load_plugin_command_errors_when_id_is_unknown_on_disk() {
     // #693: the root scan runs on its own task — the failure surfaces
     // as Event::PluginLoadFailed via the async-completion poll.
     let events = dispatcher
-        .dispatch(Command::LoadPlugin {
+        .dispatch(Command::Plugin(PluginCommand::LoadPlugin {
             id: "definitely_not_a_real_plugin_id_561".into(),
-        })
+        }))
         .expect("dispatch only enqueues the scan");
     assert!(
         events.is_empty(),
@@ -208,7 +208,9 @@ fn load_plugin_command_with_known_native_id_emits_plugin_loaded_event() {
     let id = first_id_in_listing(&listing);
 
     let events = dispatcher
-        .dispatch(Command::LoadPlugin { id: id.clone() })
+        .dispatch(Command::Plugin(PluginCommand::LoadPlugin {
+            id: id.clone(),
+        }))
         .expect("load known id");
     assert!(
         events.is_empty(),

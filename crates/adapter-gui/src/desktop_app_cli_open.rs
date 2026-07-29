@@ -13,7 +13,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{Command, ProjectCommand};
 use application::dispatcher::CommandDispatcher;
 use slint::VecModel;
 
@@ -70,10 +70,12 @@ pub(crate) fn try_auto_open(
             register_recent_project(&mut app_config.borrow_mut(), &canonical_path, &display_name);
             // #436 (sweep): registrar recente via Command (startup CLI).
             if let Some(s) = project_session.borrow().as_ref() {
-                let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
-                    path: canonical_path.clone(),
-                    name: display_name.clone(),
-                });
+                let _ = s.dispatcher.dispatch(Command::Project(
+                    ProjectCommand::RegisterRecentProject {
+                        path: canonical_path.clone(),
+                        name: display_name.clone(),
+                    },
+                ));
             }
             {
                 // #693: config write runs on the persist worker — the

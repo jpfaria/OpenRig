@@ -14,15 +14,18 @@ use anyhow::{anyhow, Result};
 
 use project::chain::{LooperConfig, LOOPER_MAX_PER_CHAIN};
 
-use crate::command::{Command, LooperParam};
+use crate::command::{Command, LooperCommand, LooperParam};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    /// Handle every `*ChainLooper*` command.
+    /// Handle every `LooperCommand`.
     pub(crate) fn handle_looper(&self, cmd: Command) -> Result<Vec<Event>> {
+        let Command::Looper(cmd) = cmd else {
+            unreachable!("handle_looper received a non-looper command: {cmd:?}");
+        };
         match cmd {
-            Command::AddChainLooper { chain } => {
+            LooperCommand::AddChainLooper { chain } => {
                 let mut proj = self.project.borrow_mut();
                 let c = proj
                     .chains
@@ -41,7 +44,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperAdded { chain, looper: uid }])
             }
 
-            Command::RemoveChainLooper { chain, looper } => {
+            LooperCommand::RemoveChainLooper { chain, looper } => {
                 let mut proj = self.project.borrow_mut();
                 let c = proj
                     .chains
@@ -56,7 +59,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperRemoved { chain, looper }])
             }
 
-            Command::SetChainLooperTransport {
+            LooperCommand::SetChainLooperTransport {
                 chain,
                 looper,
                 action,
@@ -69,7 +72,7 @@ impl LocalDispatcher {
                 }])
             }
 
-            Command::SetChainLooperParam {
+            LooperCommand::SetChainLooperParam {
                 chain,
                 looper,
                 param,
@@ -99,7 +102,7 @@ impl LocalDispatcher {
                 }])
             }
 
-            Command::SetChainLooperAudioFile {
+            LooperCommand::SetChainLooperAudioFile {
                 chain,
                 looper,
                 file,
@@ -120,7 +123,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperAudioFileChanged { chain, looper }])
             }
 
-            Command::SetChainLooperInput {
+            LooperCommand::SetChainLooperInput {
                 chain,
                 looper,
                 input,
@@ -129,7 +132,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperInputChanged { chain, looper }])
             }
 
-            Command::SetChainLooperOutput {
+            LooperCommand::SetChainLooperOutput {
                 chain,
                 looper,
                 output,
@@ -138,7 +141,7 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperOutputChanged { chain, looper }])
             }
 
-            Command::SetChainLooperPreset {
+            LooperCommand::SetChainLooperPreset {
                 chain,
                 looper,
                 preset,
@@ -147,7 +150,6 @@ impl LocalDispatcher {
                 Ok(vec![Event::ChainLooperPresetChanged { chain, looper }])
             }
 
-            other => unreachable!("handle_looper received a non-looper command: {other:?}"),
         }
     }
 

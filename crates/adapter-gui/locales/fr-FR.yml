@@ -87,3 +87,8 @@ tone-doctor-no-di: "Sélectionnez d'abord une source DI"
 warn-select-binding: "Sélectionnez au moins une liaison d'E/S pour cette chaîne"
 tone-doctor-analyze: "Analyser"
 tone-doctor-no-signal: "Lancez un DI ou activez la chaîne"
+
+# --- #14 metronome timbre names (the knob's other labels are note values)
+label-metronome-timbre-click: "Clic"
+label-metronome-timbre-wood: "Bois"
+label-metronome-timbre-beep: "Bip"

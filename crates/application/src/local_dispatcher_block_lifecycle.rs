@@ -6,7 +6,7 @@ use anyhow::Result;
 use domain::ids::BlockId;
 
 use crate::block_factory::{build_default_block, resolve_effect_type_for_model};
-use crate::command::Command;
+use crate::command::{BlockCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -14,7 +14,7 @@ impl LocalDispatcher {
     /// Block-lifecycle commands: enable/model swap/add.
     pub(crate) fn handle_block_lifecycle(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::ToggleBlockEnabled { chain, block } => {
+            Command::Block(BlockCommand::ToggleBlockEnabled { chain, block }) => {
                 let new_state = self.with_block(&chain, &block, |b| {
                     // #606: never enable a block whose model is unavailable —
                     // the user cannot activate a pedal whose pack is not
@@ -44,11 +44,11 @@ impl LocalDispatcher {
                     enabled: new_state,
                 }])
             }
-            Command::ReplaceBlockModel {
+            Command::Block(BlockCommand::ReplaceBlockModel {
                 chain,
                 block,
                 model_id,
-            } => {
+            }) => {
                 // Resolve the effect_type for the given model_id by scanning the registry.
                 let effect_type = resolve_effect_type_for_model(&model_id)?;
                 // Build a fresh block with default params for the new model.
@@ -64,12 +64,12 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![Event::BlockReplaced { chain, block }])
             }
-            Command::AddBlock {
+            Command::Block(BlockCommand::AddBlock {
                 chain,
                 kind,
                 model_id,
                 position,
-            } => {
+            }) => {
                 // Build the new block with default params before mutating the project.
                 // A unique id is generated from the chain id + current timestamp-ish counter.
                 let block_id = {
@@ -90,11 +90,11 @@ impl LocalDispatcher {
                     block: new_block_id,
                 }])
             }
-            Command::InsertPrebuiltBlock {
+            Command::Block(BlockCommand::InsertPrebuiltBlock {
                 chain,
                 block,
                 position,
-            } => {
+            }) => {
                 let block_id = block.id.clone();
                 self.with_chain(&chain, |c| {
                     let insert_at = position.min(c.blocks.len());

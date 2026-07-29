@@ -16,6 +16,7 @@ pub mod elastic_prime;
 pub mod input_tap;
 pub mod looper;
 pub mod looper_bank;
+pub mod metronome_state;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;

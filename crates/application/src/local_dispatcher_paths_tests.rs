@@ -1,5 +1,5 @@
-//! Dispatcher tests for `Command::SetPresetsPath` /
-//! `Command::SetPluginsPath` (#513, #540).
+//! Dispatcher tests for `SettingsCommand::SetPresetsPath` /
+//! `SettingsCommand::SetPluginsPath` (#513, #540).
 //!
 //! Pulled out of `local_dispatcher_tests.rs` so that file does not grow
 //! past its size cap (per `validate.sh`). #540 made the handler write
@@ -13,7 +13,7 @@
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::command::Command;
+use crate::command::{Command, SettingsCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -77,9 +77,9 @@ fn set_presets_path_emits_paths_saved() {
         let path = PathBuf::from("/tmp/openrig-test-presets");
 
         let events = dispatcher
-            .dispatch(Command::SetPresetsPath {
+            .dispatch(Command::Settings(SettingsCommand::SetPresetsPath {
                 path: Some(path.clone()),
-            })
+            }))
             .unwrap();
 
         assert_eq!(events, vec![Event::PathsSaved]);
@@ -97,9 +97,9 @@ fn set_plugins_path_emits_paths_saved() {
         let path = PathBuf::from("/tmp/openrig-test-plugins");
 
         let events = dispatcher
-            .dispatch(Command::SetPluginsPath {
+            .dispatch(Command::Settings(SettingsCommand::SetPluginsPath {
                 path: Some(path.clone()),
-            })
+            }))
             .unwrap();
 
         assert_eq!(events, vec![Event::PathsSaved]);
@@ -115,7 +115,9 @@ fn set_presets_path_none_resets_to_default_and_still_emits() {
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
         let events = dispatcher
-            .dispatch(Command::SetPresetsPath { path: None })
+            .dispatch(Command::Settings(SettingsCommand::SetPresetsPath {
+                path: None,
+            }))
             .unwrap();
         assert_eq!(events, vec![Event::PathsSaved]);
     });
@@ -128,7 +130,9 @@ fn set_plugins_path_none_resets_to_default_and_still_emits() {
         let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
         let events = dispatcher
-            .dispatch(Command::SetPluginsPath { path: None })
+            .dispatch(Command::Settings(SettingsCommand::SetPluginsPath {
+                path: None,
+            }))
             .unwrap();
         assert_eq!(events, vec![Event::PathsSaved]);
     });

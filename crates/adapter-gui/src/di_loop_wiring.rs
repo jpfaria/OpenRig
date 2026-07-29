@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
@@ -71,25 +71,28 @@ pub enum DiLoopIntent {
 pub fn di_loop_commands(chain: ChainId, intent: DiLoopIntent) -> Vec<Command> {
     match intent {
         DiLoopIntent::PlayWithNewSource { source } => vec![
-            Command::SetChainDiLoopSource {
+            Command::Chain(ChainCommand::SetChainDiLoopSource {
                 chain: chain.clone(),
                 source,
-            },
-            Command::SetChainDiLoopEnabled {
+            }),
+            Command::Chain(ChainCommand::SetChainDiLoopEnabled {
                 chain,
                 enabled: true,
-            },
+            }),
         ],
-        DiLoopIntent::Play => vec![Command::SetChainDiLoopEnabled {
+        DiLoopIntent::Play => vec![Command::Chain(ChainCommand::SetChainDiLoopEnabled {
             chain,
             enabled: true,
-        }],
-        DiLoopIntent::Stop => vec![Command::SetChainDiLoopEnabled {
+        })],
+        DiLoopIntent::Stop => vec![Command::Chain(ChainCommand::SetChainDiLoopEnabled {
             chain,
             enabled: false,
-        }],
+        })],
         DiLoopIntent::SelectSource { source } => {
-            vec![Command::SetChainDiLoopSource { chain, source }]
+            vec![Command::Chain(ChainCommand::SetChainDiLoopSource {
+                chain,
+                source,
+            })]
         }
     }
 }
@@ -152,10 +155,10 @@ pub fn play_chain_di_loop(
     // that already landed before arming, so play right after picking a
     // source uses the freshly decoded loop.
     let _ = dispatcher.poll_async_results();
-    let _ = dispatcher.dispatch(application::command::Command::SetChainDiLoopEnabled {
+    let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
         chain: chain.clone(),
         enabled: true,
-    });
+    }));
     handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, true);
 }
 
@@ -167,15 +170,15 @@ pub fn stop_chain_di_loop(
     chain: &ChainId,
 ) {
     use application::dispatcher::CommandDispatcher;
-    let _ = dispatcher.dispatch(application::command::Command::SetChainDiLoopEnabled {
+    let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
         chain: chain.clone(),
         enabled: false,
-    });
+    }));
     handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, false);
 }
 
 /// #771: the DI panel's OUTPUT select was picked. Persist the choice through
-/// `Command::SetChainDiLoopOutput` and, when the DI is playing, re-arm so the
+/// `ChainCommand::SetChainDiLoopOutput` and, when the DI is playing, re-arm so the
 /// sound moves to the picked output (re-render + park on its cell).
 pub fn select_chain_di_output(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
@@ -192,10 +195,10 @@ pub fn select_chain_di_output(
     let Some(option) = options.get(output_index) else {
         return;
     };
-    let _ = dispatcher.dispatch(application::command::Command::SetChainDiLoopOutput {
+    let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopOutput {
         chain: chain.clone(),
         output: option.di_ref.clone(),
-    });
+    }));
     // While playing, move the sound to the picked output now — arm re-resolves
     // the (updated) di_output, re-renders and parks on the new cell.
     if let Some(rt) = project_runtime.borrow().as_ref() {

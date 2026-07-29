@@ -14,7 +14,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::ChainId;
@@ -70,10 +70,10 @@ fn binding_selection_survives_rig_reopen() {
 
     // User checks a binding in the editor → SetChainIoBindings persists it.
     dispatcher
-        .dispatch(Command::SetChainIoBindings {
+        .dispatch(Command::Chain(ChainCommand::SetChainIoBindings {
             chain: chain_id.clone(),
             binding_ids: vec!["main".to_string()],
-        })
+        }))
         .expect("SetChainIoBindings must succeed");
 
     // Reopen: the app rebuilds the project from the persisted rig.
@@ -105,10 +105,10 @@ fn two_binding_selection_survives_rig_reopen() {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::SetChainIoBindings {
+        .dispatch(Command::Chain(ChainCommand::SetChainIoBindings {
             chain: ChainId("rig:in".to_string()),
             binding_ids: vec!["a".to_string(), "b".to_string()],
-        })
+        }))
         .expect("SetChainIoBindings must succeed");
 
     let reloaded = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());
@@ -128,7 +128,7 @@ fn two_binding_selection_survives_rig_reopen() {
 
 #[test]
 fn binding_selection_via_savechain_survives_rig_reopen() {
-    // The GUI editor persists the checklist via Command::SaveChain (upsert),
+    // The GUI editor persists the checklist via ChainCommand::SaveChain (upsert),
     // NOT SetChainIoBindings. This proves the real GUI path persists too.
     let rig = Rc::new(RefCell::new(rig_with_chain()));
     let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
@@ -150,7 +150,7 @@ fn binding_selection_via_savechain_survives_rig_reopen() {
     edited.io_binding_ids = vec!["main".to_string()];
 
     dispatcher
-        .dispatch(Command::SaveChain { chain: edited })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain: edited }))
         .expect("SaveChain must succeed");
 
     let reloaded = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());

@@ -122,12 +122,12 @@ impl LocalDispatcher {
         // Recurse via the normal dispatch so all side effects (event
         // emission, SelectionState mirror on the active block) run
         // exactly the same way a click on that block's toggle would.
-        use crate::command::{BlockId, Command};
+        use crate::command::{BlockCommand, BlockId, Command};
         use crate::dispatcher::CommandDispatcher;
-        self.dispatch(Command::ToggleBlockEnabled {
+        self.dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
             chain: ChainId(chain_id),
             block: BlockId(neighbor_id),
-        })
+        }))
     }
 
     /// `Command::SelectActiveBlockRelative { delta }`. Cycles through

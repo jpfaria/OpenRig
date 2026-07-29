@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -11,7 +11,7 @@ impl LocalDispatcher {
     /// Chain ordering / enable commands: move up/down, toggle enabled.
     pub(crate) fn handle_chain_order(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::MoveChainUp { chain } => {
+            Command::Chain(ChainCommand::MoveChainUp { chain }) => {
                 let mut proj = self.project.borrow_mut();
                 let Some(idx) = proj.chains.iter().position(|c| c.id == chain) else {
                     return Err(anyhow::anyhow!("chain not found: {:?}", chain));
@@ -30,7 +30,7 @@ impl LocalDispatcher {
                     Event::ProjectMutated,
                 ])
             }
-            Command::MoveChainDown { chain } => {
+            Command::Chain(ChainCommand::MoveChainDown { chain }) => {
                 let mut proj = self.project.borrow_mut();
                 let Some(idx) = proj.chains.iter().position(|c| c.id == chain) else {
                     return Err(anyhow::anyhow!("chain not found: {:?}", chain));
@@ -49,7 +49,7 @@ impl LocalDispatcher {
                     Event::ProjectMutated,
                 ])
             }
-            Command::ToggleChainEnabled { chain } => {
+            Command::Chain(ChainCommand::ToggleChainEnabled { chain }) => {
                 // Phase 1: determine current state (immutable borrow).
                 let (will_enable, chain_clone) = {
                     let proj = self.project.borrow();

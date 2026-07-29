@@ -7,6 +7,7 @@ import { DiSourcePicker } from "components/di_source_picker_globals.slint";
 import { DiPanel } from "components/di_panel_globals.slint";
 import { LooperOverlay } from "components/looper_overlay.slint";
 import { LooperPanel } from "components/looper_panel_globals.slint";
+import { MetronomeBridge } from "components/metronome_globals.slint";
 import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint"; import { BlockParamTabs } from "components/block_param_tabs_globals.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
@@ -19,7 +20,7 @@ export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness 
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
@@ -30,8 +31,8 @@ import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
-export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, BlockParamTabs }
-export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
+export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
+export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
 
@@ -177,6 +178,9 @@ export component AppWindow inherits Window {
     in property <bool> spectrum-enabled: false;
     callback close-spectrum();
     callback toggle-spectrum-enabled(bool);
+    // #14: every metronome control lives on MetronomeWindow, so the top bar
+    // only needs the door that opens it.
+    callback open-metronome-window();
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
@@ -481,6 +485,7 @@ export component AppWindow inherits Window {
         spectrum-enabled: root.spectrum-enabled;
         close-spectrum => { root.close-spectrum(); }
         toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
+        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
@@ -693,6 +698,7 @@ export component AppWindow inherits Window {
         spectrum-enabled: root.spectrum-enabled;
         close-spectrum => { root.close-spectrum(); }
         toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
+        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }

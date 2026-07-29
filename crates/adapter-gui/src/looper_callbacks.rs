@@ -12,7 +12,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::{Command, LooperAction, LooperParam};
+use application::command::{Command, LooperAction, LooperCommand, LooperParam};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::ProjectRuntimeController;
@@ -140,11 +140,11 @@ fn link_active_preset_on_fresh_record(
         })
         .unwrap_or(true);
     if fresh {
-        let _ = session.dispatcher.dispatch(Command::SetChainLooperPreset {
+        let _ = session.dispatcher.dispatch(Command::Looper(LooperCommand::SetChainLooperPreset {
             chain: chain.clone(),
             looper: uid,
             preset: Some(preset_id),
-        });
+        }));
     }
 }
 
@@ -187,7 +187,7 @@ pub(crate) fn wire_looper_callbacks(
                     &runtime,
                     &chains,
                     index,
-                    Command::AddChainLooper { chain },
+                    Command::Looper(LooperCommand::AddChainLooper { chain }),
                 );
             });
         });
@@ -203,10 +203,10 @@ pub(crate) fn wire_looper_callbacks(
                     &runtime,
                     &chains,
                     index,
-                    Command::RemoveChainLooper {
+                    Command::Looper(LooperCommand::RemoveChainLooper {
                         chain,
                         looper: uid as u64,
-                    },
+                    }),
                 );
             });
         });
@@ -225,11 +225,11 @@ pub(crate) fn wire_looper_callbacks(
                         &runtime,
                         &chains,
                         index,
-                        Command::SetChainLooperTransport {
+                        Command::Looper(LooperCommand::SetChainLooperTransport {
                             chain,
                             looper: uid as u64,
                             action: $action,
-                        },
+                        }),
                     );
                 });
             });
@@ -251,11 +251,11 @@ pub(crate) fn wire_looper_callbacks(
                     &runtime,
                     &chains,
                     index,
-                    Command::SetChainLooperTransport {
+                    Command::Looper(LooperCommand::SetChainLooperTransport {
                         chain,
                         looper: uid as u64,
                         action: LooperAction::Record,
-                    },
+                    }),
                 );
             });
         });
@@ -281,11 +281,11 @@ pub(crate) fn wire_looper_callbacks(
                         &runtime,
                         &chains,
                         index,
-                        Command::SetChainLooperParam {
+                        Command::Looper(LooperCommand::SetChainLooperParam {
                             chain,
                             looper: uid as u64,
                             param: $make(value),
-                        },
+                        }),
                     );
                 });
             });
@@ -325,11 +325,11 @@ pub(crate) fn wire_looper_callbacks(
                     &runtime,
                     &chains,
                     index,
-                    Command::SetChainLooperInput {
+                    Command::Looper(LooperCommand::SetChainLooperInput {
                         chain: chain.clone(),
                         looper: uid as u64,
                         input: input.clone(),
-                    },
+                    }),
                 );
                 // Tell the store to record from the chosen input next time REC
                 // starts (drops the current record tap so it re-subscribes).
@@ -359,11 +359,11 @@ pub(crate) fn wire_looper_callbacks(
                     &runtime,
                     &chains,
                     index,
-                    Command::SetChainLooperOutput {
+                    Command::Looper(LooperCommand::SetChainLooperOutput {
                         chain: chain.clone(),
                         looper: uid as u64,
                         output: output.clone(),
-                    },
+                    }),
                 );
                 if let Some(controller) = runtime.borrow().as_ref() {
                     controller.looper_set_output(&chain, uid as u64, output);
@@ -395,11 +395,11 @@ pub(crate) fn wire_looper_callbacks(
                     &runtime,
                     &chains,
                     index,
-                    Command::SetChainLooperPreset {
+                    Command::Looper(LooperCommand::SetChainLooperPreset {
                         chain,
                         looper: uid as u64,
                         preset,
-                    },
+                    }),
                 );
             });
         });
