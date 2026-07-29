@@ -22,8 +22,8 @@
 
   "stats.gear": "Peças de equipamento",
   "stats.native": "DSP nativo",
-  "stats.nam": "Plugins NAM",
-  "stats.capturesLabel": "capturas",
+  "stats.namCapturesHeadline": "Capturas NAM",
+  "stats.pluginsLabel": "plugins",
   "stats.lv2": "Plugins LV2",
   "stats.vst3": "Plugins VST3",
   "stats.ir": "IRs",
