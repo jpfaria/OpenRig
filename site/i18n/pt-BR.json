@@ -7,6 +7,7 @@
   "nav.ai": "Claude",
   "nav.app": "Por dentro",
   "nav.roadmap": "Roadmap",
+  "nav.support": "Apoiar",
   "nav.docs": "Docs",
   "nav.download": "Baixar",
 
@@ -17,6 +18,9 @@
   "hero.cta2": "Ver o rig",
   "hero.note": "Grátis pra sempre. Sem conta, sem nuvem, sem assinatura.",
   "hero.scroll": "Desce",
+  "hero.supportBig": "Apoie o OpenRig",
+  "hero.supportSub": "Grátis pra sempre. Feito por uma pessoa só.",
+  "hero.supportBtn": "♥ Apoie o OpenRig",
 
   "tone.h2": "Tem que responder<br>do jeito certo<br>debaixo do dedo.",
   "tone.lede": "O ataque da palhetada, o jeito que a nota abre, o jeito que ela cede quando você força a mão — é isso que faz um amp ser seu. O OpenRig captura isso e devolve, nota por nota, sem atraso entre a tua mão e o alto-falante.",
@@ -202,5 +206,6 @@
   "footer.project.l2": "Releases",
   "footer.project.l3": "Reportar um bug",
   "footer.project.l4": "Contribuir",
+  "footer.project.l5": "Apoiar",
   "footer.copyright": "© 2026 OpenRig · GPL-3.0"
 }
