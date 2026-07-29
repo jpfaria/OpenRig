@@ -163,9 +163,16 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         match ev {
             Event::MidiLearnStarted => adapter_midi::learn_state().start(),
             Event::MidiLearnStopped => adapter_midi::learn_state().stop(),
+            // #829: a refresh asked for over MCP/gRPC must re-enumerate for
+            // real — dispatching alone would only emit the event (#614).
+            Event::AudioDevicesRefreshed => crate::device_refresh_apply::refresh_now(false),
             _ => {}
         }
     }
+
+    // #791: a Tone Doctor verdict finished off-thread — paint it on whichever
+    // window has the panel open.
+    crate::tone_doctor_events::apply(events);
 
     // #591: a footswitch `toggle_compact_view` → SetCompactViewEnabled emits
     // this. The compact view is a per-chain window opened via the same
@@ -211,6 +218,17 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
                 *enabled,
             );
         }
+    }
+    // Apply looper transport/param events to the controller's store (the same
+    // mutation the GUI button path does inline in `dispatch_and_apply`). Without
+    // this a looper driven over MCP/MIDI updated nothing — Record left the loop
+    // `Empty` (the parity LEI: every transport reaches what the GUI reaches).
+    if let Some(controller) = ctx.project_runtime.borrow().as_ref() {
+        crate::looper_wiring::apply_looper_events(
+            controller,
+            &session.project.borrow().chains,
+            events,
+        );
     }
     replace_project_chains(
         &ctx.project_chains,

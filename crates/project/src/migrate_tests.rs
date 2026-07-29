@@ -60,6 +60,7 @@ fn chain(desc: &str, volume: f32, blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 

@@ -1,0 +1,25 @@
+// #323 — shared state for the looper panel, mirroring the DI panel (#749):
+// the loop button in a chain row seeds these and flips `open`; a single root
+// overlay renders LooperPanel so it is never clipped by the chain list.
+// One panel open at a time.
+
+export global LooperPanel {
+    in-out property <bool> open;
+    // window-absolute position, from the triggering button's `absolute-position`.
+    in-out property <length> x;
+    in-out property <length> y;
+    // routes every action back to the right chain.
+    in-out property <int> chain-index;
+    // which row has its parameter drawer open; -1 = none.
+    in-out property <int> expanded-uid: -1;
+    // #323: the chain's bound input / output endpoint labels — the options for
+    // every looper's input/output select (the choice per looper is the row's
+    // input_index / output_index).
+    in-out property <[string]> input-options;
+    in-out property <[string]> output-options;
+    // #323 phase 2: which looper's preset picker is open; -1 = none. The picker
+    // is a root-level modal (click-reachable), so a single uid drives it.
+    in-out property <int> preset-picker-uid: -1;
+    // The open loop's current preset option index, so the modal marks it.
+    in-out property <int> preset-picker-selected;
+}

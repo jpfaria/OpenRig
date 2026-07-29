@@ -65,6 +65,7 @@ fn save_chain_preset_writes_file_when_presets_path_attached() {
             io_binding_ids: vec![],
             blocks: Vec::new(),
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -165,6 +166,7 @@ fn save_chain_preset_tags_preset_with_chain_instrument() {
             io_binding_ids: vec![],
             blocks: Vec::new(),
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -223,6 +225,7 @@ fn load_chain_preset_rejects_instrument_mismatch() {
             io_binding_ids: vec![],
             blocks: vec![original_block],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));
@@ -265,6 +268,7 @@ fn load_chain_preset_accepts_matching_instrument() {
             io_binding_ids: vec![],
             blocks: Vec::new(),
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));
@@ -305,6 +309,7 @@ fn load_chain_preset_back_compat_untagged_defaults_to_electric_guitar() {
             io_binding_ids: vec![],
             blocks: Vec::new(),
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));

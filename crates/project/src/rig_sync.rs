@@ -46,6 +46,9 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
         if let Some(rig_input) = rig.inputs.get_mut(input) {
             rig_input.instrument = chain.instrument.clone();
             rig_input.io_binding_ids = chain.io_binding_ids.clone();
+            // #323: capture the chain's loopers so a recorded loop's
+            // parameters + saved-audio reference persist on the rig path.
+            rig_input.loopers = chain.loopers.clone();
         }
     }
     sync_chain_order(rig, project);

@@ -40,7 +40,8 @@ fn params(model: &str, values: &[(&str, f32)]) -> ParameterSet {
     for (k, v) in values {
         ps.insert(*k, ParameterValue::Float(*v));
     }
-    ps.normalized_against(&schema).expect("params must normalize")
+    ps.normalized_against(&schema)
+        .expect("params must normalize")
 }
 
 fn block(id: &str, enabled: bool, kind: AudioBlockKind) -> AudioBlock {
@@ -61,6 +62,7 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -77,11 +79,21 @@ fn di_sine() -> Vec<[f32; 2]> {
 #[test]
 fn fizz_suggests_lowering_the_fuzz_tone_knob() {
     init_registry();
-    let volume = block("vol", true, core("volume", params("volume", &[("volume", 80.0)])));
+    let volume = block(
+        "vol",
+        true,
+        core("volume", params("volume", &[("volume", 80.0)])),
+    );
     let fuzz = block(
         "fuzz",
         true,
-        core("fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
+        core(
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
+            ),
+        ),
     );
     let c = chain(vec![volume, fuzz]);
 
@@ -93,13 +105,20 @@ fn fizz_suggests_lowering_the_fuzz_tone_knob() {
     assert!(s.suggested < s.current, "the suggestion lowers it: {s:?}");
     // 25 % of the 0..100 range, from the current 70.
     assert!((s.current - 70.0).abs() < 1e-3, "reports the current value");
-    assert!((s.suggested - 45.0).abs() < 1e-3, "nudges down by a quarter-range: {s:?}");
+    assert!(
+        (s.suggested - 45.0).abs() < 1e-3,
+        "nudges down by a quarter-range: {s:?}"
+    );
 }
 
 #[test]
 fn healthy_chain_yields_no_suggestion() {
     init_registry();
-    let volume = block("vol", true, core("volume", params("volume", &[("volume", 80.0)])));
+    let volume = block(
+        "vol",
+        true,
+        core("volume", params("volume", &[("volume", 80.0)])),
+    );
     let c = chain(vec![volume]);
 
     let d = diagnose(&c, SR, &di_sine(), BUF).expect("diagnose runs");
@@ -114,12 +133,21 @@ fn suggested_value_stays_within_range() {
     let fuzz = block(
         "fuzz",
         true,
-        core("fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 10.0), ("level", 50.0)])),
+        core(
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 10.0), ("level", 50.0)],
+            ),
+        ),
     );
     let c = chain(vec![fuzz]);
 
     let d = diagnose(&c, SR, &di_sine(), BUF).expect("diagnose runs");
     if let Some(s) = suggest(&c, &d) {
-        assert!(s.suggested >= 0.0, "never below the parameter minimum: {s:?}");
+        assert!(
+            s.suggested >= 0.0,
+            "never below the parameter minimum: {s:?}"
+        );
     }
 }

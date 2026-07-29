@@ -9,7 +9,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ChainActionIcon, ChainEndpointChip, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
 import { ChainVolumeButton } from "../components/chain_volume_button.slint";
-import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint"; import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
+import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint"; import { ChainLooperButton } from "../components/chain_looper_button.slint"; import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
 import { BlockChip } from "../components/block_chip.slint";
 import { BlockInsertSlot } from "../components/block_insert_slot.slint";
 import { BlockHoverTooltip } from "../components/block_hover_tooltip.slint";
@@ -185,7 +185,9 @@ export component ChainRow inherits Rectangle {
             // Preset open/save moved into this component, so the
             // chain-action cluster on the right needs ~80px less.
             // Title area now reaches further across the row.
-            width: parent.width - 72px - 252px;
+            // #323: the looper button joined the cluster at -372px, so the
+            // title stops 32px earlier and never runs under it.
+            width: parent.width - 72px - 284px;
             height: 40px;
             title: root.chain.title;
             nav: root.rig-nav;
@@ -221,6 +223,15 @@ export component ChainRow inherits Rectangle {
 
         // #791: Tone Doctor trigger (stethoscope), left of the DI fone.
         ChainToneDoctorButton { x: parent.width - 340px; y: 12px; chain-index: root.chain-index; }
+        // #323: looper trigger — opens the looper panel (root overlay).
+        ChainLooperButton {
+            x: parent.width - 372px;
+            y: 12px;
+            active: root.chain.looper_active;
+            input-options: root.chain.looper_input_options;
+            output-options: root.chain.looper_output_options;
+            chain-index: root.chain-index;
+        }
         // #614/#749: DI loop trigger — the fone opens the DI panel (root overlay).
         ChainDiLoopButton {
             x: parent.width - 308px;

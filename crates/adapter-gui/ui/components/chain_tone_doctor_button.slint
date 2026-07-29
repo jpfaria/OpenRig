@@ -6,6 +6,7 @@
 // fone button (ChainDiLoopButton).
 
 import { ToneDoctorState } from "tone_doctor_globals.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 
 export component ChainToneDoctorButton inherits Rectangle {
     in property <int> chain-index;
@@ -56,6 +57,8 @@ export component ChainToneDoctorButton inherits Rectangle {
             ToneDoctorState.open = true;
         }
     }
+
+    IconTooltip { text: @tr("tone-doctor-button-label"); show: ta.has-hover; }
 
     accessible-role: button;
     accessible-label: @tr("tone-doctor-button-label");

@@ -22,6 +22,12 @@ impl PublishingDispatcher {
     pub fn new(inner: LocalDispatcher, sink: EventSink) -> Self {
         Self { inner, sink }
     }
+
+    /// #791: the wrapped dispatcher, for the reads a frontend serves from
+    /// dispatcher-owned state (the Tone Doctor's last verdict).
+    pub fn inner(&self) -> &LocalDispatcher {
+        &self.inner
+    }
 }
 
 impl CommandDispatcher for PublishingDispatcher {

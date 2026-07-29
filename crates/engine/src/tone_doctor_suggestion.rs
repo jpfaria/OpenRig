@@ -61,7 +61,13 @@ pub(crate) fn priority_paths(symptom: Symptom) -> &'static [&'static str] {
         Symptom::Thin | Symptom::Squash => &[],
         // Pull the block's output down off the rail.
         Symptom::Clipping => &[
-            "level", "master", "output", "output_level", "volume", "makeup_gain", "gain",
+            "level",
+            "master",
+            "output",
+            "output_level",
+            "volume",
+            "makeup_gain",
+            "gain",
         ],
         Symptom::Ok => &[],
     }

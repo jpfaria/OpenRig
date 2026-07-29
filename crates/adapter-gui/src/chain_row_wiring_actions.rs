@@ -23,7 +23,6 @@ pub(crate) fn wire_reorder(window: &AppWindow, ctx: &ChainRowCtx) {
     let toast_timer = &ctx.toast_timer;
     let auto_save = ctx.auto_save;
 
-
     // ── on_move_chain_up ────────────────────────────────────────────────────
     {
         let weak_window = window.as_weak();
@@ -258,4 +257,3 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
         });
     }
 }
-

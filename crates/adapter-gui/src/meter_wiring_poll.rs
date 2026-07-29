@@ -72,6 +72,21 @@ pub fn start_meter_polling(
             &project,
             &session.io_bindings.borrow(),
         );
+        // #323: same for the looper Record-from / Play-to selects — offline, so
+        // a chain that is not started still lists its endpoints.
+        crate::looper_view::apply_looper_endpoints_to_rows(
+            &project_chains,
+            &project,
+            &session.io_bindings.borrow(),
+        );
+        // #323 phase 2: the preset options each looper can play through (the
+        // chain's bank), for the drawer's preset picker — offline like the
+        // endpoints, so a stopped chain still lists them.
+        crate::looper_view::apply_looper_presets_to_rows(
+            &project_chains,
+            &project,
+            session.rig.as_deref(),
+        );
         let rt_borrow = project_runtime.borrow();
         // Detect chains whose runtime-layout signature changed since
         // the last tick. Signature mixes project bits (enabled, per
@@ -188,8 +203,7 @@ fn refresh_chain_meter_row(
         .find(|(c, _)| c == cid)
         .map(|(_, streams)| streams.clone())
         .unwrap_or_default();
-    let project_streams =
-        project_input_count(&project.chains[idx], &session.io_bindings.borrow());
+    let project_streams = project_input_count(&project.chains[idx], &session.io_bindings.borrow());
     // #750: a disabled chain renders no per-stream rows. The timer
     // still visits it (a stale tap may report a tick after toggle-off),
     // so the `enabled` flag — not just the resolved count — gates the
@@ -207,8 +221,8 @@ fn refresh_chain_meter_row(
                 (a.in_dbfs - b.in_dbfs).abs() > 0.05 || (a.out_dbfs - b.out_dbfs).abs() > 0.05
             })
     };
-    let aggregate_changed = (row.meter_in_dbfs - in_db).abs() > 0.05
-        || (row.meter_out_dbfs - out_db).abs() > 0.05;
+    let aggregate_changed =
+        (row.meter_in_dbfs - in_db).abs() > 0.05 || (row.meter_out_dbfs - out_db).abs() > 0.05;
     // #614/#717: poll DI loop playing state so the chain-tile icon (and
     // the dedicated DI graph) reflect the engine's armed/disarmed state.
     // The DI now plays on its own dedicated stream, so "playing" is
@@ -217,10 +231,8 @@ fn refresh_chain_meter_row(
     let di_changed = row.di_loop_playing != di_playing_now;
     // #771: the DI meter row reads the isolated playback's OWN peaks
     // (maintained by the output callback's mix) — not the chain's.
-    let di_meter_now = crate::di_meter::di_meter_from_peaks(
-        controller.di_playback_peaks(cid),
-        di_playing_now,
-    );
+    let di_meter_now =
+        crate::di_meter::di_meter_from_peaks(controller.di_playback_peaks(cid), di_playing_now);
     let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
         || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
     // #661: re-derive the loaded source from the dispatcher so the
@@ -264,10 +276,12 @@ fn refresh_chain_meter_row(
     let cur_underruns = controller.chain_underrun_count(cid);
     let prev_xruns = last_xruns.borrow().get(cid).copied().unwrap_or(0);
     let prev_underruns = last_underruns.borrow().get(cid).copied().unwrap_or(0);
-    let overloaded = chain_overloaded(prev_xruns, cur_xruns)
-        || chain_overloaded(prev_underruns, cur_underruns);
+    let overloaded =
+        chain_overloaded(prev_xruns, cur_xruns) || chain_overloaded(prev_underruns, cur_underruns);
     last_xruns.borrow_mut().insert(cid.clone(), cur_xruns);
-    last_underruns.borrow_mut().insert(cid.clone(), cur_underruns);
+    last_underruns
+        .borrow_mut()
+        .insert(cid.clone(), cur_underruns);
     // One concise warning only on the transition INTO overload (not
     // every event) so it never spams the log.
     if overloaded && !row.audio_overload {
@@ -280,7 +294,48 @@ fn refresh_chain_meter_row(
         );
     }
     let overload_changed = row.audio_overload != overloaded;
-    if aggregate_changed
+    // #323: refresh the looper rows the panel renders. Cheap wait-free atomic
+    // reads (`chain_looper_statuses`), never the `processing` lock (#580).
+    // REC is armable only when the chain actually has a LIVE runtime to capture
+    // into — an enabled chain whose runtime is still cold-starting has none yet.
+    let runtime_live = !controller.runtimes_for_chain(cid).is_empty();
+    let looper_preset_ids =
+        crate::looper_view::chain_preset_ids(&project.chains[idx], session.rig.as_deref());
+    let looper_rows = crate::looper_view::looper_items(
+        &project.chains[idx],
+        &controller.chain_looper_statuses(cid),
+        controller.sample_rate(),
+        &session.io_bindings.borrow(),
+        runtime_live,
+        &looper_preset_ids,
+    );
+    let looper_active_now = crate::looper_view::any_looper_active(&looper_rows);
+    let loopers_changed = {
+        let current: Vec<crate::LooperItem> = row.loopers.iter().collect();
+        current != looper_rows
+    };
+    // (looper Record-from / Play-to options are populated for EVERY chain up
+    // front by `apply_looper_endpoints_to_rows`, active or not.)
+    // Layer buffers the audio thread finished with come back here — dropping
+    // them is forbidden on the audio thread (invariant #8).
+    // #323: make sure the store has an entry for every looper the project
+    // carries (added via any transport, or loaded from disk), then feed every
+    // Recording loop from its input tap, then reconcile the playback streams.
+    controller.sync_looper_slots(&project.chains[idx]);
+    controller.drain_looper_recording(&project.chains[idx]);
+    // #323 phase 2: resolve each looper's LINKED preset into the blocks it plays
+    // through BEFORE reconciling the streams, so a Playing loop renders its
+    // fixed tone regardless of the chain's current preset.
+    crate::looper_wiring::sync_looper_playback_presets(
+        controller,
+        &project.chains[idx],
+        session.rig.as_deref(),
+    );
+    controller.sync_looper_streams(&project.chains[idx]);
+    let looper_active_changed = row.looper_active != looper_active_now;
+    if loopers_changed
+        || looper_active_changed
+        || aggregate_changed
         || stream_meters_changed
         || di_changed
         || di_meter_changed
@@ -357,6 +412,35 @@ fn refresh_chain_meter_row(
                 }
                 row.stream_meters = slint::ModelRc::from(model);
             }
+        }
+        if loopers_changed {
+            // #715 pattern for the looper rows: mutate the model IN PLACE when
+            // the row COUNT is unchanged, so the panel's transport buttons and
+            // the parameter-drawer gear KEEP THEIR IDENTITY. Replacing the whole
+            // model every tick — the timer advances the loop position each tick,
+            // so the rows "change" constantly — recreated every button/TouchArea
+            // and DROPPED clicks: stop and close-drawer wouldn't register and the
+            // panel churned. Only an add/remove (count change) swaps the model.
+            let reused = row
+                .loopers
+                .as_any()
+                .downcast_ref::<slint::VecModel<crate::LooperItem>>()
+                .filter(|vm| vm.row_count() == looper_rows.len())
+                .map(|vm| {
+                    for (i, item) in looper_rows.iter().enumerate() {
+                        if vm.row_data(i).as_ref() != Some(item) {
+                            vm.set_row_data(i, item.clone());
+                        }
+                    }
+                })
+                .is_some();
+            if !reused {
+                row.loopers =
+                    slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(looper_rows)));
+            }
+        }
+        if looper_active_changed {
+            row.looper_active = looper_active_now;
         }
         project_chains.set_row_data(idx, row);
     }

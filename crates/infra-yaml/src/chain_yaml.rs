@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use project::block::AudioBlock;
-use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
+use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, LooperConfig};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
@@ -38,6 +38,11 @@ pub(crate) struct ChainYaml {
     #[serde(default)]
     io_binding_ids: Vec<String>,
     blocks: Vec<Value>,
+    /// #323: the chain's loopers (parameters + saved-loop file name). Empty for
+    /// projects written before the looper existed, so they never appear in the
+    /// YAML of a chain that has none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    loopers: Vec<LooperConfig>,
     #[serde(default, skip_serializing)]
     output_mixdown: ChainOutputMixdown,
     #[serde(default, skip_serializing)]
@@ -77,6 +82,7 @@ impl ChainYaml {
             io_binding_ids: self.io_binding_ids.clone(),
             blocks: parsed_blocks,
             di_output: None,
+            loopers: self.loopers,
         })
     }
 
@@ -99,6 +105,7 @@ impl ChainYaml {
             volume: chain.volume,
             io_binding_ids: chain.io_binding_ids.clone(),
             blocks: audio_blocks,
+            loopers: chain.loopers.clone(),
             output_mixdown: ChainOutputMixdown::Average,
             input_mode: ChainInputMode::default(),
         })

@@ -5,6 +5,7 @@
 // overlay so it is never clipped by the chain list.
 
 import { DiPanel } from "di_panel_globals.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 
 export component ChainDiLoopButton inherits Rectangle {
     in property <bool> playing: false;
@@ -51,6 +52,8 @@ export component ChainDiLoopButton inherits Rectangle {
             DiPanel.open = true;
         }
     }
+
+    IconTooltip { text: @tr("di-loop-button-label"); show: ta.has-hover; }
 
     accessible-role: button;
     accessible-label: @tr("di-loop-button-label");

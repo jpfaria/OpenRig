@@ -213,6 +213,7 @@ fn save_chain_io_missing_input_block_returns_err() {
             io_binding_ids: vec![],
             blocks: vec![make_output_block("dev_b", 1)], // output only, no input
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));
@@ -259,6 +260,7 @@ fn make_project_with_insert() -> (Rc<RefCell<Project>>, ChainId, BlockId) {
             io_binding_ids: vec![],
             blocks: vec![insert],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));

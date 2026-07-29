@@ -174,7 +174,10 @@ fn crossfade_shortens_the_loop_by_the_fade_length() {
 #[test]
 fn di_pcm_stereo_frames_broadcasts_mono() {
     let pcm = DiPcm::new(vec![0.1, 0.2, 0.3], 48_000, 1);
-    assert_eq!(pcm.stereo_frames(), vec![[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]]);
+    assert_eq!(
+        pcm.stereo_frames(),
+        vec![[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]]
+    );
     assert_eq!(pcm.src_sr(), 48_000);
 }
 

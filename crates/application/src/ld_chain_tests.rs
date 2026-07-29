@@ -29,6 +29,7 @@ pub(super) fn make_chain_with_input(
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -43,6 +44,7 @@ pub(super) fn make_empty_chain(chain_id: &str, enabled: bool) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -264,6 +266,7 @@ fn toggle_chain_enabled_refuses_chain_without_io_binding() {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }));

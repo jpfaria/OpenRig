@@ -1,8 +1,8 @@
 //! Volume/audio invariants — PINNED (issue #792 split from volume_invariants_tests.rs).
 //! Section moved verbatim; shared fixtures live in `volume_invariants_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::volume_invariants::*;
+use super::*;
 
 // ─────────────────────────────────────────────────────────────────────────
 // L. Real-engine spectral / quality audit (issue #496).
@@ -14,7 +14,6 @@ use super::volume_invariants::*;
 // the bare path (input + output, no blocks) colours the spectrum or
 // adds noise, "all-native chain sounds broken" is caught here.
 // ─────────────────────────────────────────────────────────────────────────
-
 
 fn fft_octave_db(samples: &[f32], sr: f32) -> Vec<(f32, f32)> {
     use rustfft::{num_complex::Complex, FftPlanner};
@@ -351,4 +350,3 @@ fn l08_real_engine_thd_is_independent_of_callback_buffer_size() {
         "L08: THD+N depends on buffer size (spread = {spread:.2} dB) — elastic / FIFO bug"
     );
 }
-

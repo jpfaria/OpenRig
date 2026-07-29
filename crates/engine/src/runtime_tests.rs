@@ -22,7 +22,9 @@ pub(super) use super::{
     DEFAULT_ELASTIC_TARGET, ERROR_QUEUE_CAPACITY, FADE_IN_FRAMES,
 };
 pub(super) use crate::runtime_endpoints::{InputEntry, OutputEntry};
-pub(super) use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
+pub(super) use block_cab::{
+    cab_backend_kind, supported_models as supported_cab_models, CabBackendKind,
+};
 pub(super) use block_core::AudioChannelLayout;
 pub(super) use block_delay::supported_models as supported_delay_models;
 pub(super) use block_dyn::compressor_supported_models;
@@ -62,6 +64,7 @@ pub(super) fn empty_chain(id: &str) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -155,8 +158,6 @@ pub(super) fn io_registry_stereo() -> Vec<domain::io_binding::IoBinding> {
     }]
 }
 
-
-
 pub(super) fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
     Chain {
         id: ChainId(chain_id.into()),
@@ -167,9 +168,9 @@ pub(super) fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
-
 
 /// Test helper — builds a generic processing block. Originally backed by
 /// the (now removed) `chromatic_tuner` / `spectrum_analyzer` utility
@@ -196,7 +197,6 @@ pub(super) fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
     }
 }
 
-
 pub(super) fn any_ir_cab_defaults() -> (String, ParameterSet) {
     let model = supported_cab_models()
         .iter()
@@ -215,7 +215,6 @@ pub(super) fn any_ir_cab_defaults() -> (String, ParameterSet) {
     (model, params)
 }
 
-
 pub(super) fn normalized_defaults(effect_type: &str, model: &str) -> ParameterSet {
     let schema =
         schema_for_block_model(effect_type, model).expect("schema should exist for test model");
@@ -223,7 +222,6 @@ pub(super) fn normalized_defaults(effect_type: &str, model: &str) -> ParameterSe
         .normalized_against(&schema)
         .expect("defaults should normalize")
 }
-
 
 pub(super) fn compressor_block(block_id: &str) -> AudioBlock {
     let model = compressor_supported_models()
@@ -240,7 +238,6 @@ pub(super) fn compressor_block(block_id: &str) -> AudioBlock {
         }),
     }
 }
-
 
 pub(super) fn native_cab_block(block_id: &str) -> AudioBlock {
     let model = supported_cab_models()
@@ -264,7 +261,6 @@ pub(super) fn native_cab_block(block_id: &str) -> AudioBlock {
     }
 }
 
-
 pub(super) fn preamp_block(block_id: &str) -> AudioBlock {
     let model = supported_preamp_models()
         .iter()
@@ -283,7 +279,6 @@ pub(super) fn preamp_block(block_id: &str) -> AudioBlock {
     }
 }
 
-
 pub(super) fn marshall_preamp_block(block_id: &str) -> AudioBlock {
     let model = "marshall_jcm_800_2203".to_string();
     AudioBlock {
@@ -296,7 +291,6 @@ pub(super) fn marshall_preamp_block(block_id: &str) -> AudioBlock {
         }),
     }
 }
-
 
 pub(super) fn ir_cab_block(block_id: &str) -> AudioBlock {
     let model = supported_cab_models()
@@ -320,7 +314,6 @@ pub(super) fn ir_cab_block(block_id: &str) -> AudioBlock {
     }
 }
 
-
 pub(super) fn reverb_block(block_id: &str) -> AudioBlock {
     let model = supported_reverb_models()
         .first()
@@ -337,7 +330,6 @@ pub(super) fn reverb_block(block_id: &str) -> AudioBlock {
     }
 }
 
-
 /// A chain with proper Input and Output blocks but no effect blocks.
 /// Useful for testing process_input_f32 / process_output_f32.
 pub(super) fn io_passthrough_chain(id: &str) -> Chain {
@@ -350,9 +342,9 @@ pub(super) fn io_passthrough_chain(id: &str) -> Chain {
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
-
 
 pub(super) fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
     let models = supported_delay_models();
@@ -380,9 +372,9 @@ pub(super) fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
-
 
 pub(super) fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
     let mut params = normalized_defaults("delay", model);
@@ -398,7 +390,6 @@ pub(super) fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> A
     }
 }
 
-
 // ── Panic recovery tests ──────────────────────────────────────────────────
 
 pub(super) struct PanickingProcessor;
@@ -408,7 +399,6 @@ impl block_core::MonoProcessor for PanickingProcessor {
         panic!("simulated plugin crash");
     }
 }
-
 
 pub(super) struct CountingProcessor {
     call_count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -421,7 +411,6 @@ impl block_core::MonoProcessor for CountingProcessor {
         input
     }
 }
-
 
 pub(super) fn panicking_block_node() -> BlockRuntimeNode {
     BlockRuntimeNode {
@@ -448,7 +437,6 @@ pub(super) fn panicking_block_node() -> BlockRuntimeNode {
         fault_reason: None,
     }
 }
-
 
 pub(super) fn counting_block_node(
     counter: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -479,7 +467,6 @@ pub(super) fn counting_block_node(
         fault_reason: None,
     }
 }
-
 
 // ── effective_inputs / effective_outputs with Insert blocks ───────────────
 
@@ -525,7 +512,6 @@ pub(super) fn insert_registry() -> Vec<domain::io_binding::IoBinding> {
         },
     ]
 }
-
 
 pub(super) fn insert_chain() -> Chain {
     Chain {
@@ -585,9 +571,9 @@ pub(super) fn insert_chain() -> Chain {
             },
         ],
         di_output: None,
+        loopers: vec![],
     }
 }
-
 
 // ── insert_return_as_input_entry tests ──────────────────────────────────
 
@@ -618,7 +604,6 @@ pub(super) fn fx_registry(
         }],
     }]
 }
-
 
 pub(super) fn fx_insert() -> InsertBlock {
     InsertBlock {

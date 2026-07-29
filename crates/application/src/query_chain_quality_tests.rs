@@ -40,6 +40,7 @@ fn clean_chain(id: &str) -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 

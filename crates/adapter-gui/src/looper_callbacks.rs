@@ -1,0 +1,458 @@
+//! #323 — the looper panel's callbacks: every one dispatches a `Command`,
+//! applies the result to the chain's runtimes, and refreshes the chain-card's
+//! looper rows in the same turn.
+//!
+//! The #614 rule: a dispatch alone is dead. The dispatcher owns the project
+//! side (which loopers exist, their parameters); `looper_wiring` turns the
+//! emitted events into audio-thread ops; and the row rebuild gives the panel
+//! immediate feedback — without it a chain with no live stream never updated
+//! (the meter timer only visits chains with a running stream), so the user
+//! re-clicked Add until the config hit the 8-looper cap with an empty panel.
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use application::command::{Command, LooperAction, LooperCommand, LooperParam};
+use application::dispatcher::CommandDispatcher;
+use domain::ids::ChainId;
+use infra_cpal::ProjectRuntimeController;
+use project::chain::LooperSpeed;
+use slint::{ComponentHandle, VecModel};
+
+use crate::looper_wiring::apply_looper_event;
+use crate::project_ops::sync_project_dirty;
+use crate::state::ProjectSession;
+use crate::{AppWindow, ProjectChainItem};
+
+type Session = Rc<RefCell<Option<ProjectSession>>>;
+type Runtime = Rc<RefCell<Option<ProjectRuntimeController>>>;
+type Chains = Rc<VecModel<ProjectChainItem>>;
+
+/// Everything `dispatch_and_apply` needs to mark the project dirty after a
+/// looper edit — the disquete stays grey otherwise, and the user loses loops
+/// because Save never prompts (the looper path was the only mutation flow that
+/// forgot this, unlike every block/insert wiring). Cloned into each closure.
+#[derive(Clone)]
+struct LooperDirtyCtx {
+    window: slint::Weak<AppWindow>,
+    saved_project_snapshot: Rc<RefCell<Option<String>>>,
+    project_dirty: Rc<RefCell<bool>>,
+    auto_save: bool,
+}
+
+fn chain_id_at(session: &ProjectSession, index: i32) -> Option<ChainId> {
+    let project = session.project.borrow();
+    project.chains.get(index as usize).map(|c| c.id.clone())
+}
+
+/// Rebuild the chain-card's looper rows from the current project + live
+/// runtime, so an add / remove / param / transport shows at once. Reads the
+/// live status only when the chain has a running stream; otherwise the rows
+/// come from the persisted config (no fictional sample rate).
+fn refresh_row(session: &ProjectSession, runtime: &Runtime, chains: &Chains, index: i32) {
+    let project = session.project.borrow();
+    let Some(chain) = project.chains.get(index as usize) else {
+        return;
+    };
+    let registry = session.io_bindings.borrow();
+    let preset_ids = crate::looper_view::chain_preset_ids(chain, session.rig.as_deref());
+    let runtime_borrow = runtime.borrow();
+    match runtime_borrow.as_ref() {
+        Some(controller) if !controller.runtimes_for_chain(&chain.id).is_empty() => {
+            crate::looper_view::write_chain_looper_row(
+                chains,
+                index as usize,
+                chain,
+                &controller.chain_looper_statuses(&chain.id),
+                Some(controller.sample_rate()),
+                &registry,
+                &preset_ids,
+            );
+        }
+        _ => crate::looper_view::write_chain_looper_row(
+            chains,
+            index as usize,
+            chain,
+            &[],
+            None,
+            &registry,
+            &preset_ids,
+        ),
+    }
+}
+
+/// Dispatch `cmd`, apply every event it produced to the chain's runtimes, then
+/// refresh the row so the panel reflects the change immediately.
+fn dispatch_and_apply(
+    session: &ProjectSession,
+    runtime: &Runtime,
+    chains: &Chains,
+    index: i32,
+    cmd: Command,
+    dirty: &LooperDirtyCtx,
+) {
+    // #323/#808: the looper is independent of the chain being enabled — like
+    // the DI loop, it needs a runtime to record/play even when no chain is
+    // started. Create one on demand (no-op when it already exists); this also
+    // restores the chain's loopers into fresh runtimes.
+    if let Err(e) = crate::runtime_lifecycle::ensure_runtime(runtime, session) {
+        log::warn!("looper: could not start a runtime: {e}");
+    }
+    match session.dispatcher.dispatch(cmd) {
+        Ok(events) => {
+            {
+                let runtime_borrow = runtime.borrow();
+                if let Some(controller) = runtime_borrow.as_ref() {
+                    for event in &events {
+                        apply_looper_event(controller, event);
+                    }
+                    // Reconcile the isolated playback stream on the user's
+                    // action, not only on the next meter tick — a removed
+                    // looper is gone from `chain.loopers`, so its armed stream
+                    // is disarmed here immediately ("delete stops the sound"),
+                    // instead of playing on until the ~15 Hz poll happens to
+                    // run. Stop/Clear still settle via the poll once the audio
+                    // thread has published the new state.
+                    if let Some(chain) = session.project.borrow().chains.get(index as usize) {
+                        controller.sync_looper_streams(chain);
+                    }
+                }
+            }
+            refresh_row(session, runtime, chains, index);
+            // Mark the project dirty (the disquete) so the user is prompted to
+            // save — a looper add/record/param edit changes the persisted chain,
+            // and without this the loop is silently lost on close (#323).
+            if let Some(window) = dirty.window.upgrade() {
+                sync_project_dirty(
+                    &window,
+                    session,
+                    &dirty.saved_project_snapshot,
+                    &dirty.project_dirty,
+                    dirty.auto_save,
+                );
+            }
+        }
+        Err(err) => log::warn!("looper command failed: {err}"),
+    }
+}
+
+/// #323 phase 2: when the user starts a FRESH recording (the loop holds no
+/// material yet), link it to the chain's currently-active preset so it keeps
+/// that tone even after the chain switches preset to solo. An overdub (the loop
+/// already has audio) never relinks. No-op for a non-rig chain or when no
+/// preset is active.
+fn link_active_preset_on_fresh_record(
+    session: &ProjectSession,
+    runtime: &Runtime,
+    chain: &ChainId,
+    uid: u64,
+) {
+    let Some(preset_id) = session
+        .rig
+        .as_deref()
+        .and_then(|r| crate::chain_preset_wiring::active_preset_id(chain, &r.borrow()))
+    else {
+        return;
+    };
+    // Fresh = no recorded material yet (Empty, or no runtime entry at all).
+    let fresh = runtime
+        .borrow()
+        .as_ref()
+        .map(|c| {
+            matches!(
+                c.chain_looper_status(chain, uid).map(|s| s.state),
+                None | Some(engine::LooperState::Empty)
+            )
+        })
+        .unwrap_or(true);
+    if fresh {
+        let _ = session.dispatcher.dispatch(Command::Looper(LooperCommand::SetChainLooperPreset {
+            chain: chain.clone(),
+            looper: uid,
+            preset: Some(preset_id),
+        }));
+    }
+}
+
+fn speed_from_index(index: i32) -> LooperSpeed {
+    match index {
+        0 => LooperSpeed::Half,
+        2 => LooperSpeed::Double,
+        _ => LooperSpeed::Normal,
+    }
+}
+
+/// Connect every looper callback of the app window.
+pub(crate) fn wire_looper_callbacks(
+    window: &AppWindow,
+    session: &Session,
+    runtime: &Runtime,
+    chains: &Chains,
+    saved_project_snapshot: &Rc<RefCell<Option<String>>>,
+    project_dirty: &Rc<RefCell<bool>>,
+    auto_save: bool,
+) {
+    let dirty_ctx = LooperDirtyCtx {
+        window: window.as_weak(),
+        saved_project_snapshot: saved_project_snapshot.clone(),
+        project_dirty: project_dirty.clone(),
+        auto_save,
+    };
+    macro_rules! with_chain {
+        ($session:expr, $index:expr, $body:expr) => {{
+            let session_borrow = $session.borrow();
+            if let Some(session) = session_borrow.as_ref() {
+                if let Some(chain) = chain_id_at(session, $index) {
+                    #[allow(clippy::redundant_closure_call)]
+                    $body(session, chain);
+                }
+            }
+        }};
+    }
+
+    // ── add / remove ────────────────────────────────────────────────────
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
+        window.on_looper_add(move |index| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::Looper(LooperCommand::AddChainLooper { chain }),
+                    &dirty_ctx,
+                );
+            });
+        });
+    }
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
+        window.on_looper_remove(move |index, uid| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::Looper(LooperCommand::RemoveChainLooper {
+                        chain,
+                        looper: uid as u64,
+                    }),
+                    &dirty_ctx,
+                );
+            });
+        });
+    }
+
+    // ── transport ───────────────────────────────────────────────────────
+    macro_rules! transport {
+        ($setter:ident, $action:expr) => {{
+            let session = session.clone();
+            let runtime = runtime.clone();
+            let chains = chains.clone();
+            let dirty_ctx = dirty_ctx.clone();
+            window.$setter(move |index, uid| {
+                with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                    dispatch_and_apply(
+                        s,
+                        &runtime,
+                        &chains,
+                        index,
+                        Command::Looper(LooperCommand::SetChainLooperTransport {
+                            chain,
+                            looper: uid as u64,
+                            action: $action,
+                        }),
+                        &dirty_ctx,
+                    );
+                });
+            });
+        }};
+    }
+    // RECORD is special (#323 phase 2): starting a FRESH recording links the
+    // loop to the chain's currently-active preset, so it keeps that tone even
+    // after the chain switches preset to solo. Overdubs (loop already has
+    // material) never relink. Then the Record transport proceeds as usual.
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
+        window.on_looper_record(move |index, uid| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                link_active_preset_on_fresh_record(s, &runtime, &chain, uid as u64);
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::Looper(LooperCommand::SetChainLooperTransport {
+                        chain,
+                        looper: uid as u64,
+                        action: LooperAction::Record,
+                    }),
+                    &dirty_ctx,
+                );
+            });
+        });
+    }
+    transport!(on_looper_undo, LooperAction::Undo);
+    transport!(on_looper_redo, LooperAction::Redo);
+    transport!(on_looper_clear, LooperAction::Clear);
+
+    // Play/stop is one button: the PlayStop action is resolved against the
+    // runtime by the wiring, so the GUI and a footswitch behave identically.
+    transport!(on_looper_play_stop, LooperAction::PlayStop);
+
+    // ── parameters ──────────────────────────────────────────────────────
+    macro_rules! param {
+        ($setter:ident, $make:expr) => {{
+            let session = session.clone();
+            let runtime = runtime.clone();
+            let chains = chains.clone();
+            let dirty_ctx = dirty_ctx.clone();
+            window.$setter(move |index, uid, value| {
+                with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                    dispatch_and_apply(
+                        s,
+                        &runtime,
+                        &chains,
+                        index,
+                        Command::Looper(LooperCommand::SetChainLooperParam {
+                            chain,
+                            looper: uid as u64,
+                            param: $make(value),
+                        }),
+                        &dirty_ctx,
+                    );
+                });
+            });
+        }};
+    }
+    param!(on_looper_mix_changed, |v: i32| LooperParam::Mix(
+        v as f32 / 100.0
+    ));
+    param!(on_looper_decay_changed, |v: i32| LooperParam::Decay(
+        v as f32 / 100.0
+    ));
+    param!(on_looper_speed_picked, |v: i32| LooperParam::Speed(
+        speed_from_index(v)
+    ));
+    param!(on_looper_reverse_toggled, |v: bool| LooperParam::Reverse(v));
+
+    // ── input / output endpoint selection ───────────────────────────────
+    // Picking the record input re-issues the looper's segment binding so REC
+    // captures the chosen input; picking the output persists the choice.
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
+        window.on_looper_input_picked(move |index, uid, endpoint_index| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                let registry = s.io_bindings.borrow();
+                let input = s.project.borrow().chains.get(index as usize).and_then(|c| {
+                    project::binding_discovery::input_endpoint_ref(
+                        c,
+                        &registry,
+                        endpoint_index as usize,
+                    )
+                });
+                drop(registry);
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::Looper(LooperCommand::SetChainLooperInput {
+                        chain: chain.clone(),
+                        looper: uid as u64,
+                        input: input.clone(),
+                    }),
+                    &dirty_ctx,
+                );
+                // Tell the store to record from the chosen input next time REC
+                // starts (drops the current record tap so it re-subscribes).
+                if let Some(controller) = runtime.borrow().as_ref() {
+                    controller.looper_set_input(&chain, uid as u64, input);
+                }
+            });
+        });
+    }
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
+        window.on_looper_output_picked(move |index, uid, endpoint_index| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                let registry = s.io_bindings.borrow();
+                let output = s.project.borrow().chains.get(index as usize).and_then(|c| {
+                    project::binding_discovery::output_endpoint_ref(
+                        c,
+                        &registry,
+                        endpoint_index as usize,
+                    )
+                });
+                drop(registry);
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::Looper(LooperCommand::SetChainLooperOutput {
+                        chain: chain.clone(),
+                        looper: uid as u64,
+                        output: output.clone(),
+                    }),
+                    &dirty_ctx,
+                );
+                if let Some(controller) = runtime.borrow().as_ref() {
+                    controller.looper_set_output(&chain, uid as u64, output);
+                }
+            });
+        });
+    }
+    // #323 phase 2: a preset was picked in the drawer's modal. Option 0 =
+    // "follow the chain" (clear the link → None); k = the chain's bank slot k.
+    // The linked-preset playback blocks re-resolve on the next meter tick.
+    {
+        let session = session.clone();
+        let runtime = runtime.clone();
+        let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
+        window.on_looper_preset_picked(move |index, uid, option_index| {
+            with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                let preset = if option_index <= 0 {
+                    None
+                } else {
+                    s.rig.as_deref().and_then(|r| {
+                        crate::chain_preset_wiring::chain_preset_bank(&chain, &r.borrow())
+                            .into_iter()
+                            .nth((option_index - 1) as usize)
+                            .map(|(id, _)| id)
+                    })
+                };
+                dispatch_and_apply(
+                    s,
+                    &runtime,
+                    &chains,
+                    index,
+                    Command::Looper(LooperCommand::SetChainLooperPreset {
+                        chain,
+                        looper: uid as u64,
+                        preset,
+                    }),
+                    &dirty_ctx,
+                );
+            });
+        });
+    }
+}

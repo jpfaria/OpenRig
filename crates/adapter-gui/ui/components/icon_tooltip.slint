@@ -1,0 +1,31 @@
+// #323 — a small hover label for the chain-header icon buttons (looper, DI,
+// Tone Doctor, volume). Same look as ChainActionIcon's tooltip; extracted so
+// the icon-cluster buttons that are their own components can reuse it. Renders
+// BELOW the icon (the project header paints over anything above — issue #329).
+// Placed as a child of a ~28 px button, so it self-centres with a fixed width.
+export component IconTooltip inherits Rectangle {
+    in property <string> text;
+    in property <bool> show;
+
+    visible: root.show && root.text != "";
+    // ~28 px button, ~104 px tooltip → centre with x = (28 - 104) / 2.
+    x: -38px;
+    y: 30px;
+    width: 104px;
+    height: 22px;
+    background: #11141aef;
+    border-width: 1px;
+    border-color: #3b4250;
+    border-radius: 4px;
+    z: 60;
+
+    Text {
+        text: root.text;
+        color: #dde4ef;
+        font-size: 11px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        width: root.width;
+        height: root.height;
+    }
+}

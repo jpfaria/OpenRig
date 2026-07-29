@@ -50,7 +50,10 @@ fn metric_marks_deficit_symptoms_only_when_their_floor_is_enabled() {
     assert_eq!(metric(Symptom::Thin, &d, &lim), Some((0.2, 0.3, true)));
     assert_eq!(metric(Symptom::Squash, &d, &lim), Some((8.0, 12.0, true)));
     // Excess symptoms stay excess (deficit flag false).
-    assert_eq!(metric(Symptom::Mud, &d, &lim).map(|(_, _, def)| def), Some(false));
+    assert_eq!(
+        metric(Symptom::Mud, &d, &lim).map(|(_, _, def)| def),
+        Some(false)
+    );
 }
 
 const SR: f32 = 48_000.0;
@@ -77,7 +80,8 @@ fn params(model: &str, values: &[(&str, f32)]) -> ParameterSet {
     for (k, v) in values {
         ps.insert(*k, ParameterValue::Float(*v));
     }
-    ps.normalized_against(&schema).expect("params must normalize")
+    ps.normalized_against(&schema)
+        .expect("params must normalize")
 }
 
 fn block(id: &str, enabled: bool, kind: AudioBlockKind) -> AudioBlock {
@@ -98,6 +102,7 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -115,18 +120,37 @@ fn di_sine() -> Vec<[f32; 2]> {
 #[test]
 fn fuzz_after_clean_volume_is_blamed_for_the_fizz() {
     init_registry();
-    let volume = block("vol", true, core("volume", params("volume", &[("volume", 80.0)])));
+    let volume = block(
+        "vol",
+        true,
+        core("volume", params("volume", &[("volume", 80.0)])),
+    );
     let fuzz = block(
         "fuzz",
         true,
-        core("fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
+        core(
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
+            ),
+        ),
     );
     let c = chain(vec![volume, fuzz]); // block index 0 = volume, 1 = fuzz
 
     let d = diagnose(&c, SR, &di_sine(), BUF).expect("diagnose runs");
 
-    assert_eq!(d.full_symptom, Symptom::Fizz, "the full chain is fizzy: {:?}", d.full_descriptors);
-    assert_eq!(d.culprit, Some(1), "the fuzz (block 1), not the volume, is the culprit");
+    assert_eq!(
+        d.full_symptom,
+        Symptom::Fizz,
+        "the full chain is fizzy: {:?}",
+        d.full_descriptors
+    );
+    assert_eq!(
+        d.culprit,
+        Some(1),
+        "the fuzz (block 1), not the volume, is the culprit"
+    );
     assert!(d.bypass_resolved, "disabling the fuzz must clear the fizz");
     // The growth curve records both stages, fizz born only once fuzz is added.
     assert_eq!(d.curve.len(), 2, "one stage per enabled processing block");
@@ -140,12 +164,21 @@ fn fuzz_after_clean_volume_is_blamed_for_the_fizz() {
 #[test]
 fn clean_chain_has_no_culprit() {
     init_registry();
-    let volume = block("vol", true, core("volume", params("volume", &[("volume", 80.0)])));
+    let volume = block(
+        "vol",
+        true,
+        core("volume", params("volume", &[("volume", 80.0)])),
+    );
     let c = chain(vec![volume]);
 
     let d = diagnose(&c, SR, &di_sine(), BUF).expect("diagnose runs");
 
-    assert_eq!(d.full_symptom, Symptom::Ok, "a clean volume chain is healthy: {:?}", d.full_descriptors);
+    assert_eq!(
+        d.full_symptom,
+        Symptom::Ok,
+        "a clean volume chain is healthy: {:?}",
+        d.full_descriptors
+    );
     assert_eq!(d.culprit, None, "nothing to blame");
 }
 
@@ -157,7 +190,13 @@ fn a_disabled_block_is_never_blamed() {
     let fuzz = block(
         "fuzz",
         false,
-        core("fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
+        core(
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
+            ),
+        ),
     );
     let c = chain(vec![fuzz]);
 

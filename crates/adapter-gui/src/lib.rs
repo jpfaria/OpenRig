@@ -55,6 +55,7 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
 /// #614: wires on_di_loop_choose_file (uses rfd — separate from chain_row_wiring
@@ -101,6 +102,7 @@ pub use settings::audio::apply_audio_override;
 pub use settings::paths::{
     apply_evaluations_override, apply_plugins_override, apply_presets_override,
 };
+mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
 mod metronome_session;
@@ -153,6 +155,10 @@ mod issue_819_retire_persistent_window_tests;
 mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
+mod looper_callbacks;
+mod looper_persist;
+pub mod looper_view;
+pub mod looper_wiring;
 mod meter_wiring;
 mod meter_wiring_poll;
 #[cfg(test)]
@@ -173,6 +179,7 @@ mod project_ops_recents;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
+mod tone_doctor_events;
 mod state;
 mod ui_state;
 slint::include_modules!();
@@ -212,6 +219,8 @@ mod compact_block_search_wiring_tests;
 #[cfg(test)]
 mod chain_io_chip_label_tests;
 
+#[cfg(test)]
+mod project_view_loopers_tests;
 #[cfg(test)]
 mod project_view_stream_meters_tests;
 

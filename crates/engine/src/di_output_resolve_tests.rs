@@ -12,6 +12,7 @@ fn chain_with(binding_ids: &[&str]) -> Chain {
         io_binding_ids: binding_ids.iter().map(|s| s.to_string()).collect(),
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

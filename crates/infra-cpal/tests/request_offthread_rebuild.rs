@@ -22,6 +22,7 @@ fn empty_chain(id: &str) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

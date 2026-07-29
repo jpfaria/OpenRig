@@ -52,6 +52,7 @@ fn rig() -> RigProject {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     RigProject {
@@ -196,6 +197,7 @@ fn remove_chain_also_drops_the_rig_input_not_just_the_legacy_chain() {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     let rig = Rc::new(RefCell::new(r));
@@ -355,6 +357,7 @@ fn two_input_rig() -> RigProject {
                 io: String::new(),
                 endpoint: String::new(),
                 io_binding_ids: Vec::new(),
+                loopers: Vec::new(),
             },
         );
     }

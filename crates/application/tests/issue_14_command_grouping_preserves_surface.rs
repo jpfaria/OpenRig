@@ -38,6 +38,19 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetMetronomeTimbre",
     "SetMetronomeTimeSignature",
     "SetMetronomeVolume",
+    // ── Added on develop (#791 Tone Doctor, #829 device refresh) ──────────
+    "ApplyToneDoctorFix",
+    "DiagnoseChainTone",
+    "RefreshAudioDevices",
+    // ── Added by #323 (the per-chain looper) ──────────────────────────────
+    "AddChainLooper",
+    "RemoveChainLooper",
+    "SetChainLooperAudioFile",
+    "SetChainLooperInput",
+    "SetChainLooperOutput",
+    "SetChainLooperParam",
+    "SetChainLooperPreset",
+    "SetChainLooperTransport",
     // ── The surface that existed before the split ─────────────────────────
     "AddBlock",
     "AddChain",

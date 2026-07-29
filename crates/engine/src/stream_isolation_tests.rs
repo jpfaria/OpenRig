@@ -27,7 +27,12 @@ use std::sync::Arc;
 /// Build a registry input endpoint mirroring an old single-entry `InputBlock`.
 /// `device`/`channels` carry through unchanged; mode follows the old
 /// `ChainInputMode` → `ChannelMode` mapping.
-pub(super) fn in_ep(name: &str, device: &str, mode: ChannelMode, channels: Vec<usize>) -> IoEndpoint {
+pub(super) fn in_ep(
+    name: &str,
+    device: &str,
+    mode: ChannelMode,
+    channels: Vec<usize>,
+) -> IoEndpoint {
     IoEndpoint {
         name: name.into(),
         device_id: DeviceId(device.into()),
@@ -37,7 +42,12 @@ pub(super) fn in_ep(name: &str, device: &str, mode: ChannelMode, channels: Vec<u
 }
 
 /// Build a registry output endpoint mirroring an old single-entry `OutputBlock`.
-pub(super) fn out_ep(name: &str, device: &str, mode: ChannelMode, channels: Vec<usize>) -> IoEndpoint {
+pub(super) fn out_ep(
+    name: &str,
+    device: &str,
+    mode: ChannelMode,
+    channels: Vec<usize>,
+) -> IoEndpoint {
     IoEndpoint {
         name: name.into(),
         device_id: DeviceId(device.into()),
@@ -70,6 +80,7 @@ pub(super) fn bound_chain(id: &str, description: Option<String>, blocks: Vec<Aud
         io_binding_ids: vec!["io".into()],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -409,4 +420,3 @@ fn every_output_route_has_at_least_one_producer_segment() {
 // isolation between concurrent streams of the same device. THESE are the
 // tests the user explicitly demanded ("garantir que streams sao isolados").
 // ─────────────────────────────────────────────────────────────────────────
-

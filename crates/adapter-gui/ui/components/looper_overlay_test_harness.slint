@@ -1,0 +1,41 @@
+// #323 phase 2 TEST-ONLY harness: hosts LooperOverlay in a real Window so the
+// headless interaction test can prove the preset picker modal is reachable —
+// open the drawer's preset button, then click an option row and assert the
+// preset-picked callback fires. All INLINE (the modal is a root overlay, never
+// a PopupWindow, the #749/#761 lesson). Never shown in the running app.
+
+import { LooperOverlay } from "looper_overlay.slint";
+import { LooperPanel } from "looper_panel_globals.slint";
+import { LooperItem } from "../models.slint";
+
+export component LooperOverlayHarness inherits Window {
+    width: 900px;
+    height: 640px;
+    in property <[LooperItem]> loopers;
+    in property <[string]> input-options;
+    in property <[string]> output-options;
+    in property <[string]> preset-options;
+    in property <int> expanded-uid: 7;
+
+    callback preset-picked(int, int, int);
+
+    // Drive the panel open on chain 0 with the row drawer expanded, so the
+    // preset button is on screen for the interaction test (the picker modal is
+    // then opened by clicking it — never a PopupWindow).
+    init => {
+        LooperPanel.open = true;
+        LooperPanel.chain-index = 0;
+        LooperPanel.expanded-uid = root.expanded-uid;
+        LooperPanel.preset-picker-uid = -1;
+    }
+
+    LooperOverlay {
+        width: root.width;
+        height: root.height;
+        loopers: root.loopers;
+        input-options: root.input-options;
+        output-options: root.output-options;
+        preset-options: root.preset-options;
+        preset-picked(ci, uid, v) => { root.preset-picked(ci, uid, v); }
+    }
+}

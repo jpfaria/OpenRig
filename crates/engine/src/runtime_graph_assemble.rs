@@ -137,6 +137,11 @@ pub(crate) fn assemble_chain_runtime_state(
         }
     }
 
+    // #323: size the looper buffers from the LIVE build rate — never a
+    // hardcoded 48000.
+    let looper_shared = crate::looper_bank::LooperShared::new(sample_rate);
+    let looper_max_frames = looper_shared.max_frames();
+
     let input_scratches = (0..input_to_segments.len())
         .map(|_| InputCallbackScratch::default())
         .collect();
@@ -160,6 +165,7 @@ pub(crate) fn assemble_chain_runtime_state(
             input_states,
             input_to_segments,
             input_scratches,
+            looper_bank: crate::looper_bank::LooperBank::new(looper_max_frames),
         }),
         output_routes: ArcSwap::from_pointee(output_routes),
         stream_handles: Mutex::new(stream_handles_map),
@@ -185,6 +191,7 @@ pub(crate) fn assemble_chain_runtime_state(
         bypass_block_ids: ArcSwap::from_pointee(initial_bypass_block_ids),
         di_loop: arc_swap::ArcSwapOption::empty(),
         di_loop_pos: std::sync::atomic::AtomicUsize::new(0),
+        loopers: looper_shared,
         // Issue #670 — audio-thread deadline accounting, zeroed at build.
         xrun_count: AtomicU64::new(0),
         peak_load_ppm: AtomicU64::new(0),

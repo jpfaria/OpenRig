@@ -43,6 +43,7 @@ fn make_project_with_native_cab(model_id: &str) -> Rc<RefCell<Project>> {
                 }),
             }],
             di_output: None,
+            loopers: vec![],
         }],
     }))
 }

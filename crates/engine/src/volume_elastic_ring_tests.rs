@@ -1,8 +1,8 @@
 //! Volume/audio invariants — PINNED (issue #792 split from volume_invariants_tests.rs).
 //! Section moved verbatim; shared fixtures live in `volume_invariants_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::volume_invariants::*;
+use super::*;
 
 // ─────────────────────────────────────────────────────────────────────────
 // M. Elastic-buffer / SPSC-ring path audit (issue #496, target found via
@@ -122,7 +122,6 @@ fn lufs_delta_through_chain(chain: &Chain, registry: &[IoBinding], buffer: usize
     m_out.add_frames_f32(&out_collected[skip..]).unwrap();
     m_out.loudness_global().unwrap() - m_in.loudness_global().unwrap()
 }
-
 
 fn sine_2s(freq: f32, amp: f32) -> Vec<f32> {
     (0..(SR as usize) * 2)
@@ -251,4 +250,3 @@ lufs_test!(m32_lufs_buf_256, 256);
 lufs_test!(m33_lufs_buf_512, 512);
 lufs_test!(m34_lufs_buf_1024, 1024);
 lufs_test!(m35_lufs_buf_2048, 2048);
-

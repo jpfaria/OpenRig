@@ -1,8 +1,8 @@
 //! Volume/audio invariants — PINNED (issue #792 split from volume_invariants_tests.rs).
 //! Section moved verbatim; shared fixtures live in `volume_invariants_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::volume_invariants::*;
+use super::*;
 
 // ─────────────────────────────────────────────────────────────────────────
 // N. Mono→Stereo broadcast — 30 tests probing L=R bit-equality across

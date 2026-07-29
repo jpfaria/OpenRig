@@ -34,6 +34,7 @@ fn empty_chain(id: &str, enabled: bool) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -94,6 +95,8 @@ fn controller_with_active_chain(
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_playback_cells: std::cell::RefCell::new(std::collections::HashMap::new()),
         di_retired: Default::default(),
+        looper_armed: std::cell::RefCell::new(std::collections::HashMap::new()),
+        looper_store: std::cell::RefCell::new(crate::looper_store::LooperStore::default()),
         metronome_stream: std::cell::RefCell::new(None),
         metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
             Default::default(),

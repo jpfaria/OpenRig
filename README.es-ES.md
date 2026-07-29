@@ -20,6 +20,10 @@
 </p>
 
 <p align="center">
+  <a href="https://jpfaria.github.io/OpenRig/"><strong>Sitio → jpfaria.github.io/OpenRig</strong></a>
+</p>
+
+<p align="center">
   Última: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.24</a> · <a href="CHANGELOG.md">CHANGELOG</a>
 </p>
 
@@ -218,12 +222,12 @@ Cada item abierto debajo está rastreado como una [issue de GitHub](https://gith
 - [x] **Formato de preset YAML abierto** — diffeable, compartible por gist, scriptable; registry canónico de `MODEL_ID` documentado en [Blocks Reference](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/blocks-reference.md)
 - [x] **Construcción de timbre asistida por IA** — la skill [`openrig-tone-builder`](https://github.com/jpfaria/OpenRig-claude/blob/main/skills/openrig-tone-builder/SKILL.md) de Claude Code (entregada en [jpfaria/OpenRig-claude](https://github.com/jpfaria/OpenRig-claude)) arma timbres completos sobre la rig viva a partir de una canción o un artista, vía MCP
 - [x] **Bancos de presets + escenas por cadena** — cambia presets y escenas en vivo por cadena; las escenas guardan solo las diferencias de parámetro (estilo Helix-Snapshot) para cambio instantáneo sin recargar bloques ([#321](https://github.com/jpfaria/OpenRig/issues/321))
+- [x] **Looper multicapa por cadena** — hasta 8 loopers independientes por cadena, cada uno graba la entrada seca de la cadena y la reproduce por toda ella (editar un bloque en vivo cambia el timbre del loop): overdub por capas con deshacer/rehacer, velocidad ½×/1×/2×, inverso, nivel y decaimiento por capa, desde el panel o un pedal MIDI; los loops se guardan con el proyecto ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [x] **Loop de DI virtual por cadena** — haz loop de un DI seco en cualquier cadena para moldear el timbre sin tocar (loops CC0 incluidos o tu propio WAV); por cadena, efímero, nunca guardado en el proyecto ([#614](https://github.com/jpfaria/OpenRig/issues/614))
 
 ### Features de escenario
 
 - [ ] Setlist / modo live performance ([#325](https://github.com/jpfaria/OpenRig/issues/325))
-- [ ] Looper, multi-capa ([#323](https://github.com/jpfaria/OpenRig/issues/323))
 - [ ] Backing tracks / reproductor de audio ([#324](https://github.com/jpfaria/OpenRig/issues/324))
 - [ ] Mapeado de pedal de expresión por MIDI CC ([#326](https://github.com/jpfaria/OpenRig/issues/326))
 - [x] Metrónomo integrado — tempo, compás, subdivisiones, count-in, tap tempo ([#14](https://github.com/jpfaria/OpenRig/issues/14))

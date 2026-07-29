@@ -260,7 +260,7 @@ exceção pra "é só visual".
 3. **`cargo test --workspace --lib`** verde no solver (após o clean, se houve).
 4. **`git push` da branch** (sem PR ainda).
 5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
-6. **Quality gate compartilhado** rodar e ficar verde — invocar via skill `quality-gate` (mecânica do gate, JSON, bypass governance ficam todos lá).
+6. **Quality gate compartilhado** — NÃO rodar localmente. Em Rust o gate compila o workspace duas vezes (base + branch) e é inviável na máquina do dev; ele roda no CI, no job `quality-gate` do `.github/workflows/pr.yml`, quando o PR abre. O veredito verde/vermelho vem de lá.
 7. **Só ENTÃO** o PR, **sempre não-interativo** — push a branch first, then pass every field explicitly:
 
    ```bash

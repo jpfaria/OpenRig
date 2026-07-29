@@ -17,3 +17,7 @@ infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 project = { path = "../project" }
 plugin-loader = { path = "../plugin-loader" }
+
+[dev-dependencies]
+# Tick tests build a real chain to drive an off-thread command.
+domain = { path = "../domain" }

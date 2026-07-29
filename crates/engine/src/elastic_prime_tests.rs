@@ -20,6 +20,7 @@ fn io_chain(mid: AudioBlock) -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![mid],
         di_output: None,
+        loopers: vec![],
     }
 }
 

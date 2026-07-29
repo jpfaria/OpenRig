@@ -362,11 +362,11 @@ pub fn build_chain_runtime_state(
 // `engine::runtime_graph::*` and `engine::runtime::*` paths keep resolving
 // unchanged for callers and tests.
 use crate::runtime_graph_assemble::assemble_chain_runtime_state;
+#[cfg(test)]
+pub(crate) use crate::runtime_graph_assemble::build_output_routing_state;
 pub use crate::runtime_graph_update::{
     update_chain_runtime_state, update_chain_runtime_state_spillover,
 };
-#[cfg(test)]
-pub(crate) use crate::runtime_graph_assemble::build_output_routing_state;
 
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "runtime_graph_issue_736_tests.rs"]

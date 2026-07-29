@@ -11,8 +11,8 @@
 //! → range; they are handled in a follow-up sub-phase.
 
 use application::command::{
-    BlockCommand, BlockId, ChainCommand, ChainId, Command, MetronomeCommand, RigNavKind,
-    SelectionCommand,
+    BlockCommand, BlockId, ChainCommand, ChainId, Command, LooperAction, LooperCommand,
+    MetronomeCommand, RigNavKind, SelectionCommand,
 };
 use application::SelectionState;
 
@@ -204,6 +204,30 @@ pub fn slot_to_command(
                 SelectionCommand::ToggleActiveBlockNeighborEnabled,
             ))
         }
+
+        // --- Looper transport on the active chain (#323). uid 0 is the
+        //     footswitch sentinel: the dispatcher resolves it to the
+        //     chain's first looper, since a pedal has no uid to send.
+        "looper_record" => Some(Command::Looper(LooperCommand::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::Record,
+        })),
+        "looper_play_stop" => Some(Command::Looper(LooperCommand::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::PlayStop,
+        })),
+        "looper_undo" => Some(Command::Looper(LooperCommand::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::Undo,
+        })),
+        "looper_clear" => Some(Command::Looper(LooperCommand::SetChainLooperTransport {
+            chain: active_chain()?,
+            looper: 0,
+            action: LooperAction::Clear,
+        })),
 
         // --- Continuous CC. Scaled 0..127 → 0.0..1.0; the project /
         //     parameter layer maps the normalised value to its real

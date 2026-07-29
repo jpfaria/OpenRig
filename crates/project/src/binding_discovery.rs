@@ -99,3 +99,118 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
 
     ports
 }
+
+/// #323: flat index of a looper's chosen INPUT endpoint among the chain's
+/// resolved inputs — the same deterministic order the engine numbers input
+/// segments with (mirror of `engine::di_output_resolve` for outputs). `None`,
+/// a stale binding id, or a stale endpoint name all fall back to `0` (the
+/// chain's first input), so a fresh looper and legacy projects record the
+/// first input, unchanged.
+pub fn resolve_input_segment(
+    chain: &Chain,
+    registry: &[IoBinding],
+    input: Option<&crate::chain::EndpointRef>,
+) -> usize {
+    let Some(target) = input else {
+        return 0;
+    };
+    resolve_chain_ports(chain, registry)
+        .into_iter()
+        .filter(|p| p.direction == PortDirection::Input)
+        .position(|p| p.binding_id == target.binding_id && p.endpoint.name == target.endpoint)
+        .unwrap_or(0)
+}
+
+/// #323: flat index of a looper's chosen OUTPUT endpoint among the chain's
+/// resolved outputs (the same order the engine numbers output routes with).
+/// `None` / stale ⇒ `0` (the chain's main output).
+pub fn resolve_output_segment(
+    chain: &Chain,
+    registry: &[IoBinding],
+    output: Option<&crate::chain::EndpointRef>,
+) -> usize {
+    let Some(target) = output else {
+        return 0;
+    };
+    resolve_chain_ports(chain, registry)
+        .into_iter()
+        .filter(|p| p.direction == PortDirection::Output)
+        .position(|p| p.binding_id == target.binding_id && p.endpoint.name == target.endpoint)
+        .unwrap_or(0)
+}
+
+/// #323: the chain's bound input / output endpoint labels, in the deterministic
+/// order the selectors index into. Each label is the endpoint name, prefixed
+/// with the binding's NAME (not its id) only when the same endpoint name
+/// repeats across bindings — mirrors the DI output picker.
+pub fn chain_endpoint_labels(chain: &Chain, registry: &[IoBinding]) -> (Vec<String>, Vec<String>) {
+    let ports = resolve_chain_ports(chain, registry);
+    let binding_name = |id: &str| -> String {
+        registry
+            .iter()
+            .find(|b| b.id == id)
+            .map(|b| b.name.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| id.to_string())
+    };
+    let label = |port: &crate::binding_discovery::ChainPort| -> String {
+        let same_name = ports
+            .iter()
+            .filter(|q| q.direction == port.direction && q.endpoint.name == port.endpoint.name)
+            .count()
+            > 1;
+        if same_name {
+            format!("{} · {}", binding_name(&port.binding_id), port.endpoint.name)
+        } else {
+            port.endpoint.name.clone()
+        }
+    };
+    let mut inputs = Vec::new();
+    let mut outputs = Vec::new();
+    for port in &ports {
+        match port.direction {
+            PortDirection::Input => inputs.push(label(port)),
+            PortDirection::Output => outputs.push(label(port)),
+        }
+    }
+    (inputs, outputs)
+}
+
+/// #323: the `EndpointRef` for the input at flat index `index`, or `None` when
+/// out of range (which a caller treats as "the chain's first input").
+pub fn input_endpoint_ref(
+    chain: &Chain,
+    registry: &[IoBinding],
+    index: usize,
+) -> Option<crate::chain::EndpointRef> {
+    endpoint_ref(chain, registry, PortDirection::Input, index)
+}
+
+/// #323: the `EndpointRef` for the output at flat index `index`.
+pub fn output_endpoint_ref(
+    chain: &Chain,
+    registry: &[IoBinding],
+    index: usize,
+) -> Option<crate::chain::EndpointRef> {
+    endpoint_ref(chain, registry, PortDirection::Output, index)
+}
+
+fn endpoint_ref(
+    chain: &Chain,
+    registry: &[IoBinding],
+    direction: PortDirection,
+    index: usize,
+) -> Option<crate::chain::EndpointRef> {
+    resolve_chain_ports(chain, registry)
+        .into_iter()
+        .filter(|p| p.direction == direction)
+        .nth(index)
+        .map(|p| crate::chain::EndpointRef {
+            binding_id: p.binding_id,
+            endpoint: p.endpoint.name,
+        })
+}
+
+#[cfg(test)]
+#[path = "binding_discovery_looper_tests.rs"]
+mod looper_tests;
