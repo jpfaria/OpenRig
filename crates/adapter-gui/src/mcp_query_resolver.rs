@@ -46,6 +46,7 @@ impl QueryResolver<'_> {
         let live = GuiLiveSource {
             project: &project,
             chain_rows: self.chain_rows,
+            io_bindings: &io_bindings,
             tuner: self.tuner,
             spectrum: self.spectrum,
             runtime: self.runtime,

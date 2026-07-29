@@ -11,7 +11,6 @@ fn a_frontend_that_hosts_nothing_answers_none_everywhere() {
     assert!(live.di_loop().is_none());
     assert!(live.chain_loopers(&ChainId("guitar".into())).is_none());
     assert!(live.devices().is_none());
-    assert!(live.sample_rate().is_none());
 }
 
 #[test]

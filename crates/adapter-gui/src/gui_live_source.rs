@@ -18,6 +18,7 @@ use application::live_source::{ChainMeterReading, LiveSource};
 use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::LooperStatus;
 use infra_cpal::ProjectRuntimeController;
 use project::project::Project;
@@ -35,6 +36,10 @@ pub(crate) struct GuiLiveSource<'a> {
     pub(crate) project: &'a Project,
     /// Chain rows the GUI meters write into (`meter_in_dbfs` / `meter_out_dbfs`).
     pub(crate) chain_rows: &'a Rc<VecModel<ProjectChainItem>>,
+    /// #716: the per-machine binding registry a chain's device endpoints —
+    /// and therefore its real sample rate — resolve against when no runtime
+    /// is up to report one.
+    pub(crate) io_bindings: &'a [IoBinding],
     pub(crate) tuner: &'a Rc<RefCell<Option<TunerSession>>>,
     pub(crate) spectrum: &'a Rc<RefCell<Option<SpectrumSession>>>,
     /// Live runtime — DI playback state, DI peaks and looper transport
@@ -108,16 +113,30 @@ impl LiveSource for GuiLiveSource<'_> {
         )
     }
 
-    /// #323: the chain's live looper transport state, at the rate the
-    /// streams are actually running at — the controller's own rate, read
-    /// from the live stream, never a constant (issue #723).
+    /// #323: the chain's live looper transport state, at THIS chain's real
+    /// rate — never a constant (issue #723).
+    ///
+    /// Running: the statuses and the rate the streams are actually running
+    /// at, both from the controller. Stopped: there is no transport state,
+    /// but the rate is still a real, measurable property of the chain's own
+    /// device — the GUI owns the binding registry and the audio host, so it
+    /// resolves that rate the same way `build_streams` does, keyed by this
+    /// chain's id (a sibling chain never leaks into the answer). A rate that
+    /// cannot be resolved is a real failure and propagates as one; never
+    /// falls through to a tracked/default engine rate.
     fn chain_loopers(&self, chain: &ChainId) -> Option<Result<(Vec<LooperStatus>, u32), String>> {
         let runtime = self.runtime.borrow();
-        let controller = runtime.as_ref()?;
-        Some(Ok((
-            controller.chain_looper_statuses(chain),
-            controller.sample_rate(),
-        )))
+        if let Some(controller) = runtime.as_ref() {
+            return Some(Ok((
+                controller.chain_looper_statuses(chain),
+                controller.sample_rate(),
+            )));
+        }
+        let rate = infra_cpal::resolve_project_chain_sample_rates(self.project, self.io_bindings)
+            .ok()
+            .and_then(|rates| rates.get(chain).copied())
+            .ok_or_else(|| format!("no resolved sample rate for chain {}", chain.0));
+        Some(rate.map(|rate| (Vec::new(), rate.round() as u32)))
     }
 
     /// The GUI owns an audio host, so it always answers — an enumeration

@@ -228,6 +228,16 @@ fn every_query_kind_answers_with_the_same_shape_hosted_and_unhosted() {
         if matches!(kind, QueryKind::Devices) {
             continue;
         }
+        // `ChainLoopers` is the one read the GUI genuinely hosts in this
+        // fixture, and it reports a REAL failure: it resolves this chain's
+        // own rate, and this chain (no binding, empty registry) has none.
+        // A hosted-and-failed source is the documented third state, not a
+        // transport refusing a read — see
+        // `a_stopped_gui_never_ships_a_fabricated_rate_for_a_chains_loopers`,
+        // which pins the failure itself.
+        if matches!(kind, QueryKind::ChainLoopers { .. }) {
+            continue;
+        }
         let hosted = gui.resolve(&kind);
         let unhosted = resolve_unhosted(&kind);
         assert_eq!(
@@ -247,6 +257,23 @@ fn every_query_kind_answers_with_the_same_shape_hosted_and_unhosted() {
              hosted={hosted} unhosted={unhosted}"
         );
     }
+}
+
+#[test]
+fn a_stopped_gui_never_ships_a_fabricated_rate_for_a_chains_loopers() {
+    // Issue #723: with the runtime stopped the GUI must still resolve THIS
+    // chain's own rate (it owns the binding registry and the audio host) —
+    // and report the failure when it cannot. Falling through to the
+    // dispatcher's `engine_sr()` would ship a constant 48000 on a 44.1k or
+    // 96k rig, and would disagree with what the console answers for the
+    // very same project.
+    let gui = GuiState::new((-12.0, -6.0));
+    assert_eq!(
+        gui.resolve(&QueryKind::ChainLoopers {
+            chain: ChainId("guitar".to_string()),
+        }),
+        Err("no resolved sample rate for chain guitar".to_string())
+    );
 }
 
 #[test]

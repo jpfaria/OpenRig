@@ -1,9 +1,9 @@
 //! #127: the read-side counterpart to `dyn CommandDispatcher`.
 //!
 //! Some state only ever lives inside a frontend's own audio runtime —
-//! meters, the tuner, the spectrum, the DI loop, loopers, the device list,
-//! the sample rate. The core has no audio thread of its own to read these
-//! from, so a frontend that hosts one implements `LiveSource` and hands
+//! meters, the tuner, the spectrum, the DI loop, loopers (and the rate they
+//! count at), the device list. The core has no audio thread of its own to
+//! read these from, so a frontend that hosts one implements `LiveSource` and hands
 //! the core a reference to it; Task 4's `QueryKind` resolver reads through
 //! this trait instead of reaching into a concrete GUI type.
 //!
@@ -82,10 +82,6 @@ pub trait LiveSource {
     /// broken" is not the same answer as "this transport has no devices to
     /// report", and collapsing the two hides a real failure.
     fn devices(&self) -> Option<Result<Vec<String>, String>> {
-        None
-    }
-
-    fn sample_rate(&self) -> Option<u32> {
         None
     }
 }

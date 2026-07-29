@@ -66,6 +66,7 @@ fn gui_meters_report_the_values_the_rows_are_showing() {
     let live = GuiLiveSource {
         project: &project,
         chain_rows: &rows,
+        io_bindings: &[],
         tuner: &tuner,
         spectrum: &spectrum,
         runtime: &runtime,
@@ -91,6 +92,7 @@ fn gui_without_a_tuner_session_reports_none_not_a_fabricated_row() {
     let live = GuiLiveSource {
         project: &project,
         chain_rows: &rows,
+        io_bindings: &[],
         tuner: &tuner,
         spectrum: &spectrum,
         runtime: &runtime,
@@ -98,8 +100,39 @@ fn gui_without_a_tuner_session_reports_none_not_a_fabricated_row() {
 
     assert!(live.tuner().is_none());
     assert!(live.spectrum().is_none());
-    // No runtime ⇒ no DI playback state and no looper transport state
-    // either; both fall back to the resolver's empty shape.
+    // No runtime ⇒ no DI playback state either; the resolver supplies the
+    // silent shape.
     assert!(live.di_loop().is_none());
-    assert!(live.chain_loopers(&ChainId("guitar".to_string())).is_none());
+}
+
+#[test]
+fn a_stopped_gui_reports_a_chains_unresolvable_rate_instead_of_fabricating_one() {
+    // #723: looper frame counts mean nothing without the rate they were
+    // counted at, so the GUI resolves THIS chain's own rate even with the
+    // runtime down — and says so when it cannot. Never `None` here: `None`
+    // would let the resolver fall back to the dispatcher's tracked engine
+    // rate, which on a stopped session is a seeded 48000 — a constant, on a
+    // rig that may well run at 44.1k or 96k.
+    //
+    // Hermetic: the chain selects no I/O binding and the registry is empty,
+    // so the chain has no input endpoint to resolve and the lookup fails
+    // before any audio device is touched.
+    let project = one_chain_project();
+    let rows = rows_with(&[(-12.0, -6.0)]);
+    let tuner = Rc::new(RefCell::new(None));
+    let spectrum = Rc::new(RefCell::new(None));
+    let runtime = Rc::new(RefCell::new(None));
+    let live = GuiLiveSource {
+        project: &project,
+        chain_rows: &rows,
+        io_bindings: &[],
+        tuner: &tuner,
+        spectrum: &spectrum,
+        runtime: &runtime,
+    };
+
+    assert_eq!(
+        live.chain_loopers(&ChainId("guitar".to_string())),
+        Some(Err("no resolved sample rate for chain guitar".to_string()))
+    );
 }
