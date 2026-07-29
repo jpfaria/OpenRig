@@ -226,6 +226,33 @@ impl LooperSlot {
         self.content_rev += 1;
     }
 
+    /// #323 loop-sync: force the frozen loop length to `len` frames so a new
+    /// loop can be quantized to a whole MULTIPLE of the chain's master loop.
+    /// Clamps to `[1, max_frames]`, restarts the read cursor and bumps the
+    /// content revision (so the isolated stream re-arms). The recording buffer
+    /// is `max_frames` of zeros beyond what was captured, so EXTENDING the
+    /// length pads the loop with silence; SHRINKING it trims the tail. No-op
+    /// unless there is material to size.
+    pub fn set_len_frames(&mut self, len: usize) {
+        if self.len_frames == 0 {
+            return;
+        }
+        self.len_frames = len.clamp(1, self.max_frames);
+        self.read_pos = 0.0;
+        self.content_rev += 1;
+    }
+
+    /// #323 loop-sync: restart playback from the top and force a re-arm, so the
+    /// chain's synced loops all begin the bar together (phase-aligned). No-op on
+    /// an empty loop.
+    pub fn restart(&mut self) {
+        if self.len_frames == 0 {
+            return;
+        }
+        self.read_pos = 0.0;
+        self.content_rev += 1;
+    }
+
     /// Loop level, 0..=1 (values outside are clamped).
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);

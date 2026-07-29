@@ -100,6 +100,7 @@ impl LooperStore {
     /// buffer. Mirrors the audio-thread wiring the bank used to do.
     pub fn tap_record(&mut self, chain: &ChainId, uid: u64) {
         let max = self.max_frames();
+        let mut just_closed = false;
         if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
             // Single-take looper (#323): REC starts the one recording (Empty) or
             // closes it (Recording → Playing). It does NOT overdub a loop that
@@ -113,6 +114,7 @@ impl LooperStore {
                 }
                 LooperState::Recording => {
                     entry.slot.tap_record(None);
+                    just_closed = true;
                 }
                 _ => {}
             }
@@ -121,6 +123,50 @@ impl LooperStore {
             // re-subscribes fresh.
             if !matches!(entry.slot.state(), LooperState::Recording) {
                 entry.rings.clear();
+            }
+        }
+        // #323 loop-sync: a freshly closed loop locks to the chain's master.
+        if just_closed {
+            self.sync_to_master(chain, uid);
+        }
+    }
+
+    /// #323 loop-sync: quantize the just-closed loop `uid` to a whole MULTIPLE
+    /// of the chain's MASTER loop (the shortest OTHER loop that has material)
+    /// and restart every playing loop of the chain at 0, so they play locked to
+    /// the same bar. No-op when this is the first loop on the chain (it IS the
+    /// master — nothing to sync to), so a lone loop keeps its natural length.
+    fn sync_to_master(&mut self, chain: &ChainId, uid: u64) {
+        let max = self.max_frames();
+        let master = self
+            .slots
+            .iter()
+            .filter(|((c, u), e)| {
+                c == chain
+                    && *u != uid
+                    && matches!(
+                        e.slot.state(),
+                        LooperState::Playing | LooperState::Stopped
+                    )
+                    && e.slot.len_frames() > 0
+            })
+            .map(|(_, e)| e.slot.len_frames())
+            .min();
+        let Some(master) = master else {
+            return;
+        };
+        // Quantize this loop to the nearest whole multiple of the master (≥1×).
+        if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
+            let captured = entry.slot.len_frames();
+            let mult = ((captured as f64 / master as f64).round() as usize).max(1);
+            entry.slot.set_len_frames((mult * master).min(max));
+        }
+        // Phase-align: restart every playing loop of the chain at 0 together, so
+        // the stack begins the bar in lock-step (the isolated streams re-arm
+        // cold at position 0 on the next reconcile).
+        for ((c, _), e) in self.slots.iter_mut() {
+            if c == chain && matches!(e.slot.state(), LooperState::Playing) {
+                e.slot.restart();
             }
         }
     }

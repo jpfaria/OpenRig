@@ -10,6 +10,45 @@ fn cid() -> ChainId {
 }
 
 #[test]
+fn a_second_loop_syncs_to_the_master_length_and_phase() {
+    // #323 loop-sync: the first closed loop is the MASTER. A second loop
+    // quantizes its length to the nearest MULTIPLE of the master, and closing
+    // it restarts every playing loop at 0 so they play locked to the same bar.
+    let mut store = LooperStore::default();
+    store.set_sample_rate(48_000);
+
+    // Master: 100 frames.
+    store.create(&cid(), 1);
+    store.tap_record(&cid(), 1);
+    store.record_frames(&cid(), 1, &vec![0.1f32; 100 * 2]);
+    store.tap_record(&cid(), 1); // close → master, len 100
+    let master = store.status(&cid(), 1).unwrap().len_frames;
+    assert_eq!(master, 100);
+
+    // Second loop: ~1.9x the master (190 frames) → quantizes to 2x = 200.
+    store.create(&cid(), 2);
+    store.tap_record(&cid(), 2);
+    store.record_frames(&cid(), 2, &vec![0.2f32; 190 * 2]);
+    store.tap_record(&cid(), 2); // close → quantize + phase-align
+
+    assert_eq!(
+        store.status(&cid(), 2).unwrap().len_frames,
+        master * 2,
+        "the second loop is a whole multiple of the master (locked to the bar)"
+    );
+    assert_eq!(
+        store.status(&cid(), 1).unwrap().position_frames,
+        0,
+        "closing a synced loop restarts the master at 0 (phase-aligned)"
+    );
+    assert_eq!(
+        store.status(&cid(), 2).unwrap().position_frames,
+        0,
+        "the new loop also starts at 0"
+    );
+}
+
+#[test]
 fn record_close_play_stop_clear_are_deterministic_without_any_runtime() {
     let mut store = LooperStore::default();
     store.create(&cid(), 1);

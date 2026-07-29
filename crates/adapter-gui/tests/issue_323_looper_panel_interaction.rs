@@ -100,18 +100,15 @@ fn every_transport_button_fires_for_its_row() {
     }
     record_call!(on_record, "record");
     record_call!(on_play_stop, "play-stop");
-    record_call!(on_undo, "undo");
-    record_call!(on_redo, "redo");
     record_call!(on_clear, "clear");
     record_call!(on_remove, "remove");
     record_call!(on_toggle_drawer, "drawer");
     w.show().unwrap();
 
+    // #323: single-take looper — the undo/redo buttons were removed.
     for id in [
         "LooperRow::rec-btn",
         "LooperRow::play-btn",
-        "LooperRow::undo-btn",
-        "LooperRow::redo-btn",
         "LooperRow::clear-btn",
         "LooperRow::gear-btn",
         "LooperRow::remove-btn",
@@ -124,8 +121,6 @@ fn every_transport_button_fires_for_its_row() {
         vec![
             "record:7",
             "play-stop:7",
-            "undo:7",
-            "redo:7",
             "clear:7",
             "drawer:7",
             "remove:7",
@@ -136,32 +131,24 @@ fn every_transport_button_fires_for_its_row() {
 #[test]
 fn a_disabled_button_does_not_fire() {
     i_slint_backend_testing::init_no_event_loop();
-    // An empty looper: nothing to play, clear, undo or redo yet.
-    let mut empty = item(3, 0);
-    empty.can_undo = false;
-    empty.can_redo = false;
+    // An empty looper: nothing to play or clear yet.
+    let empty = item(3, 0);
     let w = harness(vec![empty]);
 
     let fired = Rc::new(Cell::new(0));
-    for setter in 0..1 {
-        let _ = setter;
-    }
     let f = fired.clone();
     w.on_play_stop(move |_| f.set(f.get() + 1));
     let f2 = fired.clone();
     w.on_clear(move |_| f2.set(f2.get() + 1));
-    let f3 = fired.clone();
-    w.on_undo(move |_| f3.set(f3.get() + 1));
     w.show().unwrap();
 
     click_id(&w, "LooperRow::play-btn", 0);
     click_id(&w, "LooperRow::clear-btn", 0);
-    click_id(&w, "LooperRow::undo-btn", 0);
 
     assert_eq!(
         fired.get(),
         0,
-        "play / clear / undo are disabled on an empty looper and must not fire"
+        "play / clear are disabled on an empty looper and must not fire"
     );
 }
 
