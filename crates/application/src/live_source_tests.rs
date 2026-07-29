@@ -29,3 +29,16 @@ fn a_frontend_overrides_only_what_it_hosts() {
     assert_eq!(live.chain_meters().unwrap().len(), 1);
     assert!(live.tuner().is_none(), "unimplemented reads stay None");
 }
+
+#[test]
+fn a_hosted_device_source_can_report_that_enumeration_failed() {
+    struct DeadHost;
+    impl LiveSource for DeadHost {
+        fn devices(&self) -> Option<Result<Vec<String>, String>> {
+            Some(Err("no audio host".into()))
+        }
+    }
+    // Three states, not two: not hosted / hosted-and-failed / hosted-and-ok.
+    assert!(NoLiveSource.devices().is_none());
+    assert_eq!(DeadHost.devices(), Some(Err("no audio host".to_string())));
+}

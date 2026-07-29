@@ -6,7 +6,7 @@ use crate::bridge::QueryKind;
 use crate::live_source::{ChainMeterReading, LiveSource, NoLiveSource};
 use domain::ids::{BlockId, ChainId};
 use project::block::types::{AudioBlock, AudioBlockKind, InputBlock};
-use project::chain::Chain;
+use project::chain::{Chain, LooperConfig, LooperSpeed};
 use project::project::Project;
 
 /// Every variant, so a new one cannot be added without deciding what an
@@ -124,7 +124,20 @@ fn test_project_with_one_chain() -> Project {
                 }),
             }],
             di_output: None,
-            loopers: vec![],
+            // A persisted looper, so the looper arm is exercised against a
+            // chain that actually has one — an empty `loopers` vec would
+            // pass whatever the rate resolution did.
+            loopers: vec![LooperConfig {
+                uid: 1,
+                mix: 0.8,
+                decay: 0.5,
+                speed: LooperSpeed::Normal,
+                reverse: false,
+                audio_file: None,
+                input: None,
+                output: None,
+                preset: None,
+            }],
         }],
         midi: None,
     }
@@ -152,7 +165,26 @@ impl LiveSource for MetersOnly {
     }
 }
 
-fn resolve_empty(kind: QueryKind) -> String {
+/// A frontend that hosts a device source whose enumeration FAILED — a dead
+/// audio host, or a JACK server that is down.
+struct BrokenDeviceHost;
+
+impl LiveSource for BrokenDeviceHost {
+    fn devices(&self) -> Option<Result<Vec<String>, String>> {
+        Some(Err("no audio host".to_string()))
+    }
+}
+
+/// A frontend that enumerates devices successfully.
+struct DeviceHost;
+
+impl LiveSource for DeviceHost {
+    fn devices(&self) -> Option<Result<Vec<String>, String>> {
+        Some(Ok(vec!["Scarlett".to_string(), "Built-in".to_string()]))
+    }
+}
+
+fn resolve_hosted_by(live: &dyn LiveSource, kind: QueryKind) -> Result<String, String> {
     let project = test_project_with_one_chain();
     let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
     let ctx = ReadContext {
@@ -160,23 +192,18 @@ fn resolve_empty(kind: QueryKind) -> String {
         rig: None,
         io_bindings: &[],
         dispatcher: &dispatcher,
-        live: &NoLiveSource,
+        live,
     };
-    resolve(&kind, &ctx).expect("empty frontend must still answer")
+    resolve(&kind, &ctx)
+}
+
+fn resolve_empty(kind: QueryKind) -> String {
+    resolve_hosted_by(&NoLiveSource, kind).expect("empty frontend must still answer")
 }
 
 fn resolve_with_meters(meters: Vec<ChainMeterReading>) -> String {
-    let project = test_project_with_one_chain();
-    let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
-    let live = MetersOnly(meters);
-    let ctx = ReadContext {
-        project: &project,
-        rig: None,
-        io_bindings: &[],
-        dispatcher: &dispatcher,
-        live: &live,
-    };
-    resolve(&QueryKind::ChainMeters, &ctx).expect("hosted meters must answer")
+    resolve_hosted_by(&MetersOnly(meters), QueryKind::ChainMeters)
+        .expect("hosted meters must answer")
 }
 
 #[test]
@@ -275,14 +302,60 @@ fn unhosted_di_loop_reports_one_silent_row_per_chain() {
 
 #[test]
 fn unhosted_loopers_still_answer_with_the_chains_persisted_shape() {
-    let loopers = resolve_empty(QueryKind::ChainLoopers {
-        chain: ChainId("guitar".to_string()),
-    });
+    let project = test_project_with_one_chain();
+    let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
+    // The rate a frontend that hosts no looper runtime falls back to: the
+    // dispatcher's engine rate, which is what `attach_engine_sr` syncs from
+    // the live stream. Read from the dispatcher rather than written as a
+    // number here, so the test cannot bless an invented rate (#723).
+    let expected_rate = dispatcher.engine_sr();
+    let ctx = ReadContext {
+        project: &project,
+        rig: None,
+        io_bindings: &[],
+        dispatcher: &dispatcher,
+        live: &NoLiveSource,
+    };
+    let loopers = resolve(
+        &QueryKind::ChainLoopers {
+            chain: ChainId("guitar".to_string()),
+        },
+        &ctx,
+    )
+    .expect("an unhosted frontend still answers the chain's own loopers");
     assert!(loopers.contains("\"chain\":\"guitar\""), "{loopers}");
-    assert!(loopers.contains("\"loopers\":[]"), "{loopers}");
+    assert!(
+        loopers.contains(&format!("\"sample_rate\":{expected_rate}")),
+        "{loopers}"
+    );
+    // The chain's persisted looper is there with its saved parameters; only
+    // the live transport state reads empty.
+    assert!(loopers.contains("\"uid\":1"), "{loopers}");
+    assert!(loopers.contains("\"state\":\"empty\""), "{loopers}");
+    assert!(loopers.contains("\"len_frames\":0"), "{loopers}");
+    assert!(loopers.contains("\"length_seconds\":0.0"), "{loopers}");
 }
 
 #[test]
 fn unhosted_devices_answer_an_empty_listing_not_an_error() {
     assert_eq!(resolve_empty(QueryKind::Devices), String::new());
+}
+
+#[test]
+fn a_hosted_device_source_reports_the_names_it_enumerated() {
+    assert_eq!(
+        resolve_hosted_by(&DeviceHost, QueryKind::Devices),
+        Ok("Scarlett\nBuilt-in".to_string())
+    );
+}
+
+#[test]
+fn a_hosted_device_source_that_failed_reports_the_error_not_an_empty_listing() {
+    // "the audio host is broken" and "this transport has no device source"
+    // are different answers. Collapsing the failure into the empty shape
+    // would hide a dead host / a JACK server that is down.
+    assert_eq!(
+        resolve_hosted_by(&BrokenDeviceHost, QueryKind::Devices),
+        Err("no audio host".to_string())
+    );
 }

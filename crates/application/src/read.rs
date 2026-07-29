@@ -69,8 +69,12 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
         }
         // The core never enumerates: the list is whatever the frontend that
         // owns an audio host supplies. No host ⇒ an empty listing, not an
-        // error — the resource stays addressable.
-        QueryKind::Devices => Ok(ctx.live.devices().map(|d| d.join("\n")).unwrap_or_default()),
+        // error — the resource stays addressable. A host that IS there and
+        // failed to enumerate is a different answer and propagates as one.
+        QueryKind::Devices => match ctx.live.devices() {
+            Some(devices) => devices.map(|d| d.join("\n")),
+            None => Ok(String::new()),
+        },
         QueryKind::Ids => Ok(crate::query::list_ids(ctx.project)),
         QueryKind::ChainMeters => Ok(chain_meters(ctx)),
         QueryKind::TunerReadings => Ok(tuner_readings(ctx)),
@@ -149,6 +153,10 @@ fn spectrum_readings(ctx: &ReadContext<'_>) -> String {
 /// source (silent when unhosted); the loaded source always comes from the
 /// dispatcher, which is the only owner of that state — no frontend has to
 /// know to fill it in, so it cannot drift between transports.
+///
+/// `DiLoopReading` doubles as the input and the output type, so a frontend
+/// CAN set `source` — and it is discarded here. Supply playback state and
+/// peaks only; the dispatcher answers for the rest.
 fn di_loop_state(ctx: &ReadContext<'_>) -> String {
     let live = ctx.live.di_loop().unwrap_or_default();
     let rows: Vec<DiLoopReading> = ctx
@@ -176,9 +184,12 @@ fn di_loop_state(ctx: &ReadContext<'_>) -> String {
 /// the frontend hosts. Unhosted ⇒ no live statuses, so every looper reads
 /// empty — the shape is the chain's own, which exists on every transport.
 ///
-/// The rate is the one the frontend's streams actually resolved to; `0`
-/// when nothing has reported one yet. A hardcoded 48 kHz would lie on a
-/// 44.1 kHz interface (#723), so the empty shape says zero instead.
+/// Frame counts mean nothing without the rate they were counted at, so the
+/// rate is resolved in order of how close it is to the real streams: the one
+/// that came with the hosted statuses, then whatever rate the frontend
+/// reports, and finally the dispatcher's engine rate — which exists exactly
+/// to keep a consumer from assuming a fixed one (#723) and is synced from
+/// the live stream by `attach_engine_sr`.
 fn chain_loopers(ctx: &ReadContext<'_>, chain: &ChainId) -> Result<String, String> {
     let c = ctx
         .project

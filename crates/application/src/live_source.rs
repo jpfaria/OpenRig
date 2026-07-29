@@ -62,7 +62,16 @@ pub trait LiveSource {
         None
     }
 
-    fn devices(&self) -> Option<Vec<String>> {
+    /// The audio device listing, from the frontend that owns a host.
+    ///
+    /// Three states, deliberately: `None` ⇒ this frontend hosts no device
+    /// source (the caller answers the documented empty listing);
+    /// `Some(Ok(names))` ⇒ enumerated; `Some(Err(msg))` ⇒ hosted, but
+    /// enumeration FAILED — a dead host or a JACK server that is down. That
+    /// last case must reach the caller as an error: "the audio host is
+    /// broken" is not the same answer as "this transport has no devices to
+    /// report", and collapsing the two hides a real failure.
+    fn devices(&self) -> Option<Result<Vec<String>, String>> {
         None
     }
 
