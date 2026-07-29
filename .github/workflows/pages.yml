@@ -1,0 +1,40 @@
+name: Pages
+
+# Publishes site/ to GitHub Pages. The branch-source form of Pages only accepts
+# / or /docs, so the site is deployed as a workflow artifact instead.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  # Version, download link, changelog and gear counts are fetched from the GitHub
+  # API by the page itself, so a release doesn't strictly need a redeploy — this
+  # just guarantees the published bundle matches whatever main holds at release time.
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
