@@ -171,6 +171,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         &ctx.project_session,
         &ctx.project_runtime,
         &ctx.project_chains,
+        &ctx.saved_project_snapshot,
+        &ctx.project_dirty,
+        ctx.auto_save,
     );
 }
 

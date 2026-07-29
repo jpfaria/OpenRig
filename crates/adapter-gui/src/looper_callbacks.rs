@@ -17,15 +17,28 @@ use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::LooperSpeed;
-use slint::VecModel;
+use slint::{ComponentHandle, VecModel};
 
 use crate::looper_wiring::apply_looper_event;
+use crate::project_ops::sync_project_dirty;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectChainItem};
 
 type Session = Rc<RefCell<Option<ProjectSession>>>;
 type Runtime = Rc<RefCell<Option<ProjectRuntimeController>>>;
 type Chains = Rc<VecModel<ProjectChainItem>>;
+
+/// Everything `dispatch_and_apply` needs to mark the project dirty after a
+/// looper edit — the disquete stays grey otherwise, and the user loses loops
+/// because Save never prompts (the looper path was the only mutation flow that
+/// forgot this, unlike every block/insert wiring). Cloned into each closure.
+#[derive(Clone)]
+struct LooperDirtyCtx {
+    window: slint::Weak<AppWindow>,
+    saved_project_snapshot: Rc<RefCell<Option<String>>>,
+    project_dirty: Rc<RefCell<bool>>,
+    auto_save: bool,
+}
 
 fn chain_id_at(session: &ProjectSession, index: i32) -> Option<ChainId> {
     let project = session.project.borrow();
@@ -76,6 +89,7 @@ fn dispatch_and_apply(
     chains: &Chains,
     index: i32,
     cmd: Command,
+    dirty: &LooperDirtyCtx,
 ) {
     // #323/#808: the looper is independent of the chain being enabled — like
     // the DI loop, it needs a runtime to record/play even when no chain is
@@ -105,6 +119,18 @@ fn dispatch_and_apply(
                 }
             }
             refresh_row(session, runtime, chains, index);
+            // Mark the project dirty (the disquete) so the user is prompted to
+            // save — a looper add/record/param edit changes the persisted chain,
+            // and without this the loop is silently lost on close (#323).
+            if let Some(window) = dirty.window.upgrade() {
+                sync_project_dirty(
+                    &window,
+                    session,
+                    &dirty.saved_project_snapshot,
+                    &dirty.project_dirty,
+                    dirty.auto_save,
+                );
+            }
         }
         Err(err) => log::warn!("looper command failed: {err}"),
     }
@@ -162,7 +188,16 @@ pub(crate) fn wire_looper_callbacks(
     session: &Session,
     runtime: &Runtime,
     chains: &Chains,
+    saved_project_snapshot: &Rc<RefCell<Option<String>>>,
+    project_dirty: &Rc<RefCell<bool>>,
+    auto_save: bool,
 ) {
+    let dirty_ctx = LooperDirtyCtx {
+        window: window.as_weak(),
+        saved_project_snapshot: saved_project_snapshot.clone(),
+        project_dirty: project_dirty.clone(),
+        auto_save,
+    };
     macro_rules! with_chain {
         ($session:expr, $index:expr, $body:expr) => {{
             let session_borrow = $session.borrow();
@@ -180,6 +215,7 @@ pub(crate) fn wire_looper_callbacks(
         let session = session.clone();
         let runtime = runtime.clone();
         let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
         window.on_looper_add(move |index| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 dispatch_and_apply(
@@ -188,6 +224,7 @@ pub(crate) fn wire_looper_callbacks(
                     &chains,
                     index,
                     Command::Looper(LooperCommand::AddChainLooper { chain }),
+                    &dirty_ctx,
                 );
             });
         });
@@ -196,6 +233,7 @@ pub(crate) fn wire_looper_callbacks(
         let session = session.clone();
         let runtime = runtime.clone();
         let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
         window.on_looper_remove(move |index, uid| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 dispatch_and_apply(
@@ -207,6 +245,7 @@ pub(crate) fn wire_looper_callbacks(
                         chain,
                         looper: uid as u64,
                     }),
+                    &dirty_ctx,
                 );
             });
         });
@@ -218,6 +257,7 @@ pub(crate) fn wire_looper_callbacks(
             let session = session.clone();
             let runtime = runtime.clone();
             let chains = chains.clone();
+            let dirty_ctx = dirty_ctx.clone();
             window.$setter(move |index, uid| {
                 with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                     dispatch_and_apply(
@@ -230,6 +270,7 @@ pub(crate) fn wire_looper_callbacks(
                             looper: uid as u64,
                             action: $action,
                         }),
+                        &dirty_ctx,
                     );
                 });
             });
@@ -243,6 +284,7 @@ pub(crate) fn wire_looper_callbacks(
         let session = session.clone();
         let runtime = runtime.clone();
         let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
         window.on_looper_record(move |index, uid| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 link_active_preset_on_fresh_record(s, &runtime, &chain, uid as u64);
@@ -256,6 +298,7 @@ pub(crate) fn wire_looper_callbacks(
                         looper: uid as u64,
                         action: LooperAction::Record,
                     }),
+                    &dirty_ctx,
                 );
             });
         });
@@ -274,6 +317,7 @@ pub(crate) fn wire_looper_callbacks(
             let session = session.clone();
             let runtime = runtime.clone();
             let chains = chains.clone();
+            let dirty_ctx = dirty_ctx.clone();
             window.$setter(move |index, uid, value| {
                 with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                     dispatch_and_apply(
@@ -286,6 +330,7 @@ pub(crate) fn wire_looper_callbacks(
                             looper: uid as u64,
                             param: $make(value),
                         }),
+                        &dirty_ctx,
                     );
                 });
             });
@@ -309,6 +354,7 @@ pub(crate) fn wire_looper_callbacks(
         let session = session.clone();
         let runtime = runtime.clone();
         let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
         window.on_looper_input_picked(move |index, uid, endpoint_index| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 let registry = s.io_bindings.borrow();
@@ -330,6 +376,7 @@ pub(crate) fn wire_looper_callbacks(
                         looper: uid as u64,
                         input: input.clone(),
                     }),
+                    &dirty_ctx,
                 );
                 // Tell the store to record from the chosen input next time REC
                 // starts (drops the current record tap so it re-subscribes).
@@ -343,6 +390,7 @@ pub(crate) fn wire_looper_callbacks(
         let session = session.clone();
         let runtime = runtime.clone();
         let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
         window.on_looper_output_picked(move |index, uid, endpoint_index| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 let registry = s.io_bindings.borrow();
@@ -364,6 +412,7 @@ pub(crate) fn wire_looper_callbacks(
                         looper: uid as u64,
                         output: output.clone(),
                     }),
+                    &dirty_ctx,
                 );
                 if let Some(controller) = runtime.borrow().as_ref() {
                     controller.looper_set_output(&chain, uid as u64, output);
@@ -378,6 +427,7 @@ pub(crate) fn wire_looper_callbacks(
         let session = session.clone();
         let runtime = runtime.clone();
         let chains = chains.clone();
+        let dirty_ctx = dirty_ctx.clone();
         window.on_looper_preset_picked(move |index, uid, option_index| {
             with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
                 let preset = if option_index <= 0 {
@@ -400,6 +450,7 @@ pub(crate) fn wire_looper_callbacks(
                         looper: uid as u64,
                         preset,
                     }),
+                    &dirty_ctx,
                 );
             });
         });
