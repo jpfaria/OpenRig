@@ -260,6 +260,9 @@ Contract tests: `crates/engine/tests/issue_716_input_conflict.rs`
 (named conflict + load normalization); `crates/application/tests/chain_enable_channel_conflict.rs`
 (every command door); `crates/adapter-mcp/tests/issue_833_channel_conflict_over_mcp.rs`
 (the same rejection over the MCP tool surface);
+`crates/adapter-mcp/tests/issue_833_mcp_http_end_to_end.rs` (the same rules
+driven end-to-end over Streamable HTTP — `tools/call` writes, `resources/read
+openrig://ids` reads back);
 `crates/project/tests/issue_716_chain_io_bindings.rs`
 + `issue_716_binding_discovery.rs` (`resolve_chain_ports`); golden +
 `volume_invariants` + `stream_isolation` prove the resolved path is bit-exact
