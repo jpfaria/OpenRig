@@ -1,0 +1,7 @@
+section{position:relative}
+.pad{padding:clamp(90px,11vh,150px) 0}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:clamp(40px,6vw,90px);align-items:center}
+.stack>*+*{margin-top:20px}
+.kicker-rule{width:56px;height:2px;background:var(--amber);margin-bottom:22px}
+.shot{border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--panel);box-shadow:0 40px 90px -50px #000}
+.shot figcaption{padding:16px 20px;font-size:13.5px;color:var(--mute);border-top:1px solid var(--line)}

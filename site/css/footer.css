@@ -1,0 +1,11 @@
+footer{border-top:1px solid var(--line);padding:56px 0 44px;background:var(--ink)}
+.foot{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+.foot .brand{margin-right:auto}
+.fcol{min-width:150px}
+.fcol h4{font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:#67788f;margin-bottom:14px;font-weight:700}
+.fcol a{display:block;font-size:14.5px;color:var(--mute);padding:4px 0;transition:color .2s}
+.fcol a:hover{color:#fff}
+.legal{margin-top:44px;padding-top:24px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:#5d6c81}
+.legal .lang{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap}
+.legal .lang button{font:inherit;font-size:13px;color:#5d6c81;background:none;border:none;cursor:pointer;padding:0}
+.legal .lang button:hover,.legal .lang button.on{color:#fff}
