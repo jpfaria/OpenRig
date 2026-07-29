@@ -109,7 +109,7 @@
   "ai.h2": "The first rig<br>an AI can play.",
   "ai.lede": "OpenRig ships its own MCP server — every command an AI needs to build, tweak and drive a rig, exposed the same way for the GUI, a footswitch, or Claude. Point Claude Code, Claude Desktop or Cursor at it and describe the tone you want in plain language.",
   "ai.c1.h3": "Tone Builder",
-  "ai.c1.p": "\"Timbre da Duality\" — it researches the real signal chain, maps it to the catalog, and saves it as a new preset on your live rig.",
+  "ai.c1.p": "Name a song or an artist — it researches that real signal chain, maps it to the catalog, and saves it as a new preset on your live rig.",
   "ai.c2.h3": "Grow the gear library",
   "ai.c2.p": "Point it at your own <code>.nam</code>/IR captures or a tone3000.com pack and it packages a proper OpenRig plugin, manifest included.",
   "ai.c3.h3": "MIDI Profile Builder",
