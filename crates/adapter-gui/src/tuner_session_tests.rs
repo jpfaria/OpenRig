@@ -36,6 +36,7 @@ fn chain_bound(id: &str, enabled: bool) -> Chain {
         io_binding_ids: vec!["io1".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

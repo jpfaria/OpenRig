@@ -165,6 +165,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         ctx.project_runtime.clone(),
     );
     crate::chain_row_wiring_actions::wire_di_loop(window, &ctx);
+    // #323: the looper panel's actions (dispatch + apply to the runtimes).
+    crate::looper_callbacks::wire_looper_callbacks(
+        window,
+        &ctx.project_session,
+        &ctx.project_runtime,
+        &ctx.project_chains,
+        &ctx.saved_project_snapshot,
+        &ctx.project_dirty,
+        ctx.auto_save,
+    );
 }
 
 fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {

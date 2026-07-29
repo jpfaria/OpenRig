@@ -5,6 +5,7 @@
 // itself is the unchanged ChainVolumeControl (#440 behaviour preserved).
 
 import { Theme } from "../theme.slint";
+import { IconTooltip } from "icon_tooltip.slint";
 import { ChainVolumeControl } from "chain_chips.slint";
 
 export component ChainVolumeButton inherits Rectangle {
@@ -33,6 +34,8 @@ export component ChainVolumeButton inherits Rectangle {
             pop.show();
         }
     }
+    IconTooltip { text: @tr("Volume"); show: ta.has-hover; }
+
     accessible-role: button;
     accessible-label: @tr("Volume");
 

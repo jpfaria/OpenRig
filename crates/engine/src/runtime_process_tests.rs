@@ -1,9 +1,8 @@
 //! Engine runtime tests (issue #792 split from runtime_tests.rs).
 //! Grouped by responsibility; shared fixtures live in `runtime_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::tests::*;
-
+use super::*;
 
 #[test]
 fn process_input_limits_buffered_output_frames() {
@@ -20,7 +19,6 @@ fn process_input_limits_buffered_output_frames() {
     let routes = runtime.output_routes.load();
     assert!(routes[0].buffer.len() <= DEFAULT_ELASTIC_TARGET * 2);
 }
-
 
 #[test]
 #[ignore] // requires asset_paths initialization
@@ -40,7 +38,6 @@ fn process_output_drains_buffered_frames() {
     let routes = runtime.output_routes.load();
     assert_eq!(routes[0].buffer.len(), 0);
 }
-
 
 #[test]
 #[ignore] // requires asset_paths initialization
@@ -77,7 +74,6 @@ fn update_chain_runtime_state_preserves_select_instance_when_switching_active_op
     assert_eq!(updated_serial, original_serial);
 }
 
-
 #[test]
 fn panicking_processor_does_not_crash_the_caller() {
     let mut block = panicking_block_node();
@@ -87,7 +83,6 @@ fn panicking_processor_does_not_crash_the_caller() {
     // Must not panic
     apply_block_processor(&mut block, &mut frames, &error_queue);
 }
-
 
 #[test]
 fn panicking_processor_zeroes_output_frames() {
@@ -108,7 +103,6 @@ fn panicking_processor_zeroes_output_frames() {
     }
 }
 
-
 #[test]
 fn panicking_processor_posts_error_to_queue() {
     let mut block = panicking_block_node();
@@ -125,7 +119,6 @@ fn panicking_processor_posts_error_to_queue() {
         "error message should contain panic message"
     );
 }
-
 
 #[test]
 fn second_call_after_panic_does_not_process_or_post_error() {
@@ -145,7 +138,6 @@ fn second_call_after_panic_does_not_process_or_post_error() {
         "no additional error should be posted for an already-faulted block"
     );
 }
-
 
 // ── process_output_f32 edge cases ────────────────────────────────────────
 
@@ -170,7 +162,6 @@ fn process_output_fills_silence_for_invalid_output_index() {
         "invalid output index should fill with silence"
     );
 }
-
 
 #[test]
 fn process_output_underrun_returns_silence_not_last_frame() {
@@ -220,7 +211,6 @@ fn process_output_underrun_returns_silence_not_last_frame() {
     );
 }
 
-
 // ── ChainRuntimeState method tests ───────────────────────────────────────
 
 #[test]
@@ -231,7 +221,6 @@ fn measured_latency_ms_returns_zero_initially() {
     assert!((runtime.measured_latency_ms() - 0.0).abs() < 1e-6);
 }
 
-
 // ── downcast_panic_message tests ─────────────────────────────────────────
 
 #[test]
@@ -241,7 +230,6 @@ fn downcast_panic_str_message() {
     assert_eq!(downcast_panic_message(payload), "static string");
 }
 
-
 #[test]
 fn downcast_panic_string_message() {
     use super::downcast_panic_message;
@@ -249,14 +237,12 @@ fn downcast_panic_string_message() {
     assert_eq!(downcast_panic_message(payload), "owned string");
 }
 
-
 #[test]
 fn downcast_panic_unknown_type_message() {
     use super::downcast_panic_message;
     let payload: Box<dyn std::any::Any + Send> = Box::new(42i32);
     assert_eq!(downcast_panic_message(payload), "unknown panic");
 }
-
 
 // ── process_input_f32 with stereo I/O ────────────────────────────────────
 
@@ -271,6 +257,7 @@ fn process_input_stereo_output_preserves_channels() {
         io_binding_ids: vec![IO_BINDING_ID.into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let runtime = Arc::new(
         build_chain_runtime_state(
@@ -317,7 +304,6 @@ fn process_input_stereo_output_preserves_channels() {
     );
 }
 
-
 // ── update_chain_runtime_state with reset_output_queue ───────────────────
 
 #[test]
@@ -356,7 +342,6 @@ fn update_chain_runtime_state_with_reset_output_queue() {
     );
 }
 
-
 // ── process_input_f32 edge cases ────────────────────────────────────────
 
 #[test]
@@ -374,7 +359,6 @@ fn process_input_with_empty_data_does_not_panic() {
     process_input_f32(&runtime, 0, &[], 1);
 }
 
-
 #[test]
 fn process_input_with_invalid_index_does_not_panic() {
     let chain = io_passthrough_chain("chain:0");
@@ -390,7 +374,6 @@ fn process_input_with_invalid_index_does_not_panic() {
     process_input_f32(&runtime, 999, &[0.5, 0.7], 1);
 }
 
-
 // ── ChainRuntimeState measured_latency_ms with stored nanos ─────────────
 
 #[test]
@@ -405,7 +388,6 @@ fn measured_latency_ms_converts_nanos_correctly() {
     let ms = runtime.measured_latency_ms();
     assert!((ms - 5.0).abs() < 1e-3, "expected ~5.0ms, got {ms}");
 }
-
 
 // ── Regression: clear_draining re-arms callback after teardown (#316) ────
 
@@ -429,7 +411,6 @@ fn chain_runtime_state_clear_draining_resets_flag() {
     );
 }
 
-
 // ── Empty chain builds successfully ─────────────────────────────────────
 
 #[test]
@@ -443,11 +424,11 @@ fn build_chain_runtime_state_empty_chain_succeeds() {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(runtime.is_ok(), "empty chain should build successfully");
 }
-
 
 // ── RuntimeGraph remove non-existent chain ──────────────────────────────
 
@@ -460,4 +441,3 @@ fn runtime_graph_remove_nonexistent_chain_no_panic() {
     graph.remove_chain(&ChainId("does_not_exist".into()));
     assert!(graph.chains.is_empty());
 }
-

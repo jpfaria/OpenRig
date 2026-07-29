@@ -48,6 +48,27 @@ impl QueryResolver<'_> {
             QueryKind::TunerReadings => Ok(self.tuner_readings()),
             QueryKind::SpectrumReadings => Ok(self.spectrum_readings()),
             QueryKind::DiLoopState => Ok(self.di_loop_state()),
+            // #323: one chain's loopers — persisted params merged with the live
+            // transport state, at the chain's real rate (no fictional 48 kHz).
+            QueryKind::ChainLoopers { chain } => {
+                let proj = project.borrow();
+                let c = proj
+                    .chains
+                    .iter()
+                    .find(|c| &c.id == chain)
+                    .ok_or_else(|| format!("chain not found: {}", chain.0))?;
+                let rt = self.runtime.borrow();
+                match rt.as_ref() {
+                    Some(controller) => Ok(application::query_loopers::loopers_json(
+                        c,
+                        &controller.chain_looper_statuses(chain),
+                        controller.sample_rate(),
+                    )),
+                    None => Err("no live audio runtime — loopers report nothing \
+                                 until the project is started"
+                        .to_string()),
+                }
+            }
             QueryKind::ChainLatency { chain } => application::query_latency::chain_latency_report(
                 &project.borrow(),
                 &self.session.io_bindings.borrow(),

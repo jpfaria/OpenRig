@@ -85,6 +85,13 @@ pub struct RigInput {
     /// selection survives reopen.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub io_binding_ids: Vec<String>,
+    /// #323: the loopers this input's chain carries. A rig project is the real
+    /// persistence model — the projected synthetic chains are rebuilt from
+    /// here on every open — so a recorded loop's parameters and its saved-audio
+    /// reference must live here to survive save+reload. Empty for projects
+    /// written before the looper existed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub loopers: Vec<crate::chain::LooperConfig>,
 }
 
 /// One project output: a pure reference to a binding endpoint. The device /

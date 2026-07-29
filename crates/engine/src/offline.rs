@@ -132,8 +132,14 @@ pub(crate) fn build_offline_nodes(
     chain: &Chain,
     sample_rate: f32,
 ) -> Result<Vec<BlockRuntimeNode>> {
-    let (nodes, _layout) =
-        build_runtime_block_nodes(chain, AudioChannelLayout::Stereo, false, sample_rate, None, None)?;
+    let (nodes, _layout) = build_runtime_block_nodes(
+        chain,
+        AudioChannelLayout::Stereo,
+        false,
+        sample_rate,
+        None,
+        None,
+    )?;
     Ok(nodes)
 }
 
@@ -150,8 +156,14 @@ pub(crate) fn render_reusing(
     tail_frames: usize,
     base: Option<Vec<BlockRuntimeNode>>,
 ) -> Result<(Vec<[f32; 2]>, Vec<BlockRuntimeNode>)> {
-    let (mut nodes, _layout) =
-        build_runtime_block_nodes(chain, AudioChannelLayout::Stereo, false, sample_rate, base, None)?;
+    let (mut nodes, _layout) = build_runtime_block_nodes(
+        chain,
+        AudioChannelLayout::Stereo,
+        false,
+        sample_rate,
+        base,
+        None,
+    )?;
     let mask: Vec<bool> = chain.blocks.iter().map(|b| b.enabled).collect();
     let out = render_nodes_masked(&mut nodes, input, block_size, tail_frames, &mask);
     Ok((out, nodes))
@@ -187,7 +199,10 @@ pub(crate) fn render_nodes_masked(
             chunk_buf.push(AudioFrame::Stereo(pair));
         }
         for (i, node) in nodes.iter_mut().enumerate() {
-            let on = enabled.get(i).copied().unwrap_or(node.block_snapshot.enabled);
+            let on = enabled
+                .get(i)
+                .copied()
+                .unwrap_or(node.block_snapshot.enabled);
             if !on {
                 continue;
             }

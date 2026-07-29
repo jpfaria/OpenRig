@@ -163,6 +163,7 @@ mod di_output_select_before_enable_808_tests {
             io_binding_ids: vec!["io".into()],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }
     }
 
@@ -185,7 +186,10 @@ mod di_output_select_before_enable_808_tests {
         // Reproduce the open flow: rows built with an EMPTY binding registry.
         crate::project_view::replace_project_chains(&model, &project, &[], &[], &[]);
         let before = model.row_data(0).unwrap().di_loop_outputs.iter().count();
-        assert_eq!(before, 0, "precondition: the open flow leaves the DI select empty");
+        assert_eq!(
+            before, 0,
+            "precondition: the open flow leaves the DI select empty"
+        );
 
         // The refresh must fill the select from the real bindings — disabled or not.
         apply_di_outputs_to_rows(&model, &project, &registry());
@@ -230,6 +234,7 @@ mod duplicate_label_tests {
             io_binding_ids: vec!["scarlett".into(), "teyun".into()],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         };
         let registry = vec![
             IoBinding {
@@ -270,6 +275,7 @@ mod duplicate_label_tests {
             io_binding_ids: vec!["io".into()],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         };
         let registry = vec![IoBinding {
             id: "io".into(),

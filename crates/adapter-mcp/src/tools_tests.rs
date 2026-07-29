@@ -44,7 +44,11 @@ use application::command_schema::command_variant_names;
 /// #791 bumped to 85 with `DiagnoseChainTone` and `ApplyToneDoctorFix` —
 /// the Tone Doctor moved onto the bus, so MCP/gRPC reach the same
 /// diagnosis and the same measured fix the GUI panel shows.
-const COMMAND_VARIANT_COUNT: usize = 85;
+/// #323 bumped to 93 with the eight `LooperCommand` leaves
+/// (`AddChainLooper`/`RemoveChainLooper`/`SetChainLooperTransport`/`Param`/
+/// `Input`/`Output`/`AudioFile`/`Preset`) — the per-chain looper, incl.
+/// phase-2 tone independence (`SetChainLooperPreset`).
+const COMMAND_VARIANT_COUNT: usize = 93;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

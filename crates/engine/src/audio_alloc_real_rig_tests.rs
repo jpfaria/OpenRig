@@ -1,8 +1,8 @@
 //! Audio-alloc invariant tests — real-rig (#670/#781) (issue #792 split).
 //! Shared allocator instrumentation + fixtures live in the base file.
 #![allow(unused_imports)]
-use super::*;
 use super::audio_alloc_invariant::*;
+use super::*;
 
 // ── Issue #670: the pipe chain above never runs a DSP block. The user's
 // buffer-64 crackle is an OFF-CPU stall during a real block's process (an
@@ -101,6 +101,7 @@ fn p670_real_rig_chain() -> Chain {
             ),
         ],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -165,6 +166,7 @@ fn p670_isolated(block: AudioBlock) -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![block],
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -326,6 +328,7 @@ fn audio_callback_does_not_allocate_with_two_nam_instances() {
             p670_nam("amp2", "nam_marshall_plexi", "angus"),
         ],
         di_output: None,
+        loopers: vec![],
     };
     let runtime = std::sync::Arc::new(
         build_chain_runtime_state(
@@ -374,6 +377,7 @@ fn audio_callback_does_not_allocate_with_user_rig_input1() {
             p670_eq8(),
         ],
         di_output: None,
+        loopers: vec![],
     };
     let runtime = std::sync::Arc::new(
         build_chain_runtime_state(

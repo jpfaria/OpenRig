@@ -56,6 +56,7 @@ fn chain_bound_to(binding_id: &str, enabled: bool) -> Chain {
         io_binding_ids: vec![binding_id.to_string()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

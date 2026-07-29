@@ -23,6 +23,7 @@ fn rig() -> RigProject {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     inputs.insert(
@@ -37,6 +38,7 @@ fn rig() -> RigProject {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     RigProject {

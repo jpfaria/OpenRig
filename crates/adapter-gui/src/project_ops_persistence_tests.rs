@@ -339,4 +339,3 @@ fn stale_openrig_with_other_chain_does_not_replace_recent_yaml() {
         "stale .openrig resurrected a removed chain (got {descs:?})"
     );
 }
-

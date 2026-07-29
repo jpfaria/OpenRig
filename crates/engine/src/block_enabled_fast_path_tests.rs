@@ -77,6 +77,7 @@ fn test_chain() -> Chain {
         io_binding_ids: vec!["io".into()],
         blocks: vec![core_block(BLOCK_ID, "reverb", "room")],
         di_output: None,
+        loopers: vec![],
     }
 }
 

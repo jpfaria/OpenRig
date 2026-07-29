@@ -34,6 +34,7 @@ mod local_dispatcher_diagnostic;
 mod local_dispatcher_io_binding;
 mod local_dispatcher_ir_reseed;
 mod local_dispatcher_language;
+mod local_dispatcher_looper;
 mod local_dispatcher_metronome;
 mod local_dispatcher_midi_system;
 mod local_dispatcher_output;
@@ -48,6 +49,7 @@ mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 mod local_dispatcher_selection;
 mod local_dispatcher_subsystems;
+pub mod looper_audio;
 mod local_dispatcher_tone_doctor;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
@@ -58,6 +60,7 @@ pub mod publishing_dispatcher;
 pub mod query;
 pub mod query_analyzers;
 pub mod query_chain_quality;
+pub mod query_loopers;
 pub mod query_di;
 pub mod query_latency;
 pub mod render_handler;

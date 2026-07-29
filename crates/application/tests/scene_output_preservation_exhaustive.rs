@@ -98,6 +98,7 @@ fn rig_with_presets_and_scenes() -> RigProject {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     RigProject {
@@ -328,6 +329,7 @@ fn replacement_chain_without_output() -> Chain {
         io_binding_ids: vec![],
         blocks: vec![user_input_block(), core_block("only-effect:1")],
         di_output: None,
+        loopers: vec![],
     }
 }
 

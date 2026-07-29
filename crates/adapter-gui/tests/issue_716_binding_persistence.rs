@@ -41,6 +41,7 @@ fn reopened_project_restores_selected_binding_in_checklist() {
         io_binding_ids: vec!["main".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
 
     // Simulate save + reopen: round-trip the chain through YAML (the project

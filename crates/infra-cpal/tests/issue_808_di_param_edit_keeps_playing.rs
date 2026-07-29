@@ -67,11 +67,7 @@ fn edit_nam_output_db(chain: &Chain, value: f64) -> Chain {
 }
 
 /// Loudest OUT peak the real output callback reported over `window`.
-fn max_out_peak(
-    controller: &ProjectRuntimeController,
-    cid: &ChainId,
-    window: Duration,
-) -> f32 {
+fn max_out_peak(controller: &ProjectRuntimeController, cid: &ChainId, window: Duration) -> f32 {
     let deadline = Instant::now() + window;
     let mut max = 0.0f32;
     while Instant::now() < deadline {
@@ -101,8 +97,8 @@ fn a_nam_param_edit_does_not_stop_a_playing_di() {
     project.chains[0].volume = 100.0;
     let chain = project.chains[0].clone();
 
-    let mut controller = ProjectRuntimeController::start_with_io_bindings(&project, bindings)
-        .expect("controller");
+    let mut controller =
+        ProjectRuntimeController::start_with_io_bindings(&project, bindings).expect("controller");
 
     controller
         .arm_di_stream(&chain, load_di_pcm("phil-STRATO-green_day.wav"))

@@ -155,6 +155,10 @@ mod issue_819_retire_persistent_window_tests;
 mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
+mod looper_callbacks;
+mod looper_persist;
+pub mod looper_view;
+pub mod looper_wiring;
 mod meter_wiring;
 mod meter_wiring_poll;
 #[cfg(test)]
@@ -214,6 +218,8 @@ mod compact_block_search_wiring_tests;
 #[cfg(test)]
 mod chain_io_chip_label_tests;
 
+#[cfg(test)]
+mod project_view_loopers_tests;
 #[cfg(test)]
 mod project_view_stream_meters_tests;
 

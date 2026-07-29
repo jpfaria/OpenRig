@@ -73,12 +73,14 @@ mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
+mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_taps;
 mod device_enum;
 mod di_playback;
 mod di_stream;
 mod di_stream_worker;
+pub mod looper_store;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_enum::jack_is_running;
 pub use device_enum::{

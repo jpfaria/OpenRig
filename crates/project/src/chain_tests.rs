@@ -73,6 +73,7 @@ fn make_chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -296,4 +297,80 @@ fn chain_output_mode_default_is_stereo() {
 #[test]
 fn chain_output_mixdown_default_is_average() {
     assert_eq!(ChainOutputMixdown::default(), ChainOutputMixdown::Average);
+}
+
+// --- #323: per-chain loopers ---
+
+#[test]
+fn chain_without_loopers_field_deserializes_to_empty() {
+    let yaml = "instrument: electric_guitar\nenabled: true\n";
+    let chain: Chain = serde_yaml::from_str(yaml).expect("legacy chain parses");
+    assert!(
+        chain.loopers.is_empty(),
+        "a project written before the looper existed carries no loopers"
+    );
+}
+
+#[test]
+fn loopers_round_trip_through_yaml() {
+    let mut chain = make_chain(vec![]);
+    chain.loopers = vec![
+        LooperConfig {
+            uid: 1,
+            mix: 0.8,
+            decay: 0.5,
+            speed: LooperSpeed::Double,
+            reverse: true,
+            audio_file: Some("looper-1.wav".into()),
+            input: Some(EndpointRef {
+                binding_id: "scarlett".into(),
+                endpoint: "in1".into(),
+            }),
+            output: Some(EndpointRef {
+                binding_id: "scarlett".into(),
+                endpoint: "out0".into(),
+            }),
+            preset: Some("lead".into()),
+        },
+        LooperConfig::new(2),
+    ];
+
+    let yaml = serde_yaml::to_string(&chain).expect("serializes");
+    let back: Chain = serde_yaml::from_str(&yaml).expect("deserializes");
+
+    assert_eq!(back.loopers, chain.loopers);
+    assert_eq!(back.loopers[1].speed, LooperSpeed::Normal);
+    assert_eq!(back.loopers[1].mix, 1.0, "a fresh looper plays at unity");
+    assert!(back.loopers[1].audio_file.is_none());
+    // The chosen input/output endpoints survive the round-trip.
+    assert_eq!(back.loopers[0].input.as_ref().unwrap().endpoint, "in1");
+    assert_eq!(back.loopers[0].output.as_ref().unwrap().endpoint, "out0");
+    // The linked preset id survives the round-trip (#323 phase 2).
+    assert_eq!(back.loopers[0].preset.as_deref(), Some("lead"));
+    assert!(back.loopers[1].preset.is_none());
+    assert!(
+        back.loopers[1].input.is_none(),
+        "a fresh looper defaults to the chain's first input"
+    );
+}
+
+#[test]
+fn a_legacy_looper_without_io_fields_deserializes_to_defaults() {
+    // A project written before the input/output selectors existed.
+    let yaml = "\
+instrument: electric_guitar
+enabled: true
+loopers:
+  - uid: 1
+    mix: 1.0
+    decay: 1.0
+";
+    let chain: Chain = serde_yaml::from_str(yaml).expect("legacy looper parses");
+    assert!(chain.loopers[0].input.is_none());
+    assert!(chain.loopers[0].output.is_none());
+}
+
+#[test]
+fn looper_speed_default_is_normal() {
+    assert_eq!(LooperSpeed::default(), LooperSpeed::Normal);
 }

@@ -511,6 +511,44 @@ pub(crate) fn replace_project_chains(
                     )))
                 },
                 di_loop_selected_index: -1, // #661: refreshed by meter timer
+                // #323: the looper rows and the header tint start empty and
+                // are refreshed by the meter timer from the live runtimes.
+                // #323: build the looper rows from the chain's PERSISTED
+                // config so a reopened project shows its loopers immediately.
+                // The meter timer overlays the live state (position, layers,
+                // recording…) on top for a chain that has a running stream;
+                // without this seed a chain with no live stream showed an
+                // empty panel and the user re-clicked Add until the config hit
+                // the 8-looper cap.
+                loopers: ModelRc::from(Rc::new(VecModel::from(
+                    // #323 phase 2: the meter tick fills preset_index (needs the
+                    // rig); the initial seed has no bank ⇒ every loop "follows".
+                    crate::looper_view::looper_items_from_config(chain, io_bindings, &[]),
+                ))),
+                looper_active: false,
+                looper_input_options: {
+                    let (inputs, _) =
+                        project::binding_discovery::chain_endpoint_labels(chain, io_bindings);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        inputs
+                            .into_iter()
+                            .map(SharedString::from)
+                            .collect::<Vec<_>>(),
+                    )))
+                },
+                looper_output_options: {
+                    let (_, outputs) =
+                        project::binding_discovery::chain_endpoint_labels(chain, io_bindings);
+                    ModelRc::from(Rc::new(VecModel::from(
+                        outputs
+                            .into_iter()
+                            .map(SharedString::from)
+                            .collect::<Vec<_>>(),
+                    )))
+                },
+                // #323 phase 2: filled by the meter tick (needs the rig's bank);
+                // the initial seed is empty ⇒ the picker shows just "follow".
+                looper_preset_options: ModelRc::default(),
             }
         })
         .collect::<Vec<_>>();

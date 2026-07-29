@@ -88,6 +88,7 @@ fn chain_with_disabled_compressor() -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 

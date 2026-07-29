@@ -23,6 +23,7 @@ fn chain_and_registry(di_output: Option<DiOutputRef>) -> (Chain, Vec<IoBinding>)
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output,
+        loopers: vec![],
     };
     let out = |name: &str, channels: Vec<usize>| IoEndpoint {
         name: name.into(),

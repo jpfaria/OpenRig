@@ -39,7 +39,16 @@ impl Event {
             | Event::ChainDiLoopEnabledChanged { chain, .. }
             | Event::ChainDiLoopOutputChanged { chain }
             | Event::ChainToneDiagnosed { chain, .. }
-            | Event::ChainToneFixApplied { chain, .. } => Some(chain),
+            | Event::ChainToneFixApplied { chain, .. }
+            // #323: per-chain looper events are all chain-scoped.
+            | Event::ChainLooperAdded { chain, .. }
+            | Event::ChainLooperRemoved { chain, .. }
+            | Event::ChainLooperTransportChanged { chain, .. }
+            | Event::ChainLooperParamChanged { chain, .. }
+            | Event::ChainLooperAudioFileChanged { chain, .. }
+            | Event::ChainLooperInputChanged { chain, .. }
+            | Event::ChainLooperOutputChanged { chain, .. }
+            | Event::ChainLooperPresetChanged { chain, .. } => Some(chain),
             Event::ProjectMutated
             | Event::AudioSettingsSaved
             | Event::ProjectLoaded

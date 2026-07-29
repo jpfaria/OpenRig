@@ -127,13 +127,17 @@ fn scan(samples: &[[f32; 2]]) -> Scan {
 #[test]
 fn user_guitar_chains_do_not_hard_clip_on_a_hot_input() {
     let Some(root) = owner_plugins_root() else {
-        eprintln!("[#715-clip] owner plugins tree not present (set OPENRIG_OWNER_PLUGINS) — skipping");
+        eprintln!(
+            "[#715-clip] owner plugins tree not present (set OPENRIG_OWNER_PLUGINS) — skipping"
+        );
         return;
     };
     init_registry_with_root(&root);
 
     let Some(project_path) = owner_project_path() else {
-        eprintln!("[#715-clip] owner project not set (OPENRIG_OWNER_PROJECT=<project.yaml>) — skipping");
+        eprintln!(
+            "[#715-clip] owner project not set (OPENRIG_OWNER_PROJECT=<project.yaml>) — skipping"
+        );
         return;
     };
     let rig = infra_yaml::load_project_any(&project_path).expect("load owner project");

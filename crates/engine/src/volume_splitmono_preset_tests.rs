@@ -1,8 +1,8 @@
 //! Volume/audio invariants — PINNED (issue #792 split from volume_invariants_tests.rs).
 //! Section moved verbatim; shared fixtures live in `volume_invariants_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::volume_invariants::*;
+use super::*;
 
 // ─────────────────────────────────────────────────────────────────────────
 // G. Split-mono (#350 / #355) — solo and dual cases
@@ -458,4 +458,3 @@ fn k06_runtime_graph_upsert_propagates_volume_on_existing_chain() {
         runtime_after.volume_pct()
     );
 }
-

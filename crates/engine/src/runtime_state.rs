@@ -82,6 +82,10 @@ pub(crate) struct ChainProcessingState {
     /// CPAL input_index. Reused across callbacks to avoid per-callback
     /// allocations in the RT hot path.
     pub(crate) input_scratches: Vec<InputCallbackScratch>,
+    /// #323: this chain's loopers. Owned by this runtime alone; the audio
+    /// thread already holds `&mut` to the processing state, so the slots need
+    /// no lock of their own.
+    pub(crate) looper_bank: crate::looper_bank::LooperBank,
 }
 
 /// Scratch buffers reused across audio callbacks for a single input_index.
@@ -375,6 +379,9 @@ pub struct ChainRuntimeState {
     /// to 0 from the off-thread caller; the audio thread will read the
     /// new value on its next callback.
     pub(crate) di_loop_pos: AtomicUsize,
+    /// #323: control ↔ audio channel for this chain's loopers (op queue,
+    /// buffer-return queue and the lock-free status mirror the UI reads).
+    pub(crate) loopers: crate::looper_bank::LooperShared,
     /// Issue #670 — audio-thread deadline accounting. The output callback
     /// records its own wall-clock cost via `record_callback_load`: every
     /// buffer whose processing exceeded the device period increments

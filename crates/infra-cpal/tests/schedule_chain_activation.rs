@@ -52,6 +52,7 @@ fn schedules_a_multi_input_chain_off_thread() {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let registry = vec![IoBinding {
         id: "io".into(),

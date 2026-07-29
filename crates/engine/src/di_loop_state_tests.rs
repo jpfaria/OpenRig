@@ -18,6 +18,7 @@ fn empty_chain() -> Chain {
         io_binding_ids: vec![],
         blocks: Vec::<AudioBlock>::new(),
         di_output: None,
+        loopers: vec![],
     }
 }
 

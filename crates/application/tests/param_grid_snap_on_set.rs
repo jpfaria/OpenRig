@@ -87,6 +87,7 @@ fn project_with_amp_chain() -> Rc<RefCell<Project>> {
             io_binding_ids: vec![],
             blocks: vec![user_input(), slider_param_block(), user_output()],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))

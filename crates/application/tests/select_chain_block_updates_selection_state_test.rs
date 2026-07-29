@@ -30,6 +30,7 @@ fn chain_with_block_ids(id: &str, _block_ids: &[&str]) -> Chain {
         io_binding_ids: vec![],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     }
 }
 

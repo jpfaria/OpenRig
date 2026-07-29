@@ -42,6 +42,22 @@ use crate::di_playback::{DiPlayback, DiPlaybackCell};
 use crate::di_stream_worker::{self, DiHandoff, DiWorkerSpec};
 use crate::ProjectRuntimeController;
 
+/// #323: what an isolated stream plays — the DI loop of a chain, or one of its
+/// loopers. Same isolated pipeline (source → routed chain copy → chosen output,
+/// ring-clocked); the only difference is the source and which output ref it
+/// resolves. Adding the looper as another `IsolatedSource` is why DI and looper
+/// share one lifecycle instead of two copies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum IsolatedSource {
+    /// The chain's DI loop (`Chain.di_output`).
+    Di,
+    /// The chain's looper `uid` (its `LooperConfig.output`).
+    Looper(u64),
+}
+
+/// Identity of one isolated stream: which chain, and which source on it.
+pub(crate) type IsolatedKey = (ChainId, IsolatedSource);
+
 /// Bookkeeping for one armed DI. Dropping the handle disarms (safety net);
 /// the controller's `disarm_di_stream` is the primary path because it also
 /// retires the parked playback off the audio thread.
@@ -112,9 +128,21 @@ impl ProjectRuntimeController {
         chain_id: &ChainId,
         output_index: usize,
     ) -> DiPlaybackCell {
+        self.isolated_playback_cell(chain_id, IsolatedSource::Di, output_index)
+    }
+
+    /// The playback cell for one `(chain, source, output index)`. DI and each
+    /// looper get their own cell even on the same output, so they never share
+    /// a parked playback.
+    pub(crate) fn isolated_playback_cell(
+        &self,
+        chain_id: &ChainId,
+        source: IsolatedSource,
+        output_index: usize,
+    ) -> DiPlaybackCell {
         self.di_playback_cells
             .borrow_mut()
-            .entry((chain_id.clone(), output_index))
+            .entry(((chain_id.clone(), source), output_index))
             .or_insert_with(|| Arc::new(arc_swap::ArcSwapOption::from(None)))
             .clone()
     }
@@ -184,10 +212,43 @@ impl ProjectRuntimeController {
     /// runtime off-thread and stream the loop into that output's cell. The
     /// guitar runtime is NEVER touched.
     pub fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
+        let output_index =
+            resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
+        self.arm_isolated_stream(chain, IsolatedSource::Di, output_index, pcm)
+    }
+
+    /// #323: arm one looper's isolated playback — the SAME pipeline as the DI,
+    /// with the looper's live-recorded buffer as the source and its chosen
+    /// output. Independent of the record input: the loop plays out `output_index`
+    /// through a routed copy of the chain, isolated (invariant #4).
+    pub fn arm_looper_stream(
+        &self,
+        chain: &Chain,
+        uid: u64,
+        output_index: usize,
+        pcm: Arc<DiPcm>,
+    ) -> Result<()> {
+        self.arm_isolated_stream(chain, IsolatedSource::Looper(uid), output_index, pcm)
+    }
+
+    /// #323: disarm one looper's isolated playback.
+    pub fn disarm_looper_stream(&self, chain_id: &ChainId, uid: u64) {
+        self.disarm_isolated_stream(chain_id, IsolatedSource::Looper(uid));
+    }
+
+    /// Shared arm: replace any previous playback of this `(chain, source)` and
+    /// stream `pcm` into `output_index`'s cell.
+    fn arm_isolated_stream(
+        &self,
+        chain: &Chain,
+        source: IsolatedSource,
+        output_index: usize,
+        pcm: Arc<DiPcm>,
+    ) -> Result<()> {
         // A fresh arm replaces any previous playback (and retires it off the
         // audio thread) — the listener asked for this one.
-        self.disarm_di_stream(&chain.id);
-        self.spawn_di_stream(chain, pcm, None)
+        self.disarm_isolated_stream(&chain.id, source);
+        self.spawn_di_stream(chain, source, output_index, pcm, None)
     }
 
     /// Spawn the render worker for `chain`. With a `handoff`, the incoming
@@ -196,11 +257,12 @@ impl ProjectRuntimeController {
     fn spawn_di_stream(
         &self,
         chain: &Chain,
+        source: IsolatedSource,
+        output_index: usize,
         pcm: Arc<DiPcm>,
         handoff: Option<DiHandoff>,
     ) -> Result<()> {
-        let output_index =
-            resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
+        let key = (chain.id.clone(), source);
         let (_, outputs) = resolve_chain_io(chain, &self.io_bindings);
         let dest = outputs
             .get(output_index)
@@ -209,14 +271,14 @@ impl ProjectRuntimeController {
         let dest_left = dest.first().copied().unwrap_or(0);
         let dest_right = dest.get(1).copied().unwrap_or(dest_left);
 
-        let cell = self.di_playback_cell(&chain.id, output_index);
+        let cell = self.isolated_playback_cell(&chain.id, source, output_index);
 
         // #808: the DI's OWN output stream (invariant #4 — never the chain's).
         // Take the previous handle out first so a gapless re-arm on the SAME
         // output REUSES the live stream (no restart, no re-open), and a moved
         // output rebuilds it. `remove` (not `insert`) so the reused stream is
         // out of the old handle before it drops.
-        let mut prev = self.di_streams.borrow_mut().remove(&chain.id);
+        let mut prev = self.di_streams.borrow_mut().remove(&key);
         let same_output = prev
             .as_ref()
             .and_then(|h| h.output_stream.as_ref().map(|_| h.output_index))
@@ -263,7 +325,7 @@ impl ProjectRuntimeController {
         });
 
         self.di_streams.borrow_mut().insert(
-            chain.id.clone(),
+            key,
             DiStreamHandle {
                 output_index,
                 cell,
@@ -288,10 +350,20 @@ impl ProjectRuntimeController {
     /// lock, and the parked playback is RETIRED — freed on a later cycle, never
     /// by the audio callback (invariant #8).
     pub fn disarm_di_stream(&self, chain_id: &ChainId) {
+        self.disarm_isolated_stream(chain_id, IsolatedSource::Di);
+    }
+
+    /// Shared disarm for one `(chain, source)`: stop its render threads under
+    /// their arm lock and retire the parked playback off the audio thread.
+    fn disarm_isolated_stream(&self, chain_id: &ChainId, source: IsolatedSource) {
         // Free the previous cycle's retirees first: by now any callback
         // guard that referenced them (a µs-scale window) is long gone.
         self.retired().clear();
-        if let Some(handle) = self.di_streams.borrow_mut().remove(chain_id) {
+        if let Some(handle) = self
+            .di_streams
+            .borrow_mut()
+            .remove(&(chain_id.clone(), source))
+        {
             if let Some(old) = handle.disarm() {
                 self.retired().push(old);
             }
@@ -314,15 +386,17 @@ impl ProjectRuntimeController {
     pub fn rearm_di_stream_after_rebuild(&self, chain: &Chain) {
         let armed_now = {
             let streams = self.di_streams.borrow();
-            streams.get(&chain.id).map(|h| {
-                (
-                    Arc::clone(&h.pcm),
-                    h.cell.load_full().map(|prev| DiHandoff {
-                        prev,
-                        prev_workers: h.workers.clone(),
-                    }),
-                )
-            })
+            streams
+                .get(&(chain.id.clone(), IsolatedSource::Di))
+                .map(|h| {
+                    (
+                        Arc::clone(&h.pcm),
+                        h.cell.load_full().map(|prev| DiHandoff {
+                            prev,
+                            prev_workers: h.workers.clone(),
+                        }),
+                    )
+                })
         };
         let Some((pcm, handoff)) = armed_now else {
             return; // not armed — nothing to re-render
@@ -334,7 +408,15 @@ impl ProjectRuntimeController {
                 let _ = self.arm_di_stream(chain, pcm);
             }
             Some(handoff) => {
-                let _ = self.spawn_di_stream(chain, pcm, Some(handoff));
+                let output_index =
+                    resolve_di_output_index(chain, &self.io_bindings, chain.di_output.as_ref());
+                let _ = self.spawn_di_stream(
+                    chain,
+                    IsolatedSource::Di,
+                    output_index,
+                    pcm,
+                    Some(handoff),
+                );
             }
         }
     }
@@ -342,10 +424,20 @@ impl ProjectRuntimeController {
     /// Drop every DI resource of a removed chain (handle, cells, retirees) so
     /// deleting chains never leaks parked render buffers.
     pub(crate) fn drop_di_state_for_chain(&self, chain_id: &ChainId) {
-        self.disarm_di_stream(chain_id);
+        // Every isolated stream of the chain — the DI and all its loopers.
+        let keys: Vec<IsolatedSource> = self
+            .di_streams
+            .borrow()
+            .keys()
+            .filter(|(cid, _)| cid == chain_id)
+            .map(|(_, source)| *source)
+            .collect();
+        for source in keys {
+            self.disarm_isolated_stream(chain_id, source);
+        }
         self.di_playback_cells
             .borrow_mut()
-            .retain(|(cid, _), _| cid != chain_id);
+            .retain(|((cid, _), _), _| cid != chain_id);
     }
 
     /// Whether the chain's DI is playing or still rendering. A FAILED render
@@ -354,8 +446,28 @@ impl ProjectRuntimeController {
     pub fn di_stream_active(&self, chain_id: &ChainId) -> bool {
         self.di_streams
             .borrow()
-            .get(chain_id)
+            .get(&(chain_id.clone(), IsolatedSource::Di))
             .is_some_and(|h| !h.failed.load(Ordering::Relaxed))
+    }
+
+    /// #323: whether looper `uid`'s isolated playback is playing/rendering.
+    pub fn looper_stream_active(&self, chain_id: &ChainId, uid: u64) -> bool {
+        self.di_streams
+            .borrow()
+            .get(&(chain_id.clone(), IsolatedSource::Looper(uid)))
+            .is_some_and(|h| !h.failed.load(Ordering::Relaxed))
+    }
+
+    /// #323: the loop position (frames) the listener is currently HEARING for
+    /// looper `uid` — read off its isolated playback's cursor. `None` when the
+    /// loop is not parked on an output (not playing). This is the audible
+    /// position; the store's slot is idle during playback, so the UI timer must
+    /// come from here or it freezes at 0:00.
+    pub fn looper_stream_position(&self, chain_id: &ChainId, uid: u64) -> Option<usize> {
+        self.di_streams
+            .borrow()
+            .get(&(chain_id.clone(), IsolatedSource::Looper(uid)))
+            .and_then(|h| h.cell.load().as_ref().map(|p| p.play_pos()))
     }
 
     /// Length (frames) of one loop period — `None` while the worker is still
@@ -363,7 +475,7 @@ impl ProjectRuntimeController {
     pub fn di_stream_loop_len(&self, chain_id: &ChainId) -> Option<usize> {
         self.di_streams
             .borrow()
-            .get(chain_id)
+            .get(&(chain_id.clone(), IsolatedSource::Di))
             .and_then(|h| h.cell.load().as_ref().map(|p| p.loop_len()))
     }
 
@@ -373,7 +485,7 @@ impl ProjectRuntimeController {
     pub fn di_playback_active_output(&self, chain_id: &ChainId) -> Option<usize> {
         self.di_streams
             .borrow()
-            .get(chain_id)
+            .get(&(chain_id.clone(), IsolatedSource::Di))
             .and_then(|h| h.cell.load().is_some().then_some(h.output_index))
     }
 
@@ -382,7 +494,7 @@ impl ProjectRuntimeController {
     pub fn di_playback_peaks(&self, chain_id: &ChainId) -> Option<(f32, f32)> {
         self.di_streams
             .borrow()
-            .get(chain_id)
+            .get(&(chain_id.clone(), IsolatedSource::Di))
             .and_then(|h| h.cell.load().as_ref().map(|p| p.peaks()))
     }
 }

@@ -68,6 +68,7 @@ fn chain_with_only_io_blocks_roundtrips() {
                 },
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -306,6 +307,7 @@ fn serialize_project_produces_valid_yaml_string() {
                 },
             ],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -530,3 +532,43 @@ fn legacy_device_settings_still_deserialize() {
     );
 }
 
+
+// ─── #323: loopers survive the .openrig round-trip ───
+
+#[test]
+fn chain_loopers_survive_a_project_roundtrip() {
+    use project::chain::LooperConfig;
+    let project = Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: vec![Chain {
+            id: ChainId("c".into()),
+            description: Some("g".into()),
+            instrument: "electric_guitar".into(),
+            enabled: false,
+            volume: 100.0,
+            io_binding_ids: vec![],
+            blocks: vec![],
+            di_output: None,
+            loopers: vec![LooperConfig {
+                audio_file: Some("loop-5.wav".into()),
+                mix: 0.5,
+                ..LooperConfig::new(5)
+            }],
+        }],
+        midi: None,
+    };
+    let yaml = super::serialize_project(&project).expect("serialize");
+    let dto: super::ProjectYaml = serde_yaml::from_str(&yaml).expect("parse");
+    let loaded = dto.into_project().expect("convert");
+    assert_eq!(
+        loaded.chains[0].loopers.len(),
+        1,
+        "the looper must survive the .openrig round-trip"
+    );
+    assert_eq!(loaded.chains[0].loopers[0].uid, 5);
+    assert_eq!(
+        loaded.chains[0].loopers[0].audio_file.as_deref(),
+        Some("loop-5.wav")
+    );
+}

@@ -15,7 +15,9 @@ use project::chain::Chain;
 
 use crate::runtime::ChainRuntimeState;
 use crate::runtime_graph::{build_per_input_runtimes, input_group_ids, RuntimeGraph};
-use crate::runtime_graph_update::{update_chain_runtime_state, update_chain_runtime_state_spillover};
+use crate::runtime_graph_update::{
+    update_chain_runtime_state, update_chain_runtime_state_spillover,
+};
 
 impl RuntimeGraph {
     /// All per-input runtimes for a chain, ordered by group id (the cpal

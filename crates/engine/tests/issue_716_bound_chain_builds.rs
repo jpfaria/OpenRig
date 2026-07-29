@@ -50,6 +50,7 @@ fn bound_chain() -> Chain {
             }),
         }],
         di_output: None,
+        loopers: vec![],
     }
 }
 

@@ -1,8 +1,8 @@
 //! Volume/audio invariants — PINNED (issue #792 split from volume_invariants_tests.rs).
 //! Section moved verbatim; shared fixtures live in `volume_invariants_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::volume_invariants::*;
+use super::*;
 
 // ─────────────────────────────────────────────────────────────────────────
 // A. Layout passthrough — every Input mode × Output mode combo
@@ -441,4 +441,3 @@ fn f02_fade_in_starts_at_zero_no_full_amplitude_burst() {
         "fade-in head must start near zero gain; got peak {head_peak}"
     );
 }
-

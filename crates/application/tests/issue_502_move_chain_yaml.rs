@@ -27,6 +27,7 @@ fn make_chain(id: &str, description: &str) -> Chain {
         io_binding_ids: vec![],
         blocks: Vec::new(),
         di_output: None,
+        loopers: vec![],
     }
 }
 
