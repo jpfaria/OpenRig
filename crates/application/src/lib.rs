@@ -65,6 +65,9 @@ pub mod query_chain_quality;
 pub mod query_loopers;
 pub mod query_di;
 pub mod query_latency;
+/// #831: the single `QueryKind` resolver every transport answers through —
+/// one match, one payload shape, one error string.
+pub mod read;
 pub mod render_handler;
 pub mod selection_state;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands

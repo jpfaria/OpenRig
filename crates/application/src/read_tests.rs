@@ -1,0 +1,288 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use super::*;
+use crate::bridge::QueryKind;
+use crate::live_source::{ChainMeterReading, LiveSource, NoLiveSource};
+use domain::ids::{BlockId, ChainId};
+use project::block::types::{AudioBlock, AudioBlockKind, InputBlock};
+use project::chain::Chain;
+use project::project::Project;
+
+/// Every variant, so a new one cannot be added without deciding what an
+/// empty frontend answers. Kept exhaustive by `match_all_kinds` below.
+fn all_kinds() -> Vec<QueryKind> {
+    let chain = ChainId("guitar".to_string());
+    vec![
+        QueryKind::ProjectYaml,
+        QueryKind::Devices,
+        QueryKind::Ids,
+        QueryKind::ChainMeters,
+        QueryKind::TunerReadings,
+        QueryKind::SpectrumReadings,
+        QueryKind::DiLoopState,
+        QueryKind::ChainLoopers {
+            chain: chain.clone(),
+        },
+        QueryKind::ChainLatency {
+            chain: chain.clone(),
+        },
+        QueryKind::ListChainPresets {
+            chain: chain.clone(),
+        },
+        QueryKind::ListProjectPresets,
+        QueryKind::ListPluginCatalog,
+        QueryKind::GetPlugin {
+            id: "x".to_string(),
+        },
+        QueryKind::FindPlugins {
+            query: String::new(),
+        },
+        QueryKind::GetPluginParams {
+            plugin_id: "x".to_string(),
+        },
+        QueryKind::GetBlockParams {
+            chain: chain.clone(),
+            block: BlockId("b".to_string()),
+        },
+        QueryKind::Paths,
+        QueryKind::ChainQualityReport {
+            chain: chain.clone(),
+        },
+        QueryKind::ChainToneReport { chain },
+    ]
+}
+
+/// Names of every `QueryKind`, in one place. Adding a variant forces a new
+/// arm in `match_all_kinds` (exhaustive match) AND a new entry here (fixed
+/// array length), and `all_kinds_covers_every_variant` then fails until
+/// `all_kinds` lists it too — the loop below cannot silently skip a kind.
+const KIND_NAMES: [&str; 19] = [
+    "ProjectYaml",
+    "Devices",
+    "Ids",
+    "ChainMeters",
+    "TunerReadings",
+    "SpectrumReadings",
+    "DiLoopState",
+    "ChainLoopers",
+    "ChainLatency",
+    "ListChainPresets",
+    "ListProjectPresets",
+    "ListPluginCatalog",
+    "GetPlugin",
+    "FindPlugins",
+    "GetPluginParams",
+    "GetBlockParams",
+    "Paths",
+    "ChainQualityReport",
+    "ChainToneReport",
+];
+
+fn match_all_kinds(kind: &QueryKind) -> &'static str {
+    match kind {
+        QueryKind::ProjectYaml => "ProjectYaml",
+        QueryKind::Devices => "Devices",
+        QueryKind::Ids => "Ids",
+        QueryKind::ChainMeters => "ChainMeters",
+        QueryKind::TunerReadings => "TunerReadings",
+        QueryKind::SpectrumReadings => "SpectrumReadings",
+        QueryKind::DiLoopState => "DiLoopState",
+        QueryKind::ChainLoopers { .. } => "ChainLoopers",
+        QueryKind::ChainLatency { .. } => "ChainLatency",
+        QueryKind::ListChainPresets { .. } => "ListChainPresets",
+        QueryKind::ListProjectPresets => "ListProjectPresets",
+        QueryKind::ListPluginCatalog => "ListPluginCatalog",
+        QueryKind::GetPlugin { .. } => "GetPlugin",
+        QueryKind::FindPlugins { .. } => "FindPlugins",
+        QueryKind::GetPluginParams { .. } => "GetPluginParams",
+        QueryKind::GetBlockParams { .. } => "GetBlockParams",
+        QueryKind::Paths => "Paths",
+        QueryKind::ChainQualityReport { .. } => "ChainQualityReport",
+        QueryKind::ChainToneReport { .. } => "ChainToneReport",
+    }
+}
+
+fn test_project_with_one_chain() -> Project {
+    Project {
+        name: Some("Parity".to_string()),
+        device_settings: vec![],
+        chains: vec![Chain {
+            id: ChainId("guitar".to_string()),
+            description: None,
+            instrument: "guitar".to_string(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec![],
+            blocks: vec![AudioBlock {
+                id: BlockId("b".to_string()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "default".to_string(),
+                    io: String::new(),
+                    endpoint: String::new(),
+                }),
+            }],
+            di_output: None,
+            loopers: vec![],
+        }],
+        midi: None,
+    }
+}
+
+fn rc_project(project: &Project) -> Rc<RefCell<Project>> {
+    Rc::new(RefCell::new(project.clone()))
+}
+
+/// A frontend that hosts meters and nothing else.
+struct MetersOnly(Vec<ChainMeterReading>);
+
+impl LiveSource for MetersOnly {
+    fn chain_meters(&self) -> Option<Vec<ChainMeterReading>> {
+        Some(
+            self.0
+                .iter()
+                .map(|r| ChainMeterReading {
+                    chain: r.chain.clone(),
+                    in_dbfs: r.in_dbfs,
+                    out_dbfs: r.out_dbfs,
+                })
+                .collect(),
+        )
+    }
+}
+
+fn resolve_empty(kind: QueryKind) -> String {
+    let project = test_project_with_one_chain();
+    let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
+    let ctx = ReadContext {
+        project: &project,
+        rig: None,
+        io_bindings: &[],
+        dispatcher: &dispatcher,
+        live: &NoLiveSource,
+    };
+    resolve(&kind, &ctx).expect("empty frontend must still answer")
+}
+
+fn resolve_with_meters(meters: Vec<ChainMeterReading>) -> String {
+    let project = test_project_with_one_chain();
+    let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
+    let live = MetersOnly(meters);
+    let ctx = ReadContext {
+        project: &project,
+        rig: None,
+        io_bindings: &[],
+        dispatcher: &dispatcher,
+        live: &live,
+    };
+    resolve(&QueryKind::ChainMeters, &ctx).expect("hosted meters must answer")
+}
+
+#[test]
+fn all_kinds_covers_every_variant() {
+    let listed: Vec<&'static str> = all_kinds().iter().map(match_all_kinds).collect();
+    for name in KIND_NAMES {
+        assert!(
+            listed.contains(&name),
+            "{name} is a QueryKind variant that all_kinds() does not exercise"
+        );
+    }
+    assert_eq!(
+        listed.len(),
+        KIND_NAMES.len(),
+        "duplicate kind in all_kinds"
+    );
+}
+
+#[test]
+fn every_kind_answers_on_a_frontend_that_hosts_nothing() {
+    let project = test_project_with_one_chain();
+    let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
+    let ctx = ReadContext {
+        project: &project,
+        rig: None,
+        io_bindings: &[],
+        dispatcher: &dispatcher,
+        live: &NoLiveSource,
+    };
+    for kind in all_kinds() {
+        let out = resolve(&kind, &ctx);
+        match kind {
+            // The preset reads need a `RigProject`, which is a session
+            // attachment, not a live source: no rig is a genuine failure,
+            // not an unhosted reading. It still has to be the SAME failure
+            // on every transport — one string, not per-adapter prose.
+            QueryKind::ListChainPresets { .. } | QueryKind::ListProjectPresets => {
+                assert_eq!(out, Err(NO_RIG_ATTACHED.to_string()), "{kind:?}");
+            }
+            _ => assert!(
+                out.is_ok(),
+                "{kind:?} refused on a frontend that hosts nothing — every resource \
+                 must stay addressable with the documented empty shape: {out:?}"
+            ),
+        }
+    }
+}
+
+#[test]
+fn silent_meters_use_the_engine_constant_not_a_literal() {
+    let meters = resolve_empty(QueryKind::ChainMeters);
+    let expected = format!(
+        "guitar\t{:.1}\t{:.1}\n",
+        engine::output_meter::SILENT_DBFS,
+        engine::output_meter::SILENT_DBFS
+    );
+    assert_eq!(meters, expected);
+}
+
+#[test]
+fn a_hosting_frontend_returns_the_same_shape_with_live_values() {
+    // Same field layout, different numbers — a client cannot tell which
+    // adapter served it apart from the values.
+    let hosted = resolve_with_meters(vec![ChainMeterReading {
+        chain: ChainId("guitar".to_string()),
+        in_dbfs: -12.0,
+        out_dbfs: -6.0,
+    }]);
+    let empty = resolve_empty(QueryKind::ChainMeters);
+    assert_eq!(hosted.lines().count(), empty.lines().count());
+    assert_eq!(hosted.split('\t').count(), empty.split('\t').count());
+    assert!(hosted.starts_with("guitar\t-12.0\t-6.0"), "{hosted}");
+}
+
+#[test]
+fn unhosted_analyzers_report_not_running_with_no_rows() {
+    let tuner = resolve_empty(QueryKind::TunerReadings);
+    assert!(tuner.contains("\"running\":false"), "{tuner}");
+    assert!(tuner.contains("\"rows\":[]"), "{tuner}");
+    let spectrum = resolve_empty(QueryKind::SpectrumReadings);
+    assert!(spectrum.contains("\"running\":false"), "{spectrum}");
+    assert!(spectrum.contains("\"rows\":[]"), "{spectrum}");
+}
+
+#[test]
+fn unhosted_di_loop_reports_one_silent_row_per_chain() {
+    let di = resolve_empty(QueryKind::DiLoopState);
+    // `{:?}` matches how serde_json renders an f32 (`-120.0`, not `-120`).
+    let expected = format!(
+        "{{\"chains\":[{{\"chain\":\"guitar\",\"playing\":false,\"in_dbfs\":{:?},\"out_dbfs\":{:?},\"source\":null}}]}}",
+        engine::output_meter::SILENT_DBFS,
+        engine::output_meter::SILENT_DBFS
+    );
+    assert_eq!(di, expected);
+}
+
+#[test]
+fn unhosted_loopers_still_answer_with_the_chains_persisted_shape() {
+    let loopers = resolve_empty(QueryKind::ChainLoopers {
+        chain: ChainId("guitar".to_string()),
+    });
+    assert!(loopers.contains("\"chain\":\"guitar\""), "{loopers}");
+    assert!(loopers.contains("\"loopers\":[]"), "{loopers}");
+}
+
+#[test]
+fn unhosted_devices_answer_an_empty_listing_not_an_error() {
+    assert_eq!(resolve_empty(QueryKind::Devices), String::new());
+}
