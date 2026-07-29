@@ -11,13 +11,15 @@
 use anyhow::Result;
 use application::bridge::{self, QueryKind};
 use application::dispatcher::CommandDispatcher;
+use application::live_source::LiveSource;
 use application::local_dispatcher::LocalDispatcher;
 use application::publishing_dispatcher::PublishingDispatcher;
+use application::read::{resolve, ReadContext};
 use application::validate::validate_project;
 use cpal::traits::StreamTrait;
 use engine::runtime::build_runtime_graph;
 use infra_cpal::{build_streams_for_project, list_devices, resolve_project_chain_sample_rates};
-use infra_yaml::{serialize_project, YamlProjectRepository};
+use infra_yaml::YamlProjectRepository;
 use project::project::Project;
 use serde::Deserialize;
 use std::cell::RefCell;
@@ -30,6 +32,73 @@ use std::thread;
 use std::time::Duration;
 
 mod tick;
+
+/// The console's own [`LiveSource`] (#829/#831): it hosts a real device
+/// enumeration and a real per-project sample rate, and nothing else — no
+/// meters, analyzer, DI loop, or looper transport. The console drives the
+/// engine directly and owns none of those runtimes, so every other read
+/// falls through to the resolver's documented empty shape.
+struct ConsoleLiveSource<'a> {
+    project: &'a Project,
+    io_bindings: &'a [domain::io_binding::IoBinding],
+}
+
+impl LiveSource for ConsoleLiveSource<'_> {
+    // A dead audio host must surface as a failure, not an empty listing —
+    // collapsing the two would hide a real problem behind "no devices to
+    // report". Preserves today's console behavior exactly.
+    fn devices(&self) -> Option<Result<Vec<String>, String>> {
+        Some(list_devices().map_err(|e| e.to_string()))
+    }
+
+    // #723: the console has no live audio thread to ask, but it CAN resolve
+    // the real per-chain device rate the same way `build_streams` does. A
+    // single scalar cannot honestly stand in for every chain when chains
+    // disagree (different devices, different rates — see the stream
+    // isolation law), so this only answers when every enabled chain agrees;
+    // otherwise `None` lets the resolver fall through to the dispatcher's
+    // own tracked engine rate instead of this method lying.
+    fn sample_rate(&self) -> Option<u32> {
+        let rates = resolve_project_chain_sample_rates(self.project, self.io_bindings).ok()?;
+        let mut values = rates.values().copied();
+        let first = values.next()?;
+        values.all(|r| r == first).then(|| first.round() as u32)
+    }
+}
+
+/// Resolve one read through the shared core resolver (#829/#831) — the
+/// console supplies only the two live sources it actually hosts; every
+/// other read answers the documented empty shape or `NO_RIG_ATTACHED`,
+/// exactly like every other transport. Factored out (rather than inlined
+/// in the event loop) so `console_read_tests` exercises the exact wiring
+/// the loop runs.
+fn console_resolve(
+    kind: &QueryKind,
+    project: &Project,
+    io_bindings: &[domain::io_binding::IoBinding],
+    dispatcher: &dyn CommandDispatcher,
+) -> Result<String, String> {
+    resolve(
+        kind,
+        &ReadContext {
+            project,
+            // #554: the console speaks the device-level engine directly and
+            // attaches no `RigProject` — the preset reads answer the shared
+            // `NO_RIG_ATTACHED` failure, same as every transport with no rig.
+            rig: None,
+            io_bindings,
+            dispatcher,
+            live: &ConsoleLiveSource {
+                project,
+                io_bindings,
+            },
+        },
+    )
+}
+
+#[cfg(test)]
+#[path = "console_read_tests.rs"]
+mod console_read_tests;
 
 #[derive(Debug, Deserialize, Default)]
 struct AppConfigYaml {
@@ -178,105 +247,13 @@ fn main() -> Result<()> {
 
     loop {
         let changed = !tick::tick(&dispatcher, drain.drain(&dispatcher, 64)).is_empty();
+        let io_bindings = infra_filesystem::FilesystemStorage::load_app_config()
+            .map(|c| c.io_bindings)
+            .unwrap_or_default();
         drain.serve_queries(
-            |kind| match kind {
-                QueryKind::ProjectYaml => {
-                    serialize_project(&shared.borrow()).map_err(|e| e.to_string())
-                }
-                QueryKind::Devices => list_devices()
-                    .map(|d| d.join("\n"))
-                    .map_err(|e| e.to_string()),
-                QueryKind::Ids => Ok(application::query::list_ids(&shared.borrow())),
-                // #791: the console owns no doctor state of its own; the
-                // dispatcher's last run is the answer for every transport.
-                QueryKind::ChainToneReport { chain } => {
-                    Ok(dispatcher.inner().tone_report_json(chain))
-                }
-                // #829: reads that need a live analyzer/runtime the console
-                // does not host — answer with the empty shape so the resource
-                // is still addressable on this transport.
-                QueryKind::TunerReadings
-                | QueryKind::SpectrumReadings
-                | QueryKind::DiLoopState
-                | QueryKind::ChainLatency { .. } => {
-                    Err("not available on the console adapter".to_string())
-                }
-                QueryKind::ChainMeters => {
-                    // Console adapter has no live meter source — emit a
-                    // silent record per chain so the MCP resource shape
-                    // is stable regardless of which adapter is mounted.
-                    let proj = shared.borrow();
-                    let mut out = String::new();
-                    for chain in &proj.chains {
-                        out.push_str(&format!("{}\t-120.0\t-120.0\n", chain.id.0));
-                    }
-                    Ok(out)
-                }
-                // #323: the console adapter drives the engine directly and
-                // owns no looper runtimes, so it reports the chain's
-                // persisted loopers with no live transport state — the
-                // shape stays stable whichever adapter is mounted.
-                QueryKind::ChainLoopers { chain } => {
-                    let proj = shared.borrow();
-                    match proj.chains.iter().find(|c| &c.id == chain) {
-                        Some(c) => {
-                            // The frame counts mean nothing without the rate
-                            // this chain's streams actually resolved to — the
-                            // same resolver `build_streams` uses, never a
-                            // hardcoded 48000 (#723).
-                            let registry = infra_filesystem::FilesystemStorage::load_app_config()
-                                .map(|cfg| cfg.io_bindings)
-                                .unwrap_or_default();
-                            let rate = resolve_project_chain_sample_rates(&proj, &registry)
-                                .ok()
-                                .and_then(|rates| rates.get(&c.id).copied())
-                                .ok_or_else(|| {
-                                    format!("no resolved sample rate for chain {}", c.id.0)
-                                })?;
-                            Ok(application::query_loopers::loopers_json(
-                                c,
-                                &[],
-                                rate.round() as u32,
-                            ))
-                        }
-                        None => Err(format!("chain not found: {}", chain.0)),
-                    }
-                }
-                // #561 (expanded scope): plugin catalog reads — same
-                // pure helpers MCP would call (process-wide registry).
-                QueryKind::ListPluginCatalog => Ok(application::query::list_plugin_catalog()),
-                QueryKind::GetPlugin { id } => Ok(application::query::get_plugin(id)),
-                QueryKind::FindPlugins { query } => Ok(application::query::find_plugins(query)),
-                // #572: per-plugin parameter schema (catalog-level). Same
-                // pure helper any transport calls; process-wide registry
-                // means no project state needed.
-                QueryKind::GetPluginParams { plugin_id } => {
-                    Ok(application::query::get_plugin_params(plugin_id))
-                }
-                // #572: per-block-instance descriptors (schema + current
-                // value). Resolves against the live project.
-                QueryKind::GetBlockParams { chain, block } => {
-                    application::query::get_block_params(&shared.borrow(), chain, block)
-                }
-                // #554: preset reads need a `RigProject`. Console adapter
-                // doesn't own one (it speaks the device-level engine, no
-                // rig attached), so mirror the GUI adapter's
-                // "no rig attached" error rather than fabricating an
-                // empty rig — keeps the wire contract uniform across
-                // both adapters.
-                QueryKind::ListChainPresets { .. } | QueryKind::ListProjectPresets => {
-                    Err("console adapter has no rig attached".to_string())
-                }
-                // #582: effective resolved system paths. Reads
-                // `config.yaml` directly via the application helper —
-                // no project state required, so the console adapter
-                // serves the same envelope the GUI does.
-                QueryKind::Paths => Ok(application::query::resolved_paths_json()),
-                // #791: objective quality report — runs the synthetic battery
-                // through the offline render of the console's own project chain.
-                QueryKind::ChainQualityReport { chain } => {
-                    application::query_chain_quality::chain_quality_report(&shared.borrow(), chain)
-                }
+            |kind| {
+                let project = shared.borrow();
+                console_resolve(kind, &project, &io_bindings, dispatcher.inner())
             },
             64,
         );
