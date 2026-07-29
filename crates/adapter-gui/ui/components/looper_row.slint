@@ -80,26 +80,10 @@ export component LooperRow inherits Rectangle {
         clicked => { root.play-stop(); }
     }
 
-    undo-btn := LooperIconButton {
-        x: 96px;
-        y: 10px;
-        icon: @image-url("../assets/undo.svg");
-        label: @tr("looper-undo");
-        is-enabled: root.looper.can_undo;
-        clicked => { root.undo(); }
-    }
-
-    redo-btn := LooperIconButton {
-        x: 140px;
-        y: 10px;
-        icon: @image-url("../assets/redo.svg");
-        label: @tr("looper-redo");
-        is-enabled: root.looper.can_redo;
-        clicked => { root.redo(); }
-    }
-
+    // #323: single-take looper — no overdub layers, so there is no undo/redo.
+    // Stacking parts is done with SEPARATE loopers.
     clear-btn := LooperIconButton {
-        x: 184px;
+        x: 96px;
         y: 10px;
         icon: @image-url("../assets/trash.svg");
         label: @tr("looper-clear");
@@ -109,9 +93,9 @@ export component LooperRow inherits Rectangle {
 
     // ── state + progress ────────────────────────────────────────────────
     Rectangle {
-        x: 236px;
+        x: 144px;
         y: 10px;
-        width: parent.width - 236px - 96px;
+        width: parent.width - 144px - 96px;
         height: 40px;
         clip: true;
         background: transparent;
@@ -171,18 +155,6 @@ export component LooperRow inherits Rectangle {
                 border-radius: 2px;
                 background: root.state-color;
             }
-        }
-
-        Text {
-            x: 0;
-            y: 29px;
-            height: 14px;
-            vertical-alignment: center;
-            text: root.looper.layers == 1
-                ? @tr("looper-layers-one")
-                : @tr("looper-layers-many", root.looper.layers);
-            color: Theme.palette.text-muted;
-            font-size: 11px;
         }
     }
 
