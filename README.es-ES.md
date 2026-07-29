@@ -20,6 +20,10 @@
 </p>
 
 <p align="center">
+  <a href="https://jpfaria.github.io/OpenRig/"><strong>Sitio → jpfaria.github.io/OpenRig</strong></a>
+</p>
+
+<p align="center">
   Última: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.24</a> · <a href="CHANGELOG.md">CHANGELOG</a>
 </p>
 
