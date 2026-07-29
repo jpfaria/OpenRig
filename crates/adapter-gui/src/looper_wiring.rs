@@ -68,6 +68,54 @@ pub fn apply_looper_event(controller: &ProjectRuntimeController, event: &Event) 
     }
 }
 
+/// Apply a batch of drained events (from ANY transport — MCP, MIDI) to the
+/// looper store, then reconcile the isolated playback stream for each chain a
+/// looper event touched. The GUI button path does this inline in
+/// `looper_callbacks::dispatch_and_apply`; MCP/MIDI events arrive through the
+/// shared drain (`chain_rig_nav_wiring::apply_events_to_ui`) and MUST reach the
+/// store the same way — otherwise a looper driven over MCP/MIDI mutates nothing
+/// and the store stays `Empty` (the parity LEI: every transport reaches what the
+/// GUI reaches).
+pub fn apply_looper_events(
+    controller: &ProjectRuntimeController,
+    chains: &[Chain],
+    events: &[Event],
+) {
+    let mut touched: Vec<&domain::ids::ChainId> = Vec::new();
+    for event in events {
+        apply_looper_event(controller, event);
+        if let Some(chain_id) = looper_event_chain(event) {
+            if !touched.iter().any(|c| *c == chain_id) {
+                touched.push(chain_id);
+            }
+        }
+    }
+    // Reconcile the isolated playback stream for each chain a looper event
+    // touched (mirrors the GUI button path), so a loop closed/stopped/removed
+    // over MCP/MIDI arms or disarms its stream immediately.
+    for chain_id in touched {
+        if let Some(chain) = chains.iter().find(|c| &c.id == chain_id) {
+            controller.sync_looper_streams(chain);
+        }
+    }
+}
+
+/// The chain a looper event targets, or `None` for non-looper events (so the
+/// shared batch can be handed the whole drained stream).
+fn looper_event_chain(event: &Event) -> Option<&domain::ids::ChainId> {
+    match event {
+        Event::ChainLooperAdded { chain, .. }
+        | Event::ChainLooperRemoved { chain, .. }
+        | Event::ChainLooperTransportChanged { chain, .. }
+        | Event::ChainLooperParamChanged { chain, .. }
+        | Event::ChainLooperAudioFileChanged { chain, .. }
+        | Event::ChainLooperInputChanged { chain, .. }
+        | Event::ChainLooperOutputChanged { chain, .. }
+        | Event::ChainLooperPresetChanged { chain, .. } => Some(chain),
+        _ => None,
+    }
+}
+
 /// #323 phase 2: resolve each looper's LINKED preset into the effect blocks it
 /// plays through and push them into the controller store, so a Playing loop
 /// renders through its fixed tone rather than the chain's current preset. A

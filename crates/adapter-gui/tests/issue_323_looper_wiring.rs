@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use adapter_gui::looper_wiring::apply_looper_event;
+use adapter_gui::looper_wiring::{apply_looper_event, apply_looper_events};
 use application::command::{LooperAction, LooperParam};
 use application::event::Event;
 use domain::ids::{ChainId, DeviceId};
@@ -114,6 +114,32 @@ fn record_and_arm(c: &ProjectRuntimeController, chain: &Chain) {
     assert!(
         c.looper_stream_active(&chain.id, UID),
         "precondition: a closed loop arms its isolated stream"
+    );
+}
+
+/// The bug the MCP repro exposed: a looper driven by a NON-GUI transport
+/// (MCP/MIDI) drains its events through the shared `apply_events_to_ui`, which
+/// never touched the looper store — so Record left the loop `Empty`. The store
+/// must learn about the batch through the shared `apply_looper_events` path,
+/// exactly like the GUI button path does inline.
+#[test]
+fn drained_looper_events_reach_the_store() {
+    let chain = chain_with_looper("wire-drain");
+    let c = controller_for(&chain);
+    let chains = vec![chain.clone()];
+    // The batch a non-GUI transport (MCP/MIDI) drains: add then record.
+    let events = vec![
+        Event::ChainLooperAdded {
+            chain: chain.id.clone(),
+            looper: UID,
+        },
+        ev(&chain.id, LooperAction::Record),
+    ];
+    apply_looper_events(&c, &chains, &events);
+    assert_eq!(
+        c.chain_looper_status(&chain.id, UID).map(|s| s.state),
+        Some(LooperState::Recording),
+        "a looper transport drained from MCP/MIDI must reach the store, not just the GUI"
     );
 }
 
