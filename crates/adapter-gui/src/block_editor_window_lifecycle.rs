@@ -29,7 +29,6 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 
 use crate::block_editor::{

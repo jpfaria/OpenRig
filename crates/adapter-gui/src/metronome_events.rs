@@ -11,7 +11,6 @@ use std::time::Instant;
 
 use application::app_config_persist::persist_metronome;
 use application::command::{Command, MetronomeCommand};
-use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use slint::SharedString;
 

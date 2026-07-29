@@ -864,7 +864,6 @@ pub fn run_desktop_app(
                     // #693: completions of off-thread command work (DI
                     // decode, ...) ride the same event path as a dispatch.
                     {
-                        use application::dispatcher::CommandDispatcher as _;
                         events.extend(session.dispatcher.poll_async_results());
                     }
                     drain.serve_queries(

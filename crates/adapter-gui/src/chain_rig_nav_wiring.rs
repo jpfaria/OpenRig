@@ -13,7 +13,6 @@ use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, Timer, VecMod
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use application::command::{ChainId, Command, RigNavKind, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 
 use crate::chain_rig_nav::rig_nav_rows;
@@ -213,7 +212,7 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         if let Event::ChainDiLoopEnabledChanged { chain, enabled } = event {
             crate::di_loop_wiring::handle_chain_di_loop_enabled_changed(
                 &ctx.project_runtime,
-                &session.dispatcher,
+                session.dispatcher.as_ref(),
                 chain,
                 *enabled,
             );

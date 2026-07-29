@@ -22,7 +22,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 

@@ -4,7 +4,6 @@
 use slint::ComponentHandle;
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use project::catalog::{model_brand, model_display_name, model_type_label};
 
 use crate::helpers::show_child_window;

@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::di_loader::DiLoopSource;
-use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
 use slint::Weak;
 
@@ -143,7 +142,7 @@ pub(crate) fn wire(
                 log::error!("[adapter-gui] compact di-loop play: ensure_runtime: {e}");
                 return;
             }
-            compact_chain_di_loop_play(&project_runtime, &session.dispatcher, &chain_id);
+            compact_chain_di_loop_play(&project_runtime, session.dispatcher.as_ref(), &chain_id);
         });
     }
 
@@ -167,7 +166,7 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            compact_chain_di_loop_stop(&project_runtime, &session.dispatcher, &chain_id);
+            compact_chain_di_loop_stop(&project_runtime, session.dispatcher.as_ref(), &chain_id);
         });
     }
 }

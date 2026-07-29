@@ -31,7 +31,7 @@ pub(crate) fn wire_main(
         };
         crate::di_loop_wiring::select_chain_di_output(
             &project_runtime,
-            &session.dispatcher,
+            session.dispatcher.as_ref(),
             &chain_id,
             &session.io_bindings.borrow(),
             output_index as usize,
@@ -61,7 +61,7 @@ pub(crate) fn wire_compact(
         };
         crate::di_loop_wiring::select_chain_di_output(
             &project_runtime,
-            &session.dispatcher,
+            session.dispatcher.as_ref(),
             &chain_id,
             &session.io_bindings.borrow(),
             output_index as usize,

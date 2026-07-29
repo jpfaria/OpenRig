@@ -13,7 +13,6 @@ use std::path::Path;
 use std::rc::Rc;
 
 use application::command::{Command, LooperCommand};
-use application::dispatcher::CommandDispatcher;
 use application::looper_audio::{read_loop_wav, resample_loop, write_loop_wav};
 use infra_cpal::ProjectRuntimeController;
 

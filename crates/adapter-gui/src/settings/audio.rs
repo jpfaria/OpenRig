@@ -29,7 +29,6 @@ use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, Gui
 use project::device::DeviceSettings;
 
 use application::command::{Command, SettingsCommand};
-use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::selected_device_settings;
 use crate::default_io_binding::DEFAULT_BINDING_ID;

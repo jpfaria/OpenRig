@@ -19,7 +19,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use application::command::{Command, ToneDoctorCommand};
-use application::dispatcher::CommandDispatcher;
 use engine::spsc::SpscRing;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, Weak};

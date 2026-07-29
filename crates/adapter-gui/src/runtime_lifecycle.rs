@@ -56,7 +56,10 @@ pub(crate) fn sync_project_runtime(
     }
     // #669: keep the dispatcher's engine sample rate in lock-step with the
     // (possibly rebuilt) runtime so DI loops resample to the live device rate.
-    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(
+        project_runtime,
+        session.dispatcher.as_ref(),
+    );
     Ok(())
 }
 
@@ -125,7 +128,7 @@ pub(crate) fn sync_live_chain_runtime(
             // dispatcher so DI loops resample correctly (not stuck at 48000).
             crate::di_loop_wiring::sync_engine_sr_from_runtime(
                 project_runtime,
-                &session.dispatcher,
+                session.dispatcher.as_ref(),
             );
             // #323: the runtimes were just born empty — give them back the
             // loopers the project carries, with whatever audio they saved.
@@ -196,7 +199,10 @@ pub(crate) fn sync_live_chain_runtime(
     }
     // #669: an upsert may have rebuilt the stream at a new device rate; keep
     // the dispatcher's engine sample rate in lock-step.
-    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(
+        project_runtime,
+        session.dispatcher.as_ref(),
+    );
     Ok(())
 }
 
@@ -227,7 +233,10 @@ pub(crate) fn ensure_runtime(
     *project_runtime.borrow_mut() = Some(controller);
     // #669: keep the dispatcher's engine rate in lock-step with the real device
     // rate start() resolved, so a DI resamples correctly.
-    crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(
+        project_runtime,
+        session.dispatcher.as_ref(),
+    );
     // #323: same as the enable path — the fresh runtimes get the project's
     // loopers back.
     restore_project_loops(project_runtime, session);

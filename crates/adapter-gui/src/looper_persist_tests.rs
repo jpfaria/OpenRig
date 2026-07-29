@@ -7,7 +7,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use application::command::{Command, LooperCommand};
-use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};

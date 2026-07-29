@@ -19,7 +19,6 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor};
 
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::{
     build_project_device_rows, refresh_input_devices, refresh_output_devices,

@@ -14,7 +14,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 use slint::VecModel;
 
 use crate::project_ops::{

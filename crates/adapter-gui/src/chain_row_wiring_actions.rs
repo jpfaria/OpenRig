@@ -3,8 +3,6 @@
 
 use slint::ComponentHandle;
 
-use application::dispatcher::CommandDispatcher;
-
 use crate::chain_row_wiring::{
     apply_move_chain_down, apply_move_chain_up, shift_selected_chain_index_after_swap, ChainRowCtx,
 };
@@ -225,7 +223,7 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
             }
             crate::di_loop_wiring::play_chain_di_loop(
                 &project_runtime,
-                &session.dispatcher,
+                session.dispatcher.as_ref(),
                 &chain_id,
             );
         });
@@ -251,7 +249,7 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
             };
             crate::di_loop_wiring::stop_chain_di_loop(
                 &project_runtime,
-                &session.dispatcher,
+                session.dispatcher.as_ref(),
                 &chain_id,
             );
         });

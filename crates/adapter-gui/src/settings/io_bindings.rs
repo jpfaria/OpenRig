@@ -19,7 +19,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, IoBindingCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::io_binding::{IoBinding, IoEndpoint};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::AppConfig;

@@ -21,7 +21,6 @@ use anyhow::{anyhow, Result};
 use slint::{Timer, TimerMode, VecModel};
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::BlockId;
 use infra_cpal::AudioDeviceDescriptor;
 use project::block::{build_audio_block_kind, AudioBlock, AudioBlockKind};

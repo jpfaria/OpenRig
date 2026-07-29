@@ -20,7 +20,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::AppConfig;
 

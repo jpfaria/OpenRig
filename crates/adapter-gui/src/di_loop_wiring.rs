@@ -110,7 +110,7 @@ pub fn di_loop_commands(chain: ChainId, intent: DiLoopIntent) -> Vec<Command> {
 /// scoped to a single chain (isolation invariant).
 pub fn handle_chain_di_loop_enabled_changed(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn CommandDispatcher,
     chain: &ChainId,
     enabled: bool,
 ) {
@@ -148,10 +148,9 @@ pub fn handle_chain_di_loop_enabled_changed(
 /// confirmed.  Dispatch still fires so the event bus stays in sync.
 pub fn play_chain_di_loop(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn CommandDispatcher,
     chain: &ChainId,
 ) {
-    use application::dispatcher::CommandDispatcher;
     // #693: the DI decode runs on its own task — apply any completion
     // that already landed before arming, so play right after picking a
     // source uses the freshly decoded loop.
@@ -167,10 +166,9 @@ pub fn play_chain_di_loop(
 /// runtime immediately.
 pub fn stop_chain_di_loop(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn CommandDispatcher,
     chain: &ChainId,
 ) {
-    use application::dispatcher::CommandDispatcher;
     let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
         chain: chain.clone(),
         enabled: false,
@@ -183,12 +181,11 @@ pub fn stop_chain_di_loop(
 /// sound moves to the picked output (re-render + park on its cell).
 pub fn select_chain_di_output(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn CommandDispatcher,
     chain: &ChainId,
     registry: &[domain::io_binding::IoBinding],
     output_index: usize,
 ) {
-    use application::dispatcher::CommandDispatcher;
     let Some(chain_def) = dispatcher.chain_snapshot(chain) else {
         return;
     };
@@ -228,7 +225,7 @@ pub fn select_chain_di_output(
 /// drags in slow motion against its rebuilt runtime.
 pub fn sync_engine_sr_from_runtime(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn CommandDispatcher,
 ) {
     let rate = match project_runtime.borrow().as_ref() {
         Some(runtime) => runtime.sample_rate(),

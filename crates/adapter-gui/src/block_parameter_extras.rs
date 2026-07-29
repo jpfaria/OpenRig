@@ -14,7 +14,6 @@ use crate::project_view::{
 use crate::runtime_lifecycle::sync_live_chain_runtime;
 use crate::{AppWindow, SELECT_SELECTED_BLOCK_ID};
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use rfd::FileDialog;
 use slint::ComponentHandle;

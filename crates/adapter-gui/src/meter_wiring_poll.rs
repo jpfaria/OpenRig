@@ -8,7 +8,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use project::project::Project;
 

@@ -20,7 +20,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::block::{AudioBlock, AudioBlockKind};

@@ -28,8 +28,10 @@ pub(crate) struct ProjectSession {
     /// The project data, shared with the `LocalDispatcher` so both sides
     /// operate on the same allocation with no sync step.
     pub(crate) project: Rc<RefCell<Project>>,
-    /// Dispatcher backed by the same `project` handle.
-    pub(crate) dispatcher: Rc<LocalDispatcher>,
+    /// The command bus this session talks to. #127: held as a trait object so
+    /// the frontend never names an implementation — `new` supplies a
+    /// `LocalDispatcher`, a remote transport can supply its own.
+    pub(crate) dispatcher: Rc<dyn CommandDispatcher>,
     pub(crate) project_path: Option<PathBuf>,
     pub(crate) config_path: Option<PathBuf>,
     pub(crate) presets_path: PathBuf,
@@ -56,7 +58,44 @@ impl ProjectSession {
         presets_path: PathBuf,
     ) -> Self {
         let project = Rc::new(RefCell::new(project));
-        let dispatcher = Rc::new(LocalDispatcher::new(Rc::clone(&project)));
+        let dispatcher =
+            Rc::new(LocalDispatcher::new(Rc::clone(&project))) as Rc<dyn CommandDispatcher>;
+        Self::assemble(project, dispatcher, project_path, config_path, presets_path)
+    }
+
+    /// Build a session around a dispatcher the caller chose. [`Self::new`] is
+    /// this with a `LocalDispatcher`; tests and future transports use it
+    /// directly.
+    ///
+    /// Unlike `new`, the `project` handle is NOT shared with the dispatcher —
+    /// a non-local dispatcher owns its own state, so the caller passes the
+    /// projection the frontend reads.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn with_dispatcher(
+        project: Project,
+        dispatcher: Rc<dyn CommandDispatcher>,
+        project_path: Option<PathBuf>,
+        config_path: Option<PathBuf>,
+        presets_path: PathBuf,
+    ) -> Self {
+        Self::assemble(
+            Rc::new(RefCell::new(project)),
+            dispatcher,
+            project_path,
+            config_path,
+            presets_path,
+        )
+    }
+
+    /// Shared tail of both constructors: attach the resolved paths, then build
+    /// the struct.
+    fn assemble(
+        project: Rc<RefCell<Project>>,
+        dispatcher: Rc<dyn CommandDispatcher>,
+        project_path: Option<PathBuf>,
+        config_path: Option<PathBuf>,
+        presets_path: PathBuf,
+    ) -> Self {
         // #555: the dispatcher owns the file I/O for SaveProject /
         // SaveChainPreset / DeleteChainPreset so MCP / MIDI / GUI all
         // hit the same disk locations. Attach the session's resolved
@@ -182,3 +221,7 @@ pub(crate) struct BlockWindow {
     #[allow(dead_code)]
     pub(crate) stream_timer: Option<Rc<Timer>>,
 }
+
+#[cfg(test)]
+#[path = "state_dyn_dispatcher_tests.rs"]
+mod dyn_dispatcher_tests;

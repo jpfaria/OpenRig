@@ -45,7 +45,7 @@ use crate::{
 /// runtime-apply path the main chains screen uses.
 pub fn compact_chain_di_loop_play(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn application::dispatcher::CommandDispatcher,
     chain: &domain::ids::ChainId,
 ) {
     crate::di_loop_wiring::play_chain_di_loop(project_runtime, dispatcher, chain);
@@ -56,7 +56,7 @@ pub fn compact_chain_di_loop_play(
 /// Delegates to `di_loop_wiring::stop_chain_di_loop`.
 pub fn compact_chain_di_loop_stop(
     project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn application::dispatcher::CommandDispatcher,
     chain: &domain::ids::ChainId,
 ) {
     crate::di_loop_wiring::stop_chain_di_loop(project_runtime, dispatcher, chain);

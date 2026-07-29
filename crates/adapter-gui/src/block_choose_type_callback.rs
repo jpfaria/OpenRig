@@ -19,7 +19,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use project::chain::ChainInputMode;
 use project::param::ParameterSet;

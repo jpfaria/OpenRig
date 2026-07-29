@@ -19,7 +19,6 @@ use slint::{ComponentHandle, Timer, VecModel};
 
 use anyhow::Result;
 use application::command::{ChainCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 

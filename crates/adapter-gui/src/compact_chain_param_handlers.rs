@@ -15,7 +15,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::compact_block_view::build_compact_blocks;

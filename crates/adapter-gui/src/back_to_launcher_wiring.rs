@@ -17,7 +17,6 @@ use crate::project_ops::set_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 
 use crate::stop_project_runtime;
 use crate::{AppWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow};

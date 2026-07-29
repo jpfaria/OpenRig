@@ -18,7 +18,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, Timer, VecModel};
 
 use application::command::{ChainCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::chain_editor::chain_from_draft;

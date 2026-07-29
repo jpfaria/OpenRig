@@ -11,7 +11,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
 use crate::helpers::{clear_status, log_gui_message, set_status_error};

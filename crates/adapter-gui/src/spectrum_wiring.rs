@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 

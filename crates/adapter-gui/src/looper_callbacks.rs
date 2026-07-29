@@ -13,7 +13,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, LooperAction, LooperCommand, LooperParam};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::LooperSpeed;

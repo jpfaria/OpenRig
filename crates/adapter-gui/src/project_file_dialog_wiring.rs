@@ -22,7 +22,6 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::AppConfig;
 
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
