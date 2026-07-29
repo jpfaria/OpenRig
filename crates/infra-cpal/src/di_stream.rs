@@ -458,6 +458,18 @@ impl ProjectRuntimeController {
             .is_some_and(|h| !h.failed.load(Ordering::Relaxed))
     }
 
+    /// #323: the loop position (frames) the listener is currently HEARING for
+    /// looper `uid` — read off its isolated playback's cursor. `None` when the
+    /// loop is not parked on an output (not playing). This is the audible
+    /// position; the store's slot is idle during playback, so the UI timer must
+    /// come from here or it freezes at 0:00.
+    pub fn looper_stream_position(&self, chain_id: &ChainId, uid: u64) -> Option<usize> {
+        self.di_streams
+            .borrow()
+            .get(&(chain_id.clone(), IsolatedSource::Looper(uid)))
+            .and_then(|h| h.cell.load().as_ref().map(|p| p.play_pos()))
+    }
+
     /// Length (frames) of one loop period — `None` while the worker is still
     /// building the runtime or when not armed.
     pub fn di_stream_loop_len(&self, chain_id: &ChainId) -> Option<usize> {

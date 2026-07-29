@@ -63,11 +63,33 @@ impl ProjectRuntimeController {
     // ── read (from the store — the single source of truth) ────────────────
 
     pub fn chain_looper_status(&self, chain_id: &ChainId, uid: u64) -> Option<LooperStatus> {
-        self.looper_store.borrow().status(chain_id, uid)
+        let mut status = self.looper_store.borrow().status(chain_id, uid)?;
+        self.overlay_playback_position(chain_id, &mut status);
+        Some(status)
     }
 
     pub fn chain_looper_statuses(&self, chain_id: &ChainId) -> Vec<LooperStatus> {
-        self.looper_store.borrow().statuses(chain_id)
+        let mut statuses = self.looper_store.borrow().statuses(chain_id);
+        for status in &mut statuses {
+            self.overlay_playback_position(chain_id, status);
+        }
+        statuses
+    }
+
+    /// During playback the store's slot is idle — the loop sounds on the
+    /// isolated stream (#323 redesign), so its audible position lives on THAT
+    /// stream's cursor, not the frozen slot. Overlay it so the UI timer runs;
+    /// otherwise it sits at 0:00 the whole time the loop plays.
+    fn overlay_playback_position(&self, chain_id: &ChainId, status: &mut LooperStatus) {
+        if !matches!(
+            status.state,
+            LooperState::Playing | LooperState::Overdubbing
+        ) {
+            return;
+        }
+        if let Some(pos) = self.looper_stream_position(chain_id, status.uid) {
+            status.position_frames = pos;
+        }
     }
 
     /// The recorded mixdown (interleaved stereo), or `None` when empty.
