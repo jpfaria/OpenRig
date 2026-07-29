@@ -68,10 +68,11 @@ impl LocalDispatcher {
                             chain.0
                         ));
                     }
-                    // #716 (model A): the per-block cross-chain channel-conflict
-                    // check is gone — device endpoints are resolved from the
-                    // per-machine binding registry at activation, where the
-                    // conflict check now belongs.
+                    // #833: the cross-chain channel-conflict check #716 deferred
+                    // to activation. Endpoints resolve through the per-machine
+                    // binding registry, so the comparison is per physical
+                    // capture point (device + channel), never per binding id.
+                    self.ensure_no_input_channel_conflict(&chain_clone)?;
                 }
                 // Phase 3: mutate.
                 {
