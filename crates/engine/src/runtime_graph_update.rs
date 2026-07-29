@@ -162,6 +162,7 @@ fn update_chain_runtime_state_impl(
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
+            segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
         ) {
             Ok(state) => state,

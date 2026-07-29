@@ -303,6 +303,15 @@ there are no separate I/O lists.
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
 
+**A mid `Output` emits the signal at ITS OWN position (#85).** It taps the bus
+right where it sits — only the blocks BEFORE it have run — while the chain keeps
+flowing through the blocks after it down to the tail output. Nothing is cut and
+no DSP runs twice: the tap is a copy of the segment bus at that point, so a
+`Cab → [Output] → Delay → Reverb` chain sends the un-delayed cab signal to that
+endpoint and the full chain to the tail. Both routes get the same click-safe
+rebuild fade. A disabled mid `Output` keeps its (silent) route and emits
+nothing, like any other disabled block.
+
 ### I/O binding registry (#716)
 
 The binding holds the concrete device endpoint (device id, mode, channels); the

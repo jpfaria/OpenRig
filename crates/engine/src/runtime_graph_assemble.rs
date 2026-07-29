@@ -92,6 +92,7 @@ pub(crate) fn assemble_chain_runtime_state(
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
+            segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
         )?;
         input_states.push(input_state);
@@ -233,6 +234,7 @@ pub(crate) fn build_input_processing_state(
     existing_blocks: Option<Vec<BlockRuntimeNode>>,
     block_indices: Option<&[usize]>,
     output_route_indices: Vec<usize>,
+    mid_output_taps: Vec<crate::runtime_segments::SegmentTap>,
     split_mono_sibling_count: Option<usize>,
 ) -> anyhow::Result<InputProcessingState> {
     // The processing bus layout is chosen by the combination of input and
@@ -295,6 +297,7 @@ pub(crate) fn build_input_processing_state(
         frame_buffer: Vec::with_capacity(1024),
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
+        mid_output_taps,
         split_mono_sibling_count,
         outgoing: None,
     })
