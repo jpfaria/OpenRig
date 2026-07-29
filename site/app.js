@@ -13,13 +13,18 @@ function wireReveal(root) {
 async function loadSections() {
   await Promise.all([...document.querySelectorAll('[data-include]')].map(async slot => {
     try {
-      const r = await fetch(slot.dataset.include);
+      // Revalidate: a cached partial paired with a fresh index.html renders stale copy.
+      const r = await fetch(slot.dataset.include, { cache: 'no-cache' });
       if (r.ok) slot.innerHTML = await r.text();
     } catch (e) { /* a missing partial leaves an empty slot rather than killing the page */ }
   }));
 }
 
 const SUPPORTED_LANGS = ['en', 'pt-BR', 'es-ES'];
+// The hero states the catalog size, so it has to come from the same live source as
+// the stats grid rather than a number baked into the copy that goes stale.
+let gearTotal = null;
+let currentLang = null;
 function detectLang() {
   const saved = localStorage.getItem('openrig-lang');
   if (saved && SUPPORTED_LANGS.includes(saved)) return saved;
@@ -112,7 +117,8 @@ async function loadGearStats() {
   new Set([...Object.keys(plugins.by_block_type || {}), ...Object.keys(native.by_block_type || {})])
     .forEach(k => { merged[k] = (plugins.by_block_type?.[k] || 0) + (native.by_block_type?.[k] || 0); });
 
-  setNum('stat-gear', plugins.total_plugins + native.total_native);
+  gearTotal = plugins.total_plugins + native.total_native;
+  setNum('stat-gear', gearTotal);
   setNum('gs-amp', merged.amp);
   setNum('gs-preamp', merged.preamp);
   setNum('gs-cab', merged.cab);
@@ -125,17 +131,26 @@ async function loadGearStats() {
   setNum('gs-pitch', merged.pitch);
   setNum('gs-body', merged.body);
   setNum('gs-wah', merged.wah);
+  // The count landed after the first language pass; redo it so {gear} resolves.
+  if (currentLang) applyLang(currentLang);
 }
 
 async function applyLang(lang) {
-  const r = await fetch(`i18n/${lang}.json`);
+  // Same reason as the partials: a stale dictionary shows English fallbacks for new keys.
+  const r = await fetch(`i18n/${lang}.json`, { cache: 'no-cache' });
   const dict = await r.json();
   document.documentElement.lang = lang;
+  currentLang = lang;
   localStorage.setItem('openrig-lang', lang);
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     let val = dict[key];
     if (val === undefined) return;
+    // Leave the markup fallback in place until the live count is known.
+    if (val.includes('{gear}')) {
+      if (gearTotal === null) return;
+      val = val.replace('{gear}', fmtNum(gearTotal));
+    }
     if (release.version) val = val.replace('{version}', release.version);
     if (release.betaVersion) val = val.replace('{betaVersion}', release.betaVersion);
     if (release.totalDownloads) val = val.replace('{downloads}', fmtNum(release.totalDownloads));
