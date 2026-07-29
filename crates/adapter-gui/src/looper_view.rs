@@ -60,7 +60,10 @@ pub fn looper_items_with_recorded(
     chain: &Chain,
     statuses: &[LooperStatus],
     sample_rate: u32,
-    recorded: &[(u64, usize)],
+    // Single-take looper (#323): redo is disabled, so the recorded-layer count
+    // is no longer needed to decide `can_redo`. Kept in the signature so callers
+    // are unchanged.
+    _recorded: &[(u64, usize)],
     registry: &[domain::io_binding::IoBinding],
     runtime_live: bool,
     preset_ids: &[String],
@@ -74,10 +77,6 @@ pub fn looper_items_with_recorded(
             let len = live.map_or(0, |s| s.len_frames);
             let position = live.map_or(0, |s| s.position_frames);
             let layers = live.map_or(0, |s| s.layers);
-            let total = recorded
-                .iter()
-                .find(|(uid, _)| *uid == cfg.uid)
-                .map_or(layers, |(_, n)| *n);
             LooperItem {
                 uid: cfg.uid as i32,
                 state_code: state_code(live.map_or(LooperState::Empty, |s| s.state)),
@@ -97,8 +96,12 @@ pub fn looper_items_with_recorded(
                 decay: (cfg.decay * 100.0).round() as i32,
                 speed_index: speed_index(cfg.speed),
                 reverse: cfg.reverse,
-                can_undo: layers > 0,
-                can_redo: total > layers,
+                // Single-take looper (#323): no overdub layers, so undo/redo are
+                // disabled (the buttons grey out). Stacking is done with separate
+                // loopers, not layers on one — this removes the ↺ trap where undo
+                // silenced the only recording and playback then did nothing.
+                can_undo: false,
+                can_redo: false,
                 // REC captures the live input through the chain's runtime — so
                 // it is armable only when that runtime is actually LIVE, not
                 // merely when the chain is enabled. An enabled chain whose

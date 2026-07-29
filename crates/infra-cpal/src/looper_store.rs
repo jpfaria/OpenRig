@@ -101,19 +101,25 @@ impl LooperStore {
     pub fn tap_record(&mut self, chain: &ChainId, uid: u64) {
         let max = self.max_frames();
         if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
-            let needs_layer = matches!(
-                entry.slot.state(),
-                LooperState::Empty | LooperState::Playing | LooperState::Stopped
-            );
-            let buffer = needs_layer.then(|| vec![0.0f32; max * 2].into_boxed_slice());
-            entry.slot.tap_record(buffer);
+            // Single-take looper (#323): REC starts the one recording (Empty) or
+            // closes it (Recording → Playing). It does NOT overdub a loop that
+            // already has material — stacking is done with SEPARATE loopers, not
+            // layers on one. This is what removes the confusing undo/overdub
+            // behaviour (a REC on a playing loop used to silently pile a layer).
+            match entry.slot.state() {
+                LooperState::Empty => {
+                    let buffer = vec![0.0f32; max * 2].into_boxed_slice();
+                    entry.slot.tap_record(Some(buffer));
+                }
+                LooperState::Recording => {
+                    entry.slot.tap_record(None);
+                }
+                _ => {}
+            }
             drain_retired(&mut entry.slot);
-            // Closing a recording/overdub drops the tap rings so the next
-            // recording re-subscribes fresh.
-            if !matches!(
-                entry.slot.state(),
-                LooperState::Recording | LooperState::Overdubbing
-            ) {
+            // Closing the recording drops the tap rings so the next recording
+            // re-subscribes fresh.
+            if !matches!(entry.slot.state(), LooperState::Recording) {
                 entry.rings.clear();
             }
         }
@@ -217,12 +223,11 @@ impl LooperStore {
             e.rings.clear();
         }
     }
-    pub fn undo(&mut self, chain: &ChainId, uid: u64) {
-        self.with_slot(chain, uid, |s| s.undo());
-    }
-    pub fn redo(&mut self, chain: &ChainId, uid: u64) {
-        self.with_slot(chain, uid, |s| s.redo());
-    }
+    /// Single-take looper (#323): there are no overdub layers, so undo/redo do
+    /// nothing. Kept as no-ops so the `Command`/MCP surface stays unchanged and
+    /// a footswitch or MCP call can never silence a loop by "undoing" it.
+    pub fn undo(&mut self, _chain: &ChainId, _uid: u64) {}
+    pub fn redo(&mut self, _chain: &ChainId, _uid: u64) {}
     pub fn set_mix(&mut self, chain: &ChainId, uid: u64, v: f32) {
         self.with_slot(chain, uid, |s| s.set_mix(v));
     }
