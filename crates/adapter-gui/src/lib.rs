@@ -145,6 +145,7 @@ mod chain_editor;
 mod default_io_binding;
 mod eq;
 pub mod graph_view_model;
+mod gui_live_source;
 mod helpers;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;

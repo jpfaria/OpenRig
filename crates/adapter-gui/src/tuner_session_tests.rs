@@ -170,7 +170,7 @@ fn fingerprint_stable_for_identical_projects() {
 #[test]
 fn row_state_starts_with_empty_buffer() {
     let ring = Arc::new(SpscRing::new(BUFFER_SIZE * 2, 0.0_f32));
-    let state = RowState::new(ring, 48_000, REFERENCE_HZ);
+    let state = RowState::new(ring, 48_000, DEFAULT_REFERENCE_HZ);
     assert!(state.sample_buf.is_empty());
     assert!(state.sample_buf.capacity() >= BUFFER_SIZE * 2);
 }

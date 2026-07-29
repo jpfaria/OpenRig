@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use domain::io_binding::IoBinding;
 use engine::spsc::SpscRing;
-use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE};
+use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE, DEFAULT_REFERENCE_HZ};
 use infra_cpal::ProjectRuntimeController;
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
@@ -20,8 +20,6 @@ use std::rc::Rc;
 
 use crate::TunerRow;
 
-/// Tuner default reference (440 Hz). Per-row reference would require a UI control.
-pub const REFERENCE_HZ: f32 = 440.0;
 /// Capacity per channel ring: ≥ BUFFER_SIZE × 2 so we never lose samples between
 /// UI ticks under any reasonable timer cadence.
 const RING_CAPACITY: usize = BUFFER_SIZE * 4;
@@ -212,7 +210,7 @@ impl TunerSession {
                         ch_label
                     );
                     rows_model.push(placeholder_row(label));
-                    row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
+                    row_states.push(RowState::new(ring, sample_rate, DEFAULT_REFERENCE_HZ));
                     identities.push(RowIdentity {
                         chain: chain.id.0.clone(),
                         input: input_index,
@@ -278,7 +276,7 @@ impl TunerSession {
                     PitchUpdate::Update { note, cents, freq } => {
                         if let Some(mut row) = self.rows_model.row_data(idx) {
                             row.note = note.into();
-                            row.octave = freq_to_octave(freq, REFERENCE_HZ);
+                            row.octave = freq_to_octave(freq, DEFAULT_REFERENCE_HZ);
                             row.cents = cents;
                             row.frequency = freq;
                             row.active = true;
