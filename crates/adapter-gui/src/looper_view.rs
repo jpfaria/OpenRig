@@ -77,9 +77,10 @@ pub fn looper_items_with_recorded(
             let len = live.map_or(0, |s| s.len_frames);
             let position = live.map_or(0, |s| s.position_frames);
             let layers = live.map_or(0, |s| s.layers);
+            let state = live.map_or(LooperState::Empty, |s| s.state);
             LooperItem {
                 uid: cfg.uid as i32,
-                state_code: state_code(live.map_or(LooperState::Empty, |s| s.state)),
+                state_code: state_code(state),
                 progress: if len > 0 {
                     position as f32 / len as f32
                 } else {
@@ -102,15 +103,18 @@ pub fn looper_items_with_recorded(
                 // silenced the only recording and playback then did nothing.
                 can_undo: false,
                 can_redo: false,
-                // REC captures the live input through the chain's runtime — so
-                // it is armable only when that runtime is actually LIVE, not
-                // merely when the chain is enabled. An enabled chain whose
-                // runtime is still cold-starting (right after reopening a
-                // project) has nowhere to record yet; offering REC there queues
-                // the op onto zero runtimes and records nothing (the "reopened,
-                // pressed REC and it didn't go — sometimes" intermittency).
-                // Play/undo/etc. act on recorded material and stay independent.
-                can_record: runtime_live,
+                // Single-take (#323): REC starts a recording only on an EMPTY
+                // loop (with a LIVE runtime — recording captures the live input
+                // through the chain's runtime, which exists only when the chain
+                // is on, not merely enabled/cold-starting), and closes an
+                // in-progress recording. Once the loop HAS material
+                // (Playing/Stopped) REC is disabled — there is no overdub; the
+                // user clears to re-record. Play/clear act on recorded material.
+                can_record: match state {
+                    LooperState::Empty => runtime_live,
+                    LooperState::Recording => true,
+                    _ => false,
+                },
                 input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
                 output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
                 preset_index: preset_option_index(cfg.preset.as_deref(), preset_ids),

@@ -76,6 +76,29 @@ fn rec_is_offered_only_when_the_runtime_is_live() {
 }
 
 #[test]
+fn single_take_rec_is_disabled_once_the_loop_has_material() {
+    // #323: single-take looper — after a recording is closed, REC must be
+    // disabled (there is no overdub; the user clears to re-record). It is armable
+    // only on an EMPTY loop (with a live runtime) or to CLOSE one in progress.
+    let chain = chain_with(vec![LooperConfig::new(1)]);
+    let rec = |state| {
+        looper_items(&chain, &[status(1, state, 0, 100, 1)], 48_000, &[], true, &[])[0].can_record
+    };
+    assert!(
+        rec(LooperState::Recording),
+        "REC stays enabled to CLOSE an in-progress recording"
+    );
+    assert!(
+        !rec(LooperState::Playing),
+        "a recorded, playing loop cannot re-record (no overdub)"
+    );
+    assert!(
+        !rec(LooperState::Stopped),
+        "a recorded, stopped loop cannot re-record — clear first"
+    );
+}
+
+#[test]
 fn live_state_progress_and_time_come_from_the_runtime_at_the_live_rate() {
     let chain = chain_with(vec![LooperConfig::new(1)]);
     let rows = looper_items(
@@ -91,7 +114,6 @@ fn live_state_progress_and_time_come_from_the_runtime_at_the_live_rate() {
     assert_eq!(rows[0].layers, 3);
     assert_eq!(rows[0].progress, 0.125);
     assert_eq!(rows[0].time_label, "0:01 / 0:08");
-    assert!(rows[0].can_undo, "there are layers to undo");
 }
 
 #[test]
@@ -106,32 +128,6 @@ fn time_label_follows_a_44100_stream_not_a_hardcoded_48000() {
         &[],
     );
     assert_eq!(rows[0].time_label, "0:00 / 0:05");
-}
-
-#[test]
-fn redo_is_offered_only_while_an_undone_layer_is_still_there() {
-    let chain = chain_with(vec![LooperConfig::new(1)]);
-    // 2 layers recorded, 1 audible ⇒ the undone one can come back.
-    let mut rows = looper_items(
-        &chain,
-        &[status(1, LooperState::Playing, 0, 48_000, 1)],
-        48_000,
-        &[],
-        true,
-        &[],
-    );
-    assert!(!rows[0].can_redo, "nothing is known to be undone yet");
-
-    rows = looper_items_with_recorded(
-        &chain,
-        &[status(1, LooperState::Playing, 0, 48_000, 1)],
-        48_000,
-        &[(1u64, 2usize)],
-        &[],
-        true,
-        &[],
-    );
-    assert!(rows[0].can_redo);
 }
 
 #[test]
