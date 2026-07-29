@@ -7,6 +7,7 @@
   "nav.ai": "Claude",
   "nav.app": "Por dentro",
   "nav.roadmap": "Roadmap",
+  "nav.support": "Apoyar",
   "nav.docs": "Docs",
   "nav.download": "Descargar",
 
@@ -17,6 +18,9 @@
   "hero.cta2": "Ver el rig",
   "hero.note": "Gratis para siempre. Sin cuenta, sin nube, sin suscripción.",
   "hero.scroll": "Desliza",
+  "hero.supportBig": "Apoya OpenRig",
+  "hero.supportSub": "Gratis para siempre. Hecho por una sola persona.",
+  "hero.supportBtn": "♥ Apoya OpenRig",
 
   "tone.h2": "Tiene que responder<br>como debe<br>bajo tus dedos.",
   "tone.lede": "El ataque de la púa, el cuerpo del sonido, cómo cede una nota cuando aprietas — eso es lo que hace tuyo un ampli. OpenRig lo captura y te lo devuelve, nota por nota, sin retardo entre tus manos y el altavoz.",
@@ -202,5 +206,6 @@
   "footer.project.l2": "Releases",
   "footer.project.l3": "Reportar un error",
   "footer.project.l4": "Contribuir",
+  "footer.project.l5": "Apoyar",
   "footer.copyright": "© 2026 OpenRig · GPL-3.0"
 }

@@ -7,6 +7,7 @@
   "nav.ai": "Claude",
   "nav.app": "Inside",
   "nav.roadmap": "Roadmap",
+  "nav.support": "Support",
   "nav.docs": "Docs",
   "nav.download": "Download",
 
@@ -17,6 +18,9 @@
   "hero.cta2": "See the rig",
   "hero.note": "Free forever. No account, no cloud, no subscription.",
   "hero.scroll": "Scroll",
+  "hero.supportBig": "Back OpenRig",
+  "hero.supportSub": "Free forever. Built by one person.",
+  "hero.supportBtn": "♥ Back OpenRig",
 
   "tone.h2": "It has to feel<br>right under<br>your fingers.",
   "tone.lede": "Pick attack, bloom, the way a note sags when you dig in — that's what makes an amp yours. OpenRig captures it and hands it back, note for note, with no lag between your hands and the speaker.",
@@ -202,5 +206,6 @@
   "footer.project.l2": "Releases",
   "footer.project.l3": "Report a bug",
   "footer.project.l4": "Contribute",
+  "footer.project.l5": "Sponsor",
   "footer.copyright": "© 2026 OpenRig · GPL-3.0"
 }
