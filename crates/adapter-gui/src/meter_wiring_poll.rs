@@ -333,10 +333,6 @@ fn refresh_chain_meter_row(
     );
     controller.sync_looper_streams(&project.chains[idx]);
     let looper_active_changed = row.looper_active != looper_active_now;
-    if loopers_changed || looper_active_changed {
-        row.loopers = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(looper_rows)));
-        row.looper_active = looper_active_now;
-    }
     if loopers_changed
         || looper_active_changed
         || aggregate_changed
@@ -416,6 +412,35 @@ fn refresh_chain_meter_row(
                 }
                 row.stream_meters = slint::ModelRc::from(model);
             }
+        }
+        if loopers_changed {
+            // #715 pattern for the looper rows: mutate the model IN PLACE when
+            // the row COUNT is unchanged, so the panel's transport buttons and
+            // the parameter-drawer gear KEEP THEIR IDENTITY. Replacing the whole
+            // model every tick — the timer advances the loop position each tick,
+            // so the rows "change" constantly — recreated every button/TouchArea
+            // and DROPPED clicks: stop and close-drawer wouldn't register and the
+            // panel churned. Only an add/remove (count change) swaps the model.
+            let reused = row
+                .loopers
+                .as_any()
+                .downcast_ref::<slint::VecModel<crate::LooperItem>>()
+                .filter(|vm| vm.row_count() == looper_rows.len())
+                .map(|vm| {
+                    for (i, item) in looper_rows.iter().enumerate() {
+                        if vm.row_data(i).as_ref() != Some(item) {
+                            vm.set_row_data(i, item.clone());
+                        }
+                    }
+                })
+                .is_some();
+            if !reused {
+                row.loopers =
+                    slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(looper_rows)));
+            }
+        }
+        if looper_active_changed {
+            row.looper_active = looper_active_now;
         }
         project_chains.set_row_data(idx, row);
     }
