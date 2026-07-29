@@ -21,8 +21,8 @@
       <a href="#rig" data-i18n="nav.rig">The rig</a>
       <a href="#app" data-i18n="nav.app">Inside</a>
       <a href="#band" data-i18n="nav.band">Band</a>
-      <a href="#features" data-i18n="nav.features">Features</a>
       <a href="#ai" data-i18n="nav.ai">Claude</a>
+      <a href="#features" data-i18n="nav.features">Features</a>
       <a href="#docs" data-i18n="nav.docs">Docs</a>
     </div>
     <a class="nav-gh" href="https://github.com/jpfaria/OpenRig" aria-label="GitHub" title="GitHub">
@@ -69,12 +69,12 @@
 <section style="padding:clamp(56px,7vh,86px) 0 0">
   <div class="wrap">
     <div class="stats rv">
-      <div class="stat"><b>812</b><i data-i18n="stats.gear">Pieces of gear</i></div>
-      <div class="stat"><b>34</b><i data-i18n="stats.native">Native DSP</i></div>
-      <div class="stat"><b>335</b><i><span data-i18n="stats.nam">NAM plugins</span> <span style="text-transform:none;letter-spacing:0;color:#5d6c81" data-i18n="stats.namCaptures">· 4,990 captures</span></i></div>
-      <div class="stat"><b>111</b><i data-i18n="stats.lv2">LV2 plugins</i></div>
-      <div class="stat"><b>26</b><i data-i18n="stats.vst3">VST3 plugins</i></div>
-      <div class="stat"><b>177</b><i data-i18n="stats.ir">IRs</i></div>
+      <div class="stat"><b id="stat-gear">724</b><i data-i18n="stats.gear">Pieces of gear</i></div>
+      <div class="stat"><b id="stat-native">75</b><i data-i18n="stats.native">Native DSP</i></div>
+      <div class="stat"><b id="stat-nam">335</b><i><span data-i18n="stats.nam">NAM plugins</span> <span style="text-transform:none;letter-spacing:0;color:#5d6c81">· <b id="stat-nam-captures" style="font-family:inherit;font-weight:inherit">4,990</b> <span data-i18n="stats.capturesLabel">captures</span></span></i></div>
+      <div class="stat"><b id="stat-lv2">111</b><i data-i18n="stats.lv2">LV2 plugins</i></div>
+      <div class="stat"><b id="stat-vst3">26</b><i data-i18n="stats.vst3">VST3 plugins</i></div>
+      <div class="stat"><b id="stat-ir">177</b><i data-i18n="stats.ir">IRs</i></div>
     </div>
   </div>
 </section>
@@ -136,18 +136,18 @@
     </div>
 
     <div class="gearstats rv">
-      <div><b>142</b><i data-i18n="gearstats.amps">Amps</i></div>
-      <div><b>39</b><i data-i18n="gearstats.preamps">Preamps</i></div>
-      <div><b>29</b><i data-i18n="gearstats.cabs">Cabs</i></div>
-      <div><b>204</b><i data-i18n="gearstats.gain">Gain &amp; drive</i></div>
-      <div><b>51</b><i data-i18n="gearstats.reverb">Reverb</i></div>
-      <div><b>43</b><i data-i18n="gearstats.delay">Delay</i></div>
-      <div><b>58</b><i data-i18n="gearstats.modulation">Modulation</i></div>
-      <div><b>35</b><i data-i18n="gearstats.dynamics">Dynamics</i></div>
-      <div><b>73</b><i data-i18n="gearstats.filter">Filter / EQ</i></div>
-      <div><b>22</b><i data-i18n="gearstats.pitch">Pitch</i></div>
-      <div><b>114</b><i data-i18n="gearstats.body">Acoustic bodies</i></div>
-      <div><b>2</b><i data-i18n="gearstats.wah">Wah</i></div>
+      <div><b id="gs-amp">162</b><i data-i18n="gearstats.amps">Amps</i></div>
+      <div><b id="gs-preamp">39</b><i data-i18n="gearstats.preamps">Preamps</i></div>
+      <div><b id="gs-cab">67</b><i data-i18n="gearstats.cabs">Cabs</i></div>
+      <div><b id="gs-gain">199</b><i data-i18n="gearstats.gain">Gain &amp; drive</i></div>
+      <div><b id="gs-reverb">28</b><i data-i18n="gearstats.reverb">Reverb</i></div>
+      <div><b id="gs-delay">23</b><i data-i18n="gearstats.delay">Delay</i></div>
+      <div><b id="gs-mod">27</b><i data-i18n="gearstats.modulation">Modulation</i></div>
+      <div><b id="gs-dyn">11</b><i data-i18n="gearstats.dynamics">Dynamics</i></div>
+      <div><b id="gs-filter">16</b><i data-i18n="gearstats.filter">Filter / EQ</i></div>
+      <div><b id="gs-pitch">5</b><i data-i18n="gearstats.pitch">Pitch</i></div>
+      <div><b id="gs-body">114</b><i data-i18n="gearstats.body">Acoustic bodies</i></div>
+      <div><b id="gs-wah">7</b><i data-i18n="gearstats.wah">Wah</i></div>
     </div>
   </div>
 </section>
@@ -215,7 +215,33 @@
   </div>
 </section>
 
-<section class="pad" id="features" style="background:linear-gradient(180deg,#0b0f16 0%,var(--ink) 100%);border-top:1px solid var(--line)">
+<section class="pad" id="ai" style="background:linear-gradient(180deg,#0b0f16 0%,var(--ink) 100%);border-top:1px solid var(--line)">
+  <div class="wrap">
+    <div class="split" style="align-items:end">
+      <div class="stack rv">
+        <p class="eyebrow" data-i18n="ai.eyebrow">First on MCP</p>
+        <h2 data-i18n="ai.h2">The first rig<br>an AI can play.</h2>
+      </div>
+      <p class="lede rv sub" data-i18n="ai.lede">OpenRig ships its own MCP server — every command an AI needs to build, tweak and drive a rig, exposed the same way for the GUI, a footswitch, or Claude. Point Claude Code, Claude Desktop or Cursor at it and describe the tone you want in plain language.</p>
+    </div>
+
+    <div class="cards">
+      <div class="card rv"><div class="n">01</div><h3 data-i18n="ai.c1.h3">Tone Builder</h3><p data-i18n="ai.c1.p">"Timbre da Duality" — it researches the real signal chain, maps it to the catalog, and saves it as a new preset on your live rig.</p></div>
+      <div class="card rv"><div class="n">02</div><h3 data-i18n="ai.c2.h3">Grow the gear library</h3><p data-i18n="ai.c2.p">Point it at your own <code>.nam</code>/IR captures or a tone3000.com pack and it packages a proper OpenRig plugin, manifest included.</p></div>
+      <div class="card rv"><div class="n">03</div><h3 data-i18n="ai.c3.h3">MIDI Profile Builder</h3><p data-i18n="ai.c3.p">Describe your foot controller, or hand it a MIDI capture, and it writes the profile — no factory support needed.</p></div>
+    </div>
+
+    <div class="cap-demo rv" style="grid-template-columns:1fr;margin-top:44px">
+      <div class="pile" style="max-width:520px">
+        <p class="pile-h" data-i18n="ai.installLabel">Install</p>
+        <div class="code"><span class="c">$</span> /plugin marketplace add jpfaria/OpenRig-claude<br><span class="c">$</span> /plugin install claude-plugin@openrig<br><span class="c">$</span> openrig --mcp</div>
+      </div>
+    </div>
+    <p class="sub rv" style="margin-top:24px;font-size:14.5px" data-i18n="ai.skillsText">Six skills, one plugin — <a href="https://github.com/jpfaria/OpenRig-claude" style="color:var(--amber);text-decoration:underline">see them all on GitHub</a>.</p>
+  </div>
+</section>
+
+<section class="pad" id="features" style="background:linear-gradient(180deg,var(--ink) 0%,#0b0f16 100%);border-top:1px solid var(--line)">
   <div class="wrap">
     <div class="split" style="align-items:end">
       <div class="stack rv">
@@ -250,32 +276,6 @@
         <div class="feat-body"><h3 data-i18n="features.f6.h3">Tone Doctor</h3><p data-i18n="features.f6.p">Diagnoses fizz, mud and boom against a genre reference, and suggests the fix.</p></div>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="pad" id="ai" style="background:linear-gradient(180deg,var(--ink) 0%,#0b0f16 100%);border-top:1px solid var(--line)">
-  <div class="wrap">
-    <div class="split" style="align-items:end">
-      <div class="stack rv">
-        <p class="eyebrow" data-i18n="ai.eyebrow">First on MCP</p>
-        <h2 data-i18n="ai.h2">The first rig<br>an AI can play.</h2>
-      </div>
-      <p class="lede rv sub" data-i18n="ai.lede">OpenRig ships its own MCP server — every command an AI needs to build, tweak and drive a rig, exposed the same way for the GUI, a footswitch, or Claude. Point Claude Code, Claude Desktop or Cursor at it and describe the tone you want in plain language.</p>
-    </div>
-
-    <div class="cards">
-      <div class="card rv"><div class="n">01</div><h3 data-i18n="ai.c1.h3">Tone Builder</h3><p data-i18n="ai.c1.p">"Timbre da Duality" — it researches the real signal chain, maps it to the catalog, and saves it as a new preset on your live rig.</p></div>
-      <div class="card rv"><div class="n">02</div><h3 data-i18n="ai.c2.h3">Grow the gear library</h3><p data-i18n="ai.c2.p">Point it at your own <code>.nam</code>/IR captures or a tone3000.com pack and it packages a proper OpenRig plugin, manifest included.</p></div>
-      <div class="card rv"><div class="n">03</div><h3 data-i18n="ai.c3.h3">MIDI Profile Builder</h3><p data-i18n="ai.c3.p">Describe your foot controller, or hand it a MIDI capture, and it writes the profile — no factory support needed.</p></div>
-    </div>
-
-    <div class="cap-demo rv" style="grid-template-columns:1fr;margin-top:44px">
-      <div class="pile" style="max-width:520px">
-        <p class="pile-h" data-i18n="ai.installLabel">Install</p>
-        <div class="code"><span class="c">$</span> /plugin marketplace add jpfaria/OpenRig-claude<br><span class="c">$</span> /plugin install claude-plugin@openrig<br><span class="c">$</span> openrig --mcp</div>
-      </div>
-    </div>
-    <p class="sub rv" style="margin-top:24px;font-size:14.5px" data-i18n="ai.skillsText">Six skills, one plugin — <a href="https://github.com/jpfaria/OpenRig-claude" style="color:var(--amber);text-decoration:underline">see them all on GitHub</a>.</p>
   </div>
 </section>
 

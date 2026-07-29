@@ -55,8 +55,10 @@ async function loadRelease() {
   if (btn && release.downloadUrl) btn.href = release.downloadUrl;
   const cl = document.getElementById('dl-changelog-link');
   if (cl) cl.href = release.changelogUrl;
+  // Small counts read as unimpressive rather than reassuring — only show once it's a real number.
+  const DOWNLOADS_DISPLAY_THRESHOLD = 1000;
   const dlCount = document.getElementById('dl-downloads');
-  if (dlCount && release.totalDownloads > 0) dlCount.style.display = '';
+  if (dlCount && release.totalDownloads >= DOWNLOADS_DISPLAY_THRESHOLD) dlCount.style.display = '';
   const betaWrap = document.getElementById('dl-beta');
   const betaLink = document.getElementById('dl-beta-link');
   if (betaWrap && betaLink && release.betaUrl) {
@@ -66,6 +68,51 @@ async function loadRelease() {
 }
 
 function fmtNum(n) { return n.toLocaleString('en-US'); }
+function setNum(id, val) { if (val === undefined || val === null) return; const el = document.getElementById(id); if (el) el.textContent = fmtNum(val); }
+
+// Gear counts are never hardcoded either: OpenRig-plugins/resume.json (NAM/LV2/VST3/IR
+// plugin counts) and this repo's own resume.json (native block counts — plugins can't
+// know about those) are fetched live and merged by block_type, every page load.
+async function fetchResumeJson(url) {
+  try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch (e) { return null; }
+}
+
+async function loadGearStats() {
+  const [plugins, native] = await Promise.all([
+    fetchResumeJson('https://raw.githubusercontent.com/jpfaria/OpenRig-plugins/main/resume.json'),
+    fetchResumeJson('https://raw.githubusercontent.com/jpfaria/OpenRig/main/resume.json'),
+  ]);
+  // Per-source numbers update independently, but the MERGED totals (gearstats grid,
+  // the "pieces of gear" total) only update when both sources loaded — a partial
+  // merge would under-report categories the missing source contributes to.
+  if (native) setNum('stat-native', native.total_native);
+  if (plugins) {
+    setNum('stat-nam', plugins.by_backend?.nam);
+    setNum('stat-lv2', plugins.by_backend?.lv2);
+    setNum('stat-vst3', plugins.by_backend?.vst3);
+    setNum('stat-ir', plugins.by_backend?.ir);
+    setNum('stat-nam-captures', plugins.captures_by_backend?.nam);
+  }
+  if (!plugins || !native) return;
+
+  const merged = {};
+  new Set([...Object.keys(plugins.by_block_type || {}), ...Object.keys(native.by_block_type || {})])
+    .forEach(k => { merged[k] = (plugins.by_block_type?.[k] || 0) + (native.by_block_type?.[k] || 0); });
+
+  setNum('stat-gear', plugins.total_plugins + native.total_native);
+  setNum('gs-amp', merged.amp);
+  setNum('gs-preamp', merged.preamp);
+  setNum('gs-cab', merged.cab);
+  setNum('gs-gain', merged.gain_pedal);
+  setNum('gs-reverb', merged.reverb);
+  setNum('gs-delay', merged.delay);
+  setNum('gs-mod', merged.mod);
+  setNum('gs-dyn', merged.dyn);
+  setNum('gs-filter', merged.filter);
+  setNum('gs-pitch', merged.pitch);
+  setNum('gs-body', merged.body);
+  setNum('gs-wah', merged.wah);
+}
 
 async function applyLang(lang) {
   const r = await fetch(`i18n/${lang}.json`);
@@ -86,3 +133,4 @@ async function applyLang(lang) {
 document.querySelectorAll('[data-lang-switch] button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
 
 loadRelease().then(() => applyLang(detectLang()));
+loadGearStats();
