@@ -26,13 +26,56 @@ use std::rc::Rc;
 
 use anyhow::Result;
 
+use application::dispatcher::CommandDispatcher;
+use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
+use domain::io_binding::IoBinding;
 use infra_cpal::ProjectRuntimeController;
 use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
 
 use crate::state::ProjectSession;
+
+/// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
+/// frontend's audio runtime. Holds the same `Rc` the whole app shares, so it
+/// always addresses the current controller (or none, when the rig is stopped).
+///
+/// Lives here because `runtime_lifecycle` is the module that owns the
+/// controller; every other wiring module dispatches a `Command` instead.
+struct GuiRuntimeControl {
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl RuntimeControl for GuiRuntimeControl {
+    fn set_output_muted(&self, muted: bool) {
+        if let Some(runtime) = self.runtime.borrow().as_ref() {
+            runtime.set_output_muted(muted);
+        }
+    }
+
+    fn set_io_bindings(&self, bindings: Vec<IoBinding>) {
+        if let Some(runtime) = self.runtime.borrow_mut().as_mut() {
+            runtime.set_io_bindings(bindings);
+        }
+    }
+}
+
+/// #127: give this session's dispatcher a handle on the audio runtime, so
+/// runtime-control commands apply their effect from the dispatcher instead of
+/// from a UI callback (which left MCP/MIDI dispatching into the void).
+///
+/// Called wherever the runtime is created or re-synced: the dispatcher belongs
+/// to the open session, so a newly opened project re-attaches on its first
+/// sync. Idempotent and cheap — it clones one `Rc`.
+pub(crate) fn attach_runtime_control(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    dispatcher: &dyn CommandDispatcher,
+) {
+    dispatcher.attach_runtime_control(Box::new(GuiRuntimeControl {
+        runtime: project_runtime.clone(),
+    }));
+}
 
 pub(crate) fn stop_project_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
@@ -60,6 +103,7 @@ pub(crate) fn sync_project_runtime(
         project_runtime,
         session.dispatcher.as_ref(),
     );
+    attach_runtime_control(project_runtime, session.dispatcher.as_ref());
     Ok(())
 }
 
@@ -130,6 +174,7 @@ pub(crate) fn sync_live_chain_runtime(
                 project_runtime,
                 session.dispatcher.as_ref(),
             );
+            attach_runtime_control(project_runtime, session.dispatcher.as_ref());
             // #323: the runtimes were just born empty — give them back the
             // loopers the project carries, with whatever audio they saved.
             restore_project_loops(project_runtime, session);
@@ -203,6 +248,7 @@ pub(crate) fn sync_live_chain_runtime(
         project_runtime,
         session.dispatcher.as_ref(),
     );
+    attach_runtime_control(project_runtime, session.dispatcher.as_ref());
     Ok(())
 }
 
@@ -237,6 +283,7 @@ pub(crate) fn ensure_runtime(
         project_runtime,
         session.dispatcher.as_ref(),
     );
+    attach_runtime_control(project_runtime, session.dispatcher.as_ref());
     // #323: same as the enable path — the fresh runtimes get the project's
     // loopers back.
     restore_project_loops(project_runtime, session);

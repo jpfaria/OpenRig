@@ -216,6 +216,17 @@ impl LocalDispatcher {
         });
         Ok(vec![Event::IoBindingRegistryChanged])
     }
+
+    /// Handle `Command::SetIoBindings` (#127, AUDIO-CRITICAL): install the
+    /// effective registry into the live audio runtime so an ALREADY RUNNING
+    /// rig re-resolves its device endpoints against the latest edit. Nothing
+    /// is persisted here — the CRUD handlers above own `config.yaml`.
+    pub(crate) fn handle_set_io_bindings(&self, bindings: Vec<IoBinding>) -> Result<Vec<Event>> {
+        if let Some(control) = self.runtime_control.borrow().as_ref() {
+            control.set_io_bindings(bindings);
+        }
+        Ok(vec![Event::IoBindingRegistryChanged])
+    }
 }
 
 /// Sequential endpoint name ("In N" / "Out N") so an added endpoint is always

@@ -48,7 +48,10 @@ use application::command_schema::command_variant_names;
 /// (`AddChainLooper`/`RemoveChainLooper`/`SetChainLooperTransport`/`Param`/
 /// `Input`/`Output`/`AudioFile`/`Preset`) — the per-chain looper, incl.
 /// phase-2 tone independence (`SetChainLooperPreset`).
-const COMMAND_VARIANT_COUNT: usize = 93;
+/// #127 bumped to 94 with `SetIoBindings` — installing the effective I/O
+/// binding registry into the LIVE runtime was reachable only from the GUI
+/// (it called `ProjectRuntimeController::set_io_bindings` directly).
+const COMMAND_VARIANT_COUNT: usize = 94;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

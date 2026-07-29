@@ -30,6 +30,7 @@ use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher, ToneDoctorInput};
+use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::ToneRun;
 
@@ -306,6 +307,12 @@ impl CommandDispatcher for LocalDispatcher {
                 is_input,
                 endpoint_name,
             }) => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
+
+            // #127: push the effective registry into the LIVE runtime (not a
+            // persist — the CRUD arms above own `config.yaml`).
+            Command::IoBinding(IoBindingCommand::SetIoBindings { bindings }) => {
+                self.handle_set_io_bindings(bindings)
+            }
         }
     }
 
@@ -399,5 +406,9 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn attach_tone_doctor_input(&self, provider: ToneDoctorInput) {
         LocalDispatcher::attach_tone_doctor_input(self, provider)
+    }
+
+    fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
+        LocalDispatcher::attach_runtime_control(self, control)
     }
 }

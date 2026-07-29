@@ -55,4 +55,15 @@ pub enum IoBindingCommand {
         is_input: bool,
         endpoint_name: String,
     },
+
+    /// #127 (AUDIO-CRITICAL): install this registry into the LIVE audio
+    /// runtime so a rig that is already running re-resolves its device
+    /// endpoints against the caller's latest edit, instead of keeping the
+    /// stale registry until the next cold start.
+    ///
+    /// Distinct from the CRUD commands above: those persist `config.yaml`,
+    /// this one pushes the effective registry into the running streams. The
+    /// GUI used to call `ProjectRuntimeController::set_io_bindings` itself,
+    /// which left MCP/gRPC unable to do the same thing.
+    SetIoBindings { bindings: Vec<IoBinding> },
 }

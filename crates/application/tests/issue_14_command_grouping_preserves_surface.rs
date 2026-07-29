@@ -38,6 +38,8 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetMetronomeTimbre",
     "SetMetronomeTimeSignature",
     "SetMetronomeVolume",
+    // ── Added by #127 (runtime control on the bus) ────────────────────────
+    "SetIoBindings",
     // ── Added on develop (#791 Tone Doctor, #829 device refresh) ──────────
     "ApplyToneDoctorFix",
     "DiagnoseChainTone",

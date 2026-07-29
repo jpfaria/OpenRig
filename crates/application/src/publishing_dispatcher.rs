@@ -22,6 +22,7 @@ use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::{LocalDispatcher, ToneDoctorInput};
+use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
 pub struct PublishingDispatcher {
@@ -126,6 +127,10 @@ impl CommandDispatcher for PublishingDispatcher {
 
     fn attach_tone_doctor_input(&self, provider: ToneDoctorInput) {
         self.inner.attach_tone_doctor_input(provider)
+    }
+
+    fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
+        self.inner.attach_runtime_control(control)
     }
 }
 

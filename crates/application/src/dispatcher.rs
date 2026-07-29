@@ -27,6 +27,7 @@ use crate::command::Command;
 use crate::di_loader::DiLoopSource;
 use crate::event::Event;
 use crate::local_dispatcher::ToneDoctorInput;
+use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
 /// The single abstraction every consumer of the command bus uses.
@@ -95,6 +96,12 @@ pub trait CommandDispatcher {
     /// the adapter that owns the audio runtime can supply one, so a transport
     /// that does not own audio keeps the default no-op.
     fn attach_tone_doctor_input(&self, _provider: ToneDoctorInput) {}
+
+    /// #127: register how runtime-control commands (output mute, I/O binding
+    /// install) reach the audio runtime. Only the frontend that hosts one can
+    /// supply it; a transport that owns no audio keeps the default no-op and
+    /// its commands still report their events.
+    fn attach_runtime_control(&self, _control: Box<dyn RuntimeControl>) {}
 }
 
 #[cfg(test)]

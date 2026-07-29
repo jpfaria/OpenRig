@@ -36,6 +36,7 @@ use project::rig::RigProject;
 
 use crate::di_loader::DiLoopSource;
 use crate::event::Event;
+use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::{ToneReport, ToneRun};
 
@@ -113,6 +114,11 @@ pub struct LocalDispatcher {
     /// #791: the adapter's live-input source for the doctor. `None` until
     /// attached — a chain with a loaded DI is diagnosable without it.
     pub(crate) tone_doctor_input: RefCell<Option<ToneDoctorInput>>,
+    /// #127: how runtime-control commands reach the frontend's audio runtime.
+    /// `None` ⇒ this process hosts no runtime (MCP-only, tests): the commands
+    /// still record their state and emit their events, they just have nothing
+    /// to apply the change to.
+    pub(crate) runtime_control: RefCell<Option<Box<dyn RuntimeControl>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -161,6 +167,7 @@ impl LocalDispatcher {
             async_done_rx,
             tone_doctor_runs: RefCell::new(HashMap::new()),
             tone_doctor_input: RefCell::new(None),
+            runtime_control: RefCell::new(None),
         }
     }
 
@@ -169,6 +176,13 @@ impl LocalDispatcher {
     /// startup; MCP and gRPC inherit it because the dispatcher is shared.
     pub fn attach_tone_doctor_input(&self, provider: ToneDoctorInput) {
         *self.tone_doctor_input.borrow_mut() = Some(provider);
+    }
+
+    /// #127: register the frontend's audio runtime so runtime-control commands
+    /// apply their effect from here instead of from a UI callback. Idempotent
+    /// — the frontend re-attaches whenever it rebuilds its runtime handle.
+    pub fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
+        *self.runtime_control.borrow_mut() = Some(control);
     }
 }
 

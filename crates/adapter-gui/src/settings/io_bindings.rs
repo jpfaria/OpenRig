@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 use application::command::{Command, IoBindingCommand};
 use domain::io_binding::{IoBinding, IoEndpoint};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
@@ -94,18 +94,20 @@ fn mirror_bindings_to_session(
     }
 }
 
-/// #716 (AUDIO-CRITICAL): push the edited registry straight into the live
-/// runtime controller so a chain that is ALREADY running re-resolves its
-/// device endpoints against the user's latest binding edit on the next sync.
-/// Without this, a binding change only reaches the controller on the next
-/// cold start; a running rig keeps the stale registry.
+/// #716 (AUDIO-CRITICAL), as a Command since #127: install the edited registry
+/// into the live runtime so an ALREADY-RUNNING chain re-resolves its device
+/// endpoints against the latest edit instead of waiting for the next cold
+/// start. The GUI used to call the controller directly, which left MCP/gRPC
+/// with no way to reach the live registry at all.
 fn push_bindings_to_runtime(
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    ps: &Rc<RefCell<Option<ProjectSession>>>,
     cfg: &Rc<RefCell<AppConfig>>,
 ) {
-    if let Some(controller) = runtime.borrow_mut().as_mut() {
-        controller.set_io_bindings(cfg.borrow().io_bindings.clone());
-    }
+    let bindings = cfg.borrow().io_bindings.clone();
+    dispatch_if_session(
+        ps,
+        Command::IoBinding(IoBindingCommand::SetIoBindings { bindings }),
+    );
 }
 
 fn delete_reject_message(ps: &Rc<RefCell<Option<ProjectSession>>>, id: &str) -> String {
@@ -238,7 +240,6 @@ pub fn wire(
     app_config: Rc<RefCell<AppConfig>>,
     input_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
     let models = Rc::new(BindingModels {
         bindings: Rc::new(VecModel::from(project_bindings(&app_config.borrow()))),
@@ -270,7 +271,6 @@ pub fn wire(
         &models,
         &input_devices,
         &output_devices,
-        &project_runtime,
     );
     install_psw_callbacks(
         project_settings_window,
@@ -279,7 +279,6 @@ pub fn wire(
         &models,
         &input_devices,
         &output_devices,
-        &project_runtime,
     );
 }
 
@@ -326,17 +325,14 @@ struct WireCtx {
     models: Rc<BindingModels>,
     input_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    /// #716: the live runtime controller (if any). Edited bindings are pushed
-    /// here so a running rig picks them up immediately.
-    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
 }
 
 impl WireCtx {
     /// Mirror the edited registry into the open session AND the live runtime
-    /// controller (#716). Called after every binding/endpoint mutation.
+    /// (#716). Called after every binding/endpoint mutation.
     fn propagate_bindings(&self) {
         mirror_bindings_to_session(&self.ps, &self.cfg);
-        push_bindings_to_runtime(&self.runtime, &self.cfg);
+        push_bindings_to_runtime(&self.ps, &self.cfg);
     }
 
     fn create_binding(&self, name: &str) -> SharedString {
@@ -483,7 +479,6 @@ fn make_ctx(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) -> Rc<WireCtx> {
     Rc::new(WireCtx {
         ps: Rc::clone(ps),
@@ -491,7 +486,6 @@ fn make_ctx(
         models: Rc::clone(models),
         input_devices: Rc::clone(input_devices),
         output_devices: Rc::clone(output_devices),
-        runtime: Rc::clone(runtime),
     })
 }
 
@@ -502,9 +496,8 @@ fn install_window_callbacks(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
-    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices, runtime);
+    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
 
     let c = ctx.clone();
     window.on_create_io_binding(move |name| c.create_binding(name.as_str()));
@@ -548,9 +541,8 @@ fn install_psw_callbacks(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
-    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices, runtime);
+    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
 
     let c = ctx.clone();
     psw.on_create_io_binding(move |name| c.create_binding(name.as_str()));
