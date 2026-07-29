@@ -21,6 +21,10 @@ async function loadSections() {
 }
 
 const SUPPORTED_LANGS = ['en', 'pt-BR', 'es-ES'];
+// The hero states the catalog size, so it has to come from the same live source as
+// the stats grid rather than a number baked into the copy that goes stale.
+let gearTotal = null;
+let currentLang = null;
 function detectLang() {
   const saved = localStorage.getItem('openrig-lang');
   if (saved && SUPPORTED_LANGS.includes(saved)) return saved;
@@ -113,7 +117,8 @@ async function loadGearStats() {
   new Set([...Object.keys(plugins.by_block_type || {}), ...Object.keys(native.by_block_type || {})])
     .forEach(k => { merged[k] = (plugins.by_block_type?.[k] || 0) + (native.by_block_type?.[k] || 0); });
 
-  setNum('stat-gear', plugins.total_plugins + native.total_native);
+  gearTotal = plugins.total_plugins + native.total_native;
+  setNum('stat-gear', gearTotal);
   setNum('gs-amp', merged.amp);
   setNum('gs-preamp', merged.preamp);
   setNum('gs-cab', merged.cab);
@@ -126,6 +131,8 @@ async function loadGearStats() {
   setNum('gs-pitch', merged.pitch);
   setNum('gs-body', merged.body);
   setNum('gs-wah', merged.wah);
+  // The count landed after the first language pass; redo it so {gear} resolves.
+  if (currentLang) applyLang(currentLang);
 }
 
 async function applyLang(lang) {
@@ -133,11 +140,17 @@ async function applyLang(lang) {
   const r = await fetch(`i18n/${lang}.json`, { cache: 'no-cache' });
   const dict = await r.json();
   document.documentElement.lang = lang;
+  currentLang = lang;
   localStorage.setItem('openrig-lang', lang);
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     let val = dict[key];
     if (val === undefined) return;
+    // Leave the markup fallback in place until the live count is known.
+    if (val.includes('{gear}')) {
+      if (gearTotal === null) return;
+      val = val.replace('{gear}', fmtNum(gearTotal));
+    }
     if (release.version) val = val.replace('{version}', release.version);
     if (release.betaVersion) val = val.replace('{betaVersion}', release.betaVersion);
     if (release.totalDownloads) val = val.replace('{downloads}', fmtNum(release.totalDownloads));

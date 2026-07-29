@@ -209,3 +209,9 @@ footer{border-top:1px solid var(--line);padding:56px 0 44px;background:var(--ink
 @media(min-width:1001px){.btn-support{display:none}
   /* the sponsor card occupies that corner — the scroll hint would sit on top of it */
   .scroll-hint{display:none}}
+
+/* origin story — a reading column, not cards */
+.story{max-width:70ch;margin-top:46px}
+.story p{font-size:clamp(16.5px,1.25vw,19px);line-height:1.72;color:var(--mute)}
+.story p+p{margin-top:20px}
+.story p:first-child{color:var(--soft)}
