@@ -185,11 +185,12 @@ fn di_loop_state(ctx: &ReadContext<'_>) -> String {
 /// empty — the shape is the chain's own, which exists on every transport.
 ///
 /// Frame counts mean nothing without the rate they were counted at, so the
-/// rate is resolved in order of how close it is to the real streams: the one
-/// that came with the hosted statuses, then whatever rate the frontend
-/// reports, and finally the dispatcher's engine rate — which exists exactly
-/// to keep a consumer from assuming a fixed one (#723) and is synced from
-/// the live stream by `attach_engine_sr`.
+/// rate always comes from [`LiveSource::chain_loopers`] itself when the
+/// frontend hosts one: a hosted-but-unresolvable rate is a real failure
+/// (`Some(Err(_))`) and propagates as one — never silently substituted with
+/// a fabricated number (issue #723). Only a frontend that hosts NO looper
+/// runtime at all (`None`) falls back to the dispatcher's tracked engine
+/// rate, synced from the live stream by `attach_engine_sr`.
 fn chain_loopers(ctx: &ReadContext<'_>, chain: &ChainId) -> Result<String, String> {
     let c = ctx
         .project
@@ -197,14 +198,15 @@ fn chain_loopers(ctx: &ReadContext<'_>, chain: &ChainId) -> Result<String, Strin
         .iter()
         .find(|c| &c.id == chain)
         .ok_or_else(|| format!("chain not found: {}", chain.0))?;
-    let hosted = ctx.live.chain_loopers(chain);
-    let rate = hosted
-        .as_ref()
-        .map(|(_, rate)| *rate)
-        .or_else(|| ctx.live.sample_rate())
-        .unwrap_or_else(|| ctx.dispatcher.engine_sr());
-    let statuses = hosted.map(|(s, _)| s).unwrap_or_default();
-    Ok(crate::query_loopers::loopers_json(c, &statuses, rate))
+    match ctx.live.chain_loopers(chain) {
+        Some(Ok((statuses, rate))) => Ok(crate::query_loopers::loopers_json(c, &statuses, rate)),
+        Some(Err(e)) => Err(e),
+        None => Ok(crate::query_loopers::loopers_json(
+            c,
+            &[],
+            ctx.dispatcher.engine_sr(),
+        )),
+    }
 }
 
 #[cfg(test)]

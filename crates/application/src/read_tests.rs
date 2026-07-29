@@ -184,6 +184,32 @@ impl LiveSource for DeviceHost {
     }
 }
 
+/// A frontend that hosts looper transport state but could NOT resolve this
+/// chain's own rate (e.g. its device/endpoint could not be found) — a real
+/// per-chain failure, never a fabricated rate (issue #723).
+struct BrokenLooperHost;
+
+impl LiveSource for BrokenLooperHost {
+    fn chain_loopers(
+        &self,
+        _chain: &ChainId,
+    ) -> Option<Result<(Vec<engine::LooperStatus>, u32), String>> {
+        Some(Err("no resolved sample rate for chain guitar".to_string()))
+    }
+}
+
+/// A frontend that hosts loopers and resolved a real (non-48kHz) rate.
+struct HostedLooperSource;
+
+impl LiveSource for HostedLooperSource {
+    fn chain_loopers(
+        &self,
+        _chain: &ChainId,
+    ) -> Option<Result<(Vec<engine::LooperStatus>, u32), String>> {
+        Some(Ok((vec![], 96_000)))
+    }
+}
+
 fn resolve_hosted_by(live: &dyn LiveSource, kind: QueryKind) -> Result<String, String> {
     let project = test_project_with_one_chain();
     let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
@@ -334,6 +360,37 @@ fn unhosted_loopers_still_answer_with_the_chains_persisted_shape() {
     assert!(loopers.contains("\"state\":\"empty\""), "{loopers}");
     assert!(loopers.contains("\"len_frames\":0"), "{loopers}");
     assert!(loopers.contains("\"length_seconds\":0.0"), "{loopers}");
+}
+
+#[test]
+fn a_hosted_looper_source_reports_its_real_rate_not_the_dispatcher_fallback() {
+    // A hosted rate must win over the dispatcher's tracked engine rate —
+    // otherwise a hosted-but-idle frontend would silently report whatever
+    // the dispatcher happens to default to instead of the real number.
+    let loopers = resolve_hosted_by(
+        &HostedLooperSource,
+        QueryKind::ChainLoopers {
+            chain: ChainId("guitar".to_string()),
+        },
+    )
+    .expect("a hosted looper source must answer");
+    assert!(loopers.contains("\"sample_rate\":96000"), "{loopers}");
+}
+
+#[test]
+fn a_hosted_looper_source_that_failed_to_resolve_a_rate_reports_the_error_not_a_fabricated_one() {
+    // Issue #723 regression: a chain whose rate genuinely could not be
+    // resolved must propagate that failure, never fall back to whatever
+    // number the dispatcher happens to default to.
+    assert_eq!(
+        resolve_hosted_by(
+            &BrokenLooperHost,
+            QueryKind::ChainLoopers {
+                chain: ChainId("guitar".to_string()),
+            },
+        ),
+        Err("no resolved sample rate for chain guitar".to_string())
+    );
 }
 
 #[test]

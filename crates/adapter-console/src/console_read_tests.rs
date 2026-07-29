@@ -71,3 +71,27 @@ fn console_answers_reads_it_does_not_host_instead_of_refusing() {
         .expect("an unhosted read must still answer with the empty shape");
     assert!(out.contains("\"running\":false"), "got: {out}");
 }
+
+/// #723 regression: a chain whose rate genuinely cannot be resolved (its
+/// `io_binding_ids` matches no entry in an empty registry, so the chain
+/// has no input device at all) must report a real failure, never a
+/// fabricated rate. This is deterministic — no real audio hardware
+/// involved, the resolver bails before ever probing a device.
+#[test]
+fn console_reports_a_chains_unresolvable_rate_instead_of_fabricating_one() {
+    let project = one_chain_project();
+    let dispatcher = LocalDispatcher::new(rc(&project));
+    let out = console_resolve(
+        &QueryKind::ChainLoopers {
+            chain: ChainId("guitar".to_string()),
+        },
+        &project,
+        &[],
+        &dispatcher,
+    );
+    assert_eq!(
+        out,
+        Err("no resolved sample rate for chain guitar".to_string()),
+        "got: {out:?}"
+    );
+}

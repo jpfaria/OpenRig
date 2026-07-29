@@ -57,7 +57,17 @@ pub trait LiveSource {
         None
     }
 
-    fn chain_loopers(&self, chain: &ChainId) -> Option<(Vec<LooperStatus>, u32)> {
+    /// Per-chain live looper transport state + the rate it was counted at.
+    ///
+    /// Three states, mirroring [`Self::devices`]: `None` ⇒ this frontend
+    /// hosts no looper runtime for any chain (the caller falls back to the
+    /// chain's persisted shape with silent statuses, at the dispatcher's
+    /// tracked engine rate); `Some(Err(msg))` ⇒ hosted, but THIS chain's
+    /// rate could not be resolved (its device/endpoint could not be found,
+    /// for example) — that must propagate as a real failure, never a
+    /// fabricated rate (issue #723); `Some(Ok((statuses, rate)))` ⇒ hosted
+    /// and resolved.
+    fn chain_loopers(&self, chain: &ChainId) -> Option<Result<(Vec<LooperStatus>, u32), String>> {
         let _ = chain;
         None
     }

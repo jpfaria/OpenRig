@@ -34,10 +34,10 @@ use std::time::Duration;
 mod tick;
 
 /// The console's own [`LiveSource`] (#829/#831): it hosts a real device
-/// enumeration and a real per-project sample rate, and nothing else — no
-/// meters, analyzer, DI loop, or looper transport. The console drives the
-/// engine directly and owns none of those runtimes, so every other read
-/// falls through to the resolver's documented empty shape.
+/// enumeration and, per chain, a real resolved sample rate — and nothing
+/// else. No meters, analyzer, DI loop, or live looper transport; the
+/// console drives the engine directly and owns none of those runtimes, so
+/// every other read falls through to the resolver's documented empty shape.
 struct ConsoleLiveSource<'a> {
     project: &'a Project,
     io_bindings: &'a [domain::io_binding::IoBinding],
@@ -51,18 +51,22 @@ impl LiveSource for ConsoleLiveSource<'_> {
         Some(list_devices().map_err(|e| e.to_string()))
     }
 
-    // #723: the console has no live audio thread to ask, but it CAN resolve
-    // the real per-chain device rate the same way `build_streams` does. A
-    // single scalar cannot honestly stand in for every chain when chains
-    // disagree (different devices, different rates — see the stream
-    // isolation law), so this only answers when every enabled chain agrees;
-    // otherwise `None` lets the resolver fall through to the dispatcher's
-    // own tracked engine rate instead of this method lying.
-    fn sample_rate(&self) -> Option<u32> {
-        let rates = resolve_project_chain_sample_rates(self.project, self.io_bindings).ok()?;
-        let mut values = rates.values().copied();
-        let first = values.next()?;
-        values.all(|r| r == first).then(|| first.round() as u32)
+    // #723: the console has no live looper transport, but it CAN resolve
+    // THIS chain's real device rate the same way `build_streams` does — the
+    // same per-chain lookup `resolve_project_chain_sample_rates` already
+    // keys by `ChainId`, so a sibling chain's rate (or a sibling's failure
+    // to resolve one) never leaks into this chain's answer. When the rate
+    // cannot be resolved (no device for this chain, for example) that is a
+    // real failure and propagates as one — never a fabricated number.
+    fn chain_loopers(
+        &self,
+        chain: &domain::ids::ChainId,
+    ) -> Option<Result<(Vec<engine::LooperStatus>, u32), String>> {
+        let rate = resolve_project_chain_sample_rates(self.project, self.io_bindings)
+            .ok()
+            .and_then(|rates| rates.get(chain).copied())
+            .ok_or_else(|| format!("no resolved sample rate for chain {}", chain.0));
+        Some(rate.map(|r| (Vec::new(), r.round() as u32)))
     }
 }
 
