@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::command::Command;
+use crate::command::{Command, MidiCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -28,7 +28,9 @@ fn save_midi_devices_emits_event_without_mutating_project() {
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
 
     let events = dispatcher
-        .dispatch(Command::SaveMidiDevices { devices: vec![] })
+        .dispatch(Command::Midi(MidiCommand::SaveMidiDevices {
+            devices: vec![],
+        }))
         .unwrap();
 
     assert_eq!(events, vec![Event::MidiDevicesSaved]);
@@ -54,11 +56,15 @@ fn start_and_stop_midi_learn_emit_events() {
     let project = empty_project_rc();
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
     assert_eq!(
-        dispatcher.dispatch(Command::StartMidiLearn).unwrap(),
+        dispatcher
+            .dispatch(Command::Midi(MidiCommand::StartMidiLearn))
+            .unwrap(),
         vec![Event::MidiLearnStarted]
     );
     assert_eq!(
-        dispatcher.dispatch(Command::StopMidiLearn).unwrap(),
+        dispatcher
+            .dispatch(Command::Midi(MidiCommand::StopMidiLearn))
+            .unwrap(),
         vec![Event::MidiLearnStopped]
     );
 }
@@ -72,9 +78,9 @@ fn publish_midi_event_passthrough_emits_midi_event_received() {
         controller: 7,
     };
     let events = dispatcher
-        .dispatch(Command::PublishMidiEvent {
+        .dispatch(Command::Midi(MidiCommand::PublishMidiEvent {
             source: source.clone(),
-        })
+        }))
         .unwrap();
     assert_eq!(events, vec![Event::MidiEventReceived { source }]);
 }

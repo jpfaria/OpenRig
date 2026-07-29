@@ -11,13 +11,13 @@ use project::block::{AudioBlock, AudioBlockKind};
 use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
 use project::rig_sync::sync_synthetic_into_rig;
 
-use crate::command::{Command, RigNavKind};
+use crate::command::{Command, RigNavKind, SelectionCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
     pub(crate) fn handle_rig_nav(&self, cmd: Command) -> Result<Vec<Event>> {
-        let Command::ApplyRigNav { chain, kind } = cmd else {
+        let Command::Selection(SelectionCommand::ApplyRigNav { chain, kind }) = cmd else {
             unreachable!("handle_rig_nav received non-rig-nav command: {cmd:?}");
         };
         // Non-rig chain or no rig attached ⇒ ignore (mirrors the old
@@ -131,7 +131,7 @@ impl LocalDispatcher {
     /// #436: rename the chain's active preset (the `name` the select
     /// shows). No-op for non-rig chains / no rig attached.
     pub(crate) fn handle_rename_rig_preset(&self, cmd: Command) -> Result<Vec<Event>> {
-        let Command::RenameRigPreset { chain, name } = cmd else {
+        let Command::Selection(SelectionCommand::RenameRigPreset { chain, name }) = cmd else {
             unreachable!("handle_rename_rig_preset got {cmd:?}");
         };
         let Some(input) = chain.0.strip_prefix("rig:") else {

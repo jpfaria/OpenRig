@@ -123,9 +123,42 @@ fn short_device_label(device_id: &str) -> String {
         .unwrap_or_else(|| device_id.to_string())
 }
 
+/// Which tap a spectrum row reads. The Slint row carries only a display
+/// label; other transports (#829) need the structured identity. `channel`
+/// is the row's side of the stereo stream tap (0 = L, 1 = R).
+#[derive(Debug, Clone, PartialEq)]
+pub struct RowIdentity {
+    pub chain: String,
+    pub input: usize,
+    pub channel: usize,
+}
+
+/// Pair each row's live band values with its tap identity, in the shape
+/// every transport reads (`openrig://spectrum`).
+pub fn readings_from(
+    identities: &[RowIdentity],
+    rows: &VecModel<SpectrumRow>,
+) -> Vec<application::query_analyzers::SpectrumReading> {
+    identities
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, id)| rows.row_data(idx).map(|row| (id, row)))
+        .map(|(id, row)| application::query_analyzers::SpectrumReading {
+            chain: id.chain.clone(),
+            input: id.input,
+            channel: id.channel,
+            label: row.label.to_string(),
+            levels: row.levels.iter().collect(),
+            peaks: row.peaks.iter().collect(),
+            active: row.active,
+        })
+        .collect()
+}
+
 pub struct SpectrumSession {
     rows_model: Rc<VecModel<SpectrumRow>>,
     row_states: Vec<RowState>,
+    identities: Vec<RowIdentity>,
     fingerprint: String,
 }
 
@@ -141,6 +174,7 @@ impl SpectrumSession {
         let rows_model: Rc<VecModel<SpectrumRow>> =
             Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
+        let mut identities: Vec<RowIdentity> = Vec::new();
 
         // The rate the live streams actually run at — authoritative fallback
         // for inputs without a saved per-device setting (issue #723).
@@ -235,6 +269,11 @@ impl SpectrumSession {
                     active: false,
                 });
                 row_states.push(RowState::new(l_ring, sample_rate, l_levels, l_peaks));
+                identities.push(RowIdentity {
+                    chain: chain.id.0.clone(),
+                    input: stream_index,
+                    channel: 0,
+                });
 
                 // R row
                 let r_levels = make_zero_band_model();
@@ -251,18 +290,30 @@ impl SpectrumSession {
                     active: false,
                 });
                 row_states.push(RowState::new(r_ring, sample_rate, r_levels, r_peaks));
+                identities.push(RowIdentity {
+                    chain: chain.id.0.clone(),
+                    input: stream_index,
+                    channel: 1,
+                });
             }
         }
 
         Self {
             rows_model,
             row_states,
+            identities,
             fingerprint: project_stream_fingerprint(project, registry),
         }
     }
 
     pub fn rows_model_rc(&self) -> ModelRc<SpectrumRow> {
         ModelRc::from(self.rows_model.clone())
+    }
+
+    /// #829: the live readings as every transport reads them
+    /// (`openrig://spectrum`) — same rows the window renders.
+    pub fn readings(&self) -> Vec<application::query_analyzers::SpectrumReading> {
+        readings_from(&self.identities, &self.rows_model)
     }
 
     pub fn needs_rebuild(&self, project: &Project, registry: &[IoBinding]) -> bool {
@@ -318,3 +369,7 @@ impl SpectrumSession {
 #[cfg(test)]
 #[path = "spectrum_session_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "spectrum_session_readings_tests.rs"]
+mod readings_tests;

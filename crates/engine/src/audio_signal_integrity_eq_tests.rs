@@ -6,12 +6,11 @@ use domain::io_binding::ChannelMode;
 use domain::value_objects::ParameterValue;
 use project::param::ParameterSet;
 
-use super::audio_signal_integrity::{
-    build_runtime, chain_with_blocks, core_block, drive_capture_steady, input_mono,
-    neutral_params, output, scan_finite, scan_for_click, scan_within_magnitude, BUFFER_FRAMES, SR,
-};
 use super::audio_signal_integrity::SineGen;
-
+use super::audio_signal_integrity::{
+    build_runtime, chain_with_blocks, core_block, drive_capture_steady, input_mono, neutral_params,
+    output, scan_finite, scan_for_click, scan_within_magnitude, BUFFER_FRAMES, SR,
+};
 
 /// Helper: build EQ params with one band boosted by `gain_db` at `freq_hz`,
 /// rest at defaults.

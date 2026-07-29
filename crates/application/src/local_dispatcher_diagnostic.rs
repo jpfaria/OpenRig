@@ -1,4 +1,4 @@
-//! #436 H — `Command::SetTunerEnabled` / `SetSpectrumEnabled`: ligar/
+//! #436 H — `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled`: ligar/
 //! desligar o tuner/spectrum (analisadores) é negócio (runtime). O
 //! adapter constrói/derruba a sessão de análise + timer + runtime
 //! (`wire_power`); o dispatcher registra a intenção e sinaliza via
@@ -7,17 +7,17 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{Command, SelectionCommand};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    /// `Command::SetTunerEnabled` / `SetSpectrumEnabled` — registra a
+    /// `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled` — registra a
     /// intenção e sinaliza o evento. O build/teardown da sessão de
     /// análise é do adapter (precedente `SaveProject`).
     pub(crate) fn handle_diagnostic_enabled(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SetTunerEnabled { enabled } => {
+            Command::Selection(SelectionCommand::SetTunerEnabled { enabled }) => {
                 // #548: mirror into the SelectionState snapshot so MIDI
                 // slot `toggle_tuner` sees the current state on the next
                 // press.
@@ -26,7 +26,7 @@ impl LocalDispatcher {
                 }
                 Ok(vec![Event::TunerEnabledChanged { enabled }])
             }
-            Command::SetSpectrumEnabled { enabled } => {
+            Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled }) => {
                 if let Ok(mut s) = self.selection_state.write() {
                     s.spectrum_enabled = enabled;
                 }

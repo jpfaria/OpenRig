@@ -111,18 +111,42 @@ pub struct ProjectRuntimeController {
     /// fed by the loop — never the guitar runtime. `&self` arm/disarm mutate
     /// this, so it needs interior mutability; the controller is frontend-thread
     /// owned (cpal `Stream` is `!Send`), so a `RefCell` suffices.
-    pub(crate) di_streams: RefCell<HashMap<ChainId, crate::di_stream::DiStreamHandle>>,
-    /// Issue #771: one playback cell per (chain, flat output index). The
+    /// #323: keyed by `(chain, source)` — the DI loop and each looper are
+    /// independent isolated streams sharing one lifecycle (`IsolatedSource`).
+    pub(crate) di_streams:
+        RefCell<HashMap<crate::di_stream::IsolatedKey, crate::di_stream::DiStreamHandle>>,
+    /// Issue #771: one playback cell per (chain, source, flat output index). The
     /// output stream's callback clones its cell at build time and mixes
     /// whatever playback is parked there (wait-free load); arming parks the
     /// pre-rendered loop on the CHOSEN output's cell only. Entries are
     /// created on demand and survive stream rebuilds.
-    pub(crate) di_playback_cells:
-        RefCell<HashMap<(ChainId, usize), crate::di_playback::DiPlaybackCell>>,
+    pub(crate) di_playback_cells: RefCell<
+        HashMap<(crate::di_stream::IsolatedKey, usize), crate::di_playback::DiPlaybackCell>,
+    >,
     /// Issue #771/#785: playbacks swapped out by a disarm or a gapless hand-off,
     /// freed on a LATER cycle so the audio callback is never the last owner of a
     /// multi-MB render buffer (invariant #8).
     pub(crate) di_retired: crate::di_playback::DiRetired,
+    /// #323: the loop content `(len_frames, content_rev, playback_rev)` each
+    /// looper's isolated stream was last armed with, so `sync_looper_streams`
+    /// re-arms only when the recording OR the linked-preset blocks actually
+    /// changed — not every meter tick.
+    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (u64, u64, u64)>>,
+    /// #323: controller-owned looper state — the recorded material and transport
+    /// of every loop live HERE (reusing `LooperSlot`), off the volatile chain
+    /// runtime. Recording drains an input tap into it off the audio thread;
+    /// stop/clear/undo mutate it directly, so control is deterministic and a
+    /// loop survives a chain rebuild/toggle. Replaces the bank-in-runtime and
+    /// the suppression band-aid it forced.
+    pub(crate) looper_store: RefCell<crate::looper_store::LooperStore>,
+    /// Issue #14: the metronome's OWN output stream, alive only while the
+    /// metronome is on. Never shares a chain stream — the backend sums it on
+    /// the device (invariant #4), so a chain rebuild cannot chop the click and
+    /// the click can never reach the guitar's buffers.
+    pub(crate) metronome_stream: RefCell<Option<crate::metronome_stream::MetronomeStreamHandle>>,
+    /// Issue #14: lock-free settings/position shared with that stream's
+    /// callback. Outlives the stream so settings survive a stop/start.
+    pub(crate) metronome_shared: engine::metronome_state::MetronomeCell,
     /// Single owner of every jackd process openrig controls on Linux. Replaces
     /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
     /// free functions with an explicit state machine (issue #308).
@@ -160,6 +184,12 @@ impl ProjectRuntimeController {
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
+            looper_armed: RefCell::new(HashMap::new()),
+            looper_store: RefCell::new(crate::looper_store::LooperStore::default()),
+            metronome_stream: RefCell::new(None),
+            metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+                Default::default(),
+            )),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -198,6 +228,12 @@ impl ProjectRuntimeController {
             di_streams: RefCell::new(HashMap::new()),
             di_playback_cells: RefCell::new(HashMap::new()),
             di_retired: Default::default(),
+            looper_armed: RefCell::new(HashMap::new()),
+            looper_store: RefCell::new(crate::looper_store::LooperStore::default()),
+            metronome_stream: RefCell::new(None),
+            metronome_shared: std::sync::Arc::new(engine::metronome_state::MetronomeShared::new(
+                Default::default(),
+            )),
             #[cfg(all(target_os = "linux", feature = "jack"))]
             supervisor: jack_supervisor::JackSupervisor::new(
                 jack_supervisor::LiveJackBackend::new(),
@@ -774,6 +810,8 @@ impl ProjectRuntimeController {
         self.runtime_graph.remove_chain(chain_id);
         // #771: never leak a parked render buffer past its chain.
         self.drop_di_state_for_chain(chain_id);
+        // #323: drop the looper stream bookkeeping too.
+        self.forget_chain_looper_streams(chain_id);
     }
 
     pub fn stop(&mut self) {

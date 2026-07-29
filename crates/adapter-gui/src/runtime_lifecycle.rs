@@ -127,6 +127,9 @@ pub(crate) fn sync_live_chain_runtime(
                 project_runtime,
                 &session.dispatcher,
             );
+            // #323: the runtimes were just born empty — give them back the
+            // loopers the project carries, with whatever audio they saved.
+            restore_project_loops(project_runtime, session);
             return Ok(()); // start() already processes all enabled chains via sync_project
         }
         drop(borrow);
@@ -225,7 +228,23 @@ pub(crate) fn ensure_runtime(
     // #669: keep the dispatcher's engine rate in lock-step with the real device
     // rate start() resolved, so a DI resamples correctly.
     crate::di_loop_wiring::sync_engine_sr_from_runtime(project_runtime, &session.dispatcher);
+    // #323: same as the enable path — the fresh runtimes get the project's
+    // loopers back.
+    restore_project_loops(project_runtime, session);
     Ok(())
+}
+
+/// #323: claim a slot for every looper the project carries and reload the
+/// audio each one saved. Called right after a controller is created — the
+/// runtimes are empty until it runs.
+fn restore_project_loops(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    session: &ProjectSession,
+) {
+    let Some(project_path) = session.project_path.clone() else {
+        return;
+    };
+    crate::looper_persist::restore_chain_loops(session, project_runtime, &project_path);
 }
 
 pub(crate) fn remove_live_chain_runtime(

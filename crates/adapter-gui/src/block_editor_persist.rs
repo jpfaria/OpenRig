@@ -20,7 +20,7 @@ use std::time::Duration;
 use anyhow::{anyhow, Result};
 use slint::{Timer, TimerMode, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::BlockId;
 use infra_cpal::AudioDeviceDescriptor;
@@ -271,11 +271,11 @@ pub(crate) fn persist_block_editor_draft(
             };
             session
                 .dispatcher
-                .dispatch(Command::OverwriteBlock {
+                .dispatch(Command::Block(BlockCommand::OverwriteBlock {
                     chain: chain_id.clone(),
                     block: block_id,
                     replacement: updated_block,
-                })
+                }))
                 .map_err(|e| anyhow!(e))?;
         } else {
             // Non-select edit: replace the block kind + enabled via dispatcher.
@@ -286,11 +286,11 @@ pub(crate) fn persist_block_editor_draft(
             };
             session
                 .dispatcher
-                .dispatch(Command::OverwriteBlock {
+                .dispatch(Command::Block(BlockCommand::OverwriteBlock {
                     chain: chain_id.clone(),
                     block: block_id.clone(),
                     replacement,
-                })
+                }))
                 .map_err(|e| anyhow!(e))?;
         }
         // Sync enabled state if it changed (OverwriteBlock already carries
@@ -319,11 +319,11 @@ pub(crate) fn persist_block_editor_draft(
         );
         session
             .dispatcher
-            .dispatch(Command::InsertPrebuiltBlock {
+            .dispatch(Command::Block(BlockCommand::InsertPrebuiltBlock {
                 chain: chain_id.clone(),
                 block: new_block,
                 position: insert_index,
-            })
+            }))
             .map_err(|e| anyhow!(e))?;
         log::info!("[persist] INSERT dispatched for chain_id='{}'", chain_id.0);
     }

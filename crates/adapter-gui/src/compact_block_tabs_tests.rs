@@ -40,6 +40,7 @@ fn project_with(blocks: Vec<AudioBlock>) -> Project {
             io_binding_ids: vec![],
             blocks,
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }

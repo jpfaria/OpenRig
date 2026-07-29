@@ -22,6 +22,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
                 io: String::new(),
                 endpoint: String::new(),
                 io_binding_ids: Vec::new(),
+                loopers: Vec::new(),
             },
         );
         presets.insert(
@@ -61,6 +62,7 @@ fn project_with_chain_ids(ids: &[&str]) -> Project {
                 io_binding_ids: Vec::new(),
                 blocks: Vec::new(),
                 di_output: None,
+                loopers: vec![],
             })
             .collect(),
         midi: None,
@@ -119,6 +121,32 @@ fn sync_clears_chain_order_when_back_to_alphabetical() {
     sync_synthetic_into_rig(&mut rig, &proj);
 
     assert!(rig.chain_order.is_empty());
+}
+
+#[test]
+fn sync_captures_chain_loopers_into_the_rig_input() {
+    // #323: a rig project is the real persistence model — the projected
+    // synthetic chains are rebuilt from the rig on every open. A loop
+    // recorded on the projected chain must be written back into its
+    // RigInput, or it evaporates on reload ("o looper vai para o espaço").
+    use crate::chain::LooperConfig;
+    let mut rig = rig_with_inputs(&["a"]);
+    let mut proj = project_with_chain_ids(&["rig:a"]);
+    proj.chains[0].loopers = vec![LooperConfig {
+        audio_file: Some("a.7.wav".into()),
+        ..LooperConfig::new(7)
+    }];
+
+    sync_synthetic_into_rig(&mut rig, &proj);
+
+    assert_eq!(
+        rig.inputs["a"].loopers,
+        vec![LooperConfig {
+            audio_file: Some("a.7.wav".into()),
+            ..LooperConfig::new(7)
+        }],
+        "a looper recorded on the projected chain must persist into the rig input"
+    );
 }
 
 #[test]

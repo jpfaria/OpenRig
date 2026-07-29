@@ -1,8 +1,8 @@
 //! Engine runtime tests (issue #792 split from runtime_tests.rs).
 //! Grouped by responsibility; shared fixtures live in `runtime_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::tests::*;
+use super::*;
 
 #[test]
 #[ignore] // IR cabs migrated to disk packages (issue #287); needs registry lookup
@@ -29,6 +29,7 @@ fn runtime_graph_builds_for_chain_with_cab_block() {
                 }),
             }],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     };
@@ -42,7 +43,6 @@ fn runtime_graph_builds_for_chain_with_cab_block() {
     .expect("runtime graph should build");
     assert_eq!(runtime.chains.len(), 1);
 }
-
 
 #[test]
 #[ignore] // requires asset_paths initialization
@@ -96,7 +96,6 @@ fn update_chain_runtime_state_preserves_unchanged_block_instances() {
     assert_ne!(updated_serials[1], original_serials[1]);
 }
 
-
 #[test]
 #[ignore] // requires asset_paths initialization
 fn update_chain_runtime_state_preserves_block_identity_when_reordered() {
@@ -143,7 +142,6 @@ fn update_chain_runtime_state_preserves_block_identity_when_reordered() {
     }
 }
 
-
 #[test]
 #[ignore] // requires asset_paths initialization
 fn select_block_builds_for_generic_delay_options() {
@@ -155,7 +153,6 @@ fn select_block_builds_for_generic_delay_options() {
     let locked = runtime.processing.lock().expect("runtime poisoned");
     assert_eq!(locked.input_states[0].blocks.len(), 1);
 }
-
 
 #[test]
 fn panicking_processor_marks_block_as_faulted() {
@@ -170,7 +167,6 @@ fn panicking_processor_marks_block_as_faulted() {
         "block should be marked faulted after a panic"
     );
 }
-
 
 #[test]
 fn faulted_block_is_permanently_bypassed() {
@@ -190,7 +186,6 @@ fn faulted_block_is_permanently_bypassed() {
     );
 }
 
-
 #[test]
 fn process_audio_block_bypassed_state_skips_processing() {
     let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -208,7 +203,6 @@ fn process_audio_block_bypassed_state_skips_processing() {
         "bypassed block should not call process_sample"
     );
 }
-
 
 #[test]
 fn process_audio_block_fading_in_applies_processing() {
@@ -229,7 +223,6 @@ fn process_audio_block_fading_in_applies_processing() {
     );
 }
 
-
 #[test]
 fn poll_stream_returns_none_for_unknown_block() {
     let chain = tuner_track("chain:0", Vec::new());
@@ -240,7 +233,6 @@ fn poll_stream_returns_none_for_unknown_block() {
         .is_none());
 }
 
-
 // ── next_block_instance_serial tests ────────────────────────────────────
 
 #[test]
@@ -250,7 +242,6 @@ fn next_block_instance_serial_increments() {
     let b = next_block_instance_serial();
     assert!(b > a, "serial should increment monotonically");
 }
-
 
 // ── build_chain_runtime_state with only effects (no I/O blocks) ─────────
 
@@ -265,11 +256,11 @@ fn build_chain_runtime_state_no_io_blocks_uses_fallback() {
         io_binding_ids: vec![],
         blocks: vec![tuner_block("b:0", 440.0)],
         di_output: None,
+        loopers: vec![],
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(runtime.is_ok(), "should build with fallback I/O");
 }
-
 
 // ── bypass_runtime_node tests ───────────────────────────────────────────
 
@@ -291,7 +282,6 @@ fn bypass_runtime_node_has_bypass_processor() {
     assert_eq!(node.input_layout, AudioChannelLayout::Mono);
     assert_eq!(node.output_layout, AudioChannelLayout::Mono);
 }
-
 
 // ── SelectRuntimeState selected_node_mut ────────────────────────────────
 
@@ -316,7 +306,6 @@ fn select_runtime_state_finds_selected_option() {
     assert_eq!(found.unwrap().block_id.0, "opt:b");
 }
 
-
 #[test]
 fn select_runtime_state_returns_none_when_no_match() {
     use super::SelectRuntimeState;
@@ -328,4 +317,3 @@ fn select_runtime_state_returns_none_when_no_match() {
     };
     assert!(state.selected_node_mut().is_none());
 }
-

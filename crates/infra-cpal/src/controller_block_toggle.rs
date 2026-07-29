@@ -1,13 +1,13 @@
 //! Issue #522: per-block AND per-chain enable/disable fast paths on the
 //! controller.
 //!
-//! `Command::ToggleBlockEnabled` used to go through `upsert_chain` →
+//! `BlockCommand::ToggleBlockEnabled` used to go through `upsert_chain` →
 //! `resolve_chain_audio_config` (CPAL device queries) → full chain rebuild.
 //! For a one-bit flip on a block, the audio engine already supports
 //! click-safe `FadeState` transitions on the live `BlockRuntimeNode`
 //! (see `engine::runtime::set_block_enabled`).
 //!
-//! `Command::ToggleChainEnabled` used to drop the runtime entirely on
+//! `ChainCommand::ToggleChainEnabled` used to drop the runtime entirely on
 //! disable and rebuild from scratch on the next enable. `pause_chain`
 //! keeps the runtime alive and just flips `set_draining()`; resume is
 //! the matching `clear_draining()` — both O(1), no NAM reload, no CPAL
@@ -46,7 +46,7 @@ impl ProjectRuntimeController {
         Ok(())
     }
 
-    /// The live block-toggle path the GUI takes for `Command::ToggleBlockEnabled`:
+    /// The live block-toggle path the GUI takes for `BlockCommand::ToggleBlockEnabled`:
     /// flip the block on the guitar runtime (the #522 fast path) AND re-render a
     /// monitored DI so the toggle is audible there too.
     ///

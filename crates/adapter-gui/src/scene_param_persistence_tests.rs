@@ -8,7 +8,9 @@
 use crate::project_ops::{create_new_project_session, load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
-use application::command::{Command, RigNavKind};
+use application::command::{
+    BlockCommand, ChainCommand, Command, ProjectCommand, RigNavKind, SelectionCommand,
+};
 use application::dispatcher::CommandDispatcher;
 use domain::ids::BlockId;
 use std::path::PathBuf;
@@ -66,18 +68,18 @@ fn setup_one_chain_with_gate(s: &Sandbox) -> (ProjectSession, BlockId) {
     });
     session
         .dispatcher
-        .dispatch(Command::SaveChain { chain })
+        .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
         .expect("SaveChain");
     let chain_id = session.project.borrow().chains[0].id.clone();
     // Insert a gate_basic between input and output via AddBlock.
     session
         .dispatcher
-        .dispatch(Command::AddBlock {
+        .dispatch(Command::Block(BlockCommand::AddBlock {
             chain: chain_id.clone(),
             kind: "dynamics".into(),
             model_id: "gate_basic".into(),
             position: 1,
-        })
+        }))
         .expect("AddBlock");
     // Pull the new block id from the project.
     let gate = session
@@ -97,7 +99,7 @@ fn setup_one_chain_with_gate(s: &Sandbox) -> (ProjectSession, BlockId) {
     // re-projection wipes it).
     session
         .dispatcher
-        .dispatch(Command::CaptureRigEdits)
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
         .expect("capture");
     (session, gate)
 }
@@ -126,25 +128,25 @@ fn scene_2_param_edit_persists_after_capture() {
     // Add scene 2 (becomes active).
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id.clone(),
             kind: RigNavKind::Scene(-1),
-        })
+        }))
         .expect("add scene");
 
     // Edit threshold while on scene 2.
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterNumber {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id.clone(),
             block: gate.clone(),
             path: "threshold".into(),
             value: -55.0,
-        })
+        }))
         .expect("set threshold");
     session
         .dispatcher
-        .dispatch(Command::CaptureRigEdits)
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
         .expect("capture");
 
     // The rig's scene 2 must carry the override.
@@ -180,19 +182,19 @@ fn scene_param_edit_survives_save_and_reload() {
     // Switch on scene 2 and set the override.
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id.clone(),
             kind: RigNavKind::Scene(-1),
-        })
+        }))
         .expect("add scene");
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterNumber {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id,
             block: gate.clone(),
             path: "threshold".into(),
             value: -55.0,
-        })
+        }))
         .expect("set threshold");
 
     s.save(&session);
@@ -202,10 +204,10 @@ fn scene_param_edit_survives_save_and_reload() {
     let new_chain_id = reloaded.project.borrow().chains[0].id.clone();
     reloaded
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: new_chain_id,
             kind: RigNavKind::Scene(2),
-        })
+        }))
         .expect("switch to scene 2");
 
     let v = read_gate_threshold(&reloaded, &gate);
@@ -226,38 +228,38 @@ fn scene_2_edit_does_not_overwrite_scene_1() {
     // Scene 1 edit.
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterNumber {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id.clone(),
             block: gate.clone(),
             path: "threshold".into(),
             value: -20.0,
-        })
+        }))
         .expect("set s1");
     // Add scene 2 (snapshot from scene 1).
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id.clone(),
             kind: RigNavKind::Scene(-1),
-        })
+        }))
         .expect("add scene 2");
     // Edit on scene 2.
     session
         .dispatcher
-        .dispatch(Command::SetBlockParameterNumber {
+        .dispatch(Command::Block(BlockCommand::SetBlockParameterNumber {
             chain: chain_id.clone(),
             block: gate.clone(),
             path: "threshold".into(),
             value: -77.0,
-        })
+        }))
         .expect("set s2");
     // Switch back to scene 1 — the original edit must still apply.
     session
         .dispatcher
-        .dispatch(Command::ApplyRigNav {
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
             chain: chain_id,
             kind: RigNavKind::Scene(1),
-        })
+        }))
         .expect("switch to scene 1");
 
     let v = read_gate_threshold(&session, &gate);

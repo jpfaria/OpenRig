@@ -27,6 +27,9 @@ pub struct SelectionState {
     /// Snapshot of the spectrum button. MIDI slot
     /// `toggle_spectrum` reads it to dispatch `SetSpectrumEnabled { !current }`.
     pub spectrum_enabled: bool,
+    /// #14: snapshot of the metronome power button. MIDI slot
+    /// `toggle_metronome` reads it to dispatch `SetMetronomeEnabled { !current }`.
+    pub metronome_enabled: bool,
     /// Snapshot of the active chain's `enabled` flag, so MIDI slot
     /// `toggle_active_chain_enabled` knows what to flip without
     /// touching the project from the slot.

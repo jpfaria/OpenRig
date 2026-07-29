@@ -28,16 +28,17 @@ use crate::block_editor::{
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
-use crate::helpers::{sync_block_editor_window, use_inline_block_editor};
+use crate::helpers::use_inline_block_editor;
 use crate::project_view::{block_model_picker_items, block_type_picker_items, set_selected_block};
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::ui_index_to_real_block_index;
 use crate::{
-    AppWindow, BlockEditorWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem,
-    CurveEditorPoint, MultiSliderPoint, ProjectChainItem,
+    AppWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, CurveEditorPoint,
+    MultiSliderPoint, ProjectChainItem,
 };
 
 pub(crate) struct BlockInsertCallbacksCtx {
+    pub inline_tab_state: Rc<RefCell<crate::block_editor_param_tabs::TabState>>,
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub block_type_options: Rc<VecModel<BlockTypePickerItem>>,
@@ -59,12 +60,9 @@ pub(crate) struct BlockInsertCallbacksCtx {
     pub auto_save: bool,
 }
 
-pub(crate) fn wire(
-    window: &AppWindow,
-    block_editor_window: &BlockEditorWindow,
-    ctx: BlockInsertCallbacksCtx,
-) {
+pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
     let BlockInsertCallbacksCtx {
+        inline_tab_state,
         selected_block,
         block_editor_draft,
         block_type_options,
@@ -167,7 +165,6 @@ pub(crate) fn wire(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_choose_block_model(move |index| {
@@ -203,7 +200,12 @@ pub(crate) fn wire(
                 project::catalog::model_knob_layout(&model.effect_type, &model.model_id),
                 &new_params,
             );
-            block_parameter_items.set_vec(new_params);
+            crate::block_editor_param_tabs::apply_inline_param_tabs(
+                &window,
+                &block_parameter_items,
+                &inline_tab_state,
+                new_params,
+            );
             multi_slider_points.set_vec(build_multi_slider_points(
                 &model.effect_type,
                 &model.model_id,
@@ -229,12 +231,13 @@ pub(crate) fn wire(
             window.set_eq_total_curve(eq_total.into());
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
+            // Only the inline (fullscreen/touch) editor reads the main window's
+            // overlays; the detached editor builds its own via create_and_wire
+            // (#815/#819). The main-window model picker is inline-only now.
             if use_inline_block_editor(&window) {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-            } else if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window
-                    .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                sync_block_editor_window(&window, &block_editor_window);
+                // #819: knob count changed -> re-publish the #500 panel height.
+                crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             }
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(

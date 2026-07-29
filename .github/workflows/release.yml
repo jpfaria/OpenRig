@@ -128,6 +128,19 @@ jobs:
           key: macos-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: macos-cargo-
 
+      - name: Bump workspace version from the tag
+        # The tag is the source of truth for the released version (#820). The
+        # launcher footer renders env!("CARGO_PKG_VERSION"), so the workspace
+        # manifest has to carry the tag's version before anything is compiled —
+        # otherwise the binary ships a stale version under a fresh artifact name.
+        # create-release commits the same bump back to develop.
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          source scripts/lib/release-version.sh
+          VERSION="$(release_version_from_tag "$GITHUB_REF_NAME")"
+          set_workspace_version Cargo.toml "$VERSION"
+
       - name: Resolve version
         id: ver
         run: |
@@ -198,6 +211,15 @@ jobs:
             target
           key: linux-x86_64-u24-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: linux-x86_64-u24-cargo-
+
+      - name: Bump workspace version from the tag
+        # See build-macos for why this has to precede the build (#820).
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          source scripts/lib/release-version.sh
+          VERSION="$(release_version_from_tag "$GITHUB_REF_NAME")"
+          set_workspace_version Cargo.toml "$VERSION"
 
       - name: Resolve version
         id: ver
@@ -272,6 +294,15 @@ jobs:
           key: linux-aarch64-u24-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: linux-aarch64-u24-cargo-
 
+      - name: Bump workspace version from the tag
+        # See build-macos for why this has to precede the build (#820).
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          source scripts/lib/release-version.sh
+          VERSION="$(release_version_from_tag "$GITHUB_REF_NAME")"
+          set_workspace_version Cargo.toml "$VERSION"
+
       - name: Resolve version
         id: ver
         run: |
@@ -329,6 +360,15 @@ jobs:
             target
           key: windows-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: windows-x64-cargo-
+
+      - name: Bump workspace version from the tag
+        # See build-macos for why this has to precede the build (#820).
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          source scripts/lib/release-version.sh
+          VERSION="$(release_version_from_tag "$GITHUB_REF_NAME")"
+          set_workspace_version Cargo.toml "$VERSION"
 
       - name: Download ASIO SDK
         shell: pwsh
@@ -517,3 +557,48 @@ jobs:
             -X PATCH \
             -f state=closed
           echo "Closed milestone #${MILESTONE_NUMBER}"
+
+  # --------------------------------------------------------------------------
+  # Commit the version bump back to develop (issue #820)
+  #
+  # The build jobs patch Cargo.toml inside their runner so the binary reports
+  # the tag's version, but that edit dies with the runner. Without this job the
+  # repository keeps the previous version and the next release starts from a
+  # stale manifest again. develop is the source of truth; main picks the bump
+  # up through the usual develop -> main merge.
+  # --------------------------------------------------------------------------
+  commit-version-bump:
+    name: Commit version bump to develop
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Bump workspace version and refresh the lockfile
+        run: |
+          source scripts/lib/release-version.sh
+          VERSION="$(release_version_from_tag "$GITHUB_REF_NAME")"
+          set_workspace_version Cargo.toml "$VERSION"
+          # -w rewrites only the workspace members' own entries; dependency
+          # resolutions stay pinned exactly as the release was built.
+          cargo update --workspace --quiet
+
+      - name: Commit and push
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if git diff --quiet -- Cargo.toml Cargo.lock; then
+            echo "develop is already at ${TAG#v} — nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore: bump workspace version to ${TAG#v}"
+          git pull --rebase origin develop
+          git push origin develop

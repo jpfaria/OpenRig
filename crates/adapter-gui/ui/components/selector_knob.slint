@@ -32,8 +32,8 @@ export component SelectorKnob inherits Rectangle {
         }
     }
 
-    // Click on knob cycles
-    TouchArea {
+    // Click on knob cycles. Named so headless interaction tests can press it.
+    ta := TouchArea {
         x: 0; y: 0;
         width: root.ks;
         height: root.ks;

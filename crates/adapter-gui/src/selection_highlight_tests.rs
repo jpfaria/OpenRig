@@ -55,6 +55,7 @@ fn chain(id: &str) -> Chain {
             io_block("out", false),
         ],
         di_output: None,
+        loopers: vec![],
     }
 }
 

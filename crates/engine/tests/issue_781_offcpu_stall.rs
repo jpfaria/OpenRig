@@ -88,8 +88,14 @@ fn thread_cpu_us() -> u128 {
     const THREAD_BASIC_INFO: i32 = 3;
     const COUNT: u32 = (std::mem::size_of::<ThreadBasicInfo>() / std::mem::size_of::<i32>()) as u32;
     let mut info = ThreadBasicInfo {
-        user_time: TimeValue { seconds: 0, microseconds: 0 },
-        system_time: TimeValue { seconds: 0, microseconds: 0 },
+        user_time: TimeValue {
+            seconds: 0,
+            microseconds: 0,
+        },
+        system_time: TimeValue {
+            seconds: 0,
+            microseconds: 0,
+        },
         cpu_usage: 0,
         policy: 0,
         run_state: 0,
@@ -202,7 +208,10 @@ fn nam(id: &str, model: &str, preset: &str) -> AudioBlock {
     AudioBlock {
         id: BlockId(id.into()),
         enabled: true,
-        kind: AudioBlockKind::Nam(NamBlock { model: model.into(), params: p }),
+        kind: AudioBlockKind::Nam(NamBlock {
+            model: model.into(),
+            params: p,
+        }),
     }
 }
 
@@ -213,7 +222,10 @@ fn eq8() -> AudioBlock {
         p.insert(format!("band{b}_freq"), ParameterValue::Float(1000.0));
         p.insert(format!("band{b}_gain"), ParameterValue::Float(0.0));
         p.insert(format!("band{b}_q"), ParameterValue::Float(1.0));
-        p.insert(format!("band{b}_type"), ParameterValue::String("peak".into()));
+        p.insert(
+            format!("band{b}_type"),
+            ParameterValue::String("peak".into()),
+        );
     }
     p.insert("output_db", ParameterValue::Float(0.0));
     core("eq8", "filter", "eq_eight_band_parametric", p)
@@ -249,8 +261,11 @@ fn build() -> Arc<ChainRuntimeState> {
             eq8(),
         ],
         di_output: None,
+        loopers: vec![],
     };
-    Arc::new(build_chain_runtime_state(&chain, SR, &[BUFFER], &registry()).expect("build rig chain"))
+    Arc::new(
+        build_chain_runtime_state(&chain, SR, &[BUFFER], &registry()).expect("build rig chain"),
+    )
 }
 
 #[test]
@@ -321,11 +336,16 @@ fn residual_underrun_is_offcpu_or_oncpu_on_the_real_rig() {
     eprintln!("[#781 offcpu] period={PERIOD_US}us  iters={ITERS}  (single-thread, NO contention)");
     eprintln!(
         "[#781 offcpu] A) HOT tight loop     compute: median={}us  p99={}us  p999={}us",
-        p(&hot, 50), p(&hot, 99), p(&hot, 999 / 10)
+        p(&hot, 50),
+        p(&hot, 99),
+        p(&hot, 999 / 10)
     );
     eprintln!(
         "[#781 offcpu] B) REAL cadence       compute: median={}us  p99={}us  p999={}us  MAX={}us",
-        p(&cold_cpu, 50), p(&cold_cpu, 99), p(&cold_cpu, 999 / 10), cold_cpu[cold_cpu.len() - 1]
+        p(&cold_cpu, 50),
+        p(&cold_cpu, 99),
+        p(&cold_cpu, 999 / 10),
+        cold_cpu[cold_cpu.len() - 1]
     );
     eprintln!(
         "[#781 offcpu] B) REAL cadence       wall   : median={}us  p99={}us  MAX={}us  late(>period)={cold_late}",
@@ -333,7 +353,9 @@ fn residual_underrun_is_offcpu_or_oncpu_on_the_real_rig() {
     );
     eprintln!(
         "[#781 offcpu] B) REAL cadence      off-cpu : median={}us  p99={}us  MAX={}us",
-        p(&cold_off, 50), p(&cold_off, 99), cold_off[cold_off.len() - 1]
+        p(&cold_off, 50),
+        p(&cold_off, 99),
+        cold_off[cold_off.len() - 1]
     );
     eprintln!(
         "[#781 offcpu] cold/hot compute p99 ratio = {:.1}x   pageins Δ={}  csw Δ={}",

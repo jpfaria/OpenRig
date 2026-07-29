@@ -21,7 +21,7 @@ use slint::{ComponentHandle, Timer, VecModel};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::AppConfig;
 
-use application::command::Command;
+use application::command::{Command, ProjectCommand};
 use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::ensure_devices_loaded;
@@ -94,16 +94,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    // #436 E: abrir projeto é negócio → Command::LoadProject
+                    // #436 E: abrir projeto é negócio → ProjectCommand::LoadProject
                     // no dispatcher da sessão (MCP/MIDI, observável via
                     // Event::ProjectLoaded). O load de arquivo + swap de
                     // sessão/runtime é adapter-side (precedente SaveProject).
                     {
                         let project = session.project.borrow().clone();
-                        if let Err(e) = session.dispatcher.dispatch(Command::LoadProject {
-                            project,
-                            path: canonical_path.clone(),
-                        }) {
+                        if let Err(e) = session.dispatcher.dispatch(Command::Project(
+                            ProjectCommand::LoadProject {
+                                project,
+                                path: canonical_path.clone(),
+                            },
+                        )) {
                             log::warn!("[open-project] Command::LoadProject falhou: {e}");
                         }
                     }
@@ -138,10 +140,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     // no dispatcher (MCP/MIDI, observável). save_app_config
                     // abaixo é adapter-side (precedente SaveProject).
                     if let Some(s) = project_session.borrow().as_ref() {
-                        let _ = s.dispatcher.dispatch(Command::RegisterRecentProject {
-                            path: canonical_path.clone(),
-                            name: display_name.clone(),
-                        });
+                        let _ = s.dispatcher.dispatch(Command::Project(
+                            ProjectCommand::RegisterRecentProject {
+                                path: canonical_path.clone(),
+                                name: display_name.clone(),
+                            },
+                        ));
                     }
                     {
                         // #693: config write runs on the persist worker — the
@@ -228,7 +232,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             stop_project_runtime(&project_runtime);
             let session = create_new_project_session(&project_paths.default_config_path);
-            // #436 E: criar projeto é negócio → Command::CreateProject no
+            // #436 E: criar projeto é negócio → ProjectCommand::CreateProject no
             // dispatcher da sessão (MCP/MIDI, observável via
             // Event::ProjectCreated). O build da sessão é adapter-side
             // (precedente SaveProject).
@@ -236,14 +240,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 let project = session.project.borrow().clone();
                 if let Err(e) = session
                     .dispatcher
-                    .dispatch(Command::CreateProject { project })
+                    .dispatch(Command::Project(ProjectCommand::CreateProject { project }))
                 {
                     log::warn!("[new-project] Command::CreateProject falhou: {e}");
                 }
             }
-            let _ = session
-                .dispatcher
-                .dispatch(Command::UpdateProjectName { name: name.clone() });
+            let _ =
+                session
+                    .dispatcher
+                    .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
+                        name: name.clone(),
+                    }));
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),
@@ -286,6 +293,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
+        // #323: the loop sidecars are written from the live runtimes.
+        let project_runtime = project_runtime.clone();
         window.on_save_project(move || {
             log::info!("on_save_project triggered");
             let Some(window) = weak_window.upgrade() else {
@@ -329,11 +338,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     .attach_presets_path(session.presets_path.clone());
                 path
             };
+            // #323: a recorded loop is audio — write it as a sidecar and let
+            // the chain remember the file, BEFORE the project is serialized.
+            crate::looper_persist::save_chain_loops(session, &project_runtime, &project_path);
             // #555: the file writes used to happen here via
             // `save_project_session(session, &project_path)`. They now
-            // live inside the `Command::SaveProject` dispatcher handler
+            // live inside the `ProjectCommand::SaveProject` dispatcher handler
             // — MCP/MIDI clients reach the same on-disk state.
-            match session.dispatcher.dispatch(Command::SaveProject) {
+            match session
+                .dispatcher
+                .dispatch(Command::Project(ProjectCommand::SaveProject))
+            {
                 Ok(_) => {
                     let canonical_path =
                         canonical_project_path(&project_path).unwrap_or(project_path.clone());
@@ -344,10 +359,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         &recent_name,
                     );
                     // #436 (sweep): registrar recente via Command.
-                    let _ = session.dispatcher.dispatch(Command::RegisterRecentProject {
-                        path: canonical_path.clone(),
-                        name: recent_name,
-                    });
+                    let _ = session.dispatcher.dispatch(Command::Project(
+                        ProjectCommand::RegisterRecentProject {
+                            path: canonical_path.clone(),
+                            name: recent_name,
+                        },
+                    ));
                     {
                         // #693: config write runs on the persist worker — the
                         // GUI thread never waits on disk.

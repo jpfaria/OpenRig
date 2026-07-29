@@ -156,6 +156,16 @@ explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
 
 A chain's DI loop plays on its **own isolated, streamed runtime** (#771) — it never replaces or rides the guitar's live input. Arming resolves the chain's persisted output choice (`Chain.di_output` → one of its bound output endpoints; absent → the main output), builds a fresh copy of the chain's block graph REDUCED to that output's binding (so the loop feeds the route the chosen output drains, #716/#699) on a `di-stream` worker, and parks a ring-backed playback on that output's cell immediately — a 75 s loop starts in milliseconds (the full pre-render tried first took minutes before the first sample). The worker steps the runtime paced by **ring backpressure**: it only produces what the output callback consumed, so the output device clock IS the DI clock — no drift by construction (the sleep-paced worker tried in #717 drifted and was reverted) — and the callback only pops frames and sums (zero allocation/locks/DSP, invariant #8). Decoding, resampling (per-output rate, #749) and all block DSP happen off the audio thread. The guitar runtime, its meters, and every other output are untouched (isolation invariant #4); a device-rate change re-arms at the new rate (#669). A live edit (a param change or a block toggle) re-renders the DI **gaplessly** (#785): the playback that is sounding keeps playing while the new render is built and pre-rolled off-thread, and the incoming worker takes the output's cell over mid-loop — at exactly the loop position the listener reaches (`DiPlayback::play_pos`, `set_di_loop_pos`) — so the edit lands with neither a silent gap nor a restart of the take. The outgoing playback is retired off the audio thread, never dropped by the callback (invariant #8). The **source** choice stays runtime-only; only the **output** choice persists, inside the chain in `project.openrig` (ADR 0003). See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details.
 
+### Per-chain looper (#323)
+
+Each `ChainRuntimeState` owns a `LooperBank` — up to 8 loopers, each up to 60 s of stereo at that runtime's **live** sample rate. The bank sits inside `ChainProcessingState` (the audio thread already holds `&mut` to it) and is driven by a lock-free op queue, the same pattern as the block-toggle fast path (#580): the control thread never takes the `processing` lock, it pushes a `LooperOp` and the audio thread drains it inside the section it already owns.
+
+**Where it sits in the signal path.** The loopers run at the chain input, on the chain's FIRST segment only (#699: a chain's loop material is heard exactly once, no matter how many segments share the callback). They record the dry frame that feeds the segment — after the DI substitution, so recording works while monitoring a DI — and SUM their playback into it, unlike the DI loop which REPLACES the frame. The loop therefore runs through the entire block graph and follows every live edit.
+
+**Memory and the RT contract.** Layer buffers are allocated by the control thread and handed to the audio thread inside the op; buffers a looper is done with (cleared, undone past the ring, refused) go back through a return queue and are dropped on the GUI tick. The audio thread never allocates, locks or frees (invariant #8) — pinned by `looper_record_overdub_and_undo_do_not_allocate` in `audio_alloc_invariant_tests`. Playback sums the audible layers on read (one multiply-add per layer per channel per frame), which is what makes undo/redo O(1): they move a counter instead of re-mixing 60-second buffers off-thread.
+
+**Isolation.** A bank belongs to exactly ONE runtime. A chain served by several parallel runtimes (#703) gets one bank per runtime, each recording its own input with its own buffers — two audio threads never touch the same memory, and a chain-level status reads whichever runtime actually holds material. An off-thread rebuild carries the banks over (`adopt_taps_from`), so a live edit does not wipe a recorded loop; a rebuild that CHANGED the sample rate drops them instead of replaying frames at the wrong speed (the #669 failure mode).
+
 ### Per-entry stream isolation (issues #350 / #703)
 
 Every **raw input entry** of a chain owns its own isolated
@@ -374,6 +384,76 @@ language: pt-BR  # ou en-US, ou null para seguir o OS
 `gui-settings.yaml` legado é migrado automaticamente para `config.yaml` no primeiro boot e removido — sem ação manual.
 
 `load_project_session()` popula `project.device_settings` em memória. YAML do projeto **não persiste** `device_settings` (`skip_serializing`), mas YAML antigo com o campo ainda deserializa.
+
+## Metronome output stream (#14)
+
+The metronome does **not** run inside any chain. It opens its **own** cpal output stream on the device the user picks, and the operating system sums it with whatever else that device is playing — the same shape the DI adopted in #808, and invariant #4 applied literally:
+
+```
+guitar:     [in] -> [chain] -> [out dev A]  \
+                                             > backend sums
+metronome:            [click] -> [out dev A] /
+```
+
+What this buys, and why it is not negotiable:
+
+- **Nothing was added to the guitar's audio path.** `process_output_f32`, `process_output_f32_mixed`, `runtime_process_segment` and the output limiter are untouched, so the metronome cannot regress latency, the volume invariants, or stream stability.
+- **Neither side can break the other.** A chain rebuild, a live block edit or a chain failure cannot chop the click; a missing metronome device cannot stop guitar audio.
+- **The click cannot leak.** It never enters a chain's buffers, so it stays out of that chain's meters, taps, and anything recorded off another output.
+
+There is no ring and no worker thread, unlike the DI: the click is synthesized, so the callback renders it directly from a pre-allocated scratch buffer. Settings reach the callback through atomics versioned by a generation counter (`engine/metronome_state.rs`), so the audio thread neither locks nor allocates (invariant #8). The stream's sample rate comes from the resolved device config — never a constant.
+
+Settings live in **system** config (`config.yaml`), per ADR 0003; `enabled` is not persisted, so the app always starts with the click off.
+
+On the Linux JACK build the dedicated cpal stream is `cfg`-guarded off, matching how `build_di_output_stream` handles the same case.
+
+## Multi-rate streams (#736)
+
+Two interfaces running at **different sample rates at the same time, in the
+same chain** — e.g. a 44.1 kHz interface and a 48 kHz interface — is supported.
+Before #736 that configuration was rejected before any stream opened, with
+`mismatched sample rates across inputs (44100 vs 48000)`.
+
+**The rate is resolved per device, and validated per binding.** Each device
+contributes the `sample_rate` saved for it in `config.yaml`; with nothing
+saved, the device's own default rate is used. Every per-input runtime is then
+clocked at the rate of *its own* input device — this follows directly from
+invariant #4: one binding is one isolated stream, and two isolated streams
+share no clock.
+
+What that allows and forbids:
+
+- **Across bindings — free.** Binding A at 44.1 kHz and binding B at 48 kHz in
+  one chain is valid, and starts two independent streams.
+- **Inside one binding — must match.** If a binding's inputs disagree, or its
+  input and output disagree, activation **fails loudly** rather than starting:
+  `chain '<id>' invalid: mismatched sample rates across inputs (<a> vs <b>)`,
+  or `… across I/O (<a> vs <b>)`. A single isolated stream cannot resample
+  internally, so this is deliberately an error and never a silent conversion.
+  The message surfaces through whichever status/toast belongs to the action
+  that triggered the sync.
+- If the device does not support the chosen rate at the channel count the chain
+  needs, activation fails with `no supported config for sample_rate=<r> with at
+  least <n> channels`.
+
+**Nothing is resampled between streams** — there is no sample-rate conversion
+bridging two pipelines, by design. The one resampler in this area is the DI
+loop, which is resampled *to* each output stream's own rate when armed (#749);
+without that, a loop armed at one rate and played on the other stretched by one
+frame per output frame and dragged into slow motion.
+
+A single-binding chain behaves exactly as before #736 — one binding, one group,
+one rate.
+
+Caveats:
+
+- **JACK (Linux, `jack` feature) is unchanged and out of scope** — the JACK
+  server imposes one rate for everything. Multi-rate applies to the cpal path:
+  macOS, Windows, and Linux built without the `jack` feature.
+- The full path needs two physical interfaces, so it cannot be proven headless.
+  It is covered by the hardware battery (macOS): `OPENRIG_HW_TESTS=1 cargo test
+  -p infra-cpal --release --test issue_736_multi_rate_streams`, which runs 30 s
+  and requires zero xruns and zero underruns.
 
 ## JACK lifecycle (Linux only)
 

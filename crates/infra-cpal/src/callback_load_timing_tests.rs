@@ -20,6 +20,7 @@ fn pipe_runtime() -> Arc<ChainRuntimeState> {
         io_binding_ids: vec!["io".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let registry = vec![IoBinding {
         id: "io".into(),

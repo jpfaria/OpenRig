@@ -209,6 +209,54 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #14: the metronome was started or stopped. The adapter opens or closes
+    /// the metronome's dedicated output stream; the dispatcher only records
+    /// that the request came through the bus.
+    MetronomeEnabledChanged {
+        enabled: bool,
+    },
+
+    /// #14: the tempo changed. Already clamped to the supported range — the
+    /// adapter can hand this straight to the generator.
+    MetronomeBpmChanged {
+        bpm: f32,
+    },
+
+    /// #14: beats per bar changed, already clamped.
+    MetronomeTimeSignatureChanged {
+        beats_per_bar: u32,
+    },
+
+    /// #14: the subdivision changed. Parsed and validated by the dispatcher.
+    MetronomeSubdivisionChanged {
+        subdivision: String,
+    },
+
+    /// #14: the click level changed, already clamped to `0.0..=1.0`.
+    MetronomeVolumeChanged {
+        volume: f32,
+    },
+
+    /// #14: the click timbre changed. Parsed and validated by the dispatcher.
+    MetronomeTimbreChanged {
+        timbre: String,
+    },
+
+    /// #14: the count-in bar was turned on or off.
+    MetronomeCountInChanged {
+        enabled: bool,
+    },
+
+    /// #14: the metronome's output device changed. The adapter reopens the
+    /// dedicated stream on the new device.
+    MetronomeOutputChanged {
+        device_id: Option<String>,
+    },
+
+    /// #14: the tap-tempo button was tapped. The adapter owns the tap history
+    /// and dispatches the resulting `SetMetronomeBpm`.
+    MetronomeTapped,
+
     /// #591: the compact view was toggled (MIDI slot `toggle_compact_view`
     /// → `SetCompactViewEnabled`). The adapter opens/closes the per-chain
     /// compact window for the active chain; without this event the MIDI
@@ -345,6 +393,63 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #323: a looper was added to a chain; `looper` is the uid the
+    /// dispatcher assigned. The adapter wiring claims the matching slot on
+    /// the chain's runtimes.
+    ChainLooperAdded {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323: a looper was removed from a chain.
+    ChainLooperRemoved {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323: a transport action was requested for a looper. The adapter
+    /// wiring turns it into the matching `engine::LooperOp` — allocating the
+    /// layer buffer off the audio thread when the action starts a recording.
+    ChainLooperTransportChanged {
+        chain: ChainId,
+        looper: u64,
+        action: crate::command::LooperAction,
+    },
+
+    /// #323: a looper's recorded-audio pointer changed on the chain.
+    ChainLooperAudioFileChanged {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323: a looper's chosen input endpoint changed. The adapter re-binds
+    /// the looper to the segment serving that input so REC captures it.
+    ChainLooperInputChanged {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323: a looper's chosen output endpoint changed.
+    ChainLooperOutputChanged {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323 phase 2: a looper's linked preset changed — the loop now plays
+    /// through a different preset's effects (or back to the chain's current
+    /// one). The adapter re-resolves the playback blocks on the next tick.
+    ChainLooperPresetChanged {
+        chain: ChainId,
+        looper: u64,
+    },
+
+    /// #323: a looper parameter changed and was persisted on the chain.
+    ChainLooperParamChanged {
+        chain: ChainId,
+        looper: u64,
+        param: crate::command::LooperParam,
+    },
+
     /// #717 Task 3: the chain's chosen DI output endpoint was persisted.
     ///
     /// The adapter-gui reacts to this event to refresh any UI showing the
@@ -354,84 +459,33 @@ pub enum Event {
         chain: ChainId,
     },
 
+    // ── Tone Doctor (#791) ────────────────────────────────────────────────────
+    /// #791: a diagnosis finished for a chain. Carries the whole verdict —
+    /// symptom, culprit block, the measurements behind it, and the measured
+    /// fix when one exists — so every transport shows the same result.
+    ChainToneDiagnosed {
+        chain: ChainId,
+        report: crate::tone_doctor_report::ToneReport,
+    },
+
+    /// #791: the diagnosed fix was applied to the culprit's knob. The
+    /// underlying `BlockParameterChanged` is emitted too; this one names the
+    /// doctor as the author so an adapter can report it as such.
+    ChainToneFixApplied {
+        chain: ChainId,
+        block: BlockId,
+        path: String,
+        value: f32,
+    },
+
     // ── I/O binding registry (#716) ───────────────────────────────────────────
     /// #716: the per-machine I/O binding registry in `config.yaml` was
     /// mutated (create, update, or delete). MCP/gRPC adapters that cache
     /// the registry invalidate their cache on receipt.
     IoBindingRegistryChanged,
-}
 
-impl Event {
-    /// The chain this event affected, if any. Project-wide events
-    /// (`ProjectSaved`, `ProjectMutated`, …) return `None`. Used by the
-    /// MIDI/MCP drain to re-sync exactly the chains a footswitch touched.
-    pub fn chain(&self) -> Option<&ChainId> {
-        match self {
-            Event::ChainReloaded { chain }
-            | Event::BlockParameterChanged { chain, .. }
-            | Event::BlockEnabledChanged { chain, .. }
-            | Event::BlockReplaced { chain, .. }
-            | Event::BlockAdded { chain, .. }
-            | Event::BlockRemoved { chain, .. }
-            | Event::DeviceChanged { chain, .. }
-            | Event::ChainAdded { chain }
-            | Event::ChainRemoved { chain }
-            | Event::ChainEnabledChanged { chain, .. }
-            | Event::ChainMoved { chain, .. }
-            | Event::ChainConfigured { chain }
-            | Event::ChainSaved { chain }
-            | Event::ChainInputEndpointsSaved { chain }
-            | Event::ChainOutputEndpointsSaved { chain }
-            | Event::ChainIoSaved { chain }
-            | Event::InsertBlockSaved { chain, .. }
-            | Event::ChainPresetLoaded { chain }
-            | Event::ChainVolumeChanged { chain, .. }
-            | Event::ChainIoBindingsChanged { chain, .. }
-            | Event::BlockSelectionChanged { chain, .. }
-            | Event::ChainDiLoopSourceChanged { chain }
-            | Event::ChainDiLoopEnabledChanged { chain, .. }
-            | Event::ChainDiLoopOutputChanged { chain } => Some(chain),
-            Event::ProjectMutated
-            | Event::AudioSettingsSaved
-            | Event::ProjectLoaded
-            | Event::ProjectSaved
-            | Event::ProjectCreated
-            // #436 F/G/H/E + sweep: app/project-wide events, no ChainId.
-            | Event::LanguageChanged { .. }
-            | Event::OutputMutedChanged { .. }
-            | Event::RecentProjectRemoved { .. }
-            | Event::RecentProjectRegistered { .. }
-            | Event::RecentProjectInvalidated { .. }
-            | Event::ChainPresetSaved { .. }
-            | Event::ChainPresetDeleted { .. }
-            | Event::TunerEnabledChanged { .. }
-            | Event::SpectrumEnabledChanged { .. }
-            | Event::CompactViewEnabledChanged { .. }
-            | Event::MidiEnabledChanged { .. }
-            | Event::McpEnabledChanged { .. }
-            | Event::ProjectClosed
-            // #513 / #493: MIDI device / mapping / learn events live at the
-            // system or project root, not a single chain.
-            | Event::MidiDevicesSaved
-            | Event::MidiMappingSaved
-            | Event::MidiLearnStarted
-            | Event::MidiLearnStopped
-            | Event::MidiEventReceived { .. }
-            // #513: system-level paths event, never tied to a chain.
-            | Event::PathsSaved
-            // #561: catalog-wide reload, never tied to a single chain.
-            | Event::PluginCatalogReloaded { .. }
-            // #561 (expanded scope): per-plugin load/unload, also catalog-scope.
-            | Event::PluginLoaded { .. }
-            | Event::PluginUnloaded { .. }
-            | Event::PluginLoadFailed { .. }
-            // #576: offline render does not touch any chain in the live project.
-            | Event::RenderCompleted { .. }
-            | Event::Error { .. }
-            // #716: I/O binding registry is a system-level concern, not tied to any chain.
-            | Event::IoBindingRegistryChanged => None,
-        }
-    }
+    /// #829: the audio device list was re-enumerated (USB hot-swap).
+    AudioDevicesRefreshed,
 }
 
 #[cfg(test)]

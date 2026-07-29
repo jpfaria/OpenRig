@@ -31,7 +31,11 @@ fn render_probe(
     let mono = signal.generate(PROBE_SECS, sample_rate);
     let input: Vec<[f32; 2]> = mono.iter().map(|&s| [s, s]).collect();
     let outcome = render_chain(chain, sample_rate, &input, block_size, 0)?;
-    Ok(outcome.samples.iter().map(|f| 0.5 * (f[0] + f[1])).collect())
+    Ok(outcome
+        .samples
+        .iter()
+        .map(|f| 0.5 * (f[0] + f[1]))
+        .collect())
 }
 
 /// Measure a chain's objective quality by running the synthetic battery through

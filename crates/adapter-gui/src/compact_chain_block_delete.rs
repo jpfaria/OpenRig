@@ -1,16 +1,16 @@
 //! Compact-chain block delete + reorder callback wiring (issue #792 split
 //! from compact_chain_block_handlers.rs).
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
-use application::command::Command;
-use application::dispatcher::CommandDispatcher;
 use crate::compact_block_view::build_compact_blocks;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::sync_live_chain_runtime;
 use crate::{AppWindow, CompactChainViewWindow};
+use application::command::{BlockCommand, Command};
+use application::dispatcher::CommandDispatcher;
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::compact_chain_block_handlers::CompactChainBlockHandlersCtx;
 
@@ -121,10 +121,13 @@ pub(crate) fn wire_block_delete(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            if let Err(e) = session.dispatcher.dispatch(Command::RemoveBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-            }) {
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::Block(BlockCommand::RemoveBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                }))
+            {
                 log::error!("[compact] remove-block dispatch: {e}");
                 return;
             }
@@ -149,8 +152,6 @@ pub(crate) fn wire_block_delete(
             );
         });
     }
-
-
 }
 
 pub(crate) fn wire_block_reorder(
@@ -219,12 +220,14 @@ pub(crate) fn wire_block_reorder(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else { return; };
-            // Dispatch Command::MoveBlock — mutates project via shared Rc.
-            if let Err(e) = session.dispatcher.dispatch(Command::MoveBlock {
-                chain: chain_id.clone(),
-                block: block_id,
-                new_position: insert_at,
-            }) {
+            // Dispatch BlockCommand::MoveBlock — mutates project via shared Rc.
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::Block(BlockCommand::MoveBlock {
+                    chain: chain_id.clone(),
+                    block: block_id,
+                    new_position: insert_at,
+                })) {
                 log::error!("[compact] reorder-block dispatch: {}", e);
                 return;
             }
@@ -238,6 +241,4 @@ pub(crate) fn wire_block_reorder(
             sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
         });
     }
-
 }
-

@@ -40,14 +40,24 @@ const MAX_RENDERS: usize = 8;
 /// "Treble" as well as a native block's bare `treble`.
 fn symptom_keywords(symptom: Symptom) -> &'static [&'static str] {
     match symptom {
-        Symptom::Fizz => &["presence", "treble", "tone", "bright", "high", "fuzz", "drive", "gain"],
+        Symptom::Fizz => &[
+            "presence", "treble", "tone", "bright", "high", "fuzz", "drive", "gain",
+        ],
         Symptom::Mud => &["bass", "low", "body", "middle", "mid"],
         Symptom::Boomy => &["bass", "low", "body", "sub"],
         // Deficit: the sweep tries BOTH directions, so these just name the knobs
         // that move body / dynamics — thin is cured by more low-mid (raise a
         // bass/body, or lower a tone/tilt), squash by less compression.
         Symptom::Thin => &["bass", "low", "body", "mids", "mid", "tone"],
-        Symptom::Squash => &["ratio", "amount", "compression", "comp", "sustain", "drive", "gain"],
+        Symptom::Squash => &[
+            "ratio",
+            "amount",
+            "compression",
+            "comp",
+            "sustain",
+            "drive",
+            "gain",
+        ],
         Symptom::Clipping => &["output", "level", "master", "volume", "makeup", "gain"],
         Symptom::Ok => &[],
     }

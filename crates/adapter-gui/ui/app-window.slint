@@ -5,17 +5,22 @@ import { DiSourcePicker } from "components/di_source_picker_globals.slint";
 // #749: the DI loop panel (fone → janela with a select + play) is rendered as a
 // single root overlay so it is never clipped by the chain list.
 import { DiPanel } from "components/di_panel_globals.slint";
-import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint";
+import { LooperOverlay } from "components/looper_overlay.slint";
+import { LooperPanel } from "components/looper_panel_globals.slint";
+import { MetronomeBridge } from "components/metronome_globals.slint";
+import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint"; import { BlockParamTabs } from "components/block_param_tabs_globals.slint";
 export { DiPanel }
 import { ChainRigNav } from "models.slint";
 // #749/#780 test-only harnesses exposed as Rust types for headless UI tests.
 import { DiLoopHarness } from "components/di_loop_test_harness.slint";
+import { LooperHarness } from "components/looper_panel_test_harness.slint";
+import { LooperOverlayHarness } from "components/looper_overlay_test_harness.slint";
 import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness }
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
 import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
@@ -26,8 +31,8 @@ import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow } from "secondary_windows_chain.slint";
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
-export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState }
-export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
+export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
+export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
 
@@ -173,6 +178,9 @@ export component AppWindow inherits Window {
     in property <bool> spectrum-enabled: false;
     callback close-spectrum();
     callback toggle-spectrum-enabled(bool);
+    // #14: every metronome control lives on MetronomeWindow, so the top bar
+    // only needs the door that opens it.
+    callback open-metronome-window();
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
@@ -189,6 +197,25 @@ export component AppWindow inherits Window {
     callback di-loop-choose-file(int);
     callback di-loop-play(int);
     callback di-loop-stop(int);
+    /// #323: looper panel actions. First arg is always the chain index, the
+    /// second (where present) the looper uid.
+    callback looper-add(int);
+    callback looper-record(int, int);
+    callback looper-play-stop(int, int);
+    callback looper-undo(int, int);
+    callback looper-redo(int, int);
+    callback looper-clear(int, int);
+    callback looper-remove(int, int);
+    callback looper-mix-changed(int, int, int);
+    callback looper-decay-changed(int, int, int);
+    callback looper-speed-picked(int, int, int);
+    callback looper-reverse-toggled(int, int, bool);
+    callback looper-input-picked(int, int, int);
+    callback looper-output-picked(int, int, int);
+    /// #323 phase 2: a preset was picked for a loop. Args: chain-index, uid,
+    /// index into the chain's `looper_preset_options` (0 = follow the chain).
+    callback looper-preset-picked(int, int, int);
+
     /// #771: an output endpoint was picked in the DI panel.
     /// Args: chain-index, index into the chain's di_loop_outputs.
     callback di-loop-output-selected(int, int); callback tone-doctor-run(int); callback tone-doctor-apply(int); // #791
@@ -458,6 +485,7 @@ export component AppWindow inherits Window {
         spectrum-enabled: root.spectrum-enabled;
         close-spectrum => { root.close-spectrum(); }
         toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
+        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
@@ -670,6 +698,7 @@ export component AppWindow inherits Window {
         spectrum-enabled: root.spectrum-enabled;
         close-spectrum => { root.close-spectrum(); }
         toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
+        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
@@ -840,6 +869,35 @@ export component AppWindow inherits Window {
         play(ci) => { root.di-loop-play(ci); }
         stop(ci) => { root.di-loop-stop(ci); }
         output-selected(ci, i) => { root.di-loop-output-selected(ci, i); }
+    }
+    LooperOverlay {
+        width: root.width; height: root.height;
+        loopers: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
+            ? root.project-chains[LooperPanel.chain-index].loopers
+            : [];
+        input-options: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
+            ? root.project-chains[LooperPanel.chain-index].looper_input_options
+            : [];
+        output-options: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
+            ? root.project-chains[LooperPanel.chain-index].looper_output_options
+            : [];
+        preset-options: (LooperPanel.chain-index >= 0 && LooperPanel.chain-index < root.project-chains.length)
+            ? root.project-chains[LooperPanel.chain-index].looper_preset_options
+            : [];
+        add(ci) => { root.looper-add(ci); }
+        record(ci, uid) => { root.looper-record(ci, uid); }
+        play-stop(ci, uid) => { root.looper-play-stop(ci, uid); }
+        undo(ci, uid) => { root.looper-undo(ci, uid); }
+        redo(ci, uid) => { root.looper-redo(ci, uid); }
+        clear(ci, uid) => { root.looper-clear(ci, uid); }
+        remove(ci, uid) => { root.looper-remove(ci, uid); }
+        mix-changed(ci, uid, v) => { root.looper-mix-changed(ci, uid, v); }
+        decay-changed(ci, uid, v) => { root.looper-decay-changed(ci, uid, v); }
+        speed-picked(ci, uid, v) => { root.looper-speed-picked(ci, uid, v); }
+        reverse-toggled(ci, uid, v) => { root.looper-reverse-toggled(ci, uid, v); }
+        input-picked(ci, uid, v) => { root.looper-input-picked(ci, uid, v); }
+        output-picked(ci, uid, v) => { root.looper-output-picked(ci, uid, v); }
+        preset-picked(ci, uid, v) => { root.looper-preset-picked(ci, uid, v); }
     }
     ToneDoctorOverlay {
         width: root.width; height: root.height;

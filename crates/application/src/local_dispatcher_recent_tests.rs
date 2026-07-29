@@ -1,4 +1,4 @@
-//! Red-first (#436 F): `Command::RemoveRecentProject` despacha e emite
+//! Red-first (#436 F): `ProjectCommand::RemoveRecentProject` despacha e emite
 //! `Event::RecentProjectRemoved { index }` — MCP/MIDI/GUI pela mesma
 //! porta. Precedente `SaveProject` (persistência no adapter).
 
@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use project::project::Project;
 
-use crate::command::Command;
+use crate::command::{Command, ProjectCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -24,7 +24,9 @@ fn dispatcher() -> LocalDispatcher {
 #[test]
 fn remove_recent_project_emits_event_with_index() {
     let events = dispatcher()
-        .dispatch(Command::RemoveRecentProject { index: 3 })
+        .dispatch(Command::Project(ProjectCommand::RemoveRecentProject {
+            index: 3,
+        }))
         .expect("RemoveRecentProject deve ok");
     assert!(
         events

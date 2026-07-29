@@ -156,7 +156,7 @@ pub fn init_many(plugins_roots: &[std::path::PathBuf]) {
 /// and atomically swap it in. Natives are preserved (they cannot be
 /// rediscovered — they have no manifest on disk).
 ///
-/// Used by `Command::ReloadPluginCatalog` (issue #561) so the running
+/// Used by `PluginCommand::ReloadPluginCatalog` (issue #561) so the running
 /// process picks up freshly installed plugins without a restart. Also
 /// adopted by [`init_many`] as the single source of truth for "build
 /// the catalog from these roots".

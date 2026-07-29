@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::ChainId;
@@ -45,6 +45,7 @@ fn rig_with_chain() -> RigProject {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
         },
     );
     RigProject {
@@ -67,10 +68,10 @@ fn relate_and_reopen(binding_ids: Vec<String>) -> Project {
     dispatcher.attach_rig(Rc::clone(&rig));
 
     dispatcher
-        .dispatch(Command::SetChainIoBindings {
+        .dispatch(Command::Chain(ChainCommand::SetChainIoBindings {
             chain: ChainId("rig:in".to_string()),
             binding_ids,
-        })
+        }))
         .expect("SetChainIoBindings must succeed");
 
     let reopened = engine::rig_runtime::rig_to_legacy_project(&rig.borrow(), &BTreeSet::new());

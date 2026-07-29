@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 
-use crate::command::Command;
+use crate::command::{BlockCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 use crate::local_dispatcher_ir_reseed::reseed_ir_output_db;
@@ -12,12 +12,12 @@ impl LocalDispatcher {
     /// Block-parameter commands: set/select a single parameter on a block.
     pub(crate) fn handle_block_param(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
-            Command::SetBlockParameterNumber {
+            Command::Block(BlockCommand::SetBlockParameterNumber {
                 chain,
                 block,
                 path,
                 value,
-            } => {
+            }) => {
                 self.with_block(&chain, &block, |b| {
                     project::block::param_writer::set_parameter_number(b, &path, value)?;
                     reseed_ir_output_db(b, &path);
@@ -25,23 +25,23 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::SetBlockParameterBool {
+            Command::Block(BlockCommand::SetBlockParameterBool {
                 chain,
                 block,
                 path,
                 value,
-            } => {
+            }) => {
                 self.with_block(&chain, &block, |b| {
                     project::block::param_writer::set_parameter_bool(b, &path, value)
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::SetBlockParameterText {
+            Command::Block(BlockCommand::SetBlockParameterText {
                 chain,
                 block,
                 path,
                 value,
-            } => {
+            }) => {
                 self.with_block(&chain, &block, |b| {
                     project::block::param_writer::set_parameter_text(b, &path, &value)?;
                     reseed_ir_output_db(b, &path);
@@ -49,13 +49,13 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::SelectBlockParameterOption {
+            Command::Block(BlockCommand::SelectBlockParameterOption {
                 chain,
                 block,
                 path,
                 value,
                 index: _,
-            } => {
+            }) => {
                 self.with_block(&chain, &block, |b| {
                     project::block::param_writer::set_parameter_option(b, &path, &value)?;
                     reseed_ir_output_db(b, &path);
@@ -63,12 +63,12 @@ impl LocalDispatcher {
                 })?;
                 Ok(vec![Event::BlockParameterChanged { chain, block, path }])
             }
-            Command::PickBlockParameterFile {
+            Command::Block(BlockCommand::PickBlockParameterFile {
                 chain,
                 block,
                 path,
                 file,
-            } => {
+            }) => {
                 self.with_block(&chain, &block, |b| {
                     let file_str = file.to_string_lossy();
                     project::block::param_writer::set_parameter_text(b, &path, file_str.as_ref())

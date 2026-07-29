@@ -17,7 +17,10 @@ use std::path::{Path, PathBuf};
 fn catalog_files() -> Vec<PathBuf> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("translations");
     let mut files = vec![root.join("adapter-gui.pot")];
-    for lang in std::fs::read_dir(&root).expect("translations dir").flatten() {
+    for lang in std::fs::read_dir(&root)
+        .expect("translations dir")
+        .flatten()
+    {
         let po = lang.path().join("LC_MESSAGES").join("adapter-gui.po");
         if po.exists() {
             files.push(po);
@@ -50,8 +53,8 @@ fn every_catalog_entry_is_flat_no_msgctxt() {
 #[test]
 fn tone_doctor_keys_are_present_and_translated_in_pt_br() {
     // Slint `@tr(...)` strings resolve through the gettext `.po` catalog.
-    let po = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("translations/pt_BR/LC_MESSAGES/adapter-gui.po");
+    let po =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("translations/pt_BR/LC_MESSAGES/adapter-gui.po");
     let content = std::fs::read_to_string(&po).expect("pt_BR .po");
     for key in [
         "tone-doctor-title",

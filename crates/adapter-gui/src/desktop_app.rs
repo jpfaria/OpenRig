@@ -29,8 +29,8 @@ use crate::state::{
     SelectedBlock,
 };
 use crate::{
-    latency_probe, AppWindow, BlockEditorWindow, ChainEditorWindow, ChainInsertWindow,
-    ChannelOptionItem, CompactChainViewWindow, PluginInfoWindow, ProjectSettingsWindow,
+    latency_probe, AppWindow, ChainEditorWindow, ChainInsertWindow, ChannelOptionItem,
+    CompactChainViewWindow, MetronomeWindow, PluginInfoWindow, ProjectSettingsWindow,
     SpectrumWindow, TunerWindow,
 };
 
@@ -229,12 +229,6 @@ pub fn run_desktop_app(
     }
     let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    let block_editor_window =
-        BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    {
-        use slint::Global;
-        crate::Locale::get(&block_editor_window).set_font_family(boot_font.into());
-    }
     let tuner_window = TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     {
         use slint::Global;
@@ -251,6 +245,18 @@ pub fn run_desktop_app(
     let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
         Rc::new(RefCell::new(None));
     let spectrum_timer = Rc::new(Timer::default());
+    let metronome_window = MetronomeWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&metronome_window).set_font_family(boot_font.into());
+    }
+    // #14: the metronome's settings come from the per-machine config and outlive
+    // any project — unlike the tuner, whose session is built on power-on. What
+    // config.yaml does NOT carry is `enabled`, so the click always boots off.
+    let metronome_session = Rc::new(RefCell::new(
+        crate::metronome_session::MetronomeSession::from_config(&app_config.borrow().metronome),
+    ));
+    let metronome_timer = Rc::new(Timer::default());
 
     // settings::language needs to know how to push the new font to every Window
     // (each Slint Window is a separate root with its own Locale global, so a
@@ -260,9 +266,9 @@ pub fn run_desktop_app(
         let weak_app = window.as_weak();
         let weak_proj = project_settings_window.as_weak();
         let weak_chain_insert = chain_insert_window.as_weak();
-        let weak_block_editor = block_editor_window.as_weak();
         let weak_tuner = tuner_window.as_weak();
         let weak_spectrum = spectrum_window.as_weak();
+        let weak_metronome = metronome_window.as_weak();
         let chain_editor_window_for_apply = chain_editor_window.clone();
         let plugin_info_window_for_apply = plugin_info_window.clone();
         let apply_font_to_all = move |font: &str| {
@@ -276,13 +282,13 @@ pub fn run_desktop_app(
             if let Some(w) = weak_chain_insert.upgrade() {
                 crate::Locale::get(&w).set_font_family(f());
             }
-            if let Some(w) = weak_block_editor.upgrade() {
-                crate::Locale::get(&w).set_font_family(f());
-            }
             if let Some(w) = weak_tuner.upgrade() {
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = weak_spectrum.upgrade() {
+                crate::Locale::get(&w).set_font_family(f());
+            }
+            if let Some(w) = weak_metronome.upgrade() {
                 crate::Locale::get(&w).set_font_family(f());
             }
             if let Some(w) = chain_editor_window_for_apply.borrow().as_ref() {
@@ -374,7 +380,7 @@ pub fn run_desktop_app(
         multi_slider_points,
         curve_editor_points,
         eq_band_curves,
-    } = crate::desktop_app_block_models::init(&window, &block_editor_window);
+    } = crate::desktop_app_block_models::init(&window);
     let block_editor_persist_timer = Rc::new(Timer::default());
     let toast_timer = Rc::new(Timer::default());
     window.set_toast_message("".into());
@@ -397,14 +403,6 @@ pub fn run_desktop_app(
         project_session.clone(),
     );
 
-    // --- BlockEditorWindow callbacks (extracted to block_editor_window_wiring) ---
-    crate::block_editor_window_wiring::wire(
-        &window,
-        &block_editor_window,
-        crate::block_editor_window_wiring::BlockEditorWindowCtx {
-            plugin_info_window: plugin_info_window.clone(),
-        },
-    );
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
@@ -659,11 +657,19 @@ pub fn run_desktop_app(
         &spectrum_session,
         &spectrum_timer,
     );
+    // ── Metronome window — top-bar feature ──
+    crate::metronome_wiring::wire_metronome(
+        &window,
+        &metronome_window,
+        &project_session,
+        &project_runtime,
+        &metronome_session,
+        &metronome_timer,
+    );
     // --- Back-to-launcher callback (extracted to back_to_launcher_wiring) ---
     crate::back_to_launcher_wiring::wire(
         &window,
         &project_settings_window,
-        &block_editor_window,
         crate::back_to_launcher_wiring::BackToLauncherCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
@@ -700,7 +706,6 @@ pub fn run_desktop_app(
     // --- Block-related callback wirings (extracted to desktop_app_block_wiring) ---
     crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
         window: &window,
-        block_editor_window: &block_editor_window,
         chain_insert_window: &chain_insert_window,
         selected_block: selected_block.clone(),
         block_editor_draft: block_editor_draft.clone(),
@@ -837,6 +842,12 @@ pub fn run_desktop_app(
         // Cloned for the meter resolver closure (the moves above
         // consumed `project_chains` for the rig-nav ctx).
         let chains_for_meters = mcp_ctx.project_chains.clone();
+        // #829: analyzer readings are served from the same live sessions the
+        // Tuner / Spectrum windows render, so every transport reads the very
+        // numbers on screen instead of a parallel derivation.
+        let tuner_for_queries = tuner_session.clone();
+        let spectrum_for_queries = spectrum_session.clone();
+        let runtime_for_queries = project_runtime.clone();
         let timer = Timer::default();
         timer.start(
             slint::TimerMode::Repeated,
@@ -856,99 +867,16 @@ pub fn run_desktop_app(
                         use application::dispatcher::CommandDispatcher as _;
                         events.extend(session.dispatcher.poll_async_results());
                     }
-                    let project = &session.project;
                     drain.serve_queries(
-                        |kind| match kind {
-                            application::bridge::QueryKind::ProjectYaml => {
-                                infra_yaml::serialize_project(&project.borrow())
-                                    .map_err(|e| e.to_string())
+                        |kind| {
+                            crate::mcp_query_resolver::QueryResolver {
+                                session,
+                                chain_rows: &chains_for_meters,
+                                tuner: &tuner_for_queries,
+                                spectrum: &spectrum_for_queries,
+                                runtime: &runtime_for_queries,
                             }
-                            application::bridge::QueryKind::Devices => infra_cpal::list_devices()
-                                .map(|d| d.join("\n"))
-                                .map_err(|e| e.to_string()),
-                            application::bridge::QueryKind::Ids => {
-                                Ok(application::query::list_ids(&project.borrow()))
-                            }
-                            application::bridge::QueryKind::ChainMeters => {
-                                use slint::Model;
-                                let proj_borrow = project.borrow();
-                                let mut out = String::new();
-                                for (idx, chain) in proj_borrow.chains.iter().enumerate() {
-                                    let row = chains_for_meters.row_data(idx);
-                                    let (in_db, out_db) = row
-                                        .map(|r| (r.meter_in_dbfs, r.meter_out_dbfs))
-                                        .unwrap_or((
-                                            engine::output_meter::SILENT_DBFS,
-                                            engine::output_meter::SILENT_DBFS,
-                                        ));
-                                    out.push_str(&format!(
-                                        "{}\t{:.1}\t{:.1}\n",
-                                        chain.id.0, in_db, out_db
-                                    ));
-                                }
-                                Ok(out)
-                            }
-                            application::bridge::QueryKind::ListChainPresets { chain } => {
-                                // #554: the chain's preset bank, served
-                                // from the in-memory RigProject so MCP /
-                                // gRPC see the same list the GUI shows
-                                // in the chain-title combobox.
-                                match session.rig.as_ref() {
-                                    Some(rig) => {
-                                        application::query::list_chain_presets(&rig.borrow(), chain)
-                                    }
-                                    None => Err("no rig attached to the session".to_string()),
-                                }
-                            }
-                            application::bridge::QueryKind::ListProjectPresets => {
-                                // #554 follow-up: project-level preset
-                                // pool (RigProject.presets in memory).
-                                // A preset can sit here without being
-                                // wired to any input bank yet.
-                                match session.rig.as_ref() {
-                                    Some(rig) => {
-                                        Ok(application::query::list_project_presets(&rig.borrow()))
-                                    }
-                                    None => Err("no rig attached to the session".to_string()),
-                                }
-                            }
-                            // #561 (expanded scope): plugin catalog
-                            // reads — same pure helpers MCP would call
-                            // (process-wide registry, no project state).
-                            application::bridge::QueryKind::ListPluginCatalog => {
-                                Ok(application::query::list_plugin_catalog())
-                            }
-                            application::bridge::QueryKind::GetPlugin { id } => {
-                                Ok(application::query::get_plugin(id))
-                            }
-                            application::bridge::QueryKind::FindPlugins { query } => {
-                                Ok(application::query::find_plugins(query))
-                            }
-                            // #572: per-plugin parameter schema
-                            // (catalog-level). No project state needed —
-                            // resolves against the process-wide plugin
-                            // registry, same as the catalog reads above.
-                            application::bridge::QueryKind::GetPluginParams { plugin_id } => {
-                                Ok(application::query::get_plugin_params(plugin_id))
-                            }
-                            // #572: per-block-instance descriptors
-                            // (schema + current value). Reads from the
-                            // live project the GUI session owns.
-                            application::bridge::QueryKind::GetBlockParams { chain, block } => {
-                                application::query::get_block_params(
-                                    &project.borrow(),
-                                    chain,
-                                    block,
-                                )
-                            }
-                            // #582: resolved system paths (reloads config.yaml).
-                            application::bridge::QueryKind::Paths => {
-                                Ok(application::query::resolved_paths_json())
-                            }
-                            // #791: objective quality report, measured offline.
-                            application::bridge::QueryKind::ChainQualityReport { chain } => {
-                                application::query_chain_quality::chain_quality_report(&project.borrow(), chain)
-                            }
+                            .resolve(kind)
                         },
                         32,
                     );

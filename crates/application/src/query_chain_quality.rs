@@ -24,8 +24,9 @@ pub fn chain_quality_report(project: &Project, chain: &ChainId) -> Result<String
         .find(|c| c.id == *chain)
         .ok_or_else(|| format!("chain not found: {}", chain.0))?;
 
-    let m = engine::chain_quality::measure_quality(chain_ref, REPORT_SAMPLE_RATE, REPORT_BLOCK_SIZE)
-        .map_err(|e| format!("quality measurement failed: {e}"))?;
+    let m =
+        engine::chain_quality::measure_quality(chain_ref, REPORT_SAMPLE_RATE, REPORT_BLOCK_SIZE)
+            .map_err(|e| format!("quality measurement failed: {e}"))?;
 
     let envelope = serde_json::json!({
         "quality": {

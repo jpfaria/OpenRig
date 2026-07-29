@@ -31,6 +31,7 @@ fn rig() -> (Chain, Vec<IoBinding>) {
         io_binding_ids: vec!["scarlett".into(), "teyun".into()],
         blocks: vec![],
         di_output: None,
+        loopers: vec![],
     };
     let registry = vec![
         IoBinding {

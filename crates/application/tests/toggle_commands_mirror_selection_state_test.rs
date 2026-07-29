@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command, SelectionCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::ChainId;
@@ -26,6 +26,7 @@ fn project_with_chain(id: &str) -> Rc<RefCell<Project>> {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))
@@ -38,12 +39,16 @@ fn set_tuner_enabled_mirrors_into_selection_state() {
     assert!(!sel.read().unwrap().tuner_enabled);
 
     dispatcher
-        .dispatch(Command::SetTunerEnabled { enabled: true })
+        .dispatch(Command::Selection(SelectionCommand::SetTunerEnabled {
+            enabled: true,
+        }))
         .unwrap();
     assert!(sel.read().unwrap().tuner_enabled);
 
     dispatcher
-        .dispatch(Command::SetTunerEnabled { enabled: false })
+        .dispatch(Command::Selection(SelectionCommand::SetTunerEnabled {
+            enabled: false,
+        }))
         .unwrap();
     assert!(!sel.read().unwrap().tuner_enabled);
 }
@@ -55,7 +60,9 @@ fn set_spectrum_enabled_mirrors_into_selection_state() {
     assert!(!sel.read().unwrap().spectrum_enabled);
 
     dispatcher
-        .dispatch(Command::SetSpectrumEnabled { enabled: true })
+        .dispatch(Command::Selection(SelectionCommand::SetSpectrumEnabled {
+            enabled: true,
+        }))
         .unwrap();
     assert!(sel.read().unwrap().spectrum_enabled);
 }
@@ -67,7 +74,9 @@ fn set_output_muted_mirrors_into_selection_state() {
     assert!(!sel.read().unwrap().output_muted);
 
     dispatcher
-        .dispatch(Command::SetOutputMuted { muted: true })
+        .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
+            muted: true,
+        }))
         .unwrap();
     assert!(sel.read().unwrap().output_muted);
 }
@@ -85,9 +94,9 @@ fn toggle_chain_enabled_mirrors_active_chain_enabled() {
     }
 
     dispatcher
-        .dispatch(Command::ToggleChainEnabled {
+        .dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
             chain: ChainId("g".to_string()),
-        })
+        }))
         .unwrap();
 
     // After toggle the chain's enabled flipped to false → snapshot must follow.

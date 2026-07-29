@@ -9,7 +9,7 @@
 //!      in-memory app config via `save_app_config(&app_config.borrow())`).
 //!   3. `config.yaml` `input_devices[0].buffer_size_frames` is back to 64.
 //!
-//! Root cause (same class as #607 — path overrides): `Command::SaveAudioSettings`
+//! Root cause (same class as #607 — path overrides): `SettingsCommand::SaveAudioSettings`
 //! persists to disk but does NOT update the shared in-memory `AppConfig`.
 //! The next whole-config save writes the stale snapshot, reverting the
 //! buffer the user just applied.

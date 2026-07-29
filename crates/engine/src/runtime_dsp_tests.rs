@@ -388,4 +388,3 @@ fn out_stage_125pct_on_hot_sine_is_louder_than_100pct() {
         "louder knob did not produce more level (rms 125%={r125} ≤ 100%={r100})"
     );
 }
-

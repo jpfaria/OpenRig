@@ -56,6 +56,7 @@ use crate::{
 };
 
 pub(crate) struct SelectChainBlockCallbackCtx {
+    pub inline_tab_state: Rc<RefCell<crate::block_editor_param_tabs::TabState>>,
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub insert_draft: Rc<RefCell<Option<InsertDraft>>>,
@@ -91,6 +92,7 @@ pub(crate) fn wire(
     ctx: SelectChainBlockCallbackCtx,
 ) {
     let SelectChainBlockCallbackCtx {
+        inline_tab_state,
         selected_block,
         block_editor_draft,
         insert_draft,
@@ -156,10 +158,12 @@ pub(crate) fn wire(
         // is screen concern and stays for now (separate decrements).
         let _ = session
             .dispatcher
-            .dispatch(application::command::Command::SelectChainBlock {
-                chain: chain.id.clone(),
-                block_index: block_index as usize,
-            });
+            .dispatch(application::command::Command::Selection(
+                application::command::SelectionCommand::SelectChainBlock {
+                    chain: chain.id.clone(),
+                    block_index: block_index as usize,
+                },
+            ));
         // Handle Insert blocks — open the insert configuration window. I/O
         // blocks are no longer editable here (#716: a chain's I/O comes from
         // its selected bindings); they fall through to the not-editable path.
@@ -243,7 +247,12 @@ pub(crate) fn wire(
         block_model_option_labels.set_vec(block_model_picker_labels(&items));
         block_model_options.set_vec(items.clone());
         filtered_block_model_options.set_vec(items);
-        block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
+        crate::block_editor_param_tabs::apply_inline_param_tabs(
+            &window,
+            &block_parameter_items,
+            &inline_tab_state,
+            block_parameter_items_for_editor(&editor_data),
+        );
         multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
         curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
         let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_runtime));
@@ -273,6 +282,8 @@ pub(crate) fn wire(
             let param_items_vec = block_parameter_items_for_editor(&editor_data);
             let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
             window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            // #819: knob count changed -> re-publish the #500 panel height.
+            crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             // Start inline stream timer for utility blocks (tuner, spectrum analyzer)
             {
                 let mut timer_ref = inline_stream_timer.borrow_mut();

@@ -1,9 +1,8 @@
 //! Engine runtime tests (issue #792 split from runtime_tests.rs).
 //! Grouped by responsibility; shared fixtures live in `runtime_tests.rs`.
 #![allow(unused_imports)]
-use super::*;
 use super::tests::*;
-
+use super::*;
 
 // ── AudioFrame tests ─────────────────────────────────────────────────────
 
@@ -13,13 +12,11 @@ fn audio_frame_mono_mix_mono_returns_sample() {
     assert!((frame.mono_mix() - 0.75).abs() < 1e-6);
 }
 
-
 #[test]
 fn audio_frame_mono_mix_stereo_returns_average() {
     let frame = AudioFrame::Stereo([0.4, 0.8]);
     assert!((frame.mono_mix() - 0.6).abs() < 1e-6);
 }
-
 
 // ── blend_frame tests ────────────────────────────────────────────────────
 
@@ -31,7 +28,6 @@ fn blend_frame_mono_interpolates_correctly() {
     blend_frame(&mut wet, dry, 0.5, 0.5);
     assert!((wet.mono_mix() - 0.5).abs() < 1e-6);
 }
-
 
 #[test]
 fn blend_frame_stereo_interpolates_correctly() {
@@ -47,7 +43,6 @@ fn blend_frame_stereo_interpolates_correctly() {
         _ => panic!("expected stereo"),
     }
 }
-
 
 #[test]
 fn blend_frame_layout_mismatch_passes_dry_through() {
@@ -65,7 +60,6 @@ fn blend_frame_layout_mismatch_passes_dry_through() {
     }
 }
 
-
 // ── mix_frames tests ─────────────────────────────────────────────────────
 
 #[test]
@@ -74,7 +68,6 @@ fn mix_frames_mono_mono_sums() {
     let result = mix_frames(AudioFrame::Mono(0.3), AudioFrame::Mono(0.5));
     assert!(matches!(result, AudioFrame::Mono(v) if (v - 0.8).abs() < 1e-6));
 }
-
 
 #[test]
 fn mix_frames_stereo_stereo_sums() {
@@ -92,7 +85,6 @@ fn mix_frames_stereo_stereo_sums() {
     }
 }
 
-
 #[test]
 fn mix_frames_mono_stereo_widens() {
     use super::mix_frames;
@@ -105,7 +97,6 @@ fn mix_frames_mono_stereo_widens() {
         _ => panic!("expected stereo"),
     }
 }
-
 
 #[test]
 fn mix_frames_stereo_mono_widens() {
@@ -120,7 +111,6 @@ fn mix_frames_stereo_mono_widens() {
     }
 }
 
-
 // ── output_limiter tests ─────────────────────────────────────────────────
 
 #[test]
@@ -131,7 +121,6 @@ fn output_limiter_transparent_below_threshold() {
     assert!((output_limiter(0.0) - 0.0).abs() < 1e-6);
     assert!((output_limiter(0.94) - 0.94).abs() < 1e-6);
 }
-
 
 #[test]
 fn output_limiter_saturates_above_threshold() {
@@ -149,7 +138,6 @@ fn output_limiter_saturates_above_threshold() {
     assert!(limited <= 1.0 && limited.is_finite(), "bounded: {limited}");
 }
 
-
 #[test]
 fn output_limiter_negative_saturates_symmetrically() {
     // Issue #496: assert odd symmetry instead of pinning tanh()
@@ -160,7 +148,6 @@ fn output_limiter_negative_saturates_symmetrically() {
     assert!(output_limiter(-2.0) >= -1.0 && output_limiter(-2.0).is_finite());
 }
 
-
 // ── apply_mixdown tests ──────────────────────────────────────────────────
 
 #[test]
@@ -170,14 +157,12 @@ fn apply_mixdown_sum_adds_channels() {
     assert!((apply_mixdown(ChainOutputMixdown::Sum, 0.3, 0.5) - 0.8).abs() < 1e-6);
 }
 
-
 #[test]
 fn apply_mixdown_average_averages_channels() {
     use super::apply_mixdown;
     use project::chain::ChainOutputMixdown;
     assert!((apply_mixdown(ChainOutputMixdown::Average, 0.4, 0.8) - 0.6).abs() < 1e-6);
 }
-
 
 #[test]
 fn apply_mixdown_left_returns_left() {
@@ -186,14 +171,12 @@ fn apply_mixdown_left_returns_left() {
     assert!((apply_mixdown(ChainOutputMixdown::Left, 0.3, 0.7) - 0.3).abs() < 1e-6);
 }
 
-
 #[test]
 fn apply_mixdown_right_returns_right() {
     use super::apply_mixdown;
     use project::chain::ChainOutputMixdown;
     assert!((apply_mixdown(ChainOutputMixdown::Right, 0.3, 0.7) - 0.7).abs() < 1e-6);
 }
-
 
 // ── layout_from_channels tests ───────────────────────────────────────────
 
@@ -203,13 +186,11 @@ fn layout_from_channels_mono_ok() {
     assert_eq!(layout_from_channels(1).unwrap(), AudioChannelLayout::Mono);
 }
 
-
 #[test]
 fn layout_from_channels_stereo_ok() {
     use super::layout_from_channels;
     assert_eq!(layout_from_channels(2).unwrap(), AudioChannelLayout::Stereo);
 }
-
 
 #[test]
 fn layout_from_channels_invalid_errors() {
@@ -218,7 +199,6 @@ fn layout_from_channels_invalid_errors() {
     assert!(layout_from_channels(3).is_err());
     assert!(layout_from_channels(8).is_err());
 }
-
 
 // ── write_output_frame tests ─────────────────────────────────────────────
 
@@ -243,7 +223,6 @@ fn write_output_frame_mono_to_single_channel() {
     );
 }
 
-
 #[test]
 fn write_output_frame_mono_to_multiple_channels() {
     use super::write_output_frame;
@@ -261,7 +240,6 @@ fn write_output_frame_mono_to_multiple_channels() {
     assert!((frame[3] - 0.8).abs() < 1e-6);
 }
 
-
 #[test]
 fn write_output_frame_stereo_to_zero_channels() {
     use super::write_output_frame;
@@ -277,7 +255,6 @@ fn write_output_frame_stereo_to_zero_channels() {
     assert_eq!(frame, [0.0, 0.0]);
 }
 
-
 #[test]
 fn write_output_frame_stereo_to_one_channel_uses_mixdown() {
     use super::write_output_frame;
@@ -292,7 +269,6 @@ fn write_output_frame_stereo_to_one_channel_uses_mixdown() {
     // Average of 0.4 and 0.8 = 0.6
     assert!((frame[0] - 0.6).abs() < 1e-6);
 }
-
 
 #[test]
 fn write_output_frame_stereo_to_two_channels_preserves_lr() {
@@ -311,7 +287,6 @@ fn write_output_frame_stereo_to_two_channels_preserves_lr() {
     assert!((frame[3] - 0.7).abs() < 1e-6);
 }
 
-
 // ── read_input_frame tests ───────────────────────────────────────────────
 
 #[test]
@@ -321,7 +296,6 @@ fn read_input_frame_mono_reads_correct_channel() {
     let frame = read_input_frame(AudioChannelLayout::Mono, &[2], &data);
     assert!(matches!(frame, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
 }
-
 
 #[test]
 fn read_input_frame_stereo_reads_two_channels() {
@@ -337,7 +311,6 @@ fn read_input_frame_stereo_reads_two_channels() {
     }
 }
 
-
 #[test]
 fn read_input_frame_out_of_bounds_returns_zero() {
     use super::read_input_frame;
@@ -345,7 +318,6 @@ fn read_input_frame_out_of_bounds_returns_zero() {
     let frame = read_input_frame(AudioChannelLayout::Mono, &[99], &data);
     assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
 }
-
 
 // ── silent_frame tests ───────────────────────────────────────────────────
 
@@ -356,14 +328,12 @@ fn silent_frame_mono_is_zero() {
     assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
 }
 
-
 #[test]
 fn silent_frame_stereo_is_zero() {
     use super::silent_frame;
     let frame = silent_frame(AudioChannelLayout::Stereo);
     assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
 }
-
 
 // ── layout_label tests ───────────────────────────────────────────────────
 
@@ -374,7 +344,6 @@ fn layout_label_returns_correct_strings() {
     assert_eq!(layout_label(AudioChannelLayout::Stereo), "stereo");
 }
 
-
 // ── read_channel edge cases ─────────────────────────────────────────────
 
 #[test]
@@ -384,7 +353,6 @@ fn read_channel_valid_index() {
     assert!((read_channel(&data, 1) - 0.2).abs() < 1e-6);
 }
 
-
 #[test]
 fn read_channel_out_of_bounds_returns_zero() {
     use super::read_channel;
@@ -392,11 +360,9 @@ fn read_channel_out_of_bounds_returns_zero() {
     assert!((read_channel(&data, 10)).abs() < 1e-6);
 }
 
-
 #[test]
 fn read_channel_empty_data_returns_zero() {
     use super::read_channel;
     let data: [f32; 0] = [];
     assert!((read_channel(&data, 0)).abs() < 1e-6);
 }
-

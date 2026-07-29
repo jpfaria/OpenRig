@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
-use application::command::Command;
+use application::command::{BlockCommand, ChainCommand, Command};
 use application::dispatcher::CommandDispatcher;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -40,7 +40,6 @@ pub(crate) struct CompactChainBlockHandlersCtx {
     pub toast_timer: Rc<Timer>,
     pub auto_save: bool,
 }
-
 
 pub(crate) fn wire(
     main_window: &AppWindow,
@@ -106,10 +105,14 @@ fn wire_block_toggle_and_model(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            if let Err(error) = session.dispatcher.dispatch(Command::ToggleBlockEnabled {
-                chain: chain_id.clone(),
-                block: block_id.clone(),
-            }) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
+                        chain: chain_id.clone(),
+                        block: block_id.clone(),
+                    }))
+            {
                 log::error!("[compact] toggle-block-enabled dispatch error: {error}");
                 return;
             }
@@ -230,16 +233,20 @@ fn wire_block_toggle_and_model(
                 (chain.id.clone(), block.id.clone())
             };
 
-            // Dispatch Command::ReplaceBlockModel — mutates project via shared Rc.
+            // Dispatch BlockCommand::ReplaceBlockModel — mutates project via shared Rc.
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(error) = session.dispatcher.dispatch(Command::ReplaceBlockModel {
-                chain: chain_id.clone(),
-                block: block_id,
-                model_id: new_model_id,
-            }) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Block(BlockCommand::ReplaceBlockModel {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                        model_id: new_model_id,
+                    }))
+            {
                 log::error!("compact choose-model dispatch error: {error}");
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
@@ -266,8 +273,6 @@ fn wire_block_toggle_and_model(
             );
         });
     }
-
-
 }
 
 fn wire_chain_toggle(
@@ -319,9 +324,13 @@ fn wire_chain_toggle(
                 chain.id.clone()
             };
             // Dispatch toggles the enabled flag via the command bus.
-            if let Err(error) = session.dispatcher.dispatch(Command::ToggleChainEnabled {
-                chain: chain_id.clone(),
-            }) {
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Chain(ChainCommand::ToggleChainEnabled {
+                        chain: chain_id.clone(),
+                    }))
+            {
                 log::error!("[compact] toggle-chain-enabled dispatch error: {error}");
                 return;
             }
@@ -392,11 +401,11 @@ fn wire_chain_toggle(
                                 let mut sb = project_session_t.borrow_mut();
                                 if let Some(s) = sb.as_mut() {
                                     // Dispatch ToggleChainEnabled again to revert enabled→disabled.
-                                    let _ = s.dispatcher.dispatch(
-                                        application::command::Command::ToggleChainEnabled {
+                                    let _ = s.dispatcher.dispatch(Command::Chain(
+                                        ChainCommand::ToggleChainEnabled {
                                             chain: chain_id.clone(),
                                         },
-                                    );
+                                    ));
                                 }
                                 return;
                             }
@@ -418,11 +427,11 @@ fn wire_chain_toggle(
                                 {
                                     set_status_error(&win, &toast_timer_t, &e.to_string());
                                     // Revert chain.enabled on runtime sync failure
-                                    let _ = session.dispatcher.dispatch(
-                                        application::command::Command::ToggleChainEnabled {
+                                    let _ = session.dispatcher.dispatch(Command::Chain(
+                                        ChainCommand::ToggleChainEnabled {
                                             chain: chain_id.clone(),
                                         },
-                                    );
+                                    ));
                                 } else {
                                     replace_project_chains(
                                         &project_chains_t,
@@ -456,7 +465,4 @@ fn wire_chain_toggle(
             cw.set_chain_enabled(will_enable);
         });
     }
-
-
 }
-

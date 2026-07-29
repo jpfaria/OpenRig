@@ -50,6 +50,7 @@ fn bound_chain_drops_legacy_io_blocks_on_load() {
             io: String::new(),
             endpoint: String::new(),
             io_binding_ids: vec!["main".to_string()],
+            loopers: Vec::new(),
         },
     );
     let rig = RigProject {

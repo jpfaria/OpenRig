@@ -56,6 +56,7 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -73,7 +74,14 @@ fn measured_fix_actually_brings_the_fizz_back_to_health() {
     init();
     let c = chain(vec![
         core("vol", "volume", params("volume", &[("volume", 80.0)])),
-        core("fz", "fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 90.0), ("level", 50.0)])),
+        core(
+            "fz",
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 90.0), ("level", 50.0)],
+            ),
+        ),
     ]);
     let input = di_sine();
     let d = diagnose(&c, SR, &input, BUF).expect("diagnose");
@@ -107,8 +115,14 @@ fn measured_fix_actually_brings_the_fizz_back_to_health() {
 #[test]
 fn healthy_chain_has_no_fix() {
     init();
-    let c = chain(vec![core("vol", "volume", params("volume", &[("volume", 80.0)]))]);
+    let c = chain(vec![core(
+        "vol",
+        "volume",
+        params("volume", &[("volume", 80.0)]),
+    )]);
     let input = di_sine();
     let d = diagnose(&c, SR, &input, BUF).expect("diagnose");
-    assert!(measure_fix(&c, SR, &input, BUF, &d).expect("runs").is_none());
+    assert!(measure_fix(&c, SR, &input, BUF, &d)
+        .expect("runs")
+        .is_none());
 }

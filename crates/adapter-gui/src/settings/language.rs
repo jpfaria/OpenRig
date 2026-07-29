@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, ModelRc, SharedString, VecModel};
 
-use application::command::Command;
+use application::command::{Command, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use infra_filesystem::FilesystemStorage;
 
@@ -60,76 +60,79 @@ pub fn wire(
     let apply_font_to_all_windows: Rc<dyn Fn(&str)> = Rc::new(apply_font_to_all_windows);
     let weak = window.as_weak();
     let weak_settings = project_settings_window.as_weak();
-    let on_change: Rc<dyn Fn(i32)> = Rc::new({
-        let weak = weak.clone();
-        let weak_settings = weak_settings.clone();
-        let apply_font_to_all_windows = apply_font_to_all_windows.clone();
-        let project_session = project_session.clone();
-        move |idx: i32| {
-            let Some(window) = weak.upgrade() else {
-                return;
-            };
-            let lang = pick_language(idx);
-            log::info!("language selector: persisting {:?}", lang);
-            // #436 F: trocar idioma é negócio → vai por Command::SetLanguage
-            // no dispatcher compartilhado (alcançável MCP/MIDI; observável
-            // via Event::LanguageChanged) quando há sessão. A persistência
-            // + live-swap abaixo é I/O de adapter (precedente SaveProject).
-            // No launcher (sem ProjectSession) não há dispatcher; ainda
-            // assim persiste — o Command cobre o caminho programático.
-            if let Some(session) = project_session.borrow().as_ref() {
-                if let Err(e) = session.dispatcher.dispatch(Command::SetLanguage {
-                    language: lang.clone(),
-                }) {
-                    log::warn!("[language] Command::SetLanguage falhou: {e}");
-                }
-            }
-            // #693: persistence runs on the persist worker; the live i18n
-            // swap below proceeds regardless (failure only costs the
-            // preference surviving a restart, reported via log).
-            {
-                let lang_for_write = lang.clone();
-                application::persist_worker::run(move || {
-                    if let Err(e) = FilesystemStorage::save_gui_language(lang_for_write) {
-                        log::error!("failed to persist language preference: {e}");
+    let on_change: Rc<dyn Fn(i32)> =
+        Rc::new({
+            let weak = weak.clone();
+            let weak_settings = weak_settings.clone();
+            let apply_font_to_all_windows = apply_font_to_all_windows.clone();
+            let project_session = project_session.clone();
+            move |idx: i32| {
+                let Some(window) = weak.upgrade() else {
+                    return;
+                };
+                let lang = pick_language(idx);
+                log::info!("language selector: persisting {:?}", lang);
+                // #436 F: trocar idioma é negócio → vai por SettingsCommand::SetLanguage
+                // no dispatcher compartilhado (alcançável MCP/MIDI; observável
+                // via Event::LanguageChanged) quando há sessão. A persistência
+                // + live-swap abaixo é I/O de adapter (precedente SaveProject).
+                // No launcher (sem ProjectSession) não há dispatcher; ainda
+                // assim persiste — o Command cobre o caminho programático.
+                if let Some(session) = project_session.borrow().as_ref() {
+                    if let Err(e) = session.dispatcher.dispatch(Command::Settings(
+                        SettingsCommand::SetLanguage {
+                            language: lang.clone(),
+                        },
+                    )) {
+                        log::warn!("[language] Command::SetLanguage falhou: {e}");
                     }
-                });
+                }
+                // #693: persistence runs on the persist worker; the live i18n
+                // swap below proceeds regardless (failure only costs the
+                // preference surviving a restart, reported via log).
+                {
+                    let lang_for_write = lang.clone();
+                    application::persist_worker::run(move || {
+                        if let Err(e) = FilesystemStorage::save_gui_language(lang_for_write) {
+                            log::error!("failed to persist language preference: {e}");
+                        }
+                    });
+                }
+                // Live update: re-select the bundled translation so visible strings
+                // reflect the new locale immediately. No restart needed for Slint
+                // bundled translations (unlike runtime gettext, which is locked
+                // once libintl reads its env vars).
+                crate::i18n::apply_bundled_translation(lang.as_deref());
+                // Swap default-font-family on the Slint side so CJK/Devanagari
+                // glyphs render against a face that actually contains them
+                // (Bebas Neue is Latin-only and produces tofu □□ in ja/zh/ko/hi).
+                let new_locale_for_font = locale_for_runtime(lang.as_deref());
+                let new_font = font_family_for_locale(&new_locale_for_font);
+                eprintln!(
+                    "i18n.font: change locale={} → font_family={}",
+                    new_locale_for_font, new_font
+                );
+                Locale::get(&window).set_font_family(new_font.into());
+                apply_font_to_all_windows(new_font);
+                // Rebuild the dropdown labels in the new UI locale — otherwise
+                // the language list itself stays in the previous language and
+                // the selector reads "Alemão / Chinês" while the rest of the UI
+                // is in English.
+                let new_locale = locale_for_runtime(lang.as_deref());
+                set_language_options(&window, &new_locale);
+                // Mirror onto the standalone settings window too — see #513.
+                if let Some(settings_window) = weak_settings.upgrade() {
+                    set_language_options_secondary(&settings_window, &new_locale);
+                    settings_window.set_selected_language_index(idx);
+                }
+                // Refresh strings that Rust injects into Slint (titles, save labels,
+                // etc.). Slint's bundled translations don't cover them — they go
+                // through rust_i18n::t!() at the moment Rust calls set_*. Without
+                // this, properties stay frozen in the previous locale.
+                refresh_rust_injected_strings(&window);
+                window.set_selected_language_index(idx);
             }
-            // Live update: re-select the bundled translation so visible strings
-            // reflect the new locale immediately. No restart needed for Slint
-            // bundled translations (unlike runtime gettext, which is locked
-            // once libintl reads its env vars).
-            crate::i18n::apply_bundled_translation(lang.as_deref());
-            // Swap default-font-family on the Slint side so CJK/Devanagari
-            // glyphs render against a face that actually contains them
-            // (Bebas Neue is Latin-only and produces tofu □□ in ja/zh/ko/hi).
-            let new_locale_for_font = locale_for_runtime(lang.as_deref());
-            let new_font = font_family_for_locale(&new_locale_for_font);
-            eprintln!(
-                "i18n.font: change locale={} → font_family={}",
-                new_locale_for_font, new_font
-            );
-            Locale::get(&window).set_font_family(new_font.into());
-            apply_font_to_all_windows(new_font);
-            // Rebuild the dropdown labels in the new UI locale — otherwise
-            // the language list itself stays in the previous language and
-            // the selector reads "Alemão / Chinês" while the rest of the UI
-            // is in English.
-            let new_locale = locale_for_runtime(lang.as_deref());
-            set_language_options(&window, &new_locale);
-            // Mirror onto the standalone settings window too — see #513.
-            if let Some(settings_window) = weak_settings.upgrade() {
-                set_language_options_secondary(&settings_window, &new_locale);
-                settings_window.set_selected_language_index(idx);
-            }
-            // Refresh strings that Rust injects into Slint (titles, save labels,
-            // etc.). Slint's bundled translations don't cover them — they go
-            // through rust_i18n::t!() at the moment Rust calls set_*. Without
-            // this, properties stay frozen in the previous locale.
-            refresh_rust_injected_strings(&window);
-            window.set_selected_language_index(idx);
-        }
-    });
+        });
     let for_app = on_change.clone();
     window.on_change_language(move |idx: i32| for_app(idx));
     let for_settings = on_change;

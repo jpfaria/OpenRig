@@ -13,7 +13,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
-use application::command::Command;
+use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
@@ -48,6 +48,7 @@ fn make_project(chain_id: &str) -> Rc<RefCell<Project>> {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            loopers: vec![],
         }],
         midi: None,
     }))
@@ -67,10 +68,10 @@ fn changing_engine_sr_flags_loaded_di_loop_for_rearm() {
 
     dispatcher.attach_engine_sr(48_000);
     dispatcher
-        .dispatch(Command::SetChainDiLoopSource {
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
             chain: chain.clone(),
             source: DiLoopSource::File(wav.clone()),
-        })
+        }))
         .expect("SetChainDiLoopSource must succeed");
     // #693: the decode runs on its own task — wait for the completion
     // to land via poll_async_results before reading the loop back.

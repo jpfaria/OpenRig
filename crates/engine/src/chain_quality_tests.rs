@@ -35,7 +35,8 @@ fn params(model: &str, values: &[(&str, f32)]) -> ParameterSet {
     for (k, v) in values {
         ps.insert(*k, ParameterValue::Float(*v));
     }
-    ps.normalized_against(&schema).expect("params must normalize")
+    ps.normalized_against(&schema)
+        .expect("params must normalize")
 }
 
 fn chain(blocks: Vec<AudioBlock>) -> Chain {
@@ -48,6 +49,7 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
         io_binding_ids: vec![],
         blocks,
         di_output: None,
+        loopers: vec![],
     }
 }
 
@@ -62,7 +64,10 @@ fn block(id: &str, kind: AudioBlockKind) -> AudioBlock {
 #[test]
 fn clean_gain_chain_measures_low_distortion_and_noise() {
     init_registry();
-    let c = chain(vec![block("vol", core("volume", params("volume", &[("volume", 80.0)])))]);
+    let c = chain(vec![block(
+        "vol",
+        core("volume", params("volume", &[("volume", 80.0)])),
+    )]);
     let m = measure_quality(&c, SR, BUF).expect("measure runs");
 
     assert!(m.thd_n < 0.05, "a clean gain chain has low THD+N: {m:?}");
@@ -74,10 +79,19 @@ fn clean_gain_chain_measures_low_distortion_and_noise() {
 #[test]
 fn fuzz_chain_measures_higher_distortion_than_clean() {
     init_registry();
-    let clean = chain(vec![block("vol", core("volume", params("volume", &[("volume", 80.0)])))]);
+    let clean = chain(vec![block(
+        "vol",
+        core("volume", params("volume", &[("volume", 80.0)])),
+    )]);
     let fuzzy = chain(vec![block(
         "fuzz",
-        core("fuzz_si", params("fuzz_si", &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)])),
+        core(
+            "fuzz_si",
+            params(
+                "fuzz_si",
+                &[("fuzz", 95.0), ("tone", 70.0), ("level", 50.0)],
+            ),
+        ),
     )]);
 
     let clean_thd = measure_quality(&clean, SR, BUF).expect("clean").thd_n;

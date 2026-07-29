@@ -1,4 +1,4 @@
-//! Issue #582 — `Command::SetEvaluationsPath` must persist the picked
+//! Issue #582 — `SettingsCommand::SetEvaluationsPath` must persist the picked
 //! folder to `config.yaml` exactly like `SetPluginsPath` / `SetPresetsPath`
 //! (issue #540).
 //!
@@ -6,7 +6,7 @@
 //! then load `config.yaml` from the same location the app writes/reads at
 //! runtime, and assert the path is present.
 //!
-//! Red-first today: `Command::SetEvaluationsPath` does not exist yet.
+//! Red-first today: `SettingsCommand::SetEvaluationsPath` does not exist yet.
 //! Adding it + wiring its handler to persist (mirroring the existing two
 //! path commands) is what turns this test green.
 
@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Mutex;
 
-use application::command::Command;
+use application::command::{Command, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use infra_filesystem::FilesystemStorage;
@@ -74,9 +74,9 @@ fn issue_582_set_evaluations_path_persists_to_config_yaml() {
         let picked = PathBuf::from("/tmp/openrig-582-picked-evaluations");
 
         let events = dispatcher
-            .dispatch(Command::SetEvaluationsPath {
+            .dispatch(Command::Settings(SettingsCommand::SetEvaluationsPath {
                 path: Some(picked.clone()),
-            })
+            }))
             .expect("dispatch must succeed");
         // #693: path persistence runs on the persist worker — wait for
         // durability before reading config.yaml back.
@@ -92,7 +92,7 @@ fn issue_582_set_evaluations_path_persists_to_config_yaml() {
         assert_eq!(
             loaded.paths.evaluations_path,
             Some(picked),
-            "REGRESSION: Command::SetEvaluationsPath did not persist into config.yaml — \
+            "REGRESSION: SettingsCommand::SetEvaluationsPath did not persist into config.yaml — \
              user pick survives in memory only and is lost on restart"
         );
     });
@@ -107,14 +107,16 @@ fn issue_582_reset_evaluations_path_persists_none_in_config_yaml() {
         // First: set an override so reset has something to undo.
         let picked = PathBuf::from("/tmp/openrig-582-pre-reset");
         dispatcher
-            .dispatch(Command::SetEvaluationsPath {
+            .dispatch(Command::Settings(SettingsCommand::SetEvaluationsPath {
                 path: Some(picked.clone()),
-            })
+            }))
             .expect("set must succeed");
 
         // Then: reset → None.
         dispatcher
-            .dispatch(Command::SetEvaluationsPath { path: None })
+            .dispatch(Command::Settings(SettingsCommand::SetEvaluationsPath {
+                path: None,
+            }))
             .expect("reset must succeed");
 
         let loaded = FilesystemStorage::load_app_config()

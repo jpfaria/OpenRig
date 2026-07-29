@@ -4,12 +4,12 @@
 use super::tests::{delay_model_ids, effect_kind, input_kind, output_kind, test_chain};
 use super::*;
 use crate::project_ops::build_device_settings_from_gui;
-use infra_cpal::AudioDeviceDescriptor;
 use domain::ids::{BlockId, DeviceId};
-use project::chain::Chain;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use project::project::Project;
+use infra_cpal::AudioDeviceDescriptor;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+use project::chain::Chain;
+use project::project::Project;
 
 // --- sync_recent_projects ---
 
