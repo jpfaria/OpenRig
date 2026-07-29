@@ -1,0 +1,18 @@
+{
+  "total_native": 75,
+  "by_block_type": {
+    "gain_pedal": 10,
+    "amp": 3,
+    "body": 0,
+    "cab": 3,
+    "preamp": 3,
+    "vst3": 0,
+    "reverb": 13,
+    "filter": 4,
+    "mod": 15,
+    "delay": 14,
+    "dyn": 3,
+    "pitch": 1,
+    "wah": 6
+  }
+}
