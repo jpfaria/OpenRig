@@ -18,6 +18,7 @@
 use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
+use application::dispatcher::CommandDispatcher;
 use application::SelectionState;
 use slint::{ComponentHandle, Timer, Weak};
 

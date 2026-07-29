@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
+use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 use engine::DiPcm;

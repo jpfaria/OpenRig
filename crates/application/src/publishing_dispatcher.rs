@@ -5,13 +5,24 @@
 //! through the one dispatcher a frontend holds, so wrapping it here captures
 //! every state change with no per-call-site instrumentation.
 
+use std::cell::RefCell;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::{Arc, RwLock};
+
 use anyhow::Result;
+
+use domain::ids::ChainId;
+use engine::DiPcm;
+use project::rig::RigProject;
 
 use crate::bridge::EventSink;
 use crate::command::Command;
+use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::selection_state::SelectionState;
 
 pub struct PublishingDispatcher {
     inner: LocalDispatcher,
@@ -62,6 +73,55 @@ impl CommandDispatcher for PublishingDispatcher {
             self.inner.publish_state_snapshot();
         }
         events
+    }
+
+    // #127: the wrapper is transparent for reads/attach too — every one of
+    // these forwards to the wrapped `LocalDispatcher`, so a caller holding
+    // this behind `&dyn CommandDispatcher` sees exactly what `.inner()`
+    // already gave direct callers (adapter-console, adapter-mcp).
+
+    fn selection_state(&self) -> Arc<RwLock<SelectionState>> {
+        self.inner.selection_state()
+    }
+
+    fn engine_sr(&self) -> u32 {
+        self.inner.engine_sr()
+    }
+
+    fn chain_snapshot(&self, chain: &ChainId) -> Option<project::chain::Chain> {
+        self.inner.chain_snapshot(chain)
+    }
+
+    fn di_loop_for_chain(&self, chain: &ChainId) -> Option<Arc<DiPcm>> {
+        self.inner.di_loop_for_chain(chain)
+    }
+
+    fn di_loop_source_for_chain(&self, chain: &ChainId) -> Option<DiLoopSource> {
+        self.inner.di_loop_source_for_chain(chain)
+    }
+
+    fn tone_report_json(&self, chain: &ChainId) -> String {
+        self.inner.tone_report_json(chain)
+    }
+
+    fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
+        self.inner.attach_rig(rig)
+    }
+
+    fn attach_presets_path(&self, path: PathBuf) {
+        self.inner.attach_presets_path(path)
+    }
+
+    fn attach_project_path(&self, path: PathBuf) {
+        self.inner.attach_project_path(path)
+    }
+
+    fn attach_config_path(&self, path: Option<PathBuf>) {
+        self.inner.attach_config_path(path)
+    }
+
+    fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
+        self.inner.attach_engine_sr(sr)
     }
 }
 

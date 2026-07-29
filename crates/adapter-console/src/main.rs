@@ -10,6 +10,7 @@
 
 use anyhow::Result;
 use application::bridge::{self, QueryKind};
+use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use application::publishing_dispatcher::PublishingDispatcher;
 use application::validate::validate_project;

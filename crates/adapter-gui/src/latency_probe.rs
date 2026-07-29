@@ -8,6 +8,8 @@
 //!
 //! Lives in its own module — does not bloat `lib.rs` (issue #276).
 
+use application::dispatcher::CommandDispatcher;
+
 use crate::state::ProjectSession;
 use crate::AppWindow;
 use crate::ProjectChainItem;

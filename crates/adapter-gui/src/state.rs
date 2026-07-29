@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::BlockEditorWindow;
+use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use project::chain::ChainInputMode;
 use project::param::ParameterSet;

@@ -49,6 +49,7 @@ mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 mod local_dispatcher_selection;
 mod local_dispatcher_subsystems;
+mod local_dispatcher_trait;
 pub mod looper_audio;
 mod local_dispatcher_tone_doctor;
 /// #693: command side-effect writes run on a dedicated worker thread —

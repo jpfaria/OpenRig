@@ -16,21 +16,25 @@ use crate::local_dispatcher::LocalDispatcher;
 impl LocalDispatcher {
     /// Share the session's `RigProject` handle so rig-nav commands can
     /// mutate the same allocation the GUI renders from. Idempotent.
-    pub fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
+    ///
+    /// #127: `pub(crate)` — the crate's public surface is
+    /// `CommandDispatcher::attach_rig` (see `local_dispatcher_trait.rs`),
+    /// which delegates here.
+    pub(crate) fn attach_rig(&self, rig: Rc<RefCell<RigProject>>) {
         *self.rig.borrow_mut() = Some(rig);
     }
 
     /// #555: configure the preset library directory. Called by the
     /// session bootstrap once the resolved `presets_path` is known.
     /// Idempotent — calling this again replaces the path.
-    pub fn attach_presets_path(&self, path: PathBuf) {
+    pub(crate) fn attach_presets_path(&self, path: PathBuf) {
         *self.presets_path.borrow_mut() = Some(path);
     }
 
     /// #555: configure where `Command::SaveProject` writes the project
     /// file. Called by the session bootstrap and again on every "Save
     /// As" so the dispatcher and the GUI agree on the current target.
-    pub fn attach_project_path(&self, path: PathBuf) {
+    pub(crate) fn attach_project_path(&self, path: PathBuf) {
         *self.project_path.borrow_mut() = Some(path);
     }
 
@@ -38,7 +42,7 @@ impl LocalDispatcher {
     /// `None` ⇒ the dispatcher derives it from `project_path.parent()
     /// .join("config.yaml")` at save time (matches the pre-#555
     /// behaviour). Idempotent.
-    pub fn attach_config_path(&self, path: Option<PathBuf>) {
+    pub(crate) fn attach_config_path(&self, path: Option<PathBuf>) {
         *self.config_path.borrow_mut() = path;
     }
 
@@ -48,6 +52,9 @@ impl LocalDispatcher {
     /// the real OS config); tests attach a temp path so they never touch it.
     /// SEPARATE from `attach_config_path` — the project sidecar must never
     /// receive the per-machine registry.
+    ///
+    /// Not part of `CommandDispatcher` (#127 only moved the 11 GUI-facing
+    /// methods listed in the task brief) — stays `pub` for direct callers.
     pub fn attach_io_config_path(&self, path: Option<PathBuf>) {
         *self.io_config_path.borrow_mut() = path;
     }
@@ -63,7 +70,7 @@ impl LocalDispatcher {
     /// caller can re-arm any that are playing: their live runtime was rebuilt
     /// at the new rate, and re-arming rebuilds the loop to match (a loop left
     /// from the old rate would drag in slow motion). No-op when unchanged.
-    pub fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
+    pub(crate) fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
         if *self.engine_sr.borrow() == sr {
             return Vec::new();
         }

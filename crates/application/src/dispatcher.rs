@@ -12,10 +12,21 @@
 //! internally. At that point a blanket impl or a second `RemoteCommandDispatcher`
 //! supertrait will restore the `Send + Sync` contract for cross-thread callers.
 
+use std::cell::RefCell;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::{Arc, RwLock};
+
 use anyhow::Result;
 
+use domain::ids::ChainId;
+use engine::DiPcm;
+use project::rig::RigProject;
+
 use crate::command::Command;
+use crate::di_loader::DiLoopSource;
 use crate::event::Event;
+use crate::selection_state::SelectionState;
 
 /// The single abstraction every consumer of the command bus uses.
 ///
@@ -38,4 +49,49 @@ pub trait CommandDispatcher {
     fn poll_async_results(&self) -> Vec<Event> {
         Vec::new()
     }
+
+    /// Engine sample rate the dispatcher last saw. `0` until the audio
+    /// runtime reports one.
+    fn engine_sr(&self) -> u32 {
+        0
+    }
+
+    /// Shared UI selection state. Every implementation owns one — the
+    /// selection is frontend state, not engine state.
+    fn selection_state(&self) -> Arc<RwLock<SelectionState>>;
+
+    /// Immutable copy of one chain, or `None` when the id is unknown.
+    fn chain_snapshot(&self, _chain: &ChainId) -> Option<project::chain::Chain> {
+        None
+    }
+
+    /// Decoded DI loop bound to a chain, when the implementation holds one.
+    fn di_loop_for_chain(&self, _chain: &ChainId) -> Option<Arc<DiPcm>> {
+        None
+    }
+
+    /// Where a chain's DI loop came from (file, looper, …).
+    fn di_loop_source_for_chain(&self, _chain: &ChainId) -> Option<DiLoopSource> {
+        None
+    }
+
+    /// Last Tone Doctor run for a chain, already serialized. `{}` when the
+    /// implementation has never run one.
+    fn tone_report_json(&self, _chain: &ChainId) -> String {
+        "{}".to_string()
+    }
+
+    // --- session attach: local setup, no-op by default ---
+    fn attach_rig(&self, _rig: Rc<RefCell<RigProject>>) {}
+    fn attach_presets_path(&self, _path: PathBuf) {}
+    fn attach_project_path(&self, _path: PathBuf) {}
+    fn attach_config_path(&self, _path: Option<PathBuf>) {}
+    /// Returns the chains whose resolved rate changed.
+    fn attach_engine_sr(&self, _sr: u32) -> Vec<ChainId> {
+        Vec::new()
+    }
 }
+
+#[cfg(test)]
+#[path = "dispatcher_object_safety_tests.rs"]
+mod tests;

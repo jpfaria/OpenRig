@@ -11,6 +11,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::bridge::QueryKind;
+use application::dispatcher::CommandDispatcher;
 use slint::{Model, VecModel};
 
 use infra_cpal::ProjectRuntimeController;
