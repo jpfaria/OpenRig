@@ -4,7 +4,20 @@ addEventListener('scroll', () => nav.classList.toggle('solid', scrollY > 60), { 
 const io = new IntersectionObserver(es => es.forEach(e => {
   if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
 }), { threshold: .15 });
-document.querySelectorAll('.rv').forEach((el, i) => { el.style.transitionDelay = (i % 3) * 70 + 'ms'; io.observe(el); });
+function wireReveal(root) {
+  root.querySelectorAll('.rv').forEach((el, i) => { el.style.transitionDelay = (i % 3) * 70 + 'ms'; io.observe(el); });
+}
+
+// The page is one file per section under sections/; index.html only carries the
+// shell (nav, hero, footer) and the placeholders these get injected into.
+async function loadSections() {
+  await Promise.all([...document.querySelectorAll('[data-include]')].map(async slot => {
+    try {
+      const r = await fetch(slot.dataset.include);
+      if (r.ok) slot.innerHTML = await r.text();
+    } catch (e) { /* a missing partial leaves an empty slot rather than killing the page */ }
+  }));
+}
 
 const SUPPORTED_LANGS = ['en', 'pt-BR', 'es-ES'];
 function detectLang() {
@@ -130,7 +143,15 @@ async function applyLang(lang) {
   });
   document.querySelectorAll('[data-lang-switch] button').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
 }
-document.querySelectorAll('[data-lang-switch] button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
+function wireLangSwitch(root) {
+  root.querySelectorAll('[data-lang-switch] button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
+}
 
-loadRelease().then(() => applyLang(detectLang()));
-loadGearStats();
+// Sections must be in the DOM before anything that queries them: the reveal
+// observer, the language pass and the live-number setters all walk the page.
+loadSections().then(() => {
+  wireReveal(document);
+  wireLangSwitch(document);
+  loadRelease().then(() => applyLang(detectLang()));
+  loadGearStats();
+});
