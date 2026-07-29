@@ -100,3 +100,7 @@ pub trait CommandDispatcher {
 #[cfg(test)]
 #[path = "dispatcher_object_safety_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "dispatcher_tone_doctor_attach_tests.rs"]
+mod tone_doctor_attach_tests;
