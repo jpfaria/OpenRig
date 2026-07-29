@@ -87,8 +87,8 @@
   "gig.c1.p": "The signal goes in and comes back out fast enough that your hands never notice the computer in between.",
   "gig.c2.h3": "Silent switching",
   "gig.c2.p": "Swap an amp, add a pedal, change a preset while you're playing. No gaps, no pops, no dead bars.",
-  "gig.c3.h3": "Runs on modest hardware",
-  "gig.c3.p": "A laptop is plenty. It also runs on a small board you can screw to a pedalboard and forget about.",
+  "gig.c3.h3": "No hardware to buy",
+  "gig.c3.p": "The laptop you already own is the rig. Nothing extra to buy, nothing extra to carry to the gig.",
 
   "features.eyebrow": "Everything you need",
   "features.h2": "More than<br>a rig.",
