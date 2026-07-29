@@ -43,6 +43,7 @@ fn chain(id: &str, enabled: bool, binding_ids: &[&str]) -> Chain {
         volume: 100.0,
         io_binding_ids: binding_ids.iter().map(|s| s.to_string()).collect(),
         blocks: vec![],
+        loopers: vec![],
         di_output: None,
     }
 }
