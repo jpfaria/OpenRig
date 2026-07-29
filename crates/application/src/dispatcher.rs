@@ -26,6 +26,7 @@ use project::rig::RigProject;
 use crate::command::Command;
 use crate::di_loader::DiLoopSource;
 use crate::event::Event;
+use crate::local_dispatcher::ToneDoctorInput;
 use crate::selection_state::SelectionState;
 
 /// The single abstraction every consumer of the command bus uses.
@@ -90,6 +91,10 @@ pub trait CommandDispatcher {
     fn attach_engine_sr(&self, _sr: u32) -> Vec<ChainId> {
         Vec::new()
     }
+    /// #791: register how the Tone Doctor reaches a chain's live input. Only
+    /// the adapter that owns the audio runtime can supply one, so a transport
+    /// that does not own audio keeps the default no-op.
+    fn attach_tone_doctor_input(&self, _provider: ToneDoctorInput) {}
 }
 
 #[cfg(test)]

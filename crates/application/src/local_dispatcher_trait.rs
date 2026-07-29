@@ -29,7 +29,7 @@ use crate::command::{
 use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
-use crate::local_dispatcher::{AsyncDone, LocalDispatcher};
+use crate::local_dispatcher::{AsyncDone, LocalDispatcher, ToneDoctorInput};
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::ToneRun;
 
@@ -395,5 +395,9 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
         LocalDispatcher::attach_engine_sr(self, sr)
+    }
+
+    fn attach_tone_doctor_input(&self, provider: ToneDoctorInput) {
+        LocalDispatcher::attach_tone_doctor_input(self, provider)
     }
 }
