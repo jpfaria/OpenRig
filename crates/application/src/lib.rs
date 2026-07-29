@@ -17,6 +17,7 @@ pub mod command_schema;
 pub mod di_loader;
 pub mod dispatcher;
 pub mod event;
+pub mod live_source;
 mod event_scope;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
