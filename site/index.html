@@ -24,6 +24,12 @@
       <a href="#app" data-i18n="nav.app">Inside</a>
       <a href="#docs" data-i18n="nav.docs">Docs</a>
     </div>
+    <a class="nav-gh" href="https://github.com/jpfaria/OpenRig" aria-label="GitHub" title="GitHub">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+    <div class="lang-switch" data-lang-switch>
+      <button data-lang="en">EN</button><button data-lang="pt-BR">PT</button><button data-lang="es-ES">ES</button>
+    </div>
     <a class="btn btn-primary" href="#download" data-i18n="nav.download">Download</a>
   </div>
 </nav>
@@ -31,6 +37,9 @@
 <header class="hero" id="top">
   <div class="hero-media">
     <img src="assets/px-7239914.jpg" alt="Guitarist playing live in front of a full stack">
+  </div>
+  <div class="hero-product rv">
+    <img src="assets/feat-project.png" alt="OpenRig main window — amps and pedals laid out like a pedalboard">
   </div>
   <div class="wrap">
     <p class="eyebrow" data-i18n="hero.eyebrow">Free · Open source · Mac</p>
@@ -279,7 +288,9 @@
       <a class="btn btn-ghost btn-lg" href="#docs" data-i18n="dl.cta2">Read the guide</a>
     </div>
     <p class="dl-meta rv" data-i18n="dl.meta">v{version} · Apple silicon &amp; Intel · macOS 12 or newer · GPL-3.0</p>
+    <p class="dl-meta rv" id="dl-downloads" data-i18n="dl.downloads" style="display:none">{downloads} downloads so far</p>
     <p class="dl-changelog rv"><a id="dl-changelog-link" href="https://github.com/jpfaria/OpenRig/blob/develop/CHANGELOG.md" data-i18n="dl.changelog">See what changed in this release</a></p>
+    <p class="dl-beta rv" id="dl-beta" style="display:none"><a id="dl-beta-link" href="#" data-i18n="dl.betaLabel">Feeling adventurous? Try the v{betaVersion} beta</a></p>
     <div class="soon rv" data-i18n="dl.soon">Windows &amp; Linux — in the works</div>
   </div>
 </section>
@@ -294,7 +305,7 @@
     </div>
     <div class="legal">
       <span data-i18n="footer.copyright">© 2026 OpenRig · GPL-3.0</span>
-      <div class="lang" id="lang-switch">
+      <div class="lang" data-lang-switch>
         <button data-lang="en">English</button><button data-lang="pt-BR">Português</button><button data-lang="es-ES">Español</button>
       </div>
     </div>
@@ -302,5 +313,8 @@
 </footer>
 
 <script src="app.js" defer></script>
+<!-- Cloudflare Web Analytics: replace CF_BEACON_TOKEN with the token from your
+     free dash.cloudflare.com account (Analytics & Logs > Web Analytics > Add site). -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "CF_BEACON_TOKEN"}'></script>
 </body>
 </html>

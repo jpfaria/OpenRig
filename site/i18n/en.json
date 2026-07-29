@@ -129,6 +129,8 @@
   "dl.cta2": "Read the guide",
   "dl.meta": "v{version} · Apple silicon &amp; Intel · macOS 12 or newer · GPL-3.0",
   "dl.changelog": "See what changed in this release",
+  "dl.betaLabel": "Feeling adventurous? Try the v{betaVersion} beta",
+  "dl.downloads": "{downloads} downloads so far",
   "dl.soon": "Windows &amp; Linux — in the works",
 
   "footer.learn.h4": "Learn",

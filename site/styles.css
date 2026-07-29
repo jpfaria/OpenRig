@@ -40,6 +40,12 @@ nav .wrap{display:flex;align-items:center;gap:34px}
 .btn-ghost{border:1px solid var(--line2);color:var(--white)}
 .btn-ghost:hover{border-color:var(--white);transform:translateY(-2px)}
 .btn-lg{padding:18px 34px;font-size:15px}
+.nav-gh{color:var(--mute);transition:color .2s;display:flex}
+.nav-gh:hover{color:#fff}
+nav .lang-switch{display:flex;gap:10px}
+nav .lang-switch button{font:inherit;font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--mute);background:none;border:none;cursor:pointer;padding:0}
+nav .lang-switch button:hover,nav .lang-switch button.on{color:#fff}
+@media(max-width:900px){.nav-gh,nav .lang-switch{display:none}}
 
 /* hero */
 .hero{position:relative;min-height:100svh;display:flex;align-items:flex-end;overflow:hidden}
@@ -57,6 +63,9 @@ nav .wrap{display:flex;align-items:center;gap:34px}
 .hero-note{font-size:13px;color:var(--mute);letter-spacing:.04em}
 .scroll-hint{position:absolute;right:max(4vw,24px);bottom:38px;z-index:2;display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--mute);writing-mode:vertical-rl}
 .scroll-hint i{display:block;width:1px;height:64px;background:linear-gradient(var(--amber),transparent)}
+.hero-product{position:absolute;top:112px;right:max(4vw,24px);z-index:2;width:min(36vw,440px);border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:var(--panel);box-shadow:0 50px 100px -35px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.06) inset}
+.hero-product img{width:100%;display:block}
+@media(max-width:1000px){.hero-product{display:none}}
 
 /* sections */
 section{position:relative}
@@ -142,6 +151,9 @@ section{position:relative}
 .dl-meta{margin-top:20px;font-size:13px;color:var(--mute);letter-spacing:.03em}
 .dl-changelog{margin-top:12px;font-size:13.5px}
 .dl-changelog a{color:var(--amber);text-decoration:underline}
+.dl-beta{margin-top:8px;font-size:12px}
+.dl-beta a{color:#67788f;text-decoration:underline}
+.dl-beta a:hover{color:var(--mute)}
 .soon{display:inline-flex;gap:10px;align-items:center;margin-top:28px;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:#67788f;border:1px dashed var(--line2);padding:9px 16px;border-radius:2px}
 
 footer{border-top:1px solid var(--line);padding:56px 0 44px;background:var(--ink)}
