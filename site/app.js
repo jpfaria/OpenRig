@@ -13,7 +13,8 @@ function wireReveal(root) {
 async function loadSections() {
   await Promise.all([...document.querySelectorAll('[data-include]')].map(async slot => {
     try {
-      const r = await fetch(slot.dataset.include);
+      // Revalidate: a cached partial paired with a fresh index.html renders stale copy.
+      const r = await fetch(slot.dataset.include, { cache: 'no-cache' });
       if (r.ok) slot.innerHTML = await r.text();
     } catch (e) { /* a missing partial leaves an empty slot rather than killing the page */ }
   }));
@@ -128,7 +129,8 @@ async function loadGearStats() {
 }
 
 async function applyLang(lang) {
-  const r = await fetch(`i18n/${lang}.json`);
+  // Same reason as the partials: a stale dictionary shows English fallbacks for new keys.
+  const r = await fetch(`i18n/${lang}.json`, { cache: 'no-cache' });
   const dict = await r.json();
   document.documentElement.lang = lang;
   localStorage.setItem('openrig-lang', lang);
