@@ -51,7 +51,10 @@ use application::command_schema::command_variant_names;
 /// #127 bumped to 94 with `SetIoBindings` — installing the effective I/O
 /// binding registry into the LIVE runtime was reachable only from the GUI
 /// (it called `ProjectRuntimeController::set_io_bindings` directly).
-const COMMAND_VARIANT_COUNT: usize = 94;
+/// #127 bumped to 95 with `SyncChainRuntime` — bringing ONE chain's live
+/// runtime back in step with the project was a UI-only call
+/// (`sync_live_chain_runtime` inside a Slint closure).
+const COMMAND_VARIANT_COUNT: usize = 95;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

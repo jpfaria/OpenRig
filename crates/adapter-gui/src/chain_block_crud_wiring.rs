@@ -23,8 +23,8 @@ use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{replace_project_chains, set_selected_block};
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
+use crate::sync_live_chain_runtime;
 use crate::ui_index_to_real_block_index;
-use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
     ProjectChainItem,
@@ -115,7 +115,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
         let block_editor_draft = block_editor_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -184,12 +183,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
             }
             // Keep inline drawer UI in sync
             window.set_block_drawer_enabled(new_enabled);
-            if let Err(error) =
-                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
-            {
-                set_status_error(&window, &toast_timer, &error.to_string());
-                return;
-            }
+            // #127: the runtime already knows — `ToggleBlockEnabled` applied the
+            // live toggle from the dispatcher (through `RuntimeControl`), so a
+            // failure came back out of the dispatch above.
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),

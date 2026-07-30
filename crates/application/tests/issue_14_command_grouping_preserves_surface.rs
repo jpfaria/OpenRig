@@ -121,6 +121,7 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetTunerEnabled",
     "StartMidiLearn",
     "StopMidiLearn",
+    "SyncChainRuntime",
     "ToggleActiveBlockNeighborEnabled",
     "ToggleBlockEnabled",
     "ToggleChainEnabled",

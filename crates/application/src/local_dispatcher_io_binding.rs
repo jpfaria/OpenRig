@@ -233,7 +233,7 @@ impl LocalDispatcher {
             .as_ref()
             .map(|registry| registry.borrow().clone());
         if let Some(bindings) = bindings {
-            if let Some(control) = self.runtime_control.borrow().as_ref() {
+            if let Some(control) = self.runtime_control() {
                 control.set_io_bindings(bindings);
             }
         }

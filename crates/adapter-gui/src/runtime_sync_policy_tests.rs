@@ -32,6 +32,20 @@ fn di_loop_events_do_not_rebuild() {
     ));
 }
 
+/// #127 (Task 8): `BlockCommand::ToggleBlockEnabled` now applies the #522 LIVE
+/// in-place toggle from the dispatcher itself. If the drain ALSO rebuilt on the
+/// resulting event, an MCP/footswitch block toggle would pay a full chain sync
+/// (device resolve + model reload) right after the cheap toggle already
+/// happened — the #740 freeze, on the wrong side of the fix.
+#[test]
+fn a_block_enable_toggle_does_not_rebuild() {
+    assert!(!event_requires_runtime_sync(&Event::BlockEnabledChanged {
+        chain: chain(),
+        block: domain::ids::BlockId("b".into()),
+        enabled: false,
+    }));
+}
+
 #[test]
 fn graph_changing_events_do_rebuild() {
     assert!(event_requires_runtime_sync(&Event::ChainEnabledChanged {

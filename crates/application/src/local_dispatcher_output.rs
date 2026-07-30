@@ -26,7 +26,7 @@ impl LocalDispatcher {
                 if let Ok(mut s) = self.selection_state.write() {
                     s.output_muted = muted;
                 }
-                if let Some(control) = self.runtime_control.borrow().as_ref() {
+                if let Some(control) = self.runtime_control() {
                     control.set_output_muted(muted);
                 }
                 Ok(vec![Event::OutputMutedChanged { muted }])

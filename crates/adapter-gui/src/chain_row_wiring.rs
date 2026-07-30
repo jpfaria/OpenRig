@@ -316,7 +316,6 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
@@ -354,7 +353,17 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            // #127: ask the bus to bring this ONE chain's runtime in step — the
+            // dispatcher applies it through `RuntimeControl`. Separate from the
+            // toggle on purpose: the compact screen has to start JACK between
+            // the two on Linux, so the toggle must not sync by itself.
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Chain(ChainCommand::SyncChainRuntime {
+                        chain: chain_id.clone(),
+                    }))
+            {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }

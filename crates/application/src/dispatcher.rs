@@ -102,7 +102,7 @@ pub trait CommandDispatcher {
     /// install) reach the audio runtime. Only the frontend that hosts one can
     /// supply it; a transport that owns no audio keeps the default no-op and
     /// its commands still report their events.
-    fn attach_runtime_control(&self, _control: Box<dyn RuntimeControl>) {}
+    fn attach_runtime_control(&self, _control: Rc<dyn RuntimeControl>) {}
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so
     /// the binding commands mutate the same allocation the frontend renders

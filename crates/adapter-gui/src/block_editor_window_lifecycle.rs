@@ -40,7 +40,6 @@ use crate::eq::{
 };
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{block_model_picker_items, replace_project_chains, set_selected_block};
-use crate::runtime_lifecycle::sync_block_toggle;
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem, CurveEditorPoint,
@@ -299,7 +298,6 @@ fn wire_drawer_toggle_save(
         let win_draft = win_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -374,18 +372,13 @@ fn wire_drawer_toggle_save(
             if let Some(draft) = win_draft.borrow_mut().as_mut() {
                 draft.enabled = new_enabled;
             }
-            // Step 4: resync runtime + refresh UI.
+            // Step 4: refresh UI. #127: the runtime was already updated by the
+            // `ToggleBlockEnabled` dispatch above (through `RuntimeControl`),
+            // which is where a runtime failure now surfaces.
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) =
-                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
-            {
-                log::error!("[adapter-gui] block-window.toggle-enabled runtime sync: {e}");
-                main.set_block_drawer_status_message(e.to_string().into());
-                return;
-            }
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),

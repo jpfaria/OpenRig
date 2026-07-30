@@ -82,6 +82,12 @@ impl CommandDispatcher for LocalDispatcher {
                 | ChainCommand::ToggleChainEnabled { .. },
             ) => self.handle_chain_order(cmd),
 
+            // #127: runtime control, not a project mutation — the effect is
+            // applied through the attached `RuntimeControl`.
+            Command::Chain(ChainCommand::SyncChainRuntime { chain }) => {
+                self.handle_sync_chain_runtime(chain)
+            }
+
             Command::Chain(
                 ChainCommand::SaveChain { .. }
                 | ChainCommand::SaveChainInputEndpoints { .. }
@@ -407,7 +413,7 @@ impl CommandDispatcher for LocalDispatcher {
         LocalDispatcher::attach_tone_doctor_input(self, provider)
     }
 
-    fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
+    fn attach_runtime_control(&self, control: Rc<dyn RuntimeControl>) {
         LocalDispatcher::attach_runtime_control(self, control)
     }
 

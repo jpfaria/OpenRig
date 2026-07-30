@@ -8,11 +8,17 @@
 //! MCP/gRPC dispatched the same command and nothing happened to the audio.
 //!
 //! The frontend that hosts the runtime implements this trait and hands the
-//! dispatcher a boxed instance via
+//! dispatcher a shared instance via
 //! [`crate::dispatcher::CommandDispatcher::attach_runtime_control`]. A
 //! transport that owns no audio attaches nothing and keeps the default
 //! no-ops: the command still succeeds and still reports its event, it just
 //! has no runtime to touch.
+//!
+//! It is handed over as an `Rc` rather than a `Box` on purpose: a handler
+//! clones the handle out of the dispatcher's `RefCell` and drops the borrow
+//! BEFORE calling into the frontend. The frontend's sync sequence re-attaches
+//! the control on its way out (it is the same funnel that installs it), so a
+//! borrow held across the call would panic with `BorrowMutError`.
 //!
 //! **Not an audio-thread interface.** Every method is called on the
 //! dispatching (UI/control) thread and must only flip control-plane state the
@@ -25,6 +31,9 @@
 //! rig-wide — the tuner silences the whole rig — and says so, rather than
 //! pretending to be per-stream.
 
+use anyhow::Result;
+
+use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
 
 /// Runtime state changes a command handler can apply to the frontend's audio
@@ -48,5 +57,36 @@ pub trait RuntimeControl {
     /// a binding edit instead of waiting for the next cold start.
     fn set_io_bindings(&self, bindings: Vec<IoBinding>) {
         let _ = bindings;
+    }
+
+    /// Apply one block's new enabled state to the chain that owns it, LIVE.
+    ///
+    /// This is issue #522's in-place fade toggle: the frontend flips the
+    /// block's state on the running graph without re-resolving devices and
+    /// without rebuilding the stream, so a stomp on a pedal never drops audio.
+    /// An implementation must NOT turn this into a stream restart.
+    ///
+    /// **Isolation:** `chain` names the one runtime to touch. No other
+    /// stream's runtime may be paused, rebuilt or otherwise observed — and
+    /// never select runtimes by sample rate (`CLAUDE.md` LAW).
+    fn set_block_enabled(&self, chain: &ChainId, block: &BlockId, enabled: bool) -> Result<()> {
+        let _ = (chain, block, enabled);
+        Ok(())
+    }
+
+    /// Bring ONE chain's live runtime back in step with the project — start it
+    /// if it is enabled and nothing is running, pause it when it is disabled,
+    /// drop it when it is gone.
+    ///
+    /// The sequence itself (device resolve, off-thread rebuild, activation
+    /// scheduling) belongs to the frontend that owns the runtime; this is the
+    /// door a `Command` knocks on so no UI callback has to reach for the
+    /// controller directly.
+    ///
+    /// **Isolation:** exactly the chain named by `chain`. Syncing one chain
+    /// must not touch, group with, or depend on any other stream's runtime.
+    fn sync_chain(&self, chain: &ChainId) -> Result<()> {
+        let _ = chain;
+        Ok(())
     }
 }

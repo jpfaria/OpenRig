@@ -125,8 +125,8 @@ pub use cli::{
     validate_project_path, MidiMapArg,
 };
 pub(crate) use runtime_lifecycle::{
-    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_block_toggle,
-    sync_live_chain_runtime, sync_project_runtime, ui_index_to_real_block_index,
+    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_live_chain_runtime,
+    sync_project_runtime, ui_index_to_real_block_index,
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.

@@ -127,7 +127,7 @@ pub struct LocalDispatcher {
     /// `None` ⇒ this process hosts no runtime (MCP-only, tests): the commands
     /// still record their state and emit their events, they just have nothing
     /// to apply the change to.
-    pub(crate) runtime_control: RefCell<Option<Box<dyn RuntimeControl>>>,
+    pub(crate) runtime_control: RefCell<Option<Rc<dyn RuntimeControl>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -191,8 +191,18 @@ impl LocalDispatcher {
     /// #127: register the frontend's audio runtime so runtime-control commands
     /// apply their effect from here instead of from a UI callback. Idempotent
     /// — the frontend re-attaches whenever it rebuilds its runtime handle.
-    pub fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
+    pub fn attach_runtime_control(&self, control: Rc<dyn RuntimeControl>) {
         *self.runtime_control.borrow_mut() = Some(control);
+    }
+
+    /// The attached runtime control, cloned OUT of its `RefCell`.
+    ///
+    /// Always reach the runtime through this: the frontend's sync sequence
+    /// re-attaches the control on its way out, so calling a method while the
+    /// `RefCell` is still borrowed panics with `BorrowMutError`. Cloning one
+    /// `Rc` is the whole cost of not having that landmine.
+    pub(crate) fn runtime_control(&self) -> Option<Rc<dyn RuntimeControl>> {
+        self.runtime_control.borrow().clone()
     }
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so

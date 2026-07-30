@@ -22,7 +22,8 @@
 //!   `chain.blocks`.
 
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::path::PathBuf;
+use std::rc::{Rc, Weak};
 
 use anyhow::Result;
 
@@ -34,6 +35,8 @@ use domain::io_binding::IoBinding;
 use infra_cpal::ProjectRuntimeController;
 use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
+use project::project::Project;
+use project::rig::RigProject;
 
 use crate::state::ProjectSession;
 
@@ -45,6 +48,56 @@ use crate::state::ProjectSession;
 /// controller; every other wiring module dispatches a `Command` instead.
 struct GuiRuntimeControl {
     runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    session: SessionHandle,
+}
+
+/// The open session, as seen from inside a command handler.
+///
+/// `sync_live_chain_runtime` and `sync_block_toggle` need the whole
+/// `ProjectSession`, but this control cannot hold the app's
+/// `Rc<RefCell<Option<ProjectSession>>>`: every GUI callback holds that cell
+/// `borrow_mut()` while it dispatches, so borrowing it from a handler would
+/// panic. The session's own fields are cheap shared handles, so they are
+/// mirrored instead — with the dispatcher held **weakly**, because the
+/// dispatcher OWNS this control and an `Rc` back to it would be a reference
+/// cycle that leaks the session (project data, DI loop PCM) on every project
+/// switch.
+struct SessionHandle {
+    project: Rc<RefCell<Project>>,
+    dispatcher: Weak<dyn CommandDispatcher>,
+    project_path: Option<PathBuf>,
+    config_path: Option<PathBuf>,
+    presets_path: PathBuf,
+    rig: Option<Rc<RefCell<RigProject>>>,
+    io_bindings: Rc<RefCell<Vec<IoBinding>>>,
+}
+
+impl SessionHandle {
+    fn mirror(session: &ProjectSession) -> Self {
+        Self {
+            project: Rc::clone(&session.project),
+            dispatcher: Rc::downgrade(&session.dispatcher),
+            project_path: session.project_path.clone(),
+            config_path: session.config_path.clone(),
+            presets_path: session.presets_path.clone(),
+            rig: session.rig.clone(),
+            io_bindings: Rc::clone(&session.io_bindings),
+        }
+    }
+
+    /// Rebuild the session the sync helpers take. `None` once the project has
+    /// been closed — and then there is no runtime left to sync either.
+    fn session(&self) -> Option<ProjectSession> {
+        Some(ProjectSession {
+            project: Rc::clone(&self.project),
+            dispatcher: self.dispatcher.upgrade()?,
+            project_path: self.project_path.clone(),
+            config_path: self.config_path.clone(),
+            presets_path: self.presets_path.clone(),
+            rig: self.rig.clone(),
+            io_bindings: Rc::clone(&self.io_bindings),
+        })
+    }
 }
 
 impl RuntimeControl for GuiRuntimeControl {
@@ -59,22 +112,42 @@ impl RuntimeControl for GuiRuntimeControl {
             runtime.set_io_bindings(bindings);
         }
     }
+
+    /// #522 stays #522: the in-place fade toggle, with the same fallback the
+    /// GUI callback used to run itself. No stream restart, no added latency.
+    fn set_block_enabled(&self, chain: &ChainId, block: &BlockId, enabled: bool) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        sync_block_toggle(&self.runtime, &session, chain, block, enabled)
+    }
+
+    fn sync_chain(&self, chain: &ChainId) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        sync_live_chain_runtime(&self.runtime, &session, chain)
+    }
 }
 
 /// #127: give this session's dispatcher a handle on the audio runtime, so
 /// runtime-control commands apply their effect from the dispatcher instead of
 /// from a UI callback (which left MCP/MIDI dispatching into the void).
 ///
-/// Called wherever the runtime is created or re-synced: the dispatcher belongs
-/// to the open session, so a newly opened project re-attaches on its first
-/// sync. Idempotent and cheap — it clones one `Rc`.
+/// Called wherever the runtime is created or re-synced, and wherever the
+/// session's paths change (Save As): the dispatcher belongs to the open
+/// session, so a newly opened project re-attaches on its first sync.
+/// Idempotent and cheap — it clones a handful of `Rc`s.
 pub(crate) fn attach_runtime_control(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    dispatcher: &dyn CommandDispatcher,
+    session: &ProjectSession,
 ) {
-    dispatcher.attach_runtime_control(Box::new(GuiRuntimeControl {
-        runtime: project_runtime.clone(),
-    }));
+    session
+        .dispatcher
+        .attach_runtime_control(Rc::new(GuiRuntimeControl {
+            runtime: project_runtime.clone(),
+            session: SessionHandle::mirror(session),
+        }));
 }
 
 pub(crate) fn stop_project_runtime(
@@ -103,7 +176,7 @@ pub(crate) fn sync_project_runtime(
         project_runtime,
         session.dispatcher.as_ref(),
     );
-    attach_runtime_control(project_runtime, session.dispatcher.as_ref());
+    attach_runtime_control(project_runtime, session);
     Ok(())
 }
 
@@ -174,7 +247,7 @@ pub(crate) fn sync_live_chain_runtime(
                 project_runtime,
                 session.dispatcher.as_ref(),
             );
-            attach_runtime_control(project_runtime, session.dispatcher.as_ref());
+            attach_runtime_control(project_runtime, session);
             // #323: the runtimes were just born empty — give them back the
             // loopers the project carries, with whatever audio they saved.
             restore_project_loops(project_runtime, session);
@@ -248,7 +321,7 @@ pub(crate) fn sync_live_chain_runtime(
         project_runtime,
         session.dispatcher.as_ref(),
     );
-    attach_runtime_control(project_runtime, session.dispatcher.as_ref());
+    attach_runtime_control(project_runtime, session);
     Ok(())
 }
 
@@ -283,7 +356,7 @@ pub(crate) fn ensure_runtime(
         project_runtime,
         session.dispatcher.as_ref(),
     );
-    attach_runtime_control(project_runtime, session.dispatcher.as_ref());
+    attach_runtime_control(project_runtime, session);
     // #323: same as the enable path — the fresh runtimes get the project's
     // loopers back.
     restore_project_loops(project_runtime, session);
@@ -402,3 +475,7 @@ pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> us
 #[cfg(test)]
 #[path = "runtime_lifecycle_di_808_tests.rs"]
 mod di_808_tests;
+
+#[cfg(test)]
+#[path = "runtime_lifecycle_control_tests.rs"]
+mod control_tests;

@@ -130,7 +130,7 @@ impl CommandDispatcher for PublishingDispatcher {
         self.inner.attach_tone_doctor_input(provider)
     }
 
-    fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
+    fn attach_runtime_control(&self, control: Rc<dyn RuntimeControl>) {
         self.inner.attach_runtime_control(control)
     }
 

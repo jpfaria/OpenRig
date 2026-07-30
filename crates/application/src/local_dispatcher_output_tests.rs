@@ -58,7 +58,7 @@ impl RuntimeControl for SpyRuntimeControl {
 fn dispatcher_with_spy() -> (LocalDispatcher, Rc<RefCell<Vec<RuntimeCall>>>) {
     let calls = Rc::new(RefCell::new(Vec::new()));
     let d = dispatcher();
-    d.attach_runtime_control(Box::new(SpyRuntimeControl {
+    d.attach_runtime_control(Rc::new(SpyRuntimeControl {
         calls: calls.clone(),
     }));
     (d, calls)

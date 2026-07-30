@@ -335,6 +335,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 session
                     .dispatcher
                     .attach_presets_path(session.presets_path.clone());
+                // #127: the runtime control mirrors the session's paths (it
+                // hands them to the sync helpers), so re-attach it here too —
+                // otherwise a cold start after Save As would restore the
+                // project's loops from the OLD path.
+                crate::runtime_lifecycle::attach_runtime_control(&project_runtime, session);
                 path
             };
             // #323: a recorded loop is audio — write it as a sidecar and let

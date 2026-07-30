@@ -38,6 +38,15 @@ impl LocalDispatcher {
                         s.active_block_enabled = new_state;
                     }
                 }
+                // #127: apply it to the audio runtime from HERE. The GUI used
+                // to dispatch and then poke the controller itself, so the same
+                // command over MCP/gRPC left the pedal sounding. Nothing is
+                // borrowed at this point — `with_block` released the project
+                // and the runtime handle is cloned out of its cell — because
+                // the frontend's sequence borrows both.
+                if let Some(control) = self.runtime_control() {
+                    control.set_block_enabled(&chain, &block, new_state)?;
+                }
                 Ok(vec![Event::BlockEnabledChanged {
                     chain,
                     block,
@@ -112,3 +121,7 @@ impl LocalDispatcher {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "local_dispatcher_block_lifecycle_tests.rs"]
+mod tests;

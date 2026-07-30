@@ -12,12 +12,19 @@
 use application::event::Event;
 
 /// Does this event change the chain graph (and therefore require
-/// `sync_live_chain_runtime`)? Runtime-only events return `false`.
+/// `sync_live_chain_runtime`)? Runtime-only events — and events whose command
+/// handler already applied the runtime effect itself — return `false`.
 pub(crate) fn event_requires_runtime_sync(event: &Event) -> bool {
     !matches!(
         event,
         Event::ChainDiLoopEnabledChanged { .. }
             | Event::ChainDiLoopSourceChanged { .. }
             | Event::ChainDiLoopOutputChanged { .. }
+            // #127: `ToggleBlockEnabled` applies the #522 LIVE in-place toggle
+            // from the dispatcher (through `RuntimeControl`). Rebuilding here
+            // would add a full device resolve + model reload on top of a
+            // toggle that already took effect — the #740 freeze all over
+            // again, and for every footswitch press.
+            | Event::BlockEnabledChanged { .. }
     )
 }
