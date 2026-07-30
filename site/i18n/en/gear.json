@@ -62,7 +62,7 @@
   "gig.c2.h3": "Switch without a click",
   "gig.c2.p": "Change amp, add a pedal or load a preset while you're playing. No gap, no pop, no dead bar.",
   "gig.c3.h3": "No amp head, no pedalboard",
-  "gig.c3.p": "You already have an audio interface to plug the guitar into. Everything after it — amp, cab, pedals — runs on the laptop.",
+  "gig.c3.p": "You already have an audio interface to plug the guitar into. Everything after it — amp, cab, pedals — runs on the computer.",
   "app.eyebrow": "Inside",
   "app.h2": "Everything<br>in one view.",
   "app.lede": "Instruments on the left, gear in the middle, outputs on the right. That's the whole app.",
