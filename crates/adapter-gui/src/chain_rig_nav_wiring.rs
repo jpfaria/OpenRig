@@ -12,7 +12,7 @@ use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, Timer, VecMod
 
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
-use application::command::{ChainId, Command, RigNavKind, SelectionCommand};
+use application::command::{ChainCommand, ChainId, Command, RigNavKind, SelectionCommand};
 use application::event::Event;
 
 use crate::chain_rig_nav::rig_nav_rows;
@@ -20,7 +20,6 @@ use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
-use crate::sync_live_chain_runtime;
 use crate::{AppWindow, ChainRigNav, PresetOption, PresetPicker, ProjectChainItem};
 
 pub(crate) struct ChainRigNavCtx {
@@ -184,12 +183,26 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     let Some(session) = session_borrow.as_ref() else {
         return;
     };
+    // #127: this is where external transports (MCP tools, MIDI footswitch) meet
+    // the frontend, so make sure the dispatcher can reach this frontend's audio
+    // runtime before any of their requests are honoured. Idempotent, and it
+    // closes the window between opening a project and its first chain sync —
+    // where a command that used to cold-start the runtime would otherwise
+    // have nothing to apply itself to.
+    crate::runtime_lifecycle::attach_runtime_control(&ctx.project_runtime, session);
     let mut compact_open_idx: Option<i32> = None;
 
     // Re-sync the live runtime for each chain a GRAPH-changing command
     // touched (once). Runtime-only events (DI loop) are applied as wait-free
     // pointer swaps below — rebuilding the chain for them caused the #670
     // DI-on output starvation (see runtime_sync_policy).
+    //
+    // #127: this goes through the BUS, exactly like the GUI's own callbacks.
+    // It used to call `sync_live_chain_runtime` directly, which meant MCP/MIDI
+    // and the GUI reached the runtime by two different roads that only happened
+    // to end in the same function. `attach_runtime_control` right above
+    // guarantees the dispatcher can honour the request even on the very first
+    // external command of a freshly opened project.
     let mut synced: Vec<ChainId> = Vec::new();
     for event in events {
         let Some(chain_id) = event.chain() else {
@@ -202,7 +215,13 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
             continue;
         }
         synced.push(chain_id.clone());
-        if let Err(e) = sync_live_chain_runtime(&ctx.project_runtime, session, chain_id) {
+        if let Err(e) =
+            session
+                .dispatcher
+                .dispatch(Command::Chain(ChainCommand::SyncChainRuntime {
+                    chain: chain_id.clone(),
+                }))
+        {
             set_status_error(window, &ctx.toast_timer, &e.to_string());
         }
     }

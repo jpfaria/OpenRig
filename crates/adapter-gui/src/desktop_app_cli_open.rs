@@ -24,7 +24,7 @@ use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
 
-use infra_cpal::AudioDeviceDescriptor;
+use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::AppConfig;
 
 #[allow(clippy::too_many_arguments)]
@@ -32,6 +32,7 @@ pub(crate) fn try_auto_open(
     cli_project_path: Option<&PathBuf>,
     window: &AppWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     project_chains: &Rc<VecModel<ProjectChainItem>>,
     input_chain_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -63,6 +64,11 @@ pub(crate) fn try_auto_open(
                 &session.io_bindings.borrow(),
             );
             let snapshot = project_session_snapshot(&session).ok();
+            // #127: hand the new session's dispatcher this frontend's audio
+            // runtime BEFORE anything can dispatch against it, so a
+            // runtime-control command issued before the first chain sync still
+            // reaches the audio (it used to cold-start the runtime itself).
+            crate::runtime_lifecycle::attach_runtime_control(project_runtime, &session);
             *project_session.borrow_mut() = Some(session);
             crate::chain_rig_nav_wiring::refresh_from_session(window, project_session);
             *saved_project_snapshot.borrow_mut() = snapshot;

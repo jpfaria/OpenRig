@@ -362,6 +362,7 @@ pub fn run_desktop_app(
         cli_project_path.as_ref(),
         &window,
         &project_session,
+        &project_runtime,
         &project_chains,
         &input_chain_devices,
         &output_chain_devices,

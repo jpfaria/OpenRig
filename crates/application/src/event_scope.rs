@@ -24,6 +24,9 @@ impl Event {
             | Event::ChainAdded { chain }
             | Event::ChainRemoved { chain }
             | Event::ChainEnabledChanged { chain, .. }
+            // #127: the sync the dispatcher could not apply is owed to exactly
+            // this chain — the drain must pick it up by chain identity.
+            | Event::ChainRuntimeSyncNeeded { chain }
             | Event::ChainMoved { chain, .. }
             | Event::ChainConfigured { chain }
             | Event::ChainSaved { chain }

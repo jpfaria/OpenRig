@@ -96,15 +96,25 @@ fn syncing_one_chain_never_touches_another() {
     );
 }
 
+/// With nothing attached the dispatcher cannot sync anything itself, so it must
+/// SAY the sync is still owed rather than report a silent success — the same
+/// contract `ToggleBlockEnabled` follows. A frontend that has not yet handed
+/// its runtime over then still performs the sync from its event drain.
 #[test]
-fn sync_chain_runtime_is_a_no_op_without_an_attached_runtime() {
+fn an_unapplied_sync_request_says_the_sync_is_still_owed() {
     let dispatcher = LocalDispatcher::new(empty_project());
 
     let events = dispatcher
         .dispatch(sync("rig:input-3"))
         .expect("a transport with no audio runtime must still dispatch");
 
-    assert!(events.is_empty(), "unexpected events: {events:?}");
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            crate::event::Event::ChainRuntimeSyncNeeded { chain } if chain.0 == "rig:input-3"
+        )),
+        "a sync nobody could apply must not report silent success: {events:?}"
+    );
 }
 
 /// The GUI surfaced a failed sync as a status error; that has to keep working

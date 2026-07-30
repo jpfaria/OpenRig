@@ -227,6 +227,51 @@ fn the_toggle_still_succeeds_when_no_runtime_is_attached() {
     );
 }
 
+/// A frontend that has NOT yet handed its runtime over (project opened, never
+/// synced) must not have the operation silently evaporate: before #127 this
+/// path cold-started the chain's runtime through `sync_live_chain_runtime`.
+/// The dispatcher cannot cold-start anything itself, so it says so — and the
+/// event it emits is the one the frontend's drain already turns into that same
+/// sync sequence. Swallowing it would mean a toggle that used to produce audio
+/// now does nothing.
+#[test]
+fn an_unapplied_toggle_asks_the_frontend_to_sync_the_chain() {
+    let dispatcher = LocalDispatcher::new(two_chain_project());
+
+    let events = dispatcher
+        .dispatch(toggle("chain_a", "a_drive"))
+        .expect("a transport with no audio runtime must still dispatch");
+
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            Event::ChainRuntimeSyncNeeded { chain } if chain.0 == "chain_a"
+        )),
+        "with no runtime attached the toggle must REQUEST the sync (the \
+         cold-start path), not swallow it — got {events:?}"
+    );
+}
+
+/// The mirror image: when the runtime DID take the live toggle there is nothing
+/// to ask for. Emitting the request anyway would make the frontend's drain
+/// rebuild the chain right after the cheap in-place toggle (#740).
+#[test]
+fn an_applied_toggle_asks_for_nothing() {
+    let (dispatcher, _calls) = dispatcher_with_spy();
+
+    let events = dispatcher
+        .dispatch(toggle("chain_a", "a_drive"))
+        .expect("ToggleBlockEnabled must succeed");
+
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, Event::ChainRuntimeSyncNeeded { .. })),
+        "the runtime already took the toggle — asking for a sync would rebuild \
+         the chain for nothing: {events:?}"
+    );
+}
+
 /// The GUI used to surface a failed `sync_block_toggle` as a status error. Now
 /// that the dispatcher owns the call, the failure has to come back out of
 /// `dispatch` — swallowing it would hide a dead runtime from every transport.

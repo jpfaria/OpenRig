@@ -126,6 +126,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         &session.project.borrow(),
                         &session.io_bindings.borrow(),
                     );
+                    // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
+                    // anything can dispatch against it — a runtime-control command issued before
+                    // the first chain sync must still reach the audio.
+                    crate::runtime_lifecycle::attach_runtime_control(&project_runtime, &session);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
@@ -257,6 +261,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 &output_chain_devices.borrow(),
                 &[],
             );
+            // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
+            // anything can dispatch against it — a runtime-control command issued before
+            // the first chain sync must still reach the audio.
+            crate::runtime_lifecycle::attach_runtime_control(&project_runtime, &session);
             *project_session.borrow_mut() = Some(session);
             crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
             *saved_project_snapshot.borrow_mut() = None;

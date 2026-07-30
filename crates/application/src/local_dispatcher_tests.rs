@@ -142,7 +142,11 @@ fn toggle_block_enabled_flips_true_to_false_and_emits_event() {
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
     let events = result.unwrap();
-    assert_eq!(events.len(), 1);
+    // #127: no `RuntimeControl` is attached here, so the dispatcher also reports
+    // that the chain's runtime sync is still owed — the frontend's drain turns
+    // that into the sync sequence this path used to call directly. With a
+    // runtime attached only the first event is emitted.
+    assert_eq!(events.len(), 2, "unexpected events: {events:?}");
     assert!(
         matches!(
             &events[0],
@@ -155,6 +159,14 @@ fn toggle_block_enabled_flips_true_to_false_and_emits_event() {
         ),
         "unexpected event: {:?}",
         events[0]
+    );
+    assert!(
+        matches!(
+            &events[1],
+            Event::ChainRuntimeSyncNeeded { chain } if chain.0 == "chain_0"
+        ),
+        "unexpected event: {:?}",
+        events[1]
     );
     assert!(
         !project.borrow().chains[0].blocks[0].enabled,

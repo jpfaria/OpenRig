@@ -24,10 +24,16 @@ impl LocalDispatcher {
     /// a SECOND sync for the same chain — a redundant rebuild on the hot path
     /// of every block edit (#740).
     pub(crate) fn handle_sync_chain_runtime(&self, chain: ChainId) -> Result<Vec<Event>> {
-        if let Some(control) = self.runtime_control() {
-            control.sync_chain(&chain)?;
+        match self.runtime_control() {
+            Some(control) => {
+                control.sync_chain(&chain)?;
+                Ok(vec![])
+            }
+            // No frontend runtime to sync (yet). Report the sync as still owed
+            // instead of a silent success — a frontend that has not handed its
+            // runtime over performs it from its event drain.
+            None => Ok(vec![Event::ChainRuntimeSyncNeeded { chain }]),
         }
-        Ok(vec![])
     }
 }
 
