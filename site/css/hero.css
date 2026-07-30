@@ -14,14 +14,22 @@
 .scroll-hint{position:absolute;right:max(4vw,24px);bottom:38px;z-index:2;display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--mute);writing-mode:vertical-rl}
 .scroll-hint i{display:block;width:1px;height:64px;background:linear-gradient(var(--amber),transparent)}
 
-.hero-product{position:absolute;top:104px;right:max(4vw,24px);z-index:2;width:min(36vw,440px)}
+.hero-product{position:absolute;top:96px;right:max(4vw,24px);z-index:2;width:min(28vw,352px)}
 .hero-product img{width:100%;display:block;border:1px solid var(--line2);border-radius:8px;background:var(--panel);box-shadow:0 50px 100px -35px rgba(0,0,0,.85)}
 /* The compact view sits under the full window, overlapping it — one glance shows both. */
 .hero-product img.hero-product-2{width:68%;margin:-8% 0 0 auto;transform:translateX(8%)}
+/* The mark is loose knob outlines on transparency — over the stage photo it scatters.
+   The tile gives it the same frame as the screenshots so it reads as one product cluster. */
+.hero-product .hero-logo{display:grid;place-items:center;width:clamp(124px,13vw,166px);aspect-ratio:1;
+  margin-bottom:18px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);
+  box-shadow:0 40px 80px -30px rgba(0,0,0,.85)}
+/* The SVG carries a wide transparent margin, so it has to overflow the tile to fill it. */
+.hero-product .hero-logo img{width:152%;height:auto;border:none;border-radius:0;background:none;box-shadow:none}
+
 @media(max-width:1000px){.hero-product{display:none}}
 
 /* sponsor call — sits under the product shots, loud enough to be seen first */
-.hero-support{display:block;margin-top:18px;padding:18px 22px;border:2px solid var(--amber);border-radius:6px;background:rgba(255,158,61,.10);backdrop-filter:blur(8px);text-align:center;transition:background .25s,transform .25s var(--ease)}
+.hero-support{display:block;margin-top:16px;padding:16px 20px;border:2px solid var(--amber);border-radius:6px;background:rgba(255,158,61,.10);backdrop-filter:blur(8px);text-align:center;transition:background .25s,transform .25s var(--ease)}
 .hero-support:hover{background:rgba(255,158,61,.2);transform:translateY(-2px)}
 .hero-support span{display:block;font-family:var(--display);font-size:clamp(24px,2.1vw,32px);letter-spacing:.04em;text-transform:uppercase;color:var(--amber)}
 .hero-support i{display:block;font-style:normal;font-size:12.5px;letter-spacing:.05em;color:var(--soft);margin-top:5px}
