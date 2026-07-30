@@ -29,6 +29,11 @@ use crate::{
 pub(crate) struct BlockWiringDeps<'a> {
     pub window: &'a AppWindow,
     pub chain_insert_window: &'a ChainInsertWindow,
+    /// #85 — the mid-chain I/O port editor.
+    pub chain_port_window: &'a crate::ChainPortWindow,
+    pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
+    pub port_binding_options: Rc<VecModel<SharedString>>,
+    pub port_endpoint_options: Rc<VecModel<SharedString>>,
 
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
@@ -183,7 +188,11 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::block_choose_type_callback::wire(
         deps.window,
         deps.chain_insert_window,
+        deps.chain_port_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
+            port_draft: deps.port_draft.clone(),
+            port_binding_options: deps.port_binding_options.clone(),
+            port_endpoint_options: deps.port_endpoint_options.clone(),
             inline_tab_state: inline_tab_state.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),

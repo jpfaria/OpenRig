@@ -170,6 +170,10 @@ pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
 mod preset_search;
+mod port_wiring;
+#[cfg(test)]
+#[path = "issue_85_port_editor_tests.rs"]
+mod issue_85_port_editor_tests;
 mod project_ops;
 mod project_ops_recents;
 // #679: `pub` so the issue_599 integration test can reach

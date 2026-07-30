@@ -1,6 +1,6 @@
 import { ChannelOptionItem, DeviceSelectionItem, ChainBindingChoice, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { Locale } from "locale_globals.slint";
-import { SettingsPage, ChainEditorPage, ChainInsertEditorPage } from "pages/pages.slint";
+import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, ChainPortEditorPage } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -258,3 +258,52 @@ export component ChainInsertWindow inherits Window {
     }
 }
 
+
+// #85 — the editor of a mid-chain I/O port. A port carries no model and no
+// parameters: it points at one E/S binding endpoint, which is what the model
+// persists, so those are the only two choices offered.
+export component ChainPortWindow inherits Window {
+    icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: Locale.font-family;
+    default-font-size: 13px;
+
+    in property <bool> is-input;
+    in property <[string]> binding-options;
+    in-out property <int> selected-binding-index;
+    in property <[string]> endpoint-options;
+    in-out property <int> selected-endpoint-index;
+    in property <bool> block-enabled: true;
+    in property <bool> show-endpoint-warning;
+
+    callback select-binding(int);
+    callback select-endpoint(int);
+    callback toggle-enabled();
+    callback delete-block();
+    callback save();
+    callback cancel();
+
+    title: @tr("title-window-chain-port");
+    min-width: 460px;
+    min-height: 380px;
+    preferred-width: 520px;
+    preferred-height: 420px;
+    background: #040708;
+
+    ChainPortEditorPage {
+        width: parent.width;
+        height: parent.height;
+        is-input: root.is-input;
+        binding-options: root.binding-options;
+        selected-binding-index <=> root.selected-binding-index;
+        endpoint-options: root.endpoint-options;
+        selected-endpoint-index <=> root.selected-endpoint-index;
+        block-enabled: root.block-enabled;
+        show-endpoint-warning: root.show-endpoint-warning;
+        select-binding(index) => { root.select-binding(index); }
+        select-endpoint(index) => { root.select-endpoint(index); }
+        toggle-enabled => { root.toggle-enabled(); }
+        delete-block => { root.delete-block(); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
+    }
+}

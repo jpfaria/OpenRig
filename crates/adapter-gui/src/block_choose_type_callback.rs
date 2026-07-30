@@ -75,12 +75,17 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
+    /// #85 — the mid-chain I/O port editor's state and option models.
+    pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
+    pub port_binding_options: Rc<VecModel<SharedString>>,
+    pub port_endpoint_options: Rc<VecModel<SharedString>>,
     pub auto_save: bool,
 }
 
 pub(crate) fn wire(
     window: &AppWindow,
     chain_insert_window: &ChainInsertWindow,
+    chain_port_window: &crate::ChainPortWindow,
     ctx: BlockChooseTypeCallbackCtx,
 ) {
     let BlockChooseTypeCallbackCtx {
@@ -108,11 +113,28 @@ pub(crate) fn wire(
         selected_block,
         open_block_windows,
         plugin_info_window,
+        port_draft,
+        port_binding_options,
+        port_endpoint_options,
         auto_save,
     } = ctx;
 
     let weak_window = window.as_weak();
     let weak_insert_window = chain_insert_window.as_weak();
+    let weak_port_window = chain_port_window.as_weak();
+    let port_ctx = crate::port_wiring::PortWiringCtx {
+        port_draft: port_draft.clone(),
+        port_binding_options: port_binding_options.clone(),
+        port_endpoint_options: port_endpoint_options.clone(),
+        project_session: project_session.clone(),
+        project_chains: project_chains.clone(),
+        project_runtime: project_runtime.clone(),
+        saved_project_snapshot: saved_project_snapshot.clone(),
+        project_dirty: project_dirty.clone(),
+        input_chain_devices: input_chain_devices.clone(),
+        output_chain_devices: output_chain_devices.clone(),
+        auto_save,
+    };
 
     window.on_choose_block_type(move |index| {
         let Some(window) = weak_window.upgrade() else {
@@ -136,6 +158,82 @@ pub(crate) fn wire(
 
         // Handle I/O and Insert block types: open the dedicated window instead of the block editor
         let effect_type_str = block_type.effect_type.as_str();
+        // #85: an I/O PORT (`input`/`output`) is created like the insert — the
+        // block first, so it shows up in the chain — and then its own editor
+        // opens to pick the E/S endpoint it points at. There is no model step:
+        // a port has no model and no parameters.
+        if effect_type_str == block_core::constants::EFFECT_TYPE_INPUT
+            || effect_type_str == block_core::constants::EFFECT_TYPE_OUTPUT
+        {
+            let is_input = effect_type_str == block_core::constants::EFFECT_TYPE_INPUT;
+            let (chain_index, before_index) = {
+                let draft_borrow = block_editor_draft.borrow();
+                let Some(draft) = draft_borrow.as_ref() else {
+                    return;
+                };
+                (draft.chain_index, draft.before_index)
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            let chain_id = {
+                let proj = session.project.borrow();
+                let Some(chain) = proj.chains.get(chain_index) else {
+                    return;
+                };
+                chain.id.clone()
+            };
+            if let Err(e) = session
+                .dispatcher
+                .dispatch(Command::Block(BlockCommand::AddBlock {
+                    chain: chain_id.clone(),
+                    kind: effect_type_str.to_string(),
+                    model_id: block_core::constants::IO_PORT_MODEL.to_string(),
+                    position: before_index,
+                }))
+            {
+                log::error!("port block AddBlock dispatch error: {e}");
+                return;
+            }
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("port block create error: {e}");
+            }
+            replace_project_chains(
+                &project_chains,
+                &session.project.borrow(),
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+                &[],
+            );
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
+            window.set_show_block_type_picker(false);
+            let registry = session.io_bindings.borrow().clone();
+            drop(session_borrow);
+            if let Some(pw) = weak_port_window.upgrade() {
+                crate::port_wiring::open_port_window(
+                    &pw,
+                    &port_ctx,
+                    crate::state::PortDraft {
+                        chain_index,
+                        block_index: before_index,
+                        is_input,
+                        io: String::new(),
+                        endpoint: String::new(),
+                        enabled: true,
+                    },
+                    &registry,
+                );
+                show_child_window(window.window(), pw.window());
+            }
+            return;
+        }
         if effect_type_str == "insert" {
             // Insert block: create via BlockCommand::AddBlock so business logic stays in the dispatcher.
             let (chain_index, before_index) = {
