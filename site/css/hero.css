@@ -18,18 +18,26 @@
 .hero-product img{width:100%;display:block;border:1px solid var(--line2);border-radius:8px;background:var(--panel);box-shadow:0 50px 100px -35px rgba(0,0,0,.85)}
 /* The compact view sits under the full window, overlapping it — one glance shows both. */
 .hero-product img.hero-product-2{width:68%;margin:-8% 0 0 auto;transform:translateX(8%)}
-/* Mark sits straight on the photo above the screenshots — the drop shadow is what keeps
-   the thin knob rings readable against a lit background. */
-.hero-product .hero-logo{display:grid;place-items:center;width:clamp(176px,18.5vw,238px);aspect-ratio:1;
-  margin-bottom:18px}
+/* Mark lives in the gap between the headline and the screenshots, anchored off the product
+   column so it stays put as the viewport changes. The drop shadow is what keeps the thin
+   knob rings readable over the lit part of the photo. */
+/* The artwork sits 6% above the middle of its own square, so the box is nudged down by
+   that much to make the top knobs line up with the top edge of the screenshots. */
+.hero-logo{position:absolute;z-index:2;top:96px;transform:translateY(-6%);
+  right:calc(max(4vw,24px) + min(25vw,318px) + 32px);
+  display:grid;place-items:center;width:clamp(240px,27vw,380px);aspect-ratio:1}
 /* The SVG carries a wide transparent margin, so it has to overflow its box to fill it. */
-.hero-product .hero-logo img{width:152%;height:auto;border:none;border-radius:0;background:none;
-  box-shadow:none;filter:drop-shadow(0 6px 26px rgba(0,0,0,.95)) drop-shadow(0 0 60px rgba(0,0,0,.7))}
+.hero-logo img{width:152%;height:auto;
+  filter:drop-shadow(0 6px 26px rgba(0,0,0,.95)) drop-shadow(0 0 70px rgba(0,0,0,.75))}
+
+@media(max-width:1000px){.hero-logo{display:none}}
 
 @media(max-width:1000px){.hero-product{display:none}}
 
-/* sponsor call — sits under the product shots, loud enough to be seen first */
-.hero-support{display:block;margin-top:16px;padding:16px 20px;border:2px solid var(--amber);border-radius:6px;background:rgba(255,158,61,.10);backdrop-filter:blur(8px);text-align:center;transition:background .25s,transform .25s var(--ease)}
+/* Sponsor call — pinned to the same bottom edge as the download button so the two line up.
+   Same offset as .hero .wrap's bottom padding, which is what sets that button's baseline. */
+.hero-support{position:absolute;z-index:2;right:max(4vw,24px);bottom:clamp(56px,7vh,96px);
+  width:min(25vw,318px);display:block;padding:16px 20px;border:2px solid var(--amber);border-radius:6px;background:rgba(255,158,61,.10);backdrop-filter:blur(8px);text-align:center;transition:background .25s,transform .25s var(--ease)}
 .hero-support:hover{background:rgba(255,158,61,.2);transform:translateY(-2px)}
 .hero-support span{display:block;font-family:var(--display);font-size:clamp(24px,2.1vw,32px);letter-spacing:.04em;text-transform:uppercase;color:var(--amber)}
 .hero-support i{display:block;font-style:normal;font-size:12.5px;letter-spacing:.05em;color:var(--soft);margin-top:5px}
