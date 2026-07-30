@@ -263,3 +263,66 @@ fn runtime_commands_are_no_ops_without_an_attached_runtime() {
         .iter()
         .any(|e| matches!(e, Event::IoBindingRegistryChanged)));
 }
+
+/// #127: `AddIoEndpoint` must give the new endpoint the SAME auto-assigned name
+/// in both copies of the registry.
+///
+/// The name is sequential ("In N"), so deriving it from each copy's own length
+/// hands the two copies different names the moment they disagree — a latent
+/// divergence that a rename or an endpoint removal on one side is enough to
+/// trigger. Derive it once, apply it to both.
+#[test]
+fn an_added_endpoint_is_named_once_and_applied_to_both_copies() {
+    use domain::io_binding::{ChannelMode, IoEndpoint};
+
+    let home = tempfile::tempdir().expect("temp config dir");
+    let config_path = home.path().join("config.yaml");
+    let d = dispatcher();
+    d.attach_io_config_path(Some(config_path.clone()));
+
+    // The two copies disagree: the in-memory registry already carries an input,
+    // the persisted config does not.
+    let existing = IoEndpoint {
+        name: "In 1".to_string(),
+        device_id: domain::ids::DeviceId("dev".to_string()),
+        mode: ChannelMode::Mono,
+        channels: vec![0],
+    };
+    let mut seeded = binding("focusrite");
+    seeded.inputs.push(existing);
+    infra_filesystem::FilesystemStorage::update_app_config_at(&config_path, |config| {
+        config.io_bindings.push(binding("focusrite"));
+    })
+    .expect("seed the persisted registry");
+    let registry = Rc::new(RefCell::new(vec![seeded]));
+    d.attach_io_bindings(registry.clone());
+
+    d.dispatch(Command::IoBinding(IoBindingCommand::AddIoEndpoint {
+        binding_id: "focusrite".to_string(),
+        is_input: true,
+        device_id: "dev".to_string(),
+        channels: vec![1],
+        mode: ChannelMode::Mono,
+    }))
+    .expect("AddIoEndpoint must succeed");
+    crate::persist_worker::flush();
+
+    let in_memory = registry.borrow()[0]
+        .inputs
+        .last()
+        .expect("added")
+        .name
+        .clone();
+    let persisted = infra_filesystem::FilesystemStorage::load_app_config_at(&config_path)
+        .expect("load persisted config")
+        .io_bindings[0]
+        .inputs
+        .last()
+        .expect("added")
+        .name
+        .clone();
+    assert_eq!(
+        in_memory, persisted,
+        "the endpoint must carry one name, not one per copy"
+    );
+}

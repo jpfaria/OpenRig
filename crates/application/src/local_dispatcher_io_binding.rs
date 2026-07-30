@@ -150,28 +150,49 @@ impl LocalDispatcher {
         channels: Vec<usize>,
         mode: ChannelMode,
     ) -> Result<Vec<Event>> {
+        // The name is sequential ("In N"), so deriving it from each copy's own
+        // length would hand the two copies DIFFERENT names the moment they
+        // disagree. Derive it once, from the registry the dispatcher owns, and
+        // apply that one value to both.
+        let fixed_name = self.next_endpoint_name_for(&binding_id, is_input);
         self.update_registry("add endpoint", move |list| {
             let Some(b) = list.iter_mut().find(|b| b.id == binding_id) else {
                 return;
             };
-            let existing = if is_input {
-                b.inputs.len()
+            let side = if is_input {
+                &mut b.inputs
             } else {
-                b.outputs.len()
+                &mut b.outputs
             };
             let endpoint = IoEndpoint {
-                name: next_endpoint_name(existing, is_input),
+                name: fixed_name
+                    .clone()
+                    .unwrap_or_else(|| next_endpoint_name(side.len(), is_input)),
                 device_id: DeviceId(device_id.clone()),
                 mode,
                 channels: channels.clone(),
             };
-            if is_input {
-                b.inputs.push(endpoint);
-            } else {
-                b.outputs.push(endpoint);
-            }
+            side.push(endpoint);
         });
         Ok(vec![Event::IoBindingRegistryChanged])
+    }
+
+    /// The auto-assigned endpoint name for an `AddIoEndpoint`, derived ONCE
+    /// from the registry the dispatcher owns so both copies get the same value.
+    ///
+    /// `None` when no registry is attached (or it does not carry this binding):
+    /// then only the persisted copy is written, so deriving the name from that
+    /// copy's own length cannot diverge from anything.
+    fn next_endpoint_name_for(&self, binding_id: &str, is_input: bool) -> Option<String> {
+        let attached = self.io_bindings.borrow();
+        let bindings = attached.as_ref()?.borrow();
+        let binding = bindings.iter().find(|b| b.id == binding_id)?;
+        let existing = if is_input {
+            binding.inputs.len()
+        } else {
+            binding.outputs.len()
+        };
+        Some(next_endpoint_name(existing, is_input))
     }
 
     /// Handle `Command::RemoveIoEndpoint`: drop the named endpoint from the

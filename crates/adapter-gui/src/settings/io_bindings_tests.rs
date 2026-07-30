@@ -17,13 +17,17 @@ fn reproject_reflects_created_binding() {
     use infra_filesystem::AppConfig;
 
     let mut cfg = AppConfig::default();
-    assert_eq!(super::project_bindings(&cfg).len(), 0, "starts empty");
+    assert_eq!(
+        super::project_bindings(&cfg.io_bindings).len(),
+        0,
+        "starts empty"
+    );
 
     // What the create closure does to state:
     cfg.io_bindings.push(make_binding("main", "Main Rig"));
 
-    let models = super::project_bindings(&cfg);
-    let names = super::binding_names(&cfg);
+    let models = super::project_bindings(&cfg.io_bindings);
+    let names = super::binding_names(&cfg.io_bindings);
     assert_eq!(models.len(), 1, "list model must show the created binding");
     assert_eq!(names.len(), 1);
     assert_eq!(models[0].id.as_str(), "main");
@@ -44,7 +48,7 @@ fn create_with_empty_name_yields_default_named_row() {
     let cfg = Rc::new(RefCell::new(AppConfig::default()));
 
     // user clicks "+" with the field empty
-    let display = super::binding_display_name("", &cfg);
+    let display = super::binding_display_name("", &cfg.borrow().io_bindings);
     assert_eq!(display, "I/O 1");
     cfg.borrow_mut().io_bindings.push(IoBinding {
         id: super::make_id(&display),
@@ -53,7 +57,7 @@ fn create_with_empty_name_yields_default_named_row() {
         outputs: vec![],
     });
 
-    let names = super::binding_names(&cfg.borrow());
+    let names = super::binding_names(&cfg.borrow().io_bindings);
     assert_eq!(names.len(), 1, "+ with empty name must add a row");
     assert_eq!(names[0].as_str(), "I/O 1");
 }
@@ -458,4 +462,91 @@ fn delete_referenced_binding_surfaces_error() {
     );
     // The list is UNCHANGED — delete was rejected.
     assert_eq!(list.len(), 1, "binding list must be unchanged after reject");
+}
+
+// ── #127: parity in the GUI direction ────────────────────────────────────────
+
+/// A binding CRUD issued OFF the GUI must survive the settings screen's next
+/// edit, and must be visible on the screen in the first place.
+///
+/// The screen used to keep its own `AppConfig` snapshot and mirror it INTO the
+/// shared registry after every edit, so a binding created from MCP/gRPC landed
+/// in the registry and was then wiped by the next click — the command reported
+/// success and a GUI code path silently undid it. Same failure class as the
+/// runtime-sync revert; this pins the other direction.
+#[test]
+fn a_binding_created_off_the_gui_survives_the_settings_screen_next_edit() {
+    use application::command::{Command, IoBindingCommand};
+    use application::dispatcher::CommandDispatcher;
+    use application::local_dispatcher::LocalDispatcher;
+    use infra_filesystem::AppConfig;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use crate::state::ProjectSession;
+
+    fn empty_project() -> project::project::Project {
+        project::project::Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: Vec::new(),
+            midi: None,
+        }
+    }
+
+    let home = tempfile::tempdir().expect("temp config dir");
+    let dispatcher = Rc::new(LocalDispatcher::new(Rc::new(RefCell::new(empty_project()))));
+    // Never touch the machine's real config.yaml.
+    dispatcher.attach_io_config_path(Some(home.path().join("config.yaml")));
+    let session = ProjectSession::with_dispatcher(
+        empty_project(),
+        dispatcher as Rc<dyn CommandDispatcher>,
+        None,
+        None,
+        home.path().to_path_buf(),
+    );
+    let registry = Rc::clone(&session.io_bindings);
+    let ps = Rc::new(RefCell::new(Some(session)));
+
+    // A non-GUI transport creates a binding through the bus.
+    ps.borrow()
+        .as_ref()
+        .expect("session")
+        .dispatcher
+        .dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
+            binding: make_binding("mcp-made", "MCP Made"),
+        }))
+        .expect("CreateIoBinding must succeed");
+    assert!(
+        registry.borrow().iter().any(|b| b.id == "mcp-made"),
+        "precondition: the non-GUI create must land in the shared registry"
+    );
+
+    // Now the user does the cheapest thing the settings screen can do.
+    let models = Rc::new(super::BindingModels {
+        bindings: Rc::new(slint::VecModel::default()),
+        names: Rc::new(slint::VecModel::default()),
+        channels: Rc::new(slint::VecModel::default()),
+    });
+    let ctx = super::WireCtx {
+        ps: Rc::clone(&ps),
+        cfg: Rc::new(RefCell::new(AppConfig::default())),
+        models: Rc::clone(&models),
+        input_devices: Rc::new(RefCell::new(Vec::new())),
+        output_devices: Rc::new(RefCell::new(Vec::new())),
+    };
+    ctx.create_binding("Screen Made");
+
+    let ids: Vec<String> = registry.borrow().iter().map(|b| b.id.clone()).collect();
+    assert!(
+        ids.iter().any(|id| id == "mcp-made"),
+        "the non-GUI binding must survive a settings-screen edit, got {ids:?}"
+    );
+    let rendered: Vec<String> = slint::Model::iter(models.bindings.as_ref())
+        .map(|b| b.name.to_string())
+        .collect();
+    assert!(
+        rendered.iter().any(|n| n == "MCP Made"),
+        "the settings screen must render the non-GUI binding, got {rendered:?}"
+    );
 }
