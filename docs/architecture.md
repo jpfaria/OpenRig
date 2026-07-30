@@ -57,6 +57,48 @@ same chain cannot disagree, and nothing extra runs on the audio path. Only
 reduced readings (dBFS, note/cents, band levels, looper position/state) ever
 cross the `LiveSource` boundary; no raw PCM buffer or stream handle does.
 
+## Write bus: `RuntimeControl` (#127)
+
+A `Command` is the only way to change state, so a state change that has to
+reach the audio runtime needs a door the DISPATCHER can knock on — otherwise
+the GUI applies it in its own callback and the same command over MCP/gRPC/MIDI
+emits its event and changes nothing audible. That door is
+`application::runtime_control::RuntimeControl`
+(`crates/application/src/runtime_control.rs`), the write-side mirror of
+`LiveSource`. The frontend that hosts the runtime implements it and hands the
+dispatcher a shared instance via
+`CommandDispatcher::attach_runtime_control`; a transport that owns no audio
+attaches nothing and every method keeps its default no-op — the command still
+succeeds and still reports its event.
+
+The GUI's implementation is `GuiRuntimeControl`, in
+`adapter-gui/src/runtime_lifecycle.rs` — the one module that owns the
+controller. Current doors: `set_output_muted` (rig-wide, the tuner's mute),
+`set_io_bindings`, `set_block_enabled` (#522's in-place fade toggle — never a
+stream restart), `sync_chain`, and the DI stream trio `arm_di_stream` /
+`disarm_di_stream` / `refresh_di_stream`.
+
+Two rules the DI trio makes explicit:
+
+- **Isolation** (`CLAUDE.md` LAW): every door that addresses a stream carries
+  that stream's identity — the whole `Chain` for an arm (it resolves that
+  chain's `di_output` and renders through a copy of its graph), the `ChainId`
+  for a disarm. Never a group, never "every chain at this rate".
+- **Only an arm may start audio.** `arm_di_stream` runs `ensure_runtime`
+  first, because the DI is an independent pipeline that must play with no
+  chain enabled (#808) — the runtime is a precondition of the thing the user
+  asked to hear. `sync_chain`, `disarm_di_stream` and `refresh_di_stream` must
+  never create a controller: a sync, a stop or an output pick is not a request
+  to hear anything, and audio starting behind the user's back from any
+  transport is the failure mode. `refresh_di_stream` is a separate door from
+  `arm_di_stream` for exactly this reason — it follows a change (the picked
+  output, #771; the device rate, #669) only for a stream that is ALREADY
+  sounding.
+
+`attach_engine_sr` is where a device-rate change becomes a refresh: it stores
+the new rate and asks the control to re-arm each chain whose loop is playing,
+so a loop resampled to the old rate never drags on against a rebuilt runtime.
+
 ## Registry auto-gerado
 
 `crates/block-preamp/build.rs` (e equivalentes nos outros block-*) escaneia `src/*.rs` procurando `MODEL_DEFINITION` e gera `generated_registry.rs`. Novo modelo = criar `.rs` com `pub const MODEL_DEFINITION: PreampModelDefinition = ...`.
@@ -85,7 +127,7 @@ The EQ / curve-editor preview is a filter response, so it depends on the
 sample rate — near Nyquist the same knobs draw a different curve at 44.1 kHz
 than at 48 kHz. The rate comes from `CommandDispatcher::engine_sr()`, which the
 runtime lifecycle keeps in lock-step with the live device
-(`di_loop_wiring::sync_engine_sr_from_runtime`, called on every runtime start,
+(`runtime_lifecycle::sync_engine_sr_from_runtime`, called on every runtime start,
 re-sync and teardown). While a rig is running the curve is drawn at the rate
 the device actually negotiated — never a constant.
 

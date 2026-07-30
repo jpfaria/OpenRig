@@ -1,7 +1,7 @@
-//! Lifecycle helpers for the project audio runtime and chain-block bookkeeping.
-//!
-//! Six small utilities pulled out of `lib.rs` so the main file stops growing
-//! with every new chain-manipulation flow:
+//! Lifecycle of the project audio runtime — the ONE module that creates,
+//! syncs and drops the `ProjectRuntimeController`, and the home of
+//! `GuiRuntimeControl`, the [`RuntimeControl`] every command handler reaches
+//! this frontend's audio through.
 //!
 //! * `stop_project_runtime` — drop the active `ProjectRuntimeController`.
 //! * `sync_project_runtime` — rebuild the running graph from a session
@@ -11,19 +11,15 @@
 //!   or removes that single chain. Tears down the runtime when no chain
 //!   remains running. This is the hot path called from every block edit.
 //! * `remove_live_chain_runtime` — drop one chain from the live graph.
-//! * `assign_new_block_ids` — reassigns IDs across a chain's blocks
-//!   (recursive into `Select` block options) when cloning a chain so two
-//!   live chains never share a block id.
-//! * `system_language` — best-effort BCP-47-ish locale tag from `LANG`
-//!   (`pt_BR.UTF-8` → `pt-BR`), defaulting to `en-US` when the env is
-//!   missing/POSIX/empty.
-//! * `ui_index_to_real_block_index` — translate a UI-visible block position
-//!   (which hides the first Input and last Output) into the real index in
-//!   `chain.blocks`.
+//! * `ensure_runtime` — bring the controller up regardless of any chain being
+//!   enabled (#808), the precondition of arming an independent pipeline.
+//! * `sync_engine_sr_from_runtime` — publish the live device rate to the
+//!   dispatcher (and the reference rate once nothing is running).
 
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 use anyhow::Result;
 
@@ -32,12 +28,13 @@ use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
+use engine::DiPcm;
 use infra_cpal::ProjectRuntimeController;
-use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
 use project::project::Project;
 use project::rig::RigProject;
 
+use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
 use crate::state::ProjectSession;
 
 /// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
@@ -128,6 +125,49 @@ impl RuntimeControl for GuiRuntimeControl {
         };
         sync_live_chain_runtime(&self.runtime, &session, chain)
     }
+
+    /// #614/#771: play the loop on THIS chain's isolated DI stream — resolve
+    /// the chain's chosen output, render through a copy of its graph
+    /// off-thread, park on that output's cell. The guitar runtime is never
+    /// touched (invariant #4).
+    ///
+    /// #808: the runtime is a PRECONDITION of the arm, not a user action. The
+    /// DI is an independent pipeline and has to play with no chain enabled, so
+    /// a stopped rig gets its controller here — the same lazy creation the
+    /// chain-enable path does, minus the `enabled` gate. No other door may
+    /// wake audio up (see `sync_chain`, which must never start a runtime).
+    fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        ensure_runtime(&self.runtime, &session)?;
+        let borrow = self.runtime.borrow();
+        let Some(runtime) = borrow.as_ref() else {
+            return Ok(());
+        };
+        runtime.arm_di_stream(chain, pcm)
+    }
+
+    fn disarm_di_stream(&self, chain: &ChainId) {
+        if let Some(runtime) = self.runtime.borrow().as_ref() {
+            runtime.disarm_di_stream(chain);
+        }
+    }
+
+    /// Follow a change the PLAYING loop depends on: the picked output (#771)
+    /// or the device rate it was resampled to (#669). A stream that is not
+    /// sounding stays silent — and unlike `arm_di_stream` this never creates a
+    /// runtime, because nobody asked to hear anything.
+    fn refresh_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
+        let borrow = self.runtime.borrow();
+        let Some(runtime) = borrow.as_ref() else {
+            return Ok(());
+        };
+        if !runtime.di_stream_active(&chain.id) {
+            return Ok(());
+        }
+        runtime.arm_di_stream(chain, pcm)
+    }
 }
 
 /// #127: give this session's dispatcher a handle on the audio runtime, so
@@ -168,10 +208,7 @@ pub(crate) fn stop_project_runtime(
         runtime.stop();
     }
     if let Some(session) = project_session.borrow().as_ref() {
-        crate::di_loop_wiring::sync_engine_sr_from_runtime(
-            project_runtime,
-            session.dispatcher.as_ref(),
-        );
+        sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
     }
 }
 
@@ -189,48 +226,9 @@ pub(crate) fn sync_project_runtime(
     }
     // #669: keep the dispatcher's engine sample rate in lock-step with the
     // (possibly rebuilt) runtime so DI loops resample to the live device rate.
-    crate::di_loop_wiring::sync_engine_sr_from_runtime(
-        project_runtime,
-        session.dispatcher.as_ref(),
-    );
+    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
     attach_runtime_control(project_runtime, session);
     Ok(())
-}
-
-/// #743: the planned action for a one-chain live sync. Modelled as data so the
-/// decision — crucially, WHETHER a device-IO resolve runs — is unit-testable
-/// without audio hardware.
-pub enum LiveSyncAction {
-    /// The chain is gone from the project: drop it from the live graph.
-    Remove,
-    /// The chain is present but disabled: pause it (drain → silence) in O(1).
-    /// No device-IO resolve — that synchronous CoreAudio query (hundreds of ms
-    /// per device) would stall the GUI while the live output starves into a
-    /// feedback howl (#743). A disable never re-binds, so the check is moot.
-    Pause,
-    /// The chain is present and enabled: (re)activate it. `io_changed` is the
-    /// re-bind check — only an enable consults it.
-    Enable { io_changed: bool },
-}
-
-/// Decide the live-sync action for a toggled chain. The `io_changed` closure
-/// (the device-IO resolve) is invoked ONLY for an enable; a disable or a
-/// removal must never touch it — that resolve is the ~750 ms CoreAudio stall
-/// that starves the live output into feedback on a four-device toggle (#743).
-pub fn plan_live_sync(
-    chain_present: bool,
-    chain_enabled: bool,
-    io_changed: impl FnOnce() -> Result<bool>,
-) -> Result<LiveSyncAction> {
-    if !chain_present {
-        return Ok(LiveSyncAction::Remove);
-    }
-    if !chain_enabled {
-        return Ok(LiveSyncAction::Pause);
-    }
-    Ok(LiveSyncAction::Enable {
-        io_changed: io_changed()?,
-    })
 }
 
 pub(crate) fn sync_live_chain_runtime(
@@ -260,10 +258,7 @@ pub(crate) fn sync_live_chain_runtime(
             drop(borrow);
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).
-            crate::di_loop_wiring::sync_engine_sr_from_runtime(
-                project_runtime,
-                session.dispatcher.as_ref(),
-            );
+            sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
             attach_runtime_control(project_runtime, session);
             // #323: the runtimes were just born empty — give them back the
             // loopers the project carries, with whatever audio they saved.
@@ -334,10 +329,7 @@ pub(crate) fn sync_live_chain_runtime(
     }
     // #669: an upsert may have rebuilt the stream at a new device rate; keep
     // the dispatcher's engine sample rate in lock-step.
-    crate::di_loop_wiring::sync_engine_sr_from_runtime(
-        project_runtime,
-        session.dispatcher.as_ref(),
-    );
+    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
     attach_runtime_control(project_runtime, session);
     Ok(())
 }
@@ -369,10 +361,7 @@ pub(crate) fn ensure_runtime(
     *project_runtime.borrow_mut() = Some(controller);
     // #669: keep the dispatcher's engine rate in lock-step with the real device
     // rate start() resolved, so a DI resamples correctly.
-    crate::di_loop_wiring::sync_engine_sr_from_runtime(
-        project_runtime,
-        session.dispatcher.as_ref(),
-    );
+    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
     attach_runtime_control(project_runtime, session);
     // #323: same as the enable path — the fresh runtimes get the project's
     // loopers back.
@@ -420,10 +409,7 @@ pub(crate) fn remove_live_chain_runtime(
         }
     }
     if let Some(session) = project_session.borrow().as_ref() {
-        crate::di_loop_wiring::sync_engine_sr_from_runtime(
-            project_runtime,
-            session.dispatcher.as_ref(),
-        );
+        sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
     }
 }
 
@@ -465,53 +451,33 @@ pub(crate) fn sync_block_toggle(
     sync_live_chain_runtime(project_runtime, session, chain_id)
 }
 
-pub(crate) fn assign_new_block_ids(chain: &mut Chain) {
-    for block in &mut chain.blocks {
-        assign_new_block_ids_recursive(block, &chain.id);
-    }
-}
-
-fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
-    block.id = BlockId::generate_for_chain(chain_id);
-    if let AudioBlockKind::Select(select) = &mut block.kind {
-        for option in &mut select.options {
-            assign_new_block_ids_recursive(option, chain_id);
-        }
-    }
-}
-
-pub(crate) fn system_language() -> String {
-    let lang = std::env::var("LANG").unwrap_or_default();
-    let base = lang.split('.').next().unwrap_or("");
-    // "C", "POSIX", empty, or too short = not a real locale → fall back to English
-    if base.is_empty() || base.len() < 2 || matches!(base, "C" | "POSIX") {
-        return "en-US".to_string();
-    }
-    base.replace('_', "-")
-}
-
-/// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
-pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
-    let first_input_idx = chain
-        .blocks
-        .iter()
-        .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-    let last_output_idx = chain
-        .blocks
-        .iter()
-        .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
-    let mut visible_count = 0;
-    for (real_idx, _) in chain.blocks.iter().enumerate() {
-        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
-            continue; // hidden
-        }
-        if visible_count == ui_index {
-            return real_idx;
-        }
-        visible_count += 1;
-    }
-    // If ui_index is past all visible blocks, return end (before last output)
-    last_output_idx.unwrap_or(chain.blocks.len())
+/// #669/#749: publish the running controller's real device sample rate to the
+/// dispatcher's `engine_sr` — the authoritative-rate fallback for consumers
+/// that would otherwise assume 48000.
+///
+/// Called wherever the controller is created, re-synced (a sample-rate change
+/// rebuilds the runtime) or torn down.
+///
+/// #127: with no controller the rate goes back to
+/// `local_dispatcher::REFERENCE_SAMPLE_RATE`. It was previously left at
+/// whatever the last stream negotiated, so after a 44.1 kHz rig stopped the
+/// dispatcher still reported 44 100 — a rate nothing was running at, which the
+/// block editor then drew its EQ curve against. "Nothing running" is not the
+/// last device; it is no device.
+///
+/// The DI loops that were PLAYING at the old rate are re-armed by the
+/// dispatcher itself, through `RuntimeControl::refresh_di_stream` — otherwise
+/// a loop that was sounding when the device rate changed drags in slow motion
+/// against its rebuilt runtime (#669).
+pub(crate) fn sync_engine_sr_from_runtime(
+    project_runtime: &RefCell<Option<ProjectRuntimeController>>,
+    dispatcher: &dyn CommandDispatcher,
+) {
+    let rate = match project_runtime.borrow().as_ref() {
+        Some(runtime) => runtime.sample_rate(),
+        None => application::local_dispatcher::REFERENCE_SAMPLE_RATE,
+    };
+    dispatcher.attach_engine_sr(rate);
 }
 
 #[cfg(test)]

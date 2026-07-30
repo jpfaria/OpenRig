@@ -7,10 +7,10 @@ use application::command::{BlockCommand, Command};
 use project::catalog::{model_brand, model_display_name, model_type_label};
 
 use crate::helpers::show_child_window;
+use crate::helpers::system_language;
 use crate::plugin_info;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{load_screenshot_image, replace_project_chains, set_selected_block};
-use crate::runtime_lifecycle::system_language;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::{AppWindow, BlockEditorWindow, PluginInfoWindow};
 

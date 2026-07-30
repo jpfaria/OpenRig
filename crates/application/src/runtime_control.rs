@@ -31,10 +31,14 @@
 //! rig-wide — the tuner silences the whole rig — and says so, rather than
 //! pretending to be per-stream.
 
+use std::sync::Arc;
+
 use anyhow::Result;
 
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
+use engine::DiPcm;
+use project::chain::Chain;
 
 /// Runtime state changes a command handler can apply to the frontend's audio
 /// runtime.
@@ -87,6 +91,48 @@ pub trait RuntimeControl {
     /// must not touch, group with, or depend on any other stream's runtime.
     fn sync_chain(&self, chain: &ChainId) -> Result<()> {
         let _ = chain;
+        Ok(())
+    }
+
+    /// Start playing `pcm` as THIS chain's virtual DI (#614/#771).
+    ///
+    /// The DI is an independent pipeline (invariant #4): it renders through a
+    /// copy of the chain's block graph onto the chain's own chosen output and
+    /// never touches the guitar runtime. `chain` is the whole (live) chain
+    /// because the arm resolves that chain's `di_output` and blocks; `pcm` is
+    /// the decoded, still un-resampled source — the implementation resamples
+    /// to the output's rate, off the audio thread.
+    ///
+    /// **Isolation:** exactly the stream named by `chain.id`. Never a group,
+    /// never "every chain at this rate" (`CLAUDE.md` LAW).
+    ///
+    /// **#808:** the DI must play with NO chain enabled, so an implementation
+    /// may create its audio runtime here if it has none. That is a
+    /// precondition of the operation the user asked for — it is not a licence
+    /// for any other door to wake audio up (see [`Self::sync_chain`], which
+    /// must never start a runtime).
+    fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
+        let _ = (chain, pcm);
+        Ok(())
+    }
+
+    /// Stop this chain's virtual DI. Idempotent, and never an error: there is
+    /// nothing to fail about silence.
+    ///
+    /// **Isolation:** exactly the stream named by `chain`.
+    fn disarm_di_stream(&self, chain: &ChainId) {
+        let _ = chain;
+    }
+
+    /// Re-resolve a PLAYING DI stream after something it depends on changed —
+    /// the chosen output endpoint (#771), or the device rate the loop was
+    /// resampled to (#669).
+    ///
+    /// Distinct from [`Self::arm_di_stream`] on purpose: a stream that is NOT
+    /// playing must stay silent, and this must never create a runtime. It is
+    /// "follow the change if you are already sounding", not "start".
+    fn refresh_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
+        let _ = (chain, pcm);
         Ok(())
     }
 }

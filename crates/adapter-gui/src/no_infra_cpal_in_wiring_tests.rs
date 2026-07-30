@@ -59,8 +59,6 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   `select_chain_block_callback.rs`, `tone_doctor_compact_wiring.rs`
 /// * looper transport/PCM store: `looper_wiring.rs`, `looper_callbacks.rs`,
 ///   `looper_persist.rs`
-/// * DI stream arming + engine-rate sync: `di_loop_wiring.rs`,
-///   `di_output_select_wiring.rs`, `compact_chain_di_callbacks.rs`
 /// * metronome + `ensure_runtime` (#808): `metronome_wiring.rs`
 /// * runtime health / stream errors on the poll tick: `desktop_app_polling.rs`
 /// * whole-project sync (`sync_project_runtime`): `settings/audio.rs`
@@ -81,6 +79,17 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// `block_editor_window_params.rs` and `block_editor_window_lifecycle.rs` left
 /// this list. `block_choose_type_callback.rs` stayed for the OTHER reason
 /// above — it still forwards the controller handle it is given.
+///
+/// Task 12 emptied the DI-arming bucket. `RuntimeControl` gained
+/// `arm_di_stream` / `disarm_di_stream` / `refresh_di_stream`, applied by the
+/// `SetChainDiLoopEnabled` / `SetChainDiLoopOutput` handlers and by
+/// `attach_engine_sr` on a device-rate change, so `di_loop_wiring.rs`,
+/// `di_output_select_wiring.rs` and `compact_chain_di_callbacks.rs` now only
+/// dispatch. The engine-rate publish (`sync_engine_sr_from_runtime`) moved to
+/// `runtime_lifecycle.rs`, and #808's `ensure_runtime` became the arm's
+/// precondition instead of something a UI callback runs first. `metronome_wiring.rs`
+/// is the last entry in that bucket: the click's stream lifecycle still has no
+/// door (see the Task 12 report).
 const ALLOWED: &[&str] = &[
     "back_to_launcher_wiring.rs",
     "block_choose_type_callback.rs",
@@ -89,13 +98,10 @@ const ALLOWED: &[&str] = &[
     "chain_row_wiring.rs",
     "compact_chain_callbacks.rs",
     "compact_chain_delete_wiring.rs",
-    "compact_chain_di_callbacks.rs",
     "desktop_app.rs",
     "desktop_app_block_wiring.rs",
     "desktop_app_chain_wiring.rs",
     "desktop_app_polling.rs",
-    "di_loop_wiring.rs",
-    "di_output_select_wiring.rs",
     "gui_live_source.rs",
     "looper_callbacks.rs",
     "looper_persist.rs",

@@ -36,6 +36,7 @@ use crate::block_editor::{
     block_editor_data, block_parameter_items_for_editor, build_knob_overlays,
 };
 use crate::block_editor_window_setup;
+use crate::chain_block_helpers::ui_index_to_real_block_index;
 use crate::chain_editor::insert_mode_to_index;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
@@ -45,7 +46,6 @@ use crate::project_view::{
     block_model_index, block_model_picker_items, block_model_picker_labels, block_type_index,
     block_type_picker_items, set_selected_block,
 };
-use crate::runtime_lifecycle::ui_index_to_real_block_index;
 use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::ui_state::block_drawer_state;
 use crate::{

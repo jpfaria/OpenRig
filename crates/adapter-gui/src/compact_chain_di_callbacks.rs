@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::di_loader::DiLoopSource;
-use infra_cpal::ProjectRuntimeController;
 use slint::Weak;
 
 use crate::compact_chain_callbacks::{compact_chain_di_loop_play, compact_chain_di_loop_stop};
@@ -22,7 +21,6 @@ use crate::{AppWindow, CompactChainViewWindow};
 pub(crate) fn wire(
     compact_win: &CompactChainViewWindow,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     main_weak: Weak<AppWindow>,
     toast_timer: Rc<slint::Timer>,
     chain_index: i32,
@@ -65,12 +63,7 @@ pub(crate) fn wire(
     }
 
     // #771 on_di_loop_output_selected: user picked an output endpoint.
-    crate::di_output_select_wiring::wire_compact(
-        compact_win,
-        chain_index,
-        project_session.clone(),
-        project_runtime.clone(),
-    );
+    crate::di_output_select_wiring::wire_compact(compact_win, chain_index, project_session.clone());
 
     // on_di_loop_choose_file: user picked "Choose file…" — open native dialog.
     {
@@ -119,7 +112,6 @@ pub(crate) fn wire(
     // on_di_loop_play: user pressed ▶ in the compact view.
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         compact_win.on_di_loop_play(move || {
             let chain_id = {
                 let session_borrow = project_session.borrow();
@@ -136,20 +128,15 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            // #808: DI is independent — playing it with no chain enabled needs a
-            // runtime, which is otherwise only created when a chain is enabled.
-            if let Err(e) = crate::runtime_lifecycle::ensure_runtime(&project_runtime, session) {
-                log::error!("[adapter-gui] compact di-loop play: ensure_runtime: {e}");
-                return;
-            }
-            compact_chain_di_loop_play(&project_runtime, session.dispatcher.as_ref(), &chain_id);
+            // #808 lives behind the door now: arming an independent pipeline
+            // creates the runtime, so play works with no chain enabled.
+            compact_chain_di_loop_play(session.dispatcher.as_ref(), &chain_id);
         });
     }
 
     // on_di_loop_stop: user pressed ■ in the compact view.
     {
         let project_session = project_session;
-        let project_runtime = project_runtime;
         compact_win.on_di_loop_stop(move || {
             let chain_id = {
                 let session_borrow = project_session.borrow();
@@ -166,7 +153,7 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-            compact_chain_di_loop_stop(&project_runtime, session.dispatcher.as_ref(), &chain_id);
+            compact_chain_di_loop_stop(session.dispatcher.as_ref(), &chain_id);
         });
     }
 }

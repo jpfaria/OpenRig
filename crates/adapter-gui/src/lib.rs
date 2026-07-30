@@ -31,6 +31,7 @@ mod block_picker_wiring;
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
 pub mod chain_binding_choices;
 mod chain_block_crud_wiring;
+mod chain_block_helpers;
 mod chain_crud_wiring;
 mod chain_editor_callbacks;
 mod chain_editor_forwarders_wiring;
@@ -75,6 +76,7 @@ mod di_output_select_wiring;
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
 mod insert_wiring;
+mod live_sync_plan;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod preset_save_wiring;
@@ -125,12 +127,12 @@ pub use cli::{
     validate_project_path, MidiMapArg,
 };
 pub(crate) use runtime_lifecycle::{
-    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_project_runtime,
-    ui_index_to_real_block_index,
+    remove_live_chain_runtime, stop_project_runtime, sync_project_runtime,
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.
-pub use runtime_lifecycle::{plan_live_sync, LiveSyncAction};
+pub(crate) use chain_block_helpers::{assign_new_block_ids, ui_index_to_real_block_index};
+pub use live_sync_plan::{plan_live_sync, LiveSyncAction};
 
 mod defaults;
 pub(crate) use defaults::*;
@@ -182,8 +184,8 @@ mod project_ops_recents;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
-mod tone_doctor_events;
 mod state;
+mod tone_doctor_events;
 mod ui_state;
 slint::include_modules!();
 #[cfg(test)]

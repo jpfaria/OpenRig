@@ -225,18 +225,10 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
             set_status_error(window, &ctx.toast_timer, &e.to_string());
         }
     }
-    // Apply DI-loop events to the runtime directly (the same wait-free path
-    // the GUI buttons use), so MCP/MIDI DI toggles work without a rebuild.
-    for event in events {
-        if let Event::ChainDiLoopEnabledChanged { chain, enabled } = event {
-            crate::di_loop_wiring::handle_chain_di_loop_enabled_changed(
-                &ctx.project_runtime,
-                session.dispatcher.as_ref(),
-                chain,
-                *enabled,
-            );
-        }
-    }
+    // #127: DI-loop events need nothing applied here any more. The command
+    // that produced them armed (or disarmed) the chain's isolated stream from
+    // the dispatcher, so an MCP/MIDI DI toggle already sounded — this drain
+    // used to be the second road to that same runtime.
     // Apply looper transport/param events to the controller's store (the same
     // mutation the GUI button path does inline in `dispatch_and_apply`). Without
     // this a looper driven over MCP/MIDI updated nothing — Record left the loop

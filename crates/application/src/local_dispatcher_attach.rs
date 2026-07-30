@@ -66,15 +66,34 @@ impl LocalDispatcher {
     ///
     /// #749: DI sources are stored un-resampled (`DiPcm`) and resampled at ARM
     /// time, per output-stream rate — so the store needs no rebuild on a rate
-    /// change. We still return every chain that has a loaded source so the
-    /// caller can re-arm any that are playing: their live runtime was rebuilt
-    /// at the new rate, and re-arming rebuilds the loop to match (a loop left
-    /// from the old rate would drag in slow motion). No-op when unchanged.
+    /// change. What DOES need attention is a loop that is PLAYING: its live
+    /// runtime was rebuilt at the new rate, and a loop left from the old one
+    /// drags in slow motion until it is re-armed.
+    ///
+    /// #127: that re-arm happens HERE, through
+    /// [`crate::runtime_control::RuntimeControl::refresh_di_stream`] — one
+    /// chain at a time, by identity, and only for a stream that is already
+    /// sounding. The GUI used to run the loop itself after calling this, so a
+    /// rate change that came from anywhere else left the loop dragging. The
+    /// chains with a loaded source are still RETURNED, unchanged, for callers
+    /// that track them. No-op when the rate is unchanged.
     pub(crate) fn attach_engine_sr(&self, sr: u32) -> Vec<ChainId> {
         if *self.engine_sr.borrow() == sr {
             return Vec::new();
         }
         *self.engine_sr.borrow_mut() = sr;
-        self.di_loop_state.borrow().keys().cloned().collect()
+        let loaded: Vec<ChainId> = self.di_loop_state.borrow().keys().cloned().collect();
+        if let Some(control) = self.runtime_control() {
+            for chain in &loaded {
+                let (Some(chain_def), Some(pcm)) = (self.chain_def(chain), self.di_pcm(chain))
+                else {
+                    continue;
+                };
+                if let Err(e) = control.refresh_di_stream(&chain_def, pcm) {
+                    log::warn!("[di] re-arm of '{}' at {sr} Hz failed: {e}", chain.0);
+                }
+            }
+        }
+        loaded
     }
 }

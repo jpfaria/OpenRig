@@ -178,3 +178,114 @@ fn toggling_a_block_on_a_stopped_rig_flips_the_project_and_starts_nothing() {
         "a block toggle must not create a controller for a disabled chain"
     );
 }
+
+// ── #808: arming the DI is the ONE door that may start the audio runtime ────
+
+/// Write a tiny mono WAV and load it as `chain`'s DI source, waiting for the
+/// off-thread decode (#693) to land. Returns the tempdir, which must outlive
+/// the load.
+fn load_di_source(session: &ProjectSession, chain: &ChainId) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let wav = dir.path().join("di.wav");
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 48_000,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    let mut writer = hound::WavWriter::create(&wav, spec).expect("WavWriter::create");
+    for _ in 0..64 {
+        writer.write_sample(0.25f32).expect("write_sample");
+    }
+    writer.finalize().expect("finalize");
+
+    session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
+            chain: chain.clone(),
+            source: application::di_loader::DiLoopSource::File(wav),
+        }))
+        .expect("SetChainDiLoopSource must succeed");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while session.dispatcher.di_loop_for_chain(chain).is_none()
+        && std::time::Instant::now() < deadline
+    {
+        let _ = session.dispatcher.poll_async_results();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        session.dispatcher.di_loop_for_chain(chain).is_some(),
+        "precondition: the DI source must be decoded before the play"
+    );
+    dir
+}
+
+/// #808 through the bus: the DI is an independent pipeline, so pressing Play
+/// with NO chain enabled must bring the runtime up. It used to be the UI
+/// callback that ran `ensure_runtime` first, which is why the same play over
+/// MCP found no controller and was a silent no-op.
+#[test]
+fn playing_the_di_starts_the_audio_runtime_with_no_chain_enabled() {
+    let project_runtime = stopped_runtime();
+    let session = stopped_session();
+    let chain = ChainId("chain-127".into());
+    let _dir = load_di_source(&session, &chain);
+    attach_runtime_control(&project_runtime, &session);
+
+    assert!(
+        project_runtime.borrow().is_none(),
+        "precondition: no chain is enabled, so no controller exists yet"
+    );
+
+    // The arm itself may fail on a machine with no reachable output endpoint —
+    // what #808 is about is that the runtime EXISTS to be armed.
+    let _ = session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
+            chain: chain.clone(),
+            enabled: true,
+        }));
+
+    assert!(
+        project_runtime.borrow().is_some(),
+        "#808: arming the DI must create the runtime controller even though no \
+         chain is enabled — otherwise the play is a silent no-op until some \
+         chain toggle happens to create one"
+    );
+}
+
+/// The other side of the same rule: STOPPING the DI, and picking its output,
+/// are not requests to hear anything. Neither may open a device on a stopped
+/// rig — that would be audio starting behind the user's back, from any
+/// transport.
+#[test]
+fn stopping_the_di_or_picking_its_output_starts_nothing() {
+    let project_runtime = stopped_runtime();
+    let session = stopped_session();
+    let chain = ChainId("chain-127".into());
+    let _dir = load_di_source(&session, &chain);
+    attach_runtime_control(&project_runtime, &session);
+
+    session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
+            chain: chain.clone(),
+            enabled: false,
+        }))
+        .expect("stopping the DI on a stopped rig is not an error");
+    session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::SetChainDiLoopOutput {
+            chain,
+            output: project::chain::DiOutputRef {
+                binding_id: "io-1".into(),
+                endpoint: "Main Out".into(),
+            },
+        }))
+        .expect("picking the DI output on a stopped rig is not an error");
+
+    assert!(
+        project_runtime.borrow().is_none(),
+        "neither a stop nor an output pick may start the audio runtime"
+    );
+}

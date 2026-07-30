@@ -94,7 +94,7 @@ pub(super) fn delay_model_ids() -> Vec<String> {
 
 // --- ui_index_to_real_block_index tests ---
 
-use crate::runtime_lifecycle::ui_index_to_real_block_index;
+use crate::chain_block_helpers::ui_index_to_real_block_index;
 use domain::ids::ChainId;
 use project::block::{InputBlock, OutputBlock};
 use project::chain::{Chain, ChainInputMode};

@@ -41,25 +41,23 @@ use crate::{
 
 /// Arm the DI loop for `chain` from the compact chain view.
 ///
-/// Delegates to `di_loop_wiring::play_chain_di_loop` — same dispatch +
-/// runtime-apply path the main chains screen uses.
+/// Delegates to `di_loop_wiring::play_chain_di_loop` — the same dispatch the
+/// main chains screen uses; the dispatcher applies the arm.
 pub fn compact_chain_di_loop_play(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
     dispatcher: &dyn application::dispatcher::CommandDispatcher,
     chain: &domain::ids::ChainId,
 ) {
-    crate::di_loop_wiring::play_chain_di_loop(project_runtime, dispatcher, chain);
+    crate::di_loop_wiring::play_chain_di_loop(dispatcher, chain);
 }
 
 /// Disarm the DI loop for `chain` from the compact chain view.
 ///
 /// Delegates to `di_loop_wiring::stop_chain_di_loop`.
 pub fn compact_chain_di_loop_stop(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
     dispatcher: &dyn application::dispatcher::CommandDispatcher,
     chain: &domain::ids::ChainId,
 ) {
-    crate::di_loop_wiring::stop_chain_di_loop(project_runtime, dispatcher, chain);
+    crate::di_loop_wiring::stop_chain_di_loop(dispatcher, chain);
 }
 
 pub(crate) struct CompactChainCallbacksCtx {
@@ -445,7 +443,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         crate::compact_chain_di_callbacks::wire(
             &compact_win,
             project_session.clone(),
-            project_runtime.clone(),
             window.as_weak(),
             toast_timer.clone(),
             chain_index,

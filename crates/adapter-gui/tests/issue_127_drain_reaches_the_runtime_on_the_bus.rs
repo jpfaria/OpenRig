@@ -37,14 +37,18 @@ fn code_only(src: &str) -> String {
 /// opens it and the CODE that follows it (never by a comment, which an edit
 /// could move or reword) — so the assertions cannot pass by matching something
 /// elsewhere in the module.
+///
+/// The closing bound used to be the drain's own DI-loop application; Task 12
+/// moved that onto the bus (`RuntimeControl::arm_di_stream`), so the looper
+/// application — the next thing the drain still applies itself — bounds it now.
 fn chain_sync_loop(code: &str) -> String {
     let start = code
         .find("let mut synced: Vec<ChainId>")
         .expect("chain_rig_nav_wiring.rs has no per-chain sync loop");
     let rest = &code[start..];
     let end = rest
-        .find("Event::ChainDiLoopEnabledChanged")
-        .expect("expected the DI-loop application to follow the sync loop");
+        .find("apply_looper_events")
+        .expect("expected the looper application to follow the sync loop");
     rest[..end].to_string()
 }
 
@@ -62,6 +66,20 @@ fn the_external_event_drain_asks_for_the_chain_sync_on_the_bus() {
         !body.contains("sync_live_chain_runtime("),
         "the drain still reaches `sync_live_chain_runtime` off the bus — that is \
          the GUI/MCP split #127 exists to close. Loop read:\n{body}"
+    );
+}
+
+/// Task 12: the DI toggle left this drain entirely. The command that produced
+/// `ChainDiLoopEnabledChanged` armed (or disarmed) the chain's isolated stream
+/// from the dispatcher, so applying it a second time here would be the same
+/// GUI/MCP split reopening on the DI.
+#[test]
+fn the_drain_no_longer_applies_di_loop_events_itself() {
+    let src = code_only(&drain_source());
+    assert!(
+        !src.contains("ChainDiLoopEnabledChanged"),
+        "the drain applies DI-loop events again — arming belongs to \
+         `RuntimeControl::arm_di_stream`, reached by the command itself"
     );
 }
 
