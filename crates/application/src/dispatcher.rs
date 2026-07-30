@@ -20,6 +20,7 @@ use std::sync::{Arc, RwLock};
 use anyhow::Result;
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::DiPcm;
 use project::rig::RigProject;
 
@@ -102,6 +103,12 @@ pub trait CommandDispatcher {
     /// supply it; a transport that owns no audio keeps the default no-op and
     /// its commands still report their events.
     fn attach_runtime_control(&self, _control: Box<dyn RuntimeControl>) {}
+
+    /// #127: share the frontend's per-machine I/O binding registry handle, so
+    /// the binding commands mutate the same allocation the frontend renders
+    /// from and re-installs on every runtime sync. A transport with no
+    /// frontend registry keeps the default no-op.
+    fn attach_io_bindings(&self, _registry: Rc<RefCell<Vec<IoBinding>>>) {}
 }
 
 #[cfg(test)]

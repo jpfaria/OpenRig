@@ -114,13 +114,13 @@ fn set_output_muted_applies_to_the_attached_runtime() {
         .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
             muted: true,
         }))
-        .expect("SetOutputMuted deve ok");
+        .expect("SetOutputMuted must succeed");
 
     assert!(
         events
             .iter()
             .any(|e| matches!(e, Event::OutputMutedChanged { muted: true })),
-        "esperava Event::OutputMutedChanged {{ muted: true }}, veio {events:?}"
+        "expected Event::OutputMutedChanged {{ muted: true }}, got {events:?}"
     );
     assert!(
         d.selection_state
@@ -145,11 +145,11 @@ fn set_output_unmuted_applies_to_the_attached_runtime() {
     d.dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
         muted: true,
     }))
-    .expect("mute deve ok");
+    .expect("mute must succeed");
     d.dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
         muted: false,
     }))
-    .expect("unmute deve ok");
+    .expect("unmute must succeed");
 
     assert!(
         !d.selection_state
@@ -167,21 +167,26 @@ fn set_output_unmuted_applies_to_the_attached_runtime() {
 
 /// #127: pushing the per-machine I/O binding registry into the live runtime is
 /// a Command too — the GUI used to call `controller.set_io_bindings` itself.
+/// The command installs the registry the DISPATCHER owns, so it carries no
+/// arbitrary payload that nothing durably records.
 #[test]
 fn set_io_bindings_applies_to_the_attached_runtime() {
     let (d, calls) = dispatcher_with_spy();
+    let registry = Rc::new(RefCell::new(vec![
+        binding("focusrite"),
+        binding("orange-pi"),
+    ]));
+    d.attach_io_bindings(registry);
 
     let events = d
-        .dispatch(Command::IoBinding(IoBindingCommand::SetIoBindings {
-            bindings: vec![binding("focusrite"), binding("orange-pi")],
-        }))
-        .expect("SetIoBindings deve ok");
+        .dispatch(Command::IoBinding(IoBindingCommand::SetIoBindings))
+        .expect("SetIoBindings must succeed");
 
     assert!(
         events
             .iter()
             .any(|e| matches!(e, Event::IoBindingRegistryChanged)),
-        "esperava Event::IoBindingRegistryChanged, veio {events:?}"
+        "expected Event::IoBindingRegistryChanged, got {events:?}"
     );
     assert_eq!(
         *calls.borrow(),
@@ -190,6 +195,48 @@ fn set_io_bindings_applies_to_the_attached_runtime() {
             "orange-pi".to_string(),
         ])],
         "the registry must reach the runtime through the dispatcher, in order"
+    );
+}
+
+/// #127 (parity): a registry edit issued OFF the GUI must survive the next
+/// chain sync.
+///
+/// The sync path re-installs `session.io_bindings` into the controller on every
+/// sync (`runtime_lifecycle.rs`, #716). That handle is the registry attached
+/// here, so a `CreateIoBinding` that only reached `config.yaml` would be wiped
+/// out moments later: the command would report success and then evaporate,
+/// which is exactly the gap the Command-parity law exists to prevent.
+#[test]
+fn a_registry_edit_issued_off_the_gui_survives_the_next_runtime_sync() {
+    let (d, calls) = dispatcher_with_spy();
+    let home = tempfile::tempdir().expect("temp config dir");
+    d.attach_io_config_path(Some(home.path().join("config.yaml")));
+    let registry = Rc::new(RefCell::new(Vec::new()));
+    d.attach_io_bindings(registry.clone());
+
+    // A non-GUI transport (MCP/gRPC) creates a binding, then installs the
+    // registry into the live runtime.
+    d.dispatch(Command::IoBinding(IoBindingCommand::CreateIoBinding {
+        binding: binding("focusrite"),
+    }))
+    .expect("CreateIoBinding must succeed");
+    d.dispatch(Command::IoBinding(IoBindingCommand::SetIoBindings))
+        .expect("SetIoBindings must succeed");
+
+    assert_eq!(
+        *calls.borrow(),
+        vec![RuntimeCall::Bindings(vec!["focusrite".to_string()])],
+        "the runtime must receive the binding the non-GUI caller just created"
+    );
+    assert_eq!(
+        registry
+            .borrow()
+            .iter()
+            .map(|b| b.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["focusrite"],
+        "the registry the next chain sync re-installs must carry the new \
+         binding, or the command evaporates at the next sync"
     );
 }
 
@@ -204,12 +251,10 @@ fn runtime_commands_are_no_ops_without_an_attached_runtime() {
         .dispatch(Command::Selection(SelectionCommand::SetOutputMuted {
             muted: true,
         }))
-        .expect("SetOutputMuted sem runtime deve ok");
+        .expect("SetOutputMuted with no runtime must succeed");
     let bound = d
-        .dispatch(Command::IoBinding(IoBindingCommand::SetIoBindings {
-            bindings: vec![binding("focusrite")],
-        }))
-        .expect("SetIoBindings sem runtime deve ok");
+        .dispatch(Command::IoBinding(IoBindingCommand::SetIoBindings))
+        .expect("SetIoBindings with no runtime must succeed");
 
     assert!(muted
         .iter()

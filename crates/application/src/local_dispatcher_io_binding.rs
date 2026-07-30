@@ -45,6 +45,38 @@ fn resolve_config_path(attached: Option<PathBuf>) -> Option<PathBuf> {
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
 impl LocalDispatcher {
+    /// Apply one registry mutation to BOTH copies of the effective registry:
+    /// the in-memory one the frontend renders from and re-installs into the
+    /// controller on every sync (#127), and the persisted per-machine
+    /// `config.yaml`, written off-thread.
+    ///
+    /// Doing only the second is what made an edit issued off the GUI evaporate:
+    /// the next chain sync re-installed the untouched in-memory registry over
+    /// it. `mutate` therefore runs twice — once per copy — and must be `Fn`.
+    fn update_registry(
+        &self,
+        what: &'static str,
+        mutate: impl Fn(&mut Vec<IoBinding>) + Send + 'static,
+    ) {
+        if let Some(registry) = self.io_bindings.borrow().as_ref() {
+            mutate(&mut registry.borrow_mut());
+        }
+        // Resolve the path on the dispatching thread (no Send requirement on
+        // the RefCell borrow), then move it into the closure.
+        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
+        crate::persist_worker::run(move || {
+            let Some(path) = config_path else {
+                log::error!("io_binding {what}: config path unresolvable — not persisted");
+                return;
+            };
+            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
+                mutate(&mut config.io_bindings)
+            }) {
+                log::error!("io_binding {what}: persist failed: {e}");
+            }
+        });
+    }
+
     /// Handle `Command::CreateIoBinding` and `Command::UpdateIoBinding`.
     ///
     /// Both operations are upserts keyed on `binding.id`: if an entry with
@@ -54,25 +86,10 @@ impl LocalDispatcher {
         &self,
         binding: IoBinding,
     ) -> Result<Vec<Event>> {
-        // Resolve the path on the dispatching thread (no Send requirement on
-        // the RefCell borrow), then move it into the closure.
-        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
-        crate::persist_worker::run(move || {
-            let Some(path) = config_path else {
-                log::error!(
-                    "io_binding create/update: config path unresolvable — \
-                     binding not persisted"
-                );
-                return;
-            };
-            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
-                if let Some(pos) = config.io_bindings.iter().position(|b| b.id == binding.id) {
-                    config.io_bindings[pos] = binding;
-                } else {
-                    config.io_bindings.push(binding);
-                }
-            }) {
-                log::error!("io_binding create/update: persist failed: {e}");
+        self.update_registry("create/update", move |list| {
+            match list.iter().position(|b| b.id == binding.id) {
+                Some(pos) => list[pos] = binding.clone(),
+                None => list.push(binding.clone()),
             }
         });
         Ok(vec![Event::IoBindingRegistryChanged])
@@ -107,39 +124,16 @@ impl LocalDispatcher {
             ));
         }
 
-        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
-        crate::persist_worker::run(move || {
-            let Some(path) = config_path else {
-                log::error!(
-                    "io_binding delete: config path unresolvable — \
-                     binding not removed from disk"
-                );
-                return;
-            };
-            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
-                config.io_bindings.retain(|b| b.id != id);
-            }) {
-                log::error!("io_binding delete: persist failed: {e}");
-            }
-        });
+        self.update_registry("delete", move |list| list.retain(|b| b.id != id));
         Ok(vec![Event::IoBindingRegistryChanged])
     }
 
     /// Handle `Command::RenameIoBinding`: rename the entry whose `id` matches
     /// and persist. No-op when the id is absent.
     pub(crate) fn handle_rename_io_binding(&self, id: String, name: String) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
-        crate::persist_worker::run(move || {
-            let Some(path) = config_path else {
-                log::error!("io_binding rename: config path unresolvable");
-                return;
-            };
-            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
-                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
-                    b.name = name;
-                }
-            }) {
-                log::error!("io_binding rename: persist failed: {e}");
+        self.update_registry("rename", move |list| {
+            if let Some(b) = list.iter_mut().find(|b| b.id == id) {
+                b.name.clone_from(&name);
             }
         });
         Ok(vec![Event::IoBindingRegistryChanged])
@@ -156,33 +150,25 @@ impl LocalDispatcher {
         channels: Vec<usize>,
         mode: ChannelMode,
     ) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
-        crate::persist_worker::run(move || {
-            let Some(path) = config_path else {
-                log::error!("io_binding add endpoint: config path unresolvable");
+        self.update_registry("add endpoint", move |list| {
+            let Some(b) = list.iter_mut().find(|b| b.id == binding_id) else {
                 return;
             };
-            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
-                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
-                    let existing = if is_input {
-                        b.inputs.len()
-                    } else {
-                        b.outputs.len()
-                    };
-                    let endpoint = IoEndpoint {
-                        name: next_endpoint_name(existing, is_input),
-                        device_id: DeviceId(device_id),
-                        mode,
-                        channels,
-                    };
-                    if is_input {
-                        b.inputs.push(endpoint);
-                    } else {
-                        b.outputs.push(endpoint);
-                    }
-                }
-            }) {
-                log::error!("io_binding add endpoint: persist failed: {e}");
+            let existing = if is_input {
+                b.inputs.len()
+            } else {
+                b.outputs.len()
+            };
+            let endpoint = IoEndpoint {
+                name: next_endpoint_name(existing, is_input),
+                device_id: DeviceId(device_id.clone()),
+                mode,
+                channels: channels.clone(),
+            };
+            if is_input {
+                b.inputs.push(endpoint);
+            } else {
+                b.outputs.push(endpoint);
             }
         });
         Ok(vec![Event::IoBindingRegistryChanged])
@@ -196,22 +182,13 @@ impl LocalDispatcher {
         is_input: bool,
         endpoint_name: String,
     ) -> Result<Vec<Event>> {
-        let config_path = resolve_config_path(self.io_config_path.borrow().clone());
-        crate::persist_worker::run(move || {
-            let Some(path) = config_path else {
-                log::error!("io_binding remove endpoint: config path unresolvable");
-                return;
-            };
-            if let Err(e) = FilesystemStorage::update_app_config_at(&path, |config| {
-                if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == binding_id) {
-                    if is_input {
-                        b.inputs.retain(|e| e.name != endpoint_name);
-                    } else {
-                        b.outputs.retain(|e| e.name != endpoint_name);
-                    }
+        self.update_registry("remove endpoint", move |list| {
+            if let Some(b) = list.iter_mut().find(|b| b.id == binding_id) {
+                if is_input {
+                    b.inputs.retain(|e| e.name != endpoint_name);
+                } else {
+                    b.outputs.retain(|e| e.name != endpoint_name);
                 }
-            }) {
-                log::error!("io_binding remove endpoint: persist failed: {e}");
             }
         });
         Ok(vec![Event::IoBindingRegistryChanged])
@@ -221,9 +198,23 @@ impl LocalDispatcher {
     /// effective registry into the live audio runtime so an ALREADY RUNNING
     /// rig re-resolves its device endpoints against the latest edit. Nothing
     /// is persisted here — the CRUD handlers above own `config.yaml`.
-    pub(crate) fn handle_set_io_bindings(&self, bindings: Vec<IoBinding>) -> Result<Vec<Event>> {
-        if let Some(control) = self.runtime_control.borrow().as_ref() {
-            control.set_io_bindings(bindings);
+    ///
+    /// The registry installed is the dispatcher's own (attached by the
+    /// frontend, mutated by those CRUD handlers), never a caller-supplied
+    /// list: the frontend re-installs the same handle on every chain sync, so
+    /// anything else would be reverted moments later.
+    pub(crate) fn handle_set_io_bindings(&self) -> Result<Vec<Event>> {
+        // Clone out first: nothing may stay borrowed across the call into the
+        // frontend's runtime.
+        let bindings = self
+            .io_bindings
+            .borrow()
+            .as_ref()
+            .map(|registry| registry.borrow().clone());
+        if let Some(bindings) = bindings {
+            if let Some(control) = self.runtime_control.borrow().as_ref() {
+                control.set_io_bindings(bindings);
+            }
         }
         Ok(vec![Event::IoBindingRegistryChanged])
     }

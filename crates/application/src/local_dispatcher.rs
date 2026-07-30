@@ -30,6 +30,7 @@ use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::DiPcm;
 use project::project::Project;
 use project::rig::RigProject;
@@ -114,6 +115,14 @@ pub struct LocalDispatcher {
     /// #791: the adapter's live-input source for the doctor. `None` until
     /// attached — a chain with a loaded DI is diagnosable without it.
     pub(crate) tone_doctor_input: RefCell<Option<ToneDoctorInput>>,
+    /// #127: the effective per-machine I/O binding registry, SHARED with the
+    /// frontend (`Rc`, same allocation — the `attach_rig` pattern). The CRUD
+    /// handlers mutate it and persist it; `SetIoBindings` installs it into the
+    /// runtime; the frontend's sync path re-installs the very same handle, so
+    /// an edit issued off the GUI is not reverted at the next chain sync.
+    /// `None` until the frontend attaches one — then nothing is installed,
+    /// rather than wiping the runtime's registry with an empty list.
+    pub(crate) io_bindings: RefCell<Option<Rc<RefCell<Vec<IoBinding>>>>>,
     /// #127: how runtime-control commands reach the frontend's audio runtime.
     /// `None` ⇒ this process hosts no runtime (MCP-only, tests): the commands
     /// still record their state and emit their events, they just have nothing
@@ -167,6 +176,7 @@ impl LocalDispatcher {
             async_done_rx,
             tone_doctor_runs: RefCell::new(HashMap::new()),
             tone_doctor_input: RefCell::new(None),
+            io_bindings: RefCell::new(None),
             runtime_control: RefCell::new(None),
         }
     }
@@ -183,6 +193,14 @@ impl LocalDispatcher {
     /// — the frontend re-attaches whenever it rebuilds its runtime handle.
     pub fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
         *self.runtime_control.borrow_mut() = Some(control);
+    }
+
+    /// #127: share the frontend's per-machine I/O binding registry handle, so
+    /// the binding commands mutate the SAME allocation the frontend renders
+    /// from and re-installs on every runtime sync. Same pattern as
+    /// [`Self::attach_rig`]. Idempotent.
+    pub fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {
+        *self.io_bindings.borrow_mut() = Some(registry);
     }
 }
 

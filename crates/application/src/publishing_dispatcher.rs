@@ -13,6 +13,7 @@ use std::sync::{Arc, RwLock};
 use anyhow::Result;
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::DiPcm;
 use project::rig::RigProject;
 
@@ -131,6 +132,10 @@ impl CommandDispatcher for PublishingDispatcher {
 
     fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
         self.inner.attach_runtime_control(control)
+    }
+
+    fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {
+        self.inner.attach_io_bindings(registry)
     }
 }
 

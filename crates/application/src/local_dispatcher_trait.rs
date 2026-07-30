@@ -19,6 +19,7 @@ use std::sync::{Arc, RwLock};
 use anyhow::Result;
 
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::DiPcm;
 use project::rig::RigProject;
 
@@ -310,9 +311,7 @@ impl CommandDispatcher for LocalDispatcher {
 
             // #127: push the effective registry into the LIVE runtime (not a
             // persist — the CRUD arms above own `config.yaml`).
-            Command::IoBinding(IoBindingCommand::SetIoBindings { bindings }) => {
-                self.handle_set_io_bindings(bindings)
-            }
+            Command::IoBinding(IoBindingCommand::SetIoBindings) => self.handle_set_io_bindings(),
         }
     }
 
@@ -410,5 +409,9 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn attach_runtime_control(&self, control: Box<dyn RuntimeControl>) {
         LocalDispatcher::attach_runtime_control(self, control)
+    }
+
+    fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {
+        LocalDispatcher::attach_io_bindings(self, registry)
     }
 }

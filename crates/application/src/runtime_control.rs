@@ -50,8 +50,3 @@ pub trait RuntimeControl {
         let _ = bindings;
     }
 }
-
-/// The empty `RuntimeControl`: a frontend that hosts no audio runtime.
-pub struct NoRuntimeControl;
-
-impl RuntimeControl for NoRuntimeControl {}

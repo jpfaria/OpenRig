@@ -106,6 +106,12 @@ impl ProjectSession {
             dispatcher.attach_project_path(path.clone());
         }
         dispatcher.attach_config_path(config_path.clone());
+        // #127: the binding commands must mutate the SAME registry this
+        // session renders from and re-installs into the controller on every
+        // runtime sync — otherwise an edit issued off the GUI is reverted at
+        // the next sync.
+        let io_bindings = Rc::new(RefCell::new(Vec::new()));
+        dispatcher.attach_io_bindings(Rc::clone(&io_bindings));
         Self {
             project,
             dispatcher,
@@ -113,7 +119,7 @@ impl ProjectSession {
             config_path,
             presets_path,
             rig: None,
-            io_bindings: Rc::new(RefCell::new(Vec::new())),
+            io_bindings,
         }
     }
 }

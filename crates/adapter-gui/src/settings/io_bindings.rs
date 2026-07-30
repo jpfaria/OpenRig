@@ -99,15 +99,8 @@ fn mirror_bindings_to_session(
 /// endpoints against the latest edit instead of waiting for the next cold
 /// start. The GUI used to call the controller directly, which left MCP/gRPC
 /// with no way to reach the live registry at all.
-fn push_bindings_to_runtime(
-    ps: &Rc<RefCell<Option<ProjectSession>>>,
-    cfg: &Rc<RefCell<AppConfig>>,
-) {
-    let bindings = cfg.borrow().io_bindings.clone();
-    dispatch_if_session(
-        ps,
-        Command::IoBinding(IoBindingCommand::SetIoBindings { bindings }),
-    );
+fn push_bindings_to_runtime(ps: &Rc<RefCell<Option<ProjectSession>>>) {
+    dispatch_if_session(ps, Command::IoBinding(IoBindingCommand::SetIoBindings));
 }
 
 fn delete_reject_message(ps: &Rc<RefCell<Option<ProjectSession>>>, id: &str) -> String {
@@ -332,7 +325,7 @@ impl WireCtx {
     /// (#716). Called after every binding/endpoint mutation.
     fn propagate_bindings(&self) {
         mirror_bindings_to_session(&self.ps, &self.cfg);
-        push_bindings_to_runtime(&self.ps, &self.cfg);
+        push_bindings_to_runtime(&self.ps);
     }
 
     fn create_binding(&self, name: &str) -> SharedString {
