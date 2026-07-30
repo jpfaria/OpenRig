@@ -23,7 +23,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
 use application::event::Event;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::block_editor::{
     build_params_from_items, schedule_block_editor_persist, set_block_parameter_bool,
@@ -45,7 +45,6 @@ pub(crate) struct BlockParameterCtx {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub block_editor_persist_timer: Rc<Timer>,
@@ -67,7 +66,6 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
     let eq_band_curves = &ctx.eq_band_curves;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let block_editor_persist_timer = &ctx.block_editor_persist_timer;
@@ -189,7 +187,6 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
         let eq_band_curves = eq_band_curves.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
@@ -207,7 +204,7 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                     &draft.effect_type,
                     &draft.model_id,
                     &params,
-                    eq_viz_sample_rate(&project_runtime),
+                    eq_viz_sample_rate(&project_session),
                 );
                 eq_band_curves.set_vec(
                     eq_bands

@@ -79,6 +79,25 @@ assets/amps/{brand}/{model}/component.yaml     ← caminhos de assets + svg_cx/c
 
 Quando o bloco selecionado é `preamp`, o painel mostra `controls.svg` em vez de só sliders. Implementação em `crates/adapter-gui/ui/pages/project_chains.slint` (propriedades `is-preamp`, `selected-model-id`, ternary chain de `@image-url()` por compile-time). `amp` ainda não tem equivalente.
 
+### EQ curve: which sample rate it is drawn at (#723, #127)
+
+The EQ / curve-editor preview is a filter response, so it depends on the
+sample rate — near Nyquist the same knobs draw a different curve at 44.1 kHz
+than at 48 kHz. The rate comes from `CommandDispatcher::engine_sr()`, which the
+runtime lifecycle keeps in lock-step with the live device
+(`di_loop_wiring::sync_engine_sr_from_runtime`, called on every runtime start,
+re-sync and teardown). While a rig is running the curve is drawn at the rate
+the device actually negotiated — never a constant.
+
+With **nothing running** the rate is `local_dispatcher::REFERENCE_SAMPLE_RATE`
+(48 kHz): the block editor can be open with audio stopped, and the curve is
+then illustrative. This is the sanctioned no-device value, not a live-path
+assumption. Stopping a rig — leaving to the launcher, opening another project,
+or disabling the last chain — puts the rate back to the reference, so a curve
+is never drawn at the rate of a device that is no longer open (#127). The
+consequence for a stopped 44.1 kHz rig is deliberate: the curve redraws at the
+reference the moment the streams close.
+
 ### Detached editor: one wiring for add and edit (#815)
 
 Outside inline (fullscreen/touch) mode, the block editor opens as a detached

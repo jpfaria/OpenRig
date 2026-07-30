@@ -38,6 +38,17 @@ use project::rig::RigProject;
 use crate::di_loader::DiLoopSource;
 use crate::event::Event;
 use crate::runtime_control::RuntimeControl;
+
+/// The rate the dispatcher reports when NO audio stream is running: before the
+/// first stream opens, and again once the runtime stops.
+///
+/// It is a REFERENCE, never an assumption about a live stream — a running
+/// stream always overwrites it through `attach_engine_sr` with the rate the
+/// device actually negotiated (issue #723: nothing on the live path may bake
+/// in a fixed rate). Consumers that draw or measure with no device present
+/// (the EQ curve in the block editor, the latency probe on a stopped rig) need
+/// SOME rate to work with, and this is the one they agree on.
+pub const REFERENCE_SAMPLE_RATE: u32 = 48_000;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::{ToneReport, ToneRun};
 
@@ -96,8 +107,9 @@ pub struct LocalDispatcher {
     pub(crate) di_loop_state: RefCell<HashMap<ChainId, (DiLoopSource, Arc<DiPcm>)>>,
 
     /// #614: sample rate used for DI loop decoding + resampling.
-    /// Defaults to 48 000 Hz; the adapter sets the real value via
-    /// `attach_engine_sr` once the audio stream is running.
+    /// [`REFERENCE_SAMPLE_RATE`] while nothing is running; the adapter sets
+    /// the real value via `attach_engine_sr` once the audio stream is running,
+    /// and puts it back when the runtime stops (#127).
     pub(crate) engine_sr: RefCell<u32>,
 
     /// #693: completion channel for command work running on its own
@@ -171,7 +183,7 @@ impl LocalDispatcher {
             io_config_path: RefCell::new(None),
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
-            engine_sr: RefCell::new(48_000),
+            engine_sr: RefCell::new(REFERENCE_SAMPLE_RATE),
             async_done_tx,
             async_done_rx,
             tone_doctor_runs: RefCell::new(HashMap::new()),

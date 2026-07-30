@@ -265,7 +265,7 @@ pub(crate) fn wire(
             &model.effect_type,
             &model.model_id,
             &ParameterSet::default(),
-            eq_viz_sample_rate(&project_runtime),
+            eq_viz_sample_rate(&project_session),
         );
         eq_band_curves.set_vec(
             eq_bands

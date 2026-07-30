@@ -213,10 +213,19 @@ pub fn select_chain_di_output(
 
 /// #669/#749: push the running controller's real device sample rate into the
 /// dispatcher's `engine_sr` (the authoritative-rate fallback for consumers
-/// that would otherwise assume 48000). No-op when no runtime is active.
+/// that would otherwise assume 48000).
 ///
 /// Called from the runtime lifecycle whenever the controller is started or
-/// re-synced (a sample-rate change rebuilds the runtime).
+/// re-synced (a sample-rate change rebuilds the runtime), and whenever it is
+/// torn down — `stop_project_runtime`, and the `sync_live_chain_runtime` path
+/// that drops the controller once no chain is left running.
+///
+/// #127: with no controller the rate goes back to
+/// `local_dispatcher::REFERENCE_SAMPLE_RATE`. It was previously left at
+/// whatever the last stream negotiated, so after a 44.1 kHz rig stopped the
+/// dispatcher still reported 44 100 — a rate nothing was running at, which the
+/// block editor then drew its EQ curve against. "Nothing running" is not the
+/// last device; it is no device.
 ///
 /// On an actual rate change, `attach_engine_sr` returns every chain with a
 /// loaded DI source; we re-arm any chain whose loop is currently playing so
@@ -229,7 +238,7 @@ pub fn sync_engine_sr_from_runtime(
 ) {
     let rate = match project_runtime.borrow().as_ref() {
         Some(runtime) => runtime.sample_rate(),
-        None => return,
+        None => application::local_dispatcher::REFERENCE_SAMPLE_RATE,
     };
     let rebuilt = dispatcher.attach_engine_sr(rate);
     if rebuilt.is_empty() {

@@ -254,7 +254,7 @@ pub(crate) fn wire(
         );
         multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
         curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
-        let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_runtime));
+        let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_session));
         eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
         window.set_eq_total_curve(eq_total.into());
         set_selected_block(&window, selected_block.borrow().as_ref(), Some(&chain));

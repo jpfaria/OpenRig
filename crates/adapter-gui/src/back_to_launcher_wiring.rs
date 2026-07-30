@@ -76,7 +76,7 @@ pub(crate) fn wire(
                 log::warn!("[back-to-launcher] Command::CloseProject falhou: {e}");
             }
         }
-        stop_project_runtime(&project_runtime);
+        stop_project_runtime(&project_runtime, &project_session);
         *project_session.borrow_mut() = None;
         *saved_project_snapshot.borrow_mut() = None;
         replace_project_chains(

@@ -180,3 +180,132 @@ fn db_vec_to_svg_path_empty_dbs_returns_empty() {
     let path = db_vec_to_svg_path(&[]);
     assert!(path.is_empty());
 }
+
+// --- #127: the curve stops following a stream that stopped -----------------
+//
+// The rate now comes from the dispatcher (`engine_sr`), which the runtime
+// lifecycle keeps in lock-step with the live device. That exposed a staleness
+// the controller read hid: `engine_sr` was only ever pushed FORWARD, never put
+// back, so after a 44.1 kHz rig was torn down the block editor kept drawing at
+// 44 100 — a rate nothing was running at. With no stream, the honest rate is
+// the reference (issue #723's sanctioned no-device fallback).
+
+/// The state the lifecycle leaves behind once a rig has come up on a device
+/// that negotiated 44.1 kHz: the dispatcher's engine rate IS 44 100.
+fn session_after_a_44100_rig() -> Rc<RefCell<Option<ProjectSession>>> {
+    let session = ProjectSession::new(
+        project::project::Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: Vec::new(),
+            midi: None,
+        },
+        None,
+        None,
+        std::env::temp_dir().join("openrig-eq-viz-rate-tests"),
+    );
+    session.dispatcher.attach_engine_sr(44_100);
+    Rc::new(RefCell::new(Some(session)))
+}
+
+fn high_shelf_boost() -> project::param::ParameterSet {
+    use domain::value_objects::ParameterValue;
+    let mut params = project::param::ParameterSet::default();
+    // Near-Nyquist bilinear warping is what differs between rates, so the
+    // curve only tells the rates apart with the high shelf boosted.
+    params.insert("high_gain", ParameterValue::Float(12.0));
+    params
+}
+
+fn curve_for(session: &Rc<RefCell<Option<ProjectSession>>>) -> (String, Vec<String>) {
+    compute_eq_curves(
+        "filter",
+        "eq_three_band_basic",
+        &high_shelf_boost(),
+        eq_viz_sample_rate(session),
+    )
+}
+
+/// Disabling the last chain destroys the controller inside
+/// `sync_live_chain_runtime`, which then runs the same engine-rate sync. With
+/// nothing running, the curve must go back to the reference rate.
+#[test]
+fn tearing_the_last_chain_down_draws_the_curve_at_the_reference_rate() {
+    let session = session_after_a_44100_rig();
+    let while_running = curve_for(&session);
+    assert_eq!(
+        eq_viz_sample_rate(&session),
+        44_100.0,
+        "precondition: the curve follows the live 44.1 kHz stream"
+    );
+
+    // The chain went away: `sync_live_chain_runtime` dropped the controller
+    // and re-synced the engine rate against an empty cell.
+    let no_runtime: RefCell<Option<infra_cpal::ProjectRuntimeController>> = RefCell::new(None);
+    let dispatcher = session
+        .borrow()
+        .as_ref()
+        .map(|s| s.dispatcher.clone())
+        .expect("session");
+    crate::di_loop_wiring::sync_engine_sr_from_runtime(&no_runtime, dispatcher.as_ref());
+
+    let after_stop = curve_for(&session);
+    assert_eq!(
+        eq_viz_sample_rate(&session),
+        EQ_VIZ_REFERENCE_SAMPLE_RATE,
+        "with no stream running the curve must be drawn at the reference rate, \
+         not at the rate of the device that just went away"
+    );
+    assert_ne!(
+        after_stop, while_running,
+        "the curve must actually change: still identical means it is still \
+         being drawn at the stale 44.1 kHz"
+    );
+}
+
+/// Leaving the project (or opening another one) calls `stop_project_runtime`,
+/// the explicit teardown. Same contract: the editor stops drawing at the rate
+/// of a stream that no longer exists.
+///
+/// The controller cell is empty because starting a real one needs an audio
+/// device; what the test drives is the state a stopped 44.1 kHz rig leaves —
+/// a dispatcher still reporting 44 100 — through the call the UI actually
+/// makes when it tears the rig down.
+#[test]
+fn stopping_the_project_runtime_draws_the_curve_at_the_reference_rate() {
+    let session = session_after_a_44100_rig();
+    let while_running = curve_for(&session);
+    assert_eq!(
+        eq_viz_sample_rate(&session),
+        44_100.0,
+        "precondition: the curve follows the live 44.1 kHz stream"
+    );
+
+    let runtime: Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>> =
+        Rc::new(RefCell::new(None));
+    crate::stop_project_runtime(&runtime, &session);
+
+    let after_stop = curve_for(&session);
+    assert_eq!(
+        eq_viz_sample_rate(&session),
+        EQ_VIZ_REFERENCE_SAMPLE_RATE,
+        "stopping the rig must put the engine rate back to the reference — the \
+         block editor can stay open with audio stopped, and it would otherwise \
+         keep drawing at the last device's 44.1 kHz"
+    );
+    assert_eq!(
+        after_stop,
+        compute_eq_curves(
+            "filter",
+            "eq_three_band_basic",
+            &high_shelf_boost(),
+            EQ_VIZ_REFERENCE_SAMPLE_RATE
+        ),
+        "the drawn curve must be the reference-rate curve"
+    );
+    assert_ne!(
+        after_stop, while_running,
+        "the curve must actually change: still identical means it is still \
+         being drawn at the stale 44.1 kHz"
+    );
+}

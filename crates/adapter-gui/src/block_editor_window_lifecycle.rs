@@ -26,7 +26,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use application::command::{BlockCommand, Command};
 use application::event::Event;
@@ -119,7 +119,6 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub win_timer: Rc<Timer>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -158,7 +157,6 @@ fn wire_model_selection(
     let win_timer = &ctx.win_timer;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -177,7 +175,6 @@ fn wire_model_selection(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -234,7 +231,7 @@ fn wire_model_selection(
                 &model.effect_type,
                 &model.model_id,
                 &default_params,
-                eq_viz_sample_rate(&project_runtime),
+                eq_viz_sample_rate(&project_session),
             );
             win_eq_band_curves.set_vec(
                 eq_bands

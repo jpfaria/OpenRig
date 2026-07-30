@@ -24,7 +24,7 @@ use std::rc::Rc;
 use rfd::FileDialog;
 use slint::{ComponentHandle, Model, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::block_editor::{
     block_parameter_extensions, build_params_from_items,
@@ -47,7 +47,6 @@ pub(crate) struct BlockEditorWindowParamsCtx {
     pub win_timer: Rc<Timer>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -69,7 +68,6 @@ pub(crate) fn wire(
         win_timer,
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -87,7 +85,6 @@ pub(crate) fn wire(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -118,7 +115,7 @@ pub(crate) fn wire(
                     &draft.effect_type,
                     &draft.model_id,
                     &params,
-                    eq_viz_sample_rate(&project_runtime),
+                    eq_viz_sample_rate(&project_session),
                 );
                 win_eq_band_curves.set_vec(
                     eq_bands

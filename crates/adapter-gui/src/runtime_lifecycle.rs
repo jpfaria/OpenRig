@@ -150,11 +150,28 @@ pub(crate) fn attach_runtime_control(
         }));
 }
 
+/// Drop the active controller, and tell the session's dispatcher the streams
+/// are gone.
+///
+/// #127: the engine rate is part of the teardown. It was only ever pushed
+/// forward, so a stopped 44.1 kHz rig left the dispatcher reporting 44 100 and
+/// every consumer of the live rate — the block editor's EQ curve first among
+/// them — kept drawing against a device that was no longer open. Resetting it
+/// here means "nothing running" reads as the reference rate again, which is
+/// what it is (issue #723's sanctioned no-device value, never a live-path
+/// assumption).
 pub(crate) fn stop_project_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
 ) {
     if let Some(mut runtime) = project_runtime.borrow_mut().take() {
         runtime.stop();
+    }
+    if let Some(session) = project_session.borrow().as_ref() {
+        crate::di_loop_wiring::sync_engine_sr_from_runtime(
+            project_runtime,
+            session.dispatcher.as_ref(),
+        );
     }
 }
 

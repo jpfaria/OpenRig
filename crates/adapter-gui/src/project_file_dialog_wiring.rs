@@ -111,7 +111,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     let title =
                         project_title_for_path(Some(&canonical_path), &session.project.borrow());
                     let display_name = project_display_name(&session.project.borrow());
-                    stop_project_runtime(&project_runtime);
+                    stop_project_runtime(&project_runtime, &project_session);
                     replace_project_chains(
                         &project_chains,
                         &session.project.borrow(),
@@ -233,7 +233,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 return;
             }
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-            stop_project_runtime(&project_runtime);
+            stop_project_runtime(&project_runtime, &project_session);
             let session = create_new_project_session(&project_paths.default_config_path);
             // #436 E: criar projeto é negócio → ProjectCommand::CreateProject no
             // dispatcher da sessão (MCP/MIDI, observável via

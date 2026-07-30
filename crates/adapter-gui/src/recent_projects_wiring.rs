@@ -139,7 +139,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     let title =
                         project_title_for_path(Some(&canonical_path), &session.project.borrow());
                     let display_name = project_display_name(&session.project.borrow());
-                    stop_project_runtime(&project_runtime);
+                    stop_project_runtime(&project_runtime, &project_session);
                     replace_project_chains(
                         &project_chains,
                         &session.project.borrow(),

@@ -62,10 +62,6 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// * DI stream arming + engine-rate sync: `di_loop_wiring.rs`,
 ///   `di_output_select_wiring.rs`, `compact_chain_di_callbacks.rs`
 /// * metronome + `ensure_runtime` (#808): `metronome_wiring.rs`
-/// * live EQ-viz sample rate (`eq::eq_viz_sample_rate`): `eq.rs`,
-///   `block_choose_type_callback.rs`, `block_insert_callbacks.rs`,
-///   `block_parameter_wiring.rs`, `block_editor_window_params.rs`,
-///   `block_editor_window_lifecycle.rs`
 /// * runtime health / stream errors on the poll tick: `desktop_app_polling.rs`
 /// * whole-project sync (`sync_project_runtime`): `settings/audio.rs`
 /// * runtime teardown (`stop_project_runtime`) and the session-install attach:
@@ -75,15 +71,20 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   `compact_chain_delete_wiring.rs`
 /// * pure hubs that only forward the handle to a module above:
 ///   `chain_rig_nav_wiring.rs`, `compact_chain_callbacks.rs`,
-///   `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs`
+///   `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs`,
+///   `block_choose_type_callback.rs` (hands it to `block_editor_window_setup`
+///   when the ADD flow opens a detached editor, #815)
+///
+/// Task 11 emptied the EQ-viz bucket: the block editor's curve now takes its
+/// rate from `CommandDispatcher::engine_sr`, so `eq.rs`,
+/// `block_insert_callbacks.rs`, `block_parameter_wiring.rs`,
+/// `block_editor_window_params.rs` and `block_editor_window_lifecycle.rs` left
+/// this list. `block_choose_type_callback.rs` stayed for the OTHER reason
+/// above — it still forwards the controller handle it is given.
 const ALLOWED: &[&str] = &[
     "back_to_launcher_wiring.rs",
     "block_choose_type_callback.rs",
-    "block_editor_window_lifecycle.rs",
-    "block_editor_window_params.rs",
     "block_editor_window_setup.rs",
-    "block_insert_callbacks.rs",
-    "block_parameter_wiring.rs",
     "chain_rig_nav_wiring.rs",
     "chain_row_wiring.rs",
     "compact_chain_callbacks.rs",
@@ -95,7 +96,6 @@ const ALLOWED: &[&str] = &[
     "desktop_app_polling.rs",
     "di_loop_wiring.rs",
     "di_output_select_wiring.rs",
-    "eq.rs",
     "gui_live_source.rs",
     "looper_callbacks.rs",
     "looper_persist.rs",

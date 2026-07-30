@@ -193,7 +193,7 @@ pub(crate) fn create_and_wire(
         &effect_type,
         &model_id,
         &editor_data.params,
-        eq_viz_sample_rate(&project_runtime),
+        eq_viz_sample_rate(&project_session),
     );
     let win_eq_band_curves = Rc::new(VecModel::from(
         win_eq_bands
@@ -323,7 +323,6 @@ pub(crate) fn create_and_wire(
             win_timer: win_timer.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -346,7 +345,6 @@ pub(crate) fn create_and_wire(
             win_timer,
             project_session,
             project_chains,
-            project_runtime,
             saved_project_snapshot,
             project_dirty,
             input_chain_devices,
