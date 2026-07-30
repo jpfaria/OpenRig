@@ -12,7 +12,7 @@
 //! target model isn't actually available/buildable), only
 //! `log::error!`s and returns — it never calls `set_status_error` to
 //! tell the user anything happened. Every OTHER error branch in the very
-//! same closure (the `sync_live_chain_runtime` failure right below it)
+//! same closure (the `request_chain_sync` failure right below it)
 //! DOES call `set_status_error`. So when the dispatch itself fails, the
 //! compact view just sits there showing the old plugin with no
 //! indication why — exactly the reported symptom.
@@ -26,10 +26,14 @@ fn compact_block_handlers_source() -> String {
 }
 
 /// The `ReplaceBlockModel` dispatch's error-handling body, bounded from
-/// the dispatch call to the next sibling statement (the
-/// `sync_live_chain_runtime` call) — so the assertion can't accidentally
-/// pass by matching `set_status_error` calls used elsewhere in the same
-/// closure (e.g. the `sync_live_chain_runtime` error branch right after).
+/// the dispatch call to the next sibling statement (the chain-sync request)
+/// — so the assertion can't accidentally pass by matching `set_status_error`
+/// calls used elsewhere in the same closure (e.g. the chain-sync error branch
+/// right after).
+///
+/// #127: that next statement used to be a direct `sync_live_chain_runtime`
+/// call; it is now `request_chain_sync`, which asks for the same sync on the
+/// command bus.
 fn replace_block_model_dispatch_error_body(src: &str) -> String {
     let needle = "BlockCommand::ReplaceBlockModel";
     let start = src
@@ -37,8 +41,8 @@ fn replace_block_model_dispatch_error_body(src: &str) -> String {
         .unwrap_or_else(|| panic!("compact_chain_block_handlers.rs has no `{needle}` call"));
     let rest = &src[start..];
     let end = rest
-        .find("sync_live_chain_runtime")
-        .unwrap_or_else(|| panic!("expected `sync_live_chain_runtime` to follow the dispatch"));
+        .find("request_chain_sync(")
+        .unwrap_or_else(|| panic!("expected `request_chain_sync` to follow the dispatch"));
     rest[..end].to_string()
 }
 

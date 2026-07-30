@@ -171,7 +171,6 @@ pub(crate) fn wire(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -190,7 +189,6 @@ pub(crate) fn wire(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -220,7 +218,6 @@ pub(crate) fn wire(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -239,7 +236,6 @@ pub(crate) fn wire(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -265,7 +261,6 @@ pub(crate) fn wire(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -284,7 +279,6 @@ pub(crate) fn wire(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -310,7 +304,6 @@ pub(crate) fn wire(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -329,7 +322,6 @@ pub(crate) fn wire(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -355,7 +347,6 @@ pub(crate) fn wire(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -374,7 +365,6 @@ pub(crate) fn wire(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -413,7 +403,6 @@ pub(crate) fn wire(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),

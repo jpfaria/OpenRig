@@ -11,7 +11,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, VecModel};
 
 use application::command::{BlockCommand, Command};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::audio_devices::{
     build_insert_return_channel_items, build_insert_send_channel_items, replace_channel_options,
@@ -19,8 +19,8 @@ use crate::audio_devices::{
 use crate::chain_editor::insert_mode_from_index;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{InsertDraft, ProjectSession};
-use crate::sync_live_chain_runtime;
 use crate::{AppWindow, ChainInsertWindow, ChannelOptionItem, ProjectChainItem};
 
 /// State borrowed by the Insert window callbacks. Each `Rc` is cloned per
@@ -32,7 +32,6 @@ pub(crate) struct InsertWiringCtx {
     pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
     pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
@@ -51,7 +50,6 @@ pub(crate) fn wire(
         insert_send_channels,
         insert_return_channels,
         project_session,
-        project_runtime,
         project_chains,
         saved_project_snapshot,
         project_dirty,
@@ -253,7 +251,6 @@ pub(crate) fn wire(
     {
         let insert_draft = insert_draft.clone();
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -301,7 +298,7 @@ pub(crate) fn wire(
                 log::error!("delete insert block: {e}");
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("delete insert block: {e}");
             }
             replace_project_chains(
@@ -324,7 +321,6 @@ pub(crate) fn wire(
     {
         let insert_draft = insert_draft.clone();
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -385,7 +381,7 @@ pub(crate) fn wire(
                 let _ = iw.hide();
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("insert save runtime sync error: {e}");
             }
             replace_project_chains(

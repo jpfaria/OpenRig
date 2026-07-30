@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 use slint::{Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::state::{ChainDraft, ProjectSession};
 use crate::{AppWindow, ChainEditorWindow, ProjectChainItem};
@@ -27,7 +27,6 @@ pub(crate) fn setup_chain_editor_callbacks(
     chain_draft: Rc<RefCell<Option<ChainDraft>>>,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
     project_chains: Rc<VecModel<ProjectChainItem>>,
-    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -47,7 +46,6 @@ pub(crate) fn setup_chain_editor_callbacks(
         chain_draft,
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,

@@ -15,19 +15,18 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::compact_block_view::build_compact_blocks;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::ProjectSession;
-use crate::sync_live_chain_runtime;
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
 
 pub(crate) struct CompactChainParamHandlersCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -44,7 +43,6 @@ pub(crate) fn wire(
 ) {
     let CompactChainParamHandlersCtx {
         project_session,
-        project_runtime,
         project_chains,
         input_chain_devices,
         output_chain_devices,
@@ -57,7 +55,6 @@ pub(crate) fn wire(
     // Wire update-block-parameter-number (knobs)
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -103,7 +100,7 @@ pub(crate) fn wire(
                 log::error!("[compact] update param error: {e}");
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
@@ -129,7 +126,6 @@ pub(crate) fn wire(
     // Wire select-block-parameter-option (enums)
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -197,7 +193,7 @@ pub(crate) fn wire(
                 log::error!("[compact] select option error: {e}");
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }
@@ -223,7 +219,6 @@ pub(crate) fn wire(
     // Wire update-block-parameter-bool (bool toggles like mute_signal)
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -269,7 +264,7 @@ pub(crate) fn wire(
                 log::error!("[compact] update bool param error: {e}");
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &e.to_string());
                 return;
             }

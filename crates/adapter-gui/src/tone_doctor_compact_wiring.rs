@@ -155,13 +155,12 @@ fn start_run(st: &ToneDoctorState, session: &ProjectSession, chain_index: i32) {
 /// main window.
 fn apply_fix(
     session: &ProjectSession,
-    project_runtime: &ProjectRuntime,
     chain_index: i32,
     main_weak: &Weak<AppWindow>,
     toast_timer: &Rc<slint::Timer>,
 ) {
     let result = apply_fix_inner(session, chain_index, |chain_id| {
-        crate::sync_live_chain_runtime(project_runtime, session, chain_id)
+        crate::runtime_sync_policy::request_chain_sync(session, chain_id)
     });
     if let Err(err) = result {
         if let Some(main_win) = main_weak.upgrade() {
@@ -243,19 +242,12 @@ pub(crate) fn wire(
     }
     {
         let project_session = project_session;
-        let project_runtime = project_runtime;
         compact_win.on_tone_doctor_apply(move |_ci| {
             let sb = project_session.borrow();
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_fix(
-                session,
-                &project_runtime,
-                chain_index,
-                &main_weak,
-                &toast_timer,
-            );
+            apply_fix(session, chain_index, &main_weak, &toast_timer);
         });
     }
 }
@@ -300,13 +292,12 @@ pub(crate) fn wire_main(
     }
     {
         let project_session = project_session;
-        let project_runtime = project_runtime;
         window.on_tone_doctor_apply(move |ci| {
             let sb = project_session.borrow();
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_fix(session, &project_runtime, ci, &main_weak, &toast_timer);
+            apply_fix(session, ci, &main_weak, &toast_timer);
         });
     }
 }

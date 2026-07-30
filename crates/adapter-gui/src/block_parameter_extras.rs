@@ -11,7 +11,7 @@ use crate::project_view::{
     block_model_index, block_model_picker_items, block_model_picker_labels, block_type_index,
     replace_project_chains,
 };
-use crate::runtime_lifecycle::sync_live_chain_runtime;
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::{AppWindow, SELECT_SELECTED_BLOCK_ID};
 use application::command::{BlockCommand, Command};
 use application::event::Event;
@@ -27,7 +27,6 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
     let block_model_option_labels = &ctx.block_model_option_labels;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -42,7 +41,6 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
         let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -182,7 +180,7 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.option runtime sync: {e}");
                 window.set_block_drawer_status_message(e.to_string().into());
                 return;
@@ -210,7 +208,6 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
     let block_parameter_items = &ctx.block_parameter_items;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let block_editor_persist_timer = &ctx.block_editor_persist_timer;
@@ -224,7 +221,6 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
         let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
@@ -250,7 +246,6 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
                     block_parameter_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -268,7 +263,6 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
         let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -360,7 +354,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.file runtime sync: {e}");
                 window.set_block_drawer_status_message(e.to_string().into());
                 return;

@@ -36,10 +36,10 @@ use crate::project_view::{
     block_model_picker_items, block_model_picker_labels, block_type_picker_items,
     replace_project_chains,
 };
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{
     BlockEditorData, BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock,
 };
-use crate::sync_live_chain_runtime;
 use crate::ui_state::block_drawer_state;
 use crate::{
     block_editor_window_setup, AppWindow, BlockModelPickerItem, BlockParameterItem,
@@ -168,7 +168,7 @@ pub(crate) fn wire(
                 log::error!("insert block AddBlock dispatch error: {e}");
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("insert block create error: {e}");
             }
             replace_project_chains(

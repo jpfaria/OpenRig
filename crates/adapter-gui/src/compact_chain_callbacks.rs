@@ -232,7 +232,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             &compact_win,
             CompactChainBlockHandlersCtx {
                 project_session: project_session.clone(),
-                project_runtime: project_runtime.clone(),
                 project_chains: project_chains.clone(),
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),
@@ -250,7 +249,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             &compact_win,
             CompactChainParamHandlersCtx {
                 project_session: project_session.clone(),
-                project_runtime: project_runtime.clone(),
                 project_chains: project_chains.clone(),
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),

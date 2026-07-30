@@ -14,7 +14,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use application::command::{BlockCommand, ChainCommand, Command};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::block_editor::block_editor_data;
 use crate::compact_block_view::build_compact_blocks;
@@ -23,13 +23,12 @@ use crate::helpers::set_status_error;
 use crate::helpers::set_status_info;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{block_model_picker_items, replace_project_chains};
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{BlockEditorDraft, ProjectSession};
-use crate::sync_live_chain_runtime;
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
 
 pub(crate) struct CompactChainBlockHandlersCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -57,7 +56,6 @@ fn wire_block_toggle_and_model(
     ctx: &CompactChainBlockHandlersCtx,
 ) {
     let project_session = &ctx.project_session;
-    let project_runtime = &ctx.project_runtime;
     let project_chains = &ctx.project_chains;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
@@ -153,7 +151,6 @@ fn wire_block_toggle_and_model(
     // Wire choose-block-model
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -245,7 +242,7 @@ fn wire_block_toggle_and_model(
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(error) = request_chain_sync(session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }

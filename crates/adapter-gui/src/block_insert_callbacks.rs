@@ -247,7 +247,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                     block_parameter_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),

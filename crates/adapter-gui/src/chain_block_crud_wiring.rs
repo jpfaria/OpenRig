@@ -17,13 +17,13 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{replace_project_chains, set_selected_block};
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
-use crate::sync_live_chain_runtime;
 use crate::ui_index_to_real_block_index;
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
@@ -44,7 +44,6 @@ pub(crate) struct ChainBlockCrudCtx {
     pub block_editor_persist_timer: Rc<Timer>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -68,7 +67,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
         block_editor_persist_timer,
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -220,7 +218,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -285,7 +282,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(error) = request_chain_sync(session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }

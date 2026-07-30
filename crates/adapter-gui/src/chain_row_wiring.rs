@@ -25,8 +25,8 @@ use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::ProjectSession;
-use crate::sync_live_chain_runtime;
 use crate::{remove_live_chain_runtime, AppWindow, ProjectChainItem};
 
 /// Result of a successful chain reorder, used by the GUI to reseat the
@@ -301,7 +301,6 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
 fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -385,7 +384,6 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -424,7 +422,7 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 set_status_error(&window, &toast_timer, &err.to_string());
                 return;
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(error) = request_chain_sync(session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }

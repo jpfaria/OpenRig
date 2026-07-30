@@ -55,7 +55,6 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             output_chain_devices: deps.output_chain_devices.clone(),
             chain_editor_window: deps.chain_editor_window.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             toast_timer: deps.toast_timer.clone(),

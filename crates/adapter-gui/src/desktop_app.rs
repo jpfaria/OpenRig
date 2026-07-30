@@ -362,7 +362,6 @@ pub fn run_desktop_app(
         cli_project_path.as_ref(),
         &window,
         &project_session,
-        &project_runtime,
         &project_chains,
         &input_chain_devices,
         &output_chain_devices,
@@ -371,6 +370,14 @@ pub fn run_desktop_app(
         &app_config,
         &recent_projects,
     );
+    // #127: hand the session the CLI just installed this frontend's audio
+    // runtime, so a runtime-control command issued before the first chain sync
+    // still reaches the audio (it used to cold-start the runtime itself). Done
+    // here rather than inside `try_auto_open` because this is the module that
+    // owns the runtime handle; nothing in between reaches the audio.
+    if let Some(session) = project_session.borrow().as_ref() {
+        crate::runtime_lifecycle::attach_runtime_control(&project_runtime, session);
+    }
     let crate::desktop_app_block_models::BlockEditorModels {
         block_type_options,
         block_model_options,
@@ -427,7 +434,6 @@ pub fn run_desktop_app(
             insert_send_channels: insert_send_channels.clone(),
             insert_return_channels: insert_return_channels.clone(),
             project_session: project_session.clone(),
-            project_runtime: project_runtime.clone(),
             project_chains: project_chains.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
@@ -623,7 +629,6 @@ pub fn run_desktop_app(
         crate::chain_preset_wiring::ChainPresetCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -747,7 +752,6 @@ pub fn run_desktop_app(
             chain_draft: chain_draft.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),

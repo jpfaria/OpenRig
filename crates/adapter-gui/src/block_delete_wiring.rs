@@ -11,13 +11,13 @@ use std::rc::Rc;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::helpers::{clear_status, log_gui_message, set_status_error};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{replace_project_chains, set_selected_block};
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
-use crate::sync_live_chain_runtime;
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
     ProjectChainItem,
@@ -35,7 +35,6 @@ pub(crate) struct BlockDeleteCtx {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -57,7 +56,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
         eq_band_curves,
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -116,7 +114,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(error) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.delete: {error}");
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;

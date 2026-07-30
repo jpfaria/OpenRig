@@ -4,7 +4,7 @@
 use crate::compact_block_view::build_compact_blocks;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
-use crate::sync_live_chain_runtime;
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::{AppWindow, CompactChainViewWindow};
 use application::command::{BlockCommand, Command};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
@@ -19,7 +19,6 @@ pub(crate) fn wire_block_delete(
     ctx: &CompactChainBlockHandlersCtx,
 ) {
     let project_session = &ctx.project_session;
-    let project_runtime = &ctx.project_runtime;
     let project_chains = &ctx.project_chains;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
@@ -88,7 +87,6 @@ pub(crate) fn wire_block_delete(
         let weak_main = main_window.as_weak();
         let weak_compact = compact_win.as_weak();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -130,7 +128,7 @@ pub(crate) fn wire_block_delete(
                 log::error!("[compact] remove-block dispatch: {e}");
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[compact] remove-block runtime sync: {}", e);
             }
             replace_project_chains(
@@ -159,7 +157,6 @@ pub(crate) fn wire_block_reorder(
     ctx: &CompactChainBlockHandlersCtx,
 ) {
     let project_session = &ctx.project_session;
-    let project_runtime = &ctx.project_runtime;
     let project_chains = &ctx.project_chains;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
@@ -173,7 +170,6 @@ pub(crate) fn wire_block_reorder(
         let weak_main = main_window.as_weak();
         let weak_compact = compact_win.as_weak();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -230,7 +226,7 @@ pub(crate) fn wire_block_reorder(
                 log::error!("[compact] reorder-block dispatch: {}", e);
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[compact] reorder-block runtime sync: {}", e);
             }
             replace_project_chains(&project_chains, &session.project.borrow(), &input_chain_devices.borrow(), &output_chain_devices.borrow(),

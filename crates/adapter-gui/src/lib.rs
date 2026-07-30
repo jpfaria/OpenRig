@@ -125,8 +125,8 @@ pub use cli::{
     validate_project_path, MidiMapArg,
 };
 pub(crate) use runtime_lifecycle::{
-    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_live_chain_runtime,
-    sync_project_runtime, ui_index_to_real_block_index,
+    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_project_runtime,
+    ui_index_to_real_block_index,
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.
@@ -170,6 +170,9 @@ pub use midi_profile_wiring::start_midi_profiles;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
+/// #127: the UI must not name the audio backend outside the modules that own it.
+#[cfg(test)]
+mod no_infra_cpal_in_wiring_tests;
 mod preset_search;
 mod project_ops;
 mod project_ops_recents;

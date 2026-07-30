@@ -261,7 +261,6 @@ fn wire_model_selection(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -284,7 +283,6 @@ fn wire_drawer_toggle_save(
     let win_timer = &ctx.win_timer;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -405,7 +403,6 @@ fn wire_drawer_toggle_save(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -431,7 +428,6 @@ fn wire_drawer_toggle_save(
                 &win_param_items,
                 &project_session,
                 &project_chains,
-                &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
                 &input_chain_devices.borrow(),
