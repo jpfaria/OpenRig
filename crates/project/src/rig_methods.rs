@@ -394,14 +394,31 @@ impl RigProject {
         }
         for (name, preset) in &self.presets {
             for block in &preset.blocks {
-                if matches!(
-                    block.kind,
-                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-                ) {
-                    return Err(format!(
-                        "preset '{name}' contains an I/O block ({}); presets are processing-only",
-                        block.kind.label()
-                    ));
+                // #85: a preset carries the blocks the user placed, and a mid
+                // `Input`/`Output` port is one of them — the same kind of thing
+                // an `Insert` is, which this rule has always accepted. What it
+                // must keep rejecting is the legacy HEAD/TAIL leftover: a port
+                // bound to a binding the chain already carries (#716), which
+                // duplicates the chain's own I/O and starves the device.
+                let port_io = match &block.kind {
+                    AudioBlockKind::Input(b) => Some(&b.io),
+                    AudioBlockKind::Output(b) => Some(&b.io),
+                    _ => None,
+                };
+                if let Some(io) = port_io {
+                    let duplicates_chain_binding = !io.is_empty()
+                        && self
+                            .inputs
+                            .values()
+                            .any(|input| input.io_binding_ids.iter().any(|id| id == io));
+                    if duplicates_chain_binding {
+                        return Err(format!(
+                            "preset '{name}' contains an I/O block ({}) bound to '{io}', a \
+                             binding the chain already carries; that duplicates the chain's \
+                             own I/O",
+                            block.kind.label()
+                        ));
+                    }
                 }
             }
             for (idx, scene) in &preset.scenes {
