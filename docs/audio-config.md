@@ -303,6 +303,13 @@ there are no separate I/O lists.
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
 
+**A mid port is a normal block (#85).** It is a row in the chain like any effect
+— the head input and tail output are chips drawn from the bindings, not rows —
+and it survives a project load. #716 still drops the legacy leftovers, but only
+those pointing at a binding the chain ALREADY carries (that duplicate is what
+starved the device); a port pointing at another E/S, or not yet pointed
+anywhere, is the user's and stays.
+
 **A mid `Output` emits the signal at ITS OWN position (#85).** It taps the bus
 right where it sits — only the blocks BEFORE it have run — while the chain keeps
 flowing through the blocks after it down to the tail output. Nothing is cut and

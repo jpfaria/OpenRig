@@ -22,6 +22,7 @@ pub mod offline;
 pub mod output_meter;
 pub mod probe;
 pub mod rig_runtime;
+mod rig_runtime_normalize;
 pub mod runtime;
 pub mod runtime_audio_frame;
 pub mod runtime_block_builders;
