@@ -54,6 +54,9 @@ mod local_dispatcher_subsystems;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;
+/// #127: the metronome's control-plane state — settings, chosen output and
+/// tap history — owned by the dispatcher so every transport shares one truth.
+pub mod metronome_state;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
 pub mod persist_worker;

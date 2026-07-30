@@ -65,6 +65,13 @@ follow-up.
     `SetSpectrumEnabled`.
   - `openrig://di` (#829) — per-chain DI loop state: `playing`, the
     playback `in_dbfs` / `out_dbfs`, and the loaded `source` (JSON).
+  - `openrig://metronome` (#127) — the click: the settings the dispatcher
+    owns (`bpm`, `beats_per_bar`, `subdivision`, `timbre`, `volume`,
+    `count_in`, `output`) plus `running` and the live beat position
+    (`bar`, `beat`, `tick`, `counting_in`) (JSON). Read parity for the
+    metronome commands — a client that can start the click can see the
+    tempo it runs at and the beat it is on. With no runtime hosted the
+    position reads as beat zero rather than a fabricated one.
   - `openrig://chains/{chain}/latency` (#829) — measured DSP latency for
     one chain, probed at that chain input's real rate and buffer (never a
     hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used.

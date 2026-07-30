@@ -4,6 +4,8 @@ use std::rc::Rc;
 use crate::BlockEditorWindow;
 use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
+use application::metronome_state::MetronomeControlState;
+use infra_filesystem::FilesystemStorage;
 use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 use project::project::Project;
@@ -112,6 +114,7 @@ impl ProjectSession {
         // the next sync.
         let io_bindings = Rc::new(RefCell::new(Vec::new()));
         dispatcher.attach_io_bindings(Rc::clone(&io_bindings));
+        attach_metronome_state(dispatcher.as_ref());
         Self {
             project,
             dispatcher,
@@ -122,6 +125,43 @@ impl ProjectSession {
             io_bindings,
         }
     }
+}
+
+/// #127/#14: give the session's dispatcher the metronome state it owns —
+/// the settings restored from the per-machine `config.yaml` (ADR 0003), the
+/// endpoint they were last played through, and the file they persist back to.
+///
+/// Every session gets one, however it was built, because the dispatcher is
+/// where a metronome command is answered now: the GUI knob, a MIDI footswitch
+/// and an MCP client all reach the same settings and the same click.
+///
+/// The path is resolved HERE, on the thread that will dispatch, and travels
+/// with the state — the persist worker never re-resolves it (#701).
+fn attach_metronome_state(dispatcher: &dyn CommandDispatcher) {
+    let config = FilesystemStorage::load_app_config().unwrap_or_default();
+    dispatcher.attach_metronome_state(Rc::new(RefCell::new(MetronomeControlState::restored(
+        &config.metronome,
+        metronome_config_path(),
+    ))));
+}
+
+/// Where the metronome's settings persist: the machine's `config.yaml`.
+///
+/// **`None` in a test build, structurally** (#701). A session dispatching
+/// `SetMetronomeBpm` writes this file, and a test that built a `ProjectSession`
+/// would therefore rewrite the tempo, bar and output the person running the
+/// suite actually practises with — it did, once, before this guard existed. A
+/// state with no path persists nothing, so no test CAN reach the real config
+/// however it builds its session. `ProjectSession` is `pub(crate)`, so an
+/// integration test cannot construct one and slip past the `cfg`.
+#[cfg(not(test))]
+fn metronome_config_path() -> Option<PathBuf> {
+    FilesystemStorage::app_config_path().ok()
+}
+
+#[cfg(test)]
+fn metronome_config_path() -> Option<PathBuf> {
+    None
 }
 
 impl std::fmt::Debug for ProjectSession {

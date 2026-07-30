@@ -27,6 +27,25 @@ use engine::LooperStatus;
 use crate::query_analyzers::{SpectrumReading, TunerReading};
 use crate::query_di::DiLoopReading;
 
+/// #14/#127: where the click is in the bar, and whether it is sounding.
+///
+/// The generator publishes a POSITION (a phase), not a queue of beat events,
+/// so a slow frame can never lose or double a beat — every consumer, on-screen
+/// lamp or MCP client, reads the beat the click is actually on.
+pub struct MetronomeReading {
+    /// Whether the click's stream is open and enabled RIGHT NOW. Reported by
+    /// the audio side, so it is the truth even if a control-plane mirror
+    /// somewhere disagrees.
+    pub running: bool,
+    pub bar: u32,
+    /// Zero-based beat within the bar.
+    pub beat: u32,
+    /// Zero-based subdivision tick within the beat.
+    pub tick: u32,
+    /// Still counting the bar off; no downbeat has been played yet.
+    pub counting_in: bool,
+}
+
 /// Per-chain meter reading: input/output peak in dBFS.
 pub struct ChainMeterReading {
     pub chain: ChainId,
@@ -54,6 +73,13 @@ pub trait LiveSource {
     }
 
     fn di_loop(&self) -> Option<Vec<DiLoopReading>> {
+        None
+    }
+
+    /// #14: the click's live beat position. `None` ⇒ this frontend hosts no
+    /// metronome runtime (no project started); the caller answers the
+    /// documented silent shape rather than inventing a beat.
+    fn metronome(&self) -> Option<MetronomeReading> {
         None
     }
 

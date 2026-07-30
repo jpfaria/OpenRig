@@ -28,6 +28,7 @@ use crate::command::Command;
 use crate::di_loader::DiLoopSource;
 use crate::event::Event;
 use crate::local_dispatcher::ToneDoctorInput;
+use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 
@@ -103,6 +104,27 @@ pub trait CommandDispatcher {
     /// supply it; a transport that owns no audio keeps the default no-op and
     /// its commands still report their events.
     fn attach_runtime_control(&self, _control: Rc<dyn RuntimeControl>) {}
+
+    /// #127: share the frontend's metronome state — settings, chosen output
+    /// endpoint, POWER, tap history, and where it persists.
+    ///
+    /// Same shared-allocation pattern as [`Self::attach_rig`] and
+    /// [`Self::attach_io_bindings`], and for the same reason: the click
+    /// outlives any one project (it keeps sounding while the player switches
+    /// screens), so a new session's dispatcher must adopt the SAME state
+    /// rather than reset the tempo to whatever was on disk at boot.
+    ///
+    /// A dispatcher nobody attaches one to keeps a private, unpersisted state:
+    /// every command still validates, records and reports, it just has no
+    /// `config.yaml` to write to (which is what keeps tests off the user's
+    /// real one — issue #701).
+    fn attach_metronome_state(&self, _state: Rc<RefCell<MetronomeControlState>>) {}
+
+    /// #127: the metronome's control-plane state, for the frontend that
+    /// RENDERS it. The dispatcher owns the truth; a window mirrors it.
+    fn metronome_snapshot(&self) -> MetronomeSnapshot {
+        MetronomeSnapshot::default()
+    }
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so
     /// the binding commands mutate the same allocation the frontend renders

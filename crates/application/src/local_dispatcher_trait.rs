@@ -31,6 +31,7 @@ use crate::di_loader::DiLoopSource;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher, ToneDoctorInput};
+use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
 use crate::runtime_control::RuntimeControl;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::ToneRun;
@@ -419,5 +420,13 @@ impl CommandDispatcher for LocalDispatcher {
 
     fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {
         LocalDispatcher::attach_io_bindings(self, registry)
+    }
+
+    fn attach_metronome_state(&self, state: Rc<RefCell<MetronomeControlState>>) {
+        LocalDispatcher::attach_metronome_state(self, state)
+    }
+
+    fn metronome_snapshot(&self) -> MetronomeSnapshot {
+        LocalDispatcher::metronome_snapshot(self)
     }
 }

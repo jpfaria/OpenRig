@@ -38,6 +38,7 @@ use anyhow::Result;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
 use engine::DiPcm;
+use feature_dsp::metronome::MetronomeSettings;
 use project::chain::Chain;
 
 /// Runtime state changes a command handler can apply to the frontend's audio
@@ -133,6 +134,51 @@ pub trait RuntimeControl {
     /// "follow the change if you are already sounding", not "start".
     fn refresh_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
         let _ = (chain, pcm);
+        Ok(())
+    }
+
+    /// Start the metronome's click on the output endpoint `output_key` names
+    /// (#14). `None` means "the project's first endpoint" — the same fallback
+    /// a renamed binding or a different machine falls back to.
+    ///
+    /// The key is opaque here on purpose: `application` must never learn about
+    /// devices or channels (see [`crate::live_source`]). The frontend that
+    /// owns the audio host resolves the key against ITS binding registry.
+    ///
+    /// **Isolation:** the click is an independent pipeline (invariant #4). It
+    /// opens its OWN output stream and must never be mixed into, routed
+    /// through, or grouped with any chain's runtime — the backend sums it.
+    ///
+    /// **#808:** like [`Self::arm_di_stream`], the click must sound with NO
+    /// chain enabled, so an implementation may create its audio runtime here.
+    /// That licence belongs to this door alone; the three below must never
+    /// wake audio up.
+    fn start_metronome(&self, settings: MetronomeSettings, output_key: Option<&str>) -> Result<()> {
+        let _ = (settings, output_key);
+        Ok(())
+    }
+
+    /// Stop the click and close its stream. Idempotent, and never an error:
+    /// there is nothing to fail about silence.
+    fn stop_metronome(&self) {}
+
+    /// Hand new settings to a click that may be running. Cheap and
+    /// idempotent — the shared cell bumps a generation counter and the audio
+    /// callback only re-reads when it changed, so a tempo edit never restarts
+    /// the stream and never drops audio.
+    ///
+    /// Never starts anything: a settings edit is not a play.
+    fn set_metronome_settings(&self, settings: MetronomeSettings) {
+        let _ = settings;
+    }
+
+    /// Move a PLAYING click to the endpoint `output_key` now names.
+    ///
+    /// Distinct from [`Self::start_metronome`] for the same reason
+    /// [`Self::refresh_di_stream`] is distinct from the arm: a click that is
+    /// not sounding must stay silent, and this must never create a runtime.
+    fn refresh_metronome_output(&self, output_key: Option<&str>) -> Result<()> {
+        let _ = output_key;
         Ok(())
     }
 }

@@ -107,7 +107,38 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
             crate::query_chain_quality::chain_quality_report(ctx.project, chain)
         }
         QueryKind::ChainToneReport { chain } => Ok(ctx.dispatcher.tone_report_json(chain)),
+        QueryKind::MetronomeState => Ok(metronome_state(ctx)),
     }
+}
+
+/// The metronome, both halves in one payload: the settings the DISPATCHER
+/// owns (so they read the same on a transport that hosts no audio) and the
+/// beat position only a live stream can report.
+///
+/// `running` comes from the audio side when there is one — that is the truth
+/// about whether anything is audible. With no runtime hosted, the
+/// control-plane flag answers instead, and the position reads as beat zero
+/// rather than a fabricated one.
+fn metronome_state(ctx: &ReadContext<'_>) -> String {
+    let snapshot = ctx.dispatcher.metronome_snapshot();
+    let live = ctx.live.metronome();
+    let running = live.as_ref().map_or(snapshot.running, |m| m.running);
+    let settings = snapshot.settings;
+    serde_json::json!({
+        "running": running,
+        "bpm": settings.bpm,
+        "beats_per_bar": settings.beats_per_bar,
+        "subdivision": settings.subdivision.key(),
+        "timbre": settings.timbre.key(),
+        "volume": settings.volume,
+        "count_in": settings.count_in,
+        "output": snapshot.output_key,
+        "bar": live.as_ref().map_or(0, |m| m.bar),
+        "beat": live.as_ref().map_or(0, |m| m.beat),
+        "tick": live.as_ref().map_or(0, |m| m.tick),
+        "counting_in": live.as_ref().is_some_and(|m| m.counting_in),
+    })
+    .to_string()
 }
 
 /// `<chain id>\t<in dBFS>\t<out dBFS>` per line, one line per project chain.

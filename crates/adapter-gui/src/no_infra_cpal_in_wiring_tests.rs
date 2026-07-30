@@ -40,6 +40,11 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   hosts `GuiRuntimeControl`, the `RuntimeControl` impl every command handler
 ///   reaches the audio through. This is the module the invariant exists to
 ///   concentrate everything into.
+/// * `runtime_pipelines.rs` — the SAME seam, split by pipeline kind: the
+///   bodies of the doors for the independent pipelines (invariant #4), the DI
+///   loop and the metronome click. It left `runtime_lifecycle.rs` in Task 12b
+///   because that file had reached its line cap, and it is an owner, not a
+///   wiring module: nothing here is reached except through a `Command`.
 /// * `desktop_app.rs` — allocates the one `Rc<RefCell<Option<..>>>` the app
 ///   shares (`let project_runtime = Rc::new(RefCell::new(None))`) and hands it
 ///   to the modules below. Someone has to say the type once.
@@ -59,7 +64,6 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   `select_chain_block_callback.rs`, `tone_doctor_compact_wiring.rs`
 /// * looper transport/PCM store: `looper_wiring.rs`, `looper_callbacks.rs`,
 ///   `looper_persist.rs`
-/// * metronome + `ensure_runtime` (#808): `metronome_wiring.rs`
 /// * runtime health / stream errors on the poll tick: `desktop_app_polling.rs`
 /// * whole-project sync (`sync_project_runtime`): `settings/audio.rs`
 /// * runtime teardown (`stop_project_runtime`) and the session-install attach:
@@ -87,9 +91,17 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// `di_output_select_wiring.rs` and `compact_chain_di_callbacks.rs` now only
 /// dispatch. The engine-rate publish (`sync_engine_sr_from_runtime`) moved to
 /// `runtime_lifecycle.rs`, and #808's `ensure_runtime` became the arm's
-/// precondition instead of something a UI callback runs first. `metronome_wiring.rs`
-/// is the last entry in that bucket: the click's stream lifecycle still has no
-/// door (see the Task 12 report).
+/// precondition instead of something a UI callback runs first.
+///
+/// Task 12b emptied that bucket: `metronome_wiring.rs` is gone from the list.
+/// The click's whole lifecycle moved onto the bus — the dispatcher owns the
+/// settings (`application::metronome_state`) and applies them through
+/// `RuntimeControl::start_metronome` / `stop_metronome` /
+/// `set_metronome_settings` / `refresh_metronome_output`, so a MIDI footswitch
+/// and an MCP client start the same click the knob does. The beat lamps read
+/// the click's position through `LiveSource::metronome` instead of the
+/// controller's shared cell. The bodies of those doors live in
+/// `runtime_pipelines.rs`, listed above as an owner.
 const ALLOWED: &[&str] = &[
     "back_to_launcher_wiring.rs",
     "block_choose_type_callback.rs",
@@ -109,10 +121,10 @@ const ALLOWED: &[&str] = &[
     "mcp_query_resolver.rs",
     "meter_wiring.rs",
     "meter_wiring_poll.rs",
-    "metronome_wiring.rs",
     "project_file_dialog_wiring.rs",
     "recent_projects_wiring.rs",
     "runtime_lifecycle.rs",
+    "runtime_pipelines.rs",
     "select_chain_block_callback.rs",
     "settings/audio.rs",
     "spectrum_session.rs",

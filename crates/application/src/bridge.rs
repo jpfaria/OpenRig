@@ -135,6 +135,12 @@ pub enum QueryKind {
     /// input's real rate and buffer (never a hardcoded 48 kHz — #723).
     /// Serialized by [`crate::query_latency::chain_latency_report`].
     ChainLatency { chain: domain::ids::ChainId },
+    /// #127: the metronome — the settings the dispatcher owns plus the live
+    /// beat position the click's own stream publishes. Read parity for the
+    /// metronome commands: a client that can turn the click on must be able
+    /// to see the tempo it is running at and the beat it is on. Serialized by
+    /// [`crate::read`].
+    MetronomeState,
 }
 
 struct QueryRequest {
@@ -205,6 +211,7 @@ impl CommandBridge {
             | QueryKind::TunerReadings
             | QueryKind::SpectrumReadings
             | QueryKind::DiLoopState
+            | QueryKind::MetronomeState
             | QueryKind::ChainLatency { .. }
             | QueryKind::ChainToneReport { .. } => None,
             // Handled above; unreachable here.

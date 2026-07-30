@@ -14,7 +14,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::live_source::{ChainMeterReading, LiveSource};
+use application::live_source::{ChainMeterReading, LiveSource, MetronomeReading};
 use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
 use domain::ids::ChainId;
@@ -145,6 +145,57 @@ impl LiveSource for GuiLiveSource<'_> {
     fn devices(&self) -> Option<Result<Vec<String>, String>> {
         Some(infra_cpal::list_devices().map_err(|e| e.to_string()))
     }
+
+    fn metronome(&self) -> Option<MetronomeReading> {
+        metronome_reading(self.runtime)
+    }
+}
+
+/// #127: the metronome's live reading, on its own.
+///
+/// The click is an independent pipeline (invariant #4): its position depends
+/// on no chain, no project row and no analyzer session, so this carries none
+/// of the handles [`GuiLiveSource`] needs. It exists so `metronome_wiring` can
+/// read the beat through the SEAM — the same one MCP reads — instead of
+/// holding the audio backend itself.
+pub(crate) struct MetronomeLiveSource {
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl LiveSource for MetronomeLiveSource {
+    fn metronome(&self) -> Option<MetronomeReading> {
+        metronome_reading(&self.runtime)
+    }
+}
+
+/// Build the metronome's read seam. Called by `desktop_app`, the module that
+/// allocates the shared runtime handle in the first place.
+pub(crate) fn metronome_live_source(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> Rc<dyn LiveSource> {
+    Rc::new(MetronomeLiveSource {
+        runtime: Rc::clone(runtime),
+    })
+}
+
+/// Where the click is in the bar, from the generator's own lock-free cell.
+///
+/// `None` ⇒ no runtime is hosted (the rig is stopped), never a fabricated
+/// beat. `running` is the flag the audio callback itself reads, so a control
+/// mirror that disagrees is the one that is wrong.
+fn metronome_reading(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> Option<MetronomeReading> {
+    let borrow = runtime.borrow();
+    let shared = borrow.as_ref()?.metronome_shared();
+    let position = shared.position();
+    Some(MetronomeReading {
+        running: shared.enabled(),
+        bar: position.bar,
+        beat: position.beat,
+        tick: position.tick,
+        counting_in: position.counting_in,
+    })
 }
 
 #[cfg(test)]

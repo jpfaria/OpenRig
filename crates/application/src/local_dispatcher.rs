@@ -37,6 +37,7 @@ use project::rig::RigProject;
 
 use crate::di_loader::DiLoopSource;
 use crate::event::Event;
+use crate::metronome_state::MetronomeControlState;
 use crate::runtime_control::RuntimeControl;
 
 /// The rate the dispatcher reports when NO audio stream is running: before the
@@ -140,6 +141,16 @@ pub struct LocalDispatcher {
     /// still record their state and emit their events, they just have nothing
     /// to apply the change to.
     pub(crate) runtime_control: RefCell<Option<Rc<dyn RuntimeControl>>>,
+    /// #127/#14: the metronome's settings, chosen output endpoint, POWER state
+    /// and tap history. It lived in the GUI, which is why a footswitch or an
+    /// MCP client could flip `metronome_enabled` and hear nothing — only the
+    /// GUI's own knob callbacks knew how to turn the event into sound.
+    ///
+    /// SHARED with the frontend (`Rc`, same allocation — the `attach_rig`
+    /// pattern) because the click outlives any one project: opening another
+    /// must not reset the tempo. A dispatcher nobody attached one to keeps
+    /// this private, unpersisted allocation.
+    pub(crate) metronome: RefCell<Rc<RefCell<MetronomeControlState>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -190,6 +201,7 @@ impl LocalDispatcher {
             tone_doctor_input: RefCell::new(None),
             io_bindings: RefCell::new(None),
             runtime_control: RefCell::new(None),
+            metronome: RefCell::new(Rc::new(RefCell::new(MetronomeControlState::default()))),
         }
     }
 
@@ -215,6 +227,18 @@ impl LocalDispatcher {
     /// `Rc` is the whole cost of not having that landmine.
     pub(crate) fn runtime_control(&self) -> Option<Rc<dyn RuntimeControl>> {
         self.runtime_control.borrow().clone()
+    }
+
+    /// #127: adopt the frontend's app-lifetime metronome state. Idempotent.
+    pub fn attach_metronome_state(&self, state: Rc<RefCell<MetronomeControlState>>) {
+        *self.metronome.borrow_mut() = state;
+    }
+
+    /// The metronome state, cloned OUT of its `RefCell` — same discipline as
+    /// [`Self::runtime_control`]: the handler drops the outer borrow before it
+    /// calls into the frontend, which may re-attach on its way back.
+    pub(crate) fn metronome_state(&self) -> Rc<RefCell<MetronomeControlState>> {
+        self.metronome.borrow().clone()
     }
 
     /// #127: share the frontend's per-machine I/O binding registry handle, so

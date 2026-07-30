@@ -15,6 +15,9 @@
 //!   enabled (#808), the precondition of arming an independent pipeline.
 //! * `sync_engine_sr_from_runtime` — publish the live device rate to the
 //!   dispatcher (and the reference rate once nothing is running).
+//!
+//! The doors for the INDEPENDENT pipelines (the DI loop, the metronome click)
+//! keep their bodies in `runtime_pipelines` — same seam, different rules.
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -28,6 +31,7 @@ use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
+use engine::metronome_state::MetronomeSettings;
 use engine::DiPcm;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
@@ -35,6 +39,7 @@ use project::project::Project;
 use project::rig::RigProject;
 
 use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
+use crate::runtime_pipelines;
 use crate::state::ProjectSession;
 
 /// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
@@ -126,47 +131,46 @@ impl RuntimeControl for GuiRuntimeControl {
         sync_live_chain_runtime(&self.runtime, &session, chain)
     }
 
-    /// #614/#771: play the loop on THIS chain's isolated DI stream — resolve
-    /// the chain's chosen output, render through a copy of its graph
-    /// off-thread, park on that output's cell. The guitar runtime is never
-    /// touched (invariant #4).
-    ///
-    /// #808: the runtime is a PRECONDITION of the arm, not a user action. The
-    /// DI is an independent pipeline and has to play with no chain enabled, so
-    /// a stopped rig gets its controller here — the same lazy creation the
-    /// chain-enable path does, minus the `enabled` gate. No other door may
-    /// wake audio up (see `sync_chain`, which must never start a runtime).
+    // The independent pipelines (invariant #4) — the DI loop and the
+    // metronome click — have their bodies in `runtime_pipelines`, where the
+    // rules they share are written down: a start may wake audio, a follow
+    // never may, a stop is never an error.
+
     fn arm_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
         let Some(session) = self.session.session() else {
             return Ok(());
         };
-        ensure_runtime(&self.runtime, &session)?;
-        let borrow = self.runtime.borrow();
-        let Some(runtime) = borrow.as_ref() else {
-            return Ok(());
-        };
-        runtime.arm_di_stream(chain, pcm)
+        runtime_pipelines::arm_di(&self.runtime, &session, chain, pcm)
     }
 
     fn disarm_di_stream(&self, chain: &ChainId) {
-        if let Some(runtime) = self.runtime.borrow().as_ref() {
-            runtime.disarm_di_stream(chain);
-        }
+        runtime_pipelines::disarm_di(&self.runtime, chain);
     }
 
-    /// Follow a change the PLAYING loop depends on: the picked output (#771)
-    /// or the device rate it was resampled to (#669). A stream that is not
-    /// sounding stays silent — and unlike `arm_di_stream` this never creates a
-    /// runtime, because nobody asked to hear anything.
     fn refresh_di_stream(&self, chain: &Chain, pcm: Arc<DiPcm>) -> Result<()> {
-        let borrow = self.runtime.borrow();
-        let Some(runtime) = borrow.as_ref() else {
+        runtime_pipelines::refresh_di(&self.runtime, chain, pcm)
+    }
+
+    fn start_metronome(&self, settings: MetronomeSettings, output_key: Option<&str>) -> Result<()> {
+        let Some(session) = self.session.session() else {
             return Ok(());
         };
-        if !runtime.di_stream_active(&chain.id) {
+        runtime_pipelines::start_metronome(&self.runtime, &session, settings, output_key)
+    }
+
+    fn stop_metronome(&self) {
+        runtime_pipelines::stop_metronome(&self.runtime);
+    }
+
+    fn set_metronome_settings(&self, settings: MetronomeSettings) {
+        runtime_pipelines::push_metronome_settings(&self.runtime, settings);
+    }
+
+    fn refresh_metronome_output(&self, output_key: Option<&str>) -> Result<()> {
+        let Some(session) = self.session.session() else {
             return Ok(());
-        }
-        runtime.arm_di_stream(chain, pcm)
+        };
+        runtime_pipelines::refresh_metronome_output(&self.runtime, &session, output_key)
     }
 }
 
@@ -487,3 +491,7 @@ mod di_808_tests;
 #[cfg(test)]
 #[path = "runtime_lifecycle_control_tests.rs"]
 mod control_tests;
+
+#[cfg(test)]
+#[path = "metronome_runtime_tests.rs"]
+mod metronome_tests;

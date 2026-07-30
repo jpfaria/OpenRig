@@ -50,6 +50,7 @@ fn all_kinds() -> Vec<QueryKind> {
             chain: chain.clone(),
         },
         QueryKind::ChainToneReport { chain },
+        QueryKind::MetronomeState,
     ]
 }
 
@@ -57,7 +58,7 @@ fn all_kinds() -> Vec<QueryKind> {
 /// arm in `match_all_kinds` (exhaustive match) AND a new entry here (fixed
 /// array length), and `all_kinds_covers_every_variant` then fails until
 /// `all_kinds` lists it too — the loop below cannot silently skip a kind.
-const KIND_NAMES: [&str; 19] = [
+const KIND_NAMES: [&str; 20] = [
     "ProjectYaml",
     "Devices",
     "Ids",
@@ -77,6 +78,7 @@ const KIND_NAMES: [&str; 19] = [
     "Paths",
     "ChainQualityReport",
     "ChainToneReport",
+    "MetronomeState",
 ];
 
 fn match_all_kinds(kind: &QueryKind) -> &'static str {
@@ -100,6 +102,7 @@ fn match_all_kinds(kind: &QueryKind) -> &'static str {
         QueryKind::Paths => "Paths",
         QueryKind::ChainQualityReport { .. } => "ChainQualityReport",
         QueryKind::ChainToneReport { .. } => "ChainToneReport",
+        QueryKind::MetronomeState => "MetronomeState",
     }
 }
 

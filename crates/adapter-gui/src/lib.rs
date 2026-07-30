@@ -84,6 +84,7 @@ mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_projects_wiring;
 mod runtime_lifecycle;
+mod runtime_pipelines;
 mod runtime_sync_policy;
 #[cfg(test)]
 #[path = "runtime_sync_policy_tests.rs"]
@@ -107,7 +108,7 @@ pub use settings::paths::{
 mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
-mod metronome_session;
+mod metronome_view;
 mod metronome_wiring;
 mod sample_rate;
 pub mod spectrum_close;

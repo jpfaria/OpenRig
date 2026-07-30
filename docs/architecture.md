@@ -75,8 +75,12 @@ The GUI's implementation is `GuiRuntimeControl`, in
 `adapter-gui/src/runtime_lifecycle.rs` — the one module that owns the
 controller. Current doors: `set_output_muted` (rig-wide, the tuner's mute),
 `set_io_bindings`, `set_block_enabled` (#522's in-place fade toggle — never a
-stream restart), `sync_chain`, and the DI stream trio `arm_di_stream` /
-`disarm_di_stream` / `refresh_di_stream`.
+stream restart), `sync_chain`, the DI stream trio `arm_di_stream` /
+`disarm_di_stream` / `refresh_di_stream`, and the metronome's
+`start_metronome` / `stop_metronome` / `set_metronome_settings` /
+`refresh_metronome_output`. The bodies of the last two families live in
+`adapter-gui/src/runtime_pipelines.rs`: both are INDEPENDENT pipelines
+(invariant #4) and share the two rules below, where the chain doors do not.
 
 Two rules the DI trio makes explicit:
 
@@ -98,6 +102,36 @@ Two rules the DI trio makes explicit:
 `attach_engine_sr` is where a device-rate change becomes a refresh: it stores
 the new rate and asks the control to re-arm each chain whose loop is playing,
 so a loop resampled to the old rate never drags on against a rebuilt runtime.
+
+### The metronome's state moved to the dispatcher (#127)
+
+The metronome is the same story with a second half: the click's SETTINGS used
+to live in the GUI too (`MetronomeSession`), so `Event::MetronomeEnabledChanged`
+was applied only in the GUI's own knob path. A MIDI footswitch bound to
+`toggle_metronome`, or an MCP `set_metronome_enabled`, flipped the mirror in
+`SelectionState`, got its event, and nothing was ever heard.
+
+The dispatcher now owns them: `application::metronome_state::MetronomeControlState`
+(settings, chosen output endpoint, POWER, tap history, and the `config.yaml`
+they persist to), attached per session by `adapter-gui/src/state.rs` and read
+back as a `MetronomeSnapshot` through `CommandDispatcher::metronome_snapshot`.
+A handler therefore validates the value, stores it, persists it and applies it
+through `RuntimeControl` — once, for every transport. The GUI window renders
+that snapshot (`metronome_events::render_settings`) and translates knob indices
+to command keys (`metronome_view.rs`); it holds no metronome state at all.
+
+`MetronomeSettings` stays in `feature-dsp` (`engine::metronome_state`
+re-exports it) rather than being duplicated in `application`: it is six scalars
+plus two enums with no DSP state and no device knowledge, `application` already
+depends on `feature-dsp`, and a second copy would put the `Subdivision` /
+`Timbre` vocabulary in two places. The chosen output travels as an opaque
+endpoint KEY — `application` never learns which device or channels it names;
+the frontend that owns the audio host resolves it.
+
+The read half is `LiveSource::metronome`: where the click is in the bar, and
+whether it is sounding, as the audio side reports it. The GUI's beat lamps
+sample it on a timer (a phase, never a queue of beat events) and MCP serves the
+same values at `openrig://metronome`.
 
 ## Registry auto-gerado
 

@@ -250,12 +250,11 @@ pub fn run_desktop_app(
         use slint::Global;
         crate::Locale::get(&metronome_window).set_font_family(boot_font.into());
     }
-    // #14: the metronome's settings come from the per-machine config and outlive
-    // any project — unlike the tuner, whose session is built on power-on. What
-    // config.yaml does NOT carry is `enabled`, so the click always boots off.
-    let metronome_session = Rc::new(RefCell::new(
-        crate::metronome_session::MetronomeSession::from_config(&app_config.borrow().metronome),
-    ));
+    // #14/#127: the metronome's settings live in the dispatcher, restored from
+    // the per-machine config by every session (`state::attach_metronome_state`).
+    // What this window keeps is the read seam it draws the beat lamps from —
+    // the same `LiveSource` an MCP client reads the click's position through.
+    let metronome_live = crate::gui_live_source::metronome_live_source(&project_runtime);
     let metronome_timer = Rc::new(Timer::default());
 
     // settings::language needs to know how to push the new font to every Window
@@ -667,8 +666,7 @@ pub fn run_desktop_app(
         &window,
         &metronome_window,
         &project_session,
-        &project_runtime,
-        &metronome_session,
+        &metronome_live,
         &metronome_timer,
     );
     // --- Back-to-launcher callback (extracted to back_to_launcher_wiring) ---
