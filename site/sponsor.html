@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>OpenRig — GitHub Sponsors</title>
+<link rel="icon" href="assets/openrig-logomark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/type.css">
+<link rel="stylesheet" href="css/buttons.css">
+<style>
+  .bounce{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:24px}
+  .bounce img{width:96px;height:auto}
+  .bounce p{color:var(--soft)}
+</style>
+</head>
+<body>
+<!--
+  Every outbound sponsor link lands here first: GitHub Sponsors reports nothing back,
+  so this hop is the only way to count how many people actually go donate. It is a
+  normal page view in the analytics dashboard — the redirect waits for the beacon.
+-->
+<div class="bounce">
+  <img src="assets/openrig-logomark.svg" alt="OpenRig">
+  <p>Taking you to GitHub Sponsors…</p>
+  <a class="btn btn-primary" href="https://github.com/sponsors/jpfaria">Continue</a>
+</div>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "6b45a12d89e44bfd8e08fe794966ce7a"}'></script>
+<script>
+  // Give the analytics beacon a moment to fire before we leave the page.
+  setTimeout(function(){ location.replace('https://github.com/sponsors/jpfaria'); }, 900);
+</script>
+</body>
+</html>
