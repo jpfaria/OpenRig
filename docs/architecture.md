@@ -92,9 +92,13 @@ the device actually negotiated — never a constant.
 With **nothing running** the rate is `local_dispatcher::REFERENCE_SAMPLE_RATE`
 (48 kHz): the block editor can be open with audio stopped, and the curve is
 then illustrative. This is the sanctioned no-device value, not a live-path
-assumption. Stopping a rig — leaving to the launcher, opening another project,
-or disabling the last chain — puts the rate back to the reference, so a curve
-is never drawn at the rate of a device that is no longer open (#127). The
+assumption. All three teardowns put the rate back to the reference, so a curve
+is never drawn at the rate of a device that is no longer open (#127):
+`stop_project_runtime` (leaving to the launcher, opening or creating another
+project), `sync_live_chain_runtime` (disabling the last chain), and
+`remove_live_chain_runtime` (deleting it). The last two drop the controller
+when nothing is left running — no chain, no pending activation, no armed DI —
+so a DI playing with no chain keeps its runtime and its rate (#808). The
 consequence for a stopped 44.1 kHz rig is deliberate: the curve redraws at the
 reference the moment the streams close.
 

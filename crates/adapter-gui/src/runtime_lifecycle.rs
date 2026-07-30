@@ -393,12 +393,37 @@ fn restore_project_loops(
     crate::looper_persist::restore_chain_loops(session, project_runtime, &project_path);
 }
 
+/// Drop one chain from the live graph — the chain-delete teardown.
+///
+/// #127: this is the THIRD way a rig stops, and the one that used to leak a
+/// dead rate. Deleting the last chain removed its streams but left the
+/// controller alive, so nothing ever re-synced and every reader of the live
+/// rate — the block editor's EQ curve first — kept the rate of a device that
+/// was no longer open. It now mirrors `sync_live_chain_runtime`'s own
+/// teardown: with nothing left running (no chain, no pending activation, no
+/// armed DI — `is_running` counts all three, so a DI playing without any chain
+/// keeps its controller, #808) the controller goes, and the engine rate is
+/// re-synced either way. Two chains in, one deleted, the survivor's rate is
+/// re-pushed unchanged.
 pub(crate) fn remove_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
     chain_id: &ChainId,
 ) {
-    if let Some(runtime) = project_runtime.borrow_mut().as_mut() {
-        runtime.remove_chain(chain_id);
+    {
+        let mut borrow = project_runtime.borrow_mut();
+        if let Some(runtime) = borrow.as_mut() {
+            runtime.remove_chain(chain_id);
+            if !runtime.is_running() {
+                *borrow = None;
+            }
+        }
+    }
+    if let Some(session) = project_session.borrow().as_ref() {
+        crate::di_loop_wiring::sync_engine_sr_from_runtime(
+            project_runtime,
+            session.dispatcher.as_ref(),
+        );
     }
 }
 

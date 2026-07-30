@@ -192,12 +192,14 @@ fn db_vec_to_svg_path_empty_dbs_returns_empty() {
 
 /// The state the lifecycle leaves behind once a rig has come up on a device
 /// that negotiated 44.1 kHz: the dispatcher's engine rate IS 44 100.
-fn session_after_a_44100_rig() -> Rc<RefCell<Option<ProjectSession>>> {
+fn session_after_a_44100_rig(
+    chains: Vec<project::chain::Chain>,
+) -> Rc<RefCell<Option<ProjectSession>>> {
     let session = ProjectSession::new(
         project::project::Project {
             name: None,
             device_settings: Vec::new(),
-            chains: Vec::new(),
+            chains,
             midi: None,
         },
         None,
@@ -206,6 +208,20 @@ fn session_after_a_44100_rig() -> Rc<RefCell<Option<ProjectSession>>> {
     );
     session.dispatcher.attach_engine_sr(44_100);
     Rc::new(RefCell::new(Some(session)))
+}
+
+fn disabled_chain(id: &domain::ids::ChainId) -> project::chain::Chain {
+    project::chain::Chain {
+        id: id.clone(),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: false,
+        volume: 100.0,
+        io_binding_ids: vec![],
+        blocks: vec![],
+        di_output: None,
+        loopers: vec![],
+    }
 }
 
 fn high_shelf_boost() -> project::param::ParameterSet {
@@ -226,12 +242,14 @@ fn curve_for(session: &Rc<RefCell<Option<ProjectSession>>>) -> (String, Vec<Stri
     )
 }
 
-/// Disabling the last chain destroys the controller inside
-/// `sync_live_chain_runtime`, which then runs the same engine-rate sync. With
-/// nothing running, the curve must go back to the reference rate.
+/// Disabling the last chain is the teardown a user hits with the block editor
+/// open: `sync_live_chain_runtime` drops the controller and then re-syncs the
+/// engine rate. Driven through THAT function — not through the rate-sync
+/// helper it delegates to — so the wiring is exercised, not assumed.
 #[test]
-fn tearing_the_last_chain_down_draws_the_curve_at_the_reference_rate() {
-    let session = session_after_a_44100_rig();
+fn disabling_the_last_chain_draws_the_curve_at_the_reference_rate() {
+    let chain_id = domain::ids::ChainId("eq-viz-rate".into());
+    let session = session_after_a_44100_rig(vec![disabled_chain(&chain_id)]);
     let while_running = curve_for(&session);
     assert_eq!(
         eq_viz_sample_rate(&session),
@@ -239,15 +257,16 @@ fn tearing_the_last_chain_down_draws_the_curve_at_the_reference_rate() {
         "precondition: the curve follows the live 44.1 kHz stream"
     );
 
-    // The chain went away: `sync_live_chain_runtime` dropped the controller
-    // and re-synced the engine rate against an empty cell.
-    let no_runtime: RefCell<Option<infra_cpal::ProjectRuntimeController>> = RefCell::new(None);
-    let dispatcher = session
-        .borrow()
-        .as_ref()
-        .map(|s| s.dispatcher.clone())
-        .expect("session");
-    crate::di_loop_wiring::sync_engine_sr_from_runtime(&no_runtime, dispatcher.as_ref());
+    // The chain was just disabled and the controller is gone — the state the
+    // sync reaches after its own `if !runtime.is_running() { None }` teardown.
+    let runtime: Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>> =
+        Rc::new(RefCell::new(None));
+    {
+        let borrow = session.borrow();
+        let open = borrow.as_ref().expect("session");
+        crate::runtime_lifecycle::sync_live_chain_runtime(&runtime, open, &chain_id)
+            .expect("a disabled chain with no runtime syncs cleanly");
+    }
 
     let after_stop = curve_for(&session);
     assert_eq!(
@@ -263,6 +282,42 @@ fn tearing_the_last_chain_down_draws_the_curve_at_the_reference_rate() {
     );
 }
 
+/// Deleting a chain is the THIRD teardown, and the one the first fix missed:
+/// `remove_live_chain_runtime` drops that chain's streams, and when it was the
+/// last one there is nothing left running — but the controller survived, so no
+/// later sync ever fired and the curve kept the dead device's rate.
+#[test]
+fn deleting_the_last_chain_draws_the_curve_at_the_reference_rate() {
+    let chain_id = domain::ids::ChainId("eq-viz-rate".into());
+    // The delete wiring dispatches `RemoveChain` FIRST, so by the time
+    // `remove_live_chain_runtime` runs the project no longer carries the chain.
+    let session = session_after_a_44100_rig(vec![]);
+    let while_running = curve_for(&session);
+    assert_eq!(
+        eq_viz_sample_rate(&session),
+        44_100.0,
+        "precondition: the curve follows the live 44.1 kHz stream"
+    );
+
+    let runtime: Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>> =
+        Rc::new(RefCell::new(None));
+    crate::runtime_lifecycle::remove_live_chain_runtime(&runtime, &session, &chain_id);
+
+    let after_delete = curve_for(&session);
+    assert_eq!(
+        eq_viz_sample_rate(&session),
+        EQ_VIZ_REFERENCE_SAMPLE_RATE,
+        "deleting the last chain leaves nothing running, so the curve must be \
+         drawn at the reference rate — the controller not being dropped by the \
+         removal is exactly what kept the dead device's rate alive"
+    );
+    assert_ne!(
+        after_delete, while_running,
+        "the curve must actually change: still identical means it is still \
+         being drawn at the stale 44.1 kHz"
+    );
+}
+
 /// Leaving the project (or opening another one) calls `stop_project_runtime`,
 /// the explicit teardown. Same contract: the editor stops drawing at the rate
 /// of a stream that no longer exists.
@@ -273,7 +328,7 @@ fn tearing_the_last_chain_down_draws_the_curve_at_the_reference_rate() {
 /// makes when it tears the rig down.
 #[test]
 fn stopping_the_project_runtime_draws_the_curve_at_the_reference_rate() {
-    let session = session_after_a_44100_rig();
+    let session = session_after_a_44100_rig(vec![]);
     let while_running = curve_for(&session);
     assert_eq!(
         eq_viz_sample_rate(&session),

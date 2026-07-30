@@ -107,7 +107,11 @@ pub(crate) fn wire(
             if session.rig.is_some() {
                 crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&main_win, session);
             }
-            crate::runtime_lifecycle::remove_live_chain_runtime(&ctx.project_runtime, &chain_id);
+            crate::runtime_lifecycle::remove_live_chain_runtime(
+                &ctx.project_runtime,
+                &ctx.project_session,
+                &chain_id,
+            );
             crate::project_view::replace_project_chains(
                 &ctx.project_chains,
                 &session.project.borrow(),

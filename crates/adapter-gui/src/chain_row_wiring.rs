@@ -266,7 +266,7 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
             if session.rig.is_some() {
                 crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             }
-            remove_live_chain_runtime(&project_runtime, &chain_id);
+            remove_live_chain_runtime(&project_runtime, &project_session, &chain_id);
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),
