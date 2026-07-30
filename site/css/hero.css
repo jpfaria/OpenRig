@@ -18,13 +18,13 @@
 .hero-product img{width:100%;display:block;border:1px solid var(--line2);border-radius:8px;background:var(--panel);box-shadow:0 50px 100px -35px rgba(0,0,0,.85)}
 /* The compact view sits under the full window, overlapping it — one glance shows both. */
 .hero-product img.hero-product-2{width:68%;margin:-8% 0 0 auto;transform:translateX(8%)}
-/* The mark is loose knob outlines on transparency — over the stage photo it scatters.
-   The tile gives it the same frame as the screenshots so it reads as one product cluster. */
+/* Mark sits straight on the photo above the screenshots — the drop shadow is what keeps
+   the thin knob rings readable against a lit background. */
 .hero-product .hero-logo{display:grid;place-items:center;width:clamp(176px,18.5vw,238px);aspect-ratio:1;
-  margin-bottom:18px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);
-  box-shadow:0 40px 80px -30px rgba(0,0,0,.85)}
-/* The SVG carries a wide transparent margin, so it has to overflow the tile to fill it. */
-.hero-product .hero-logo img{width:152%;height:auto;border:none;border-radius:0;background:none;box-shadow:none}
+  margin-bottom:18px}
+/* The SVG carries a wide transparent margin, so it has to overflow its box to fill it. */
+.hero-product .hero-logo img{width:152%;height:auto;border:none;border-radius:0;background:none;
+  box-shadow:none;filter:drop-shadow(0 6px 26px rgba(0,0,0,.95)) drop-shadow(0 0 60px rgba(0,0,0,.7))}
 
 @media(max-width:1000px){.hero-product{display:none}}
 
