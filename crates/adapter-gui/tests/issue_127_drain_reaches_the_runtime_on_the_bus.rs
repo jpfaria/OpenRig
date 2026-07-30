@@ -17,23 +17,40 @@ fn drain_source() -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
-/// The chain-sync loop inside `apply_events_to_ui`, bounded from the comment
-/// that opens it to the DI-loop application that follows — so the assertions
-/// cannot pass by matching something elsewhere in the module.
-fn chain_sync_loop(src: &str) -> String {
-    let start = src
+/// The module's CODE, with `//` comments stripped.
+///
+/// Every assertion below is about a call, so it must never be satisfiable by
+/// prose that merely names one: the first version of this guard searched the raw
+/// source for the bare identifier `attach_runtime_control`, which the comment
+/// explaining the call also contains — so deleting the call still passed.
+fn code_only(src: &str) -> String {
+    src.lines()
+        .map(|line| match line.find("//") {
+            Some(i) => &line[..i],
+            None => line,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The chain-sync loop inside `apply_events_to_ui`, bounded by the CODE that
+/// opens it and the CODE that follows it (never by a comment, which an edit
+/// could move or reword) — so the assertions cannot pass by matching something
+/// elsewhere in the module.
+fn chain_sync_loop(code: &str) -> String {
+    let start = code
         .find("let mut synced: Vec<ChainId>")
         .expect("chain_rig_nav_wiring.rs has no per-chain sync loop");
-    let rest = &src[start..];
+    let rest = &code[start..];
     let end = rest
-        .find("// Apply DI-loop events")
+        .find("Event::ChainDiLoopEnabledChanged")
         .expect("expected the DI-loop application to follow the sync loop");
     rest[..end].to_string()
 }
 
 #[test]
 fn the_external_event_drain_asks_for_the_chain_sync_on_the_bus() {
-    let src = drain_source();
+    let src = code_only(&drain_source());
     let body = chain_sync_loop(&src);
     assert!(
         body.contains("ChainCommand::SyncChainRuntime"),
@@ -54,10 +71,18 @@ fn the_external_event_drain_asks_for_the_chain_sync_on_the_bus() {
 /// silent no-op, so the drain guarantees the attach itself.
 #[test]
 fn the_drain_hands_the_dispatcher_the_runtime_before_dispatching_on_it() {
-    let src = drain_source();
+    let src = code_only(&drain_source());
+    // The CALL, with the handles it must be given — not the bare identifier,
+    // which any comment mentioning it would satisfy.
     let attach = src
-        .find("attach_runtime_control")
-        .expect("the drain must attach this frontend's runtime control");
+        .find("attach_runtime_control(&ctx.project_runtime, session)")
+        .unwrap_or_else(|| {
+            panic!(
+                "the drain must attach this frontend's runtime control — no \
+                 `attach_runtime_control(&ctx.project_runtime, session)` call in \
+                 the code of chain_rig_nav_wiring.rs"
+            )
+        });
     let sync = src
         .find("ChainCommand::SyncChainRuntime")
         .expect("the drain must dispatch the sync on the bus");
