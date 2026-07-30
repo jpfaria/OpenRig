@@ -1,0 +1,10 @@
+/* Cross-section phone/tablet rules — loaded last so they win over each section's own file. */
+@media(max-width:900px){
+  body{font-size:16px}
+  .split{grid-template-columns:1fr}
+  .gear-caps,.cards{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .nav-links{display:none}
+  .scroll-hint{display:none}
+  .band-media::after{background:linear-gradient(to top,rgba(5,7,11,.96) 12%,rgba(5,7,11,.55) 70%)}
+}

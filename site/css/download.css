@@ -1,0 +1,14 @@
+.dl{position:relative;overflow:hidden;background:var(--ink2);border-top:1px solid var(--line)}
+.dl::before{content:'';position:absolute;left:50%;top:-40%;width:900px;height:900px;transform:translateX(-50%);
+  background:radial-gradient(circle,rgba(255,158,61,.13) 0%,transparent 62%);pointer-events:none}
+.dl .wrap{position:relative;text-align:center}
+.dl h2{color:#fff}
+.dl .lede{margin:20px auto 0;text-align:center}
+.dl-cta{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:34px}
+.dl-meta{margin-top:20px;font-size:13px;color:var(--mute);letter-spacing:.03em}
+.dl-changelog{margin-top:12px;font-size:13.5px}
+.dl-changelog a{color:var(--amber);text-decoration:underline}
+.dl-beta{margin-top:8px;font-size:12px}
+.dl-beta a{color:#67788f;text-decoration:underline}
+.dl-beta a:hover{color:var(--mute)}
+.soon{display:inline-flex;gap:10px;align-items:center;margin-top:28px;font-size:12.5px;letter-spacing:.13em;text-transform:uppercase;color:#67788f;border:1px dashed var(--line2);padding:9px 16px;border-radius:2px}
