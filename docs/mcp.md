@@ -181,5 +181,17 @@ server runs on its own tokio thread and crosses the boundary through
 each tick on the frontend thread — the same path GUI callbacks use. No
 audio-thread code is touched; invariants 1–10 hold by construction.
 
+Reads follow the same contract from the other direction: every
+`openrig://*` resource resolves through the one `application::read::resolve`
+matcher, which reads live state through `application::live_source::LiveSource`
+instead of a concrete GUI/console type. A resource has exactly **one**
+payload shape no matter which adapter is mounted, because `resolve` — not
+the frontend — owns the serialization. A frontend that hosts no source for a
+given read (the console has no tuner/spectrum/DI runtime, for example) still
+answers the documented empty shape instead of a refusal, so the resource
+stays addressable on every transport. See [Architecture](architecture.md)
+for the `LiveSource` hosting rule and the `devices()` / `chain_loopers()`
+tri-state.
+
 See also: [CLI & env vars](cli.md) · [Architecture](architecture.md) · design
 spec `docs/superpowers/specs/2026-05-17-165-mcp-server-design.md`.

@@ -13,6 +13,50 @@
 - `nam` — Neural Amp Modeler
 - `asset-runtime` — `EmbeddedAsset`, `materialize()`
 
+## Read bus: `LiveSource` + `application::read::resolve`
+
+Writes cross every frontend the same way, through `dyn CommandDispatcher`
+(`crates/application/src/dispatcher.rs`) — the GUI holds it as
+`Rc<dyn CommandDispatcher>` (`adapter-gui/src/state.rs`), never a concrete
+`LocalDispatcher`. Reads use the mirror abstraction: `application::read::resolve`
+(`crates/application/src/read.rs`) is the single `QueryKind` matcher every
+transport calls, fed a `ReadContext` that borrows the project/rig/io-bindings,
+the dispatcher, and one `&dyn LiveSource` (`crates/application/src/live_source.rs`).
+No frontend keeps a second copy of the match — see
+`adapter-gui/src/mcp_query_resolver.rs` and `adapter-console/src/main.rs`'s
+`console_resolve`. For these two paths the UI holds neither a concrete
+dispatcher nor the audio backend directly.
+
+`LiveSource` covers everything that only exists inside a frontend's own audio
+runtime — chain meters, tuner, spectrum, DI loop, loopers, the device list. A
+frontend implements ONLY the methods for the sources it actually hosts; every
+other method keeps the trait's default `None`. `None` means "not hosted",
+never "hosted but empty" — `read::resolve` is the one place that turns an
+unhosted read into the documented empty shape (an empty `Vec`, `running:
+false`, `SILENT_DBFS` rows); it is not the frontend's job to invent that
+payload, and it is not an error. `adapter-console`'s `ConsoleLiveSource` is
+the reference for a frontend that hosts almost nothing: it answers
+`devices()` and the per-chain rate half of `chain_loopers()` (it drives the
+engine directly and needs a real rate to report), and leaves every other
+method at the default.
+
+Two methods carry a tri-state instead of the plain `Option`: `devices()` and
+`chain_loopers()` both return `Option<Result<…>>` — not hosted / hosted-but-
+failed / hosted. `None` ⇒ not hosted (the resolver answers the documented
+empty shape); `Some(Ok(_))` ⇒ hosted and resolved; `Some(Err(_))` ⇒ hosted
+but this call failed (a dead audio host, an unresolvable chain rate), and
+that failure keeps its error instead of degrading into an empty answer or a
+fabricated value. A chain's sample rate in particular is never invented
+(issue #723): a stopped GUI or a console with no device for a chain reports
+the failure, not a hardcoded 48 kHz.
+
+Meter parity: `GuiLiveSource::chain_meters` (`adapter-gui/src/gui_live_source.rs`)
+reads the same `ProjectChainItem` rows the IN/OUT bars are bound to — never a
+second poll of the audio taps — so the screen and any other reader of the
+same chain cannot disagree, and nothing extra runs on the audio path. Only
+reduced readings (dBFS, note/cents, band levels, looper position/state) ever
+cross the `LiveSource` boundary; no raw PCM buffer or stream handle does.
+
 ## Registry auto-gerado
 
 `crates/block-preamp/build.rs` (e equivalentes nos outros block-*) escaneia `src/*.rs` procurando `MODEL_DEFINITION` e gera `generated_registry.rs`. Novo modelo = criar `.rs` com `pub const MODEL_DEFINITION: PreampModelDefinition = ...`.
