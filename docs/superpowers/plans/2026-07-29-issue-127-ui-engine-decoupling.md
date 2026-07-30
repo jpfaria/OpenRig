@@ -750,3 +750,155 @@ fn wiring_modules_do_not_name_the_audio_backend() {
 **Spec coverage:** phase 1 → Tasks 1–2; phase 2 → Tasks 3–6 (closes #831 at Task 6); phase 3 → Tasks 7–9; phase 4 → Task 10. Meter parity ("same values as the rows") → Task 6 test. `SILENT_DBFS` → Tasks 4 and 5. Hardware battery → Task 10.
 
 **Open decision carried into Task 4:** `application` must not depend on `infra_cpal`, so device enumeration is supplied by each frontend's `LiveSource::devices()` rather than called from the core. The console keeps calling `infra_cpal::list_devices` inside its own implementation.
+
+---
+
+# Phase 5 — the missing doors (Tasks 11-16)
+
+Task 9 established the invariant and the ratchet, but landed with 34 of 47 GUI
+modules still naming `ProjectRuntimeController`. A review spot-checked ten of
+them and confirmed none could be converted with the mechanisms Tasks 7-8 built:
+what is missing is not effort, it is **doors**. Phase 5 builds them, in order of
+rising risk, and each task ends by shrinking the guard's allowlist — the ratchet
+test fails if a listed module stops naming the backend, so the list cannot
+silently stay too long.
+
+Rules that bind every task in this phase:
+
+- A new `RuntimeControl` method is a *write* door. Ask, per method, whether the
+  operation should also be a `Command` (MCP/gRPC parity) or is genuinely a
+  frontend-local effect. State the answer in the report — "MCP would start
+  recording" is a real consequence, not a footnote.
+- A new `LiveSource` method is a *read* door and returns finished readings.
+  PCM never crosses it.
+- Stream isolation is absolute: every door carries stream/device identity.
+  Never select or group runtimes by rate or "all matching".
+- Live paths stay live: no rebuild introduced where a live operation exists.
+- Nothing new on the audio thread.
+
+## Task 11: the EQ-viz sample rate
+
+Clears `eq.rs`, `block_choose_type_callback.rs`, `block_insert_callbacks.rs`,
+`block_parameter_wiring.rs`, `block_editor_window_params.rs`,
+`block_editor_window_lifecycle.rs` (6 modules; the biggest single lever).
+
+`eq_viz_sample_rate` (`crates/adapter-gui/src/eq.rs:179`) reads one number off
+the controller: the live device rate, else `EQ_VIZ_REFERENCE_SAMPLE_RATE`. The
+dispatcher already tracks it (`CommandDispatcher::engine_sr`, kept in lock-step
+by `di_loop_wiring::sync_engine_sr_from_runtime`).
+
+- [ ] Swap the source to `dispatcher.engine_sr()`.
+- [ ] **Fix the honest bug this exposes:** `engine_sr` is never reset when the
+      runtime stops, so after stopping a 44.1 kHz rig the curve would be drawn
+      at 44 100. Reset it on `stop_project_runtime` so "nothing running" means
+      the reference rate again. The owner has accepted this behavior change.
+- [ ] Check the other readers of `engine_sr` for the same staleness
+      (`latency_probe.rs`, `read.rs`'s `ChainLatency` and looper arms) and state
+      in the report whether the reset changes what they report.
+- [ ] Red-first: a test that draws the curve after stopping a non-48k rig and
+      asserts the reference rate, failing against today's stale value.
+- [ ] Shrink the allowlist by the modules this clears; the ratchet must pass.
+
+## Task 12: DI arming and metronome doors
+
+Clears `di_loop_wiring.rs`, `di_output_select_wiring.rs`,
+`compact_chain_di_callbacks.rs`, `metronome_wiring.rs` (4 modules).
+
+`RuntimeControl` gains the DI stream doors (`arm_di_stream`, `disarm_di_stream`,
+plus the `di_stream_active` read via `LiveSource` if the UI needs it), the
+metronome door, and `ensure_runtime` (#808 — the UI currently starts the runtime
+on demand).
+
+- [ ] Decide per door: `Command` (parity) or frontend-local effect. DI arming
+      and the metronome are user-visible state changes — default to `Command`
+      unless the report argues otherwise.
+- [ ] Red-first per door: command → event → runtime effect.
+- [ ] Shrink the allowlist.
+
+## Task 13: looper transport and PCM store
+
+Clears `looper_wiring.rs`, `looper_callbacks.rs`, `looper_persist.rs`
+(3 modules).
+
+Record / play / clear and the per-loop PCM save/restore become doors. This is
+the case where parity has teeth: an MCP client issuing record WILL start
+recording audio.
+
+- [ ] State the parity decision explicitly in the report, per operation.
+- [ ] PCM save/restore moves as a handle (`Arc<DiPcm>`-shaped), never as samples
+      crossing a read seam.
+- [ ] Red-first per door; the looper tests already in the tree must stay green.
+- [ ] Shrink the allowlist.
+
+## Task 14: teardown, whole-project sync, and chain removal
+
+Clears `back_to_launcher_wiring.rs`, `project_file_dialog_wiring.rs`,
+`recent_projects_wiring.rs`, `settings/audio.rs`, `chain_row_wiring.rs`,
+`compact_chain_delete_wiring.rs` (6 modules).
+
+- [ ] A "stop the audio" door (`stop_project_runtime`) — a `Command`, since a
+      remote client must be able to stop the rig.
+- [ ] A project-scoped sync variant for `settings/audio.rs`'s device-settings
+      rebuild. It must stay a whole-graph rebuild without becoming a
+      rate-grouped selection — carry explicit identity, not "all matching".
+- [ ] A `remove_chain` door on `RuntimeControl` for chain delete. Task 9
+      recorded the trap: dispatching `SyncChainRuntime` for a deleted chain
+      *looks* equivalent but also runs `validate_project` (which can abort the
+      removal) and tears the runtime down when the last chain goes. Build the
+      real door; do not reuse the lookalike.
+- [ ] Red-first per door, including a test pinning that chain removal does not
+      tear down other chains' runtimes.
+- [ ] Shrink the allowlist. The four pure hubs
+      (`chain_rig_nav_wiring.rs`, `compact_chain_callbacks.rs`,
+      `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs`) become
+      deletable as their last consumer clears — remove each the moment it can go.
+
+## Task 15: runtime health on the poll tick
+
+Clears `desktop_app_polling.rs` (1 module).
+
+The GUI tick drains block errors, advances pending rebuilds
+(`poll_pending_rebuilds` — a mutation, not a read), and checks
+`is_healthy` / `try_reconnect`.
+
+- [ ] Split it honestly: the error drain and health state are reads
+      (`LiveSource`); advancing rebuilds and reconnecting are writes
+      (`RuntimeControl`). Do not model a mutation as a read.
+- [ ] Red-first: errors surface through the read door, and a pending rebuild is
+      advanced through the write door.
+- [ ] Shrink the allowlist.
+
+## Task 16: tap subscription (highest risk — do last)
+
+Clears `meter_wiring.rs`, `meter_wiring_poll.rs`, `tuner_session.rs`,
+`tuner_wiring.rs`, `spectrum_session.rs`, `spectrum_wiring.rs`,
+`block_editor_window_setup.rs`, `select_chain_block_callback.rs`,
+`tone_doctor_compact_wiring.rs` (9 modules).
+
+This is the one that needs a design decision, not a mechanical move:
+`LiveSource` returns finished readings and a `Command` cannot return an SPSC
+ring, so tap *subscription* has no door. `MeterTapApi` is implemented on the
+controller itself.
+
+- [ ] Design the subscription seam first and write it in the report before
+      coding: a frontend asks for a subscription by stream/device identity and
+      receives something it can poll each tick. Locally that is backed by the
+      existing ring; the shape must not assume a shared address space, since the
+      whole point is that a remote frontend could implement the same seam by
+      polling reduced readings.
+- [ ] PCM stays on the audio side of the seam. The subscription hands out
+      readings, not samples, unless the local implementation can do so with the
+      exact same ring it uses today and no extra work on the audio thread.
+- [ ] Meter parity (spec) still holds: what the transport reports is what the
+      bars draw.
+- [ ] Red-first, and run the real-hardware battery (`OPENRIG_HW_TESTS=1`) before
+      the final push — this task touches the meter path end to end.
+- [ ] Shrink the allowlist to the modules that genuinely own the runtime.
+
+## Phase 5 exit criteria
+
+- The guard's allowlist contains only modules that own or construct the runtime
+  handle, each justified in the test's ledger.
+- `cargo test --workspace` green, `cargo build --workspace` zero warnings,
+  volume invariants pass with their count recorded.
+- No new xruns, no added latency, nothing new on the audio thread.
