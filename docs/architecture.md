@@ -19,9 +19,9 @@ Writes cross every frontend the same way, through `dyn CommandDispatcher`
 (`crates/application/src/dispatcher.rs`) — the GUI holds it as
 `Rc<dyn CommandDispatcher>` (`adapter-gui/src/state.rs`), never a concrete
 `LocalDispatcher`. Reads use the mirror abstraction: `application::read::resolve`
-(`crates/application/src/read.rs`) is the single `QueryKind` matcher every
-transport calls, fed a `ReadContext` that borrows the project/rig/io-bindings,
-the dispatcher, and one `&dyn LiveSource` (`crates/application/src/live_source.rs`).
+(`crates/application/src/read.rs`) is the `QueryKind` matcher every FRONTEND
+calls, fed a `ReadContext` that borrows the project/rig/io-bindings, the
+dispatcher, and one `&dyn LiveSource` (`crates/application/src/live_source.rs`).
 No frontend keeps a second copy of the match — see
 `adapter-gui/src/mcp_query_resolver.rs` and `adapter-console/src/main.rs`'s
 `console_resolve`. Neither path holds a concrete dispatcher, and neither
@@ -29,11 +29,26 @@ answers a read itself: `mcp_query_resolver.rs` still names the runtime handle,
 but only to hand it to `GuiLiveSource` (see the guard at the end of this
 section).
 
+It is not, however, the only matcher in the process. `CommandBridge::query`
+(`crates/application/src/bridge.rs`) tries `resolve_off_frontend` FIRST, and
+that is a second exhaustive `match` which answers 11 of the 20 kinds — the five
+catalog/paths kinds plus `ProjectYaml`, `Ids`, `ListChainPresets`,
+`ListProjectPresets`, `GetBlockParams` and `ChainQualityReport` — without ever
+reaching `read::resolve`. It exists for #693: those kinds are derivable from the
+published `snapshot` (or from process-global catalogs), so serving them inline
+keeps an MCP client off the frontend tick's queue. The cost is a real, known
+divergence, recorded in the table below: the fast path carries its own "no rig
+attached to the session" literals instead of `read::NO_RIG_ATTACHED`, and
+`ProjectYaml` answers from `snapshot::latest()` on that road and from the live
+`Project` on the frontend road. Anything runtime- or GUI-coupled (`Devices`,
+`ChainMeters`, `ChainLoopers`, the analyzers, `DiLoopState`, `ChainLatency`,
+`ChainToneReport`, `MetronomeState`) still queues for the frontend and goes
+through `read::resolve`, as does everything before the first snapshot exists.
+
 `LiveSource` covers everything that only exists inside a frontend's own audio
 runtime — chain meters, tuner, spectrum, DI loop, loopers, a chain's real
 sample rate, the block errors the audio thread reported, the backend's health,
-the device list. A
-frontend implements ONLY the methods for the sources it actually hosts; every
+the device list. A frontend implements ONLY the methods it actually hosts; every
 other method keeps the trait's default `None`. `None` means "not hosted",
 never "hosted but empty" — `read::resolve` is the one place that turns an
 unhosted read into the documented empty shape (an empty `Vec`, `running:
@@ -355,6 +370,7 @@ an omission:
 | `runtime_lifecycle::RuntimeAttach` | a capability the frontend holds | it only wires this frontend's seams onto a freshly opened session's dispatcher; its handle is private and its one operation is `to_session` |
 | `application::audio_taps::AudioTaps` | a capability the frontend holds | a subscription is not a value — a `Command` cannot return one and a `QueryKind` cannot keep one open. A remote frontend implements the seam against its own transport |
 | `RuntimeControl::apply_finished_rebuilds` / `reconnect_audio` / `reconcile_chain_loopers` | writes on the frontend's own tick | a tick is nobody's request, and a reconnect changes no project state. Consequence, stated: the frontend that hosts the audio must keep ticking for a RECORD started from ANY transport to capture |
+| `CommandBridge::resolve_off_frontend` (`bridge.rs`) | a second `QueryKind` matcher | #693's non-blocking path: 11 of the 20 kinds are derivable from the published snapshot or from process-global catalogs, so an MCP client gets them inline instead of queueing behind the frontend tick. A known divergence, not a second bus: it carries its own no-rig literals instead of `read::NO_RIG_ATTACHED`, and `ProjectYaml` answers from `snapshot::latest()` there and from the live `Project` on the frontend road. Merging the two resolvers is its own change |
 | `LiveSource::block_errors` | a DRAINING read | exactly one consumer is possible; a second transport polling it would take the window's toasts. Sharing it needs a non-destructive shape first, which is a design and not a rename |
 | `infra_cpal::invalidate_device_cache` (`project_settings_wiring.rs`, `device_refresh_apply.rs`) | frontend-local | it drops this frontend's cached ENUMERATION so the next refresh sees hardware that was just plugged in. It changes no project state and answers no question a remote client asked — it is the read path of the device pickers, the `ensure_runtime` / `reconnect_audio` judgement again |
 | `infra_cpal::start_jack_in_background` (`compact_chain_block_handlers.rs`, Linux) | frontend-local | it is a non-blocking PRE-WARM with a progress toast, not the thing that makes audio work: `ProjectRuntimeController::ensure_jack_servers` already starts the server the chain needs, so a chain enabled over MCP gets jackd started by the runtime. Putting it on the bus would publish "this machine's daemon is booting" as project state |
