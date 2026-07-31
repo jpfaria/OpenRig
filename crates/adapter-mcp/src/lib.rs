@@ -6,7 +6,7 @@
 mod prompts;
 pub mod resources;
 mod server;
-mod tools;
+pub mod tools;
 
 use std::net::SocketAddr;
 

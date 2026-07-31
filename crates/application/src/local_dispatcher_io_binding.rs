@@ -42,6 +42,71 @@ fn resolve_config_path(attached: Option<PathBuf>) -> Option<PathBuf> {
     attached.or_else(|| FilesystemStorage::app_config_path().ok())
 }
 
+// ── Registry access ──────────────────────────────────────────────────────────
+
+impl LocalDispatcher {
+    /// The per-machine I/O binding registry as persisted in `config.yaml`.
+    ///
+    /// Read on the dispatching thread (never the audio thread), same as the
+    /// `openrig://io-bindings` query path. An unresolvable path or an
+    /// unreadable file yields an empty registry — logged, never silent.
+    pub(crate) fn io_binding_registry(&self) -> Vec<IoBinding> {
+        let Some(path) = resolve_config_path(self.io_config_path.borrow().clone()) else {
+            log::warn!("io_binding registry: config path unresolvable — treating as empty");
+            return Vec::new();
+        };
+        match FilesystemStorage::load_app_config_at(&path) {
+            Ok(config) => config.io_bindings,
+            Err(e) => {
+                log::warn!(
+                    "io_binding registry: {} unreadable ({e}) — treating as empty",
+                    path.display()
+                );
+                Vec::new()
+            }
+        }
+    }
+
+    /// First physical input channel `candidate` would steal from an already
+    /// enabled chain (#833). `None` when the capture points are disjoint.
+    ///
+    /// Delegates to the engine's activation-path detector so the command guard
+    /// and the runtime agree on what "same input" means — one resolution, no
+    /// second implementation to drift.
+    pub(crate) fn find_input_channel_conflict(
+        &self,
+        candidate: &project::chain::Chain,
+    ) -> Option<engine::runtime_endpoints::InputChannelConflict> {
+        let registry = self.io_binding_registry();
+        engine::runtime_endpoints::conflicting_input_channel(
+            candidate,
+            self.project.borrow().chains.iter(),
+            &registry,
+        )
+    }
+
+    /// Refuse a state change that would leave one physical input captured by
+    /// two enabled chains (#833). Every door into "enabled" — toggle, add,
+    /// save, configure, re-bind — goes through here, so GUI / MCP / MIDI /
+    /// gRPC all get the same rejection.
+    pub(crate) fn ensure_no_input_channel_conflict(
+        &self,
+        candidate: &project::chain::Chain,
+    ) -> Result<()> {
+        match self.find_input_channel_conflict(candidate) {
+            None => Ok(()),
+            Some(conflict) => Err(anyhow!(
+                "chain '{}' cannot be enabled: input '{}' channel {} is already captured by \
+                 the enabled chain '{}' — disable that chain or bind this one to a free channel",
+                candidate.id.0,
+                conflict.device,
+                conflict.channel,
+                conflict.chain.0
+            )),
+        }
+    }
+}
+
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
 impl LocalDispatcher {
