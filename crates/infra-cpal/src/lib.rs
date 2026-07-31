@@ -42,12 +42,11 @@ mod jack_handlers;
 
 mod active_runtime;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AudioDeviceDescriptor {
-    pub id: String,
-    pub name: String,
-    pub channels: usize,
-}
+// #127: `AudioDeviceDescriptor` used to be DEFINED here, which meant every UI
+// module that rendered a device name linked this crate. It now lives in
+// `domain::audio_device` — this crate still PRODUCES it (see `device_enum`),
+// and is deliberately not re-exporting it: one name, `domain::AudioDeviceDescriptor`,
+// so a frontend that never opens a stream never mentions the backend.
 
 mod resolved;
 

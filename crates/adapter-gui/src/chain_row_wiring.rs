@@ -22,7 +22,7 @@ use anyhow::Result;
 use application::command::{ChainCommand, Command};
 use application::live_source::LiveSource;
 use domain::ids::ChainId;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;

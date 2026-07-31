@@ -13,7 +13,7 @@
 //! linear startup order that the comments here document.
 
 use anyhow::{anyhow, Result};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::ProjectRuntimeController;
 use infra_filesystem::FilesystemStorage;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 use std::cell::RefCell;
@@ -206,9 +206,9 @@ pub fn run_desktop_app(
     // refresh_input_devices / refresh_output_devices when the user actually
     // opens a chain I/O editor or the Settings panel — i.e. when they
     // explicitly ask the app to look at the hardware.
-    let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> =
+    let input_chain_devices: Rc<RefCell<Vec<domain::AudioDeviceDescriptor>>> =
         Rc::new(RefCell::new(Vec::new()));
-    let output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> =
+    let output_chain_devices: Rc<RefCell<Vec<domain::AudioDeviceDescriptor>>> =
         Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;

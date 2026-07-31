@@ -22,7 +22,7 @@ use slint::{Timer, TimerMode, VecModel};
 
 use application::command::{BlockCommand, Command};
 use domain::ids::BlockId;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::block::{build_audio_block_kind, AudioBlock, AudioBlockKind};
 
 use crate::block_editor_values::{block_parameter_values, internal_block_parameter_value};

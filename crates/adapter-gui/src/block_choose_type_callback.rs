@@ -20,7 +20,7 @@ use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use application::command::{BlockCommand, Command};
 use application::live_source::LiveSource;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 

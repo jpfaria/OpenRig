@@ -5,7 +5,7 @@
 use super::{build_create_command, build_update_with_output_endpoint, surface_delete_error};
 use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 // ── reproject_reflects_created_binding (the real "+" bug, headless) ───────────
 

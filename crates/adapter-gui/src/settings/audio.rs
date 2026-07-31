@@ -32,7 +32,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use domain::ids::DeviceId;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiSystemSettings};
 use project::device::DeviceSettings;
 

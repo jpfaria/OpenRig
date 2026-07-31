@@ -18,7 +18,7 @@ use std::rc::Rc;
 use rfd::FileDialog;
 use slint::{ComponentHandle, Timer, VecModel};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use application::command::{Command, ProjectCommand};

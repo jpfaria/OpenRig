@@ -6,7 +6,7 @@ use super::*;
 use crate::project_ops::build_device_settings_from_gui;
 use domain::ids::{BlockId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
 use project::chain::Chain;
 use project::project::Project;

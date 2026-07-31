@@ -26,10 +26,10 @@ mod hw_harness;
 
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use domain::AudioDeviceDescriptor;
 use hw_harness::{device_guard, hw_tests_enabled, init_registry, BUFFER};
 use infra_cpal::{
-    list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
-    ProjectRuntimeController,
+    list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
 use project::block::AudioBlock;
 use project::chain::Chain;

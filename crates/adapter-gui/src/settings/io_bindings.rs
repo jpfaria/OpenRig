@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 use application::command::{Command, IoBindingCommand};
 use domain::io_binding::{IoBinding, IoEndpoint};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 

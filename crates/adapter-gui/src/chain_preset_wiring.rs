@@ -21,7 +21,7 @@ use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
 use domain::ids::ChainId;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
 use project::rig::{humanize_preset_label, RigProject};

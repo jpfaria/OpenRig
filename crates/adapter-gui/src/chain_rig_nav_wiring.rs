@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, Timer, VecModel};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use application::command::{ChainCommand, ChainId, Command, RigNavKind, SelectionCommand};
 use application::event::Event;

@@ -11,7 +11,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, VecModel};
 
 use application::command::{BlockCommand, Command};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::audio_devices::{
     build_insert_return_channel_items, build_insert_send_channel_items, replace_channel_options,

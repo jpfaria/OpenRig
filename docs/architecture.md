@@ -372,8 +372,8 @@ an omission:
 | `RuntimeControl::apply_finished_rebuilds` / `reconnect_audio` / `reconcile_chain_loopers` | writes on the frontend's own tick | a tick is nobody's request, and a reconnect changes no project state. Consequence, stated: the frontend that hosts the audio must keep ticking for a RECORD started from ANY transport to capture |
 | `CommandBridge::resolve_off_frontend` (`bridge.rs`) | a second `QueryKind` matcher | #693's non-blocking path: 11 of the 20 kinds are derivable from the published snapshot or from process-global catalogs, so an MCP client gets them inline instead of queueing behind the frontend tick. A known divergence, not a second bus: it carries its own no-rig literals instead of `read::NO_RIG_ATTACHED`, and `ProjectYaml` answers from `snapshot::latest()` there and from the live `Project` on the frontend road. Merging the two resolvers is its own change |
 | `LiveSource::block_errors` | a DRAINING read | exactly one consumer is possible; a second transport polling it would take the window's toasts. Sharing it needs a non-destructive shape first, which is a design and not a rename |
-| `infra_cpal::invalidate_device_cache` (`project_settings_wiring.rs`, `device_refresh_apply.rs`) | frontend-local | it drops this frontend's cached ENUMERATION so the next refresh sees hardware that was just plugged in. It changes no project state and answers no question a remote client asked — it is the read path of the device pickers, the `ensure_runtime` / `reconnect_audio` judgement again |
-| `infra_cpal::start_jack_in_background` (`compact_chain_block_handlers.rs`, Linux) | frontend-local | it is a non-blocking PRE-WARM with a progress toast, not the thing that makes audio work: `ProjectRuntimeController::ensure_jack_servers` already starts the server the chain needs, so a chain enabled over MCP gets jackd started by the runtime. Putting it on the bus would publish "this machine's daemon is booting" as project state |
+| `audio_devices::invalidate_device_cache` (called by `project_settings_wiring.rs`, `device_refresh_apply.rs`) | frontend-local | it drops this frontend's cached ENUMERATION so the next refresh sees hardware that was just plugged in. It changes no project state and answers no question a remote client asked — it is the read path of the device pickers, the `ensure_runtime` / `reconnect_audio` judgement again |
+| `runtime_devices::start_jack_in_background` (called by `compact_chain_block_handlers.rs`, Linux) | frontend-local | it is a non-blocking PRE-WARM with a progress toast, not the thing that makes audio work: `ProjectRuntimeController::ensure_jack_servers` already starts the server the chain needs, so a chain enabled over MCP gets jackd started by the runtime. Putting it on the bus would publish "this machine's daemon is booting" as project state |
 | `LiveSource::audio_health` / `chain_runtime` / `block_stream` | non-destructive reads | each could honestly become a `QueryKind`; none has, because publishing one means choosing which numbers a remote client sees for a client that has not asked. `chain_di_loop` is not new surface at all — it is the per-chain half of the `openrig://di` arm, through the same helper |
 
 ### The guard: the UI may not name the backend (#127)
@@ -396,6 +396,19 @@ first file hit its line cap), and `desktop_app.rs` (allocates the shared
 `Rc<RefCell<Option<..>>>` once) — or they read it as the frontend's `LiveSource`
 (`gui_live_source.rs` and `mcp_query_resolver.rs`, which builds it). A new name
 on that list is a regression, not growth.
+
+The guard is about the CRATE, not only that handle. The runtime half was closed
+first, but `infra_cpal::AudioDeviceDescriptor` — an id, a name and a channel
+count — was still in ~40 wiring signatures, so a remote or Flutter frontend
+(#43) could not implement one of them without linking CPAL. It now lives in
+`domain::AudioDeviceDescriptor`: `infra-cpal` produces it (`list_devices`,
+`list_input_device_descriptors`, `list_output_device_descriptors`) and
+deliberately does not re-export it, so there is one name for it and it is the
+neutral one. The device operations a frontend genuinely owns are concentrated in
+two modules — `audio_devices.rs` (enumeration and its cache) and
+`runtime_devices.rs` (driver reconfiguration, and starting jackd on Linux) — and
+the guard now rejects the identifier `infra_cpal` itself in any other module,
+whatever it names in it.
 
 A sibling test pins the behavioural half: `sync_live_chain_runtime` — the
 sequence that resolves devices, schedules activation and rebuilds a chain's

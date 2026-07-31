@@ -14,7 +14,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use application::command::{BlockCommand, ChainCommand, Command};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::block_editor_data;
 use crate::compact_block_view::build_compact_blocks;
@@ -351,7 +351,7 @@ fn wire_chain_toggle(
                 );
 
                 let rx = Rc::new(std::cell::RefCell::new(
-                    infra_cpal::start_jack_in_background(device_settings),
+                    crate::runtime_devices::start_jack_in_background(device_settings),
                 ));
                 let project_session_t = project_session.clone();
                 let project_chains_t = project_chains.clone();

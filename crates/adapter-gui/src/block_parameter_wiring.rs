@@ -23,7 +23,7 @@ use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
 use application::event::Event;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::{
     build_params_from_items, schedule_block_editor_persist, set_block_parameter_bool,

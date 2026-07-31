@@ -17,7 +17,7 @@ use std::rc::Rc;
 use slint::{SharedString, Timer, VecModel};
 
 use application::live_source::LiveSource;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::{

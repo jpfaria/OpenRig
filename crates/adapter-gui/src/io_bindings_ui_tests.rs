@@ -307,7 +307,7 @@ fn io_bindings_ui_interactions() {
     //    a stub-callback test would miss.
     {
         use domain::io_binding::IoBinding;
-        use infra_cpal::AudioDeviceDescriptor;
+        use domain::AudioDeviceDescriptor;
         use infra_filesystem::AppConfig;
 
         let app = AppWindow::new().unwrap();

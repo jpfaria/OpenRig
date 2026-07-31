@@ -20,7 +20,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use application::command::{Command, ProjectCommand};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use crate::audio_devices::ensure_devices_loaded;

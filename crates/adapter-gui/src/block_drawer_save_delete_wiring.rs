@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::persist_block_editor_draft;
 use crate::compact_block_view::build_compact_blocks;

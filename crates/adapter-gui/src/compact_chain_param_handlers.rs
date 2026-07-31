@@ -15,7 +15,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::compact_block_view::build_compact_blocks;
 use crate::helpers::set_status_error;

@@ -13,7 +13,7 @@
 use application::command::{Command, IoBindingCommand};
 use domain::ids::DeviceId;
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::ChannelOptionItem;
 

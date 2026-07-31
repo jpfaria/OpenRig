@@ -22,7 +22,7 @@ use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
 use application::audio_taps::AudioTaps;
 use application::live_source::LiveSource;
 use domain::ids::BlockId;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::compact_block_view::build_compact_blocks;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};

@@ -24,7 +24,7 @@ use std::rc::Rc;
 use rfd::FileDialog;
 use slint::{ComponentHandle, Model, SharedString, Timer, VecModel};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::{
     block_parameter_extensions, build_params_from_items,

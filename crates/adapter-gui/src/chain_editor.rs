@@ -1,6 +1,6 @@
 use crate::state::{ChainDraft, ChainEditorMode};
 use crate::AppWindow;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::chain::{Chain, ChainInputMode};
 use project::project::Project;
 

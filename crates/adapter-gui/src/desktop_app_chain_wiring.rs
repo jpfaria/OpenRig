@@ -13,7 +13,7 @@ use application::audio_taps::AudioTaps;
 use slint::{SharedString, Timer, VecModel};
 
 use application::live_source::LiveSource;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use crate::state::{BlockEditorDraft, ChainDraft, ProjectSession};

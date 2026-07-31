@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::helpers::set_status_error;
 use crate::state::ProjectSession;

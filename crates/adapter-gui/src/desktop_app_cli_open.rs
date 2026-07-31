@@ -24,7 +24,7 @@ use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 #[allow(clippy::too_many_arguments)]

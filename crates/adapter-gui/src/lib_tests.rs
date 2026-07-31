@@ -383,7 +383,7 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
 // --- selected_device_index ---
 
 use crate::audio_devices::selected_device_index;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 #[test]
 fn selected_device_index_finds_matching_device() {

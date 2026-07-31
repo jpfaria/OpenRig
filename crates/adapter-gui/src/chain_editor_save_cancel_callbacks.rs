@@ -19,7 +19,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, Timer, VecModel};
 
 use application::command::{ChainCommand, Command};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::chain_editor::chain_from_draft;
 use crate::helpers::clear_status;

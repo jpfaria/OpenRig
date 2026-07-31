@@ -14,7 +14,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::project::Project;
 
 use crate::helpers::clear_status;

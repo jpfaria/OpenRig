@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 use slint::{Timer, VecModel};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 use crate::state::{ChainDraft, ProjectSession};
 use crate::{AppWindow, ChainEditorWindow, ProjectChainItem};

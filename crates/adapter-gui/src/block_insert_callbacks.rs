@@ -19,7 +19,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::param::ParameterSet;
 
 use crate::block_editor::{

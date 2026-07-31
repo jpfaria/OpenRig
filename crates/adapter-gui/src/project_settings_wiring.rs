@@ -16,12 +16,13 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
-use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor};
+use domain::AudioDeviceDescriptor;
 
 use application::command::{Command, ProjectCommand};
 
 use crate::audio_devices::{
-    build_project_device_rows, refresh_input_devices, refresh_output_devices,
+    build_project_device_rows, invalidate_device_cache, refresh_input_devices,
+    refresh_output_devices,
 };
 use crate::helpers::{clear_status, set_status_error, show_child_window};
 use crate::project_ops::sync_project_dirty;

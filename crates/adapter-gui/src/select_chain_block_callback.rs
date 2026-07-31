@@ -26,7 +26,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
 use application::live_source::LiveSource;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::block::AudioBlockKind;
 
 use crate::audio_devices::{
