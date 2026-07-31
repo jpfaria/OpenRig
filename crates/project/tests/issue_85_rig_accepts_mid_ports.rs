@@ -91,3 +91,29 @@ fn a_preset_may_carry_an_insert_port() {
     // is otherwise valid, so the case above fails for the port rule alone.
     assert!(rig_with(vec![insert_port()]).validate().is_ok());
 }
+
+/// The user's real rig: chain A monitors through the TEYUN E/S, chain B sends an
+/// aux out to that SAME E/S from a mid port. The port belongs to chain B's
+/// preset, which chain A never plays — so "the chain already carries it" must be
+/// judged against the inputs that actually use the preset, never against every
+/// binding in the rig. Judging it globally made the whole project unloadable:
+/// the app refused its own saved file with "duplicates the chain's own I/O".
+#[test]
+fn a_port_may_point_at_a_binding_another_chain_carries() {
+    let mut rig = rig_with(vec![output_port("teyun")]);
+    let mut other = rig.inputs["in"].clone();
+    other.io_binding_ids = vec!["teyun".to_string()];
+    other.bank = BTreeMap::from([(1, "other".to_string())]);
+    rig.presets.insert(
+        "other".to_string(),
+        RigPreset::from_legacy_blocks(vec![], 100.0),
+    );
+    rig.inputs.insert("other".to_string(), other);
+
+    assert!(
+        rig.validate().is_ok(),
+        "#85: the mid port points at an E/S that a DIFFERENT chain carries — that \
+         is an aux send, not a duplicate of its own chain's I/O: {:?}",
+        rig.validate()
+    );
+}

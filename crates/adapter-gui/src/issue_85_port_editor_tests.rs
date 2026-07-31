@@ -101,8 +101,6 @@ impl Harness {
         })));
         let ctx = PortWiringCtx {
             port_draft,
-            port_binding_options: binding_options,
-            port_endpoint_options: endpoint_options,
             project_session: session.clone(),
             project_chains: Rc::new(VecModel::default()),
             project_runtime: Rc::new(RefCell::new(None)),

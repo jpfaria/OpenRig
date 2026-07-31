@@ -166,17 +166,17 @@ mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 pub mod midi_profile_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
-pub mod mo_freshness;
-mod model_search;
-mod model_search_wiring;
-mod preset_search;
-mod port_wiring;
-#[cfg(test)]
-#[path = "issue_85_port_editor_tests.rs"]
-mod issue_85_port_editor_tests;
 #[cfg(test)]
 #[path = "issue_85_click_port_opens_editor_tests.rs"]
 mod issue_85_click_port_opens_editor_tests;
+#[cfg(test)]
+#[path = "issue_85_port_editor_tests.rs"]
+mod issue_85_port_editor_tests;
+pub mod mo_freshness;
+mod model_search;
+mod model_search_wiring;
+mod port_wiring;
+mod preset_search;
 mod project_ops;
 mod project_ops_recents;
 // #679: `pub` so the issue_599 integration test can reach
@@ -185,8 +185,8 @@ mod project_ops_recents;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
-mod tone_doctor_events;
 mod state;
+mod tone_doctor_events;
 mod ui_state;
 slint::include_modules!();
 #[cfg(test)]

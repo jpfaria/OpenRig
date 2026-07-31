@@ -51,10 +51,18 @@ pub(crate) fn endpoint_options(binding: Option<&IoBinding>, is_input: bool) -> V
         .collect()
 }
 
+/// Hand a select a BRAND-NEW model instead of rewriting the rows of the one it
+/// already holds. A `ComboBox` only recomputes the text it shows when its
+/// `model` property or its `current-index` changes; replacing rows in place
+/// changes neither, so the box keeps displaying whatever it displayed before —
+/// an empty ENDPOINT box for a port whose endpoint sits at the index the select
+/// was already on (#85).
+fn fresh_options(items: Vec<SharedString>) -> ModelRc<SharedString> {
+    ModelRc::from(Rc::new(VecModel::from(items)))
+}
+
 pub(crate) struct PortWiringCtx {
     pub port_draft: Rc<RefCell<Option<PortDraft>>>,
-    pub port_binding_options: Rc<VecModel<SharedString>>,
-    pub port_endpoint_options: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
@@ -77,8 +85,8 @@ pub(crate) fn open_port_window(
     let endpoints = endpoint_options(selected.and_then(|i| registry.get(i)), draft.is_input);
     let selected_endpoint = endpoints.iter().position(|e| e.as_str() == draft.endpoint);
 
-    ctx.port_binding_options.set_vec(bindings);
-    ctx.port_endpoint_options.set_vec(endpoints);
+    port_window.set_binding_options(fresh_options(bindings));
+    port_window.set_endpoint_options(fresh_options(endpoints));
     port_window.set_selected_binding_index(selected.map_or(-1, |i| i as i32));
     port_window.set_selected_endpoint_index(selected_endpoint.map_or(-1, |i| i as i32));
     port_window.set_is_input(draft.is_input);
@@ -105,7 +113,6 @@ pub(crate) fn wire_port_window(
     {
         let port_draft = ctx.port_draft.clone();
         let project_session = ctx.project_session.clone();
-        let port_endpoint_options = ctx.port_endpoint_options.clone();
         let weak = port_window.as_weak();
         port_window.on_select_binding(move |index: i32| {
             let Some(pw) = weak.upgrade() else { return };
@@ -121,7 +128,7 @@ pub(crate) fn wire_port_window(
             draft.endpoint.clear();
             let endpoints = endpoint_options(Some(binding), draft.is_input);
             let first = endpoints.first().cloned();
-            port_endpoint_options.set_vec(endpoints);
+            pw.set_endpoint_options(fresh_options(endpoints));
             if let Some(first) = first {
                 draft.endpoint = first.to_string();
                 pw.set_selected_endpoint_index(0);
@@ -134,13 +141,14 @@ pub(crate) fn wire_port_window(
     // --- pick an endpoint ---
     {
         let port_draft = ctx.port_draft.clone();
-        let port_endpoint_options = ctx.port_endpoint_options.clone();
+        let weak = port_window.as_weak();
         port_window.on_select_endpoint(move |index: i32| {
+            let Some(pw) = weak.upgrade() else { return };
             let mut draft_borrow = port_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            if let Some(name) = port_endpoint_options.row_data(index.max(0) as usize) {
+            if let Some(name) = pw.get_endpoint_options().row_data(index.max(0) as usize) {
                 draft.endpoint = name.to_string();
             }
         });
@@ -335,16 +343,12 @@ pub(crate) fn wire_port_window(
             }
         });
     }
-
-    let _ = ModelRc::from(ctx.port_binding_options.clone());
 }
 
 impl PortWiringCtx {
     fn clone_for_callback(&self) -> Self {
         Self {
             port_draft: self.port_draft.clone(),
-            port_binding_options: self.port_binding_options.clone(),
-            port_endpoint_options: self.port_endpoint_options.clone(),
             project_session: self.project_session.clone(),
             project_chains: self.project_chains.clone(),
             project_runtime: self.project_runtime.clone(),

@@ -32,8 +32,6 @@ pub(crate) struct BlockWiringDeps<'a> {
     /// #85 — the mid-chain I/O port editor.
     pub chain_port_window: &'a crate::ChainPortWindow,
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
-    pub port_binding_options: Rc<VecModel<SharedString>>,
-    pub port_endpoint_options: Rc<VecModel<SharedString>>,
 
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
@@ -125,8 +123,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             toast_timer: deps.toast_timer.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
             port_draft: deps.port_draft.clone(),
-            port_binding_options: deps.port_binding_options.clone(),
-            port_endpoint_options: deps.port_endpoint_options.clone(),
             auto_save: deps.auto_save,
         },
     );
@@ -195,8 +191,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
         deps.chain_port_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
             port_draft: deps.port_draft.clone(),
-            port_binding_options: deps.port_binding_options.clone(),
-            port_endpoint_options: deps.port_endpoint_options.clone(),
             inline_tab_state: inline_tab_state.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),

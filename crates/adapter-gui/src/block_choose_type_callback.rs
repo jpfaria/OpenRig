@@ -77,8 +77,6 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
     /// #85 — the mid-chain I/O port editor's state and option models.
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
-    pub port_binding_options: Rc<VecModel<SharedString>>,
-    pub port_endpoint_options: Rc<VecModel<SharedString>>,
     pub auto_save: bool,
 }
 
@@ -114,8 +112,6 @@ pub(crate) fn wire(
         open_block_windows,
         plugin_info_window,
         port_draft,
-        port_binding_options,
-        port_endpoint_options,
         auto_save,
     } = ctx;
 
@@ -124,8 +120,6 @@ pub(crate) fn wire(
     let weak_port_window = chain_port_window.as_weak();
     let port_ctx = crate::port_wiring::PortWiringCtx {
         port_draft: port_draft.clone(),
-        port_binding_options: port_binding_options.clone(),
-        port_endpoint_options: port_endpoint_options.clone(),
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
         project_runtime: project_runtime.clone(),

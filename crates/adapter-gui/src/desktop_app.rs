@@ -235,10 +235,6 @@ pub fn run_desktop_app(
         crate::Locale::get(&chain_port_window).set_font_family(boot_font.into());
     }
     let port_draft: Rc<RefCell<Option<crate::state::PortDraft>>> = Rc::new(RefCell::new(None));
-    let port_binding_options = Rc::new(VecModel::from(Vec::<slint::SharedString>::new()));
-    let port_endpoint_options = Rc::new(VecModel::from(Vec::<slint::SharedString>::new()));
-    chain_port_window.set_binding_options(slint::ModelRc::from(port_binding_options.clone()));
-    chain_port_window.set_endpoint_options(slint::ModelRc::from(port_endpoint_options.clone()));
     let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let tuner_window = TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -435,8 +431,6 @@ pub fn run_desktop_app(
         &chain_port_window,
         crate::port_wiring::PortWiringCtx {
             port_draft: port_draft.clone(),
-            port_binding_options: port_binding_options.clone(),
-            port_endpoint_options: port_endpoint_options.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
             project_runtime: project_runtime.clone(),
@@ -737,8 +731,6 @@ pub fn run_desktop_app(
     crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
         chain_port_window: &chain_port_window,
         port_draft: port_draft.clone(),
-        port_binding_options: port_binding_options.clone(),
-        port_endpoint_options: port_endpoint_options.clone(),
         window: &window,
         chain_insert_window: &chain_insert_window,
         selected_block: selected_block.clone(),

@@ -86,8 +86,6 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     /// #85 — the mid-chain I/O port editor's state and option models, so a
     /// click on a port block reopens the same editor the add flow shows.
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
-    pub port_binding_options: Rc<VecModel<SharedString>>,
-    pub port_endpoint_options: Rc<VecModel<SharedString>>,
     pub auto_save: bool,
 }
 
@@ -126,8 +124,6 @@ pub(crate) fn wire(
         toast_timer,
         plugin_info_window,
         port_draft,
-        port_binding_options,
-        port_endpoint_options,
         auto_save,
     } = ctx;
 
@@ -136,8 +132,6 @@ pub(crate) fn wire(
     let weak_port_window = chain_port_window.as_weak();
     let port_ctx = crate::port_wiring::PortWiringCtx {
         port_draft,
-        port_binding_options,
-        port_endpoint_options,
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
         project_runtime: project_runtime.clone(),

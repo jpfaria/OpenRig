@@ -4,7 +4,7 @@
 //! Pure refactor: no behavior change. Tests live in `rig_tests.rs` and
 //! `rig_scene_tests.rs`.
 
-use crate::block::{AudioBlock, AudioBlockKind};
+use crate::block::{duplicates_chain_binding, AudioBlock, AudioBlockKind};
 use crate::rig::{RigPreset, RigProject, RigScene};
 use domain::value_objects::ParameterValue;
 use std::collections::BTreeMap;
@@ -393,32 +393,39 @@ impl RigProject {
             }
         }
         for (name, preset) in &self.presets {
+            // #85: a preset carries the blocks the user placed, and a mid
+            // `Input`/`Output` port is one of them — the same kind of thing an
+            // `Insert` is, which this rule has always accepted. What it must
+            // keep rejecting is the legacy HEAD/TAIL leftover: a port bound to a
+            // binding ITS OWN chain already carries (#716), which duplicates
+            // that chain's I/O and starves the device. Judged against the chains
+            // that actually play this preset — an E/S another chain carries is
+            // an aux send, and rejecting it made the app refuse its own file.
+            let carriers: Vec<&Vec<String>> = self
+                .inputs
+                .values()
+                .filter(|input| input.bank.values().any(|slot| slot == name))
+                .map(|input| &input.io_binding_ids)
+                .collect();
             for block in &preset.blocks {
-                // #85: a preset carries the blocks the user placed, and a mid
-                // `Input`/`Output` port is one of them — the same kind of thing
-                // an `Insert` is, which this rule has always accepted. What it
-                // must keep rejecting is the legacy HEAD/TAIL leftover: a port
-                // bound to a binding the chain already carries (#716), which
-                // duplicates the chain's own I/O and starves the device.
-                let port_io = match &block.kind {
-                    AudioBlockKind::Input(b) => Some(&b.io),
-                    AudioBlockKind::Output(b) => Some(&b.io),
-                    _ => None,
+                let io = match &block.kind {
+                    AudioBlockKind::Input(b) => &b.io,
+                    AudioBlockKind::Output(b) => &b.io,
+                    AudioBlockKind::Nam(_)
+                    | AudioBlockKind::Core(_)
+                    | AudioBlockKind::Select(_)
+                    | AudioBlockKind::Insert(_) => continue,
                 };
-                if let Some(io) = port_io {
-                    let duplicates_chain_binding = !io.is_empty()
-                        && self
-                            .inputs
-                            .values()
-                            .any(|input| input.io_binding_ids.iter().any(|id| id == io));
-                    if duplicates_chain_binding {
-                        return Err(format!(
-                            "preset '{name}' contains an I/O block ({}) bound to '{io}', a \
-                             binding the chain already carries; that duplicates the chain's \
-                             own I/O",
-                            block.kind.label()
-                        ));
-                    }
+                if carriers
+                    .iter()
+                    .any(|bindings| duplicates_chain_binding(block, bindings))
+                {
+                    return Err(format!(
+                        "preset '{name}' contains an I/O block ({}) bound to '{io}', a \
+                         binding its own chain already carries; that duplicates the \
+                         chain's own I/O",
+                        block.kind.label()
+                    ));
                 }
             }
             for (idx, scene) in &preset.scenes {
