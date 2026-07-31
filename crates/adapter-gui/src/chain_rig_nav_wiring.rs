@@ -229,17 +229,10 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // that produced them armed (or disarmed) the chain's isolated stream from
     // the dispatcher, so an MCP/MIDI DI toggle already sounded — this drain
     // used to be the second road to that same runtime.
-    // Apply looper transport/param events to the controller's store (the same
-    // mutation the GUI button path does inline in `dispatch_and_apply`). Without
-    // this a looper driven over MCP/MIDI updated nothing — Record left the loop
-    // `Empty` (the parity LEI: every transport reaches what the GUI reaches).
-    if let Some(controller) = ctx.project_runtime.borrow().as_ref() {
-        crate::looper_wiring::apply_looper_events(
-            controller,
-            &session.project.borrow().chains,
-            events,
-        );
-    }
+    // Looper events need nothing applied here any more either (Task 13). The
+    // command that produced them mutated the store and reconciled the loop's
+    // isolated stream from the dispatcher, so a Record over MCP/MIDI already
+    // recorded — this drain used to be the second road to that same store.
     replace_project_chains(
         &ctx.project_chains,
         &session.project.borrow(),

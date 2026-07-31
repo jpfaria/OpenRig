@@ -45,6 +45,12 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   loop and the metronome click. It left `runtime_lifecycle.rs` in Task 12b
 ///   because that file had reached its line cap, and it is an owner, not a
 ///   wiring module: nothing here is reached except through a `Command`.
+/// * `runtime_loopers.rs` — the same again for the looper doors (Task 13): the
+///   store mutations, the playback reconcile that ends each of them, the PCM
+///   export handed to the project save, and the restore that gives a
+///   freshly-created runtime its loops back. Also an owner, for the same
+///   reason: nothing in it is reachable except through a `Command` (or, for
+///   the restore, through the controller's own creation).
 /// * `desktop_app.rs` — allocates the one `Rc<RefCell<Option<..>>>` the app
 ///   shares (`let project_runtime = Rc::new(RefCell::new(None))`) and hands it
 ///   to the modules below. Someone has to say the type once.
@@ -62,8 +68,6 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   `meter_wiring_poll.rs`, `tuner_session.rs`, `tuner_wiring.rs`,
 ///   `spectrum_session.rs`, `spectrum_wiring.rs`, `block_editor_window_setup.rs`,
 ///   `select_chain_block_callback.rs`, `tone_doctor_compact_wiring.rs`
-/// * looper transport/PCM store: `looper_wiring.rs`, `looper_callbacks.rs`,
-///   `looper_persist.rs`
 /// * runtime health / stream errors on the poll tick: `desktop_app_polling.rs`
 /// * whole-project sync (`sync_project_runtime`): `settings/audio.rs`
 /// * runtime teardown (`stop_project_runtime`) and the session-install attach:
@@ -93,6 +97,19 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// `runtime_lifecycle.rs`, and #808's `ensure_runtime` became the arm's
 /// precondition instead of something a UI callback runs first.
 ///
+/// Task 13 emptied the looper bucket: `looper_wiring.rs` and
+/// `looper_persist.rs` are GONE (their contents moved to their owners), and
+/// `looper_callbacks.rs` only dispatches and redraws. `RuntimeControl` gained
+/// `create_looper` / `remove_looper` / `looper_transport` / `set_looper_param`
+/// / `set_looper_input` / `set_looper_output`, applied by the `LooperCommand`
+/// handlers, plus `export_chain_loops`, applied by `ProjectCommand::SaveProject`
+/// — so a footswitch, an MCP client and the panel all record, play, clear and
+/// SAVE the same loop. The drain's second copy of the store mutation is gone
+/// with them. The panel re-reads the loops' transport state through
+/// `LiveSource::chain_loopers` (`gui_live_source::LooperLiveSource`), the same
+/// reading MCP gets; the recorded PCM never crosses that seam — it moves as an
+/// `Arc<LoopPcm>` handle through the write door.
+///
 /// Task 12b emptied that bucket: `metronome_wiring.rs` is gone from the list.
 /// The click's whole lifecycle moved onto the bus — the dispatcher owns the
 /// settings (`application::metronome_state`) and applies them through
@@ -115,15 +132,13 @@ const ALLOWED: &[&str] = &[
     "desktop_app_chain_wiring.rs",
     "desktop_app_polling.rs",
     "gui_live_source.rs",
-    "looper_callbacks.rs",
-    "looper_persist.rs",
-    "looper_wiring.rs",
     "mcp_query_resolver.rs",
     "meter_wiring.rs",
     "meter_wiring_poll.rs",
     "project_file_dialog_wiring.rs",
     "recent_projects_wiring.rs",
     "runtime_lifecycle.rs",
+    "runtime_loopers.rs",
     "runtime_pipelines.rs",
     "select_chain_block_callback.rs",
     "settings/audio.rs",

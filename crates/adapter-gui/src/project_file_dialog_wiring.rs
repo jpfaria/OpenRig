@@ -350,9 +350,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 crate::runtime_lifecycle::attach_runtime_control(&project_runtime, session);
                 path
             };
-            // #323: a recorded loop is audio — write it as a sidecar and let
-            // the chain remember the file, BEFORE the project is serialized.
-            crate::looper_persist::save_chain_loops(session, &project_runtime, &project_path);
+            // #323/#127: the recorded loops are exported as wav sidecars by the
+            // `SaveProject` handler itself, through
+            // `RuntimeControl::export_chain_loops` — this callback used to do
+            // it inline, so a save issued over MCP/gRPC lost every loop.
             // #555: the file writes used to happen here via
             // `save_project_session(session, &project_path)`. They now
             // live inside the `ProjectCommand::SaveProject` dispatcher handler

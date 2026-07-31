@@ -1,4 +1,16 @@
-//! #323 — a recorded loop survives closing and reopening the project.
+//! #323/#127 — a recorded loop survives closing and reopening the project,
+//! and it does so through the BUS.
+//!
+//! The export used to be a GUI function the Save callback called before it
+//! dispatched (`looper_persist::save_chain_loops`), so a save issued over
+//! MCP/gRPC wrote a project whose loops were never written. It is now part of
+//! `ProjectCommand::SaveProject`, applied through
+//! `RuntimeControl::export_chain_loops` — and these tests drive the REAL
+//! `GuiRuntimeControl`, attached exactly as the app attaches it.
+//!
+//! The restore is deliberately NOT on the bus: nobody asks for it. It is a
+//! precondition of a controller existing, so it hangs off runtime creation,
+//! where every transport passes.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -6,7 +18,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use application::command::{Command, LooperCommand};
+use application::command::{Command, LooperCommand, ProjectCommand};
 use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
@@ -16,7 +28,7 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 use project::project::Project;
 
-use super::{restore_chain_loops, save_chain_loops};
+use super::restore_chain_loops;
 use crate::state::ProjectSession;
 
 const CHAIN: &str = "chain:loop-persist";
@@ -99,11 +111,7 @@ fn tick(runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>, level: f32) {
 
 /// Record one callback of a steady signal into looper `uid` and close it,
 /// through the store + the chain's input tap.
-fn record_loop(
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    chain: &Chain,
-    uid: u64,
-) {
+fn record_loop(runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>, chain: &Chain, uid: u64) {
     {
         let borrow = runtime.borrow();
         let c = borrow.as_ref().unwrap();
@@ -118,6 +126,22 @@ fn record_loop(
         c.drain_looper_recording(chain); // drain into the loop
         c.looper_tap_record(&chain.id, uid); // close → Playing
     }
+}
+
+/// Save the way the app saves: attach this frontend's real `RuntimeControl`
+/// and the project path, then dispatch. No GUI function is called — an MCP
+/// client dispatching the same command travels exactly this road.
+fn save_through_the_bus(
+    session: &ProjectSession,
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    project_path: &PathBuf,
+) {
+    crate::runtime_lifecycle::attach_runtime_control(runtime, session);
+    session.dispatcher.attach_project_path(project_path.clone());
+    session
+        .dispatcher
+        .dispatch(Command::Project(ProjectCommand::SaveProject))
+        .expect("save");
 }
 
 #[test]
@@ -137,7 +161,7 @@ fn a_recorded_loop_is_written_beside_the_project_and_comes_back_on_reopen() {
     let recorded_chain = session.project.borrow().chains[0].clone();
     record_loop(&runtime, &recorded_chain, uid);
 
-    save_chain_loops(&session, &runtime, &project_path);
+    save_through_the_bus(&session, &runtime, &project_path);
 
     let saved = session.project.borrow().chains[0].loopers[0]
         .audio_file
@@ -183,7 +207,7 @@ fn an_empty_looper_saves_no_file_and_clears_a_stale_pointer() {
     let uid = session.project.borrow().chains[0].loopers[0].uid;
     session.project.borrow_mut().chains[0].loopers[0].audio_file = Some("stale.wav".into());
 
-    save_chain_loops(&session, &runtime, &project_path);
+    save_through_the_bus(&session, &runtime, &project_path);
 
     assert!(
         session.project.borrow().chains[0].loopers[0]

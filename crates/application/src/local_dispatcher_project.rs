@@ -184,6 +184,12 @@ impl LocalDispatcher {
         // pre-#555 GUI behaviour on dispatch failure.
         let _ = self.dispatch(Command::Project(ProjectCommand::CaptureRigEdits));
 
+        // #323/#127: a recorded loop is audio — write it as a sidecar and let
+        // the chain remember the file, BEFORE the project is serialized. The
+        // GUI used to do this inline in its Save callback, so a save issued
+        // over MCP/gRPC lost every loop.
+        self.export_project_loops(project_path);
+
         // Build the rig that will hit disk.
         let project_snapshot = self.project.borrow().clone();
         let rig_borrow = self.rig.borrow();

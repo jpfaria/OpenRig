@@ -160,11 +160,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     // #771 on_di_loop_output_selected
     crate::di_output_select_wiring::wire_main(window, ctx.project_session.clone());
     crate::chain_row_wiring_actions::wire_di_loop(window, &ctx);
-    // #323: the looper panel's actions (dispatch + apply to the runtimes).
+    // #323: the looper panel's actions. It dispatches and redraws; the runtime
+    // half of every looper command belongs to the dispatcher (#127), and the
+    // rows are re-read through the same seam MCP reads.
     crate::looper_callbacks::wire_looper_callbacks(
         window,
         &ctx.project_session,
-        &ctx.project_runtime,
+        &crate::gui_live_source::looper_live_source(&ctx.project_runtime),
         &ctx.project_chains,
         &ctx.saved_project_snapshot,
         &ctx.project_dirty,

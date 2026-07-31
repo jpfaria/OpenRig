@@ -178,6 +178,44 @@ pub(crate) fn metronome_live_source(
     })
 }
 
+/// #127/#323: the loopers' live reading, on its own.
+///
+/// The looper panel redraws a chain's rows right after every dispatch, and it
+/// needs exactly one thing the project cannot tell it: what each loop is
+/// DOING, and at what rate it is counting. That is a finished reading — never
+/// PCM — so it comes through the same seam MCP reads, and `looper_callbacks`
+/// no longer holds the audio backend to get it.
+///
+/// Unlike [`GuiLiveSource::chain_loopers`] this answers `None` with no
+/// controller instead of resolving a rate off the binding registry: the panel
+/// draws its rows from the persisted config in that case, and a rate for a
+/// device nobody opened would be a fiction (#723). MCP asks a different
+/// question — "what rate would this chain run at?" — and gets the resolved
+/// answer there.
+pub(crate) struct LooperLiveSource {
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl LiveSource for LooperLiveSource {
+    fn chain_loopers(&self, chain: &ChainId) -> Option<Result<(Vec<LooperStatus>, u32), String>> {
+        let borrow = self.runtime.borrow();
+        let controller = borrow.as_ref()?;
+        Some(Ok((
+            controller.chain_looper_statuses(chain),
+            controller.sample_rate(),
+        )))
+    }
+}
+
+/// Build the looper panel's read seam over the app's shared runtime handle.
+pub(crate) fn looper_live_source(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> Rc<dyn LiveSource> {
+    Rc::new(LooperLiveSource {
+        runtime: Rc::clone(runtime),
+    })
+}
+
 /// Where the click is in the bar, from the generator's own lock-free cell.
 ///
 /// `None` ⇒ no runtime is hosted (the rig is stopped), never a fabricated

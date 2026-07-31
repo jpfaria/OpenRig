@@ -68,3 +68,80 @@ impl RuntimeControl for DiRuntimeControl {
         runtime.arm_di_stream(chain, pcm)
     }
 }
+
+/// #127/#323: the LOOPER half of the GUI's `RuntimeControl`.
+///
+/// Unlike `DiRuntimeControl` above, this does not restate the GUI's bodies —
+/// it calls them (`adapter_gui::runtime_loopers`), so a test here proves the
+/// real door and not a copy of it. The one thing it leaves out is the #808
+/// wake (`ensure_runtime`), which is `GuiRuntimeControl`'s and needs a live
+/// `ProjectSession`; these tests hand it a controller that already exists, so
+/// there is nothing to wake. The wake itself is covered in-crate.
+pub struct LooperRuntimeControl {
+    pub runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl LooperRuntimeControl {
+    pub fn attach(
+        dispatcher: &application::local_dispatcher::LocalDispatcher,
+        controller: ProjectRuntimeController,
+    ) -> Rc<RefCell<Option<ProjectRuntimeController>>> {
+        let runtime = Rc::new(RefCell::new(Some(controller)));
+        dispatcher.attach_runtime_control(Rc::new(LooperRuntimeControl {
+            runtime: Rc::clone(&runtime),
+        }));
+        runtime
+    }
+}
+
+impl RuntimeControl for LooperRuntimeControl {
+    fn create_looper(&self, chain: &Chain, looper: u64) -> anyhow::Result<()> {
+        adapter_gui::runtime_loopers::create(&self.runtime, chain, looper);
+        Ok(())
+    }
+
+    fn remove_looper(&self, chain: &Chain, looper: u64) {
+        adapter_gui::runtime_loopers::remove(&self.runtime, chain, looper);
+    }
+
+    fn looper_transport(
+        &self,
+        chain: &Chain,
+        looper: u64,
+        action: application::command::LooperAction,
+    ) -> anyhow::Result<()> {
+        adapter_gui::runtime_loopers::transport(&self.runtime, chain, looper, action);
+        Ok(())
+    }
+
+    fn set_looper_param(
+        &self,
+        chain: &Chain,
+        looper: u64,
+        param: application::command::LooperParam,
+    ) {
+        adapter_gui::runtime_loopers::set_param(&self.runtime, chain, looper, param);
+    }
+
+    fn set_looper_input(
+        &self,
+        chain: &Chain,
+        looper: u64,
+        input: Option<project::chain::EndpointRef>,
+    ) {
+        adapter_gui::runtime_loopers::set_input(&self.runtime, chain, looper, input);
+    }
+
+    fn set_looper_output(
+        &self,
+        chain: &Chain,
+        looper: u64,
+        output: Option<project::chain::EndpointRef>,
+    ) {
+        adapter_gui::runtime_loopers::set_output(&self.runtime, chain, looper, output);
+    }
+
+    fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<engine::LoopPcm>)>> {
+        adapter_gui::runtime_loopers::export_chain_loops(&self.runtime, chain)
+    }
+}

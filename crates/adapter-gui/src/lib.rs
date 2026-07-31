@@ -84,7 +84,9 @@ mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_projects_wiring;
 mod runtime_lifecycle;
+pub mod runtime_loopers;
 mod runtime_pipelines;
+mod runtime_session_handle;
 mod runtime_sync_policy;
 #[cfg(test)]
 #[path = "runtime_sync_policy_tests.rs"]
@@ -160,9 +162,7 @@ mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
-mod looper_persist;
 pub mod looper_view;
-pub mod looper_wiring;
 mod meter_wiring;
 mod meter_wiring_poll;
 #[cfg(test)]

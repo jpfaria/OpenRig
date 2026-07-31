@@ -326,7 +326,7 @@ fn refresh_chain_meter_row(
     // #323 phase 2: resolve each looper's LINKED preset into the blocks it plays
     // through BEFORE reconciling the streams, so a Playing loop renders its
     // fixed tone regardless of the chain's current preset.
-    crate::looper_wiring::sync_looper_playback_presets(
+    crate::runtime_loopers::sync_playback_presets(
         controller,
         &project.chains[idx],
         session.rig.as_deref(),

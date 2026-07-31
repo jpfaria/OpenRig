@@ -17,30 +17,31 @@
 //!   dispatcher (and the reference rate once nothing is running).
 //!
 //! The doors for the INDEPENDENT pipelines (the DI loop, the metronome click)
-//! keep their bodies in `runtime_pipelines` — same seam, different rules.
+//! keep their bodies in `runtime_pipelines`, and the looper's in
+//! `runtime_loopers` — same seam, different rules. The session mirror the
+//! doors read the project through is `runtime_session_handle`.
 
 use std::cell::RefCell;
-use std::path::PathBuf;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Result;
 
+use application::command::{LooperAction, LooperParam};
 use application::dispatcher::CommandDispatcher;
 use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
 use engine::metronome_state::MetronomeSettings;
-use engine::DiPcm;
+use engine::{DiPcm, LoopPcm};
 use infra_cpal::ProjectRuntimeController;
-use project::chain::Chain;
-use project::project::Project;
-use project::rig::RigProject;
+use project::chain::{Chain, EndpointRef};
 
 use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
-use crate::runtime_pipelines;
+use crate::runtime_session_handle::SessionHandle;
 use crate::state::ProjectSession;
+use crate::{runtime_loopers, runtime_pipelines};
 
 /// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
 /// frontend's audio runtime. Holds the same `Rc` the whole app shares, so it
@@ -51,55 +52,6 @@ use crate::state::ProjectSession;
 struct GuiRuntimeControl {
     runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: SessionHandle,
-}
-
-/// The open session, as seen from inside a command handler.
-///
-/// `sync_live_chain_runtime` and `sync_block_toggle` need the whole
-/// `ProjectSession`, but this control cannot hold the app's
-/// `Rc<RefCell<Option<ProjectSession>>>`: every GUI callback holds that cell
-/// `borrow_mut()` while it dispatches, so borrowing it from a handler would
-/// panic. The session's own fields are cheap shared handles, so they are
-/// mirrored instead — with the dispatcher held **weakly**, because the
-/// dispatcher OWNS this control and an `Rc` back to it would be a reference
-/// cycle that leaks the session (project data, DI loop PCM) on every project
-/// switch.
-struct SessionHandle {
-    project: Rc<RefCell<Project>>,
-    dispatcher: Weak<dyn CommandDispatcher>,
-    project_path: Option<PathBuf>,
-    config_path: Option<PathBuf>,
-    presets_path: PathBuf,
-    rig: Option<Rc<RefCell<RigProject>>>,
-    io_bindings: Rc<RefCell<Vec<IoBinding>>>,
-}
-
-impl SessionHandle {
-    fn mirror(session: &ProjectSession) -> Self {
-        Self {
-            project: Rc::clone(&session.project),
-            dispatcher: Rc::downgrade(&session.dispatcher),
-            project_path: session.project_path.clone(),
-            config_path: session.config_path.clone(),
-            presets_path: session.presets_path.clone(),
-            rig: session.rig.clone(),
-            io_bindings: Rc::clone(&session.io_bindings),
-        }
-    }
-
-    /// Rebuild the session the sync helpers take. `None` once the project has
-    /// been closed — and then there is no runtime left to sync either.
-    fn session(&self) -> Option<ProjectSession> {
-        Some(ProjectSession {
-            project: Rc::clone(&self.project),
-            dispatcher: self.dispatcher.upgrade()?,
-            project_path: self.project_path.clone(),
-            config_path: self.config_path.clone(),
-            presets_path: self.presets_path.clone(),
-            rig: self.rig.clone(),
-            io_bindings: Rc::clone(&self.io_bindings),
-        })
-    }
 }
 
 impl RuntimeControl for GuiRuntimeControl {
@@ -171,6 +123,53 @@ impl RuntimeControl for GuiRuntimeControl {
             return Ok(());
         };
         runtime_pipelines::refresh_metronome_output(&self.runtime, &session, output_key)
+    }
+
+    // The looper doors' bodies live in `runtime_loopers`, where the rules they
+    // share are written down: one chain each, the playback reconcile belongs
+    // to the door, and only an add or a transport START may wake audio (#808).
+
+    /// #808: the store slot is claimed on a LIVE runtime — the panel arms REC
+    /// only against one, so a looper added with nothing running would be a
+    /// looper the user cannot record into.
+    fn create_looper(&self, chain: &Chain, looper: u64) -> Result<()> {
+        if let Some(session) = self.session.session() {
+            ensure_runtime(&self.runtime, &session)?;
+        }
+        runtime_loopers::create(&self.runtime, chain, looper);
+        Ok(())
+    }
+
+    fn remove_looper(&self, chain: &Chain, looper: u64) {
+        runtime_loopers::remove(&self.runtime, chain, looper);
+    }
+
+    /// #808: a Record / Play / PlayStop is a request to hear something and may
+    /// bring the runtime up; a Stop / Clear / Undo / Redo never may.
+    fn looper_transport(&self, chain: &Chain, looper: u64, action: LooperAction) -> Result<()> {
+        if runtime_loopers::transport_may_start_audio(action) {
+            if let Some(session) = self.session.session() {
+                ensure_runtime(&self.runtime, &session)?;
+            }
+        }
+        runtime_loopers::transport(&self.runtime, chain, looper, action);
+        Ok(())
+    }
+
+    fn set_looper_param(&self, chain: &Chain, looper: u64, param: LooperParam) {
+        runtime_loopers::set_param(&self.runtime, chain, looper, param);
+    }
+
+    fn set_looper_input(&self, chain: &Chain, looper: u64, input: Option<EndpointRef>) {
+        runtime_loopers::set_input(&self.runtime, chain, looper, input);
+    }
+
+    fn set_looper_output(&self, chain: &Chain, looper: u64, output: Option<EndpointRef>) {
+        runtime_loopers::set_output(&self.runtime, chain, looper, output);
+    }
+
+    fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<LoopPcm>)>> {
+        runtime_loopers::export_chain_loops(&self.runtime, chain)
     }
 }
 
@@ -383,7 +382,7 @@ fn restore_project_loops(
     let Some(project_path) = session.project_path.clone() else {
         return;
     };
-    crate::looper_persist::restore_chain_loops(session, project_runtime, &project_path);
+    runtime_loopers::restore_chain_loops(session, project_runtime, &project_path);
 }
 
 /// Drop one chain from the live graph — the chain-delete teardown.

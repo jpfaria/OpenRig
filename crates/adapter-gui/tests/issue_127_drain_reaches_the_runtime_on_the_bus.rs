@@ -38,17 +38,18 @@ fn code_only(src: &str) -> String {
 /// could move or reword) — so the assertions cannot pass by matching something
 /// elsewhere in the module.
 ///
-/// The closing bound used to be the drain's own DI-loop application; Task 12
-/// moved that onto the bus (`RuntimeControl::arm_di_stream`), so the looper
-/// application — the next thing the drain still applies itself — bounds it now.
+/// The closing bound has moved twice, each time because the thing that used to
+/// bound it went onto the bus: first the drain's own DI-loop application (Task
+/// 12), then its looper application (Task 13). What follows the loop now is the
+/// row rebuild — a pure redraw, which is all a drain should have left.
 fn chain_sync_loop(code: &str) -> String {
     let start = code
         .find("let mut synced: Vec<ChainId>")
         .expect("chain_rig_nav_wiring.rs has no per-chain sync loop");
     let rest = &code[start..];
     let end = rest
-        .find("apply_looper_events")
-        .expect("expected the looper application to follow the sync loop");
+        .find("replace_project_chains(")
+        .expect("expected the row rebuild to follow the sync loop");
     rest[..end].to_string()
 }
 
@@ -80,6 +81,20 @@ fn the_drain_no_longer_applies_di_loop_events_itself() {
         !src.contains("ChainDiLoopEnabledChanged"),
         "the drain applies DI-loop events again — arming belongs to \
          `RuntimeControl::arm_di_stream`, reached by the command itself"
+    );
+}
+
+/// Task 13: the looper transport left this drain for the same reason. The
+/// command that produced `ChainLooperTransportChanged` mutated the store and
+/// reconciled the loop's isolated stream from the dispatcher, so applying it a
+/// second time here would reopen the GUI/MCP split on the looper.
+#[test]
+fn the_drain_no_longer_applies_looper_events_itself() {
+    let src = code_only(&drain_source());
+    assert!(
+        !src.contains("apply_looper_event"),
+        "the drain applies looper events again — the store mutation belongs to \
+         the `LooperCommand` handler, which reaches it through `RuntimeControl`"
     );
 }
 

@@ -37,9 +37,11 @@ use anyhow::Result;
 
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
-use engine::DiPcm;
+use engine::{DiPcm, LoopPcm};
 use feature_dsp::metronome::MetronomeSettings;
-use project::chain::Chain;
+use project::chain::{Chain, EndpointRef};
+
+use crate::command::{LooperAction, LooperParam};
 
 /// Runtime state changes a command handler can apply to the frontend's audio
 /// runtime.
@@ -180,5 +182,90 @@ pub trait RuntimeControl {
     fn refresh_metronome_output(&self, output_key: Option<&str>) -> Result<()> {
         let _ = output_key;
         Ok(())
+    }
+
+    // ── loopers (#323) ──────────────────────────────────────────────────
+    //
+    // A loop lives in the frontend's looper store, not in the project: the
+    // project only remembers that a looper EXISTS and what its knobs are set
+    // to. So every command below has a project half the dispatcher owns and a
+    // runtime half only these doors can reach — and before #127 the runtime
+    // half was applied by the GUI callback that had just dispatched, which is
+    // why a looper driven over MCP/MIDI recorded nothing.
+    //
+    // Every door takes the whole (post-mutation) `chain`, for the same reason
+    // `arm_di_stream` does: the loop's isolated playback stream is reconciled
+    // against THAT chain's looper list and its chosen endpoints, so the door
+    // cannot address a stream it was not handed. Never a group, never "every
+    // chain at this rate" (`CLAUDE.md` LAW).
+
+    /// Claim this chain's store slot for a newly added looper.
+    ///
+    /// **#808:** a looper the user cannot record into is not a looper — the
+    /// panel arms REC only against a live store — so this door may create its
+    /// audio runtime, exactly like [`Self::arm_di_stream`] may. The other
+    /// looper doors below must never wake audio.
+    fn create_looper(&self, chain: &Chain, looper: u64) -> Result<()> {
+        let _ = (chain, looper);
+        Ok(())
+    }
+
+    /// Free the store slot and silence the loop's stream. Idempotent, and
+    /// never an error: there is nothing to fail about deleting silence.
+    fn remove_looper(&self, chain: &Chain, looper: u64) {
+        let _ = (chain, looper);
+    }
+
+    /// Apply one transport action — record, stop, play, undo, redo, clear —
+    /// to this looper, then reconcile its playback stream.
+    ///
+    /// `PlayStop` is resolved HERE, against the store's current state, so the
+    /// one-button footswitch and the on-screen button behave identically.
+    ///
+    /// **#808:** `Record`, `Play` and `PlayStop` may create the audio runtime
+    /// (a transport start is a request to hear something). `Stop`, `Clear`,
+    /// `Undo` and `Redo` must not — silencing is never a reason to open a
+    /// device.
+    fn looper_transport(&self, chain: &Chain, looper: u64, action: LooperAction) -> Result<()> {
+        let _ = (chain, looper, action);
+        Ok(())
+    }
+
+    /// Push a mix / decay / speed / reverse edit to the live loop. Never
+    /// starts anything: turning a knob is not a play.
+    fn set_looper_param(&self, chain: &Chain, looper: u64, param: LooperParam) {
+        let _ = (chain, looper, param);
+    }
+
+    /// Record from the chosen input endpoint from the next REC on (drops the
+    /// current record tap so it re-subscribes). Never starts anything.
+    fn set_looper_input(&self, chain: &Chain, looper: u64, input: Option<EndpointRef>) {
+        let _ = (chain, looper, input);
+    }
+
+    /// Play to the chosen output endpoint. Never starts anything.
+    fn set_looper_output(&self, chain: &Chain, looper: u64, output: Option<EndpointRef>) {
+        let _ = (chain, looper, output);
+    }
+
+    /// Hand over every recorded loop this chain holds, so the project save can
+    /// write the sidecar wavs.
+    ///
+    /// **PCM travels as a HANDLE.** Each entry is an `Arc` of the mixdown the
+    /// store already owns, carrying the rate it was recorded at — the samples
+    /// are never copied across this seam, and they never travel through
+    /// [`crate::live_source::LiveSource`], which returns finished readings
+    /// only.
+    ///
+    /// Tri-state, like [`crate::live_source::LiveSource::devices`]: `None` ⇒
+    /// no looper store is hosted right now (the rig is stopped), and the
+    /// caller must leave every saved pointer alone — "nothing to export" is
+    /// NOT "nothing was ever recorded", and collapsing the two erases the
+    /// user's loops from the project. `Some(entries)` ⇒ hosted; a looper
+    /// absent from `entries` holds no material and its stale pointer should be
+    /// forgotten.
+    fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<LoopPcm>)>> {
+        let _ = chain;
+        None
     }
 }

@@ -166,6 +166,22 @@ Each `ChainRuntimeState` owns a `LooperBank` — up to 8 loopers, each up to 60 
 
 **Isolation.** A bank belongs to exactly ONE runtime. A chain served by several parallel runtimes (#703) gets one bank per runtime, each recording its own input with its own buffers — two audio threads never touch the same memory, and a chain-level status reads whichever runtime actually holds material. An off-thread rebuild carries the banks over (`adopt_taps_from`), so a live edit does not wipe a recorded loop; a rebuild that CHANGED the sample rate drops them instead of replaying frames at the wrong speed (the #669 failure mode).
 
+**How a looper command gets there (#127).** Every `LooperCommand` has a project
+half (the dispatcher's: which loopers exist, where their knobs are) and a
+runtime half (the store's). The runtime half used to be applied by the GUI
+callback that had just dispatched, with the MCP/MIDI drain running a second
+copy, so a looper driven from a footswitch mutated nothing. Both halves are the
+dispatcher's now: the handler applies the store mutation through
+`RuntimeControl` (`create_looper` / `remove_looper` / `looper_transport` /
+`set_looper_param` / `set_looper_input` / `set_looper_output`) and the door ends
+by reconciling that chain's isolated playback streams. `PlayStop` travels whole
+— only the store knows whether that one button means play or stop. Adding a
+looper and a Record / Play / PlayStop may bring the runtime up with no chain
+enabled (#808); nothing else may. The recorded audio leaves as an
+`Arc<engine::LoopPcm>` handle through `export_chain_loops`, which
+`ProjectCommand::SaveProject` writes into `<project>.loops/` — so a save issued
+over MCP keeps the loops too. See `docs/architecture.md` → "Write bus".
+
 ### Per-entry stream isolation (issues #350 / #703)
 
 Every **raw input entry** of a chain owns its own isolated

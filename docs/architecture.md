@@ -76,11 +76,14 @@ The GUI's implementation is `GuiRuntimeControl`, in
 controller. Current doors: `set_output_muted` (rig-wide, the tuner's mute),
 `set_io_bindings`, `set_block_enabled` (#522's in-place fade toggle — never a
 stream restart), `sync_chain`, the DI stream trio `arm_di_stream` /
-`disarm_di_stream` / `refresh_di_stream`, and the metronome's
-`start_metronome` / `stop_metronome` / `set_metronome_settings` /
-`refresh_metronome_output`. The bodies of the last two families live in
-`adapter-gui/src/runtime_pipelines.rs`: both are INDEPENDENT pipelines
-(invariant #4) and share the two rules below, where the chain doors do not.
+`disarm_di_stream` / `refresh_di_stream`, the metronome's `start_metronome` /
+`stop_metronome` / `set_metronome_settings` / `refresh_metronome_output`, and
+the looper's `create_looper` / `remove_looper` / `looper_transport` /
+`set_looper_param` / `set_looper_input` / `set_looper_output` /
+`export_chain_loops`. The bodies of the DI and metronome families live in
+`adapter-gui/src/runtime_pipelines.rs` (both are INDEPENDENT pipelines,
+invariant #4, and share the two rules below where the chain doors do not); the
+looper bodies live in `adapter-gui/src/runtime_loopers.rs`.
 
 Two rules the DI trio makes explicit:
 
@@ -102,6 +105,46 @@ Two rules the DI trio makes explicit:
 `attach_engine_sr` is where a device-rate change becomes a refresh: it stores
 the new rate and asks the control to re-arm each chain whose loop is playing,
 so a loop resampled to the old rate never drags on against a rebuilt runtime.
+
+### The looper's runtime half moved to the dispatcher (#127)
+
+A loop lives in the controller-owned looper store, not in the project: the
+project only remembers that a looper EXISTS and where its knobs are. Every
+`LooperCommand` therefore has a runtime half, and it used to be applied by the
+GUI callback that had just dispatched (`looper_callbacks::dispatch_and_apply`),
+with the external-event drain running a second, parallel copy for MCP/MIDI. A
+looper driven from a footswitch or an MCP client mutated nothing — Record left
+the loop `Empty`.
+
+The `LooperCommand` handlers apply it now. Each door is handed the chain AFTER
+the project half ran, and each ends by reconciling THAT chain's isolated
+playback stream, so a closed loop sounds and a removed one goes quiet on the
+user's action instead of on the next ~15 Hz meter tick. `PlayStop` travels
+whole: only the store knows whether that one button means play or stop, so
+resolving it in a frontend would give each transport its own answer.
+
+**Only an add or a transport START may wake audio** (#808). The panel arms REC
+only against a live store, so `create_looper` and a Record / Play / PlayStop
+`looper_transport` run `ensure_runtime` first; Stop, Clear, Undo, Redo, the
+knobs and the endpoint picks never may — silencing is not a reason to open a
+device.
+
+**The recorded PCM moves as a HANDLE, and never through a reading.**
+`export_chain_loops` returns `Arc<engine::LoopPcm>` per loop, each carrying the
+rate it was recorded at, and `ProjectCommand::SaveProject` writes them as the
+wav sidecars under `<project>.loops/` before it serializes the project — the
+GUI's Save callback used to do that, so a save issued over MCP/gRPC wrote a
+project whose loops were never written. The door is tri-state on purpose:
+`None` means no store is hosted (the rig is stopped) and every saved pointer
+must be left alone, which is NOT the same as "nothing was recorded". The
+restore is deliberately not a `Command`: nobody asks for it, it is a
+precondition of a controller existing, so it hangs off runtime creation
+(`runtime_loopers::restore_chain_loops`) where every transport passes.
+
+The read half is `LiveSource::chain_loopers`: the loops' transport state and
+the rate they are counted at. The looper panel redraws from it
+(`gui_live_source::LooperLiveSource`) and MCP serves the same values — no PCM
+ever crosses that seam.
 
 ### The metronome's state moved to the dispatcher (#127)
 

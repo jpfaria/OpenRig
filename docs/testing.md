@@ -82,9 +82,10 @@ every layer instead of "it plays, ship it":
 | `audio_alloc_invariant_tests::looper_record_overdub_and_undo_do_not_allocate` | zero allocation on the audio thread while recording / overdubbing / undoing (invariant #8) |
 | `infra-cpal/tests/issue_323_controller_loopers.rs` | ops fan out to every runtime of a chain, each with its OWN buffer |
 | `application` dispatcher + `query_loopers` tests | command validation, the footswitch uid-0 sentinel, and the read model every transport shares |
-| `adapter-gui/tests/issue_323_looper_wiring.rs` | the #614 trap: dispatching alone is dead — the runtime state must actually flip |
+| `adapter-gui/tests/issue_323_looper_wiring.rs` | the #614 trap: dispatching alone is dead — a `LooperCommand` must flip the store and the loop's isolated stream, on the bus and with no GUI in the picture |
 | `adapter-gui/tests/issue_323_looper_panel_interaction.rs` | real pointer events on the panel: every transport button fires, disabled ones do not, each row reports its own uid |
-| `adapter-gui/src/looper_persist_tests.rs` | save → reopen round-trip of the wav sidecar, and that a missing sidecar never blocks opening a project |
+| `adapter-gui/src/runtime_loopers_tests.rs` | save → reopen round-trip of the wav sidecar (the save dispatched, not called), and that a missing sidecar never blocks opening a project |
+| `application/src/local_dispatcher_looper_save_tests.rs` | `SaveProject` exports the loops itself, forgets a cleared loop's stale pointer, and touches nothing when the rig is stopped |
 | `infra-cpal/tests/issue_323_looper_hw.rs` (`OPENRIG_HW_TESTS=1`) | the REAL stack: record + 7 overdubs + undo/redo/clear on live CoreAudio streams at buffer 64 cost **zero** xruns / underruns |
 
 The hardware test builds its rig **in the test** instead of loading a fixture
@@ -133,6 +134,21 @@ Requirements: macOS, a real input/output interface connected (the suite
 looks for the Scarlett by name), an idle machine, and ~12 minutes. The
 tests serialize access to the physical device across processes via a lock
 file.
+
+The same gate covers the metronome's runtime doors
+(`crates/adapter-gui/src/metronome_runtime_tests.rs`, issue #127): starting the
+click means `find_output_device_by_id` → `host.output_devices()`, so those
+tests enumerate the machine's real interfaces and one of them opens a (silent)
+output stream. They are seconds, not minutes:
+
+```sh
+OPENRIG_HW_TESTS=1 cargo test -p adapter-gui --lib runtime_lifecycle::metronome_tests
+```
+
+What the ORDER those doors write the generator's `enabled` flag in — the click
+is marked playing only once its stream is proven open — is pinned headless in
+`crates/adapter-gui/src/runtime_pipelines_tests.rs` and runs in the normal
+suite.
 
 ## Real-plugin VST3 battery (issues #776 / #780)
 
