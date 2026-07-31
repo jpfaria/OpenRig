@@ -8,6 +8,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use application::audio_taps::AudioTaps;
 use domain::ids::ChainId;
 use project::project::Project;
 
@@ -22,6 +23,7 @@ use crate::state::ProjectSession;
 /// app's lifetime, like the other polling timers).
 pub fn start_meter_polling(
     project_runtime: std::rc::Rc<std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>>,
+    taps: std::rc::Rc<dyn AudioTaps>,
     project_chains: std::rc::Rc<slint::VecModel<crate::ProjectChainItem>>,
     project_session: std::rc::Rc<std::cell::RefCell<Option<crate::state::ProjectSession>>>,
 ) {
@@ -101,7 +103,7 @@ pub fn start_meter_polling(
         // pointed at the dropped controller.
         let invalidate = detect_invalidations(
             &project.chains,
-            rt_borrow.as_ref(),
+            taps.as_ref(),
             &mut last_signature.borrow_mut(),
         );
         let Some(controller) = rt_borrow.as_ref() else {
@@ -109,15 +111,14 @@ pub fn start_meter_polling(
             return;
         };
         let make_streams = |cid: &ChainId| -> ChainMeterStreams {
-            build_streams_from_taps(controller, cid, RING_CAPACITY)
+            build_streams_from_taps(taps.as_ref(), cid, RING_CAPACITY)
         };
         refresh_subscriptions_lazy_per_stream(&store, &chain_ids, &invalidate, &make_streams);
         // Reclaim any orphan tap slots left behind after an invalidation
         // (rings dropped from the store free their consumer side, the
         // runtime sweeps).
         if !invalidate.is_empty() {
-            controller.prune_dead_input_taps();
-            controller.prune_dead_stream_taps();
+            taps.prune_dead_taps();
         }
         // Aggregate per-stream readings to a single (max in, max out)
         // pair per chain so the existing single-bar UI keeps showing

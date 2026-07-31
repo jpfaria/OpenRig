@@ -19,6 +19,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
 
+use application::audio_taps::AudioTaps;
 use domain::ids::BlockId;
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 
@@ -63,6 +64,8 @@ pub fn compact_chain_di_loop_stop(
 pub(crate) struct CompactChainCallbacksCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the subscription seam the Tone Doctor records through.
+    pub audio_taps: Rc<dyn AudioTaps>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -79,6 +82,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
     let CompactChainCallbacksCtx {
         project_session,
         project_runtime,
+        audio_taps,
         project_chains,
         input_chain_devices,
         output_chain_devices,
@@ -451,7 +455,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         crate::tone_doctor_compact_wiring::wire(
             &compact_win,
             project_session.clone(),
-            project_runtime.clone(),
+            Rc::clone(&audio_taps),
             chain_index,
             window.as_weak(),
             toast_timer.clone(),

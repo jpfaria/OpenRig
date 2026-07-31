@@ -8,8 +8,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use application::audio_taps::AudioTaps;
 use application::command::{Command, SelectionCommand};
-use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
@@ -27,22 +27,16 @@ pub fn wire_tuner(
     window: &AppWindow,
     tuner_window: &TunerWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
 ) {
     wire_open(window, tuner_window);
-    wire_close_inline(
-        window,
-        project_session,
-        project_runtime,
-        tuner_session,
-        tuner_timer,
-    );
+    wire_close_inline(window, project_session, taps, tuner_session, tuner_timer);
     wire_close_windowed(
         tuner_window,
         project_session,
-        project_runtime,
+        taps,
         tuner_session,
         tuner_timer,
     );
@@ -52,7 +46,7 @@ pub fn wire_tuner(
         window,
         tuner_window,
         project_session,
-        project_runtime,
+        taps,
         tuner_session,
         tuner_timer,
     );
@@ -94,23 +88,18 @@ fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
 fn wire_close_inline(
     window: &AppWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
 ) {
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
+    let taps = Rc::clone(taps);
     let tuner_session = tuner_session.clone();
     let tuner_timer = tuner_timer.clone();
     let main_window_weak = window.as_weak();
     window.on_close_tuner(move || {
         dispatch_close_commands(&project_session);
-        teardown_session(
-            &tuner_timer,
-            &tuner_session,
-            &project_session,
-            &project_runtime,
-        );
+        teardown_session(&tuner_timer, &tuner_session, &project_session, &taps);
         if let Some(mw) = main_window_weak.upgrade() {
             mw.set_show_tuner(false);
             mw.set_tuner_mute_active(false);
@@ -126,7 +115,7 @@ fn wire_close_inline(
 fn wire_close_windowed(
     tuner_window: &TunerWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
 ) {
@@ -139,14 +128,14 @@ fn wire_close_windowed(
     // leaves the polling timer + auto-engaged mute alive (#544).
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
+        let taps = Rc::clone(taps);
         let tuner_session = tuner_session.clone();
         let tuner_timer = tuner_timer.clone();
         let tuner_window_weak = tuner_window.as_weak();
         tuner_window.on_close_tuner_window(move || {
             close_tuner_windowed_impl(
                 &project_session,
-                &project_runtime,
+                &taps,
                 &tuner_session,
                 &tuner_timer,
                 &tuner_window_weak,
@@ -158,14 +147,14 @@ fn wire_close_windowed(
     }
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
+        let taps = Rc::clone(taps);
         let tuner_session = tuner_session.clone();
         let tuner_timer = tuner_timer.clone();
         let tuner_window_weak = tuner_window.as_weak();
         tuner_window.window().on_close_requested(move || {
             close_tuner_windowed_impl(
                 &project_session,
-                &project_runtime,
+                &taps,
                 &tuner_session,
                 &tuner_timer,
                 &tuner_window_weak,
@@ -177,13 +166,13 @@ fn wire_close_windowed(
 
 fn close_tuner_windowed_impl(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
     tuner_window_weak: &slint::Weak<TunerWindow>,
 ) {
     dispatch_close_commands(project_session);
-    teardown_session(tuner_timer, tuner_session, project_session, project_runtime);
+    teardown_session(tuner_timer, tuner_session, project_session, taps);
     if let Some(tw) = tuner_window_weak.upgrade() {
         tw.set_mute_active(false);
         tw.set_tuner_enabled(false);
@@ -256,12 +245,12 @@ fn wire_power(
     window: &AppWindow,
     tuner_window: &TunerWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
 ) {
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
+    let taps = Rc::clone(taps);
     let tuner_session = tuner_session.clone();
     let tuner_timer = tuner_timer.clone();
     let main_window_weak = window.as_weak();
@@ -282,7 +271,7 @@ fn wire_power(
                 }
             }
             if enabled {
-                let new_session = build_session(&project_session, &project_runtime);
+                let new_session = build_session(&project_session, &taps);
                 let rows = new_session
                     .as_ref()
                     .map(TunerSession::rows_model_rc)
@@ -311,17 +300,12 @@ fn wire_power(
                     &tuner_timer,
                     &tuner_session,
                     &project_session,
-                    &project_runtime,
+                    &taps,
                     &tuner_window_weak,
                     &main_window_weak,
                 );
             } else {
-                teardown_session(
-                    &tuner_timer,
-                    &tuner_session,
-                    &project_session,
-                    &project_runtime,
-                );
+                teardown_session(&tuner_timer, &tuner_session, &project_session, &taps);
                 // Power off also clears the row list and mute toggle so the
                 // window reflects the "stopped" state instead of stale rows
                 // or a stuck red LED.
@@ -347,18 +331,21 @@ fn wire_power(
 
 fn build_session(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
 ) -> Option<TunerSession> {
     let pj = project_session.borrow();
-    let rt = project_runtime.borrow();
-    match (pj.as_ref(), rt.as_ref()) {
-        (Some(session), Some(runtime)) => Some(TunerSession::build(
-            &session.project.borrow(),
-            runtime,
-            &session.io_bindings.borrow(),
-        )),
-        _ => None,
+    // Nothing hosted ⇒ no rows: a tuner over a stopped rig would show a list
+    // of strings that can never move.
+    if !taps.is_hosted() {
+        return None;
     }
+    pj.as_ref().map(|session| {
+        TunerSession::build(
+            &session.project.borrow(),
+            taps.as_ref(),
+            &session.io_bindings.borrow(),
+        )
+    })
 }
 
 fn empty_rows_model() -> ModelRc<TunerRow> {
@@ -369,13 +356,11 @@ fn teardown_session(
     tuner_timer: &Rc<Timer>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
 ) {
     tuner_timer.stop();
     *tuner_session.borrow_mut() = None;
-    if let Some(rt) = project_runtime.borrow().as_ref() {
-        rt.prune_dead_input_taps();
-    }
+    taps.prune_dead_taps();
     // #127: releasing the auto-engaged mute is a Command — the dispatcher
     // applies it to the runtime, so MCP/MIDI see the same release.
     dispatch_mute(project_session, false);
@@ -400,19 +385,19 @@ fn dispatch_mute(project_session: &Rc<RefCell<Option<ProjectSession>>>, muted: b
     }
 }
 
-/// Drive the per-frame loop: drain rings, run YIN detection, and rebuild
+/// Drive the per-frame loop: drain the subscriptions, run YIN detection, and rebuild
 /// the session if the project's input topology changed under us.
 fn start_polling_timer(
     tuner_timer: &Rc<Timer>,
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     tuner_window_weak: &slint::Weak<TunerWindow>,
     main_window_weak: &slint::Weak<AppWindow>,
 ) {
     let tuner_session = tuner_session.clone();
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
+    let taps = Rc::clone(taps);
     let tuner_window_weak = tuner_window_weak.clone();
     let main_window_weak = main_window_weak.clone();
     tuner_timer.start(TimerMode::Repeated, TICK_INTERVAL, move || {
@@ -432,10 +417,12 @@ fn start_polling_timer(
         };
         if needs_rebuild {
             let pj = project_session.borrow();
-            let rt = project_runtime.borrow();
-            if let (Some(s), Some(rt)) = (pj.as_ref(), rt.as_ref()) {
-                let new_session =
-                    TunerSession::build(&s.project.borrow(), rt, &s.io_bindings.borrow());
+            if let (Some(s), true) = (pj.as_ref(), taps.is_hosted()) {
+                let new_session = TunerSession::build(
+                    &s.project.borrow(),
+                    taps.as_ref(),
+                    &s.io_bindings.borrow(),
+                );
                 let rows = new_session.rows_model_rc();
                 if let Some(tw) = tuner_window_weak.upgrade() {
                     tw.set_tuner_rows(rows.clone());
@@ -444,7 +431,7 @@ fn start_polling_timer(
                     mw.set_tuner_rows(rows);
                 }
                 *tuner_session.borrow_mut() = Some(new_session);
-                rt.prune_dead_input_taps();
+                taps.prune_dead_taps();
             }
         }
     });

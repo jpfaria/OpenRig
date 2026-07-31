@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod app_config_persist;
+pub mod audio_taps;
 pub mod block_factory;
 pub mod bridge;
 pub mod chain_factory;

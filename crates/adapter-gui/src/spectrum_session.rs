@@ -15,7 +15,8 @@
 //! publish contract on the audio thread.
 //!
 //! The analyzer itself runs entirely on the UI thread; it pulls samples
-//! from the SPSC rings on a 33 ms timer and feeds them through a sliding
+//! from its subscription (`application::audio_taps`) on a 33 ms timer and
+//! feeds them through a sliding
 //! `SpectrumAnalyzer` (75 % overlap, ~23 Hz refresh). Allocation-free
 //! steady state: per-row `VecModel<f32>` for levels and peaks is created
 //! once at session build and mutated in-place via `set_row_data(i, v)`.
@@ -23,26 +24,30 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
+use application::audio_taps::{AudioTap, AudioTaps, TapPoint};
 use domain::io_binding::IoBinding;
-use engine::spsc::SpscRing;
 use feature_dsp::spectrum_fft::{SpectrumAnalyzer, SpectrumSnapshot, FFT_SIZE, N_BANDS};
-use infra_cpal::ProjectRuntimeController;
 use project::project::Project;
 use slint::{Model, ModelRc, VecModel};
 
 use crate::SpectrumRow;
 
-/// Capacity per ring: 4 × FFT_SIZE so a slow UI tick (≈100 ms) can still
+/// Capacity per channel: 4 × FFT_SIZE so a slow UI tick (≈100 ms) can still
 /// catch up without dropping samples on a 48 kHz stream.
 const RING_CAPACITY: usize = FFT_SIZE * 4;
 
-/// Maximum samples drained per ring per tick — caps the work on the UI
+/// Maximum samples drained per channel per tick — caps the work on the UI
 /// thread per timer slot.
 const MAX_DRAIN_PER_TICK: usize = FFT_SIZE;
 
 /// One analyzer pipeline for one (stream, channel) pair (L or R).
+///
+/// The L and R rows of one stream SHARE the stream's single stereo
+/// subscription and address their own channel — a tap per row would be two
+/// taps on the audio callback where the engine needs one.
 struct RowState {
-    ring: Arc<SpscRing<f32>>,
+    tap: Arc<dyn AudioTap>,
+    channel: usize,
     analyzer: SpectrumAnalyzer,
     levels_model: Rc<VecModel<f32>>,
     peaks_model: Rc<VecModel<f32>>,
@@ -51,13 +56,15 @@ struct RowState {
 
 impl RowState {
     fn new(
-        ring: Arc<SpscRing<f32>>,
+        tap: Arc<dyn AudioTap>,
+        channel: usize,
         sample_rate: usize,
         levels_model: Rc<VecModel<f32>>,
         peaks_model: Rc<VecModel<f32>>,
     ) -> Self {
         Self {
-            ring,
+            tap,
+            channel,
             analyzer: SpectrumAnalyzer::new(sample_rate as f32),
             levels_model,
             peaks_model,
@@ -166,11 +173,7 @@ impl SpectrumSession {
     /// Build a spectrum session for the given project: subscribe one
     /// stereo stream tap per InputEntry of every enabled chain, and
     /// create two rows (L, R) for each tap.
-    pub fn build(
-        project: &Project,
-        controller: &ProjectRuntimeController,
-        registry: &[IoBinding],
-    ) -> Self {
+    pub fn build(project: &Project, taps: &dyn AudioTaps, registry: &[IoBinding]) -> Self {
         let rows_model: Rc<VecModel<SpectrumRow>> =
             Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
@@ -178,7 +181,7 @@ impl SpectrumSession {
 
         // The rate the live streams actually run at — authoritative fallback
         // for inputs without a saved per-device setting (issue #723).
-        let live_sample_rate = controller.sample_rate();
+        let live_sample_rate = taps.live_sample_rate();
 
         for chain in &project.chains {
             if !chain.enabled {
@@ -196,7 +199,7 @@ impl SpectrumSession {
             // `chain.blocks` would under-count. We ask the runtime
             // directly so the subscribe loop is always aligned with the
             // engine's `seg_idx` space.
-            let stream_count = controller.stream_count(&chain.id);
+            let stream_count = taps.stream_count(&chain.id);
             log::info!(
                 "spectrum_session: chain '{}' has {} streams",
                 chain.id.0,
@@ -244,10 +247,15 @@ impl SpectrumSession {
                     .cloned()
                     .unwrap_or_else(|| format!("stream {}", stream_index + 1));
 
-                let rings = controller.subscribe_stream_tap(&chain.id, stream_index, RING_CAPACITY);
-                let Some([l_ring, r_ring]) = rings else {
+                let Some(tap) = taps.subscribe(
+                    &TapPoint::StreamOutput {
+                        chain: chain.id.clone(),
+                        stream: stream_index,
+                    },
+                    RING_CAPACITY,
+                ) else {
                     log::warn!(
-                        "spectrum_session: subscribe_stream_tap returned None for chain '{}' stream {}",
+                        "spectrum_session: no stream-output tap for chain '{}' stream {}",
                         chain.id.0,
                         stream_index
                     );
@@ -268,7 +276,13 @@ impl SpectrumSession {
                     peaks: ModelRc::from(l_peaks.clone()),
                     active: false,
                 });
-                row_states.push(RowState::new(l_ring, sample_rate, l_levels, l_peaks));
+                row_states.push(RowState::new(
+                    Arc::clone(&tap),
+                    0,
+                    sample_rate,
+                    l_levels,
+                    l_peaks,
+                ));
                 identities.push(RowIdentity {
                     chain: chain.id.0.clone(),
                     input: stream_index,
@@ -289,7 +303,7 @@ impl SpectrumSession {
                     peaks: ModelRc::from(r_peaks.clone()),
                     active: false,
                 });
-                row_states.push(RowState::new(r_ring, sample_rate, r_levels, r_peaks));
+                row_states.push(RowState::new(tap, 1, sample_rate, r_levels, r_peaks));
                 identities.push(RowIdentity {
                     chain: chain.id.0.clone(),
                     input: stream_index,
@@ -320,17 +334,14 @@ impl SpectrumSession {
         self.fingerprint != project_stream_fingerprint(project, registry)
     }
 
-    /// Drain rings, feed the analyzer's sliding window, update the row
+    /// Drain the subscriptions, feed the analyzer's sliding window, update the row
     /// model in-place. Allocation-free on the steady state.
     pub fn tick(&mut self) {
         for (idx, state) in self.row_states.iter_mut().enumerate() {
             state.drain_buf.clear();
-            for _ in 0..MAX_DRAIN_PER_TICK {
-                match state.ring.pop() {
-                    Some(s) => state.drain_buf.push(s),
-                    None => break,
-                }
-            }
+            state
+                .tap
+                .drain_channel(state.channel, MAX_DRAIN_PER_TICK, &mut state.drain_buf);
             if state.drain_buf.is_empty() {
                 continue;
             }

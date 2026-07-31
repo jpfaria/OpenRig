@@ -92,6 +92,7 @@ mod runtime_sync_policy;
 #[cfg(test)]
 #[path = "runtime_sync_policy_tests.rs"]
 mod runtime_sync_policy_tests;
+mod runtime_taps;
 mod runtime_teardown;
 mod select_chain_block_callback;
 mod select_chain_callback;

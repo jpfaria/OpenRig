@@ -170,6 +170,16 @@ INSTALLED by the write door (and only into the chain that asked for it), that a
 `BlockError` the audio thread posted surfaces through the read door naming its
 chain, and that the read drains — so nobody promotes it to a shared query.
 
+The subscription seam is tested on both sides and needs no hardware either.
+`crates/application/src/audio_taps_tests.rs` pins the CONTRACT — a tap that
+carries no PCM is still a complete implementation, a frontend that hosts no
+audio subscribes to nothing, and a `TapPoint` is never satisfied by a stream
+index alone. `crates/adapter-gui/src/runtime_taps_tests.rs` drives the GUI's
+implementation against a device-less controller: the reduced reading equals the
+peak of the window the audio callback pushed, the raw window honours its cap, a
+subscription never hears a sibling chain, and one multi-channel subscription
+keeps its channels apart.
+
 ## Real-plugin VST3 battery (issues #776 / #780)
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on

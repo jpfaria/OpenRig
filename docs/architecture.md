@@ -58,6 +58,38 @@ same chain cannot disagree, and nothing extra runs on the audio path. Only
 reduced readings (dBFS, note/cents, band levels, looper position/state) ever
 cross the `LiveSource` boundary; no raw PCM buffer or stream handle does.
 
+## Subscription seam: `AudioTaps` (#127)
+
+`LiveSource` returns finished values and a `Command` cannot return a ring, so
+neither can express the third thing a frontend needs: a **standing tap** it
+opens once and polls on its own tick. That is
+`application::audio_taps` (`crates/application/src/audio_taps.rs`):
+
+- `TapPoint` names WHAT is tapped, by the identity of the stream that produces
+  it — `StreamInput { chain, stream }`, `StreamOutput { chain, stream }`,
+  `InputChannels { chain, input, channels, .. }`. There is no way to express
+  "every runtime at this rate" or "all that match" (`CLAUDE.md` LAW).
+- `AudioTaps::subscribe` returns an `Arc<dyn AudioTap>`: the subscription. It is
+  `Send + Sync` (a capture may be handed to a worker) while the authority that
+  issues it is frontend-local.
+- `AudioTap::poll_peak_dbfs` is the REDUCED reading — a finished number, what
+  the meters use, implementable over any transport.
+  `AudioTap::drain_channel` hands out the raw window and **defaults to
+  nothing**: samples are an in-process affordance. A frontend that implements
+  only the reduced method is complete, not broken.
+
+The consumers that need raw windows — the tuner (YIN), the spectrum (FFT) and
+the Tone Doctor — run next to the audio and publish their RESULTS through
+`LiveSource::tuner` / `LiveSource::spectrum` and the `DiagnoseChainTone`
+command, so a remote frontend is served finished readings and the PCM never has
+to travel. Both poll methods CONSUME the window they report: a tap is
+single-consumer, as the underlying SPSC ring always was.
+
+The GUI's implementation is `GuiAudioTaps` in `adapter-gui/src/runtime_taps.rs`
+— the only module that turns a `TapPoint` into a `ProjectRuntimeController`
+subscription. It wraps the very rings the consumers used to hold directly, so
+the audio thread's work is unchanged.
+
 ## Write bus: `RuntimeControl` (#127)
 
 A `Command` is the only way to change state, so a state change that has to

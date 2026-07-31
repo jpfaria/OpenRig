@@ -167,10 +167,21 @@ fn fingerprint_stable_for_identical_projects() {
 
 // ── RowState ─────────────────────────────────────────────────────────────
 
+/// A subscription that carries nothing — enough to build a row.
+struct EmptyTap;
+
+impl application::audio_taps::AudioTap for EmptyTap {
+    fn channels(&self) -> usize {
+        1
+    }
+    fn poll_peak_dbfs(&self) -> f32 {
+        engine::output_meter::SILENT_DBFS
+    }
+}
+
 #[test]
 fn row_state_starts_with_empty_buffer() {
-    let ring = Arc::new(SpscRing::new(BUFFER_SIZE * 2, 0.0_f32));
-    let state = RowState::new(ring, 48_000, DEFAULT_REFERENCE_HZ);
+    let state = RowState::new(Arc::new(EmptyTap), 0, 48_000, DEFAULT_REFERENCE_HZ);
     assert!(state.sample_buf.is_empty());
     assert!(state.sample_buf.capacity() >= BUFFER_SIZE * 2);
 }

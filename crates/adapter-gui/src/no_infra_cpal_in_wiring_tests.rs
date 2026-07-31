@@ -56,6 +56,12 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   freshly-created runtime its loops back. Also an owner, for the same
 ///   reason: nothing in it is reachable except through a `Command` (or, for
 ///   the restore, through the controller's own creation).
+/// * `runtime_taps.rs` — the implementation of the THIRD door, the
+///   subscription seam (`application::audio_taps`, Task 16). It is the one
+///   place that turns a `TapPoint` into a controller subscription, and the
+///   `AudioTap` it hands back wraps the very rings the consumers used to hold
+///   themselves. An owner for the `runtime_health.rs` reason: it is the
+///   implementation of a seam, not a caller of one.
 /// * `runtime_health.rs` — the same again for the frontend's own poll tick
 ///   (Task 15): installing a rebuild the control worker finished, and
 ///   reconnecting a backend that died. An owner for a slightly different
@@ -75,10 +81,10 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// Each of these calls a `ProjectRuntimeController` method that has no door on
 /// the bus. They are the remaining work, named module by module in the Task 9
 /// report, NOT a licence:
-/// * audio taps (`subscribe_*_tap`, `poll_stream`): `meter_wiring.rs`,
-///   `meter_wiring_poll.rs`, `tuner_session.rs`, `tuner_wiring.rs`,
-///   `spectrum_session.rs`, `spectrum_wiring.rs`, `block_editor_window_setup.rs`,
-///   `select_chain_block_callback.rs`, `tone_doctor_compact_wiring.rs`
+/// * a block's diagnostic stream (`poll_stream`):
+///   `block_editor_window_setup.rs`, `select_chain_block_callback.rs`
+/// * the meter tick's remaining per-chain reads and its looper reconcile:
+///   `meter_wiring_poll.rs`
 /// * pure hubs that only forward the handle to a module above:
 ///   `compact_chain_callbacks.rs` (which also polls the controller itself),
 ///   `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs`,
@@ -148,6 +154,18 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// controller's shared cell. The bodies of those doors live in
 /// `runtime_pipelines.rs`, listed above as an owner.
 ///
+/// Task 16 built the SUBSCRIPTION seam (`application::audio_taps`) — the third
+/// door, for the one thing neither of the other two can express: a standing
+/// tap. A consumer asks for a subscription BY STREAM IDENTITY (`TapPoint`) and
+/// polls it on its own tick; `AudioTap::poll_peak_dbfs` is the reduced reading
+/// any transport can carry, and `drain_channel` (raw window) defaults to
+/// nothing, because samples are an in-process affordance — a remote frontend is
+/// served the analyzers' RESULTS through `LiveSource::tuner` /
+/// `LiveSource::spectrum` and never needs the PCM to travel. So `meter_wiring`,
+/// `tuner_session`, `tuner_wiring`, `spectrum_session`, `spectrum_wiring` and
+/// `tone_doctor_compact_wiring` are off this list, and `runtime_taps.rs` is on
+/// it as the seam's owner.
+///
 /// Task 15 emptied the poll-tick bucket: `desktop_app_polling.rs` is off this
 /// list. The tick was doing two different things through one handle, and they
 /// are now split by what they ARE. The block errors and the backend's health
@@ -167,19 +185,14 @@ const ALLOWED: &[&str] = &[
     "desktop_app_chain_wiring.rs",
     "gui_live_source.rs",
     "mcp_query_resolver.rs",
-    "meter_wiring.rs",
     "meter_wiring_poll.rs",
     "runtime_health.rs",
     "runtime_lifecycle.rs",
     "runtime_loopers.rs",
     "runtime_pipelines.rs",
+    "runtime_taps.rs",
     "runtime_teardown.rs",
     "select_chain_block_callback.rs",
-    "spectrum_session.rs",
-    "spectrum_wiring.rs",
-    "tone_doctor_compact_wiring.rs",
-    "tuner_session.rs",
-    "tuner_wiring.rs",
 ];
 
 /// A module's CODE, with `//` comments stripped.

@@ -8,8 +8,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use application::audio_taps::AudioTaps;
 use application::command::{Command, SelectionCommand};
-use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
@@ -27,7 +27,7 @@ pub fn wire_spectrum(
     window: &AppWindow,
     spectrum_window: &SpectrumWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     spectrum_timer: &Rc<Timer>,
 ) {
@@ -35,14 +35,14 @@ pub fn wire_spectrum(
     wire_close_inline(
         window,
         project_session,
-        project_runtime,
+        taps,
         spectrum_session,
         spectrum_timer,
     );
     wire_close_windowed(
         spectrum_window,
         project_session,
-        project_runtime,
+        taps,
         spectrum_session,
         spectrum_timer,
     );
@@ -50,7 +50,7 @@ pub fn wire_spectrum(
         window,
         spectrum_window,
         project_session,
-        project_runtime,
+        taps,
         spectrum_session,
         spectrum_timer,
     );
@@ -91,18 +91,18 @@ fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
 fn wire_close_inline(
     window: &AppWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     spectrum_timer: &Rc<Timer>,
 ) {
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
+    let taps = Rc::clone(taps);
     let spectrum_session = spectrum_session.clone();
     let spectrum_timer = spectrum_timer.clone();
     let main_window_weak = window.as_weak();
     window.on_close_spectrum(move || {
         dispatch_close_commands(&project_session);
-        teardown_session(&spectrum_timer, &spectrum_session, &project_runtime);
+        teardown_session(&spectrum_timer, &spectrum_session, &taps);
         if let Some(mw) = main_window_weak.upgrade() {
             mw.set_show_spectrum(false);
             // #546: keep the Slint power state in sync with the backend
@@ -116,7 +116,7 @@ fn wire_close_inline(
 fn wire_close_windowed(
     spectrum_window: &SpectrumWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     spectrum_timer: &Rc<Timer>,
 ) {
@@ -128,14 +128,14 @@ fn wire_close_windowed(
     // path leaves the FFT polling timer + stream taps alive (#546).
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
+        let taps = Rc::clone(taps);
         let spectrum_session = spectrum_session.clone();
         let spectrum_timer = spectrum_timer.clone();
         let spectrum_window_weak = spectrum_window.as_weak();
         spectrum_window.on_close_spectrum_window(move || {
             close_spectrum_windowed_impl(
                 &project_session,
-                &project_runtime,
+                &taps,
                 &spectrum_session,
                 &spectrum_timer,
                 &spectrum_window_weak,
@@ -147,14 +147,14 @@ fn wire_close_windowed(
     }
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
+        let taps = Rc::clone(taps);
         let spectrum_session = spectrum_session.clone();
         let spectrum_timer = spectrum_timer.clone();
         let spectrum_window_weak = spectrum_window.as_weak();
         spectrum_window.window().on_close_requested(move || {
             close_spectrum_windowed_impl(
                 &project_session,
-                &project_runtime,
+                &taps,
                 &spectrum_session,
                 &spectrum_timer,
                 &spectrum_window_weak,
@@ -166,13 +166,13 @@ fn wire_close_windowed(
 
 fn close_spectrum_windowed_impl(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     spectrum_timer: &Rc<Timer>,
     spectrum_window_weak: &slint::Weak<SpectrumWindow>,
 ) {
     dispatch_close_commands(project_session);
-    teardown_session(spectrum_timer, spectrum_session, project_runtime);
+    teardown_session(spectrum_timer, spectrum_session, taps);
     if let Some(sw) = spectrum_window_weak.upgrade() {
         sw.set_spectrum_enabled(false);
     }
@@ -198,12 +198,12 @@ fn wire_power(
     window: &AppWindow,
     spectrum_window: &SpectrumWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     spectrum_timer: &Rc<Timer>,
 ) {
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
+    let taps = Rc::clone(taps);
     let spectrum_session = spectrum_session.clone();
     let spectrum_timer = spectrum_timer.clone();
     let main_window_weak = window.as_weak();
@@ -223,7 +223,7 @@ fn wire_power(
             }
         }
         if enabled {
-            let new_session = build_session(&project_session, &project_runtime);
+            let new_session = build_session(&project_session, &taps);
             let rows = new_session
                 .as_ref()
                 .map(SpectrumSession::rows_model_rc)
@@ -243,12 +243,12 @@ fn wire_power(
                 &spectrum_timer,
                 &spectrum_session,
                 &project_session,
-                &project_runtime,
+                &taps,
                 &spectrum_window_weak,
                 &main_window_weak,
             );
         } else {
-            teardown_session(&spectrum_timer, &spectrum_session, &project_runtime);
+            teardown_session(&spectrum_timer, &spectrum_session, &taps);
             // Power off clears the row list so the window reflects the
             // stopped state instead of stale rows.
             let empty = empty_rows_model();
@@ -271,18 +271,20 @@ fn wire_power(
 
 fn build_session(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
 ) -> Option<SpectrumSession> {
     let pj = project_session.borrow();
-    let rt = project_runtime.borrow();
-    match (pj.as_ref(), rt.as_ref()) {
-        (Some(session), Some(runtime)) => Some(SpectrumSession::build(
-            &session.project.borrow(),
-            runtime,
-            &session.io_bindings.borrow(),
-        )),
-        _ => None,
+    // Nothing hosted ⇒ no rows: bars over a stopped rig can never move.
+    if !taps.is_hosted() {
+        return None;
     }
+    pj.as_ref().map(|session| {
+        SpectrumSession::build(
+            &session.project.borrow(),
+            taps.as_ref(),
+            &session.io_bindings.borrow(),
+        )
+    })
 }
 
 fn empty_rows_model() -> ModelRc<SpectrumRow> {
@@ -292,28 +294,26 @@ fn empty_rows_model() -> ModelRc<SpectrumRow> {
 fn teardown_session(
     spectrum_timer: &Rc<Timer>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
 ) {
     spectrum_timer.stop();
     *spectrum_session.borrow_mut() = None;
-    if let Some(rt) = project_runtime.borrow().as_ref() {
-        rt.prune_dead_stream_taps();
-    }
+    taps.prune_dead_taps();
 }
 
-/// Drive the per-frame loop: drain rings, run the FFT, rebuild the session
+/// Drive the per-frame loop: drain the subscriptions, run the FFT, rebuild the session
 /// when the project's output topology changed under us.
 fn start_polling_timer(
     spectrum_timer: &Rc<Timer>,
     spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    taps: &Rc<dyn AudioTaps>,
     spectrum_window_weak: &slint::Weak<SpectrumWindow>,
     main_window_weak: &slint::Weak<AppWindow>,
 ) {
     let spectrum_session = spectrum_session.clone();
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
+    let taps = Rc::clone(taps);
     let spectrum_window_weak = spectrum_window_weak.clone();
     let main_window_weak = main_window_weak.clone();
     spectrum_timer.start(TimerMode::Repeated, TICK_INTERVAL, move || {
@@ -333,11 +333,13 @@ fn start_polling_timer(
         };
         if needs_rebuild {
             let pj = project_session.borrow();
-            let rt = project_runtime.borrow();
-            match (pj.as_ref(), rt.as_ref()) {
-                (Some(s), Some(rt)) => {
-                    let new_session =
-                        SpectrumSession::build(&s.project.borrow(), rt, &s.io_bindings.borrow());
+            match (pj.as_ref(), taps.is_hosted()) {
+                (Some(s), true) => {
+                    let new_session = SpectrumSession::build(
+                        &s.project.borrow(),
+                        taps.as_ref(),
+                        &s.io_bindings.borrow(),
+                    );
                     let rows = new_session.rows_model_rc();
                     if let Some(sw) = spectrum_window_weak.upgrade() {
                         sw.set_spectrum_rows(rows.clone());
@@ -346,7 +348,7 @@ fn start_polling_timer(
                         mw.set_spectrum_rows(rows);
                     }
                     *spectrum_session.borrow_mut() = Some(new_session);
-                    rt.prune_dead_stream_taps();
+                    taps.prune_dead_taps();
                 }
                 _ => {
                     // No runtime (last chain disabled, runtime torn down).

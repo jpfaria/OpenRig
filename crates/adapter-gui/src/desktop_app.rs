@@ -178,6 +178,10 @@ pub fn run_desktop_app(
     // can start, stop or sync audio.
     let runtime_attach = crate::runtime_lifecycle::RuntimeAttach::new(&project_runtime);
     let looper_live = crate::gui_live_source::looper_live_source(&project_runtime);
+    // #127: the subscription seam. Every tap consumer (meters, tuner,
+    // spectrum, Tone Doctor) asks THIS for a subscription by stream identity
+    // instead of holding the audio backend.
+    let audio_taps = crate::runtime_taps::gui_audio_taps(&project_runtime);
     let probe_windows = latency_probe::new_windows();
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
@@ -410,6 +414,7 @@ pub fn run_desktop_app(
     // and writes peak dBFS into the matching ProjectChainItem rows.
     crate::meter_wiring::start_meter_polling(
         project_runtime.clone(),
+        Rc::clone(&audio_taps),
         project_chains.clone(),
         project_session.clone(),
     );
@@ -652,7 +657,7 @@ pub fn run_desktop_app(
         &window,
         &tuner_window,
         &project_session,
-        &project_runtime,
+        &audio_taps,
         &tuner_session,
         &tuner_timer,
     );
@@ -661,7 +666,7 @@ pub fn run_desktop_app(
         &window,
         &spectrum_window,
         &project_session,
-        &project_runtime,
+        &audio_taps,
         &spectrum_session,
         &spectrum_timer,
     );
@@ -696,6 +701,7 @@ pub fn run_desktop_app(
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
         project_runtime: project_runtime.clone(),
+        audio_taps: Rc::clone(&audio_taps),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),
@@ -783,7 +789,7 @@ pub fn run_desktop_app(
     crate::tone_doctor_compact_wiring::wire_main(
         &window,
         project_session.clone(),
-        project_runtime.clone(),
+        Rc::clone(&audio_taps),
         toast_timer.clone(),
     );
     // #614: DI loop file picker — separate module because chain_row_wiring
