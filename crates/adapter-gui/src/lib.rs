@@ -44,6 +44,9 @@ mod chain_name_wiring;
 mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;
+#[cfg(test)]
+#[path = "chain_row_seams_tests.rs"]
+mod chain_row_seams_tests;
 mod chain_row_wiring;
 mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;

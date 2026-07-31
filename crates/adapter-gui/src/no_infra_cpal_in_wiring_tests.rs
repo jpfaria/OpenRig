@@ -22,6 +22,10 @@
 //! Every entry is justified in the ledger below. "It compiles" is not a
 //! justification; "this module owns a controller API that has no `Command` and
 //! no `LiveSource` reading yet" is.
+//!
+//! Since Task 16 there is no second kind of entry left: the list is exactly the
+//! modules that OWN or CONSTRUCT the runtime handle, plus the two that read it
+//! as the frontend's `LiveSource`. A new name here is a regression, not growth.
 
 use std::path::{Path, PathBuf};
 
@@ -78,11 +82,8 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   type it is handed.
 ///
 /// ── Controller APIs with no `Command` and no `LiveSource` reading yet ───────
-/// Each of these calls a `ProjectRuntimeController` method that has no door on
-/// the bus. They are the remaining work, named module by module in the Task 9
-/// report, NOT a licence:
-/// * the meter tick's remaining per-chain reads and its looper reconcile:
-///   `meter_wiring_poll.rs`
+/// **Empty since Task 16.** Every entry above owns or constructs the runtime
+/// handle; nothing on this list is a wiring module reaching past a door.
 ///
 /// Task 11 emptied the EQ-viz bucket: the block editor's curve now takes its
 /// rate from `CommandDispatcher::engine_sr`, so `eq.rs`,
@@ -147,6 +148,19 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// controller's shared cell. The bodies of those doors live in
 /// `runtime_pipelines.rs`, listed above as an owner.
 ///
+/// Task 16 finally cleared the meter tick (`meter_wiring_poll.rs`), which was
+/// the last consumer. Its per-chain reads became `LiveSource::chain_di_loop`
+/// (the DI lamp and its own peaks — sharing one helper with the whole-project
+/// `di_loop` MCP reads, so the tile and the transport cannot drift) and
+/// `LiveSource::chain_runtime` (`live` + `xruns` + `underruns`, one borrow,
+/// this chain's own counters); the loops' transport state was already
+/// `chain_loopers`. Its one WRITE — the looper reconcile that gives a project
+/// looper its slot, feeds a recording and arms the playback streams — became
+/// `RuntimeControl::reconcile_chain_loopers`, body in `runtime_loopers.rs`.
+/// Like the two poll-tick writes it is NOT a `Command`: a tick is nobody's
+/// request. The consequence, stated: the frontend that hosts the audio must
+/// keep ticking for a RECORD started from ANY transport to capture.
+///
 /// Task 16 also closed the block-diagnostic-stream bucket with an ordinary
 /// read door, `LiveSource::block_stream` (impl
 /// `gui_live_source::BlockStreamLiveSource`): `poll_stream` returns entries
@@ -188,7 +202,6 @@ const ALLOWED: &[&str] = &[
     "desktop_app.rs",
     "gui_live_source.rs",
     "mcp_query_resolver.rs",
-    "meter_wiring_poll.rs",
     "runtime_health.rs",
     "runtime_lifecycle.rs",
     "runtime_loopers.rs",

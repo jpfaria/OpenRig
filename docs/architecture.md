@@ -58,6 +58,18 @@ same chain cannot disagree, and nothing extra runs on the audio path. Only
 reduced readings (dBFS, note/cents, band levels, looper position/state) ever
 cross the `LiveSource` boundary; no raw PCM buffer or stream handle does.
 
+### What a chain ROW reads (#127)
+
+The meter tick redraws each chain row from three per-chain readings the project
+cannot answer: `chain_loopers` (what the loops are doing, and the rate they
+count at), `chain_di_loop` (is the DI's dedicated stream playing, and its OWN
+peaks — #614/#717/#771) and `chain_runtime` (`live` + `xruns` + `underruns`).
+All three carry the chain's identity: there is no pooled "the rig's xruns", and
+a row shows its own stream's health or nothing. `GuiLiveSource::di_loop` (the
+whole project, for MCP) and `ChainRowLiveSource::chain_di_loop` (one chain, for
+the tile) go through the same helper, so the screen and the transport cannot
+drift.
+
 ### A block's diagnostic stream (#127)
 
 A utility block may publish a small table of already-reduced entries (`key` /
@@ -131,10 +143,15 @@ pipelines, invariant #4, and share the two rules below where the chain doors do
 not); the looper bodies live in `adapter-gui/src/runtime_loopers.rs`, and the
 two teardowns in `adapter-gui/src/runtime_teardown.rs`.
 
-Two doors are NOT reached through a command handler: `apply_finished_rebuilds`
-and `reconnect_audio`, the frontend's own poll tick (below). They are on the
+Three doors are NOT reached through a command handler:
+`apply_finished_rebuilds` and `reconnect_audio` (the frontend's own poll tick,
+below) and `reconcile_chain_loopers` (the meter tick's per-chain looper
+reconcile: slots, the recording drain, the playback streams). They are on the
 same trait because they are still writes to the runtime, and the module that
-performs them must reach it through this seam like everyone else.
+performs them must reach it through this seam like everyone else. The
+consequence of `reconcile_chain_loopers` not being a `Command` is worth naming:
+the frontend that hosts the audio must keep ticking for a RECORD started from
+ANY transport to actually capture.
 
 Two rules the DI trio makes explicit:
 

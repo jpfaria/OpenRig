@@ -170,6 +170,13 @@ INSTALLED by the write door (and only into the chain that asked for it), that a
 `BlockError` the audio thread posted surfaces through the read door naming its
 chain, and that the read drains — so nobody promotes it to a shared query.
 
+`crates/adapter-gui/src/chain_row_seams_tests.rs` pins the meter tick's three
+per-chain doors against a device-less controller: a hosted chain reports its own
+runtime state (live, with its own xrun/underrun counters) and its own DI state,
+a chain with no runtime on a hosted frontend reads `live: false` rather than
+`None`, a stopped rig answers neither, and the looper reconcile gives the
+project's looper its slot while leaving a sibling chain's store empty.
+
 `crates/adapter-gui/src/block_stream_read_tests.rs` pins the block-diagnostic
 read's two states against a device-less controller: a hosted runtime always
 answers (an empty table for a block that publishes nothing), and a stopped rig

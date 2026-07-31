@@ -20,6 +20,7 @@ use anyhow::Result;
 
 use application::runtime_control::RuntimeControl;
 use infra_cpal::ProjectRuntimeController;
+use project::chain::Chain;
 
 use crate::state::ProjectSession;
 
@@ -31,6 +32,16 @@ struct PollingRuntimeControl {
 }
 
 impl RuntimeControl for PollingRuntimeControl {
+    /// #323: the meter tick's looper reconcile, for ONE chain. The body lives
+    /// in `runtime_loopers.rs` with the rest of the looper doors; the rig it
+    /// resolves the linked presets against is the one open NOW, like the
+    /// reconnect below.
+    fn reconcile_chain_loopers(&self, chain: &Chain) {
+        let session = self.session.borrow();
+        let rig = session.as_ref().and_then(|s| s.rig.as_deref());
+        crate::runtime_loopers::reconcile_chain_loopers(&self.runtime, chain, rig);
+    }
+
     /// #672: swap in whatever the control worker finished building. Each
     /// queued build carries the (chain, group) it was requested for and lands
     /// in that slot alone; this only services the queue.

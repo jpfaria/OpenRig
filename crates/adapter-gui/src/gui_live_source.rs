@@ -15,7 +15,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::live_source::{
-    AudioHealthReading, BlockErrorReading, ChainMeterReading, LiveSource, MetronomeReading,
+    AudioHealthReading, BlockErrorReading, ChainMeterReading, ChainRuntimeReading, LiveSource,
+    MetronomeReading,
 };
 use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
@@ -97,22 +98,15 @@ impl LiveSource for GuiLiveSource<'_> {
             self.project
                 .chains
                 .iter()
-                .map(|chain| {
-                    let playing = controller.di_stream_active(&chain.id);
-                    let meter = crate::di_meter::di_meter_from_peaks(
-                        controller.di_playback_peaks(&chain.id),
-                        playing,
-                    );
-                    DiLoopReading {
-                        chain: chain.id.0.clone(),
-                        playing,
-                        in_dbfs: meter.in_dbfs,
-                        out_dbfs: meter.out_dbfs,
-                        source: None,
-                    }
-                })
+                .filter_map(|chain| di_reading(controller, &chain.id))
                 .collect(),
         )
+    }
+
+    /// The per-chain half of [`Self::di_loop`], through the same helper.
+    fn chain_di_loop(&self, chain: &ChainId) -> Option<DiLoopReading> {
+        let runtime = self.runtime.borrow();
+        di_reading(runtime.as_ref()?, chain)
     }
 
     /// #323: the chain's live looper transport state, at THIS chain's real
@@ -266,6 +260,60 @@ impl LiveSource for HealthLiveSource {
     }
 }
 
+/// #127: what a chain ROW redraws itself from, on the meter tick.
+///
+/// Three per-chain readings the project cannot answer: what the loops are
+/// doing (and at what rate), whether the DI is playing and how loud, and
+/// whether the chain has a live runtime plus its xrun/underrun counters. All
+/// three are finished readings, all three carry the chain's identity, and
+/// together they are what let `meter_wiring_poll` stop holding the backend.
+pub(crate) struct ChainRowLiveSource {
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl LiveSource for ChainRowLiveSource {
+    /// Same reading, same helper, as the whole-project [`GuiLiveSource::di_loop`]
+    /// MCP reads — so the tile and the transport cannot drift.
+    fn chain_di_loop(&self, chain: &ChainId) -> Option<DiLoopReading> {
+        let borrow = self.runtime.borrow();
+        di_reading(borrow.as_ref()?, chain)
+    }
+
+    /// One borrow, three numbers, all this chain's own. `is_empty` on
+    /// `runtimes_for_chain` is what gates REC: an enabled chain whose runtime
+    /// is still cold-starting has nothing to capture into yet.
+    ///
+    /// The counters are plain atomic reads off the audio thread — never the
+    /// `processing` lock (#580).
+    fn chain_runtime(&self, chain: &ChainId) -> Option<ChainRuntimeReading> {
+        let borrow = self.runtime.borrow();
+        let controller = borrow.as_ref()?;
+        Some(ChainRuntimeReading {
+            live: !controller.runtimes_for_chain(chain).is_empty(),
+            xruns: controller.chain_xrun_count(chain),
+            underruns: controller.chain_underrun_count(chain),
+        })
+    }
+
+    fn chain_loopers(&self, chain: &ChainId) -> Option<Result<(Vec<LooperStatus>, u32), String>> {
+        let borrow = self.runtime.borrow();
+        let controller = borrow.as_ref()?;
+        Some(Ok((
+            controller.chain_looper_statuses(chain),
+            controller.sample_rate(),
+        )))
+    }
+}
+
+/// Build the chain row's read seam over the app's shared runtime handle.
+pub(crate) fn chain_row_live_source(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> Rc<dyn LiveSource> {
+    Rc::new(ChainRowLiveSource {
+        runtime: Rc::clone(runtime),
+    })
+}
+
 /// #127: what a block editor's stream panel reads.
 ///
 /// A utility block may publish a small table of reduced entries (`key` /
@@ -304,6 +352,25 @@ pub(crate) fn health_live_source(
 ) -> Rc<dyn LiveSource> {
     Rc::new(HealthLiveSource {
         runtime: Rc::clone(runtime),
+    })
+}
+
+/// One chain's DI loop state: is its dedicated stream playing (#614/#717 —
+/// the DI has its own stream, so "playing" is `di_stream_active`, not an
+/// injection into the guitar runtime), and that playback's OWN peaks (#771 —
+/// never the chain's).
+///
+/// The single source for both the chain row and the `openrig://` reading, so
+/// the tile and a remote client cannot disagree.
+fn di_reading(controller: &ProjectRuntimeController, chain: &ChainId) -> Option<DiLoopReading> {
+    let playing = controller.di_stream_active(chain);
+    let meter = crate::di_meter::di_meter_from_peaks(controller.di_playback_peaks(chain), playing);
+    Some(DiLoopReading {
+        chain: chain.0.clone(),
+        playing,
+        in_dbfs: meter.in_dbfs,
+        out_dbfs: meter.out_dbfs,
+        source: None,
     })
 }
 

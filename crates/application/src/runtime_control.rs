@@ -341,6 +341,21 @@ pub trait RuntimeControl {
     ///
     /// **Never starts anything.** With no runtime there is no queue, so this
     /// is a no-op — a tick is not a request to hear something.
+    /// #127/#323: bring ONE chain's looper store back in line with its
+    /// config, feed whatever is recording, and reconcile its isolated
+    /// playback streams.
+    ///
+    /// A WRITE, and — like the two below — deliberately NOT a `Command`: the
+    /// frontend's meter tick runs it, and a tick is nobody's request. It is
+    /// what makes a RECORD started from any transport actually capture, so the
+    /// frontend that hosts the audio must keep ticking for the loops to move.
+    ///
+    /// Per chain, never "every chain": the slots, the recording drain and the
+    /// playback streams all belong to this chain alone.
+    fn reconcile_chain_loopers(&self, chain: &Chain) {
+        let _ = chain;
+    }
+
     fn apply_finished_rebuilds(&self) -> usize {
         0
     }

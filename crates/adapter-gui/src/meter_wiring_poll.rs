@@ -9,6 +9,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use application::audio_taps::AudioTaps;
+use application::live_source::LiveSource;
+use application::runtime_control::RuntimeControl;
 use domain::ids::ChainId;
 use project::project::Project;
 
@@ -22,8 +24,9 @@ use crate::state::ProjectSession;
 /// the `project_chains` VecModel. Timer is leaked (lives for the
 /// app's lifetime, like the other polling timers).
 pub fn start_meter_polling(
-    project_runtime: std::rc::Rc<std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>>,
     taps: std::rc::Rc<dyn AudioTaps>,
+    reads: std::rc::Rc<dyn LiveSource>,
+    writes: std::rc::Rc<dyn RuntimeControl>,
     project_chains: std::rc::Rc<slint::VecModel<crate::ProjectChainItem>>,
     project_session: std::rc::Rc<std::cell::RefCell<Option<crate::state::ProjectSession>>>,
 ) {
@@ -89,27 +92,26 @@ pub fn start_meter_polling(
             &project,
             session.rig.as_deref(),
         );
-        let rt_borrow = project_runtime.borrow();
         // Detect chains whose runtime-layout signature changed since
         // the last tick. Signature mixes project bits (enabled, per
         // block id+enabled) with the engine's current stream count;
         // when the engine rebuilds the per-input runtimes (toggle
         // off→on, rig-nav preset switch) the count or enabled flag
         // flips and the store re-subscribes against the fresh rings.
-        // Controller=None ⇒ the whole controller was dropped (last
-        // chain toggled off); `detect_invalidations` wipes the cache
-        // so the next online tick treats every chain as fresh — and
-        // we also drop the store so we don't keep handing out rings
-        // pointed at the dropped controller.
+        // Nothing hosted ⇒ the whole runtime was dropped (last chain
+        // toggled off); `detect_invalidations` wipes the cache so the
+        // next online tick treats every chain as fresh — and we also
+        // drop the store so we don't keep handing out subscriptions
+        // opened against the dropped runtime.
         let invalidate = detect_invalidations(
             &project.chains,
             taps.as_ref(),
             &mut last_signature.borrow_mut(),
         );
-        let Some(controller) = rt_borrow.as_ref() else {
+        if !taps.is_hosted() {
             store.borrow_mut().clear();
             return;
-        };
+        }
         let make_streams = |cid: &ChainId| -> ChainMeterStreams {
             build_streams_from_taps(taps.as_ref(), cid, RING_CAPACITY)
         };
@@ -147,7 +149,8 @@ pub fn start_meter_polling(
                 out_db_raw,
                 &project,
                 session,
-                controller,
+                reads.as_ref(),
+                writes.as_ref(),
                 &project_chains,
                 &per_stream,
                 &bundled_di_loop_ids,
@@ -171,7 +174,8 @@ fn refresh_chain_meter_row(
     out_db_raw: f32,
     project: &Project,
     session: &ProjectSession,
-    controller: &infra_cpal::ProjectRuntimeController,
+    reads: &dyn LiveSource,
+    writes: &dyn RuntimeControl,
     project_chains: &slint::VecModel<crate::ProjectChainItem>,
     per_stream: &[(ChainId, Vec<StreamMeterReading>)],
     bundled_di_loop_ids: &[String],
@@ -228,12 +232,21 @@ fn refresh_chain_meter_row(
     // the dedicated DI graph) reflect the engine's armed/disarmed state.
     // The DI now plays on its own dedicated stream, so "playing" is
     // di_stream_active — not the (removed) guitar-runtime injection.
-    let di_playing_now = controller.di_stream_active(cid);
+    // #127: read through the seam — the same `chain_di_loop` reading a client
+    // gets on `openrig://`, so the tile and the transport cannot drift.
+    let di = reads.chain_di_loop(cid);
+    let di_playing_now = di.as_ref().is_some_and(|d| d.playing);
     let di_changed = row.di_loop_playing != di_playing_now;
     // #771: the DI meter row reads the isolated playback's OWN peaks
     // (maintained by the output callback's mix) — not the chain's.
-    let di_meter_now =
-        crate::di_meter::di_meter_from_peaks(controller.di_playback_peaks(cid), di_playing_now);
+    let di_meter_now = crate::StreamMeter {
+        in_dbfs: di
+            .as_ref()
+            .map_or(engine::output_meter::SILENT_DBFS, |d| d.in_dbfs),
+        out_dbfs: di
+            .as_ref()
+            .map_or(engine::output_meter::SILENT_DBFS, |d| d.out_dbfs),
+    };
     let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
         || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
     // #661: re-derive the loaded source from the dispatcher so the
@@ -273,8 +286,9 @@ fn refresh_chain_meter_row(
     // empty because the producer didn't deliver in time). Either
     // lights the row's overload badge. Both counters are plain atomic
     // reads off the audio thread — no `processing` lock (issue #580).
-    let cur_xruns = controller.chain_xrun_count(cid);
-    let cur_underruns = controller.chain_underrun_count(cid);
+    let chain_runtime = reads.chain_runtime(cid);
+    let cur_xruns = chain_runtime.as_ref().map_or(0, |r| r.xruns);
+    let cur_underruns = chain_runtime.as_ref().map_or(0, |r| r.underruns);
     let prev_xruns = last_xruns.borrow().get(cid).copied().unwrap_or(0);
     let prev_underruns = last_underruns.borrow().get(cid).copied().unwrap_or(0);
     let overloaded =
@@ -299,13 +313,19 @@ fn refresh_chain_meter_row(
     // reads (`chain_looper_statuses`), never the `processing` lock (#580).
     // REC is armable only when the chain actually has a LIVE runtime to capture
     // into — an enabled chain whose runtime is still cold-starting has none yet.
-    let runtime_live = !controller.runtimes_for_chain(cid).is_empty();
+    let runtime_live = chain_runtime.as_ref().is_some_and(|r| r.live);
     let looper_preset_ids =
         crate::looper_view::chain_preset_ids(&project.chains[idx], session.rig.as_deref());
+    // #127: the loops' transport state and the rate they count at come
+    // through the seam, per chain — the same reading MCP reads.
+    let (looper_statuses, looper_rate) = reads
+        .chain_loopers(cid)
+        .and_then(|r| r.ok())
+        .unwrap_or_default();
     let looper_rows = crate::looper_view::looper_items(
         &project.chains[idx],
-        &controller.chain_looper_statuses(cid),
-        controller.sample_rate(),
+        &looper_statuses,
+        looper_rate,
         &session.io_bindings.borrow(),
         runtime_live,
         &looper_preset_ids,
@@ -317,22 +337,10 @@ fn refresh_chain_meter_row(
     };
     // (looper Record-from / Play-to options are populated for EVERY chain up
     // front by `apply_looper_endpoints_to_rows`, active or not.)
-    // Layer buffers the audio thread finished with come back here — dropping
-    // them is forbidden on the audio thread (invariant #8).
-    // #323: make sure the store has an entry for every looper the project
-    // carries (added via any transport, or loaded from disk), then feed every
-    // Recording loop from its input tap, then reconcile the playback streams.
-    controller.sync_looper_slots(&project.chains[idx]);
-    controller.drain_looper_recording(&project.chains[idx]);
-    // #323 phase 2: resolve each looper's LINKED preset into the blocks it plays
-    // through BEFORE reconciling the streams, so a Playing loop renders its
-    // fixed tone regardless of the chain's current preset.
-    crate::runtime_loopers::sync_playback_presets(
-        controller,
-        &project.chains[idx],
-        session.rig.as_deref(),
-    );
-    controller.sync_looper_streams(&project.chains[idx]);
+    // #127: the tick's looper reconcile is a WRITE and goes through the write
+    // seam — slots, the recording drain and the playback streams, for THIS
+    // chain. Not a `Command`: a tick is nobody's request (the Task 15 rule).
+    writes.reconcile_chain_loopers(&project.chains[idx]);
     let looper_active_changed = row.looper_active != looper_active_now;
     if loopers_changed
         || looper_active_changed

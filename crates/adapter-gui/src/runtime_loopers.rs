@@ -244,6 +244,34 @@ pub(crate) fn sync_playback_presets(
     }
 }
 
+/// #127/#323: the meter tick's per-chain reconcile, behind
+/// `RuntimeControl::reconcile_chain_loopers`.
+///
+/// Four steps, in this order and for THIS chain only: make sure every looper
+/// the project carries has a slot (added via any transport, or loaded from
+/// disk), feed whatever is recording from its own input tap, resolve each
+/// loop's LINKED preset into the blocks it plays through, and only then
+/// reconcile the isolated playback streams — the presets must be in place
+/// before the streams are armed, or a Playing loop renders through the chain's
+/// current preset instead of its own.
+///
+/// Layer buffers the audio thread finished with come back on this path;
+/// dropping them is forbidden on the audio thread (invariant #8).
+pub(crate) fn reconcile_chain_loopers(
+    runtime: &Runtime,
+    chain: &Chain,
+    rig: Option<&RefCell<RigProject>>,
+) {
+    let borrow = runtime.borrow();
+    let Some(controller) = borrow.as_ref() else {
+        return;
+    };
+    controller.sync_looper_slots(chain);
+    controller.drain_looper_recording(chain);
+    sync_playback_presets(controller, chain, rig);
+    controller.sync_looper_streams(chain);
+}
+
 /// Mutate the store, then reconcile THIS chain's isolated playback streams.
 ///
 /// The reconcile is part of every door, not an extra step a caller may forget:

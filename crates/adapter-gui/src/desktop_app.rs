@@ -410,14 +410,20 @@ pub fn run_desktop_app(
     let tick_reads = crate::gui_live_source::health_live_source(&project_runtime);
     let tick_writes =
         crate::runtime_health::polling_runtime_control(&project_runtime, &project_session);
-    crate::desktop_app_polling::start(&window, toast_timer.clone(), tick_reads, tick_writes);
+    crate::desktop_app_polling::start(
+        &window,
+        toast_timer.clone(),
+        tick_reads,
+        Rc::clone(&tick_writes),
+    );
 
     // Issue #496 / #32 / #36: per-chain IN/OUT dBFS meter polling.
     // ~30 Hz timer that subscribes new chains' input + stream taps
     // and writes peak dBFS into the matching ProjectChainItem rows.
     crate::meter_wiring::start_meter_polling(
-        project_runtime.clone(),
         Rc::clone(&audio_taps),
+        crate::gui_live_source::chain_row_live_source(&project_runtime),
+        Rc::clone(&tick_writes),
         project_chains.clone(),
         project_session.clone(),
     );

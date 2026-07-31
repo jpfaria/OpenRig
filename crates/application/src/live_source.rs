@@ -74,6 +74,25 @@ pub struct AudioHealthReading {
     pub healthy: bool,
 }
 
+/// What the engine says about ONE chain's runtime right now — read on the
+/// frontend's meter tick, in one borrow, for that chain's row.
+///
+/// Deliberately per-chain (`CLAUDE.md` LAW): there is no pooled "the rig's
+/// xruns". A row shows its OWN stream's health or it shows nothing.
+pub struct ChainRuntimeReading {
+    /// This chain has at least one live per-input runtime — what gates REC on
+    /// a looper (an enabled chain still cold-starting has none yet).
+    pub live: bool,
+    /// Audio-thread deadline overruns counted on THIS chain since it started.
+    /// A cumulative count, not a delta: the reader keeps the previous value
+    /// and a DECREASE means the counter was reset by a rebuild, not a fresh
+    /// overrun (#670).
+    pub xruns: u64,
+    /// Output-side elastic-buffer underruns on THIS chain, same contract —
+    /// the other way the user hears crackle when the callback itself was fast.
+    pub underruns: u64,
+}
+
 /// Per-chain meter reading: input/output peak in dBFS.
 pub struct ChainMeterReading {
     pub chain: ChainId,
@@ -138,6 +157,27 @@ pub trait LiveSource {
     /// `None` ⇒ no runtime is hosted; `Some(vec![])` ⇒ hosted and nothing
     /// failed.
     fn block_errors(&self) -> Option<Vec<BlockErrorReading>> {
+        None
+    }
+
+    /// #127: the DI loop's live state for ONE chain — the same reading
+    /// [`Self::di_loop`] reports for every chain, addressed by identity so the
+    /// chain row can redraw itself without asking about the whole project.
+    ///
+    /// `source` is owned by the dispatcher and filled in by the resolver;
+    /// whatever a frontend sets here is discarded.
+    fn chain_di_loop(&self, chain: &ChainId) -> Option<DiLoopReading> {
+        let _ = chain;
+        None
+    }
+
+    /// #127: what the engine says about ONE chain's runtime right now.
+    ///
+    /// `None` ⇒ this frontend hosts no audio runtime at all. A chain that has
+    /// no runtime OF ITS OWN on a hosted frontend is `Some` with
+    /// `live: false` — "nothing is playing here" is an answer, not an absence.
+    fn chain_runtime(&self, chain: &ChainId) -> Option<ChainRuntimeReading> {
+        let _ = chain;
         None
     }
 
