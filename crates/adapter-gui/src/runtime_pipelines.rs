@@ -26,7 +26,7 @@ use std::sync::Arc;
 use anyhow::{bail, Result};
 
 use domain::ids::ChainId;
-use engine::metronome_state::MetronomeSettings;
+use engine::metronome_state::{MetronomeSettings, MetronomeShared};
 use engine::DiPcm;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
@@ -107,12 +107,27 @@ pub(crate) fn start_metronome(
         return Ok(());
     };
     controller.set_metronome_settings(settings);
-    let shared = controller.metronome_shared();
-    shared.set_enabled(true);
+    mark_click_playing(&controller.metronome_shared(), || {
+        controller.start_metronome(&target.device_id, &target.channels)
+    })
+}
+
+/// Open the stream FIRST; mark the click playing only if it opened.
+///
+/// `enabled` is not a request, it is the answer every reader gives to "is
+/// anything audible": the beat lamps' 33 ms timer, `gui_live_source`'s
+/// `LiveSource::metronome`, and `openrig://metronome` — where the live flag
+/// WINS over the dispatcher's snapshot. Setting it before the open leaves a
+/// device that is gone or busy reading as a playing click forever: the
+/// dispatcher records `running=false` on the `Err` and POWER goes dark, then
+/// the lamp timer lights it again from this flag, beat frozen, no sound.
+fn mark_click_playing(shared: &MetronomeShared, open: impl FnOnce() -> Result<()>) -> Result<()> {
+    open()?;
     // Start from beat one of the bar instead of wherever a previous run left
-    // the phase.
+    // the phase. Before `enabled`, so the first buffer that counts is beat one.
     shared.request_restart();
-    controller.start_metronome(&target.device_id, &target.channels)
+    shared.set_enabled(true);
+    Ok(())
 }
 
 pub(crate) fn stop_metronome(runtime: &Runtime) {
@@ -169,3 +184,7 @@ fn metronome_endpoint(
     let bindings = session.io_bindings.borrow();
     resolve_output_endpoint(output_key, &output_endpoints(&bindings))
 }
+
+#[cfg(test)]
+#[path = "runtime_pipelines_tests.rs"]
+mod tests;

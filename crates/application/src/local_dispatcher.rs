@@ -146,9 +146,12 @@ pub struct LocalDispatcher {
     /// MCP client could flip `metronome_enabled` and hear nothing — only the
     /// GUI's own knob callbacks knew how to turn the event into sound.
     ///
-    /// SHARED with the frontend (`Rc`, same allocation — the `attach_rig`
-    /// pattern) because the click outlives any one project: opening another
-    /// must not reset the tempo. A dispatcher nobody attached one to keeps
+    /// Attached by the frontend and owned HERE: `ProjectSession::new` builds a
+    /// fresh state per project open and keeps no clone, so this
+    /// `Rc<RefCell<…>>` is the handle shape rather than a shared allocation.
+    /// The tempo still survives opening another project — it is restored from
+    /// the per-machine `config.yaml` every time (ADR 0003) — while POWER and
+    /// the tap history start over. A dispatcher nobody attached one to keeps
     /// this private, unpersisted allocation.
     pub(crate) metronome: RefCell<Rc<RefCell<MetronomeControlState>>>,
 }
@@ -229,7 +232,8 @@ impl LocalDispatcher {
         self.runtime_control.borrow().clone()
     }
 
-    /// #127: adopt the frontend's app-lifetime metronome state. Idempotent.
+    /// #127: adopt the metronome state the frontend built for this session.
+    /// Idempotent.
     pub fn attach_metronome_state(&self, state: Rc<RefCell<MetronomeControlState>>) {
         *self.metronome.borrow_mut() = state;
     }

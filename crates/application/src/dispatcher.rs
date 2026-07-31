@@ -105,14 +105,17 @@ pub trait CommandDispatcher {
     /// its commands still report their events.
     fn attach_runtime_control(&self, _control: Rc<dyn RuntimeControl>) {}
 
-    /// #127: share the frontend's metronome state — settings, chosen output
-    /// endpoint, POWER, tap history, and where it persists.
+    /// #127: hand the dispatcher the metronome state it owns — settings,
+    /// chosen output endpoint, POWER, tap history, and where they persist.
     ///
-    /// Same shared-allocation pattern as [`Self::attach_rig`] and
-    /// [`Self::attach_io_bindings`], and for the same reason: the click
-    /// outlives any one project (it keeps sounding while the player switches
-    /// screens), so a new session's dispatcher must adopt the SAME state
-    /// rather than reset the tempo to whatever was on disk at boot.
+    /// The handle has the same shape as [`Self::attach_rig`] and
+    /// [`Self::attach_io_bindings`], but do not read app-lifetime sharing into
+    /// it: the only caller, `adapter-gui`'s `ProjectSession::new`, builds a
+    /// FRESH state on every project open and keeps no clone of it. What
+    /// survives opening another project is what was PERSISTED — the tempo, the
+    /// timbre and the chosen endpoint come back from the per-machine
+    /// `config.yaml` (ADR 0003) each time the state is restored; POWER and the
+    /// tap history start over with the new session's state.
     ///
     /// A dispatcher nobody attaches one to keeps a private, unpersisted state:
     /// every command still validates, records and reports, it just has no
