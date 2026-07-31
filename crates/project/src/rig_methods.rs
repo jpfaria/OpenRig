@@ -48,6 +48,7 @@ impl RigProject {
         let mut set_param: Vec<(String, f32)> = Vec::new();
         let mut clear_param: Vec<String> = Vec::new();
         let mut set_base_param: Vec<(String, String, ParameterValue)> = Vec::new();
+        let mut set_port_target: Vec<(String, AudioBlockKind)> = Vec::new();
         let mut set_bypass: Vec<(String, bool)> = Vec::new();
         let mut clear_bypass: Vec<String> = Vec::new();
 
@@ -60,6 +61,18 @@ impl RigProject {
                 set_bypass.push((bid.clone(), !edited.enabled));
             } else {
                 clear_bypass.push(bid.clone());
+            }
+            // #85: a port carries no params — WHERE it points is its whole
+            // state, and it lives in the block kind, not in a `ParameterSet`.
+            // A scene can only hold f32 overrides, so re-pointing a port is a
+            // preset-level edit; without this the new E/S was dropped here and
+            // the port came back on its old binding after save + reopen.
+            if matches!(
+                edited.kind,
+                AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+            ) && edited.kind != base_blk.kind
+            {
+                set_port_target.push((bid.clone(), edited.kind.clone()));
             }
             let pair = match (&edited.kind, &base_blk.kind) {
                 (AudioBlockKind::Core(e), AudioBlockKind::Core(b)) => Some((&e.params, &b.params)),
@@ -90,6 +103,12 @@ impl RigProject {
                         }
                     }
                 }
+            }
+        }
+
+        for (bid, kind) in set_port_target {
+            if let Some(block) = preset.blocks.iter_mut().find(|b| b.id.0 == bid) {
+                block.kind = kind;
             }
         }
 

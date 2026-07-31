@@ -172,6 +172,26 @@ fn classify_output_routes(
     (tail_routes, mid_taps, resolved_count)
 }
 
+/// The blocks a segment runs when its input enters at `entry`.
+fn blocks_from(block_indices: &[usize], entry: usize) -> Vec<usize> {
+    block_indices
+        .iter()
+        .copied()
+        .filter(|&i| i >= entry)
+        .collect()
+}
+
+/// The chain offset each resolved INPUT enters at, in `effective_ins` order.
+/// A head input enters before block 0; a mid `Input` block enters right after
+/// the block it sits at, so the blocks before it never see its signal (#85).
+fn input_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
+    resolve_chain_ports(chain, registry)
+        .into_iter()
+        .filter(|p| p.direction == PortDirection::Input)
+        .map(|p| if p.from_block { p.offset + 1 } else { 0 })
+        .collect()
+}
+
 /// Resolve the taps whose position falls inside `block_range` against one
 /// segment's `block_indices`, converting each chain offset into "after how many
 /// of THIS segment's blocks".
@@ -247,6 +267,12 @@ fn segments_without_inserts(
         .collect();
 
     let input_count = effective_ins.len();
+    // #85: where each input enters the chain, in `effective_ins` order. A head
+    // input (from the bindings) runs every block; a mid `Input` block brings its
+    // own E/S in AT ITS POSITION, so its segment runs only what comes after it —
+    // otherwise the port's signal goes through the whole chain from the top and
+    // the blocks before it colour (or gate away) a signal they never touch.
+    let entry_offsets: Vec<usize> = input_ports(chain, registry);
     let mut segments = Vec::new();
 
     // #716: pair an input only with its OWN binding's output — never cross to
@@ -279,19 +305,28 @@ fn segments_without_inserts(
         };
         let out_binding = binding_of_output(&by_binding, out_entry);
         for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
-            if let (Some(a), Some(b)) = (binding_of_input(&by_binding, input), out_binding) {
-                if a != b {
-                    continue;
+            let entry = entry_offsets.get(in_idx).copied().unwrap_or(0);
+            // #716: a HEAD input only pairs with its own binding's output (the
+            // TEYUN in must not exit the SCARLET out). A mid `Input` block is a
+            // different animal: the user dropped it INSIDE this chain, so it
+            // feeds the chain's tail wherever that tail comes from (#85).
+            if entry == 0 {
+                if let (Some(a), Some(b)) = (binding_of_input(&by_binding, input), out_binding) {
+                    if a != b {
+                        continue;
+                    }
                 }
             }
-            let owns_taps = !taps.is_empty() && !inputs_with_taps.contains(&in_idx);
+            // The taps ride the segment that covers the whole chain (a head
+            // input), never a mid input's shorter one.
+            let owns_taps = !taps.is_empty() && entry == 0 && !inputs_with_taps.contains(&in_idx);
             if owns_taps {
                 inputs_with_taps.push(in_idx);
             }
             segments.push(ChainSegment {
                 input: input.clone(),
                 cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
-                block_indices: block_indices.clone(),
+                block_indices: blocks_from(&block_indices, entry),
                 output_route_indices: vec![out_entry_idx],
                 mid_output_taps: if owns_taps { taps.clone() } else { Vec::new() },
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
@@ -307,12 +342,13 @@ fn segments_without_inserts(
             if inputs_with_taps.contains(&in_idx) {
                 continue;
             }
+            let entry = entry_offsets.get(in_idx).copied().unwrap_or(0);
             segments.push(ChainSegment {
                 input: input.clone(),
                 cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
-                block_indices: block_indices.clone(),
+                block_indices: blocks_from(&block_indices, entry),
                 output_route_indices: Vec::new(),
-                mid_output_taps: taps.clone(),
+                mid_output_taps: if entry == 0 { taps.clone() } else { Vec::new() },
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
                 entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
             });

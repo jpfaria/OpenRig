@@ -143,3 +143,35 @@ fn a_mid_input_survives_save_and_reopen_at_its_position() {
         "#85: the mid Input must come back between A and B (got {kinds:?})"
     );
 }
+
+/// Re-pointing a port that is ALREADY in the preset: the block list does not
+/// change shape, so save takes the per-scene write-back path — which only ever
+/// captured params and bypass. The new E/S was dropped on the floor: the port
+/// kept its original binding in `project.yaml` and came back wrong on reopen.
+#[test]
+fn repointing_a_mid_port_persists_its_new_endpoint() {
+    let mut rig = rig();
+    // The preset already holds the port, bound to `aux` / `Out 1`.
+    rig.presets.get_mut("clean").unwrap().blocks = vec![core("A"), mid_output(), core("B")];
+
+    // The user picks another E/S in the port editor.
+    let mut repointed = mid_output();
+    repointed.kind = AudioBlockKind::Output(OutputBlock {
+        model: "standard".into(),
+        io: "aux2".into(),
+        endpoint: "Aux 2 out".into(),
+    });
+    sync_synthetic_into_rig(
+        &mut rig,
+        &project_with(vec![core("A"), repointed, core("B")]),
+    );
+
+    match &rig.presets["clean"].blocks[1].kind {
+        AudioBlockKind::Output(o) => assert_eq!(
+            (o.io.as_str(), o.endpoint.as_str()),
+            ("aux2", "Aux 2 out"),
+            "#85: picking another E/S for an existing port must reach the preset"
+        ),
+        other => panic!("expected the Output port, got {}", other.label()),
+    }
+}
