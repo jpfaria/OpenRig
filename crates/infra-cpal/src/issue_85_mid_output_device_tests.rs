@@ -9,10 +9,10 @@
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
-use project::block::{AudioBlock, AudioBlockKind, OutputBlock};
+use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
 use project::chain::Chain;
 
-use super::chain_resolve::output_devices_by_input_cpal;
+use super::chain_resolve_io_map::output_devices_by_input_cpal;
 
 const SCARLETT: &str = "coreaudio:scarlett";
 const TEYUN: &str = "coreaudio:teyun";
@@ -104,4 +104,30 @@ fn a_chain_without_a_mid_port_feeds_only_its_own_device() {
     let map = map_for(&chain);
 
     assert_eq!(map[0], vec![SCARLETT.to_string()]);
+}
+
+/// The mirror case: a mid `Input` reads another interface and its signal flows
+/// on to the chain's TAIL. Its own binding has no output, so nothing maps that
+/// stream to the tail device and the port is inaudible.
+#[test]
+fn a_mid_inputs_stream_feeds_the_chains_tail_device() {
+    let mut chain = chain_with_mid_output();
+    chain.blocks = vec![AudioBlock {
+        id: BlockId("rig:input-2:input:1".into()),
+        enabled: true,
+        kind: AudioBlockKind::Input(InputBlock {
+            model: "standard".into(),
+            io: "teyun".into(),
+            endpoint: "In 1".into(),
+        }),
+    }];
+    let map = map_for(&chain);
+
+    // cpal index 1 is the mid input's own device (index 0 is the chain's head).
+    assert!(
+        map.get(1)
+            .is_some_and(|devs| devs.iter().any(|d| d == SCARLETT)),
+        "#85: the mid Input's stream must feed the chain's tail device — got {map:?}, \
+         so the tail stream drops that runtime and the port is inaudible"
+    );
 }
