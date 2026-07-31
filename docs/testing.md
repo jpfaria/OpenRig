@@ -193,6 +193,34 @@ peak of the window the audio callback pushed, the raw window honours its cap, a
 subscription never hears a sibling chain, and one multi-channel subscription
 keeps its channels apart.
 
+## Structural invariant: the UI may not name the audio backend (#127)
+
+`crates/adapter-gui/src/no_infra_cpal_in_wiring_tests.rs` asserts on the crate's
+own SOURCE rather than on behaviour, because what it protects is a boundary no
+runtime test can see: a module that reaches `infra_cpal::ProjectRuntimeController`
+directly still works in the GUI while doing nothing over MCP/gRPC. Three
+assertions:
+
+- no `adapter-gui` module outside an explicit allowlist names the backend — a
+  wiring module reaches the audio through one of the three seams (`Command` +
+  `RuntimeControl` for writes, `LiveSource` for reads, `AudioTaps` for
+  subscriptions);
+- no allowlisted module has STOPPED naming it, so the list can only shrink —
+  a ratchet, not a graveyard;
+- `sync_live_chain_runtime` has exactly ONE caller, the module that owns the
+  runtime.
+
+It walks `src/` recursively (a flat scan would let `settings/audio.rs` past) and
+strips `//` comments before matching, in both directions: an earlier sibling
+guard searched the raw source, and the comment explaining the call it looked for
+contained the identifier — so deleting the real call still passed. The ledger in
+that file justifies every allowlist entry; see `docs/architecture.md` → "The
+guard: the UI may not name the backend".
+
+```sh
+cargo test -p adapter-gui --lib no_infra_cpal
+```
+
 ## Real-plugin VST3 battery (issues #776 / #780)
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on

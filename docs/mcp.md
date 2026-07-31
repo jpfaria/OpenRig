@@ -49,6 +49,18 @@ follow-up.
   diagnosis is expensive and completes asynchronously: the tool call
   returns once accepted, and the verdict is read back from
   `openrig://chains/{chain}/tone`. See `docs/tone-doctor.md`.
+
+  Several tools only became audible over MCP in #127, because their
+  runtime half used to be applied by the GUI callback that had just
+  dispatched: `stop_project_runtime` and `close_project` stop the rig (a
+  client could START audio and had no way to silence it, and a close left
+  every stream open), `save_audio_settings` re-opens the running graph on
+  the new rate/buffer instead of only persisting the numbers,
+  `remove_chain` makes the deleted chain stop sounding, the looper tools
+  actually record / play / clear (from a footswitch or a client they
+  mutated nothing), and `save_project` writes the recorded loops' wav
+  sidecars, which only the GUI's own Save did before. See
+  `docs/architecture.md` → "Write bus: `RuntimeControl`".
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
@@ -100,6 +112,14 @@ follow-up.
     suggested, optional `enable_path`). `diagnose_chain_tone` returns
     as soon as the run is accepted, so poll this until `state` leaves
     `running`.
+  - `openrig://chains/{chain}/loopers` (#323) — one chain's loopers: the
+    persisted parameters (`mix`, `decay`, `speed`, `reverse`) merged with
+    the live transport state (`state`, `position_frames`, `len_frames`,
+    `length_seconds`, `layers`), plus the chain's live `sample_rate` —
+    frame counts mean nothing without the rate they were counted at, and
+    it is never a hardcoded 48 kHz (#669/#723). A stopped rig answers the
+    chain's persisted shape with empty statuses; a chain whose rate cannot
+    be resolved reports that failure instead of a fabricated number.
   - `openrig://paths` (#582) — effective resolved system paths
     (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
     as a JSON object. Every value is an absolute path: when the user

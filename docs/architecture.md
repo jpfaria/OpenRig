@@ -24,8 +24,10 @@ transport calls, fed a `ReadContext` that borrows the project/rig/io-bindings,
 the dispatcher, and one `&dyn LiveSource` (`crates/application/src/live_source.rs`).
 No frontend keeps a second copy of the match — see
 `adapter-gui/src/mcp_query_resolver.rs` and `adapter-console/src/main.rs`'s
-`console_resolve`. For these two paths the UI holds neither a concrete
-dispatcher nor the audio backend directly.
+`console_resolve`. Neither path holds a concrete dispatcher, and neither
+answers a read itself: `mcp_query_resolver.rs` still names the runtime handle,
+but only to hand it to `GuiLiveSource` (see the guard at the end of this
+section).
 
 `LiveSource` covers everything that only exists inside a frontend's own audio
 runtime — chain meters, tuner, spectrum, DI loop, loopers, the block errors the
@@ -311,6 +313,50 @@ client cannot pump another frontend's rebuild queue or force its reconnect.
 `block_errors` is also deliberately not a `QueryKind`: the read DRAINS the
 engine's queue, so it can only ever have one consumer — a second transport
 polling it would take the toasts away from the window.
+
+### What is deliberately NOT on the bus (#127)
+
+Every state change is born a `Command` and every shared read is a `QueryKind`.
+The three seams carry a few things that are neither, and each is a decision, not
+an omission:
+
+| thing | what it is | why it is not on the bus |
+|---|---|---|
+| `runtime_lifecycle::ensure_runtime` | frontend-local | nobody asks for "bring the audio up": it is the precondition of an arm, a looper add or a transport START (#808), and each of those IS a command. On its own it would be audio starting behind the user's back |
+| `runtime_lifecycle::RuntimeAttach` | a capability the frontend holds | it only wires this frontend's seams onto a freshly opened session's dispatcher; its handle is private and its one operation is `to_session` |
+| `application::audio_taps::AudioTaps` | a capability the frontend holds | a subscription is not a value — a `Command` cannot return one and a `QueryKind` cannot keep one open. A remote frontend implements the seam against its own transport |
+| `RuntimeControl::apply_finished_rebuilds` / `reconnect_audio` / `reconcile_chain_loopers` | writes on the frontend's own tick | a tick is nobody's request, and a reconnect changes no project state. Consequence, stated: the frontend that hosts the audio must keep ticking for a RECORD started from ANY transport to capture |
+| `LiveSource::block_errors` | a DRAINING read | exactly one consumer is possible; a second transport polling it would take the window's toasts. Sharing it needs a non-destructive shape first, which is a design and not a rename |
+| `LiveSource::audio_health` / `chain_runtime` / `block_stream` | non-destructive reads | each could honestly become a `QueryKind`; none has, because publishing one means choosing which numbers a remote client sees for a client that has not asked. `chain_di_loop` is not new surface at all — it is the per-chain half of the `openrig://di` arm, through the same helper |
+
+### The guard: the UI may not name the backend (#127)
+
+`crates/adapter-gui/src/no_infra_cpal_in_wiring_tests.rs` is that invariant as a
+test. A module that names `infra_cpal::ProjectRuntimeController` has neither
+door — it reaches the engine directly, which is exactly how a capability ends up
+working in the GUI and silently doing nothing over MCP/gRPC — so the modules
+allowed to name it are an explicit list, pinned in BOTH directions: a module
+outside the list that names the backend fails as an offender, and a listed
+module that no longer names it fails as stale. The list can therefore only
+shrink; it is a ratchet, not a graveyard, and every entry carries its
+justification in the test's ledger.
+
+Since Task 16 the entries are all of one kind. They OWN or CONSTRUCT the runtime
+handle — `runtime_lifecycle.rs` (creates it and hosts `GuiRuntimeControl`),
+`runtime_pipelines.rs`, `runtime_teardown.rs`, `runtime_loopers.rs`,
+`runtime_taps.rs` and `runtime_health.rs` (the door bodies, split off as the
+first file hit its line cap), and `desktop_app.rs` (allocates the shared
+`Rc<RefCell<Option<..>>>` once) — or they read it as the frontend's `LiveSource`
+(`gui_live_source.rs` and `mcp_query_resolver.rs`, which builds it). A new name
+on that list is a regression, not growth.
+
+A sibling test pins the behavioural half: `sync_live_chain_runtime` — the
+sequence that resolves devices, schedules activation and rebuilds a chain's
+DSP — has exactly ONE caller, `GuiRuntimeControl::sync_chain`. Before #127 some
+two dozen UI callbacks called it directly and the external-event drain called it
+again, so the GUI reached the audio by one road and MCP/MIDI by another. All
+three assertions run against the source with `//` comments stripped, so no prose
+can satisfy them or trip them.
 
 ## Registry auto-gerado
 

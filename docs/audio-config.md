@@ -401,6 +401,8 @@ language: pt-BR  # ou en-US, ou null para seguir o OS
 
 `load_project_session()` popula `project.device_settings` em memória. YAML do projeto **não persiste** `device_settings` (`skip_serializing`), mas YAML antigo com o campo ainda deserializa.
 
+**Saving applies to the rig that is running (#127).** `SettingsCommand::SaveAudioSettings` persists the values *and* re-opens the running graph, through `RuntimeControl::sync_project`: the new rate / buffer size / bit depth (and on Linux/JACK the server parameters) apply to every device the project names at once, which no per-chain sync can express. That rebuild used to be the settings screen's own call right after the dispatch, so the same command over MCP/gRPC persisted the numbers and left the audio running on the old ones. The door walks the chains the **project** names, one at a time, each against its own resolved devices — never a selection over live runtimes by sample rate (`CLAUDE.md` LAW) — and it never starts audio: a save on a stopped rig leaves it stopped.
+
 ## Metronome output stream (#14)
 
 The metronome does **not** run inside any chain. It opens its **own** cpal output stream on the device the user picks, and the operating system sums it with whatever else that device is playing — the same shape the DI adopted in #808, and invariant #4 applied literally:
