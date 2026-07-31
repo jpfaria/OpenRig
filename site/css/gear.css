@@ -1,0 +1,7 @@
+.gear{background:linear-gradient(180deg,var(--ink) 0%,#0b0f16 100%)}
+.gear-frame{margin-top:48px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel);
+  box-shadow:0 60px 120px -50px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.03) inset}
+.gear-frame img{width:100%}
+.gear-caps{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:44px}
+.cap h3{color:#fff;margin-bottom:8px}
+.cap p{font-size:15.5px;color:var(--mute)}

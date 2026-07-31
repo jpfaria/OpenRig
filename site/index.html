@@ -3,12 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenRig — Your amps. Your pedals. Your laptop.</title>
+<title>OpenRig — All that's left is plugging in your guitar.</title>
 <link rel="icon" href="assets/openrig-logomark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/type.css">
+<link rel="stylesheet" href="css/buttons.css">
+<link rel="stylesheet" href="css/nav.css">
+<link rel="stylesheet" href="css/hero.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/band.css">
+<link rel="stylesheet" href="css/gear.css">
+<link rel="stylesheet" href="css/stats.css">
+<link rel="stylesheet" href="css/captures.css">
+<link rel="stylesheet" href="css/cards.css">
+<link rel="stylesheet" href="css/features.css">
+<link rel="stylesheet" href="css/story.css">
+<link rel="stylesheet" href="css/download.css">
+<link rel="stylesheet" href="css/footer.css">
+<!-- last: the cross-section phone rules have to win over each section's own file -->
+<link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
 
@@ -19,11 +36,10 @@
       <a href="#tone" data-i18n="nav.tone">Tone</a>
       <a href="#captures" data-i18n="nav.captures">Captures</a>
       <a href="#rig" data-i18n="nav.rig">The rig</a>
-      <a href="#app" data-i18n="nav.app">Inside</a>
       <a href="#band" data-i18n="nav.band">Band</a>
       <a href="#ai" data-i18n="nav.ai">Claude</a>
       <a href="#features" data-i18n="nav.features">Features</a>
-      <a href="#roadmap" data-i18n="nav.roadmap">Roadmap</a>
+      <a href="#support" data-i18n="nav.support">Support</a>
       <a href="#docs" data-i18n="nav.docs">Docs</a>
     </div>
     <a class="nav-gh" href="https://github.com/jpfaria/OpenRig" aria-label="GitHub" title="GitHub">
@@ -40,24 +56,31 @@
   <div class="hero-media">
     <img src="assets/px-7239914.jpg" alt="Guitarist playing live in front of a full stack">
   </div>
+  <div class="hero-logo rv"><img src="assets/openrig-logomark.svg" alt="OpenRig"></div>
   <div class="hero-product rv">
     <img src="assets/feat-project.png" alt="OpenRig main window — amps and pedals laid out like a pedalboard">
     <img class="hero-product-2" src="assets/feat-chain.png" alt="OpenRig chain view — the knobs you turn while playing">
   </div>
+  <!-- Outside .hero-product so it can bottom-align with the download button, not trail the shots. -->
+  <a class="hero-support rv" href="sponsor.html">
+    <span data-i18n="hero.supportBig">Donate</span>
+    <i data-i18n="hero.supportSub">GitHub Sponsors</i>
+  </a>
   <div class="wrap">
     <p class="eyebrow" data-i18n="hero.eyebrow">Free · Open source · Mac</p>
-    <h1 data-i18n="hero.h1">Your amps.<br>Your pedals.<br><em>Your laptop.</em></h1>
-    <p class="lede" data-i18n="hero.lede">Every amp you've chased, every cabinet you've mic'd, every pedal you've saved up for — playing back with the feel of the real thing. Plug in and go.</p>
+    <h1 data-i18n="hero.h1">All that's left<br>is plugging in<br><em>your guitar.</em></h1>
+    <p class="lede" data-i18n="hero.lede">{gear} amps, cabs and pedals, running on the computer you already have. Free, with no latency you can feel.</p>
     <div class="hero-cta">
       <a class="btn btn-primary btn-lg" href="#download" data-i18n="hero.cta1">Download for Mac</a>
       <a class="btn btn-ghost btn-lg" href="#rig" data-i18n="hero.cta2">See the rig</a>
+      <a class="btn btn-support btn-lg" href="sponsor.html" data-i18n="hero.supportBtn">♥ Donate</a>
       <span class="hero-note" data-i18n="hero.note">Free forever. No account, no cloud, no subscription.</span>
     </div>
   </div>
   <div class="scroll-hint"><span data-i18n="hero.scroll">Scroll</span><i></i></div>
 </header>
 
-<!-- One file per section under sections/, injected by app.js before the language pass. -->
+<!-- One file per section under sections/, injected by js/sections.js before the language pass. -->
 <div data-include="sections/tone.html"></div>
 <div data-include="sections/stats.html"></div>
 <div data-include="sections/captures.html"></div>
@@ -68,7 +91,7 @@
 <div data-include="sections/gig.html"></div>
 <div data-include="sections/ai.html"></div>
 <div data-include="sections/features.html"></div>
-<div data-include="sections/roadmap.html"></div>
+<div data-include="sections/story.html"></div>
 <div data-include="sections/support.html"></div>
 <div data-include="sections/download.html"></div>
 
@@ -78,7 +101,7 @@
       <a class="brand" href="#top"><img src="assets/openrig-logomark.svg" alt=""><span>OpenRig</span></a>
       <div class="fcol"><h4 data-i18n="footer.learn.h4">Learn</h4><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/user-guide/quick-start.md" data-i18n="footer.learn.l1">Getting started</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/screens.md" data-i18n="footer.learn.l2">Building a rig</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/user-guide/presets.md" data-i18n="footer.learn.l3">Presets</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/audio-config.md" data-i18n="footer.learn.l4">Audio setup</a></div>
       <div class="fcol"><h4 data-i18n="footer.gear.h4">Gear</h4><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l1">Amps</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l2">Cabinets</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l3">Pedals</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/docs/blocks-catalog.md" data-i18n="footer.gear.l4">Full catalog</a></div>
-      <div class="fcol"><h4 data-i18n="footer.project.h4">Project</h4><a href="https://github.com/jpfaria/OpenRig" data-i18n="footer.project.l1">GitHub</a><a href="https://github.com/jpfaria/OpenRig/releases" data-i18n="footer.project.l2">Releases</a><a href="https://github.com/jpfaria/OpenRig/issues" data-i18n="footer.project.l3">Report a bug</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/CONTRIBUTING.md" data-i18n="footer.project.l4">Contribute</a></div>
+      <div class="fcol"><h4 data-i18n="footer.project.h4">Project</h4><a href="https://github.com/jpfaria/OpenRig" data-i18n="footer.project.l1">GitHub</a><a href="https://github.com/jpfaria/OpenRig/releases" data-i18n="footer.project.l2">Releases</a><a href="https://github.com/jpfaria/OpenRig/issues" data-i18n="footer.project.l3">Report a bug</a><a href="https://github.com/jpfaria/OpenRig/blob/develop/CONTRIBUTING.md" data-i18n="footer.project.l4">Contribute</a><a href="sponsor.html" data-i18n="footer.project.l5">Sponsor</a></div>
     </div>
     <div class="legal">
       <span data-i18n="footer.copyright">© 2026 OpenRig · GPL-3.0</span>
@@ -89,7 +112,7 @@
   </div>
 </footer>
 
-<script src="app.js" defer></script>
+<script type="module" src="js/main.js"></script>
 <!-- Cloudflare Web Analytics — no cookies, no consent banner. -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "6b45a12d89e44bfd8e08fe794966ce7a"}'></script>
 </body>

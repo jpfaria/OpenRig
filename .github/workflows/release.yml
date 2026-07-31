@@ -468,6 +468,19 @@ jobs:
         run: |
           VERSION="${TAG#v}"
 
+          # A pre-release tag (v*-beta.N, cut on the release branch) is a beta
+          # build, not the final delivery: use auto-generated notes and leave
+          # the milestone OPEN — it closes only when the final vX.Y.Z lands on
+          # main. The final tag on main gets the curated milestone notes below.
+          case "$TAG" in
+            *-*)
+              echo "pre-release ${TAG} — generated notes, milestone untouched"
+              echo "milestone_number=" >> "$GITHUB_OUTPUT"
+              echo "use_generated=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
           MILESTONE_NUMBER=$(gh api "repos/${REPO}/milestones?state=all&per_page=100" \
             | jq -r --arg ver "$VERSION" --arg tag "$TAG" \
               '.[] | select(.title == $ver or .title == $tag) | .number' \
@@ -485,10 +498,10 @@ jobs:
             OWNER="${REPO%%/*}"
             NAME="${REPO#*/}"
 
-            # Only fetch issues — this project merges feature/bugfix branches
-            # directly into develop without PRs, so milestone.pullRequests is
-            # always empty. The PR query also hits a GraphQL backend bug that
-            # consistently returns "Something went wrong" 500.
+            # Only fetch issues — the release notes are keyed on the milestone's
+            # ISSUES (each delivered issue carries the milestone). The PR query
+            # also hits a GraphQL backend bug that consistently returns
+            # "Something went wrong" 500, so it is avoided.
             ISSUES_JSON=$(gh api graphql -f query='
               query($owner: String!, $name: String!, $number: Int!) {
                 repository(owner: $owner, name: $name) {
@@ -532,16 +545,24 @@ jobs:
           USE_GENERATED: ${{ steps.notes.outputs.use_generated }}
         run: |
           mapfile -t FILES < <(find artifacts -type f | sort)
+          # A pre-release tag (v*-beta.N on the release branch) publishes as a
+          # GitHub PRE-RELEASE; the final vX.Y.Z on main is a full release.
+          case "$TAG" in
+            *-*) PRERELEASE=--prerelease ;;
+            *)   PRERELEASE= ;;
+          esac
           if [ "$USE_GENERATED" = "true" ]; then
             gh release create "$TAG" \
               --repo "$REPO" \
               --title "OpenRig $TAG" \
+              $PRERELEASE \
               --generate-notes \
               "${FILES[@]}"
           else
             gh release create "$TAG" \
               --repo "$REPO" \
               --title "OpenRig $TAG" \
+              $PRERELEASE \
               --notes "$NOTES" \
               "${FILES[@]}"
           fi
@@ -559,19 +580,24 @@ jobs:
           echo "Closed milestone #${MILESTONE_NUMBER}"
 
   # --------------------------------------------------------------------------
-  # Commit the version bump back to develop (issue #820)
+  # Commit the version bump to develop (issue #820)
   #
   # The build jobs patch Cargo.toml inside their runner so the binary reports
   # the tag's version, but that edit dies with the runner. Without this job the
   # repository keeps the previous version and the next release starts from a
-  # stale manifest again. develop is the source of truth; main picks the bump
-  # up through the usual develop -> main merge.
+  # stale manifest again. `develop` is the always-ahead reference branch and the
+  # source of truth for the manifest, so the bump is pushed there; `main` (the
+  # production branch, tagged for the final release) never falls behind because
+  # every release flows release/vX.Y.Z -> main -> develop.
+  #
+  # Final release ONLY: a pre-release (v*-beta.N on the release branch) must not
+  # bump develop to a beta version, so the job is skipped for tags with a `-`.
   # --------------------------------------------------------------------------
   commit-version-bump:
     name: Commit version bump to develop
     needs: create-release
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
     permissions:
       contents: write
     steps:

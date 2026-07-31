@@ -1,0 +1,10 @@
+:root{
+  --ink:#05070b; --ink2:#0a0d12; --panel:#0f131b; --panel2:#141a24;
+  --line:#222b39; --line2:#37455a;
+  --white:#ffffff; --soft:#e6ecf5; --mute:#94a2b8;
+  --amber:#ff9e3d; --amber-deep:#e2761a; --amber-glow:#ffc98a;
+  --blue:#22a7ff;
+  --display:'Bebas Neue',Impact,sans-serif;
+  --body:'Archivo',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --ease:cubic-bezier(.16,.84,.44,1);
+}
