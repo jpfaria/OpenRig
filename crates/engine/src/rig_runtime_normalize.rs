@@ -3,29 +3,12 @@
 //! Split out of `rig_runtime.rs` (file cap). Two callers share this rule: the
 //! chain build (`rig_to_chains`) and the looper's isolated playback chain.
 
-use project::block::{AudioBlock, AudioBlockKind};
+use project::block::AudioBlock;
 use project::rig::RigProject;
 
-/// Whether `block` is a legacy leftover that duplicates the chain's OWN I/O.
-///
-/// #716: a binding-bound chain takes its head input and tail output from
-/// `io_binding_ids`, so an `Input`/`Output` block pointing at one of those same
-/// bindings is a duplicate — it opens a second stream on the same device
-/// (absurd latency + underruns) and must be dropped on load.
-///
-/// #85: a port pointing at ANY OTHER binding is a mid port the user placed on
-/// purpose (e.g. an aux send to a second E/S). It is not a duplicate and must
-/// survive. An unbound port (`io` empty) is one the user just added and has not
-/// pointed anywhere yet — it survives too, or it would vanish before it could
-/// ever be configured.
-pub(crate) fn duplicates_chain_binding(block: &AudioBlock, io_binding_ids: &[String]) -> bool {
-    let io = match &block.kind {
-        AudioBlockKind::Input(b) => &b.io,
-        AudioBlockKind::Output(b) => &b.io,
-        _ => return false,
-    };
-    !io.is_empty() && io_binding_ids.iter().any(|id| id == io)
-}
+// The rule itself lives in `project::block` — save (`rig_sync`) and load share
+// it, or a mid port that survives one side gets dropped by the other (#85).
+pub(crate) use project::block::duplicates_chain_binding;
 
 /// #323 phase 2: the processing blocks a loop LINKED to `preset_id` plays
 /// through, resolved against `rig`. Mirrors the chain build for one input: the
