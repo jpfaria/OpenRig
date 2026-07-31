@@ -26,17 +26,85 @@
 //! Since Task 16 there is no second kind of entry left: the list is exactly the
 //! modules that OWN or CONSTRUCT the runtime handle, plus the two that read it
 //! as the frontend's `LiveSource`. A new name here is a regression, not growth.
+//!
+//! The final review widened it from the handle to the CRATE. The runtime half
+//! was closed, but `infra_cpal::AudioDeviceDescriptor` — an id, a name and a
+//! channel count — was still in ~40 wiring signatures, so a remote or Flutter
+//! frontend (#43) could not implement one of them without linking CPAL, which
+//! is the coupling the goal names. The type moved to
+//! `domain::AudioDeviceDescriptor` (`infra-cpal` produces it and does not
+//! re-export it), the device operations the frontend genuinely owns
+//! concentrated in `audio_devices.rs` and `runtime_devices.rs`, and the guard
+//! now rejects the crate name itself: a wiring module may not see `infra_cpal`
+//! AT ALL, whatever it names in it.
 
 use std::path::{Path, PathBuf};
 
-/// The identifier no wiring module may name.
-const BACKEND: &str = "ProjectRuntimeController";
+/// One guarded name, and the modules allowed to write it.
+struct Guarded {
+    /// The identifier a wiring module may not name.
+    name: &'static str,
+    /// The modules allowed to name it, by path relative to
+    /// `crates/adapter-gui/src`.
+    allowed: &'static [&'static str],
+}
+
+/// What this guard pins, widest first.
+///
+/// `infra_cpal` is the crate name itself, so the guard is about the DEPENDENCY
+/// and not about one type that happened to leak: any `use infra_cpal::…` or
+/// `infra_cpal::…()` in a module outside the list fails, whatever it names.
+/// That is the goal the issue states — *no `infra_cpal` type in UI wiring
+/// signatures* — asserted on the only thing that makes it true, which is that
+/// the module cannot see the crate at all. The narrower
+/// `ProjectRuntimeController` entry stays because the handle also travels under
+/// its bare name, imported once and then passed from signature to signature.
+const GUARDED: &[Guarded] = &[
+    Guarded {
+        name: "infra_cpal",
+        allowed: NAMES_THE_BACKEND_CRATE,
+    },
+    Guarded {
+        name: "ProjectRuntimeController",
+        allowed: OWNS_THE_RUNTIME,
+    },
+];
+
+/// The modules allowed to name the `infra_cpal` CRATE: everyone in
+/// [`OWNS_THE_RUNTIME`], plus the two that talk to the host's DEVICES rather
+/// than to a rig.
+///
+/// * `audio_devices.rs` — enumerates what hardware this machine has
+///   (`list_input_device_descriptors` / `list_output_device_descriptors` /
+///   `invalidate_device_cache`). Enumeration is frontend-local by construction:
+///   the answer is the devices of the machine the frontend runs on, which is
+///   why `LiveSource::devices` exists to CARRY it to the core instead of the
+///   core asking. The descriptors it hands back are `domain::AudioDeviceDescriptor`.
+/// * `runtime_devices.rs` — makes those devices adopt a rate/buffer size
+///   (`apply_device_settings`, the body of `RuntimeControl::apply_device_settings`)
+///   and, on Linux, starts the JACK server (`start_jack_in_background`). Both
+///   are driver reconfiguration on the host, not a rig operation, and both are
+///   in the "NOT on the bus" table for that reason.
+const NAMES_THE_BACKEND_CRATE: &[&str] = &[
+    "audio_devices.rs",
+    "desktop_app.rs",
+    "gui_live_source.rs",
+    "mcp_query_resolver.rs",
+    "runtime_devices.rs",
+    "runtime_health.rs",
+    "runtime_lifecycle.rs",
+    "runtime_loopers.rs",
+    "runtime_pipelines.rs",
+    "runtime_taps.rs",
+    "runtime_teardown.rs",
+];
 
 /// The one-chain runtime sync sequence. Only the module that owns the
 /// controller may call it; everyone else asks for it on the bus.
 const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 
-/// The modules allowed to name the audio backend, by path relative to
+/// The modules allowed to name the runtime HANDLE
+/// (`infra_cpal::ProjectRuntimeController`), by path relative to
 /// `crates/adapter-gui/src`.
 ///
 /// ── Owns the runtime ────────────────────────────────────────────────────────
@@ -201,7 +269,7 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// dead backend are WRITES (`RuntimeControl::apply_finished_rebuilds` /
 /// `reconnect_audio`, bodies in `runtime_health.rs`) — not `Command`s, because
 /// a tick is nobody's request and a reconnect changes no project state.
-const ALLOWED: &[&str] = &[
+const OWNS_THE_RUNTIME: &[&str] = &[
     "desktop_app.rs",
     "gui_live_source.rs",
     "mcp_query_resolver.rs",
@@ -231,6 +299,28 @@ fn code_only(src: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Whether `code` names `ident` as a WHOLE identifier.
+///
+/// A plain `contains` is wrong in both directions once the guarded name is the
+/// crate itself: `lib.rs` declares `mod no_infra_cpal_in_wiring_tests;` — this
+/// very file — and would be reported as an offender for owning the guard, while
+/// a module that really did reach the backend could hide behind any longer name
+/// containing it. Boundary on both sides, so `infra_cpal::…` and
+/// `use infra_cpal as backend;` both count and `no_infra_cpal_…` does not.
+fn names(code: &str, ident: &str) -> bool {
+    let is_ident_char = |c: char| c.is_alphanumeric() || c == '_';
+    code.match_indices(ident).any(|(at, _)| {
+        code[..at]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !is_ident_char(c))
+            && code[at + ident.len()..]
+                .chars()
+                .next()
+                .is_none_or(|c| !is_ident_char(c))
+    })
 }
 
 /// Every non-test module under `src`, recursively, as
@@ -281,17 +371,22 @@ fn collect(root: &Path, dir: &Path, out: &mut Vec<(String, String)>) {
 /// or reads through `GuiLiveSource`.
 #[test]
 fn wiring_modules_do_not_name_the_audio_backend() {
-    let offenders: Vec<String> = wiring_modules()
-        .into_iter()
-        .filter(|(rel, code)| !ALLOWED.contains(&rel.as_str()) && code.contains(BACKEND))
-        .map(|(rel, _)| rel)
-        .collect();
-    assert!(
-        offenders.is_empty(),
-        "these modules still name `{BACKEND}` — a wiring module reaches the \
-         audio runtime through a `Command` (writes) or `GuiLiveSource` (reads), \
-         never through `infra_cpal` directly: {offenders:#?}"
-    );
+    let modules = wiring_modules();
+    for guard in GUARDED {
+        let offenders: Vec<&str> = modules
+            .iter()
+            .filter(|(rel, code)| !guard.allowed.contains(&rel.as_str()) && names(code, guard.name))
+            .map(|(rel, _)| rel.as_str())
+            .collect();
+        assert!(
+            offenders.is_empty(),
+            "these modules still name `{}` — a wiring module reaches the audio \
+             runtime through a `Command` (writes) or `GuiLiveSource` (reads), and \
+             names only transport-agnostic types (`domain::AudioDeviceDescriptor`, \
+             not `infra_cpal`'s), never the backend crate directly: {offenders:#?}",
+            guard.name
+        );
+    }
 }
 
 /// The other direction, so the list is a ratchet and not a graveyard: an
@@ -301,22 +396,26 @@ fn wiring_modules_do_not_name_the_audio_backend() {
 #[test]
 fn the_allowlist_carries_nothing_it_no_longer_needs() {
     let modules = wiring_modules();
-    let stale: Vec<&str> = ALLOWED
-        .iter()
-        .copied()
-        .filter(|allowed| {
-            match modules.iter().find(|(rel, _)| rel == allowed) {
-                Some((_, code)) => !code.contains(BACKEND),
-                // A listed module that no longer exists is stale too.
-                None => true,
-            }
-        })
-        .collect();
-    assert!(
-        stale.is_empty(),
-        "these modules no longer name `{BACKEND}` (or no longer exist) and must \
-         be removed from ALLOWED: {stale:#?}"
-    );
+    for guard in GUARDED {
+        let stale: Vec<&str> = guard
+            .allowed
+            .iter()
+            .copied()
+            .filter(|allowed| {
+                match modules.iter().find(|(rel, _)| rel == allowed) {
+                    Some((_, code)) => !names(code, guard.name),
+                    // A listed module that no longer exists is stale too.
+                    None => true,
+                }
+            })
+            .collect();
+        assert!(
+            stale.is_empty(),
+            "these modules no longer name `{}` (or no longer exist) and must be \
+             removed from its allowlist: {stale:#?}",
+            guard.name
+        );
+    }
 }
 
 /// The behavioural half of the same invariant, and the one that is fully
