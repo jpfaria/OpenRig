@@ -244,8 +244,36 @@ inputs may feed one output). `input_port_conflict` / `input_conflicting_chains`
 refuses to activate a conflicting chain (first wins). The rig path enforces the
 same via `tap_conflict` (`rig_runtime.rs`).
 
+**The rule is enforced at the command bus too (#833).** The runtime skip above
+is silent: the project could still hold two "enabled" chains on one capture
+point, so the user saw both lit while only the first made sound. Every door
+into "enabled" now REFUSES the change, with an error naming the contended
+`(device, channel)` and the chain holding it:
+
+| Door | Guard |
+|---|---|
+| `ToggleChainEnabled` | refuses when the target's inputs are already held |
+| `AddChain` / `SaveChain` (create) | refuses an incoming `enabled: true` chain |
+| `SaveChain` (upsert) / `ConfigureChain` | refuses moving an ENABLED chain onto a held tap |
+| `SetChainIoBindings` | refuses re-binding an ENABLED chain onto a held tap |
+| project load (dispatcher + GUI) | `disable_conflicting_chains` brings the later chain up disabled |
+
+One detector serves all of them and the activation path:
+`conflicting_input_channel` (names the holder) and `disable_conflicting_chains`
+(load-time normalization) in `runtime_endpoints.rs`, both resolving through
+`resolve_chain_io` — the same resolution the runtime skips on. A disabled chain
+holds nothing, so binding it freely is allowed; the guard fires on enable. Both
+GUI surfaces (chains screen row and compact view) toast the error.
+
 Contract tests: `crates/engine/tests/issue_716_input_conflict.rs`
-(conflict detector + skip decision); `crates/project/tests/issue_716_chain_io_bindings.rs`
+(conflict detector + skip decision); `crates/engine/tests/issue_833_input_channel_conflict.rs`
+(named conflict + load normalization); `crates/application/tests/chain_enable_channel_conflict.rs`
+(every command door); `crates/adapter-mcp/tests/issue_833_channel_conflict_over_mcp.rs`
+(the same rejection over the MCP tool surface);
+`crates/adapter-mcp/tests/issue_833_mcp_http_end_to_end.rs` (the same rules
+driven end-to-end over Streamable HTTP — `tools/call` writes, `resources/read
+openrig://ids` reads back);
+`crates/project/tests/issue_716_chain_io_bindings.rs`
 + `issue_716_binding_discovery.rs` (`resolve_chain_ports`); golden +
 `volume_invariants` + `stream_isolation` prove the resolved path is bit-exact
 to the legacy entries path.
@@ -286,7 +314,10 @@ chains carregam sempre como desabilitadas e o usuário decide quais
 ativar. `ChainYaml.enabled` tem `skip_serializing` por isso.
 
 Um channel de um device físico só pode estar habilitado em **uma**
-chain por vez. O runtime valida isso em memória ao habilitar.
+chain por vez. Habilitar a segunda **falha com erro** (#833) — o comando
+é recusado e a chain segue desabilitada; ver a "Input-conflict rule"
+acima. Um projeto que já traga o estado inválido abre com a chain
+posterior desabilitada.
 
 ## I/O e bindings (model A, #716)
 
