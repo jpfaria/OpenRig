@@ -213,19 +213,6 @@ pub(crate) fn load_project_session(
     // Model A (#716): a chain's output comes from the per-machine I/O binding
     // registry, not a synthesized device block — nothing to "ensure" here.
 
-    // #606: the plugin catalog is loaded at startup, so by now we can tell
-    // which block models resolve. Disable any whose pack is not installed
-    // (or that is unsupported on this platform) — the chain keeps playing
-    // with the pedal visibly off instead of silently faulting an "on" block.
-    let disabled = project::project_disable_unavailable::disable_unavailable_blocks(&mut project);
-    if !disabled.is_empty() {
-        log::warn!(
-            "disabled {} block(s) with unavailable models on load: {:?}",
-            disabled.len(),
-            disabled.iter().map(|b| &b.0).collect::<Vec<_>>()
-        );
-    }
-
     // #716: clean break from the old project format. Routing is binding-only —
     // the per-machine io_bindings registry (config.yaml) is the single source
     // of truth for I/O. There is NO legacy-entries migration: a legacy project
@@ -235,6 +222,9 @@ pub(crate) fn load_project_session(
     let registry_bindings: Vec<infra_filesystem::IoBinding> = FilesystemStorage::load_app_config()
         .map(|cfg| cfg.io_bindings)
         .unwrap_or_default();
+
+    // #606 + #833: load-time passes shared with the dispatcher's LoadProject.
+    crate::project_load_normalize::normalize_loaded_project(&mut project, &registry_bindings);
 
     let mut session = ProjectSession::new(
         project,
