@@ -663,6 +663,7 @@ pub fn run_desktop_app(
         project_session.clone(),
         project_chains.clone(),
         probe_windows.clone(),
+        crate::gui_live_source::chain_rate_live_source(&project_runtime, &project_session),
     );
     // ── Tuner window — top-bar feature ──
     crate::tuner_wiring::wire_tuner(&window, &tuner_window, &project_session, &analyzers);

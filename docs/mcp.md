@@ -86,7 +86,11 @@ follow-up.
     position reads as beat zero rather than a fabricated one.
   - `openrig://chains/{chain}/latency` (#829) — measured DSP latency for
     one chain, probed at that chain input's real rate and buffer (never a
-    hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used.
+    hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used. With
+    no saved per-device setting the rate comes from the frontend's
+    `LiveSource::chain_sample_rate` — the running stream, or what the
+    chain's own devices resolve to with the rig stopped — and only then
+    from the dispatcher's tracked engine rate (#127).
   - `openrig://presets` — project preset pool (JSON).
   - `openrig://chains/{chain}/presets` — chain preset bank (JSON).
   - `openrig://plugins` — full plugin catalog (JSON).

@@ -30,8 +30,9 @@ but only to hand it to `GuiLiveSource` (see the guard at the end of this
 section).
 
 `LiveSource` covers everything that only exists inside a frontend's own audio
-runtime — chain meters, tuner, spectrum, DI loop, loopers, the block errors the
-audio thread reported, the backend's health, the device list. A
+runtime — chain meters, tuner, spectrum, DI loop, loopers, a chain's real
+sample rate, the block errors the audio thread reported, the backend's health,
+the device list. A
 frontend implements ONLY the methods for the sources it actually hosts; every
 other method keeps the trait's default `None`. `None` means "not hosted",
 never "hosted but empty" — `read::resolve` is the one place that turns an
@@ -52,6 +53,16 @@ that failure keeps its error instead of degrading into an empty answer or a
 fabricated value. A chain's sample rate in particular is never invented
 (issue #723): a stopped GUI or a console with no device for a chain reports
 the failure, not a hardcoded 48 kHz.
+
+Rate parity: the latency probe (the sonar badge and
+`openrig://chains/{id}/latency`) asks `LiveSource::chain_sample_rate` before it
+falls back to the dispatcher's `engine_sr`. `engine_sr` mirrors a RUNNING
+stream and goes back to `REFERENCE_SAMPLE_RATE` when the rig stops, so asking
+it first reported DSP latency measured at 48 kHz for a stopped rig on a
+44.1 kHz interface. The GUI answers the new door the same way it answers
+`chain_loopers`: the controller's rate while something runs, otherwise the rate
+the chain's own devices resolve to. Neither source is ever a guess — a frontend
+that cannot resolve one answers `None` (#723).
 
 Meter parity: `GuiLiveSource::chain_meters` (`adapter-gui/src/gui_live_source.rs`)
 reads the same `ProjectChainItem` rows the IN/OUT bars are bound to — never a

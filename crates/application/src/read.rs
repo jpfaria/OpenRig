@@ -85,7 +85,7 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
             ctx.project,
             ctx.io_bindings,
             chain,
-            ctx.dispatcher.engine_sr() as f32,
+            chain_probe_rate(ctx, chain),
         ),
         QueryKind::ListChainPresets { chain } => match ctx.rig {
             Some(rig) => crate::query::list_chain_presets(rig, chain),
@@ -109,6 +109,21 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
         QueryKind::ChainToneReport { chain } => Ok(ctx.dispatcher.tone_report_json(chain)),
         QueryKind::MetronomeState => Ok(metronome_state(ctx)),
     }
+}
+
+/// The rate the latency probe runs at when the chain's input device has no
+/// saved per-device setting: what the FRONTEND resolves for that chain, and
+/// only then the dispatcher's tracked engine rate.
+///
+/// The order matters. `engine_sr` mirrors a RUNNING stream and goes back to
+/// `REFERENCE_SAMPLE_RATE` when the rig stops (#127), so asking it first
+/// measured a stopped rig on a 44.1 kHz interface at 48 kHz — a number that was
+/// right before that change. Neither source is ever a guess: a frontend that
+/// cannot resolve the chain's devices answers `None` (issue #723).
+fn chain_probe_rate(ctx: &ReadContext<'_>, chain: &ChainId) -> f32 {
+    ctx.live
+        .chain_sample_rate(chain)
+        .unwrap_or_else(|| ctx.dispatcher.engine_sr() as f32)
 }
 
 /// The metronome, both halves in one payload: the settings the DISPATCHER

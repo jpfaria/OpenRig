@@ -28,6 +28,7 @@ use project::project::Project;
 use slint::{Model, VecModel};
 
 use crate::spectrum_session::SpectrumSession;
+use crate::state::ProjectSession;
 use crate::tuner_session::TunerSession;
 use crate::ProjectChainItem;
 
@@ -107,6 +108,18 @@ impl LiveSource for GuiLiveSource<'_> {
     fn chain_di_loop(&self, chain: &ChainId) -> Option<DiLoopReading> {
         let runtime = self.runtime.borrow();
         di_reading(runtime.as_ref()?, chain)
+    }
+
+    /// #127: the rate THIS chain runs at, or would be opened at with the rig
+    /// stopped — the one the latency probe measures against.
+    ///
+    /// Same resolution as [`Self::chain_loopers`], and for the same reason: the
+    /// GUI owns the binding registry and the audio host, so a stopped rig still
+    /// has a real, measurable rate for the chain's own device. `None` when it
+    /// cannot be resolved — the caller falls back to the dispatcher's tracked
+    /// rate rather than being handed a guess (#723).
+    fn chain_sample_rate(&self, chain: &ChainId) -> Option<f32> {
+        resolve_chain_rate(self.runtime, self.project, self.io_bindings, chain)
     }
 
     /// #323: the chain's live looper transport state, at THIS chain's real
@@ -201,6 +214,56 @@ impl LiveSource for LooperLiveSource {
             controller.sample_rate(),
         )))
     }
+}
+
+/// The rate one chain's streams run at (live controller) or would be opened at
+/// (resolved from the project + this machine's bindings, exactly as
+/// `build_streams` does). Keyed by the chain's own id, so a sibling chain never
+/// leaks into the answer (`CLAUDE.md` LAW).
+pub(crate) fn resolve_chain_rate(
+    runtime: &RefCell<Option<ProjectRuntimeController>>,
+    project: &Project,
+    io_bindings: &[IoBinding],
+    chain: &ChainId,
+) -> Option<f32> {
+    if let Some(controller) = runtime.borrow().as_ref() {
+        return Some(controller.sample_rate() as f32);
+    }
+    infra_cpal::resolve_project_chain_sample_rates(project, io_bindings)
+        .ok()
+        .and_then(|rates| rates.get(chain).copied())
+}
+
+/// #127: the latency badge's read seam — the rate the probe must run at.
+///
+/// Its own `LiveSource` because it is asked from the chains screen, where the
+/// project is behind the app's session cell rather than borrowed for the call
+/// (the shape [`GuiLiveSource`] takes). Answers only `chain_sample_rate`; every
+/// other reading stays at the trait's default.
+pub(crate) struct ChainRateLiveSource {
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+}
+
+impl LiveSource for ChainRateLiveSource {
+    fn chain_sample_rate(&self, chain: &ChainId) -> Option<f32> {
+        let borrow = self.project_session.borrow();
+        let session = borrow.as_ref()?;
+        let project = session.project.borrow();
+        let bindings = session.io_bindings.borrow();
+        resolve_chain_rate(&self.runtime, &project, &bindings, chain)
+    }
+}
+
+/// Build the latency badge's read seam over the app's shared handles.
+pub(crate) fn chain_rate_live_source(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+) -> Rc<dyn LiveSource> {
+    Rc::new(ChainRateLiveSource {
+        runtime: Rc::clone(runtime),
+        project_session: Rc::clone(project_session),
+    })
 }
 
 /// Build the looper panel's read seam over the app's shared runtime handle.

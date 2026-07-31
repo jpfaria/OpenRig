@@ -213,6 +213,18 @@ impl LiveSource for HostedLooperSource {
     }
 }
 
+/// A frontend whose rig is STOPPED but whose chain resolves to a 44.1 kHz
+/// interface — the scenario Task 11 regressed: with no `device_settings` entry
+/// for that device, the probe fell back to the dispatcher's `engine_sr`, which
+/// since #127 is `REFERENCE_SAMPLE_RATE` once nothing is running.
+struct StoppedRigOnA44kInterface;
+
+impl LiveSource for StoppedRigOnA44kInterface {
+    fn chain_sample_rate(&self, _chain: &ChainId) -> Option<f32> {
+        Some(44_100.0)
+    }
+}
+
 fn resolve_hosted_by(live: &dyn LiveSource, kind: QueryKind) -> Result<String, String> {
     let project = test_project_with_one_chain();
     let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
@@ -417,5 +429,63 @@ fn a_hosted_device_source_that_failed_reports_the_error_not_an_empty_listing() {
     assert_eq!(
         resolve_hosted_by(&BrokenDeviceHost, QueryKind::Devices),
         Err("no audio host".to_string())
+    );
+}
+
+/// #127 (FINAL review): the latency badge reported 48 kHz on a stopped rig.
+///
+/// `measure_chain_latency` falls back to the rate the caller hands it when the
+/// chain's input device has no saved setting, and `read::resolve` handed it
+/// `engine_sr` — which Task 11 made reset to `REFERENCE_SAMPLE_RATE` on
+/// teardown. On a 44.1 kHz interface the DSP latency came back ~8.8 % wrong,
+/// and it was right before that change. The frontend that owns the devices can
+/// resolve the chain's real rate with nothing running, so it is asked first.
+#[test]
+fn the_latency_probe_measures_at_the_rate_the_frontend_resolved() {
+    let json = resolve_hosted_by(
+        &StoppedRigOnA44kInterface,
+        QueryKind::ChainLatency {
+            chain: ChainId("guitar".to_string()),
+        },
+    )
+    .expect("a known chain reports its latency");
+
+    let value: serde_json::Value = serde_json::from_str(&json).expect("latency json");
+    assert_eq!(
+        value["sample_rate"], 44_100.0,
+        "the probe must run at the rate this chain's devices resolve to, not at the \
+         reference rate a stopped rig reports: {json}"
+    );
+}
+
+/// The other half, so the fix cannot become an invented rate: a frontend that
+/// cannot tell leaves the dispatcher's tracked engine rate in charge.
+#[test]
+fn a_frontend_that_cannot_resolve_a_rate_leaves_the_engine_rate_in_charge() {
+    let project = test_project_with_one_chain();
+    let dispatcher = crate::local_dispatcher::LocalDispatcher::new(rc_project(&project));
+    let expected = dispatcher.engine_sr() as f64;
+    let ctx = ReadContext {
+        project: &project,
+        rig: None,
+        io_bindings: &[],
+        dispatcher: &dispatcher,
+        live: &NoLiveSource,
+    };
+
+    let json = resolve(
+        &QueryKind::ChainLatency {
+            chain: ChainId("guitar".to_string()),
+        },
+        &ctx,
+    )
+    .expect("an unhosted frontend still answers the chain's latency");
+
+    let value: serde_json::Value = serde_json::from_str(&json).expect("latency json");
+    assert_eq!(
+        value["sample_rate"].as_f64().expect("a rate"),
+        expected,
+        "with nothing to resolve the rate against, the dispatcher's tracked rate is the \
+         answer — never a number written here: {json}"
     );
 }

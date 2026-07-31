@@ -130,6 +130,29 @@ pub trait LiveSource {
         None
     }
 
+    /// The sample rate THIS chain's streams run at — or would be opened at,
+    /// with the rig stopped.
+    ///
+    /// `None` ⇒ this frontend cannot tell (it hosts no audio, or the chain's
+    /// devices could not be resolved), and the caller falls back to the
+    /// dispatcher's tracked engine rate. It must never be answered with a
+    /// guess (issue #723).
+    ///
+    /// It exists because the dispatcher's `engine_sr` is a mirror of a RUNNING
+    /// stream: since #127 it goes back to `REFERENCE_SAMPLE_RATE` when the rig
+    /// stops, which is honest for "nothing is running" and wrong as an answer
+    /// to "what would this chain be measured at". The latency probe asked the
+    /// mirror and reported DSP latency computed at 48 kHz for a stopped rig on
+    /// a 44.1 kHz interface. The frontend that owns the devices can resolve the
+    /// real one, so it is asked first.
+    ///
+    /// **Isolation:** the rate of the chain NAMED, resolved from its own
+    /// endpoints. Never "the rate the rig is at" (`CLAUDE.md` LAW).
+    fn chain_sample_rate(&self, chain: &ChainId) -> Option<f32> {
+        let _ = chain;
+        None
+    }
+
     /// Per-chain live looper transport state + the rate it was counted at.
     ///
     /// Three states, mirroring [`Self::devices`]: `None` ⇒ this frontend
