@@ -174,6 +174,9 @@ mod port_wiring;
 #[cfg(test)]
 #[path = "issue_85_port_editor_tests.rs"]
 mod issue_85_port_editor_tests;
+#[cfg(test)]
+#[path = "issue_85_click_port_opens_editor_tests.rs"]
+mod issue_85_click_port_opens_editor_tests;
 mod project_ops;
 mod project_ops_recents;
 // #679: `pub` so the issue_599 integration test can reach

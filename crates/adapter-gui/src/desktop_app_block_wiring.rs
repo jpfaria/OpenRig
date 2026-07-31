@@ -95,6 +95,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::select_chain_block_callback::wire(
         deps.window,
         deps.chain_insert_window,
+        deps.chain_port_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
             inline_tab_state: inline_tab_state.clone(),
             selected_block: deps.selected_block.clone(),
@@ -123,6 +124,9 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             inline_stream_timer: deps.inline_stream_timer.clone(),
             toast_timer: deps.toast_timer.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
+            port_draft: deps.port_draft.clone(),
+            port_binding_options: deps.port_binding_options.clone(),
+            port_endpoint_options: deps.port_endpoint_options.clone(),
             auto_save: deps.auto_save,
         },
     );

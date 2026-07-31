@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, VecModel};
+use slint::{Model, VecModel};
 
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::ChannelMode;
