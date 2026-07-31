@@ -90,6 +90,7 @@ mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_projects_wiring;
 mod runtime_analyzers;
+mod runtime_devices;
 mod runtime_health;
 mod runtime_lifecycle;
 pub mod runtime_loopers;

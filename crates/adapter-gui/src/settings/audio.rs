@@ -3,16 +3,18 @@
 //!
 //! Two callbacks, both branching on `AudioSettingsMode` (Gui = first-run setup,
 //! Project = per-project device config). Shared steps: pull selected device
-//! rows, persist gui-settings.yaml, apply settings to hardware
-//! (`infra_cpal::apply_device_settings`), and dispatch
+//! rows, persist gui-settings.yaml, and dispatch
 //! `SettingsCommand::SaveAudioSettings`.
 //!
-//! #127: the runtime rebuild is NOT done here. `SaveAudioSettings` rebuilds the
-//! whole running graph from the dispatcher, through
-//! `RuntimeControl::sync_project` — which on Linux/JACK restarts jackd if the
-//! sample rate or buffer size changed. It used to be a `sync_project_runtime`
-//! call in each of these callbacks, so the same command over MCP/gRPC persisted
-//! the new numbers and left the audio running on the old ones.
+//! #127: NEITHER the hardware step nor the runtime rebuild is done here.
+//! `SaveAudioSettings` makes the machine's devices adopt the new rate through
+//! `RuntimeControl::apply_device_settings` (on macOS/Windows a throwaway stream
+//! at the requested rate is the only thing the driver reacts to) and then
+//! rebuilds the whole running graph through `RuntimeControl::sync_project` —
+//! which on Linux/JACK restarts jackd if the sample rate or buffer size
+//! changed. Both used to be calls in each of these callbacks, so the same
+//! command over MCP/gRPC persisted the new numbers, re-opened the graph against
+//! a driver still on the old rate, or left the audio running on the old ones.
 //!
 //! # Issue #627 — buffer size must survive a whole-config re-save
 //!
@@ -40,9 +42,7 @@ use crate::audio_devices::selected_device_settings;
 use crate::default_io_binding::DEFAULT_BINDING_ID;
 use crate::device_settings_wiring::wizard_create_or_update_default_binding;
 use crate::helpers::{clear_status, set_status_error, set_status_warning};
-use crate::project_ops::{
-    build_device_settings_from_gui, project_title_for_path, sync_project_dirty,
-};
+use crate::project_ops::{project_title_for_path, sync_project_dirty};
 use crate::project_view::replace_project_chains;
 use crate::state::{AudioSettingsMode, ProjectSession};
 use crate::{AppWindow, DeviceSelectionItem, ProjectChainItem, ProjectSettingsWindow};
@@ -238,15 +238,6 @@ pub(crate) fn wire(
                             // On Linux/JACK this will restart jackd if sample
                             // rate or buffer size changed.
                             if let Some(session) = project_session.borrow_mut().as_mut() {
-                                let new_device_settings = build_device_settings_from_gui(
-                                    &settings.input_devices,
-                                    &settings.output_devices,
-                                );
-                                if let Err(e) =
-                                    infra_cpal::apply_device_settings(&new_device_settings)
-                                {
-                                    log::warn!("apply_device_settings failed: {e}");
-                                }
                                 // GUI mode carries a proper input/output split
                                 // (two separate device models), so persist each
                                 // direction's ids into its own config field.
@@ -314,9 +305,6 @@ pub(crate) fn wire(
                     };
                     let new_device_settings =
                         project_device_settings_from_rows(project_device_settings.clone());
-                    if let Err(e) = infra_cpal::apply_device_settings(&new_device_settings) {
-                        log::warn!("apply_device_settings failed: {e}");
-                    }
                     let input_descriptors = input_chain_devices.borrow();
                     let output_descriptors = output_chain_devices.borrow();
                     let (input_devices, output_devices) = split_device_settings_by_direction(
@@ -468,9 +456,6 @@ pub(crate) fn wire(
                     };
                     let new_device_settings =
                         project_device_settings_from_rows(project_device_settings.clone());
-                    if let Err(e) = infra_cpal::apply_device_settings(&new_device_settings) {
-                        log::warn!("apply_device_settings failed: {e}");
-                    }
                     let input_descriptors = input_chain_devices.borrow();
                     let output_descriptors = output_chain_devices.borrow();
                     let (input_devices, output_devices) = split_device_settings_by_direction(

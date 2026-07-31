@@ -134,7 +134,9 @@ The GUI's implementation is `GuiRuntimeControl`, in
 controller. Current doors: `set_output_muted` (rig-wide, the tuner's mute),
 `set_io_bindings`, `set_block_enabled` (#522's in-place fade toggle — never a
 stream restart), `sync_chain`, the teardown pair `stop_project_runtime`
-(rig-wide) / `remove_chain` (one chain), the whole-graph `sync_project`, the DI
+(rig-wide) / `remove_chain` (one chain), the device-settings pair
+`apply_device_settings` (make the MACHINE's drivers adopt the new rate — body
+in `adapter-gui/src/runtime_devices.rs`) / the whole-graph `sync_project`, the DI
 stream trio `arm_di_stream` / `disarm_di_stream` / `refresh_di_stream`, the
 metronome's `start_metronome` / `stop_metronome` / `set_metronome_settings` /
 `refresh_metronome_output`, the analyzers' `set_tuner_running` /
@@ -343,6 +345,8 @@ an omission:
 | `application::audio_taps::AudioTaps` | a capability the frontend holds | a subscription is not a value — a `Command` cannot return one and a `QueryKind` cannot keep one open. A remote frontend implements the seam against its own transport |
 | `RuntimeControl::apply_finished_rebuilds` / `reconnect_audio` / `reconcile_chain_loopers` | writes on the frontend's own tick | a tick is nobody's request, and a reconnect changes no project state. Consequence, stated: the frontend that hosts the audio must keep ticking for a RECORD started from ANY transport to capture |
 | `LiveSource::block_errors` | a DRAINING read | exactly one consumer is possible; a second transport polling it would take the window's toasts. Sharing it needs a non-destructive shape first, which is a design and not a rename |
+| `infra_cpal::invalidate_device_cache` (`project_settings_wiring.rs`, `device_refresh_apply.rs`) | frontend-local | it drops this frontend's cached ENUMERATION so the next refresh sees hardware that was just plugged in. It changes no project state and answers no question a remote client asked — it is the read path of the device pickers, the `ensure_runtime` / `reconnect_audio` judgement again |
+| `infra_cpal::start_jack_in_background` (`compact_chain_block_handlers.rs`, Linux) | frontend-local | it is a non-blocking PRE-WARM with a progress toast, not the thing that makes audio work: `ProjectRuntimeController::ensure_jack_servers` already starts the server the chain needs, so a chain enabled over MCP gets jackd started by the runtime. Putting it on the bus would publish "this machine's daemon is booting" as project state |
 | `LiveSource::audio_health` / `chain_runtime` / `block_stream` | non-destructive reads | each could honestly become a `QueryKind`; none has, because publishing one means choosing which numbers a remote client sees for a client that has not asked. `chain_di_loop` is not new surface at all — it is the per-chain half of the `openrig://di` arm, through the same helper |
 
 ### The guard: the UI may not name the backend (#127)

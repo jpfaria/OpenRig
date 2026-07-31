@@ -25,6 +25,8 @@ use domain::ids::ChainId;
 use project::chain::Chain;
 use project::project::Project;
 
+use project::device::DeviceSettings;
+
 use crate::command::{ChainCommand, Command, ProjectCommand, SettingsCommand};
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
@@ -50,6 +52,15 @@ impl RuntimeControl for SpyRuntimeControl {
         Ok(())
     }
 
+    fn apply_device_settings(&self, settings: &[DeviceSettings]) {
+        for device in settings {
+            self.calls.borrow_mut().push(format!(
+                "apply {} at {}",
+                device.device_id.0, device.sample_rate
+            ));
+        }
+    }
+
     fn remove_chain(&self, chain: &ChainId) {
         self.calls
             .borrow_mut()
@@ -73,6 +84,21 @@ impl RuntimeControl for FailingRuntimeControl {
         Err(anyhow::anyhow!(
             "the audio host refused the new buffer size"
         ))
+    }
+}
+
+fn device(id: &str, sample_rate: u32) -> DeviceSettings {
+    DeviceSettings {
+        device_id: domain::ids::DeviceId(id.to_string()),
+        sample_rate,
+        buffer_size_frames: 256,
+        bit_depth: 32,
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
+        rt_priority: 70,
+        #[cfg(target_os = "linux")]
+        nperiods: 3,
     }
 }
 
@@ -190,6 +216,39 @@ fn a_rebuild_the_runtime_refused_surfaces_as_a_dispatch_error() {
             "a rebuild the audio host refused must not be swallowed — the user \
              picked a buffer size the device cannot do and has to be told: \
              {result:?}"
+        );
+    });
+}
+
+/// The other half of the same save, and the one the FINAL review found still
+/// GUI-only: the driver has to be told the new rate BEFORE the graph is
+/// re-opened against it. On macOS/Windows that is a throwaway stream built at
+/// the requested rate — the only thing that makes CoreAudio/WASAPI reconfigure
+/// the device — and it lived in `settings/audio.rs`, three call sites, right
+/// before this dispatch. So an MCP client saving 44.1 kHz persisted the pick
+/// and re-opened the graph with the device still at 48 kHz.
+#[test]
+fn saving_the_device_settings_makes_the_driver_adopt_them_first() {
+    crate::local_dispatcher_paths_tests::with_tmp_home("127-audio-settings-apply", || {
+        let (dispatcher, calls) = dispatcher_with_spy(vec![chain("rig:input-1")]);
+
+        dispatcher
+            .dispatch(Command::Settings(SettingsCommand::SaveAudioSettings {
+                input_devices: vec![device("scarlett-in", 44_100)],
+                output_devices: vec![device("scarlett-out", 44_100)],
+            }))
+            .expect("saving device settings must succeed");
+
+        assert_eq!(
+            calls.borrow().as_slice(),
+            [
+                "apply scarlett-in at 44100",
+                "apply scarlett-out at 44100",
+                "sync project"
+            ],
+            "every device the save names must be configured, and BEFORE the \
+             rebuild — a graph re-opened while the driver is still at the old \
+             rate is the bug this closes"
         );
     });
 }

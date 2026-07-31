@@ -42,7 +42,7 @@ use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_session_handle::SessionHandle;
 use crate::state::ProjectSession;
-use crate::{runtime_loopers, runtime_pipelines, runtime_teardown};
+use crate::{runtime_devices, runtime_loopers, runtime_pipelines, runtime_teardown};
 
 /// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
 /// frontend's audio runtime. Holds the same `Rc` the whole app shares, so it
@@ -64,6 +64,12 @@ impl RuntimeControl for GuiRuntimeControl {
         if let Some(runtime) = self.runtime.borrow().as_ref() {
             runtime.set_output_muted(muted);
         }
+    }
+
+    /// The machine's devices, not the graph — body in `runtime_devices`. The
+    /// same handler calls `sync_project` right after, in that order.
+    fn apply_device_settings(&self, settings: &[project::device::DeviceSettings]) {
+        runtime_devices::apply_device_settings(settings);
     }
 
     fn set_io_bindings(&self, bindings: Vec<IoBinding>) {

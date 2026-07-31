@@ -82,6 +82,9 @@ impl LocalDispatcher {
                         flat.push(dev.clone());
                     }
                 }
+                // Kept for the runtime door below: the project's borrow must
+                // not be held while a handler calls into the frontend.
+                let applied_devices = flat.clone();
                 self.project.borrow_mut().device_settings = flat;
 
                 // #581: persist the pick into the per-machine `config.yaml`
@@ -137,7 +140,14 @@ impl LocalDispatcher {
                 // numbers and left the audio running on the old ones. The door
                 // is project-scoped and walks the chains the PROJECT names; it
                 // is never a selection over live runtimes by rate.
+                //
+                // The DRIVER is told first, for the same reason and in the same
+                // order the settings screen used to do it itself: on
+                // macOS/Windows a device only adopts the requested rate when a
+                // stream is built at it, so a graph re-opened before that step
+                // comes up against the OLD rate.
                 if let Some(control) = self.runtime_control() {
+                    control.apply_device_settings(&applied_devices);
                     control.sync_project()?;
                 }
 

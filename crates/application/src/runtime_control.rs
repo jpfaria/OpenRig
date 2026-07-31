@@ -40,6 +40,7 @@ use domain::io_binding::IoBinding;
 use engine::{DiPcm, LoopPcm};
 use feature_dsp::metronome::MetronomeSettings;
 use project::chain::{Chain, EndpointRef};
+use project::device::DeviceSettings;
 
 use crate::command::{LooperAction, LooperParam};
 
@@ -75,6 +76,29 @@ pub trait RuntimeControl {
     ///
     /// Idempotent and never an error: there is nothing to fail about silence.
     fn stop_project_runtime(&self) {}
+
+    /// Make the MACHINE's devices adopt these settings — the step that has to
+    /// happen before the graph is re-opened against them.
+    ///
+    /// On macOS/Windows the implementation builds a throwaway stream at the
+    /// requested rate, which is what forces CoreAudio / WASAPI to reconfigure
+    /// the device; on Linux+JACK the server owns the device configuration and
+    /// this is a no-op. It was the settings screen's own call, made right
+    /// before dispatching [`crate::command::SettingsCommand::SaveAudioSettings`]
+    /// — so the same command over MCP/gRPC persisted the pick, re-opened the
+    /// graph, and left the driver on its old rate.
+    ///
+    /// Machine-wide by design, and it says so rather than pretending to be
+    /// per-stream: these are the devices the PROJECT names, configured one at a
+    /// time by their own id. It changes no project state — only what this
+    /// machine's hardware is set to — and it never opens a chain's stream.
+    ///
+    /// Infallible on purpose: a device that answers slowly (USB interfaces
+    /// routinely time out and then apply the change anyway) must not fail the
+    /// save. An implementation logs and carries on, exactly as the GUI did.
+    fn apply_device_settings(&self, settings: &[DeviceSettings]) {
+        let _ = settings;
+    }
 
     /// Rebuild the WHOLE running graph from the project as it stands now.
     ///
