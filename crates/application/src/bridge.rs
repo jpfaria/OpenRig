@@ -11,6 +11,7 @@ use futures::channel::oneshot;
 use crate::command::Command;
 use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
+use crate::read::NO_RIG_ATTACHED;
 
 /// Result of one dispatched command: `Ok(events)` or a stringified error
 /// (the bridge crosses a thread boundary; the transport's serialization
@@ -190,11 +191,11 @@ impl CommandBridge {
             QueryKind::Ids => Some(Ok(q::list_ids(&snap.project))),
             QueryKind::ListChainPresets { chain } => Some(match &snap.rig {
                 Some(rig) => q::list_chain_presets(rig, chain),
-                None => Err("no rig attached to the session".to_string()),
+                None => Err(NO_RIG_ATTACHED.to_string()),
             }),
             QueryKind::ListProjectPresets => Some(match &snap.rig {
                 Some(rig) => Ok(q::list_project_presets(rig)),
-                None => Err("no rig attached to the session".to_string()),
+                None => Err(NO_RIG_ATTACHED.to_string()),
             }),
             QueryKind::GetBlockParams { chain, block } => {
                 Some(q::get_block_params(&snap.project, chain, block))

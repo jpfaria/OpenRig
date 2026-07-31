@@ -387,23 +387,11 @@ pub trait RuntimeControl {
     // that performs them — the GUI's poll tick — must reach the runtime
     // through this seam like everything else, rather than holding the backend.
 
-    /// #672: install any chain rebuild the control worker has finished.
-    ///
-    /// Called on the frontend's tick. The heavy build runs off-thread and its
-    /// result waits in a queue until this swaps it into the live slot, so a
-    /// frontend that never calls this keeps playing the pre-edit graph.
-    /// Returns how many were installed this tick.
-    ///
-    /// **Isolation:** every queued build carries the (chain, group) key it was
-    /// requested for and is published into THAT slot alone. This services the
-    /// queue; it never selects, groups or matches runtimes itself — and never
-    /// by rate (`CLAUDE.md` LAW).
-    ///
-    /// **Never starts anything.** With no runtime there is no queue, so this
-    /// is a no-op — a tick is not a request to hear something.
     /// #127/#323: bring ONE chain's looper store back in line with its
-    /// config, feed whatever is recording, and reconcile its isolated
-    /// playback streams.
+    /// config, feed whatever is recording, resolve each loop's LINKED preset
+    /// into the blocks it plays through, and reconcile its isolated playback
+    /// streams — in that order, or a Playing loop renders through the chain's
+    /// current preset instead of its own.
     ///
     /// A WRITE, and — like the two below — deliberately NOT a `Command`: the
     /// frontend's meter tick runs it, and a tick is nobody's request. It is
@@ -416,6 +404,20 @@ pub trait RuntimeControl {
         let _ = chain;
     }
 
+    /// #672: install any chain rebuild the control worker has finished, and
+    /// return how many landed this tick.
+    ///
+    /// The heavy build runs off-thread and its result waits in a queue until
+    /// this swaps it into the live slot, so a frontend that never calls this
+    /// keeps playing the pre-edit graph.
+    ///
+    /// **Isolation:** every queued build carries the (chain, group) key it was
+    /// requested for and is published into THAT slot alone. This services the
+    /// queue; it never selects, groups or matches runtimes itself — and never
+    /// by rate (`CLAUDE.md` LAW).
+    ///
+    /// **Never starts anything.** With no runtime there is no queue, so this
+    /// is a no-op — a tick is not a request to hear something.
     fn apply_finished_rebuilds(&self) -> usize {
         0
     }
