@@ -320,7 +320,10 @@ fn wire_chain_toggle(
                         chain: chain_id.clone(),
                     }))
             {
-                log::error!("[compact] toggle-chain-enabled dispatch error: {error}");
+                // #833: a refused enable (input already captured by another
+                // enabled chain) must be visible here too — a silent log makes
+                // the switch look dead.
+                set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
             let will_enable = {

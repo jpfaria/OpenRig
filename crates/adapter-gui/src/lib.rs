@@ -185,6 +185,7 @@ mod model_search_wiring;
 #[cfg(test)]
 mod no_infra_cpal_in_wiring_tests;
 mod preset_search;
+mod project_load_normalize;
 mod project_ops;
 mod project_ops_recents;
 // #679: `pub` so the issue_599 integration test can reach

@@ -20,6 +20,22 @@ impl LocalDispatcher {
                     .chains
                     .iter()
                     .any(|c| c.id == chain.id);
+                // #833: a save must never leave one physical input under two
+                // enabled chains. On create that means the incoming `enabled`
+                // flag; on upsert the flag is preserved from the existing entry,
+                // so an enabled chain must not be re-saved onto a taken channel.
+                let will_be_enabled = if is_create {
+                    chain.enabled
+                } else {
+                    self.project
+                        .borrow()
+                        .chains
+                        .iter()
+                        .any(|c| c.id == chain.id && c.enabled)
+                };
+                if will_be_enabled {
+                    self.ensure_no_input_channel_conflict(&chain)?;
+                }
                 if is_create {
                     if let Some(rig) = self.rig.borrow().clone() {
                         // Capture into a separate statement so the scrutinee's

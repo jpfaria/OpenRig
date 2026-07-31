@@ -13,10 +13,12 @@ impl LocalDispatcher {
         match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
             Command::Chain(ChainCommand::AddChain { mut chain }) => {
-                // #716 (model A): the per-block cross-chain channel-conflict
-                // check is gone — device endpoints no longer live on the chain,
-                // they are resolved from the per-machine binding registry at
-                // activation time, where the conflict check now belongs.
+                // #833: a chain that arrives already enabled must not land on a
+                // capture point another enabled chain holds. Checked before any
+                // mutation so a rejected add leaves project and rig untouched.
+                if chain.enabled {
+                    self.ensure_no_input_channel_conflict(&chain)?;
+                }
                 // Mirror the new chain into the attached rig (if any),
                 // and re-tag the chain's id to `rig:<input>` so the
                 // chains-screen rig nav can locate it. Without the
@@ -36,6 +38,18 @@ impl LocalDispatcher {
             }
             Command::Chain(ChainCommand::ConfigureChain { chain }) => {
                 let chain_id = chain.id.clone();
+                // #833: `enabled` is preserved from the existing entry, so a
+                // reconfiguration of an ENABLED chain can move it onto a taken
+                // capture point. Validate the incoming I/O before applying it.
+                let stays_enabled = self
+                    .project
+                    .borrow()
+                    .chains
+                    .iter()
+                    .any(|c| c.id == chain_id && c.enabled);
+                if stays_enabled {
+                    self.ensure_no_input_channel_conflict(&chain)?;
+                }
                 self.with_chain(&chain_id, |existing| {
                     // Preserve runtime-only state (enabled) — callers must use
                     // ToggleChainEnabled to change the running state.
@@ -93,6 +107,24 @@ impl LocalDispatcher {
             }
             // ── Chain I/O binding selection (issue #716) ──────────────────────
             Command::Chain(ChainCommand::SetChainIoBindings { chain, binding_ids }) => {
+                // #833: re-binding an ENABLED chain can point it at a capture
+                // point another enabled chain already holds. A disabled chain
+                // captures nothing — its binding change is always free, and the
+                // guard fires when it is enabled.
+                let candidate = self
+                    .project
+                    .borrow()
+                    .chains
+                    .iter()
+                    .find(|c| c.id == chain && c.enabled)
+                    .map(|c| {
+                        let mut candidate = c.clone();
+                        candidate.io_binding_ids = binding_ids.clone();
+                        candidate
+                    });
+                if let Some(candidate) = candidate {
+                    self.ensure_no_input_channel_conflict(&candidate)?;
+                }
                 self.with_chain(&chain, |c| {
                     c.io_binding_ids = binding_ids.clone();
                     Ok(())

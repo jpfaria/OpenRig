@@ -47,6 +47,20 @@ impl LocalDispatcher {
                 // (`adapter-gui::project_ops::load_project_session`); MCP/gRPC
                 // that dispatch LoadProject get the same normalization.
                 project::project_disable_unavailable::disable_unavailable_blocks(&mut project);
+                // #833: a project can carry two enabled chains on one physical
+                // input (saved before the guard existed, or hand-edited YAML).
+                // Come up with the later one off instead of double-processing
+                // the source — same load-time normalization shape as #606.
+                let registry = self.io_binding_registry();
+                let conflicting =
+                    engine::runtime_endpoints::disable_conflicting_chains(&mut project, &registry);
+                for chain in &conflicting {
+                    log::warn!(
+                        "chain '{}' came up disabled: its input is already captured by an \
+                         earlier enabled chain",
+                        chain.0
+                    );
+                }
                 // Replace the shared project data in-place so all Rc::clone
                 // holders (adapter-gui's ProjectSession) see the updated state.
                 *self.project.borrow_mut() = project;
