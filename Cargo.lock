@@ -20,7 +20,7 @@ checksum = "366ffbaa4442f4684d91e2cd7c5ea7c4ed8add41959a31447066e279e432b618"
 
 [[package]]
 name = "adapter-console"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "adapter-mcp",
  "adapter-midi",
@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "adapter-console-rig"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "application",
@@ -55,7 +55,7 @@ dependencies = [
 
 [[package]]
 name = "adapter-gui"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "adapter-mcp",
  "adapter-midi",
@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "adapter-mcp"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "application",
@@ -113,7 +113,7 @@ dependencies = [
 
 [[package]]
 name = "adapter-midi"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "application",
@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "adapter-render"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "cpal",
@@ -145,11 +145,11 @@ dependencies = [
 
 [[package]]
 name = "adapter-server"
-version = "0.1.1"
+version = "0.2.0"
 
 [[package]]
 name = "adapter-vst3"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "ui-openrig",
 ]
@@ -342,7 +342,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "application"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "adapter-render",
  "anyhow",
@@ -804,7 +804,7 @@ checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
 name = "block-amp"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-cab",
@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "block-body"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -829,7 +829,7 @@ dependencies = [
 
 [[package]]
 name = "block-cab"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -841,7 +841,7 @@ dependencies = [
 
 [[package]]
 name = "block-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "arc-swap",
  "domain",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "block-delay"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -866,7 +866,7 @@ dependencies = [
 
 [[package]]
 name = "block-dyn"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "block-filter"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -892,7 +892,7 @@ dependencies = [
 
 [[package]]
 name = "block-full-rig"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "block-gain"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -915,7 +915,7 @@ dependencies = [
 
 [[package]]
 name = "block-ir"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -925,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "block-mod"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -937,7 +937,7 @@ dependencies = [
 
 [[package]]
 name = "block-nam"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -946,7 +946,7 @@ dependencies = [
 
 [[package]]
 name = "block-pitch"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -957,7 +957,7 @@ dependencies = [
 
 [[package]]
 name = "block-preamp"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -967,7 +967,7 @@ dependencies = [
 
 [[package]]
 name = "block-reverb"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -983,11 +983,11 @@ dependencies = [
 
 [[package]]
 name = "block-routing"
-version = "0.1.1"
+version = "0.2.0"
 
 [[package]]
 name = "block-util"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -995,7 +995,7 @@ dependencies = [
 
 [[package]]
 name = "block-wah"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -1730,7 +1730,7 @@ dependencies = [
 
 [[package]]
 name = "domain"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "schemars 0.8.22",
  "serde",
@@ -1823,7 +1823,7 @@ checksum = "66b7e2430c6dff6a955451e2cfc438f09cea1965a9d6f87f7e3b90decc014099"
 
 [[package]]
 name = "engine"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2030,7 +2030,7 @@ dependencies = [
 
 [[package]]
 name = "feature-dsp"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "rustfft",
 ]
@@ -3227,7 +3227,7 @@ dependencies = [
 
 [[package]]
 name = "infra-cpal"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "application",
@@ -3263,7 +3263,7 @@ dependencies = [
 
 [[package]]
 name = "infra-filesystem"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "dirs",
@@ -3276,7 +3276,7 @@ dependencies = [
 
 [[package]]
 name = "infra-yaml"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-amp",
@@ -3356,7 +3356,7 @@ dependencies = [
 
 [[package]]
 name = "ir"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -3784,7 +3784,7 @@ dependencies = [
 
 [[package]]
 name = "lv2"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -3978,7 +3978,7 @@ dependencies = [
 
 [[package]]
 name = "nam"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -4828,7 +4828,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "plugin-loader"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
@@ -4982,7 +4982,7 @@ dependencies = [
 
 [[package]]
 name = "project"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-amp",
@@ -6577,7 +6577,7 @@ checksum = "f17aaa1c6e3dc22b1da4b6bba97d066e354c7945cac2f7852d4e4e7ca7a6b56d"
 
 [[package]]
 name = "tone-calibrate"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "feature-dsp",
@@ -6710,7 +6710,7 @@ dependencies = [
 
 [[package]]
 name = "ui-openrig"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "serde",
 ]
@@ -6898,7 +6898,7 @@ dependencies = [
 
 [[package]]
 name = "vst3-host"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "block-core",
