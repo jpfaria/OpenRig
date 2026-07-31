@@ -94,6 +94,9 @@ pub use device_settings::apply_device_settings;
 pub use device_settings::start_jack_in_background;
 
 mod chain_resolve;
+#[cfg(test)]
+#[path = "issue_85_mid_output_device_tests.rs"]
+mod issue_85_mid_output_device_tests;
 pub use chain_resolve::resolve_project_chain_sample_rates;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
