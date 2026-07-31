@@ -172,12 +172,15 @@ fn classify_output_routes(
     (tail_routes, mid_taps, resolved_count)
 }
 
-/// The blocks a segment runs when its input enters at `entry`.
-fn blocks_from(block_indices: &[usize], entry: usize) -> Vec<usize> {
+/// The blocks one (input × output) pipeline runs: those between the input's
+/// entry point and the output's position. A pipeline that ends at a mid
+/// `Output` therefore runs fewer blocks than the chain's main one, which runs
+/// them all — the ports themselves are never blocks of any pipeline.
+fn blocks_between(block_indices: &[usize], entry: usize, end: usize) -> Vec<usize> {
     block_indices
         .iter()
         .copied()
-        .filter(|&i| i >= entry)
+        .filter(|&i| i >= entry && i < end)
         .collect()
 }
 
@@ -282,73 +285,56 @@ fn segments_without_inserts(
     // single-binding chain is bit-identical (golden).
     let by_binding = resolve_chain_io_by_binding(chain, registry);
 
-    // #85: a mid `Output` is NOT an end-of-chain destination, so it never
-    // spawns its own (input × output) segment — it rides the segment that
-    // covers its position and emits there. Exactly one segment per input
-    // carries the taps, otherwise the same signal would sum into the mid
-    // route once per tail output.
-    let taps = taps_for_segment(mid_taps, &block_indices, 0..chain.blocks.len());
-    let mut inputs_with_taps: Vec<usize> = Vec::new();
-
-    // A chain with no resolved output endpoint at all gets the synthetic
-    // fallback route `effective_outputs` invents — it is the chain's tail.
-    let fallback_routes: Vec<usize> = (0..effective_outs.len()).collect();
-    let tail_routes = if resolved_output_count == 0 {
-        fallback_routes.as_slice()
+    // LAW (stream isolation) — a stream is ONE (input × output) pair, and each
+    // pair is an independent pipeline: "se eu tenho 1 input e dois outputs eu
+    // tenho dois streams". A mid `Output` is therefore the END of its own
+    // pipeline, not a tap riding someone else's, and a mid `Input` is the START
+    // of its own. Which blocks a pipeline runs follows from the two positions,
+    // so a pipeline that ends early simply has fewer blocks.
+    //
+    // Every resolved output with the chain offset it sits at: a tail output is
+    // past the last block, a mid `Output` at its own index. A chain with no
+    // resolved output at all gets the synthetic fallback route
+    // `effective_outputs` invents — that one is its tail.
+    let tail = chain.blocks.len();
+    let mut outputs: Vec<(usize, usize)> = if resolved_output_count == 0 {
+        (0..effective_outs.len()).map(|r| (r, tail)).collect()
     } else {
-        tail_routes
+        let mut outs: Vec<(usize, usize)> = tail_routes.iter().map(|&r| (r, tail)).collect();
+        outs.extend(mid_taps.iter().map(|t| (t.route_idx, t.offset)));
+        outs.sort_by_key(|&(route, _)| route);
+        outs
     };
+    outputs.dedup_by_key(|&mut (route, _)| route);
 
-    for &out_entry_idx in tail_routes {
+    for (out_entry_idx, out_offset) in outputs {
         let Some(out_entry) = effective_outs.get(out_entry_idx) else {
             continue;
         };
         let out_binding = binding_of_output(&by_binding, out_entry);
         for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
             let entry = entry_offsets.get(in_idx).copied().unwrap_or(0);
-            // #716: a HEAD input only pairs with its own binding's output (the
-            // TEYUN in must not exit the SCARLET out). A mid `Input` block is a
+            // An output BEFORE this input is not downstream of it — no pair.
+            if entry > out_offset {
+                continue;
+            }
+            // #716: a HEAD input only pairs with its own binding's TAIL output
+            // (the TEYUN in must not exit the SCARLET out). A mid port is a
             // different animal: the user dropped it INSIDE this chain, so it
-            // feeds the chain's tail wherever that tail comes from (#85).
-            if entry == 0 {
+            // pairs by position, not by binding (#85).
+            if entry == 0 && out_offset >= tail {
                 if let (Some(a), Some(b)) = (binding_of_input(&by_binding, input), out_binding) {
                     if a != b {
                         continue;
                     }
                 }
             }
-            // The taps ride the segment that covers the whole chain (a head
-            // input), never a mid input's shorter one.
-            let owns_taps = !taps.is_empty() && entry == 0 && !inputs_with_taps.contains(&in_idx);
-            if owns_taps {
-                inputs_with_taps.push(in_idx);
-            }
             segments.push(ChainSegment {
                 input: input.clone(),
                 cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
-                block_indices: blocks_from(&block_indices, entry),
+                block_indices: blocks_between(&block_indices, entry, out_offset),
                 output_route_indices: vec![out_entry_idx],
-                mid_output_taps: if owns_taps { taps.clone() } else { Vec::new() },
-                split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
-                entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
-            });
-        }
-    }
-
-    // A chain whose ONLY outputs are mid taps (no bound tail endpoint) still
-    // has to run: one segment per input, feeding the taps and nothing else.
-    if !taps.is_empty() {
-        for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
-            if inputs_with_taps.contains(&in_idx) {
-                continue;
-            }
-            let entry = entry_offsets.get(in_idx).copied().unwrap_or(0);
-            segments.push(ChainSegment {
-                input: input.clone(),
-                cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
-                block_indices: blocks_from(&block_indices, entry),
-                output_route_indices: Vec::new(),
-                mid_output_taps: if entry == 0 { taps.clone() } else { Vec::new() },
+                mid_output_taps: Vec::new(),
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
                 entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
             });

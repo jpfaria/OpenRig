@@ -14,6 +14,9 @@ pub mod di_output_resolve;
 pub mod di_render;
 pub mod elastic_prime;
 pub mod input_tap;
+#[cfg(test)]
+#[path = "issue_85_stream_per_pair_tests.rs"]
+mod issue_85_stream_per_pair_tests;
 pub mod looper;
 pub mod looper_bank;
 pub mod metronome_state;

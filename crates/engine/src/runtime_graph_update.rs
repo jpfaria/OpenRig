@@ -195,6 +195,9 @@ fn update_chain_runtime_state_impl(
         }
         new_input_states.push(input_state);
     }
+    // #85: keep the DI-loop marking across a live rebuild, or the mid pipeline
+    // goes silent the first time the user turns a knob with the loop playing.
+    crate::runtime_graph_assemble::mark_di_loop_pipelines(&segments, &mut new_input_states);
 
     // Output routes (#670): REUSE the existing route when its endpoint shape
     // is unchanged (the param-edit / block-toggle case). A fresh empty buffer

@@ -121,6 +121,7 @@ pub(crate) fn process_single_segment(
         output_route_indices,
         mid_output_taps,
         split_mono_sibling_count,
+        plays_di_loop: _,
         outgoing,
     } = input_state;
 

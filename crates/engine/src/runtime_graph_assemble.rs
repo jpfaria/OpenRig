@@ -97,6 +97,7 @@ pub(crate) fn assemble_chain_runtime_state(
         )?;
         input_states.push(input_state);
     }
+    mark_di_loop_pipelines(segments, &mut input_states);
 
     // Build input_to_segments: CPAL input_index → which (local) segments
     // to process. Indexed by the absolute cpal index so a per-input
@@ -299,8 +300,27 @@ pub(crate) fn build_input_processing_state(
         output_route_indices,
         mid_output_taps,
         split_mono_sibling_count,
+        // The caller marks the pipelines an armed DI loop plays on (#85).
+        plays_di_loop: false,
         outgoing: None,
     })
+}
+
+/// #85: an armed DI loop replaces the chain's INPUT, so every pipeline fed by
+/// the first segment's input entry plays it — each one writes its own output
+/// route, so the loop is heard once per route instead of summing twice (the
+/// double-play #699 fixed). A split-mono sibling is a DIFFERENT entry sharing
+/// one route; it stays silent, exactly as #699 left it.
+pub(crate) fn mark_di_loop_pipelines(
+    segments: &[ChainSegment],
+    input_states: &mut [InputProcessingState],
+) {
+    let Some(first) = segments.first().map(|s| s.entry_group) else {
+        return;
+    };
+    for (segment, state) in segments.iter().zip(input_states.iter_mut()) {
+        state.plays_di_loop = segment.entry_group == first;
+    }
 }
 
 /// Channel layout an output entry produces — shared by the route builder and

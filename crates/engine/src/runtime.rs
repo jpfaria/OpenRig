@@ -230,8 +230,9 @@ pub fn process_input_f32(
     let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
+        let plays_di = input_states.get(seg_idx).is_some_and(|s| s.plays_di_loop);
         let feed = match di_for_seg {
-            Some((d, pos)) if seg_idx == 0 => SegmentFeed::Loop(d, pos),
+            Some((d, pos)) if plays_di => SegmentFeed::Loop(d, pos),
             Some(_) => SegmentFeed::Silence,
             None => SegmentFeed::Live,
         };

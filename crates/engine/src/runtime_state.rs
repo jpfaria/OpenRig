@@ -67,6 +67,12 @@ pub(crate) struct InputProcessingState {
     /// `None` for stereo / single-channel mono / dual-mono / Insert
     /// returns — they contribute at unity gain. (Issue #350.)
     pub(crate) split_mono_sibling_count: Option<usize>,
+    /// #85: does an armed DI loop play on THIS pipeline? Every pipeline fed by
+    /// the chain's first input entry does — each writes its own route, so the
+    /// loop is heard once per route, never summed twice. Split-mono siblings
+    /// (a different entry sharing one route) stay silent, which is the rule
+    /// #699 introduced.
+    pub(crate) plays_di_loop: bool,
     /// #454-T5: previous pipeline decaying in parallel after a switch.
     /// `None` in steady state ⇒ behaviour byte-identical to pre-#454-T5.
     pub(crate) outgoing: Option<Box<OutgoingTail>>,
