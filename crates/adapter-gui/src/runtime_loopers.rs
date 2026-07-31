@@ -141,6 +141,16 @@ pub fn export_chain_loops(runtime: &Runtime, chain: &Chain) -> Option<Vec<(u64, 
     )
 }
 
+/// #323: the restore as runtime creation asks for it — every path that brings a
+/// controller up calls this, and a project that was never saved to disk has no
+/// sidecar wavs to give back.
+pub(crate) fn restore_project_loops(runtime: &Runtime, session: &ProjectSession) {
+    let Some(project_path) = session.project_path.clone() else {
+        return;
+    };
+    restore_chain_loops(session, runtime, &project_path);
+}
+
 /// #323: give freshly-created runtimes back the loopers the project carries,
 /// with whatever audio each one saved.
 ///

@@ -88,7 +88,11 @@ fn attaching_the_control_does_not_keep_the_session_alive() {
     let session = stopped_session();
     let dispatcher = Rc::downgrade(&session.dispatcher);
 
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
     assert!(
         dispatcher.upgrade().is_some(),
         "precondition: the session still holds its dispatcher"
@@ -112,6 +116,7 @@ fn a_control_whose_session_is_gone_is_a_silent_no_op() {
     let control = {
         let session = stopped_session();
         GuiRuntimeControl {
+            analyzers: crate::runtime_analyzers::AnalyzerSessions::detached(),
             runtime: Rc::clone(&project_runtime),
             session: SessionHandle::mirror(&session),
         }
@@ -138,7 +143,11 @@ fn a_control_whose_session_is_gone_is_a_silent_no_op() {
 fn syncing_a_disabled_chain_never_starts_the_audio_runtime() {
     let project_runtime = stopped_runtime();
     let session = stopped_session();
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     session
         .dispatcher
@@ -159,7 +168,11 @@ fn syncing_a_disabled_chain_never_starts_the_audio_runtime() {
 fn toggling_a_block_on_a_stopped_rig_flips_the_project_and_starts_nothing() {
     let project_runtime = stopped_runtime();
     let session = stopped_session();
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     session
         .dispatcher
@@ -203,7 +216,11 @@ fn stopping_the_rig_from_the_bus_drops_this_frontends_controller() {
     let project_runtime = headless_runtime(44_100);
     let session = stopped_session();
     session.dispatcher.attach_engine_sr(44_100);
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     session
         .dispatcher
@@ -233,7 +250,11 @@ fn deleting_a_chain_from_the_bus_tears_its_runtime_down() {
     let project_runtime = headless_runtime(44_100);
     let session = stopped_session();
     session.dispatcher.attach_engine_sr(44_100);
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     session
         .dispatcher
@@ -271,6 +292,7 @@ fn the_whole_graph_rebuild_never_starts_the_audio_runtime() {
     let project_runtime = stopped_runtime();
     let session = stopped_session();
     let control = GuiRuntimeControl {
+        analyzers: crate::runtime_analyzers::AnalyzerSessions::detached(),
         runtime: Rc::clone(&project_runtime),
         session: SessionHandle::mirror(&session),
     };
@@ -337,7 +359,11 @@ fn playing_the_di_starts_the_audio_runtime_with_no_chain_enabled() {
     let session = stopped_session();
     let chain = ChainId("chain-127".into());
     let _dir = load_di_source(&session, &chain);
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     assert!(
         project_runtime.borrow().is_none(),
@@ -371,7 +397,11 @@ fn stopping_the_di_or_picking_its_output_starts_nothing() {
     let session = stopped_session();
     let chain = ChainId("chain-127".into());
     let _dir = load_di_source(&session, &chain);
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     session
         .dispatcher

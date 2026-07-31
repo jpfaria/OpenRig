@@ -70,7 +70,11 @@ fn stopped_runtime() -> Rc<RefCell<Option<ProjectRuntimeController>>> {
 fn recording_starts_the_audio_runtime_with_no_chain_enabled() {
     let project_runtime = stopped_runtime();
     let session = stopped_session(vec![LooperConfig::new(UID)]);
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     assert!(
         project_runtime.borrow().is_none(),
@@ -98,7 +102,11 @@ fn recording_starts_the_audio_runtime_with_no_chain_enabled() {
 fn adding_a_looper_starts_the_audio_runtime() {
     let project_runtime = stopped_runtime();
     let session = stopped_session(vec![]);
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     session
         .dispatcher
@@ -121,7 +129,11 @@ fn adding_a_looper_starts_the_audio_runtime() {
 fn no_other_looper_command_starts_the_audio_runtime() {
     let project_runtime = stopped_runtime();
     let session = stopped_session(vec![LooperConfig::new(UID)]);
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     for action in [
         LooperAction::Stop,

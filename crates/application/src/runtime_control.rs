@@ -233,6 +233,42 @@ pub trait RuntimeControl {
         Ok(())
     }
 
+    // ── analyzers (#544/#546/#829) ──────────────────────────────────────
+    //
+    // The tuner and the spectrum are OBSERVATION pipelines: each subscribes to
+    // the taps of every enabled chain's inputs (invariant #4 — one
+    // subscription per stream identity, never a group), runs its detection
+    // next to the audio and publishes the RESULT through
+    // `LiveSource::tuner` / `LiveSource::spectrum`.
+    //
+    // Powering one on is what makes it subscribe and start reading, and before
+    // this it happened in the GUI's POWER callback — so `SetTunerEnabled` from
+    // the MIDI footswitch (`adapter-midi`'s `toggle_tuner` slot) or from an MCP
+    // client flipped the mirror in `SelectionState`, reported its event, and no
+    // analyzer ever started. `openrig://tuner` then answered `running: false`
+    // with no rows, telling the client to dispatch the very command that had
+    // just done nothing.
+    //
+    // Neither door starts audio (#808): an analyzer reads what is already
+    // sounding, and asking to look at a stopped rig is not asking to hear
+    // anything. With nothing hosted it simply subscribes to nothing and
+    // publishes no rows.
+
+    /// Power the tuner's analyzer on or off.
+    ///
+    /// Infallible, both ways: subscribing is best-effort (a stream that is not
+    /// there yields no row, never an error) and stopping is a teardown — there
+    /// is nothing to fail about not looking.
+    fn set_tuner_running(&self, running: bool) {
+        let _ = running;
+    }
+
+    /// Power the spectrum's analyzer on or off. Same contract as
+    /// [`Self::set_tuner_running`].
+    fn set_spectrum_running(&self, running: bool) {
+        let _ = running;
+    }
+
     // ── loopers (#323) ──────────────────────────────────────────────────
     //
     // A loop lives in the frontend's looper store, not in the project: the

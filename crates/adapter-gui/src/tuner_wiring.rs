@@ -1,24 +1,30 @@
-//! TunerWindow wiring — all callbacks and the polling timer for the
-//! top-bar Tuner feature. Extracted out of `adapter-gui/src/lib.rs`
-//! (god file, issue #276) so a feature lives in its own file.
+//! TunerWindow wiring — all callbacks for the top-bar Tuner feature.
+//! Extracted out of `adapter-gui/src/lib.rs` (god file, issue #276) so a
+//! feature lives in its own file.
 //!
 //! `wire_tuner` is the single entry point. `lib.rs` calls it once during
 //! window setup and never touches tuner logic again.
+//!
+//! #127: this module RENDERS. Powering the analyzer on and off is
+//! `SelectionCommand::SetTunerEnabled` on the shared dispatcher, and the
+//! session that subscribes to the audio, detects the pitch and produces the
+//! rows lives behind `RuntimeControl` (`runtime_analyzers`). Before that the
+//! POWER callback built it itself, so the same command from `adapter-midi`'s
+//! `toggle_tuner` footswitch — or from an MCP client — flipped the mirror and
+//! started nothing. The row model arrives here through the sink installed
+//! below, whoever powered the tuner on.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::audio_taps::AudioTaps;
 use application::command::{Command, SelectionCommand};
-use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
+use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
+use crate::runtime_analyzers::AnalyzerSessions;
 use crate::state::ProjectSession;
 use crate::tuner_close::tuner_close_commands;
-use crate::tuner_session::TunerSession;
 use crate::{AppWindow, TunerRow, TunerWindow};
-
-const TICK_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
 
 /// Wire every Tuner callback (open / close / mute / power) onto the
 /// supplied windows. Idempotent in spirit but should only be called
@@ -27,29 +33,33 @@ pub fn wire_tuner(
     window: &AppWindow,
     tuner_window: &TunerWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    tuner_timer: &Rc<Timer>,
+    analyzers: &AnalyzerSessions,
 ) {
+    install_row_sink(window, tuner_window, analyzers);
     wire_open(window, tuner_window);
-    wire_close_inline(window, project_session, taps, tuner_session, tuner_timer);
-    wire_close_windowed(
-        tuner_window,
-        project_session,
-        taps,
-        tuner_session,
-        tuner_timer,
-    );
+    wire_close_inline(window, project_session);
+    wire_close_windowed(tuner_window, project_session);
     wire_mute_inline(window, project_session);
     wire_mute_windowed(tuner_window, project_session);
-    wire_power(
-        window,
-        tuner_window,
-        project_session,
-        taps,
-        tuner_session,
-        tuner_timer,
-    );
+    wire_power(window, tuner_window, project_session);
+}
+
+/// Where the analyzer's rows are rendered. Called on every power-on AND on
+/// every rebuild (the user enabled a chain, re-bound an input): the session
+/// owns the model and a rebuild makes a new one, so the window has to be
+/// handed the current one rather than keep the first.
+fn install_row_sink(window: &AppWindow, tuner_window: &TunerWindow, analyzers: &AnalyzerSessions) {
+    let main_window_weak = window.as_weak();
+    let tuner_window_weak = tuner_window.as_weak();
+    analyzers.on_tuner_rows(move |rows| {
+        let rows = rows.unwrap_or_else(empty_rows_model);
+        if let Some(tw) = tuner_window_weak.upgrade() {
+            tw.set_tuner_rows(rows.clone());
+        }
+        if let Some(mw) = main_window_weak.upgrade() {
+            mw.set_tuner_rows(rows);
+        }
+    });
 }
 
 fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
@@ -85,21 +95,11 @@ fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
     });
 }
 
-fn wire_close_inline(
-    window: &AppWindow,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    tuner_timer: &Rc<Timer>,
-) {
+fn wire_close_inline(window: &AppWindow, project_session: &Rc<RefCell<Option<ProjectSession>>>) {
     let project_session = project_session.clone();
-    let taps = Rc::clone(taps);
-    let tuner_session = tuner_session.clone();
-    let tuner_timer = tuner_timer.clone();
     let main_window_weak = window.as_weak();
     window.on_close_tuner(move || {
         dispatch_close_commands(&project_session);
-        teardown_session(&tuner_timer, &tuner_session, &project_session, &taps);
         if let Some(mw) = main_window_weak.upgrade() {
             mw.set_show_tuner(false);
             mw.set_tuner_mute_active(false);
@@ -115,9 +115,6 @@ fn wire_close_inline(
 fn wire_close_windowed(
     tuner_window: &TunerWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    tuner_timer: &Rc<Timer>,
 ) {
     // The explicit `close-tuner-window` callback is fired by the inline
     // close button — present only when TunerPanel renders with
@@ -125,21 +122,12 @@ fn wire_close_windowed(
     // what wire_close_windowed covers) the button is hidden, so the
     // only way to close is the OS chrome (X / ⌘W). Slint routes that
     // through `Window::on_close_requested`. Wire BOTH so neither path
-    // leaves the polling timer + auto-engaged mute alive (#544).
+    // leaves the analyzer + auto-engaged mute alive (#544).
     {
         let project_session = project_session.clone();
-        let taps = Rc::clone(taps);
-        let tuner_session = tuner_session.clone();
-        let tuner_timer = tuner_timer.clone();
         let tuner_window_weak = tuner_window.as_weak();
         tuner_window.on_close_tuner_window(move || {
-            close_tuner_windowed_impl(
-                &project_session,
-                &taps,
-                &tuner_session,
-                &tuner_timer,
-                &tuner_window_weak,
-            );
+            close_tuner_windowed_impl(&project_session, &tuner_window_weak);
             if let Some(tw) = tuner_window_weak.upgrade() {
                 let _ = tw.hide();
             }
@@ -147,18 +135,9 @@ fn wire_close_windowed(
     }
     {
         let project_session = project_session.clone();
-        let taps = Rc::clone(taps);
-        let tuner_session = tuner_session.clone();
-        let tuner_timer = tuner_timer.clone();
         let tuner_window_weak = tuner_window.as_weak();
         tuner_window.window().on_close_requested(move || {
-            close_tuner_windowed_impl(
-                &project_session,
-                &taps,
-                &tuner_session,
-                &tuner_timer,
-                &tuner_window_weak,
-            );
+            close_tuner_windowed_impl(&project_session, &tuner_window_weak);
             slint::CloseRequestResponse::HideWindow
         });
     }
@@ -166,13 +145,9 @@ fn wire_close_windowed(
 
 fn close_tuner_windowed_impl(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    tuner_timer: &Rc<Timer>,
     tuner_window_weak: &slint::Weak<TunerWindow>,
 ) {
     dispatch_close_commands(project_session);
-    teardown_session(tuner_timer, tuner_session, project_session, taps);
     if let Some(tw) = tuner_window_weak.upgrade() {
         tw.set_mute_active(false);
         tw.set_tuner_enabled(false);
@@ -183,15 +158,10 @@ fn dispatch_close_commands(project_session: &Rc<RefCell<Option<ProjectSession>>>
     // #544 + architectural law "every state change is a Command": close
     // routes through the shared dispatcher so MCP / MIDI / future gRPC
     // see the tuner go off and the mute release, instead of just the
-    // adapter mutating runtime state silently.
-    let pj = project_session.borrow();
-    let Some(session) = pj.as_ref() else {
-        return;
-    };
+    // adapter mutating runtime state silently. #127: the same dispatch also
+    // STOPS the analyzer and releases its taps.
     for cmd in tuner_close_commands() {
-        if let Err(e) = session.dispatcher.dispatch(cmd) {
-            log::warn!("[tuner.close] dispatch falhou: {e}");
-        }
+        dispatch(project_session, cmd);
     }
 }
 
@@ -245,83 +215,38 @@ fn wire_power(
     window: &AppWindow,
     tuner_window: &TunerWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    tuner_timer: &Rc<Timer>,
 ) {
     let project_session = project_session.clone();
-    let taps = Rc::clone(taps);
-    let tuner_session = tuner_session.clone();
-    let tuner_timer = tuner_timer.clone();
     let main_window_weak = window.as_weak();
     let tuner_window_weak = tuner_window.as_weak();
 
-    let on_toggle_enabled =
-        move |enabled: bool| {
-            // #436 H: power do tuner é negócio → Command no dispatcher
-            // compartilhado (MCP/MIDI, observável via
-            // Event::TunerEnabledChanged) quando há sessão. O build/teardown
-            // da sessão + timer + mute abaixo é adapter-side (precedente
-            // SaveProject).
-            if let Some(session) = project_session.borrow().as_ref() {
-                if let Err(e) = session.dispatcher.dispatch(Command::Selection(
-                    SelectionCommand::SetTunerEnabled { enabled },
-                )) {
-                    log::warn!("[tuner] Command::SetTunerEnabled falhou: {e}");
-                }
-            }
-            if enabled {
-                let new_session = build_session(&project_session, &taps);
-                let rows = new_session
-                    .as_ref()
-                    .map(TunerSession::rows_model_rc)
-                    .unwrap_or_else(empty_rows_model);
-                // Powering on auto-engages mute so the user can tune silently
-                // without an extra click. They can still toggle it off after.
-                // #127: through the bus, so the recorded mute state matches
-                // the audio for every transport (MIDI reads it back).
-                dispatch_mute(&project_session, true);
-                // Always reflect the new enabled state on the UI, even when
-                // no session could be built (no runtime / no active chain).
-                // Otherwise the sprite would stay stuck at OFF and the user
-                // would have to find another way to power the tuner back on.
-                if let Some(tw) = tuner_window_weak.upgrade() {
-                    tw.set_tuner_rows(rows.clone());
-                    tw.set_mute_active(true);
-                    tw.set_tuner_enabled(true);
-                }
-                if let Some(mw) = main_window_weak.upgrade() {
-                    mw.set_tuner_rows(rows);
-                    mw.set_tuner_mute_active(true);
-                    mw.set_tuner_enabled(true);
-                }
-                *tuner_session.borrow_mut() = new_session;
-                start_polling_timer(
-                    &tuner_timer,
-                    &tuner_session,
-                    &project_session,
-                    &taps,
-                    &tuner_window_weak,
-                    &main_window_weak,
-                );
-            } else {
-                teardown_session(&tuner_timer, &tuner_session, &project_session, &taps);
-                // Power off also clears the row list and mute toggle so the
-                // window reflects the "stopped" state instead of stale rows
-                // or a stuck red LED.
-                let empty = empty_rows_model();
-                if let Some(tw) = tuner_window_weak.upgrade() {
-                    tw.set_tuner_rows(empty.clone());
-                    tw.set_mute_active(false);
-                    tw.set_tuner_enabled(false);
-                }
-                if let Some(mw) = main_window_weak.upgrade() {
-                    mw.set_tuner_rows(empty);
-                    mw.set_tuner_mute_active(false);
-                    mw.set_tuner_enabled(false);
-                }
-            }
-        };
+    let on_toggle_enabled = move |enabled: bool| {
+        // #436 H / #127: POWER is business → a Command on the shared
+        // dispatcher, which BUILDS or TEARS DOWN the analyzer session through
+        // `RuntimeControl::set_tuner_running`. The rows land on the windows
+        // through the sink `install_row_sink` registered, so a footswitch and
+        // an MCP client light the same tuner this button does.
+        dispatch(
+            &project_session,
+            Command::Selection(SelectionCommand::SetTunerEnabled { enabled }),
+        );
+        // Powering on auto-engages mute so the user can tune silently without
+        // an extra click; powering off releases it. Through the bus, so the
+        // recorded mute state matches the audio for every transport.
+        dispatch_mute(&project_session, enabled);
+        // Always reflect the new enabled state on the UI, even when no session
+        // could be built (no runtime / no active chain). Otherwise the sprite
+        // would stay stuck at OFF and the user would have to find another way
+        // to power the tuner back on.
+        if let Some(tw) = tuner_window_weak.upgrade() {
+            tw.set_mute_active(enabled);
+            tw.set_tuner_enabled(enabled);
+        }
+        if let Some(mw) = main_window_weak.upgrade() {
+            mw.set_tuner_mute_active(enabled);
+            mw.set_tuner_enabled(enabled);
+        }
+    };
     let cloned = on_toggle_enabled.clone();
     window.on_toggle_tuner_enabled(cloned);
     tuner_window.on_toggle_enabled(on_toggle_enabled);
@@ -329,49 +254,23 @@ fn wire_power(
 
 // ── helpers ─────────────────────────────────────────────────────────────
 
-fn build_session(
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-) -> Option<TunerSession> {
-    let pj = project_session.borrow();
-    // Nothing hosted ⇒ no rows: a tuner over a stopped rig would show a list
-    // of strings that can never move.
-    if !taps.is_hosted() {
-        return None;
-    }
-    pj.as_ref().map(|session| {
-        TunerSession::build(
-            &session.project.borrow(),
-            taps.as_ref(),
-            &session.io_bindings.borrow(),
-        )
-    })
-}
-
 fn empty_rows_model() -> ModelRc<TunerRow> {
     ModelRc::from(Rc::new(VecModel::from(Vec::<TunerRow>::new())))
-}
-
-fn teardown_session(
-    tuner_timer: &Rc<Timer>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-) {
-    tuner_timer.stop();
-    *tuner_session.borrow_mut() = None;
-    taps.prune_dead_taps();
-    // #127: releasing the auto-engaged mute is a Command — the dispatcher
-    // applies it to the runtime, so MCP/MIDI see the same release.
-    dispatch_mute(project_session, false);
 }
 
 /// Ask the shared dispatcher to mute (or un-mute) the rig's output. Since #127
 /// this is the ONLY way the tuner touches the audio: the handler owns both the
 /// recorded state and the runtime effect.
 fn dispatch_mute(project_session: &Rc<RefCell<Option<ProjectSession>>>, muted: bool) {
-    // Clone the handle out first: dispatching applies the runtime effect, and
-    // that must not run while the session cell is still borrowed.
+    dispatch(
+        project_session,
+        Command::Selection(SelectionCommand::SetOutputMuted { muted }),
+    );
+}
+
+/// Clone the dispatcher handle out FIRST: dispatching applies the runtime
+/// effect, and that must not run while the session cell is still borrowed.
+fn dispatch(project_session: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
     let dispatcher = project_session
         .borrow()
         .as_ref()
@@ -379,60 +278,7 @@ fn dispatch_mute(project_session: &Rc<RefCell<Option<ProjectSession>>>, muted: b
     let Some(dispatcher) = dispatcher else {
         return;
     };
-    let cmd = Command::Selection(SelectionCommand::SetOutputMuted { muted });
     if let Err(e) = dispatcher.dispatch(cmd) {
-        log::warn!("[tuner.mute] Command::SetOutputMuted failed: {e}");
+        log::warn!("[tuner] command failed: {e}");
     }
-}
-
-/// Drive the per-frame loop: drain the subscriptions, run YIN detection, and rebuild
-/// the session if the project's input topology changed under us.
-fn start_polling_timer(
-    tuner_timer: &Rc<Timer>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    taps: &Rc<dyn AudioTaps>,
-    tuner_window_weak: &slint::Weak<TunerWindow>,
-    main_window_weak: &slint::Weak<AppWindow>,
-) {
-    let tuner_session = tuner_session.clone();
-    let project_session = project_session.clone();
-    let taps = Rc::clone(taps);
-    let tuner_window_weak = tuner_window_weak.clone();
-    let main_window_weak = main_window_weak.clone();
-    tuner_timer.start(TimerMode::Repeated, TICK_INTERVAL, move || {
-        if let Some(session) = tuner_session.borrow_mut().as_mut() {
-            session.tick();
-        }
-        let needs_rebuild = {
-            let pj = project_session.borrow();
-            let session = tuner_session.borrow();
-            match (pj.as_ref(), session.as_ref()) {
-                (Some(s), Some(sess)) => {
-                    sess.needs_rebuild(&s.project.borrow(), &s.io_bindings.borrow())
-                }
-                (Some(_), None) => true,
-                _ => false,
-            }
-        };
-        if needs_rebuild {
-            let pj = project_session.borrow();
-            if let (Some(s), true) = (pj.as_ref(), taps.is_hosted()) {
-                let new_session = TunerSession::build(
-                    &s.project.borrow(),
-                    taps.as_ref(),
-                    &s.io_bindings.borrow(),
-                );
-                let rows = new_session.rows_model_rc();
-                if let Some(tw) = tuner_window_weak.upgrade() {
-                    tw.set_tuner_rows(rows.clone());
-                }
-                if let Some(mw) = main_window_weak.upgrade() {
-                    mw.set_tuner_rows(rows);
-                }
-                *tuner_session.borrow_mut() = Some(new_session);
-                taps.prune_dead_taps();
-            }
-        }
-    });
 }

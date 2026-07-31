@@ -11,14 +11,14 @@
 //!   or removes that single chain. Tears down the runtime when no chain
 //!   remains running. This is the hot path called from every block edit.
 //! * `remove_live_chain_runtime` — drop one chain from the live graph.
-//! * `ensure_runtime` — bring the controller up regardless of any chain being
-//!   enabled (#808), the precondition of arming an independent pipeline.
 //! * `sync_engine_sr_from_runtime` — publish the live device rate to the
 //!   dispatcher (and the reference rate once nothing is running).
 //!
 //! The doors for the INDEPENDENT pipelines (the DI loop, the metronome click)
-//! keep their bodies in `runtime_pipelines`, and the looper's in
-//! `runtime_loopers` — same seam, different rules. The session mirror the
+//! keep their bodies in `runtime_pipelines` — including `ensure_runtime`, the
+//! #808 lazy creation their starts are the only doors allowed to run — the
+//! looper's in `runtime_loopers`, and the analyzers' (tuner, spectrum) in
+//! `runtime_analyzers`: same seam, different rules. The session mirror the
 //! doors read the project through is `runtime_session_handle`.
 
 use std::cell::RefCell;
@@ -39,6 +39,7 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, EndpointRef};
 
 use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
+use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_session_handle::SessionHandle;
 use crate::state::ProjectSession;
 use crate::{runtime_loopers, runtime_pipelines, runtime_teardown};
@@ -51,6 +52,10 @@ use crate::{runtime_loopers, runtime_pipelines, runtime_teardown};
 /// controller; every other wiring module dispatches a `Command` instead.
 struct GuiRuntimeControl {
     runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// The tuner / spectrum sessions (#544/#546). Not part of the audio
+    /// runtime: an analyzer is a READER of it, which is why powering one on
+    /// never creates a controller.
+    analyzers: AnalyzerSessions,
     session: SessionHandle,
 }
 
@@ -73,14 +78,21 @@ impl RuntimeControl for GuiRuntimeControl {
         let Some(session) = self.session.session() else {
             return Ok(());
         };
-        sync_block_toggle(&self.runtime, &session, chain, block, enabled)
+        sync_block_toggle(
+            &self.runtime,
+            &self.analyzers,
+            &session,
+            chain,
+            block,
+            enabled,
+        )
     }
 
     fn sync_chain(&self, chain: &ChainId) -> Result<()> {
         let Some(session) = self.session.session() else {
             return Ok(());
         };
-        sync_live_chain_runtime(&self.runtime, &session, chain)
+        sync_live_chain_runtime(&self.runtime, &self.analyzers, &session, chain)
     }
 
     // The teardowns (`runtime_teardown`): the whole rig, and one chain. A
@@ -108,7 +120,7 @@ impl RuntimeControl for GuiRuntimeControl {
         let Some(session) = self.session.session() else {
             return Ok(());
         };
-        sync_project_runtime(&self.runtime, &session)
+        sync_project_runtime(&self.runtime, &self.analyzers, &session)
     }
 
     // The independent pipelines (invariant #4) — the DI loop and the
@@ -120,7 +132,7 @@ impl RuntimeControl for GuiRuntimeControl {
         let Some(session) = self.session.session() else {
             return Ok(());
         };
-        runtime_pipelines::arm_di(&self.runtime, &session, chain, pcm)
+        runtime_pipelines::arm_di(&self.runtime, &self.analyzers, &session, chain, pcm)
     }
 
     fn disarm_di_stream(&self, chain: &ChainId) {
@@ -135,7 +147,13 @@ impl RuntimeControl for GuiRuntimeControl {
         let Some(session) = self.session.session() else {
             return Ok(());
         };
-        runtime_pipelines::start_metronome(&self.runtime, &session, settings, output_key)
+        runtime_pipelines::start_metronome(
+            &self.runtime,
+            &self.analyzers,
+            &session,
+            settings,
+            output_key,
+        )
     }
 
     fn stop_metronome(&self) {
@@ -153,6 +171,20 @@ impl RuntimeControl for GuiRuntimeControl {
         runtime_pipelines::refresh_metronome_output(&self.runtime, &session, output_key)
     }
 
+    // The analyzers (#544/#546). Powering one on is what makes it SUBSCRIBE
+    // and start reading; the bodies are in `runtime_analyzers`. Neither may
+    // wake audio: an analyzer reads what is already sounding.
+
+    fn set_tuner_running(&self, running: bool) {
+        self.analyzers
+            .set_tuner_running(self.session.session().as_ref(), running);
+    }
+
+    fn set_spectrum_running(&self, running: bool) {
+        self.analyzers
+            .set_spectrum_running(self.session.session().as_ref(), running);
+    }
+
     // The looper doors' bodies live in `runtime_loopers`, where the rules they
     // share are written down: one chain each, the playback reconcile belongs
     // to the door, and only an add or a transport START may wake audio (#808).
@@ -162,7 +194,7 @@ impl RuntimeControl for GuiRuntimeControl {
     /// looper the user cannot record into.
     fn create_looper(&self, chain: &Chain, looper: u64) -> Result<()> {
         if let Some(session) = self.session.session() {
-            ensure_runtime(&self.runtime, &session)?;
+            runtime_pipelines::ensure_runtime(&self.runtime, &self.analyzers, &session)?;
         }
         runtime_loopers::create(&self.runtime, chain, looper);
         Ok(())
@@ -177,7 +209,7 @@ impl RuntimeControl for GuiRuntimeControl {
     fn looper_transport(&self, chain: &Chain, looper: u64, action: LooperAction) -> Result<()> {
         if runtime_loopers::transport_may_start_audio(action) {
             if let Some(session) = self.session.session() {
-                ensure_runtime(&self.runtime, &session)?;
+                runtime_pipelines::ensure_runtime(&self.runtime, &self.analyzers, &session)?;
             }
         }
         runtime_loopers::transport(&self.runtime, chain, looper, action);
@@ -201,14 +233,6 @@ impl RuntimeControl for GuiRuntimeControl {
     }
 }
 
-/// #127: give this session's dispatcher a handle on the audio runtime, so
-/// runtime-control commands apply their effect from the dispatcher instead of
-/// from a UI callback (which left MCP/MIDI dispatching into the void).
-///
-/// Called wherever the runtime is created or re-synced, and wherever the
-/// session's paths change (Save As): the dispatcher belongs to the open
-/// session, so a newly opened project re-attaches on its first sync.
-/// Idempotent and cheap — it clones a handful of `Rc`s.
 /// #127: the ONE capability a project-open path needs from the audio runtime —
 /// "give this freshly built session's dispatcher the frontend's audio runtime".
 ///
@@ -222,36 +246,52 @@ impl RuntimeControl for GuiRuntimeControl {
 #[derive(Clone)]
 pub(crate) struct RuntimeAttach {
     runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    analyzers: AnalyzerSessions,
 }
 
 impl RuntimeAttach {
-    pub(crate) fn new(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) -> Self {
+    pub(crate) fn new(
+        project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+        analyzers: &AnalyzerSessions,
+    ) -> Self {
         Self {
             runtime: project_runtime.clone(),
+            analyzers: analyzers.clone(),
         }
     }
 
     /// Hand `session`'s dispatcher this frontend's runtime control. Idempotent
     /// and cheap — it clones a handful of `Rc`s.
     pub(crate) fn to_session(&self, session: &ProjectSession) {
-        attach_runtime_control(&self.runtime, session);
+        attach_runtime_control(&self.runtime, &self.analyzers, session);
     }
 }
 
+/// #127: give this session's dispatcher a handle on the audio runtime, so
+/// runtime-control commands apply their effect from the dispatcher instead of
+/// from a UI callback (which left MCP/MIDI dispatching into the void).
+///
+/// Called wherever the runtime is created or re-synced, and wherever the
+/// session's paths change (Save As): the dispatcher belongs to the open
+/// session, so a newly opened project re-attaches on its first sync.
+/// Idempotent and cheap — it clones a handful of `Rc`s.
 pub(crate) fn attach_runtime_control(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    analyzers: &AnalyzerSessions,
     session: &ProjectSession,
 ) {
     session
         .dispatcher
         .attach_runtime_control(Rc::new(GuiRuntimeControl {
             runtime: project_runtime.clone(),
+            analyzers: analyzers.clone(),
             session: SessionHandle::mirror(session),
         }));
 }
 
 pub(crate) fn sync_project_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    analyzers: &AnalyzerSessions,
     session: &ProjectSession,
 ) -> Result<()> {
     let proj = session.project.borrow();
@@ -265,12 +305,13 @@ pub(crate) fn sync_project_runtime(
     // #669: keep the dispatcher's engine sample rate in lock-step with the
     // (possibly rebuilt) runtime so DI loops resample to the live device rate.
     sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
-    attach_runtime_control(project_runtime, session);
+    attach_runtime_control(project_runtime, analyzers, session);
     Ok(())
 }
 
 pub(crate) fn sync_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    analyzers: &AnalyzerSessions,
     session: &ProjectSession,
     chain_id: &ChainId,
 ) -> Result<()> {
@@ -297,10 +338,10 @@ pub(crate) fn sync_live_chain_runtime(
             // #669: start() resolved the real device rate — push it to the
             // dispatcher so DI loops resample correctly (not stuck at 48000).
             sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
-            attach_runtime_control(project_runtime, session);
+            attach_runtime_control(project_runtime, analyzers, session);
             // #323: the runtimes were just born empty — give them back the
             // loopers the project carries, with whatever audio they saved.
-            restore_project_loops(project_runtime, session);
+            runtime_loopers::restore_project_loops(project_runtime, session);
             return Ok(()); // start() already processes all enabled chains via sync_project
         }
         drop(borrow);
@@ -368,56 +409,8 @@ pub(crate) fn sync_live_chain_runtime(
     // #669: an upsert may have rebuilt the stream at a new device rate; keep
     // the dispatcher's engine sample rate in lock-step.
     sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
-    attach_runtime_control(project_runtime, session);
+    attach_runtime_control(project_runtime, analyzers, session);
     Ok(())
-}
-
-/// #808: ensure a runtime controller exists so the DI can play WITHOUT any
-/// chain being enabled. The DI is an independent pipeline (invariant #4) — it
-/// must not depend on a guitar stream even existing. `sync_live_chain_runtime`
-/// only lazily creates the controller when a chain is being ENABLED, so a user
-/// who opens a project and hits ▶ on the DI (no chain active) had no controller
-/// at all — the play was a silent no-op until a chain toggle created one. This
-/// mirrors that lazy creation but is NOT gated on `enabled`. No-op when a
-/// controller already exists.
-pub(crate) fn ensure_runtime(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    session: &ProjectSession,
-) -> Result<()> {
-    {
-        let borrow = project_runtime.borrow();
-        if borrow.is_some() {
-            return Ok(());
-        }
-    }
-    // #716 (AUDIO-CRITICAL): hand the I/O binding registry to the controller
-    // BEFORE start() runs its initial sync (same reason as the enable path).
-    let controller = ProjectRuntimeController::start_with_io_bindings(
-        &session.project.borrow(),
-        session.io_bindings.borrow().clone(),
-    )?;
-    *project_runtime.borrow_mut() = Some(controller);
-    // #669: keep the dispatcher's engine rate in lock-step with the real device
-    // rate start() resolved, so a DI resamples correctly.
-    sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
-    attach_runtime_control(project_runtime, session);
-    // #323: same as the enable path — the fresh runtimes get the project's
-    // loopers back.
-    restore_project_loops(project_runtime, session);
-    Ok(())
-}
-
-/// #323: claim a slot for every looper the project carries and reload the
-/// audio each one saved. Called right after a controller is created — the
-/// runtimes are empty until it runs.
-fn restore_project_loops(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    session: &ProjectSession,
-) {
-    let Some(project_path) = session.project_path.clone() else {
-        return;
-    };
-    runtime_loopers::restore_chain_loops(session, project_runtime, &project_path);
 }
 
 /// Issue #522: fast path for `Command::ToggleBlockEnabled`. Flips the
@@ -427,6 +420,7 @@ fn restore_project_loops(
 /// or the block is a `Bypass` that needs a real processor rebuild).
 pub(crate) fn sync_block_toggle(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    analyzers: &AnalyzerSessions,
     session: &ProjectSession,
     chain_id: &ChainId,
     block_id: &BlockId,
@@ -455,7 +449,7 @@ pub(crate) fn sync_block_toggle(
         "sync_block_toggle: fast path declined ({:?}) — falling back to upsert",
         fast_path.err()
     );
-    sync_live_chain_runtime(project_runtime, session, chain_id)
+    sync_live_chain_runtime(project_runtime, analyzers, session, chain_id)
 }
 
 /// #669/#749: publish the running controller's real device sample rate to the

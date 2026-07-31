@@ -160,7 +160,11 @@ fn enabling_the_metronome_off_the_gui_starts_the_click() {
     let project_runtime = stopped_runtime();
     let session = session_with_disabled_chain();
     *session.io_bindings.borrow_mut() = bindings;
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
     silence_the_click(&session);
 
     assert!(
@@ -205,7 +209,11 @@ fn disabling_the_metronome_off_the_gui_silences_the_click() {
     let project_runtime = stopped_runtime();
     let session = session_with_disabled_chain();
     *session.io_bindings.borrow_mut() = bindings;
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
     silence_the_click(&session);
     session
         .dispatcher
@@ -259,7 +267,11 @@ fn a_start_the_device_refused_leaves_the_click_reported_stopped() {
     let project_runtime = stopped_runtime();
     let session = session_with_disabled_chain();
     *session.io_bindings.borrow_mut() = one_output_endpoint();
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     let result =
         session
@@ -297,7 +309,11 @@ fn no_other_metronome_command_starts_the_audio_runtime() {
     let project_runtime = stopped_runtime();
     let session = session_with_disabled_chain();
     *session.io_bindings.borrow_mut() = one_output_endpoint();
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     for command in [
         MetronomeCommand::SetMetronomeBpm { bpm: 90.0 },
@@ -329,7 +345,11 @@ fn no_other_metronome_command_starts_the_audio_runtime() {
 fn starting_with_no_output_endpoint_fails_and_opens_nothing() {
     let project_runtime = stopped_runtime();
     let session = session_with_disabled_chain();
-    attach_runtime_control(&project_runtime, &session);
+    attach_runtime_control(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    );
 
     let result =
         session

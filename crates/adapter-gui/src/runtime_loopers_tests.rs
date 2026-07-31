@@ -136,7 +136,11 @@ fn save_through_the_bus(
     runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     project_path: &PathBuf,
 ) {
-    crate::runtime_lifecycle::attach_runtime_control(runtime, session);
+    crate::runtime_lifecycle::attach_runtime_control(
+        runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        session,
+    );
     session.dispatcher.attach_project_path(project_path.clone());
     session
         .dispatcher

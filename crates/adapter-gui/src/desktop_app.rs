@@ -176,12 +176,17 @@ pub fn run_desktop_app(
     // handle — installing the seam on a freshly opened session, and reading the
     // loopers' transport state (the same finished reading MCP gets). Neither
     // can start, stop or sync audio.
-    let runtime_attach = crate::runtime_lifecycle::RuntimeAttach::new(&project_runtime);
     let looper_live = crate::gui_live_source::looper_live_source(&project_runtime);
     // #127: the subscription seam. Every tap consumer (meters, tuner,
     // spectrum, Tone Doctor) asks THIS for a subscription by stream identity
     // instead of holding the audio backend.
     let audio_taps = crate::runtime_taps::gui_audio_taps(&project_runtime);
+    // #127: the analyzers' lifecycle. The tuner and the spectrum are powered
+    // by `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled`, applied
+    // through `RuntimeControl` — so a MIDI footswitch and an MCP client start
+    // the same analyzer the window's POWER does. The windows only render.
+    let analyzers = crate::runtime_analyzers::AnalyzerSessions::new(&project_session, &audio_taps);
+    let runtime_attach = crate::runtime_lifecycle::RuntimeAttach::new(&project_runtime, &analyzers);
     // #127: the block editors' diagnostic-stream reading — the same seam MCP
     // reads through, so a panel never holds the audio backend for it.
     let block_stream_reads = crate::gui_live_source::block_stream_live_source(&project_runtime);
@@ -247,17 +252,15 @@ pub fn run_desktop_app(
         use slint::Global;
         crate::Locale::get(&tuner_window).set_font_family(boot_font.into());
     }
-    let tuner_session: Rc<RefCell<Option<crate::tuner_session::TunerSession>>> =
-        Rc::new(RefCell::new(None));
-    let tuner_timer = Rc::new(Timer::default());
+    // The analyzer owns the session; this is the same cell, for the reads
+    // (`GuiLiveSource::tuner`, `openrig://tuner`) that answer from it.
+    let tuner_session = analyzers.tuner_cell().clone();
     let spectrum_window = SpectrumWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     {
         use slint::Global;
         crate::Locale::get(&spectrum_window).set_font_family(boot_font.into());
     }
-    let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
-        Rc::new(RefCell::new(None));
-    let spectrum_timer = Rc::new(Timer::default());
+    let spectrum_session = analyzers.spectrum_cell().clone();
     let metronome_window = MetronomeWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     {
         use slint::Global;
@@ -388,7 +391,7 @@ pub fn run_desktop_app(
     // here rather than inside `try_auto_open` because this is the module that
     // owns the runtime handle; nothing in between reaches the audio.
     if let Some(session) = project_session.borrow().as_ref() {
-        crate::runtime_lifecycle::attach_runtime_control(&project_runtime, session);
+        crate::runtime_lifecycle::attach_runtime_control(&project_runtime, &analyzers, session);
     }
     let crate::desktop_app_block_models::BlockEditorModels {
         block_type_options,
@@ -662,23 +665,9 @@ pub fn run_desktop_app(
         probe_windows.clone(),
     );
     // ── Tuner window — top-bar feature ──
-    crate::tuner_wiring::wire_tuner(
-        &window,
-        &tuner_window,
-        &project_session,
-        &audio_taps,
-        &tuner_session,
-        &tuner_timer,
-    );
+    crate::tuner_wiring::wire_tuner(&window, &tuner_window, &project_session, &analyzers);
     // ── Spectrum window — top-bar feature ──
-    crate::spectrum_wiring::wire_spectrum(
-        &window,
-        &spectrum_window,
-        &project_session,
-        &audio_taps,
-        &spectrum_session,
-        &spectrum_timer,
-    );
+    crate::spectrum_wiring::wire_spectrum(&window, &spectrum_window, &project_session, &analyzers);
     // ── Metronome window — top-bar feature ──
     crate::metronome_wiring::wire_metronome(
         &window,

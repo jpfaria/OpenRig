@@ -19,6 +19,11 @@
 //! `runtime_lifecycle` (which owns the CHAIN runtime's lifecycle and was at
 //! its line cap). They are part of the same seam implementation — the wiring
 //! modules still reach all of this through a `Command`.
+//!
+//! `ensure_runtime` lives here for the same reason: it is what "a start may
+//! wake audio" means, and the starts are here. The looper's add and its
+//! Record / Play / PlayStop are the only doors outside this file allowed to
+//! call it.
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -32,11 +37,51 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 
 use crate::metronome_view::{output_endpoints, resolve_output_endpoint, MetronomeOutput};
-use crate::runtime_lifecycle::ensure_runtime;
+use crate::runtime_analyzers::AnalyzerSessions;
+use crate::runtime_lifecycle::{attach_runtime_control, sync_engine_sr_from_runtime};
+use crate::runtime_loopers::restore_project_loops;
 use crate::state::ProjectSession;
 
 /// The app-wide runtime handle, as every door here takes it.
 type Runtime = Rc<std::cell::RefCell<Option<ProjectRuntimeController>>>;
+
+/// #808: bring the controller up so an independent pipeline can sound with NO
+/// chain enabled. The DI, the click and a looper's first REC must not depend on
+/// a guitar stream even existing (invariant #4), and `sync_live_chain_runtime`
+/// only creates the controller lazily when a chain is being ENABLED — so a user
+/// who opened a project and hit ▶ on the DI had no controller at all, and the
+/// play was a silent no-op until some chain toggle created one.
+///
+/// It lives here, with the starts, because it is what "a start may wake audio"
+/// MEANS: this is the only lazy creation the doors share, and no other door may
+/// call it. No-op when a controller already exists.
+pub(crate) fn ensure_runtime(
+    runtime: &Runtime,
+    analyzers: &AnalyzerSessions,
+    session: &ProjectSession,
+) -> Result<()> {
+    {
+        let borrow = runtime.borrow();
+        if borrow.is_some() {
+            return Ok(());
+        }
+    }
+    // #716 (AUDIO-CRITICAL): hand the I/O binding registry to the controller
+    // BEFORE start() runs its initial sync (same reason as the enable path).
+    let controller = ProjectRuntimeController::start_with_io_bindings(
+        &session.project.borrow(),
+        session.io_bindings.borrow().clone(),
+    )?;
+    *runtime.borrow_mut() = Some(controller);
+    // #669: keep the dispatcher's engine rate in lock-step with the real device
+    // rate start() resolved, so a DI resamples correctly.
+    sync_engine_sr_from_runtime(runtime, session.dispatcher.as_ref());
+    attach_runtime_control(runtime, analyzers, session);
+    // #323: same as the enable path — the fresh runtimes get the project's
+    // loopers back.
+    restore_project_loops(runtime, session);
+    Ok(())
+}
 
 // ── DI loop ─────────────────────────────────────────────────────────────
 
@@ -50,11 +95,12 @@ type Runtime = Rc<std::cell::RefCell<Option<ProjectRuntimeController>>>;
 /// `enabled` gate.
 pub(crate) fn arm_di(
     runtime: &Runtime,
+    analyzers: &AnalyzerSessions,
     session: &ProjectSession,
     chain: &Chain,
     pcm: Arc<DiPcm>,
 ) -> Result<()> {
-    ensure_runtime(runtime, session)?;
+    ensure_runtime(runtime, analyzers, session)?;
     let borrow = runtime.borrow();
     let Some(controller) = borrow.as_ref() else {
         return Ok(());
@@ -94,6 +140,7 @@ pub(crate) fn refresh_di(runtime: &Runtime, chain: &Chain, pcm: Arc<DiPcm>) -> R
 /// allowed to create the controller (#808).
 pub(crate) fn start_metronome(
     runtime: &Runtime,
+    analyzers: &AnalyzerSessions,
     session: &ProjectSession,
     settings: MetronomeSettings,
     output_key: Option<&str>,
@@ -101,7 +148,7 @@ pub(crate) fn start_metronome(
     let Some(target) = metronome_endpoint(session, output_key) else {
         bail!("no project output endpoint to play the metronome through");
     };
-    ensure_runtime(runtime, session)?;
+    ensure_runtime(runtime, analyzers, session)?;
     let borrow = runtime.borrow();
     let Some(controller) = borrow.as_ref() else {
         return Ok(());

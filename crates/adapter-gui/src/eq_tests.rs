@@ -264,8 +264,13 @@ fn disabling_the_last_chain_draws_the_curve_at_the_reference_rate() {
     {
         let borrow = session.borrow();
         let open = borrow.as_ref().expect("session");
-        crate::runtime_lifecycle::sync_live_chain_runtime(&runtime, open, &chain_id)
-            .expect("a disabled chain with no runtime syncs cleanly");
+        crate::runtime_lifecycle::sync_live_chain_runtime(
+            &runtime,
+            &crate::runtime_analyzers::AnalyzerSessions::detached(),
+            open,
+            &chain_id,
+        )
+        .expect("a disabled chain with no runtime syncs cleanly");
     }
 
     let after_stop = curve_for(&session);

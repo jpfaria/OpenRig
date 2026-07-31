@@ -48,7 +48,10 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   bodies of the doors for the independent pipelines (invariant #4), the DI
 ///   loop and the metronome click. It left `runtime_lifecycle.rs` in Task 12b
 ///   because that file had reached its line cap, and it is an owner, not a
-///   wiring module: nothing here is reached except through a `Command`.
+///   wiring module: nothing here is reached except through a `Command`. It
+///   also owns `ensure_runtime`, the #808 lazy creation those starts are the
+///   only doors allowed to run — it moved here from `runtime_lifecycle.rs`
+///   when the analyzer doors were added and that file hit its cap again.
 /// * `runtime_teardown.rs` — the SAME seam again, for the two ways a rig STOPS
 ///   (Task 14): the whole rig (`stop_project_runtime`) and one chain
 ///   (`remove_live_chain_runtime`). It left `runtime_lifecycle.rs` because that

@@ -137,13 +137,29 @@ stream restart), `sync_chain`, the teardown pair `stop_project_runtime`
 (rig-wide) / `remove_chain` (one chain), the whole-graph `sync_project`, the DI
 stream trio `arm_di_stream` / `disarm_di_stream` / `refresh_di_stream`, the
 metronome's `start_metronome` / `stop_metronome` / `set_metronome_settings` /
-`refresh_metronome_output`, and the looper's `create_looper` / `remove_looper` /
+`refresh_metronome_output`, the analyzers' `set_tuner_running` /
+`set_spectrum_running`, and the looper's `create_looper` / `remove_looper` /
 `looper_transport` / `set_looper_param` / `set_looper_input` /
 `set_looper_output` / `export_chain_loops`. The bodies of the DI and metronome
 families live in `adapter-gui/src/runtime_pipelines.rs` (both are INDEPENDENT
 pipelines, invariant #4, and share the two rules below where the chain doors do
-not); the looper bodies live in `adapter-gui/src/runtime_loopers.rs`, and the
-two teardowns in `adapter-gui/src/runtime_teardown.rs`.
+not) — together with `ensure_runtime`, the #808 lazy creation only a START may
+run; the looper bodies live in `adapter-gui/src/runtime_loopers.rs`, the two
+teardowns in `adapter-gui/src/runtime_teardown.rs`, and the analyzers' in
+`adapter-gui/src/runtime_analyzers.rs`.
+
+**The analyzers are on the bus too (#127).** `SetTunerEnabled` /
+`SetSpectrumEnabled` used to record the intention and report an event while the
+thing that makes an analyzer READ — the session that subscribes to the taps and
+runs YIN / the FFT — was built afterwards, in the GUI's POWER callback. So the
+`toggle_tuner` / `toggle_spectrum` footswitch slots in `adapter-midi` and an MCP
+client flipped the mirror and started nothing, and `openrig://tuner` answered
+`running: false` while telling the client to dispatch the very command that had
+just done nothing. The handler now applies the door, so every transport powers
+the same analyzer; the windows only render the row model the analyzer hands
+them, re-bound on every rebuild. Neither door may wake audio: an analyzer reads
+what is already sounding, so over a stopped rig it subscribes to nothing and the
+reading stays empty.
 
 Three doors are NOT reached through a command handler:
 `apply_finished_rebuilds` and `reconnect_audio` (the frontend's own poll tick,
@@ -322,7 +338,7 @@ an omission:
 
 | thing | what it is | why it is not on the bus |
 |---|---|---|
-| `runtime_lifecycle::ensure_runtime` | frontend-local | nobody asks for "bring the audio up": it is the precondition of an arm, a looper add or a transport START (#808), and each of those IS a command. On its own it would be audio starting behind the user's back |
+| `runtime_pipelines::ensure_runtime` | frontend-local | nobody asks for "bring the audio up": it is the precondition of an arm, a looper add or a transport START (#808), and each of those IS a command. On its own it would be audio starting behind the user's back |
 | `runtime_lifecycle::RuntimeAttach` | a capability the frontend holds | it only wires this frontend's seams onto a freshly opened session's dispatcher; its handle is private and its one operation is `to_session` |
 | `application::audio_taps::AudioTaps` | a capability the frontend holds | a subscription is not a value — a `Command` cannot return one and a `QueryKind` cannot keep one open. A remote frontend implements the seam against its own transport |
 | `RuntimeControl::apply_finished_rebuilds` / `reconnect_audio` / `reconcile_chain_loopers` | writes on the frontend's own tick | a tick is nobody's request, and a reconnect changes no project state. Consequence, stated: the frontend that hosts the audio must keep ticking for a RECORD started from ANY transport to capture |
