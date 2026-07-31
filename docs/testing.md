@@ -150,6 +150,20 @@ is marked playing only once its stream is proven open — is pinned headless in
 `crates/adapter-gui/src/runtime_pipelines_tests.rs` and runs in the normal
 suite.
 
+`crates/infra-cpal/tests/issue_127_metronome_runtime.rs` is the same gate one
+layer down, on the controller's own doors, and needs a real output device for
+the same reason. It pins that an open click keeps `is_running()` true — the
+predicate the chain-teardown doors drop the WHOLE controller on, so an
+uncounted click dies when a chain is enabled and disabled again — and that an
+output change the device refuses leaves a click that was already playing
+untouched, rather than closing its stream and leaving every reader saying
+"playing" over silence. Seconds, and never audible (the generator is muted and
+never enabled):
+
+```sh
+OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --test issue_127_metronome_runtime
+```
+
 The teardown / whole-graph doors (issue #127) need no hardware either. At the
 dispatcher level, `crates/application/src/local_dispatcher_runtime_doors_tests.rs`
 drives a spy `RuntimeControl` and pins that `StopProjectRuntime` and

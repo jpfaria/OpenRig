@@ -73,6 +73,7 @@ mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
+mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_taps;
