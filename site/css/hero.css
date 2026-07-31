@@ -36,7 +36,9 @@
 
 /* Sponsor call — pinned to the same bottom edge as the download button so the two line up.
    Same offset as .hero .wrap's bottom padding, which is what sets that button's baseline. */
-.hero-support{position:absolute;z-index:2;right:max(4vw,24px);bottom:clamp(56px,7vh,96px);
+/* Above .wrap, not level with it: the headline column is a full-width block that overlaps this
+   corner, and at equal z-index it comes later in the DOM, so it swallowed every click here. */
+.hero-support{position:absolute;z-index:3;right:max(4vw,24px);bottom:clamp(56px,7vh,96px);
   width:min(25vw,318px);display:block;padding:16px 20px;border:2px solid var(--amber);border-radius:6px;background:rgba(255,158,61,.10);backdrop-filter:blur(8px);text-align:center;transition:background .25s,transform .25s var(--ease)}
 .hero-support:hover{background:rgba(255,158,61,.2);transform:translateY(-2px)}
 .hero-support span{display:block;font-family:var(--display);font-size:clamp(24px,2.1vw,32px);letter-spacing:.04em;text-transform:uppercase;color:var(--amber)}
