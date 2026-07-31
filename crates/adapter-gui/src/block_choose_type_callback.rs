@@ -19,7 +19,8 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use application::command::{BlockCommand, Command};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use application::live_source::LiveSource;
+use infra_cpal::AudioDeviceDescriptor;
 use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 
@@ -60,7 +61,9 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: forwarded to the detached editor the ADD flow opens (#815) —
+    /// a read seam, not the audio backend.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -95,7 +98,7 @@ pub(crate) fn wire(
         eq_band_curves,
         project_session,
         project_chains,
-        project_runtime,
+        block_stream_reads,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -329,7 +332,7 @@ pub(crate) fn wire(
                 block_id: None,
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
-                project_runtime: project_runtime.clone(),
+                block_stream_reads: Rc::clone(&block_stream_reads),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 input_chain_devices: input_chain_devices.clone(),

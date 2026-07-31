@@ -170,6 +170,12 @@ INSTALLED by the write door (and only into the chain that asked for it), that a
 `BlockError` the audio thread posted surfaces through the read door naming its
 chain, and that the read drains — so nobody promotes it to a shared query.
 
+`crates/adapter-gui/src/block_stream_read_tests.rs` pins the block-diagnostic
+read's two states against a device-less controller: a hosted runtime always
+answers (an empty table for a block that publishes nothing), and a stopped rig
+answers `None` — the distinction the panel uses to decide between "go inactive"
+and "keep showing what you have".
+
 The subscription seam is tested on both sides and needs no hardware either.
 `crates/application/src/audio_taps_tests.rs` pins the CONTRACT — a tap that
 carries no PCM is still a complete implementation, a frontend that hosts no

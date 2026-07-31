@@ -81,15 +81,8 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// Each of these calls a `ProjectRuntimeController` method that has no door on
 /// the bus. They are the remaining work, named module by module in the Task 9
 /// report, NOT a licence:
-/// * a block's diagnostic stream (`poll_stream`):
-///   `block_editor_window_setup.rs`, `select_chain_block_callback.rs`
 /// * the meter tick's remaining per-chain reads and its looper reconcile:
 ///   `meter_wiring_poll.rs`
-/// * pure hubs that only forward the handle to a module above:
-///   `compact_chain_callbacks.rs` (which also polls the controller itself),
-///   `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs`,
-///   `block_choose_type_callback.rs` (hands it to `block_editor_window_setup`
-///   when the ADD flow opens a detached editor, #815)
 ///
 /// Task 11 emptied the EQ-viz bucket: the block editor's curve now takes its
 /// rate from `CommandDispatcher::engine_sr`, so `eq.rs`,
@@ -154,6 +147,21 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// controller's shared cell. The bodies of those doors live in
 /// `runtime_pipelines.rs`, listed above as an owner.
 ///
+/// Task 16 also closed the block-diagnostic-stream bucket with an ordinary
+/// read door, `LiveSource::block_stream` (impl
+/// `gui_live_source::BlockStreamLiveSource`): `poll_stream` returns entries
+/// that are ALREADY reduced (`key` / `value` / `text` / `peak`, published by a
+/// worker thread, never audio), so it was never a tap. It is tri-shaped like
+/// the rest of the trait — `None` ⇒ nothing hosted (the panel keeps what it
+/// shows), `Some(vec![])` ⇒ hosted and quiet (the panel goes inactive) — a
+/// distinction the controller's own `Option` collapsed. So
+/// `block_editor_window_setup.rs`, `select_chain_block_callback.rs` and
+/// `compact_chain_callbacks.rs` are off this list, and with their last
+/// consumer cleared the three pure hubs go with them:
+/// `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs` and
+/// `block_choose_type_callback.rs` now forward two capabilities (the tap seam
+/// and the read seam) instead of the runtime handle.
+///
 /// Task 16 built the SUBSCRIPTION seam (`application::audio_taps`) — the third
 /// door, for the one thing neither of the other two can express: a standing
 /// tap. A consumer asks for a subscription BY STREAM IDENTITY (`TapPoint`) and
@@ -177,12 +185,7 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// `reconnect_audio`, bodies in `runtime_health.rs`) — not `Command`s, because
 /// a tick is nobody's request and a reconnect changes no project state.
 const ALLOWED: &[&str] = &[
-    "block_choose_type_callback.rs",
-    "block_editor_window_setup.rs",
-    "compact_chain_callbacks.rs",
     "desktop_app.rs",
-    "desktop_app_block_wiring.rs",
-    "desktop_app_chain_wiring.rs",
     "gui_live_source.rs",
     "mcp_query_resolver.rs",
     "meter_wiring_poll.rs",
@@ -192,7 +195,6 @@ const ALLOWED: &[&str] = &[
     "runtime_pipelines.rs",
     "runtime_taps.rs",
     "runtime_teardown.rs",
-    "select_chain_block_callback.rs",
 ];
 
 /// A module's CODE, with `//` comments stripped.

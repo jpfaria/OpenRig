@@ -20,8 +20,9 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
 
 use application::audio_taps::AudioTaps;
+use application::live_source::LiveSource;
 use domain::ids::BlockId;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::compact_block_view::build_compact_blocks;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
@@ -63,7 +64,8 @@ pub fn compact_chain_di_loop_stop(
 
 pub(crate) struct CompactChainCallbacksCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the blocks' diagnostic streams, through the read seam.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     /// #127: the subscription seam the Tone Doctor records through.
     pub audio_taps: Rc<dyn AudioTaps>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
@@ -81,7 +83,7 @@ pub(crate) struct CompactChainCallbacksCtx {
 pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
     let CompactChainCallbacksCtx {
         project_session,
-        project_runtime,
+        block_stream_reads,
         audio_taps,
         project_chains,
         input_chain_devices,
@@ -348,17 +350,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // Stream polling timer — updates stream_data for enabled utility blocks
         {
             let weak_cw = compact_win.as_weak();
-            let project_runtime_poll = project_runtime.clone();
+            let block_stream_reads = Rc::clone(&block_stream_reads);
             let stream_timer = Timer::default();
             stream_timer.start(
                 slint::TimerMode::Repeated,
                 std::time::Duration::from_millis(80),
                 move || {
                     let Some(cw) = weak_cw.upgrade() else {
-                        return;
-                    };
-                    let rt_borrow = project_runtime_poll.borrow();
-                    let Some(rt) = rt_borrow.as_ref() else {
                         return;
                     };
                     let compact_blocks = cw.get_compact_blocks();
@@ -373,7 +371,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                                             item.model_id.as_str(),
                                         )
                                         .into();
-                                    if let Some(entries) = rt.poll_stream(&bid) {
+                                    let Some(entries) = block_stream_reads.block_stream(&bid)
+                                    else {
+                                        continue;
+                                    };
+                                    if !entries.is_empty() {
                                         let slint_entries: Vec<BlockStreamEntry> = entries
                                             .iter()
                                             .map(|e| BlockStreamEntry {

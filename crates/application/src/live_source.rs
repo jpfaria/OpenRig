@@ -141,6 +141,19 @@ pub trait LiveSource {
         None
     }
 
+    /// #127: the diagnostic stream one block publishes for its editor panel —
+    /// already-reduced `key` / `value` / `text` / `peak` entries a worker
+    /// thread stores wait-free, never audio.
+    ///
+    /// `None` ⇒ this frontend hosts no runtime; `Some(vec![])` ⇒ hosted, and
+    /// this block publishes nothing (it has no stream, or its stream is
+    /// silent). The panel needs the distinction: the first keeps whatever it
+    /// was showing, the second turns the display off.
+    fn block_stream(&self, block: &BlockId) -> Option<Vec<block_core::StreamEntry>> {
+        let _ = block;
+        None
+    }
+
     /// #127: is anything sounding, and is the backend still there.
     ///
     /// `None` ⇒ this frontend hosts no audio runtime, which is not the same

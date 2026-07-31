@@ -27,6 +27,9 @@ mod block_panel_dimensions;
 mod block_parameter_extras;
 mod block_parameter_wiring;
 mod block_picker_wiring;
+#[cfg(test)]
+#[path = "block_stream_read_tests.rs"]
+mod block_stream_read_tests;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
 pub mod chain_binding_choices;

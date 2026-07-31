@@ -182,6 +182,9 @@ pub fn run_desktop_app(
     // spectrum, Tone Doctor) asks THIS for a subscription by stream identity
     // instead of holding the audio backend.
     let audio_taps = crate::runtime_taps::gui_audio_taps(&project_runtime);
+    // #127: the block editors' diagnostic-stream reading — the same seam MCP
+    // reads through, so a panel never holds the audio backend for it.
+    let block_stream_reads = crate::gui_live_source::block_stream_live_source(&project_runtime);
     let probe_windows = latency_probe::new_windows();
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
@@ -700,8 +703,8 @@ pub fn run_desktop_app(
         block_editor_draft: block_editor_draft.clone(),
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
-        project_runtime: project_runtime.clone(),
         audio_taps: Rc::clone(&audio_taps),
+        block_stream_reads: Rc::clone(&block_stream_reads),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),
@@ -732,7 +735,7 @@ pub fn run_desktop_app(
         eq_band_curves: eq_band_curves.clone(),
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
-        project_runtime: project_runtime.clone(),
+        block_stream_reads: Rc::clone(&block_stream_reads),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),

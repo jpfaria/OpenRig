@@ -25,7 +25,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use application::live_source::LiveSource;
+use infra_cpal::AudioDeviceDescriptor;
 use project::block::AudioBlockKind;
 
 use crate::audio_devices::{
@@ -69,7 +70,8 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the block's diagnostic stream, through the read seam.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -105,7 +107,7 @@ pub(crate) fn wire(
         eq_band_curves,
         project_session,
         project_chains,
-        project_runtime,
+        block_stream_reads,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -291,20 +293,20 @@ pub(crate) fn wire(
                 if is_utility {
                     let timer = Timer::default();
                     let weak_win = window.as_weak();
-                    let runtime = project_runtime.clone();
+                    let block_stream_reads = Rc::clone(&block_stream_reads);
                     let bid = block_id_for_editor.clone();
                     timer.start(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
                         move || {
                             let Some(win) = weak_win.upgrade() else { return; };
-                            let runtime_borrow = runtime.borrow();
+
                             // No utility block currently produces a "spectrum" stream
                             // (the spectrum_analyzer block was promoted to a top-bar
                             // feature in #320). Kept generic for future stream blocks.
                             let kind: slint::SharedString = "stream".into();
-                            let Some(rt) = runtime_borrow.as_ref() else { return; };
-                            if let Some(entries) = rt.poll_stream(&bid) {
+                            let Some(entries) = block_stream_reads.block_stream(&bid) else { return; };
+                            if !entries.is_empty() {
                                 let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
                                     key: e.key.clone().into(),
                                     value: e.value,
@@ -365,7 +367,7 @@ pub(crate) fn wire(
                 block_id: Some(block_id_for_editor),
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
-                project_runtime: project_runtime.clone(),
+                block_stream_reads: Rc::clone(&block_stream_reads),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 input_chain_devices: input_chain_devices.clone(),

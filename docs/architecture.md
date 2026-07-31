@@ -58,6 +58,17 @@ same chain cannot disagree, and nothing extra runs on the audio path. Only
 reduced readings (dBFS, note/cents, band levels, looper position/state) ever
 cross the `LiveSource` boundary; no raw PCM buffer or stream handle does.
 
+### A block's diagnostic stream (#127)
+
+A utility block may publish a small table of already-reduced entries (`key` /
+`value` / `text` / `peak`) from its worker thread, which its editor panel
+renders. That is a plain reading, not a tap, so it is
+`LiveSource::block_stream` (impl `gui_live_source::BlockStreamLiveSource`),
+tri-shaped like the rest of the trait: `None` ⇒ nothing hosted (the panel keeps
+what it shows), `Some(vec![])` ⇒ hosted and this block publishes nothing (the
+panel goes inactive). The detached editor, the inline drawer and the compact
+view all read it through the seam.
+
 ## Subscription seam: `AudioTaps` (#127)
 
 `LiveSource` returns finished values and a `Command` cannot return a ring, so
