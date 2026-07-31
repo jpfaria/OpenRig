@@ -134,6 +134,26 @@ looks for the Scarlett by name), an idle machine, and ~12 minutes. The
 tests serialize access to the physical device across processes via a lock
 file.
 
+**Mid-chain ports (#85)** get their own three files in the same battery. They
+need no player and make no noise: a **loopback device** (BlackHole 2ch) stands
+in for the second interface, a DI loop (or a tone written by the test) is the
+source, and the test opens the loopback's input to hear what actually arrived.
+Each one carries a **control case** — the same rig measured where it is known to
+work — so a silent run can never be blamed on the measuring path.
+
+```sh
+OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --release \
+    --test issue_85_mid_output_reaches_its_device \
+    --test issue_85_mid_input_reaches_the_tail \
+    --test issue_85_chain_toggle_keeps_audio -- --nocapture
+```
+
+Requirements: BlackHole 2ch installed, plus one other interface. Two things a
+headless run needs and the GUI does for you: install the binding registry
+**before** `start` (`start_with_io_bindings`, #716), then **poll pending
+activations** — the cpal streams are created on the polling thread, so without
+`poll_pending_rebuilds()` nothing ever opens and every measurement reads zero.
+
 ## Real-plugin VST3 battery (issues #776 / #780)
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on
