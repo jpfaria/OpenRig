@@ -56,6 +56,12 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   freshly-created runtime its loops back. Also an owner, for the same
 ///   reason: nothing in it is reachable except through a `Command` (or, for
 ///   the restore, through the controller's own creation).
+/// * `runtime_health.rs` — the same again for the frontend's own poll tick
+///   (Task 15): installing a rebuild the control worker finished, and
+///   reconnecting a backend that died. An owner for a slightly different
+///   reason than the three above — neither door is reached through a
+///   `Command`, because neither is one (nobody asks for a tick) — but the same
+///   rule holds: it is the implementation of the seam, not a caller of it.
 /// * `desktop_app.rs` — allocates the one `Rc<RefCell<Option<..>>>` the app
 ///   shares (`let project_runtime = Rc::new(RefCell::new(None))`) and hands it
 ///   to the modules below. Someone has to say the type once.
@@ -73,7 +79,6 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   `meter_wiring_poll.rs`, `tuner_session.rs`, `tuner_wiring.rs`,
 ///   `spectrum_session.rs`, `spectrum_wiring.rs`, `block_editor_window_setup.rs`,
 ///   `select_chain_block_callback.rs`, `tone_doctor_compact_wiring.rs`
-/// * runtime health / stream errors on the poll tick: `desktop_app_polling.rs`
 /// * pure hubs that only forward the handle to a module above:
 ///   `compact_chain_callbacks.rs` (which also polls the controller itself),
 ///   `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs`,
@@ -142,6 +147,17 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// the click's position through `LiveSource::metronome` instead of the
 /// controller's shared cell. The bodies of those doors live in
 /// `runtime_pipelines.rs`, listed above as an owner.
+///
+/// Task 15 emptied the poll-tick bucket: `desktop_app_polling.rs` is off this
+/// list. The tick was doing two different things through one handle, and they
+/// are now split by what they ARE. The block errors and the backend's health
+/// are READS (`LiveSource::block_errors` / `audio_health`, implemented by
+/// `gui_live_source::HealthLiveSource`) — and the error read DRAINS, so it has
+/// exactly one consumer and deliberately did not become a `QueryKind`.
+/// Installing a rebuild the control worker finished (#672) and reconnecting a
+/// dead backend are WRITES (`RuntimeControl::apply_finished_rebuilds` /
+/// `reconnect_audio`, bodies in `runtime_health.rs`) — not `Command`s, because
+/// a tick is nobody's request and a reconnect changes no project state.
 const ALLOWED: &[&str] = &[
     "block_choose_type_callback.rs",
     "block_editor_window_setup.rs",
@@ -149,11 +165,11 @@ const ALLOWED: &[&str] = &[
     "desktop_app.rs",
     "desktop_app_block_wiring.rs",
     "desktop_app_chain_wiring.rs",
-    "desktop_app_polling.rs",
     "gui_live_source.rs",
     "mcp_query_resolver.rs",
     "meter_wiring.rs",
     "meter_wiring_poll.rs",
+    "runtime_health.rs",
     "runtime_lifecycle.rs",
     "runtime_loopers.rs",
     "runtime_pipelines.rs",

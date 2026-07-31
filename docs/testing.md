@@ -162,6 +162,14 @@ commands against a device-less controller and asserts the controller is dropped
 and the engine rate goes back to the reference, plus that the whole-graph
 rebuild never CREATES a controller on a stopped rig.
 
+The poll tick's doors (`crates/adapter-gui/src/runtime_health_tests.rs`, issue
+#127) need no hardware: they drive a device-less controller
+(`ProjectRuntimeController::for_testing`) whose rebuilds resolve their
+endpoints from the binding registry. They pin that a finished rebuild is
+INSTALLED by the write door (and only into the chain that asked for it), that a
+`BlockError` the audio thread posted surfaces through the read door naming its
+chain, and that the read drains — so nobody promotes it to a shared query.
+
 ## Real-plugin VST3 battery (issues #776 / #780)
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on

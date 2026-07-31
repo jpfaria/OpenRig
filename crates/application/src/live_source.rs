@@ -21,7 +21,7 @@
 //! `infra_cpal`: devices are supplied BY the frontend, never enumerated by
 //! the core.
 
-use domain::ids::ChainId;
+use domain::ids::{BlockId, ChainId};
 use engine::LooperStatus;
 
 use crate::query_analyzers::{SpectrumReading, TunerReading};
@@ -44,6 +44,34 @@ pub struct MetronomeReading {
     pub tick: u32,
     /// Still counting the bar off; no downbeat has been played yet.
     pub counting_in: bool,
+}
+
+/// One failure the audio thread reported, already attributed to the stream
+/// that raised it.
+///
+/// The engine posts these into a bounded, lock-free queue and drops them when
+/// it is full, so this is a diagnostic sample of an error storm and never a
+/// complete log — by design, since the alternative is work on the audio thread.
+pub struct BlockErrorReading {
+    /// The chain whose runtime raised it. Errors are drained per runtime and
+    /// tagged with the chain that owns it — never pooled anonymously, so a
+    /// reader can always tell which stream is failing (`CLAUDE.md` LAW).
+    pub chain: ChainId,
+    pub block: BlockId,
+    pub message: String,
+}
+
+/// Whether this frontend's audio is sounding, and whether its backend still
+/// answers.
+pub struct AudioHealthReading {
+    /// Anything at all is live: a running chain, a pending cold activation, or
+    /// an armed DI holding its own stream open (#808).
+    pub running: bool,
+    /// The backend the open streams depend on is still there. False means the
+    /// JACK server disappeared (a USB interface was unplugged and udev
+    /// restarted jackd) — on CoreAudio/WASAPI device loss surfaces through the
+    /// stream error callbacks instead, so this stays true.
+    pub healthy: bool,
 }
 
 /// Per-chain meter reading: input/output peak in dBFS.
@@ -95,6 +123,29 @@ pub trait LiveSource {
     /// and resolved.
     fn chain_loopers(&self, chain: &ChainId) -> Option<Result<(Vec<LooperStatus>, u32), String>> {
         let _ = chain;
+        None
+    }
+
+    /// #127: the block failures the audio thread reported since the last
+    /// call, each tagged with the chain that raised it.
+    ///
+    /// **A DRAINING read.** The engine's queue is emptied by this call, so a
+    /// reading is delivered exactly once and there can only ever be ONE
+    /// consumer — whoever drains takes the errors away from everyone else.
+    /// That is why this is not (and must not become) a `QueryKind`: a second
+    /// transport polling it would silently steal the frontend's toasts.
+    ///
+    /// `None` ⇒ no runtime is hosted; `Some(vec![])` ⇒ hosted and nothing
+    /// failed.
+    fn block_errors(&self) -> Option<Vec<BlockErrorReading>> {
+        None
+    }
+
+    /// #127: is anything sounding, and is the backend still there.
+    ///
+    /// `None` ⇒ this frontend hosts no audio runtime, which is not the same
+    /// as an unhealthy one: there is nothing to reconnect to.
+    fn audio_health(&self) -> Option<AudioHealthReading> {
         None
     }
 

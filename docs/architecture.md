@@ -28,7 +28,8 @@ No frontend keeps a second copy of the match — see
 dispatcher nor the audio backend directly.
 
 `LiveSource` covers everything that only exists inside a frontend's own audio
-runtime — chain meters, tuner, spectrum, DI loop, loopers, the device list. A
+runtime — chain meters, tuner, spectrum, DI loop, loopers, the block errors the
+audio thread reported, the backend's health, the device list. A
 frontend implements ONLY the methods for the sources it actually hosts; every
 other method keeps the trait's default `None`. `None` means "not hosted",
 never "hosted but empty" — `read::resolve` is the one place that turns an
@@ -86,6 +87,11 @@ families live in `adapter-gui/src/runtime_pipelines.rs` (both are INDEPENDENT
 pipelines, invariant #4, and share the two rules below where the chain doors do
 not); the looper bodies live in `adapter-gui/src/runtime_loopers.rs`, and the
 two teardowns in `adapter-gui/src/runtime_teardown.rs`.
+
+Two doors are NOT reached through a command handler: `apply_finished_rebuilds`
+and `reconnect_audio`, the frontend's own poll tick (below). They are on the
+same trait because they are still writes to the runtime, and the module that
+performs them must reach it through this seam like everyone else.
 
 Two rules the DI trio makes explicit:
 
@@ -218,6 +224,33 @@ The read half is `LiveSource::metronome`: where the click is in the bar, and
 whether it is sounding, as the audio side reports it. The GUI's beat lamps
 sample it on a timer (a phase, never a queue of beat events) and MCP serves the
 same values at `openrig://metronome`.
+
+### The poll tick, split by what it does (#127)
+
+`adapter-gui/src/desktop_app_polling.rs` runs two timers for the life of the
+app, and they were doing two different kinds of thing through one controller
+handle. They are now split by what each one IS:
+
+- **Reads** — `LiveSource::block_errors` and `LiveSource::audio_health`,
+  implemented by `gui_live_source::HealthLiveSource`. An error reading carries
+  the CHAIN whose runtime raised it (`ProjectRuntimeController::poll_errors`
+  drains each runtime's own queue and tags it), so a failure is never an
+  anonymous entry from "some stream".
+- **Writes** — `RuntimeControl::apply_finished_rebuilds` (issue #672: the
+  control worker builds a live edit off-thread and the tick swaps it into the
+  live slot — a mutation, whatever the controller's `poll_` name suggests) and
+  `reconnect_audio` (tear down and re-open after the backend died). Bodies in
+  `adapter-gui/src/runtime_health.rs`.
+
+Neither write is a `Command`. A tick is nobody's request: dispatching it would
+put an event on the bus five times a second for work the frontend queued for
+itself. A reconnect changes no project state either — it re-opens the devices
+THIS machine lost, the same judgement `ensure_runtime` gets. So an MCP/gRPC
+client cannot pump another frontend's rebuild queue or force its reconnect.
+
+`block_errors` is also deliberately not a `QueryKind`: the read DRAINS the
+engine's queue, so it can only ever have one consumer — a second transport
+polling it would take the toasts away from the window.
 
 ## Registry auto-gerado
 

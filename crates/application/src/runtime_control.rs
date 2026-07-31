@@ -317,4 +317,50 @@ pub trait RuntimeControl {
         let _ = chain;
         None
     }
+
+    // ── the frontend's own tick (#127, Task 15) ─────────────────────────
+    //
+    // The two doors below are the exception to "a `RuntimeControl` method is
+    // applied by a command handler": nobody asks for either of them, so
+    // neither is a `Command` (the report for Task 15 argues each). They are
+    // here because they are still WRITES to the audio runtime, and the module
+    // that performs them — the GUI's poll tick — must reach the runtime
+    // through this seam like everything else, rather than holding the backend.
+
+    /// #672: install any chain rebuild the control worker has finished.
+    ///
+    /// Called on the frontend's tick. The heavy build runs off-thread and its
+    /// result waits in a queue until this swaps it into the live slot, so a
+    /// frontend that never calls this keeps playing the pre-edit graph.
+    /// Returns how many were installed this tick.
+    ///
+    /// **Isolation:** every queued build carries the (chain, group) key it was
+    /// requested for and is published into THAT slot alone. This services the
+    /// queue; it never selects, groups or matches runtimes itself — and never
+    /// by rate (`CLAUDE.md` LAW).
+    ///
+    /// **Never starts anything.** With no runtime there is no queue, so this
+    /// is a no-op — a tick is not a request to hear something.
+    fn apply_finished_rebuilds(&self) -> usize {
+        0
+    }
+
+    /// Try to bring the audio backend back after [`LiveSource::audio_health`]
+    /// reported it unhealthy: tear the streams down and re-open them for the
+    /// project that is loaded.
+    ///
+    /// [`LiveSource::audio_health`]: crate::live_source::LiveSource::audio_health
+    ///
+    /// `Ok(true)` ⇒ recovered; `Ok(false)` ⇒ the hardware is still absent, so
+    /// the caller should keep retrying; `Err` ⇒ the backend is back but the
+    /// project failed to re-sync, which the caller must surface rather than
+    /// retry blindly.
+    ///
+    /// Machine-wide by design, and it says so rather than pretending to be
+    /// per-stream: the thing that died is the host every stream is open on
+    /// (the JACK server), so recovery re-opens the project's streams together.
+    /// It changes no project state — only which devices this machine holds.
+    fn reconnect_audio(&self) -> Result<bool> {
+        Ok(false)
+    }
 }

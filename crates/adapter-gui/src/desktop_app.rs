@@ -399,12 +399,11 @@ pub fn run_desktop_app(
     window.set_toast_level("info".into());
 
     // Background polling timers (extracted to desktop_app_polling)
-    crate::desktop_app_polling::start(
-        &window,
-        toast_timer.clone(),
-        project_runtime.clone(),
-        project_session.clone(),
-    );
+    // #127: the tick gets the two seams, never the runtime handle.
+    let tick_reads = crate::gui_live_source::health_live_source(&project_runtime);
+    let tick_writes =
+        crate::runtime_health::polling_runtime_control(&project_runtime, &project_session);
+    crate::desktop_app_polling::start(&window, toast_timer.clone(), tick_reads, tick_writes);
 
     // Issue #496 / #32 / #36: per-chain IN/OUT dBFS meter polling.
     // ~30 Hz timer that subscribes new chains' input + stream taps
