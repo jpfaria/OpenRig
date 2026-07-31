@@ -227,7 +227,12 @@ impl CommandDispatcher for LocalDispatcher {
             // bus so MCP/gRPC reach the same verdict the GUI panel shows.
             Command::ToneDoctor(_) => self.handle_tone_doctor(cmd),
 
-            Command::Project(ProjectCommand::CloseProject) => self.handle_close_project(cmd),
+            // #127: both stop the rig. `CloseProject` also ends the session;
+            // `StopProjectRuntime` leaves it open (what opening ANOTHER project
+            // does to the one already running).
+            Command::Project(ProjectCommand::CloseProject | ProjectCommand::StopProjectRuntime) => {
+                self.handle_close_project(cmd)
+            }
 
             Command::Project(
                 ProjectCommand::RegisterRecentProject { .. }

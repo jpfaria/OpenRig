@@ -91,6 +91,7 @@ mod runtime_sync_policy;
 #[cfg(test)]
 #[path = "runtime_sync_policy_tests.rs"]
 mod runtime_sync_policy_tests;
+mod runtime_teardown;
 mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
@@ -128,9 +129,6 @@ pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 pub use cli::{
     parse_cli_args_from, parse_mcp_addr, parse_midi_map, resolve_mcp_addr, resolve_midi_map,
     validate_project_path, MidiMapArg,
-};
-pub(crate) use runtime_lifecycle::{
-    remove_live_chain_runtime, stop_project_runtime, sync_project_runtime,
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.

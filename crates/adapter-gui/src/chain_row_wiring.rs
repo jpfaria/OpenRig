@@ -1,7 +1,8 @@
 //! Wiring for the per-chain row actions on the main window.
 //!
 //! Owns `on_remove_chain` (confirms with the user, dispatches
-//! `ChainCommand::RemoveChain`, kills its runtime, and refreshes the chain list)
+//! `ChainCommand::RemoveChain` — whose handler drops that chain's live runtime
+//! (#127) — and refreshes the chain list)
 //! and `on_toggle_chain_enabled` (dispatches `ChainCommand::ToggleChainEnabled`;
 //! channel-conflict validation is performed inside the dispatcher via
 //! `chain_validation::validate_no_channel_conflict`).
@@ -19,15 +20,16 @@ use slint::{ComponentHandle, Timer, VecModel};
 
 use anyhow::Result;
 use application::command::{ChainCommand, Command};
+use application::live_source::LiveSource;
 use domain::ids::ChainId;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::ProjectSession;
-use crate::{remove_live_chain_runtime, AppWindow, ProjectChainItem};
+use crate::{AppWindow, ProjectChainItem};
 
 /// Result of a successful chain reorder, used by the GUI to reseat the
 /// selection cursor so it follows the moved chain by [`ChainId`] rather
@@ -131,7 +133,9 @@ pub(crate) fn shift_selected_chain_index_after_swap(
 pub(crate) struct ChainRowCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the looper panel's rows are re-read through the same finished
+    /// reading MCP gets, so this module never names the audio backend.
+    pub looper_live: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -147,13 +151,8 @@ pub(crate) struct ChainRowCtx {
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
-    // #791: Tone Doctor run/apply for the main chains page.
-    crate::tone_doctor_compact_wiring::wire_main(
-        window,
-        ctx.project_session.clone(),
-        ctx.project_runtime.clone(),
-        ctx.toast_timer.clone(),
-    );
+    // #791: Tone Doctor's run/apply for the main chains page is wired by
+    // `desktop_app`, which owns the audio runtime handle its taps need.
     wire_delete_flow(window, &ctx);
     wire_chain_mutations(window, &ctx);
     crate::chain_row_wiring_actions::wire_reorder(window, &ctx);
@@ -166,7 +165,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
     crate::looper_callbacks::wire_looper_callbacks(
         window,
         &ctx.project_session,
-        &crate::gui_live_source::looper_live_source(&ctx.project_runtime),
+        &ctx.looper_live,
         &ctx.project_chains,
         &ctx.saved_project_snapshot,
         &ctx.project_dirty,
@@ -177,7 +176,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
 fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -229,7 +227,6 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -260,11 +257,12 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
             }
             // #436: the RigInput drop is done by the RemoveChain handler
             // now (business logic belongs behind the Command, not here).
-            // The GUI only re-renders the rig-nav model.
+            // #127: so is the runtime teardown — dropping the deleted chain's
+            // streams travels with the command, so a chain deleted over
+            // MCP/gRPC goes silent too. The GUI only re-renders.
             if session.rig.is_some() {
                 crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             }
-            remove_live_chain_runtime(&project_runtime, &project_session, &chain_id);
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),

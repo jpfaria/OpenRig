@@ -179,6 +179,113 @@ fn toggling_a_block_on_a_stopped_rig_flips_the_project_and_starts_nothing() {
     );
 }
 
+// ── Task 14: the teardown doors, driven from the bus ────────────────────────
+
+/// A controller with no chains and no devices, reporting `rate` Hz — enough to
+/// prove a teardown ran: the cell holds something the door has to take.
+fn headless_runtime(rate: u32) -> Rc<RefCell<Option<ProjectRuntimeController>>> {
+    Rc::new(RefCell::new(Some(
+        ProjectRuntimeController::for_testing_with_sample_rate(
+            engine::runtime::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            rate,
+        ),
+    )))
+}
+
+/// "Stop the rig" is a `Command` now, so a remote client can silence audio it
+/// started. Before this the teardown was reachable only from the GUI's
+/// back-to-launcher callback: an MCP client could enable a chain or play a DI
+/// and had no way to stop it again.
+#[test]
+fn stopping_the_rig_from_the_bus_drops_this_frontends_controller() {
+    let project_runtime = headless_runtime(44_100);
+    let session = stopped_session();
+    session.dispatcher.attach_engine_sr(44_100);
+    attach_runtime_control(&project_runtime, &session);
+
+    session
+        .dispatcher
+        .dispatch(Command::Project(
+            application::command::ProjectCommand::StopProjectRuntime,
+        ))
+        .expect("stopping the rig is never an error");
+
+    assert!(
+        project_runtime.borrow().is_none(),
+        "the stop must drop this frontend's controller — with it alive the \
+         streams stay open and the rig keeps sounding"
+    );
+    assert_eq!(
+        session.dispatcher.engine_sr(),
+        application::local_dispatcher::REFERENCE_SAMPLE_RATE,
+        "nothing is running, so the engine rate must be the reference again — \
+         not the rate of the device that just went away"
+    );
+}
+
+/// Deleting a chain is its own teardown, applied from the `RemoveChain`
+/// handler. Over MCP the chain used to leave the project and keep sounding,
+/// because the drop lived in the delete overlay's callback.
+#[test]
+fn deleting_a_chain_from_the_bus_tears_its_runtime_down() {
+    let project_runtime = headless_runtime(44_100);
+    let session = stopped_session();
+    session.dispatcher.attach_engine_sr(44_100);
+    attach_runtime_control(&project_runtime, &session);
+
+    session
+        .dispatcher
+        .dispatch(Command::Chain(ChainCommand::RemoveChain {
+            chain: ChainId("chain-127".into()),
+        }))
+        .expect("removing an existing chain must succeed");
+
+    assert!(
+        project_runtime.borrow().is_none(),
+        "the deleted chain was the only one and nothing else is sounding, so \
+         the controller must go with it — leaving it alive is what kept a dead \
+         device's rate alive for every reader (#127/Task 11)"
+    );
+    assert_eq!(
+        session.dispatcher.engine_sr(),
+        application::local_dispatcher::REFERENCE_SAMPLE_RATE,
+        "the delete must re-sync the engine rate like every other teardown"
+    );
+}
+
+/// AUDIO SAFETY, and the mirror of `syncing_a_disabled_chain_never_starts_the
+/// _audio_runtime`: the whole-graph rebuild follows what is RUNNING. On a
+/// stopped rig there is nothing to rebuild, and opening the machine's devices
+/// because a client saved a buffer size would be audio starting behind the
+/// user's back.
+///
+/// Driven on the door itself rather than by dispatching `SaveAudioSettings`:
+/// that handler persists `config.yaml`, and a test must never write the user's
+/// real one (#701).
+#[test]
+fn the_whole_graph_rebuild_never_starts_the_audio_runtime() {
+    use application::runtime_control::RuntimeControl;
+
+    let project_runtime = stopped_runtime();
+    let session = stopped_session();
+    let control = GuiRuntimeControl {
+        runtime: Rc::clone(&project_runtime),
+        session: SessionHandle::mirror(&session),
+    };
+
+    control
+        .sync_project()
+        .expect("rebuilding a stopped rig is not an error");
+
+    assert!(
+        project_runtime.borrow().is_none(),
+        "a device-settings rebuild must not create a controller — it follows \
+         the running graph, it does not start one"
+    );
+}
+
 // ── #808: arming the DI is the ONE door that may start the audio runtime ────
 
 /// Write a tiny mono WAV and load it as `chain`'s DI source, waiting for the

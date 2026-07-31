@@ -54,7 +54,10 @@ use application::command_schema::command_variant_names;
 /// #127 bumped to 95 with `SyncChainRuntime` — bringing ONE chain's live
 /// runtime back in step with the project was a UI-only call
 /// (`sync_live_chain_runtime` inside a Slint closure).
-const COMMAND_VARIANT_COUNT: usize = 95;
+/// #127 bumped to 96 with `StopProjectRuntime` — STOPPING the rig was
+/// reachable only from the GUI's back-to-launcher button, so a client that
+/// started the audio (a chain enable, a DI play) could not silence it again.
+const COMMAND_VARIANT_COUNT: usize = 96;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

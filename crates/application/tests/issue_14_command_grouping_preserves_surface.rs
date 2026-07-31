@@ -121,6 +121,9 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetTunerEnabled",
     "StartMidiLearn",
     "StopMidiLearn",
+    // #127: stopping the rig is a Command now, so a client that started the
+    // audio can silence it again.
+    "StopProjectRuntime",
     "SyncChainRuntime",
     "ToggleActiveBlockNeighborEnabled",
     "ToggleBlockEnabled",

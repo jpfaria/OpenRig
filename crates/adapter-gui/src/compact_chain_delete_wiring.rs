@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use crate::helpers::set_status_error;
 use crate::state::ProjectSession;
@@ -19,7 +19,6 @@ use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
 pub(crate) struct CompactChainDeleteCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<slint::VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -93,6 +92,10 @@ pub(crate) fn wire(
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
+            // #127: the dispatch also drops the deleted chain's live runtime
+            // (`RuntimeControl::remove_chain`), so this callback no longer
+            // tears the audio down itself — and a chain deleted over MCP/gRPC
+            // stops sounding too.
             if let Err(err) = session
                 .dispatcher
                 .dispatch(application::command::Command::Chain(
@@ -107,11 +110,6 @@ pub(crate) fn wire(
             if session.rig.is_some() {
                 crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&main_win, session);
             }
-            crate::runtime_lifecycle::remove_live_chain_runtime(
-                &ctx.project_runtime,
-                &ctx.project_session,
-                &chain_id,
-            );
             crate::project_view::replace_project_chains(
                 &ctx.project_chains,
                 &session.project.borrow(),

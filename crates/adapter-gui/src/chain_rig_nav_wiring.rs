@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 
 use application::command::{ChainCommand, ChainId, Command, RigNavKind, SelectionCommand};
 use application::event::Event;
@@ -19,13 +19,19 @@ use crate::chain_rig_nav::rig_nav_rows;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
+use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChainRigNav, PresetOption, PresetPicker, ProjectChainItem};
 
 pub(crate) struct ChainRigNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the capability to hand this session's dispatcher the frontend's
+    /// audio runtime — the drain is the first place an external transport
+    /// touches this frontend, so the seam must be wired before it dispatches.
+    /// Not the runtime itself: the drain asks for every runtime effect on the
+    /// bus.
+    pub runtime_attach: RuntimeAttach,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
@@ -189,7 +195,7 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // closes the window between opening a project and its first chain sync —
     // where a command that used to cold-start the runtime would otherwise
     // have nothing to apply itself to.
-    crate::runtime_lifecycle::attach_runtime_control(&ctx.project_runtime, session);
+    ctx.runtime_attach.to_session(session);
     let mut compact_open_idx: Option<i32> = None;
 
     // Re-sync the live runtime for each chain a GRAPH-changing command
@@ -200,7 +206,7 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // #127: this goes through the BUS, exactly like the GUI's own callbacks.
     // It used to call `sync_live_chain_runtime` directly, which meant MCP/MIDI
     // and the GUI reached the runtime by two different roads that only happened
-    // to end in the same function. `attach_runtime_control` right above
+    // to end in the same function. The attach right above
     // guarantees the dispatcher can honour the request even on the very first
     // external command of a freshly opened project.
     let mut synced: Vec<ChainId> = Vec::new();

@@ -129,6 +129,18 @@ impl LocalDispatcher {
                     config.output_devices = gui_outputs;
                 });
 
+                // #127: the new rate / buffer size / bit depth apply to every
+                // device the project names, so the whole running graph has to
+                // be re-opened against them. This used to be the settings
+                // screen's own `sync_project_runtime(..)` call right after the
+                // dispatch — so the same command over MCP/gRPC persisted the
+                // numbers and left the audio running on the old ones. The door
+                // is project-scoped and walks the chains the PROJECT names; it
+                // is never a selection over live runtimes by rate.
+                if let Some(control) = self.runtime_control() {
+                    control.sync_project()?;
+                }
+
                 Ok(vec![Event::AudioSettingsSaved])
             }
 

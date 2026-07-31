@@ -282,7 +282,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             crate::compact_chain_delete_wiring::CompactChainDeleteCtx {
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
-                project_runtime: project_runtime.clone(),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 input_chain_devices: input_chain_devices.clone(),

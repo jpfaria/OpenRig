@@ -301,7 +301,11 @@ fn deleting_the_last_chain_draws_the_curve_at_the_reference_rate() {
 
     let runtime: Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>> =
         Rc::new(RefCell::new(None));
-    crate::runtime_lifecycle::remove_live_chain_runtime(&runtime, &session, &chain_id);
+    crate::runtime_teardown::remove_live_chain_runtime(
+        &runtime,
+        session.borrow().as_ref(),
+        &chain_id,
+    );
 
     let after_delete = curve_for(&session);
     assert_eq!(
@@ -338,7 +342,7 @@ fn stopping_the_project_runtime_draws_the_curve_at_the_reference_rate() {
 
     let runtime: Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>> =
         Rc::new(RefCell::new(None));
-    crate::stop_project_runtime(&runtime, &session);
+    crate::runtime_teardown::stop_project_runtime(&runtime, session.borrow().as_ref());
 
     let after_stop = curve_for(&session);
     assert_eq!(

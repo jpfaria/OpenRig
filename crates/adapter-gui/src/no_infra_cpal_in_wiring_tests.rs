@@ -45,6 +45,11 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   loop and the metronome click. It left `runtime_lifecycle.rs` in Task 12b
 ///   because that file had reached its line cap, and it is an owner, not a
 ///   wiring module: nothing here is reached except through a `Command`.
+/// * `runtime_teardown.rs` — the SAME seam again, for the two ways a rig STOPS
+///   (Task 14): the whole rig (`stop_project_runtime`) and one chain
+///   (`remove_live_chain_runtime`). It left `runtime_lifecycle.rs` because that
+///   file had reached its line cap, and it is an owner, not a wiring module:
+///   nothing in it is reachable except through a `Command`.
 /// * `runtime_loopers.rs` — the same again for the looper doors (Task 13): the
 ///   store mutations, the playback reconcile that ends each of them, the PCM
 ///   export handed to the project save, and the restore that gives a
@@ -69,14 +74,8 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 ///   `spectrum_session.rs`, `spectrum_wiring.rs`, `block_editor_window_setup.rs`,
 ///   `select_chain_block_callback.rs`, `tone_doctor_compact_wiring.rs`
 /// * runtime health / stream errors on the poll tick: `desktop_app_polling.rs`
-/// * whole-project sync (`sync_project_runtime`): `settings/audio.rs`
-/// * runtime teardown (`stop_project_runtime`) and the session-install attach:
-///   `back_to_launcher_wiring.rs`, `project_file_dialog_wiring.rs`,
-///   `recent_projects_wiring.rs`
-/// * `remove_live_chain_runtime` on chain delete: `chain_row_wiring.rs`,
-///   `compact_chain_delete_wiring.rs`
 /// * pure hubs that only forward the handle to a module above:
-///   `chain_rig_nav_wiring.rs`, `compact_chain_callbacks.rs`,
+///   `compact_chain_callbacks.rs` (which also polls the controller itself),
 ///   `desktop_app_block_wiring.rs`, `desktop_app_chain_wiring.rs`,
 ///   `block_choose_type_callback.rs` (hands it to `block_editor_window_setup`
 ///   when the ADD flow opens a detached editor, #815)
@@ -110,6 +109,30 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// reading MCP gets; the recorded PCM never crosses that seam — it moves as an
 /// `Arc<LoopPcm>` handle through the write door.
 ///
+/// Task 14 emptied THREE buckets and cleared seven modules. `RuntimeControl`
+/// gained `stop_project_runtime` (applied by the new
+/// `ProjectCommand::StopProjectRuntime` AND by `CloseProject`, so a rig started
+/// over MCP can be stopped over MCP), `sync_project` (applied by
+/// `SettingsCommand::SaveAudioSettings`, so a device-settings change re-opens
+/// the running graph on every transport instead of only from the settings
+/// screen) and `remove_chain` (applied by `ChainCommand::RemoveChain`, so a
+/// deleted chain stops sounding whoever deleted it). `remove_chain` is
+/// deliberately NOT `sync_chain` for a missing chain: that lookalike validates
+/// the whole project, so an unrelated invalid chain would abort the teardown.
+///
+/// So `back_to_launcher_wiring.rs`, `settings/audio.rs`, `chain_row_wiring.rs`
+/// and `compact_chain_delete_wiring.rs` only dispatch now. The three modules
+/// that OPEN projects — `project_file_dialog_wiring.rs`,
+/// `recent_projects_wiring.rs` and `chain_rig_nav_wiring.rs` (the drain) —
+/// still have to install the seam on a freshly built session, so they hold
+/// `runtime_lifecycle::RuntimeAttach`: a capability whose handle is private and
+/// whose only operation is `to_session`. A module holding one cannot start,
+/// stop, sync or read the audio, which is the distinction this guard is about.
+/// `chain_row_wiring.rs` additionally stopped forwarding the handle: the looper
+/// panel takes an `Rc<dyn LiveSource>` built by `desktop_app`, and Tone
+/// Doctor's main-page wiring moved to `desktop_app` too (it is a tap consumer,
+/// Task 16).
+///
 /// Task 12b emptied that bucket: `metronome_wiring.rs` is gone from the list.
 /// The click's whole lifecycle moved onto the bus — the dispatcher owns the
 /// settings (`application::metronome_state`) and applies them through
@@ -120,13 +143,9 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// controller's shared cell. The bodies of those doors live in
 /// `runtime_pipelines.rs`, listed above as an owner.
 const ALLOWED: &[&str] = &[
-    "back_to_launcher_wiring.rs",
     "block_choose_type_callback.rs",
     "block_editor_window_setup.rs",
-    "chain_rig_nav_wiring.rs",
-    "chain_row_wiring.rs",
     "compact_chain_callbacks.rs",
-    "compact_chain_delete_wiring.rs",
     "desktop_app.rs",
     "desktop_app_block_wiring.rs",
     "desktop_app_chain_wiring.rs",
@@ -135,13 +154,11 @@ const ALLOWED: &[&str] = &[
     "mcp_query_resolver.rs",
     "meter_wiring.rs",
     "meter_wiring_poll.rs",
-    "project_file_dialog_wiring.rs",
-    "recent_projects_wiring.rs",
     "runtime_lifecycle.rs",
     "runtime_loopers.rs",
     "runtime_pipelines.rs",
+    "runtime_teardown.rs",
     "select_chain_block_callback.rs",
-    "settings/audio.rs",
     "spectrum_session.rs",
     "spectrum_wiring.rs",
     "tone_doctor_compact_wiring.rs",

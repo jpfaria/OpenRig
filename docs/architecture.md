@@ -75,15 +75,17 @@ The GUI's implementation is `GuiRuntimeControl`, in
 `adapter-gui/src/runtime_lifecycle.rs` — the one module that owns the
 controller. Current doors: `set_output_muted` (rig-wide, the tuner's mute),
 `set_io_bindings`, `set_block_enabled` (#522's in-place fade toggle — never a
-stream restart), `sync_chain`, the DI stream trio `arm_di_stream` /
-`disarm_di_stream` / `refresh_di_stream`, the metronome's `start_metronome` /
-`stop_metronome` / `set_metronome_settings` / `refresh_metronome_output`, and
-the looper's `create_looper` / `remove_looper` / `looper_transport` /
-`set_looper_param` / `set_looper_input` / `set_looper_output` /
-`export_chain_loops`. The bodies of the DI and metronome families live in
-`adapter-gui/src/runtime_pipelines.rs` (both are INDEPENDENT pipelines,
-invariant #4, and share the two rules below where the chain doors do not); the
-looper bodies live in `adapter-gui/src/runtime_loopers.rs`.
+stream restart), `sync_chain`, the teardown pair `stop_project_runtime`
+(rig-wide) / `remove_chain` (one chain), the whole-graph `sync_project`, the DI
+stream trio `arm_di_stream` / `disarm_di_stream` / `refresh_di_stream`, the
+metronome's `start_metronome` / `stop_metronome` / `set_metronome_settings` /
+`refresh_metronome_output`, and the looper's `create_looper` / `remove_looper` /
+`looper_transport` / `set_looper_param` / `set_looper_input` /
+`set_looper_output` / `export_chain_loops`. The bodies of the DI and metronome
+families live in `adapter-gui/src/runtime_pipelines.rs` (both are INDEPENDENT
+pipelines, invariant #4, and share the two rules below where the chain doors do
+not); the looper bodies live in `adapter-gui/src/runtime_loopers.rs`, and the
+two teardowns in `adapter-gui/src/runtime_teardown.rs`.
 
 Two rules the DI trio makes explicit:
 
@@ -105,6 +107,47 @@ Two rules the DI trio makes explicit:
 `attach_engine_sr` is where a device-rate change becomes a refresh: it stores
 the new rate and asks the control to re-arm each chain whose loop is playing,
 so a loop resampled to the old rate never drags on against a rebuilt runtime.
+
+### Stopping, rebuilding and deleting (#127)
+
+Three teardown/rebuild sequences used to be GUI function calls made right after
+a command was dispatched, so the same command from any other transport changed
+nothing audible:
+
+| door | command that applies it | what a remote client can now do |
+|---|---|---|
+| `stop_project_runtime` | `ProjectCommand::StopProjectRuntime`, and `ProjectCommand::CloseProject` | **stop the rig.** Before this, a client could START audio (enable a chain, play a DI) and had no way to silence it; and a `CloseProject` over MCP left every stream open |
+| `sync_project` | `SettingsCommand::SaveAudioSettings` | change the device settings and have them take effect — the save persisted the new rate/buffer and left the audio running on the old ones |
+| `remove_chain` | `ChainCommand::RemoveChain` | delete a chain and hear it stop |
+
+Three rules worth naming:
+
+- **`remove_chain` is NOT `sync_chain` for a chain that is gone.** The
+  lookalike validates the WHOLE project first, so an unrelated invalid chain
+  would abort the teardown and leave a deleted chain sounding; it is also a
+  different sequence (device resolve, activation scheduling). The delete
+  removes the stream the command already removed from the project, and nothing
+  else — a delete must never touch a neighbour's runtime (invariant #4).
+- **`sync_project` is whole-project, never rate-grouped.** It walks the chains
+  the PROJECT names, one at a time, each against its own resolved devices. It
+  exists because the device settings apply to every device at once, which no
+  per-chain sync can express. "Whole project" is an explicit list of chain
+  identities, never a filter over live runtimes by sample rate (`CLAUDE.md`
+  LAW).
+- **Neither may start audio.** A stop, a delete and a device-settings rebuild
+  all follow what is already running; with no controller there is nothing to do
+  and the rig stays stopped. Only an arm may wake audio (above, #808).
+
+Every teardown ends by re-publishing the engine sample rate, so "nothing
+running" reads as the reference rate instead of the rate of a device that is no
+longer open (#723/Task 11).
+
+The three modules that OPEN a project (`project_file_dialog_wiring`,
+`recent_projects_wiring`, and `chain_rig_nav_wiring`'s external-event drain)
+still have to hand a freshly built session's dispatcher this frontend's runtime
+control. They do it through `runtime_lifecycle::RuntimeAttach`, a capability
+whose handle is private and whose only operation is `to_session` — so a wiring
+module can wire the seam up without being able to reach through it.
 
 ### The looper's runtime half moved to the dispatcher (#127)
 

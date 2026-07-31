@@ -66,6 +66,55 @@ pub trait RuntimeControl {
         let _ = bindings;
     }
 
+    /// Stop the rig: drop every stream this frontend has open and report the
+    /// engine rate as "nothing running" again.
+    ///
+    /// Rig-wide by design, like [`Self::set_output_muted`], and it says so:
+    /// this is "the rig stops", not "one stream stops". Tearing ONE stream
+    /// down is [`Self::remove_chain`], which takes that stream's identity.
+    ///
+    /// Idempotent and never an error: there is nothing to fail about silence.
+    fn stop_project_runtime(&self) {}
+
+    /// Rebuild the WHOLE running graph from the project as it stands now.
+    ///
+    /// This exists for the one change no per-chain sync can express: the
+    /// device settings (sample rate, buffer size, bit depth, and on
+    /// Linux/JACK the server parameters) apply to every device the project
+    /// names at once, so every chain's stream has to be re-opened against them.
+    ///
+    /// **Isolation (`CLAUDE.md` LAW).** "Whole project" is an explicit list of
+    /// chain identities — the chains the PROJECT names — walked one at a time,
+    /// each against its own resolved devices. It must never become a selection
+    /// over live runtimes by sample rate, or by "every runtime that matches":
+    /// that is the rate-grouping this repo forbids, and the reason this door is
+    /// spelled "sync the project" and not "sync everything at rate R".
+    ///
+    /// Never starts audio: with no controller there is nothing to rebuild, and
+    /// a device-settings save on a stopped rig must leave it stopped.
+    fn sync_project(&self) -> Result<()> {
+        Ok(())
+    }
+
+    /// Drop ONE chain from the live graph — the chain-delete teardown.
+    ///
+    /// **This is not [`Self::sync_chain`] for a chain that is gone.** The two
+    /// look interchangeable and are not: a sync validates the whole project
+    /// first, so an unrelated invalid chain would make the delete's teardown
+    /// fail and leave a deleted chain still sounding. This door removes the
+    /// stream the command already removed from the project, and nothing else.
+    ///
+    /// **Isolation:** exactly the chain named by `chain`. No other stream's
+    /// runtime may be stopped, rebuilt or observed — a delete is the operation
+    /// where "it also tore down the neighbours" is most tempting and most
+    /// wrong. The frontend drops its controller only when NOTHING is left
+    /// sounding (no chain, no pending activation, no armed DI — #808).
+    ///
+    /// Idempotent and never an error, like [`Self::disarm_di_stream`].
+    fn remove_chain(&self, chain: &ChainId) {
+        let _ = chain;
+    }
+
     /// Apply one block's new enabled state to the chain that owns it, LIVE.
     ///
     /// This is issue #522's in-place fade toggle: the frontend flips the

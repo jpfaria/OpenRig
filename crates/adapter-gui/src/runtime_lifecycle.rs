@@ -41,7 +41,7 @@ use project::chain::{Chain, EndpointRef};
 use crate::live_sync_plan::{plan_live_sync, LiveSyncAction};
 use crate::runtime_session_handle::SessionHandle;
 use crate::state::ProjectSession;
-use crate::{runtime_loopers, runtime_pipelines};
+use crate::{runtime_loopers, runtime_pipelines, runtime_teardown};
 
 /// #127: the GUI's `RuntimeControl` — how a command handler reaches THIS
 /// frontend's audio runtime. Holds the same `Rc` the whole app shares, so it
@@ -81,6 +81,34 @@ impl RuntimeControl for GuiRuntimeControl {
             return Ok(());
         };
         sync_live_chain_runtime(&self.runtime, &session, chain)
+    }
+
+    // The teardowns (`runtime_teardown`): the whole rig, and one chain. A
+    // closed project leaves no dispatcher to re-publish the rate to, but the
+    // streams still go — which is why both take the session as an `Option`.
+
+    fn stop_project_runtime(&self) {
+        runtime_teardown::stop_project_runtime(&self.runtime, self.session.session().as_ref());
+    }
+
+    fn remove_chain(&self, chain: &ChainId) {
+        runtime_teardown::remove_live_chain_runtime(
+            &self.runtime,
+            self.session.session().as_ref(),
+            chain,
+        );
+    }
+
+    /// The device-settings rebuild: every chain the PROJECT names, re-opened
+    /// against the rate/buffer that just changed. Never selects runtimes by
+    /// rate (`CLAUDE.md` LAW) — `sync_project` walks the project's own chain
+    /// list — and never creates a controller, so a save on a stopped rig
+    /// leaves it stopped.
+    fn sync_project(&self) -> Result<()> {
+        let Some(session) = self.session.session() else {
+            return Ok(());
+        };
+        sync_project_runtime(&self.runtime, &session)
     }
 
     // The independent pipelines (invariant #4) — the DI loop and the
@@ -181,6 +209,35 @@ impl RuntimeControl for GuiRuntimeControl {
 /// session's paths change (Save As): the dispatcher belongs to the open
 /// session, so a newly opened project re-attaches on its first sync.
 /// Idempotent and cheap — it clones a handful of `Rc`s.
+/// #127: the ONE capability a project-open path needs from the audio runtime —
+/// "give this freshly built session's dispatcher the frontend's audio runtime".
+///
+/// It exists so the modules that open, create and switch projects do not have
+/// to hold `Rc<RefCell<Option<ProjectRuntimeController>>>` just to perform an
+/// installation step. A module holding one of these cannot start, stop, sync or
+/// read the audio: the handle is private and the only thing it can do with it
+/// is hand it to a dispatcher. That is the difference the guard in
+/// `no_infra_cpal_in_wiring_tests` is about — reaching the engine directly
+/// versus wiring the seam up.
+#[derive(Clone)]
+pub(crate) struct RuntimeAttach {
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl RuntimeAttach {
+    pub(crate) fn new(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) -> Self {
+        Self {
+            runtime: project_runtime.clone(),
+        }
+    }
+
+    /// Hand `session`'s dispatcher this frontend's runtime control. Idempotent
+    /// and cheap — it clones a handful of `Rc`s.
+    pub(crate) fn to_session(&self, session: &ProjectSession) {
+        attach_runtime_control(&self.runtime, session);
+    }
+}
+
 pub(crate) fn attach_runtime_control(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
@@ -191,28 +248,6 @@ pub(crate) fn attach_runtime_control(
             runtime: project_runtime.clone(),
             session: SessionHandle::mirror(session),
         }));
-}
-
-/// Drop the active controller, and tell the session's dispatcher the streams
-/// are gone.
-///
-/// #127: the engine rate is part of the teardown. It was only ever pushed
-/// forward, so a stopped 44.1 kHz rig left the dispatcher reporting 44 100 and
-/// every consumer of the live rate — the block editor's EQ curve first among
-/// them — kept drawing against a device that was no longer open. Resetting it
-/// here means "nothing running" reads as the reference rate again, which is
-/// what it is (issue #723's sanctioned no-device value, never a live-path
-/// assumption).
-pub(crate) fn stop_project_runtime(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-) {
-    if let Some(mut runtime) = project_runtime.borrow_mut().take() {
-        runtime.stop();
-    }
-    if let Some(session) = project_session.borrow().as_ref() {
-        sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
-    }
 }
 
 pub(crate) fn sync_project_runtime(
@@ -383,37 +418,6 @@ fn restore_project_loops(
         return;
     };
     runtime_loopers::restore_chain_loops(session, project_runtime, &project_path);
-}
-
-/// Drop one chain from the live graph — the chain-delete teardown.
-///
-/// #127: this is the THIRD way a rig stops, and the one that used to leak a
-/// dead rate. Deleting the last chain removed its streams but left the
-/// controller alive, so nothing ever re-synced and every reader of the live
-/// rate — the block editor's EQ curve first — kept the rate of a device that
-/// was no longer open. It now mirrors `sync_live_chain_runtime`'s own
-/// teardown: with nothing left running (no chain, no pending activation, no
-/// armed DI — `is_running` counts all three, so a DI playing without any chain
-/// keeps its controller, #808) the controller goes, and the engine rate is
-/// re-synced either way. Two chains in, one deleted, the survivor's rate is
-/// re-pushed unchanged.
-pub(crate) fn remove_live_chain_runtime(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    chain_id: &ChainId,
-) {
-    {
-        let mut borrow = project_runtime.borrow_mut();
-        if let Some(runtime) = borrow.as_mut() {
-            runtime.remove_chain(chain_id);
-            if !runtime.is_running() {
-                *borrow = None;
-            }
-        }
-    }
-    if let Some(session) = project_session.borrow().as_ref() {
-        sync_engine_sr_from_runtime(project_runtime, session.dispatcher.as_ref());
-    }
 }
 
 /// Issue #522: fast path for `Command::ToggleBlockEnabled`. Flips the

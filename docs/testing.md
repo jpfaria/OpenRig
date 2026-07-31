@@ -150,6 +150,18 @@ is marked playing only once its stream is proven open — is pinned headless in
 `crates/adapter-gui/src/runtime_pipelines_tests.rs` and runs in the normal
 suite.
 
+The teardown / whole-graph doors (issue #127) need no hardware either. At the
+dispatcher level, `crates/application/src/local_dispatcher_runtime_doors_tests.rs`
+drives a spy `RuntimeControl` and pins that `StopProjectRuntime` and
+`CloseProject` stop the rig, that `SaveAudioSettings` rebuilds the whole graph
+(and surfaces a refusal as a dispatch error), and — the isolation pin — that
+`RemoveChain` touches ONLY the deleted chain: the survivor is neither re-synced
+nor named, and the rig-wide stop never fires. At the GUI level,
+`crates/adapter-gui/src/runtime_lifecycle_control_tests.rs` drives the same
+commands against a device-less controller and asserts the controller is dropped
+and the engine rate goes back to the reference, plus that the whole-graph
+rebuild never CREATES a controller on a stopped rig.
+
 ## Real-plugin VST3 battery (issues #776 / #780)
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on

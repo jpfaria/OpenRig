@@ -3,10 +3,16 @@
 //!
 //! Two callbacks, both branching on `AudioSettingsMode` (Gui = first-run setup,
 //! Project = per-project device config). Shared steps: pull selected device
-//! rows, persist gui-settings.yaml, write into the project session, apply
-//! settings to hardware (`infra_cpal::apply_device_settings`), and resync the
-//! audio runtime — which on Linux/JACK restarts jackd if sample rate or buffer
-//! size changed.
+//! rows, persist gui-settings.yaml, apply settings to hardware
+//! (`infra_cpal::apply_device_settings`), and dispatch
+//! `SettingsCommand::SaveAudioSettings`.
+//!
+//! #127: the runtime rebuild is NOT done here. `SaveAudioSettings` rebuilds the
+//! whole running graph from the dispatcher, through
+//! `RuntimeControl::sync_project` — which on Linux/JACK restarts jackd if the
+//! sample rate or buffer size changed. It used to be a `sync_project_runtime`
+//! call in each of these callbacks, so the same command over MCP/gRPC persisted
+//! the new numbers and left the audio running on the old ones.
 //!
 //! # Issue #627 — buffer size must survive a whole-config re-save
 //!
@@ -24,7 +30,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use domain::ids::DeviceId;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 use infra_filesystem::{AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiSystemSettings};
 use project::device::DeviceSettings;
 
@@ -39,7 +45,6 @@ use crate::project_ops::{
 };
 use crate::project_view::replace_project_chains;
 use crate::state::{AudioSettingsMode, ProjectSession};
-use crate::sync_project_runtime;
 use crate::{AppWindow, DeviceSelectionItem, ProjectChainItem, ProjectSettingsWindow};
 
 /// Mirror the applied device lists into the shared in-memory `AppConfig` so
@@ -76,7 +81,6 @@ pub(crate) struct AudioSettingsSaveCtx {
     pub audio_settings_mode: Rc<RefCell<AudioSettingsMode>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -149,7 +153,6 @@ pub(crate) fn wire(
         audio_settings_mode,
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -167,7 +170,6 @@ pub(crate) fn wire(
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -254,7 +256,15 @@ pub(crate) fn wire(
                                     input_devices: project_device_settings_from_rows(inputs),
                                     output_devices: project_device_settings_from_rows(outputs),
                                 };
-                                let _ = session.dispatcher.dispatch(Command::Settings(cmd));
+                                // #127: this dispatch now also rebuilds the
+                                // running graph, so its Err is the one the
+                                // `sync_project_runtime` call below used to
+                                // report.
+                                if let Err(e) = session.dispatcher.dispatch(Command::Settings(cmd))
+                                {
+                                    set_status_error(&window, &toast_timer, &e.to_string());
+                                    return;
+                                }
                                 // #716 Task 13: create/update the "default" I/O
                                 // binding when the audio wizard finishes.
                                 if let (Some(input), Some(output)) = (
@@ -273,10 +283,6 @@ pub(crate) fn wire(
                                         existing.as_ref(),
                                     );
                                     let _ = session.dispatcher.dispatch(cmd);
-                                }
-                                if let Err(e) = sync_project_runtime(&project_runtime, session) {
-                                    set_status_error(&window, &toast_timer, &e.to_string());
-                                    return;
                                 }
                             }
                             clear_status(&window, &toast_timer);
@@ -349,10 +355,6 @@ pub(crate) fn wire(
                             &gui_inputs,
                             &gui_outputs,
                         );
-                    }
-                    if let Err(error) = sync_project_runtime(&project_runtime, session) {
-                        set_status_error(&window, &toast_timer, &error.to_string());
-                        return;
                     }
                     replace_project_chains(
                         &project_chains,
@@ -504,10 +506,6 @@ pub(crate) fn wire(
                             &gui_inputs,
                             &gui_outputs,
                         );
-                    }
-                    if let Err(error) = sync_project_runtime(&project_runtime, session) {
-                        settings_window.set_status_message(error.to_string().into());
-                        return;
                     }
                     replace_project_chains(
                         &project_chains,

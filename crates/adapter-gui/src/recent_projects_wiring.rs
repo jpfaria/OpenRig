@@ -20,19 +20,20 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use application::command::{Command, ProjectCommand};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
+use crate::project_file_dialog_wiring::stop_the_previous_rig;
 use crate::project_ops::{
     canonical_project_path, load_project_session, mark_recent_project_invalid,
     project_display_name, project_session_snapshot, project_title_for_path, recent_project_items,
     register_recent_project, resolve_project_config_path, set_project_dirty,
 };
 use crate::project_view::replace_project_chains;
+use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
-use crate::stop_project_runtime;
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
 
 pub(crate) struct RecentProjectsCtx {
@@ -40,7 +41,10 @@ pub(crate) struct RecentProjectsCtx {
     pub recent_projects: Rc<VecModel<RecentProjectItem>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the capability to hand a freshly built session's dispatcher this
+    /// frontend's audio runtime. Not the runtime itself — opening a recent
+    /// project wires the seam up, it does not reach through it.
+    pub runtime_attach: RuntimeAttach,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -54,7 +58,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
         recent_projects,
         project_session,
         project_chains,
-        project_runtime,
+        runtime_attach,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -82,7 +86,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
         let app_config = app_config.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
+        let runtime_attach = runtime_attach.clone();
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
@@ -139,7 +143,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     let title =
                         project_title_for_path(Some(&canonical_path), &session.project.borrow());
                     let display_name = project_display_name(&session.project.borrow());
-                    stop_project_runtime(&project_runtime, &project_session);
+                    stop_the_previous_rig(&project_session);
                     replace_project_chains(
                         &project_chains,
                         &session.project.borrow(),
@@ -159,7 +163,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
                     // anything can dispatch against it — a runtime-control command issued before
                     // the first chain sync must still reach the audio.
-                    crate::runtime_lifecycle::attach_runtime_control(&project_runtime, &session);
+                    runtime_attach.to_session(&session);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);

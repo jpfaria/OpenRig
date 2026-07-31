@@ -172,6 +172,12 @@ pub fn run_desktop_app(
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
     let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
+    // #127: the two capabilities the wiring modules get INSTEAD of the runtime
+    // handle — installing the seam on a freshly opened session, and reading the
+    // loopers' transport state (the same finished reading MCP gets). Neither
+    // can start, stop or sync audio.
+    let runtime_attach = crate::runtime_lifecycle::RuntimeAttach::new(&project_runtime);
+    let looper_live = crate::gui_live_source::looper_live_source(&project_runtime);
     let probe_windows = latency_probe::new_windows();
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
@@ -489,7 +495,6 @@ pub fn run_desktop_app(
             audio_settings_mode: audio_settings_mode.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -579,7 +584,7 @@ pub fn run_desktop_app(
             recent_projects: recent_projects.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -595,7 +600,7 @@ pub fn run_desktop_app(
             recent_projects: recent_projects.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -676,7 +681,6 @@ pub fn run_desktop_app(
         crate::back_to_launcher_wiring::BackToLauncherCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             chain_editor_window: chain_editor_window.clone(),
@@ -764,7 +768,7 @@ pub fn run_desktop_app(
         crate::chain_row_wiring::ChainRowCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            looper_live: looper_live.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -774,6 +778,15 @@ pub fn run_desktop_app(
             pending_delete_chain_id: std::rc::Rc::new(std::cell::RefCell::new(None)),
         },
     );
+    // #791: Tone Doctor's run/apply for the main chains page. Wired here
+    // because its taps need the runtime handle, which this module owns —
+    // `chain_row_wiring` used to forward it and now names no audio backend.
+    crate::tone_doctor_compact_wiring::wire_main(
+        &window,
+        project_session.clone(),
+        project_runtime.clone(),
+        toast_timer.clone(),
+    );
     // #614: DI loop file picker — separate module because chain_row_wiring
     // is forbidden from using rfd:: (issue #511).
     crate::di_loop_chooser_wiring::wire(&window, project_session.clone(), toast_timer.clone());
@@ -782,7 +795,7 @@ pub fn run_desktop_app(
         crate::chain_rig_nav_wiring::ChainRigNavCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
@@ -832,7 +845,7 @@ pub fn run_desktop_app(
         let mcp_ctx = crate::chain_rig_nav_wiring::ChainRigNavCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
@@ -905,7 +918,7 @@ pub fn run_desktop_app(
             crate::chain_rig_nav_wiring::ChainRigNavCtx {
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
-                project_runtime: project_runtime.clone(),
+                runtime_attach: runtime_attach.clone(),
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),
                 toast_timer: toast_timer.clone(),

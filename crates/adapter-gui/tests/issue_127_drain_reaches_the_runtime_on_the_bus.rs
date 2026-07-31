@@ -108,12 +108,12 @@ fn the_drain_hands_the_dispatcher_the_runtime_before_dispatching_on_it() {
     // The CALL, with the handles it must be given — not the bare identifier,
     // which any comment mentioning it would satisfy.
     let attach = src
-        .find("attach_runtime_control(&ctx.project_runtime, session)")
+        .find("ctx.runtime_attach.to_session(session)")
         .unwrap_or_else(|| {
             panic!(
                 "the drain must attach this frontend's runtime control — no \
-                 `attach_runtime_control(&ctx.project_runtime, session)` call in \
-                 the code of chain_rig_nav_wiring.rs"
+                 `ctx.runtime_attach.to_session(session)` call in the code of \
+                 chain_rig_nav_wiring.rs"
             )
         });
     let sync = src
