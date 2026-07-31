@@ -202,7 +202,12 @@ pub fn duplicates_chain_binding(block: &AudioBlock, io_binding_ids: &[String]) -
     let io = match &block.kind {
         AudioBlockKind::Input(b) => &b.io,
         AudioBlockKind::Output(b) => &b.io,
-        _ => return false,
+        // Not a port: an `Insert` sends and returns on the same chain, so it
+        // never duplicates the chain's head/tail I/O; the rest carry no binding.
+        AudioBlockKind::Nam(_)
+        | AudioBlockKind::Core(_)
+        | AudioBlockKind::Select(_)
+        | AudioBlockKind::Insert(_) => return false,
     };
     !io.is_empty() && io_binding_ids.iter().any(|id| id == io)
 }

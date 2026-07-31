@@ -191,10 +191,15 @@ pub(crate) fn wire(
         // with the E/S it currently points at — otherwise the port is added and
         // then uneditable ("this block cannot be edited from the GUI yet"), so
         // its endpoint could never be changed.
+        // Exhaustive on purpose: a new block kind must decide here whether it
+        // is a port, instead of silently falling into the processing path.
         let port = match &block.kind {
             AudioBlockKind::Input(b) => Some((true, b.io.clone(), b.endpoint.clone())),
             AudioBlockKind::Output(b) => Some((false, b.io.clone(), b.endpoint.clone())),
-            _ => None,
+            AudioBlockKind::Nam(_)
+            | AudioBlockKind::Core(_)
+            | AudioBlockKind::Select(_)
+            | AudioBlockKind::Insert(_) => None,
         };
         if let Some((is_input, io, endpoint)) = port {
             let registry = session.io_bindings.borrow().clone();
