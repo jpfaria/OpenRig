@@ -220,6 +220,26 @@ pub(crate) fn build_per_input_runtimes(
     Ok(out)
 }
 
+/// #85: how many STREAMS a chain owns — one per (input × output) pipeline, the
+/// same unit the runtime indexes its per-stream taps by. The GUI draws one
+/// meter row per stream, so a mid port shows up with its own bar.
+pub fn chain_stream_count(chain: &Chain, registry: &[IoBinding]) -> usize {
+    let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
+        effective_inputs(chain, &resolved_inputs, registry);
+    let eff_outputs = effective_outputs(chain, &resolved_outputs, registry);
+    split_chain_into_segments(
+        chain,
+        &eff_inputs,
+        &eff_input_cpal_indices,
+        &eff_split_positions,
+        &eff_entry_groups,
+        &eff_outputs,
+        registry,
+    )
+    .len()
+}
+
 /// Issue #703: public seam for infra layers that build a chain's runtimes
 /// off-thread (cold activation, live rebuild). One isolated
 /// `ChainRuntimeState` per input-entry group — the same shape

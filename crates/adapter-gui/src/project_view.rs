@@ -430,11 +430,11 @@ pub(crate) fn replace_project_chains(
                     // resolved input endpoint (#716: from the binding registry,
                     // not per block `entries`), min 1 so an enabled-but-
                     // unresolved chain still shows a row.
+                    // #85: one row per STREAM — a (input × output) pipeline —
+                    // so a mid `Input`/`Output` port shows its own bar instead
+                    // of hiding inside the chain's single input row.
                     let stream_count: usize = if chain.enabled {
-                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
-                            .0
-                            .len()
-                            .max(1)
+                        crate::meter_wiring::project_stream_count(chain, io_bindings).max(1)
                     } else {
                         0
                     };
