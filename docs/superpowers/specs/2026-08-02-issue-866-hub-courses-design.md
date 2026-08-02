@@ -56,7 +56,7 @@ someone paid for; the student is offered the update.
 Browse and search, filtered by instrument, level and language. A course page
 shows the teacher, the syllabus, the price, sample lessons, and — the thing that
 distinguishes this from every other course platform — **what the course actually
-measures**: the rubric it holds you to (#865). "This course expects 90% clean at
+measures**: the rubric it holds you to (spec 1). "This course expects 90% clean at
 120 BPM" is information a student cannot get anywhere else, and it is the
 honest version of "beginner/intermediate/advanced".
 

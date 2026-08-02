@@ -26,7 +26,7 @@ building.
 
 ## The hard part, stated honestly
 
-#865 avoids blind transcription: the evaluator always knows what was expected,
+Spec 1 avoids blind transcription: the evaluator always knows what was expected,
 so it verifies rather than transcribes. **The teacher tool does not have that
 luxury.** Turning a recorded performance into a note-by-note target *is* the
 transcription problem, and it is genuinely hard — especially polyphonically.
@@ -67,7 +67,7 @@ path, not the only one.
 
 Create a course, add modules, add lessons, reorder, set metadata (title, author,
 level, language, licence). Set the course-wide rubric — the default standard
-every lesson inherits (#865).
+every lesson inherits (spec 1).
 
 ### Per lesson
 

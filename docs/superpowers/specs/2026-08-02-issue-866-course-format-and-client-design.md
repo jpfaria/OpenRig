@@ -3,8 +3,8 @@
 **Status:** design approved (owner, 2026-08-02); spec under review.
 
 **Series:** #866 covers five specs. This is the second — the first is the
-practice evaluator (#865), and specs 3–5 (video delivery, Hub courses, teacher
-tool) follow. Distribution rides on the OpenRig Hub of #309.
+practice evaluator, and specs 3–5 (video delivery, Hub courses, teacher tool)
+follow. Distribution rides on the OpenRig Hub of #309.
 
 ## Problem
 
@@ -12,7 +12,7 @@ A course today is a playlist plus a folder of downloads. The student watches a
 video in one window, hunts for the tab in another, sets a metronome in a third,
 and guesses when to move on. Every one of those tools already exists inside
 OpenRig — metronome (#14), looper (#323), DI loop (#771), tuner, score reader
-(#864) — and #865 adds the one thing no video platform has: something that
+(#864) — and spec 1 adds the one thing no video platform has: something that
 hears the take and scores it.
 
 What is missing is the thread. A lesson should arrive knowing the tempo it wants,
@@ -33,21 +33,21 @@ should set all of that up when the student opens it.
 - The video infrastructure itself (spec 3).
 - The catalogue, accounts, purchase and publishing (spec 4).
 - The teacher's authoring tool (spec 5).
-- Judging the take — that is #865, consumed here as a library.
+- Judging the take — that is spec 1, consumed here as a library.
 
 ## The model
 
 ```
 Course
  ├── metadata: id, title, author, version, language, level
- ├── rubric: the course-wide default (#865 `Rubric`)
+ ├── rubric: the course-wide default (spec 1 `Rubric`)
  └── Module[]
       └── Lesson[]
            ├── video: VideoRef
            ├── text: markdown
            ├── material: score refs, backing tracks, images
            ├── rig: RigSetup
-           ├── exercises: Exercise[]  (#865)
+           ├── exercises: Exercise[]  (spec 1)
            ├── rubric: RubricPatch?   (overrides the course default)
            └── gate: Gate
 ```
@@ -101,7 +101,7 @@ pub enum LessonStatus { NotAttempted, InTraining, NeedsWork, Mastered, Skipped }
 ```
 
 Default is non-blocking: the student moves on carrying `NeedsWork`, and the app
-knows where to send them back. A lesson may declare itself blocking (#865).
+knows where to send them back. A lesson may declare itself blocking (spec 1).
 
 ## The lesson's own project
 
@@ -161,7 +161,7 @@ screen that answers *am I ready?*
 
 **Lesson** — the working surface: video (in-window for HLS, in its own window
 for YouTube), the teacher's text, the score with the drilled passage, the
-exercise transport, and the live verdicts from #865. The rig controls the lesson
+exercise transport, and the live verdicts from spec 1. The rig controls the lesson
 armed are the app's own — the metronome is the metronome, not a copy of it.
 
 Placement and rules follow the existing surfaces: state on a bridge global the
@@ -228,7 +228,7 @@ down is the point.
 ## Phases
 
 1. **Local course, no video** — install from a folder, the path screen, lesson
-   projects, rig arming, exercises wired to #865, progress. A course works
+   projects, rig arming, exercises wired to spec 1, progress. A course works
    end-to-end with the video field empty.
 2. **YouTube video** — the `wry` window and the IFrame transport.
 3. **HLS video** — the in-window GStreamer player (needs spec 3).
