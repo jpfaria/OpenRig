@@ -782,33 +782,35 @@ git push
 
 ---
 
-### Task 5: Commands, events and the bus wiring
+### Task 5: Commands and the runtime doors
 
-Every state change is a `Command` (the architecture law), so MCP and gRPC get the edits for free.
+Every state change is a `Command` (the architecture law), and since #127 a command's runtime half travels a `RuntimeControl` door — never a GUI callback — so MCP and MIDI reach the store through the same path the GUI does.
 
 **Files:**
 - Modify: `crates/application/src/command/looper.rs` (three variants)
-- Modify: `crates/application/src/event.rs` (three events, near `ChainLooperParamChanged` ~line 447)
-- Modify: `crates/application/src/local_dispatcher_looper.rs` (handler arms)
-- Modify: `crates/infra-cpal/src/controller_loopers.rs` (controller passthrough, near `export_chain_looper` ~line 96)
-- Modify: `crates/adapter-gui/src/looper_wiring.rs` (`apply_looper_event` arms + `looper_event_chain`)
-- Test: `crates/application/src/local_dispatcher_looper_tests.rs`
+- Modify: `crates/application/src/event.rs` (three events, near `ChainLooperParamChanged`)
+- Modify: `crates/application/src/runtime_control.rs` (three doors, in the `── loopers (#323) ──` block)
+- Modify: `crates/application/src/local_dispatcher_looper.rs` (handler arms, shaped like `SetChainLooperTransport`)
+- Modify: `crates/infra-cpal/src/controller_loopers.rs` (controller passthrough, near `export_chain_looper`)
+- Modify: `crates/adapter-gui/src/runtime_loopers.rs` + `crates/adapter-gui/src/runtime_lifecycle.rs` (the GUI's implementation of the doors)
+- Test: `crates/application/src/local_dispatcher_looper_runtime_tests.rs`
 
 **Interfaces:**
 - Consumes: `LooperStore::{apply_edit, undo_edit, redo_edit, edit_history_depth}` (Task 4), `LoopEdit` (Task 3).
 - Produces:
   - `LooperCommand::{EditChainLooperAudio { chain, looper, edit }, UndoChainLooperEdit { chain, looper }, RedoChainLooperEdit { chain, looper }}`
   - `Event::{ChainLooperEditApplied { chain, looper, edit }, ChainLooperEditUndone { chain, looper }, ChainLooperEditRedone { chain, looper }}`
+  - `RuntimeControl::{apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize>, undo_looper_edit(&self, chain: &Chain, looper: u64), redo_looper_edit(&self, chain: &Chain, looper: u64)}` — defaulted to no-ops, like their neighbours
   - `Controller::{looper_apply_edit(&self, chain, uid, edit) -> Result<usize, LooperEditRefused>, looper_undo_edit, looper_redo_edit, looper_edit_history_depth, export_chain_looper_raw}`
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `crates/application/src/local_dispatcher_looper_tests.rs` (follow the file's existing setup helper for a dispatcher with one chain and one looper):
+Append to `crates/application/src/local_dispatcher_looper_runtime_tests.rs`, extending the existing `SpyRuntimeControl` with the three new doors (each pushing a `format!("edit … {} #{looper}", chain.id.0)` line, like its neighbours) — the point is that the RUNTIME half travels the door, so an MCP client editing a loop really edits it:
 
 ```rust
 #[test]
-fn an_edit_command_emits_its_event() {
-    let (dispatcher, chain, uid) = dispatcher_with_looper();
+fn an_edit_command_reaches_the_runtime_door() {
+    let (dispatcher, spy, chain, uid) = dispatcher_with_spy_and_looper();
     let edit = LoopEdit::Trim { start: 10, end: 100 };
 
     let events = dispatcher
@@ -820,15 +822,19 @@ fn an_edit_command_emits_its_event() {
         .expect("a known looper accepts an edit");
 
     assert_eq!(
+        spy.calls(),
+        vec![format!("edit {edit:?} {} #{uid}", chain.0)],
+        "the audio work travels the door — not a GUI callback (#127)"
+    );
+    assert_eq!(
         events,
-        vec![Event::ChainLooperEditApplied { chain, looper: uid, edit }],
-        "the audio work happens in the wiring; the dispatcher's job is the event"
+        vec![Event::ChainLooperEditApplied { chain, looper: uid, edit }]
     );
 }
 
 #[test]
 fn undo_and_redo_edit_commands_emit_their_events() {
-    let (dispatcher, chain, uid) = dispatcher_with_looper();
+    let (dispatcher, _spy, chain, uid) = dispatcher_with_spy_and_looper();
 
     assert_eq!(
         dispatcher
@@ -852,7 +858,7 @@ fn undo_and_redo_edit_commands_emit_their_events() {
 
 #[test]
 fn editing_an_unknown_looper_is_an_error() {
-    let (dispatcher, chain, _uid) = dispatcher_with_looper();
+    let (dispatcher, _spy, chain, _uid) = dispatcher_with_spy_and_looper();
     assert!(dispatcher
         .dispatch(Command::Looper(LooperCommand::EditChainLooperAudio {
             chain,
@@ -875,8 +881,8 @@ Expected: FAIL — the variants do not exist.
 ```rust
     /// #826: reshape a recorded loop — trim its bounds, crop to a region, or
     /// cut a region out. Frame indices over the loop as it stands. Applied on
-    /// the control thread by the adapter wiring; refused unless the looper is
-    /// stopped.
+    /// the control thread behind the runtime door; refused unless the looper
+    /// is stopped.
     EditChainLooperAudio {
         chain: ChainId,
         looper: u64,
@@ -893,9 +899,32 @@ Expected: FAIL — the variants do not exist.
 
 2. `crates/application/src/event.rs` — the three matching events, same field shapes.
 
-3. `crates/application/src/local_dispatcher_looper.rs` — three arms, each resolving the looper with the existing `self.resolve_looper(&chain, looper)?` and returning the event. No project mutation (a recording is runtime state).
+3. `crates/application/src/runtime_control.rs` — three doors in the loopers block, defaulted like their neighbours, each documenting that it must NOT wake audio (#808: editing is not a request to hear something) and that it takes the whole `chain` so it can only address that chain's stream (the isolation LAW):
 
-4. `crates/infra-cpal/src/controller_loopers.rs` — passthroughs to the store, mirroring `export_chain_looper`:
+```rust
+    /// #826: reshape a STOPPED loop and install the result, returning its new
+    /// length in frames. Never wakes audio: an edit is not a request to hear
+    /// something. Refused by the store while the looper is not stopped.
+    fn apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize> {
+        let _ = (chain, looper, edit);
+        Ok(0)
+    }
+
+    /// #826: step back one waveform edit. Independent of the transport's
+    /// undo, which is a no-op for the single-take looper.
+    fn undo_looper_edit(&self, chain: &Chain, looper: u64) {
+        let _ = (chain, looper);
+    }
+
+    /// #826: step forward one undone waveform edit.
+    fn redo_looper_edit(&self, chain: &Chain, looper: u64) {
+        let _ = (chain, looper);
+    }
+```
+
+4. `crates/application/src/local_dispatcher_looper.rs` — three arms in the shape of `SetChainLooperTransport`: resolve with `self.resolve_looper(&chain, looper)?`, call the door through `self.looper_control(&chain)`, return the event. No project mutation (a recording is runtime state).
+
+5. `crates/infra-cpal/src/controller_loopers.rs` — passthroughs to the store, mirroring `export_chain_looper`:
 
 ```rust
     /// #826: the loop's raw material, for the waveform editor.
@@ -916,21 +945,7 @@ Expected: FAIL — the variants do not exist.
 
 plus `looper_undo_edit`, `looper_redo_edit`, `looper_edit_history_depth`.
 
-5. `crates/adapter-gui/src/looper_wiring.rs` — new arms in `apply_looper_event`, and add the three events to `looper_event_chain` so the isolated playback stream is reconciled after an edit (the loop's length changed):
-
-```rust
-        Event::ChainLooperEditApplied { chain, looper, edit } => {
-            if let Err(err) = controller.looper_apply_edit(chain, *looper, *edit) {
-                log::warn!("editing loop {looper} of chain {}: {err:?}", chain.0);
-            }
-        }
-        Event::ChainLooperEditUndone { chain, looper } => {
-            controller.looper_undo_edit(chain, *looper);
-        }
-        Event::ChainLooperEditRedone { chain, looper } => {
-            controller.looper_redo_edit(chain, *looper);
-        }
-```
+6. `crates/adapter-gui/src/runtime_loopers.rs` — `apply_edit`, `undo_edit`, `redo_edit` free functions in the shape of `transport`: reach the controller for THIS chain only, log a refusal rather than panicking, and reconcile the loop's isolated playback stream afterwards (the loop's length changed). `crates/adapter-gui/src/runtime_lifecycle.rs` implements the three doors by delegating to them — and, unlike `looper_transport`, never calls `ensure_runtime` (#808).
 
 - [ ] **Step 4: Run the tests and verify they pass**
 
@@ -940,7 +955,7 @@ Expected: PASS, clean build (the MCP tool list picks the variants up automatical
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/application/src/command/looper.rs crates/application/src/event.rs crates/application/src/local_dispatcher_looper.rs crates/application/src/local_dispatcher_looper_tests.rs crates/infra-cpal/src/controller_loopers.rs crates/adapter-gui/src/looper_wiring.rs
+git add crates/application/src/command/looper.rs crates/application/src/event.rs crates/application/src/runtime_control.rs crates/application/src/local_dispatcher_looper.rs crates/application/src/local_dispatcher_looper_runtime_tests.rs crates/infra-cpal/src/controller_loopers.rs crates/adapter-gui/src/runtime_loopers.rs crates/adapter-gui/src/runtime_lifecycle.rs
 git commit -m "feat(#826): loop edits travel the command bus"
 git push
 ```
@@ -1001,12 +1016,16 @@ git push
 - Modify: `crates/adapter-gui/ui/components/looper_row.slint` (an edit button next to `clear-btn`, `enabled: can_edit`)
 - Modify: `crates/adapter-gui/src/looper_view.rs` (fill `can_edit`)
 - Modify: `crates/adapter-gui/src/looper_callbacks.rs` (open the editor, feed the peaks, dispatch the edits)
+- Modify: `crates/application/src/live_source.rs` (the read door + its reading type)
+- Modify: `crates/adapter-gui/src/runtime_loopers.rs` (compute the reading from the store)
 - Create: `crates/adapter-gui/tests/issue_826_looper_editor_interaction.rs`
 - Test: `crates/adapter-gui/src/looper_view_tests.rs`
 
 **Interfaces:**
-- Consumes: the commands of Task 5, `Controller::export_chain_looper_raw`, `application::looper_edit::peaks`, the Slint globals of Task 6.
-- Produces: nothing downstream.
+- Consumes: the commands of Task 5, `Controller::{export_chain_looper_raw, looper_edit_history_depth}`, `application::looper_edit::peaks`, the Slint globals of Task 6.
+- Produces:
+  - `struct LoopEditReading { peaks: Vec<f32>, len_frames: usize, can_undo: bool, can_redo: bool }`
+  - `LiveSource::chain_loop_edit(&self, chain: &ChainId, looper: u64, buckets: usize) -> Option<LoopEditReading>` — a FINISHED reading; the samples never cross the seam (#127).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1042,10 +1061,11 @@ Expected: FAIL — `can_edit` missing, no editor wiring.
 1. `models.slint`: `/// #826: whether the waveform editor may open — stopped and non-empty.` `can_edit: bool`.
 2. `looper_view.rs`: `can_edit: status.state == LooperState::Stopped && status.len_frames > 0`.
 3. `looper_row.slint`: an edit button (`assets/`-hosted SVG, `@tr("looper-edit")` label) that emits `edit()`; `looper_panel.slint` / `looper_overlay.slint` bubble it up with the chain index, exactly as `clear` does.
-4. `looper_callbacks.rs`:
-   - `on_looper_edit(index, uid)`: read `controller.export_chain_looper_raw`, compute `looper_edit::peaks(&pcm, WAVEFORM_BUCKETS)`, push it into `LooperEditor.peaks`, set `chain-index`/`uid`/`sel-start = 0.0`/`sel-end = 1.0`/`open = true`, and refresh `can-undo`/`can-redo` from `controller.looper_edit_history_depth`.
-   - `on_looper_edit_apply(index, uid, kind, start, end)`: convert the ratios to frames with the loop's current length (`status.len_frames`), build the `LoopEdit` variant for `kind`, `dispatch_and_apply` it, then re-read the peaks and the history depths so the view follows, and mark the project dirty.
-   - `on_looper_edit_undo` / `on_looper_edit_redo`: dispatch, then refresh peaks + depths the same way.
+4. `live_source.rs` + `runtime_loopers.rs`: add `LoopEditReading` and the `chain_loop_edit` read door (defaulted to `None`, like its neighbours). The GUI's implementation exports the raw pcm from the store, runs `looper_edit::peaks(&pcm, buckets)` and reads `looper_edit_history_depth` — so the peaks, not the samples, cross the seam.
+5. `looper_callbacks.rs` (a Slint callback is a dispatcher, never a decision):
+   - `on_looper_edit(index, uid)`: read the loop through `chain_loop_edit(chain, uid, WAVEFORM_BUCKETS)`, push `peaks` into `LooperEditor.peaks`, set `chain-index`/`uid`/`sel-start = 0.0`/`sel-end = 1.0`/`can-undo`/`can-redo`/`open = true`.
+   - `on_looper_edit_apply(index, uid, kind, start, end)`: convert the ratios to frames with the reading's `len_frames`, build the `LoopEdit` variant for `kind`, `dispatch_and_apply` it, then re-read `chain_loop_edit` so the waveform and the buttons follow, and mark the project dirty.
+   - `on_looper_edit_undo` / `on_looper_edit_redo`: dispatch, then re-read the same way.
    - Refuse nothing in the callback — the store is the single gate; log its refusal.
 
 - [ ] **Step 4: Run the tests and verify they pass**
@@ -1056,7 +1076,7 @@ Expected: PASS, including the interaction test.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/adapter-gui/ui/models.slint crates/adapter-gui/ui/components/looper_row.slint crates/adapter-gui/ui/components/looper_panel.slint crates/adapter-gui/ui/components/looper_overlay.slint crates/adapter-gui/src/looper_view.rs crates/adapter-gui/src/looper_view_tests.rs crates/adapter-gui/src/looper_callbacks.rs crates/adapter-gui/tests/issue_826_looper_editor_interaction.rs
+git add crates/adapter-gui/ui/models.slint crates/adapter-gui/ui/components/looper_row.slint crates/adapter-gui/ui/components/looper_panel.slint crates/adapter-gui/ui/components/looper_overlay.slint crates/adapter-gui/src/looper_view.rs crates/adapter-gui/src/looper_view_tests.rs crates/adapter-gui/src/looper_callbacks.rs crates/application/src/live_source.rs crates/adapter-gui/src/runtime_loopers.rs crates/adapter-gui/tests/issue_826_looper_editor_interaction.rs
 git commit -m "feat(#826): the looper row opens the waveform editor"
 git push
 ```

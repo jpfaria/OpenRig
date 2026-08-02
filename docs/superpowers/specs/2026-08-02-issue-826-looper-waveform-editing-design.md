@@ -106,24 +106,34 @@ UndoChainLooperEdit  { chain: ChainId, looper: u64 },
 RedoChainLooperEdit  { chain: ChainId, looper: u64 },
 ```
 
-Layering follows the existing looper split (the #614 rule "a dispatch alone is
-dead"):
+Layering follows the post-#127 seam: the dispatcher owns the project half and
+reaches the runtime through a **`RuntimeControl` door**, so every transport —
+GUI, MCP, MIDI — travels one path (before #127 the GUI callback applied the
+runtime half itself, which is exactly why an MCP-driven looper recorded
+nothing).
 
-- `local_dispatcher_looper.rs` stays project-side and pure: it validates that
-  the chain and looper exist and emits `Event::ChainLooperEditApplied` /
-  `…EditUndone` / `…EditRedone`. A recording is runtime state, so no project
-  field changes — exactly like the transport commands.
-- `adapter-gui::looper_wiring::apply_looper_event` turns the event into a
-  controller call, so MCP/MIDI reach the store through the same drain the GUI
-  uses (the parity law).
-- `infra-cpal::Controller::looper_apply_edit(chain, uid, edit) ->
-  Result<usize, LooperEditError>` does the work on the control thread: refuse
-  unless the slot is `Stopped`, `export_raw`, `apply_edit`, push the pre-edit
-  buffer onto the history, `store.load`, return the new length. Editing
-  mid-record/mid-play is an error, never a silent stop.
+- `local_dispatcher_looper.rs` resolves the looper, calls the door, and emits
+  the event — the shape `SetChainLooperTransport` already has. No project field
+  changes (a recording is runtime state).
+- New doors on `application::runtime_control::RuntimeControl`, defaulted to
+  no-ops like their neighbours:
+  `apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize>`,
+  `undo_looper_edit(&self, chain, looper)`, `redo_looper_edit(&self, chain, looper)`.
+  None of them may wake audio (#808: editing is not a request to hear
+  something).
+- The GUI implements them in `adapter-gui::runtime_lifecycle` →
+  `runtime_loopers` → `infra-cpal::Controller` → `LooperStore`, where the work
+  happens on the control thread: refuse unless the slot is `Stopped`,
+  `export_raw`, `apply_edit`, push the pre-edit buffer onto the history,
+  `store.load`, return the new length.
+- The waveform itself is a READ, so it comes back through `LiveSource` —
+  `chain_loop_edit(&self, chain: &ChainId, looper: u64, buckets: usize) ->
+  Option<LoopEditReading>` with `{ peaks: Vec<f32>, len_frames: usize, can_undo:
+  bool, can_redo: bool }`. A finished reading crosses the seam; the samples
+  never do.
 - The wav is NOT rewritten inline. An edit marks the project dirty and the
-  existing `looper_persist::save_chain_loops` writes the edited loop on save,
-  the one path that already owns the project path.
+  existing project-save path (`RuntimeControl::export_chain_loops` → the
+  sidecar writer) writes the edited loop on save.
 
 ### 3. Edit history
 
