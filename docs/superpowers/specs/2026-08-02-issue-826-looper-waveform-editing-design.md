@@ -91,13 +91,12 @@ Rules:
 - The result must keep at least `MIN_LOOP_FRAMES` (one seam's worth ×2) and at
   most the 60 s ceiling (`LooperSlot::max_frames`, enforced by the caller that
   knows the sample rate).
-- Seam handling: `Trim`/`Crop` fade the new head in and the new tail out;
-  `Cut` equal-power crossfades the join. `seam_frames` is
-  `min(SEAM_FRAMES_DEFAULT, region/4)`. The curve is the one
-  `engine::di_loop::apply_loop_crossfade` already uses — that private helper
-  moves to a shared `engine::crossfade` (or is duplicated as a 10-line pure fn
-  in `looper_edit` if a crate dependency would be inverted; decided at plan
-  time, the maths is pinned by tests either way).
+- Seam handling: the **equal-gain overlap-add** of
+  `engine::di_loop::apply_loop_crossfade` (#614 — equal-gain weights sum to 1,
+  so the seam never overshoots the source peak; equal-power would). The result
+  of a trim/crop wraps end→start continuously; a cut blends the two halves at
+  the join. `seam_frames = min(SEAM_FRAMES_DEFAULT, region / 4)`, and the
+  transform is a no-op fade when the region is too short to spare the overlap.
 
 ### 2. Commands (`application/src/command/looper.rs`)
 
@@ -107,23 +106,32 @@ UndoChainLooperEdit  { chain: ChainId, looper: u64 },
 RedoChainLooperEdit  { chain: ChainId, looper: u64 },
 ```
 
-Handler (`local_dispatcher_looper.rs`) rules:
+Layering follows the existing looper split (the #614 rule "a dispatch alone is
+dead"):
 
-- Rejected unless the looper is `Stopped` — editing mid-record/mid-play is an
-  error, not a silent stop.
-- On success: push the pre-edit buffer onto the editor undo stack, install the
-  new buffer, rewrite the loop's wav with the existing
-  `looper_audio::write_loop_wav` (the project keeps only the pointer), and emit
-  an event carrying the new length so the view refreshes.
-- MCP/gRPC inherit the variants for free (the parity law).
+- `local_dispatcher_looper.rs` stays project-side and pure: it validates that
+  the chain and looper exist and emits `Event::ChainLooperEditApplied` /
+  `…EditUndone` / `…EditRedone`. A recording is runtime state, so no project
+  field changes — exactly like the transport commands.
+- `adapter-gui::looper_wiring::apply_looper_event` turns the event into a
+  controller call, so MCP/MIDI reach the store through the same drain the GUI
+  uses (the parity law).
+- `infra-cpal::Controller::looper_apply_edit(chain, uid, edit) ->
+  Result<usize, LooperEditError>` does the work on the control thread: refuse
+  unless the slot is `Stopped`, `export_raw`, `apply_edit`, push the pre-edit
+  buffer onto the history, `store.load`, return the new length. Editing
+  mid-record/mid-play is an error, never a silent stop.
+- The wav is NOT rewritten inline. An edit marks the project dirty and the
+  existing `looper_persist::save_chain_loops` writes the edited loop on save,
+  the one path that already owns the project path.
 
 ### 3. Edit history
 
-A per-looper stack in the controller (control thread, alongside the store):
-`Vec<Box<[f32]>>` of pre-edit buffers plus a redo stack, capped at
-`LOOPER_EDIT_HISTORY_MAX = 8` entries (a 60 s stereo loop at 48 k is ~23 MB, so
-the cap is memory, not taste — oldest entry drops first). Cleared on
-record/clear/remove and on project close.
+A per-slot stack inside `LooperStore` (control thread, where the buffers
+already live): a `Vec<Vec<f32>>` of pre-edit buffers plus a redo stack, capped
+at `LOOPER_EDIT_HISTORY_MAX = 8` (a 60 s stereo loop at 48 k is ~23 MB, so the
+cap is memory, not taste — the oldest entry drops first). Cleared on
+record/clear/remove, and gone with the slot on project close.
 
 ## UI
 
@@ -153,9 +161,11 @@ Red-first, in this order:
 2. `export_raw` returns the captured material with `mix`/`reverse` set to
    non-default values — the regression that stops level/reverse being baked in;
    plus the existing `export_mixdown` tests unchanged (they pin the save path).
-3. Dispatcher tests: edit while playing is rejected; edit while stopped
-   installs the new length, rewrites the wav, and fills the undo stack; undo
-   restores the previous buffer sample-for-sample; the cap drops the oldest.
+3. Dispatcher tests: each edit command emits its event (unknown chain/looper is
+   an error). Store/controller tests: edit while playing is rejected; edit while
+   stopped installs the new length and fills the history; undo restores the
+   previous buffer sample-for-sample; the cap drops the oldest; recording clears
+   the history.
 4. GUI: a `slint-render` PNG of the overlay (visual proof) **and** an
    `i-slint-backend-testing` interaction test that drags a handle and clicks
    Trim, asserting the dispatched command (#749 lesson: rendering alone proves
