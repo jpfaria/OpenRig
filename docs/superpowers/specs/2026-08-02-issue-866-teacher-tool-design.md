@@ -1,6 +1,6 @@
 # Teacher tool (#866, spec 5 of 5)
 
-**Status:** design approved (owner, 2026-08-02); spec under review.
+**Status:** closed — design and spec approved by the owner, 2026-08-02.
 
 **Series:** spec 5 of #866. Extends the **OpenRig Creator** of #309 — the same
 desktop tool that packages plugins packages courses. One tool, two item types.

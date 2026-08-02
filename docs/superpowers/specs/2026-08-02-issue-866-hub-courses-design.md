@@ -1,6 +1,6 @@
 # Hub: courses (#866, spec 4 of 5)
 
-**Status:** design approved (owner, 2026-08-02); spec under review.
+**Status:** closed — design and spec approved by the owner, 2026-08-02.
 
 **Series:** spec 4 of #866. Extends the OpenRig Hub of **#309** — a course is
 another item type in the same registry, not a second marketplace. Decisions

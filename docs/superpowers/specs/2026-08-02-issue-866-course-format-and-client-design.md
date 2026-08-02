@@ -1,6 +1,6 @@
 # Course format and app client (#866, spec 2 of 5)
 
-**Status:** design approved (owner, 2026-08-02); spec under review.
+**Status:** closed — design and spec approved by the owner, 2026-08-02.
 
 **Series:** #866 covers five specs. This is the second — the first is the
 practice evaluator, and specs 3–5 (video delivery, Hub courses, teacher tool)

@@ -1,6 +1,6 @@
 # Video delivery (#866, spec 3 of 5)
 
-**Status:** design approved (owner, 2026-08-02); spec under review. The
+**Status:** closed — design and spec approved by the owner, 2026-08-02. The
 build-vs-buy decision is deliberately left open — this spec exists to make it
 with numbers.
 

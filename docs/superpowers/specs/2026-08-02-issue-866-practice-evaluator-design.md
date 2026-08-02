@@ -1,6 +1,6 @@
 # Practice evaluator — listen to the player and score the take (#866, spec 1 of 5)
 
-**Status:** design approved (owner, 2026-08-02); spec under review.
+**Status:** closed — design and spec approved by the owner, 2026-08-02.
 
 **Series:** spec 1 of #866 — the evaluator underneath the course platform. It stands alone: it works with a local exercise and no course at all.
 
