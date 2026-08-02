@@ -389,6 +389,11 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
     Ok(resolved)
 }
 
+// Every helper this calls, and every caller it has, is compiled out under
+// linux+jack — where the chain's I/O comes from the JACK graph instead of a
+// cpal device query. Without the same gate the body alone survives and the
+// crate stops compiling on that target.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_chain_audio_config(
     host: &cpal::Host,
     project: &Project,
