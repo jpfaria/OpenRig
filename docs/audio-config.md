@@ -278,6 +278,88 @@ openrig://ids` reads back);
 `volume_invariants` + `stream_isolation` prove the resolved path is bit-exact
 to the legacy entries path.
 
+### Mid-chain ports (issue #85)
+
+A port the user drops **between** effect blocks is not the chain's own I/O — it
+is an extra endpoint at that exact position, and it starts (or ends) a stream of
+its own.
+
+**A stream is one `(input × output)` pair, and each one is an independent
+pipeline.** One input and two outputs are two streams; two inputs and two
+outputs are four. Which blocks a pipeline runs follows from the two positions:
+everything between its input's entry point and its output's position
+(`runtime_segments::blocks_between`). So the chain's MAIN pipeline — head input
+to tail output — runs every block and ignores the ports entirely, while a
+pipeline that ends at a mid `Output` simply has fewer blocks. `ChainPort.from_block`
+is what tells a head port at offset 0 from a mid port at offset 0.
+
+The price is explicit: a rig with a mid `Input` AND a mid `Output` runs its
+preset four times. With a NAM + IR + reverb preset that measures ~1.4× the
+callback deadline at buffer 64 (`issue_85_owner_interfaces_tap` reports the peak
+load) — the app's own "the rig is heavy for this buffer size" warning applies.
+
+**Their device belongs to this chain's streams.** An output device's stream
+mixes only the runtimes listed for it in `output_devices_by_input_cpal`
+(`chain_resolve_io_map.rs`) — the stream-isolation LAW. That map is built per
+binding group, and a mid port's binding usually contributes no input (mid
+`Output`) or no output (mid `Input`) to this chain, so both cases needed an
+explicit pass: the mid outputs' devices are added to this chain's input streams,
+and the chain's tail devices are added to each mid input's stream. Neither
+widens isolation — only this chain's own runtimes are involved. #716 still
+governs HEAD inputs: a TEYUN in never exits a SCARLET out.
+
+**A DI loop plays on every pipeline this input feeds.** #699 fed the loop to
+segment 0 alone — right when the other segments were split-mono siblings summing
+into ONE route, wrong under this model, where each pipeline owns its own route:
+the mid output went silent the moment the DI came on
+(`InputProcessingState::plays_di_loop`, marked on the build and the rebuild).
+
+#### A port on another clock
+
+Interfaces disagree: a Scarlett at 44.1 kHz and a TEYUN whose floor is 48 kHz.
+The chain runs on ONE clock, so a route whose device runs on another needs three
+things, and missing any one of them is audible:
+
+1. **Conversion.** Each route carries its device's rate
+   (`OutputRoutingState::sample_rate`) and the producer converts into it —
+   Catmull-Rom, state in the callback scratch beside the single producer, no
+   lock and no allocation past the first callback (`runtime_route_resample.rs`).
+   A same-rate rig never enters this path and stays bit-identical.
+2. **Following the real clock.** Two crystals drift. A fixed ratio bleeds the
+   route dry at exactly that pace, so the ratio is trimmed by how far the
+   route's cushion sits from its target — clamped to ±0.2 %, inaudible, and
+   enough for any real crystal (`RouteResampler::track`).
+3. **A deeper cushion.** The route is fed in converted bursts and drained by a
+   device taking fixed buffers at its own callback times, which the OS bunches.
+   A cross-rate route gets `CROSS_RATE_CUSHION` (3×) the lockstep depth, primed
+   — and the LIVE REBUILD must keep it, or the tap starves again after the first
+   block move (`cushion_for_route`, shared by build and rebuild).
+
+The rebuild also has to KNOW the rate: it derives the per-device rates from the
+live stream signature, which must include the **outputs**
+(`device_rates_from_signature`). Taken from the inputs alone, a mid `Output` on
+another interface loses its rate on the first live edit and stops being
+converted — audible as "fine when it starts, horrible after I move a block".
+
+**Persistence.** A mid port lives in the preset (`sync_synthetic_into_rig` keeps
+it; only the chain's own head/tail I/O is filtered out) and re-pointing one is a
+preset-level edit — a port has no params, so `write_back_processing_blocks`
+writes its block kind, not a scene override. `RigProject::validate` judges a
+port against the chains that actually **play that preset**: an E/S another chain
+carries is an aux send, not a duplicate.
+
+**Metering.** The chain row draws one INPUT/OUTPUT pair per STREAM
+(`meter_wiring::project_stream_count` → `engine::runtime_graph::chain_stream_count`),
+which is also the unit the runtime indexes its per-stream taps by — so a mid
+port has its own bar and its own clip indication.
+
+Real-hardware evidence (`OPENRIG_HW_TESTS=1`, macOS): the battery plays a tone
+through real CoreAudio streams and measures it on the other side of a loopback
+(`issue_85_mid_output_reaches_its_device.rs`, `issue_85_mid_input_reaches_the_tail.rs`),
+crosses two rates (`issue_85_mid_output_other_rate_real.rs`), carries a full
+preset (`issue_85_heavy_rig_mid_output.rs`) and runs on the owner's own two
+interfaces (`issue_85_owner_interfaces_tap.rs`).
+
 ### DSP worker per input stream (issue #670, macOS)
 
 The chain DSP does NOT run inside the CoreAudio input callback. The HAL
@@ -333,6 +415,22 @@ there are no separate I/O lists.
   binding endpoint; they carry **no** device data (legacy `entries` removed).
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
+
+**A mid port is a normal block (#85).** It is a row in the chain like any effect
+— the head input and tail output are chips drawn from the bindings, not rows —
+and it survives a project load. #716 still drops the legacy leftovers, but only
+those pointing at a binding the chain ALREADY carries (that duplicate is what
+starved the device); a port pointing at another E/S, or not yet pointed
+anywhere, is the user's and stays.
+
+**A mid `Output` emits the signal at ITS OWN position (#85).** It taps the bus
+right where it sits — only the blocks BEFORE it have run — while the chain keeps
+flowing through the blocks after it down to the tail output. Nothing is cut and
+no DSP runs twice: the tap is a copy of the segment bus at that point, so a
+`Cab → [Output] → Delay → Reverb` chain sends the un-delayed cab signal to that
+endpoint and the full chain to the tail. Both routes get the same click-safe
+rebuild fade. A disabled mid `Output` keeps its (silent) route and emits
+nothing, like any other disabled block.
 
 ### I/O binding registry (#716)
 

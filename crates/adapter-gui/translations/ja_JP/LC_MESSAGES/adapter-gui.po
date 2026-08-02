@@ -768,8 +768,6 @@ msgid "⌨"
 msgstr "⌨"
 
 # I/O Bindings UI strings (added #716)
-#~ msgid "label-io-binding"
-#~ msgstr "I/Oバインディング"
 
 # Looper UI strings (added #323)
 
@@ -896,3 +894,27 @@ msgstr "出力"
 #: crates/adapter-gui/ui/pages/metronome_window.slint
 msgid "status-no-outputs"
 msgstr "プロジェクトの出力が未設定"
+
+msgid "title-window-chain-port"
+msgstr "ポート"
+
+msgid "title-section-configure-input"
+msgstr "入力を設定"
+
+msgid "title-section-configure-output"
+msgstr "出力を設定"
+
+msgid "label-io-endpoint"
+msgstr "エンドポイント"
+
+msgid "action-toggle-block-enabled"
+msgstr "有効 / 無効"
+
+msgid "action-delete-block"
+msgstr "ブロックを削除"
+
+msgid "msg-pick-io-endpoint"
+msgstr "I/O とエンドポイントを選択"
+
+msgid "label-io-binding"
+msgstr "I/O"

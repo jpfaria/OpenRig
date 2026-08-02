@@ -21,3 +21,14 @@ pub(crate) fn event_requires_runtime_sync(event: &Event) -> bool {
             | Event::ChainDiLoopOutputChanged { .. }
     )
 }
+
+/// #85 — does any of `events` require re-syncing the WHOLE project?
+///
+/// `AudioSettingsSaved` names no chain, so the per-chain sync loop skips it and
+/// the running streams keep the old device config: the user changed the sample
+/// rate and the rig went silent until the project was reopened.
+pub(crate) fn events_require_full_project_sync(events: &[Event]) -> bool {
+    events
+        .iter()
+        .any(|e| matches!(e, Event::AudioSettingsSaved))
+}

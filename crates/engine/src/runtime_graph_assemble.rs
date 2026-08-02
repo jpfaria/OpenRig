@@ -21,7 +21,7 @@ use arc_swap::ArcSwap;
 use crossbeam_queue::ArrayQueue;
 
 use block_core::{AudioChannelLayout, StreamHandle};
-use domain::ids::BlockId;
+use domain::ids::{BlockId, DeviceId};
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 
 use crate::runtime::{
@@ -58,11 +58,31 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 /// `existing_blocks` (when `Some`) carries per-segment processor nodes to
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
 /// is indexed by segment position within `segments`.
+#[allow(clippy::too_many_arguments)]
+/// #85: how much deeper a cross-rate route's cushion is. Three device buffers
+/// covers the ordinary case of the OS handing a device two periods at once
+/// while the producer is still on its own clock; the extra latency lands ONLY
+/// on that tap, never on the chain's own output.
+const CROSS_RATE_CUSHION: usize = 3;
+
+/// The cushion a route needs: the lockstep one when it shares the runtime's
+/// clock, [`CROSS_RATE_CUSHION`] times that when it does not. Shared by the
+/// initial build and the live rebuild — a rebuilt tap that drops back to the
+/// lockstep depth starves on the first bunched callback (#85).
+pub(crate) fn cushion_for_route(lockstep: usize, route_rate: f32, runtime_rate: f32) -> usize {
+    if (route_rate - runtime_rate).abs() >= f32::EPSILON {
+        lockstep * CROSS_RATE_CUSHION
+    } else {
+        lockstep
+    }
+}
+
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
     eff_outputs: &[OutputEntry],
     sample_rate: f32,
+    device_rates: &HashMap<DeviceId, f32>,
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> anyhow::Result<ChainRuntimeState> {
@@ -92,10 +112,12 @@ pub(crate) fn assemble_chain_runtime_state(
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
+            segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
         )?;
         input_states.push(input_state);
     }
+    mark_di_loop_pipelines(segments, &mut input_states);
 
     // Build input_to_segments: CPAL input_index → which (local) segments
     // to process. Indexed by the absolute cpal index so a per-input
@@ -120,10 +142,29 @@ pub(crate) fn assemble_chain_runtime_state(
         let target = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
         let prime_frames =
             crate::elastic_prime::elastic_prime_frames(target, is_initial_build, has_convolution);
+        // #85: a route runs at ITS device's rate — usually the runtime's, but a
+        // mid `Output` may point at an interface on another clock.
+        let route_rate = device_rates
+            .get(&output.device_id)
+            .copied()
+            .unwrap_or(sample_rate);
+        // A route on ANOTHER clock is fed in bursts of a converted size while
+        // its device takes fixed buffers at its own callback times, and the OS
+        // bunches those times. A cushion sized for the lockstep case hits empty
+        // on that jitter and holds the last frame — the owner hears a clean
+        // Scarlett (same clock) and a horrible TEYUN. Give the cross-rate route
+        // room to ride it, and prime it so the first seconds are covered too.
+        let deep = cushion_for_route(target, route_rate, sample_rate);
+        let (target, prime_frames) = if deep > target {
+            (deep, deep.saturating_sub(target).max(prime_frames))
+        } else {
+            (target, prime_frames)
+        };
         output_routes.push(Arc::new(build_output_routing_state(
             output,
             target,
             prime_frames,
+            route_rate,
         )));
     }
 
@@ -233,6 +274,7 @@ pub(crate) fn build_input_processing_state(
     existing_blocks: Option<Vec<BlockRuntimeNode>>,
     block_indices: Option<&[usize]>,
     output_route_indices: Vec<usize>,
+    mid_output_taps: Vec<crate::runtime_segments::SegmentTap>,
     split_mono_sibling_count: Option<usize>,
 ) -> anyhow::Result<InputProcessingState> {
     // The processing bus layout is chosen by the combination of input and
@@ -295,9 +337,29 @@ pub(crate) fn build_input_processing_state(
         frame_buffer: Vec::with_capacity(1024),
         fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
+        mid_output_taps,
         split_mono_sibling_count,
+        // The caller marks the pipelines an armed DI loop plays on (#85).
+        plays_di_loop: false,
         outgoing: None,
     })
+}
+
+/// #85: an armed DI loop replaces the chain's INPUT, so every pipeline fed by
+/// the first segment's input entry plays it — each one writes its own output
+/// route, so the loop is heard once per route instead of summing twice (the
+/// double-play #699 fixed). A split-mono sibling is a DIFFERENT entry sharing
+/// one route; it stays silent, exactly as #699 left it.
+pub(crate) fn mark_di_loop_pipelines(
+    segments: &[ChainSegment],
+    input_states: &mut [InputProcessingState],
+) {
+    let Some(first) = segments.first().map(|s| s.entry_group) else {
+        return;
+    };
+    for (segment, state) in segments.iter().zip(input_states.iter_mut()) {
+        state.plays_di_loop = segment.entry_group == first;
+    }
 }
 
 /// Channel layout an output entry produces — shared by the route builder and
@@ -317,6 +379,7 @@ pub(crate) fn build_output_routing_state(
     output: &OutputEntry,
     elastic_target: usize,
     prime_frames: usize,
+    sample_rate: f32,
 ) -> OutputRoutingState {
     let output_layout = output_entry_layout(output);
     let buffer = ElasticBuffer::new(elastic_target, output_layout);
@@ -330,5 +393,6 @@ pub(crate) fn build_output_routing_state(
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
         buffer,
+        sample_rate,
     }
 }

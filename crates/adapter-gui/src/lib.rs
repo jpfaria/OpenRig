@@ -152,6 +152,9 @@ mod issue_692_project_open_time_tests;
 mod issue_815_add_block_tabs_tests;
 #[cfg(test)]
 mod issue_819_retire_persistent_window_tests;
+#[cfg(test)]
+#[path = "issue_85_stream_rows_tests.rs"]
+mod issue_85_stream_rows_tests;
 mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
@@ -166,9 +169,16 @@ mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 pub mod midi_profile_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
+#[cfg(test)]
+#[path = "issue_85_click_port_opens_editor_tests.rs"]
+mod issue_85_click_port_opens_editor_tests;
+#[cfg(test)]
+#[path = "issue_85_port_editor_tests.rs"]
+mod issue_85_port_editor_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
+mod port_wiring;
 mod preset_search;
 mod project_load_normalize;
 mod project_ops;
@@ -179,8 +189,8 @@ mod project_ops_recents;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
-mod tone_doctor_events;
 mod state;
+mod tone_doctor_events;
 mod ui_state;
 slint::include_modules!();
 #[cfg(test)]

@@ -31,6 +31,10 @@ pub struct ChainPort {
     /// `chain.blocks.len()` = tail (after all blocks); otherwise the index of
     /// the mid `Input`/`Output` block that produced this port.
     pub offset: usize,
+    /// Whether a mid `Input`/`Output` BLOCK produced this port. A head port
+    /// sits before block 0 and a mid port at offset 0 sits after it — the
+    /// offset alone cannot tell them apart (#85).
+    pub from_block: bool,
     /// Id of the binding (E/S) this port belongs to.
     pub binding_id: String,
     /// Device endpoint resolved from the binding.
@@ -58,6 +62,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             ports.push(ChainPort {
                 direction: PortDirection::Input,
                 offset: 0,
+                from_block: false,
                 binding_id: binding.id.clone(),
                 endpoint: ep.clone(),
             });
@@ -66,6 +71,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             ports.push(ChainPort {
                 direction: PortDirection::Output,
                 offset: tail,
+                from_block: false,
                 binding_id: binding.id.clone(),
                 endpoint: ep.clone(),
             });
@@ -92,6 +98,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
         ports.push(ChainPort {
             direction,
             offset: i,
+            from_block: true,
             binding_id: binding.id.clone(),
             endpoint: ep.clone(),
         });

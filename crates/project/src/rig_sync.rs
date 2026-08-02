@@ -4,9 +4,27 @@
 //! it, instead of being buried in `adapter-gui`. `adapter-gui` re-exports
 //! it at the old path so existing tests/callers don't move.
 
-use crate::block::AudioBlockKind;
+use crate::block::{duplicates_chain_binding, AudioBlock, AudioBlockKind};
 use crate::project::Project;
 use crate::rig::RigProject;
+
+/// Whether `block` is the chain's OWN head/tail I/O, which the rig stores on the
+/// input (binding ids, or the legacy `io`/`endpoint` pair) and never inside a
+/// preset. Everything else belongs in the preset — including a mid port the
+/// user placed between effects (#85), which used to be filtered out here and so
+/// vanished on save.
+fn is_chain_own_io(block: &AudioBlock, input: &str, io_binding_ids: &[String]) -> bool {
+    if !matches!(
+        block.kind,
+        AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
+    ) {
+        return false;
+    }
+    // The head/tail blocks a legacy (unbound) chain is projected with.
+    block.id.0 == format!("rig:{input}:in")
+        || block.id.0 == format!("rig:{input}:out")
+        || duplicates_chain_binding(block, io_binding_ids)
+}
 
 /// Write every rig chain's edited processing blocks **and chain volume**
 /// back into the rig's active preset, per active scene, so edits made on
@@ -28,7 +46,7 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
         let processing: Vec<_> = chain
             .blocks
             .iter()
-            .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+            .filter(|b| !is_chain_own_io(b, input, &chain.io_binding_ids))
             .cloned()
             .collect();
         // Structural change (preset loaded over the slot / blocks

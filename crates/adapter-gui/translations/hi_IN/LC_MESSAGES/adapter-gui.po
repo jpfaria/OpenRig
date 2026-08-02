@@ -766,8 +766,6 @@ msgid "⌨"
 msgstr "⌨"
 
 # I/O Bindings UI strings (added #716)
-#~ msgid "label-io-binding"
-#~ msgstr "I/O बाइंडिंग"
 
 # Looper UI strings (added #323)
 
@@ -894,3 +892,27 @@ msgstr "आउटपुट"
 #: crates/adapter-gui/ui/pages/metronome_window.slint
 msgid "status-no-outputs"
 msgstr "कोई प्रोजेक्ट आउटपुट कॉन्फ़िगर नहीं"
+
+msgid "title-window-chain-port"
+msgstr "पोर्ट"
+
+msgid "title-section-configure-input"
+msgstr "इनपुट कॉन्फ़िगर करें"
+
+msgid "title-section-configure-output"
+msgstr "आउटपुट कॉन्फ़िगर करें"
+
+msgid "label-io-endpoint"
+msgstr "एंडपॉइंट"
+
+msgid "action-toggle-block-enabled"
+msgstr "सक्षम / अक्षम"
+
+msgid "action-delete-block"
+msgstr "ब्लॉक हटाएं"
+
+msgid "msg-pick-io-endpoint"
+msgstr "एक I/O और एंडपॉइंट चुनें"
+
+msgid "label-io-binding"
+msgstr "I/O"

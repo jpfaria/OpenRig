@@ -102,10 +102,28 @@ fn validate_scene_out_of_range_err() {
     assert!(err.contains("scene"), "got: {err}");
 }
 
+/// #85: a mid port the user placed is valid in a preset — including one not
+/// pointed anywhere yet, which is how it is born. Only the legacy head/tail
+/// leftover (bound to a binding the chain already carries) is rejected.
 #[test]
-fn validate_preset_with_io_block_err() {
+fn validate_preset_with_a_mid_port_ok() {
     let mut p = project_with(vec![("input-1", input(&[(1, "clean")], 1))], &["clean"]);
     p.presets.get_mut("clean").unwrap().blocks.push(io_block());
+    assert!(p.validate().is_ok(), "got: {:?}", p.validate());
+}
+
+#[test]
+fn validate_preset_with_a_port_on_the_chains_own_binding_err() {
+    let mut inp = input(&[(1, "clean")], 1);
+    inp.io_binding_ids = vec!["main".into()];
+    let mut p = project_with(vec![("input-1", inp)], &["clean"]);
+    let mut leftover = io_block();
+    leftover.kind = AudioBlockKind::Input(InputBlock {
+        model: "standard".into(),
+        io: "main".into(),
+        endpoint: "In 1".into(),
+    });
+    p.presets.get_mut("clean").unwrap().blocks.push(leftover);
     let err = p.validate().unwrap_err();
     assert!(err.contains("I/O"), "got: {err}");
 }
