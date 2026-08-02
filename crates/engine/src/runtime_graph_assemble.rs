@@ -59,6 +59,12 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
 /// is indexed by segment position within `segments`.
 #[allow(clippy::too_many_arguments)]
+/// #85: how much deeper a cross-rate route's cushion is. Three device buffers
+/// covers the ordinary case of the OS handing a device two periods at once
+/// while the producer is still on its own clock; the extra latency lands ONLY
+/// on that tap, never on the chain's own output.
+const CROSS_RATE_CUSHION: usize = 3;
+
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
@@ -130,6 +136,19 @@ pub(crate) fn assemble_chain_runtime_state(
             .get(&output.device_id)
             .copied()
             .unwrap_or(sample_rate);
+        // A route on ANOTHER clock is fed in bursts of a converted size while
+        // its device takes fixed buffers at its own callback times, and the OS
+        // bunches those times. A cushion sized for the lockstep case hits empty
+        // on that jitter and holds the last frame — the owner hears a clean
+        // Scarlett (same clock) and a horrible TEYUN. Give the cross-rate route
+        // room to ride it, and prime it so the first seconds are covered too.
+        let cross_rate = (route_rate - sample_rate).abs() >= f32::EPSILON;
+        let (target, prime_frames) = if cross_rate {
+            let deep = target * CROSS_RATE_CUSHION;
+            (deep, deep.saturating_sub(target).max(prime_frames))
+        } else {
+            (target, prime_frames)
+        };
         output_routes.push(Arc::new(build_output_routing_state(
             output,
             target,

@@ -518,3 +518,68 @@ fn the_same_rate_tap_matches_the_chains_output() {
          ({tap_residual:.1} vs {tail_residual:.1})"
     );
 }
+
+/// The device does not pop "exactly what it is owed" — it takes its OWN buffer
+/// (64 frames) at its own callback times, and the OS lets those times wobble.
+/// The owner hears the result of that wobble on the TEYUN while the Scarlett
+/// (same chain, no conversion) is perfect: a cross-rate route needs a cushion
+/// deep enough to ride the jitter, or it hits empty and holds the last frame —
+/// which is what "horrível" sounds like.
+#[test]
+fn a_cross_rate_tap_rides_callback_jitter() {
+    init_registry();
+    let chain = chain();
+    let registry = registry();
+    let tap = route_index(&chain, &registry, &[2, 3]);
+    let device_rates = std::collections::HashMap::from([
+        (DeviceId("scarlett".into()), CHAIN_RATE as f32),
+        (DeviceId("teyun".into()), TAP_RATE as f32),
+    ]);
+    let runtime = Arc::new(
+        build_chain_runtime_state_with_device_rates(
+            &chain,
+            CHAIN_RATE as f32,
+            &device_rates,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("runtime must build"),
+    );
+
+    const CALLBACKS: usize = 4_000;
+    let mut input = vec![0.0_f32; BUF];
+    let mut output = vec![0.0_f32; BUF * 4 * DEVICE_CHANNELS];
+    let mut phase = 0.0_f32;
+    let step = 2.0 * std::f32::consts::PI * 440.0 / CHAIN_RATE as f32;
+    // The device's callbacks accumulate at its own rate; each one takes exactly
+    // its buffer. `wobble` delays every 16th callback and doubles the next one,
+    // the way the OS bunches two periods together.
+    let mut due = 0.0_f64;
+    for cb in 0..CALLBACKS {
+        for s in input.iter_mut() {
+            *s = TONE_AMP * phase.sin();
+            phase += step;
+        }
+        process_input_f32(&runtime, 0, &input, 1);
+
+        due += BUF as f64 * TAP_RATE as f64 / CHAIN_RATE as f64;
+        let bunched = cb % 16 == 0;
+        while due >= BUF as f64 {
+            let frames = if bunched { BUF * 2 } else { BUF };
+            let len = frames * DEVICE_CHANNELS;
+            output[..len].iter_mut().for_each(|s| *s = 0.0);
+            process_output_f32(&runtime, tap, &mut output[..len], DEVICE_CHANNELS);
+            due -= frames as f64;
+            if bunched {
+                break;
+            }
+        }
+    }
+
+    let underruns = runtime.underrun_count();
+    assert_eq!(
+        underruns, 0,
+        "#85: the cross-rate tap starved {underruns} times against ordinary callback \
+         jitter — its cushion has to be deep enough for two clocks"
+    );
+}

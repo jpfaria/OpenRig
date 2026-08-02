@@ -229,11 +229,12 @@ fn run(heavy: bool, mid_input: bool) -> (u64, u64) {
     std::thread::sleep(Duration::from_secs(10));
     let underruns = controller.chain_underrun_count(&chain_id) - under0;
     let xruns = controller.chain_xrun_count(&chain_id) - xrun0;
+    let load = controller.chain_peak_load(&chain_id);
     controller.set_chain_di_loop(&chain_id, None);
 
     eprintln!(
         "[#85 OWNER] {} — Scarlett @{CHAIN_RATE} Hz -> TEYUN @{TAP_RATE} Hz: \
-         {underruns} underrun(s), {xruns} xrun(s) over 10 s",
+         {underruns} underrun(s), {xruns} xrun(s), peak load {load:.2}x the deadline over 10 s",
         match (heavy, mid_input) {
             (true, true) => "full preset + mid Input (4 pipelines)",
             (true, false) => "full preset",
