@@ -97,6 +97,9 @@ mod chain_resolve;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod chain_resolve_io_map;
 #[cfg(test)]
+#[path = "issue_85_live_rebuild_rates_tests.rs"]
+mod issue_85_live_rebuild_rates_tests;
+#[cfg(test)]
 #[path = "issue_85_mid_output_device_tests.rs"]
 mod issue_85_mid_output_device_tests;
 pub use chain_resolve::resolve_project_chain_sample_rates;
