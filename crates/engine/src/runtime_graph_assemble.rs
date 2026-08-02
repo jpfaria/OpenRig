@@ -21,7 +21,7 @@ use arc_swap::ArcSwap;
 use crossbeam_queue::ArrayQueue;
 
 use block_core::{AudioChannelLayout, StreamHandle};
-use domain::ids::BlockId;
+use domain::ids::{BlockId, DeviceId};
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 
 use crate::runtime::{
@@ -58,11 +58,13 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 /// `existing_blocks` (when `Some`) carries per-segment processor nodes to
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
 /// is indexed by segment position within `segments`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
     eff_outputs: &[OutputEntry],
     sample_rate: f32,
+    device_rates: &HashMap<DeviceId, f32>,
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> anyhow::Result<ChainRuntimeState> {
@@ -122,10 +124,17 @@ pub(crate) fn assemble_chain_runtime_state(
         let target = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
         let prime_frames =
             crate::elastic_prime::elastic_prime_frames(target, is_initial_build, has_convolution);
+        // #85: a route runs at ITS device's rate — usually the runtime's, but a
+        // mid `Output` may point at an interface on another clock.
+        let route_rate = device_rates
+            .get(&output.device_id)
+            .copied()
+            .unwrap_or(sample_rate);
         output_routes.push(Arc::new(build_output_routing_state(
             output,
             target,
             prime_frames,
+            route_rate,
         )));
     }
 
@@ -340,6 +349,7 @@ pub(crate) fn build_output_routing_state(
     output: &OutputEntry,
     elastic_target: usize,
     prime_frames: usize,
+    sample_rate: f32,
 ) -> OutputRoutingState {
     let output_layout = output_entry_layout(output);
     let buffer = ElasticBuffer::new(elastic_target, output_layout);
@@ -353,5 +363,6 @@ pub(crate) fn build_output_routing_state(
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
         buffer,
+        sample_rate,
     }
 }

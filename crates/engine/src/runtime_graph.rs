@@ -211,6 +211,7 @@ pub(crate) fn build_per_input_runtimes(
             &segments,
             &eff_outputs,
             group_rate,
+            device_rates,
             elastic_targets,
             None,
         )?;
@@ -298,6 +299,28 @@ pub fn build_chain_runtime_state(
     elastic_targets: &[usize],
     registry: &[IoBinding],
 ) -> Result<ChainRuntimeState> {
+    build_chain_runtime_state_with_device_rates(
+        chain,
+        sample_rate,
+        &HashMap::new(),
+        elastic_targets,
+        registry,
+    )
+}
+
+/// [`build_chain_runtime_state`] with the per-device rates the caller resolved.
+///
+/// #85: a route runs at ITS device's rate. A mid `Output` can point at an
+/// interface on another clock (44.1 kHz chain, 48 kHz tap), and the producer
+/// then resamples into that route instead of starving it. An empty map means
+/// "everything runs at the chain's rate" — the single-interface case, unchanged.
+pub fn build_chain_runtime_state_with_device_rates(
+    chain: &Chain,
+    sample_rate: f32,
+    device_rates: &HashMap<DeviceId, f32>,
+    elastic_targets: &[usize],
+    registry: &[IoBinding],
+) -> Result<ChainRuntimeState> {
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
         effective_inputs(chain, &resolved_inputs, registry);
@@ -371,6 +394,7 @@ pub fn build_chain_runtime_state(
         &segments,
         &eff_outputs,
         sample_rate,
+        device_rates,
         elastic_targets,
         None,
     )

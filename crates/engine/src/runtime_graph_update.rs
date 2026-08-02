@@ -235,7 +235,13 @@ fn update_chain_runtime_state_impl(
             // scheduling wobble on a real USB interface popped the output
             // empty: the owner's random clicks after adding/swapping a cab).
             let prime = if rebuild_has_convolution { target } else { 0 };
-            let fresh = build_output_routing_state(o, target, prime);
+            // #85: keep the route on its own device's rate across a rebuild —
+            // the old route knows it, and a rebuild never changes a device.
+            let route_rate = old_output_routes
+                .get(route_idx)
+                .map(|old| old.sample_rate)
+                .unwrap_or_else(|| runtime.sample_rate());
+            let fresh = build_output_routing_state(o, target, prime, route_rate);
             if let Some(old) = old_output_routes.get(route_idx) {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
             }
