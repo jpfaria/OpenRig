@@ -519,6 +519,39 @@ fn the_same_rate_tap_matches_the_chains_output() {
     );
 }
 
+/// Drives the tap the way a real device does — fixed buffers at its own rate,
+/// every sixteenth callback bunched into two, the way the OS hands over two
+/// periods at once — and returns how many times the route ran dry.
+fn starves_under_jitter(runtime: &Arc<ChainRuntimeState>, tap: usize) -> u64 {
+    const CALLBACKS: usize = 4_000;
+    let mut input = vec![0.0_f32; BUF];
+    let mut output = vec![0.0_f32; BUF * 4 * DEVICE_CHANNELS];
+    let mut phase = 0.0_f32;
+    let step = 2.0 * std::f32::consts::PI * 440.0 / CHAIN_RATE as f32;
+    let mut due = 0.0_f64;
+    let before = runtime.underrun_count();
+    for cb in 0..CALLBACKS {
+        for s in input.iter_mut() {
+            *s = TONE_AMP * phase.sin();
+            phase += step;
+        }
+        process_input_f32(runtime, 0, &input, 1);
+        due += BUF as f64 * TAP_RATE as f64 / CHAIN_RATE as f64;
+        let bunched = cb % 16 == 0;
+        while due >= BUF as f64 {
+            let frames = if bunched { BUF * 2 } else { BUF };
+            let len = frames * DEVICE_CHANNELS;
+            output[..len].iter_mut().for_each(|s| *s = 0.0);
+            process_output_f32(runtime, tap, &mut output[..len], DEVICE_CHANNELS);
+            due -= frames as f64;
+            if bunched {
+                break;
+            }
+        }
+    }
+    runtime.underrun_count() - before
+}
+
 /// The device does not pop "exactly what it is owed" — it takes its OWN buffer
 /// (64 frames) at its own callback times, and the OS lets those times wobble.
 /// The owner hears the result of that wobble on the TEYUN while the Scarlett
@@ -581,5 +614,53 @@ fn a_cross_rate_tap_rides_callback_jitter() {
         underruns, 0,
         "#85: the cross-rate tap starved {underruns} times against ordinary callback \
          jitter — its cushion has to be deep enough for two clocks"
+    );
+}
+
+/// His trigger, at the layer that changes: "mudei de ordem, deu merda". Moving a
+/// block rebuilds the runtime in place, and the rebuilt route must keep BOTH
+/// the device rate it converts to and the deeper cushion a cross-rate route
+/// needs — a fresh route sized for the lockstep case starves on the first
+/// bunched callback.
+#[test]
+fn a_reorder_keeps_the_cross_rate_cushion() {
+    init_registry();
+    let chain = chain();
+    let registry = registry();
+    let device_rates = std::collections::HashMap::from([
+        (DeviceId("scarlett".into()), CHAIN_RATE as f32),
+        (DeviceId("teyun".into()), TAP_RATE as f32),
+    ]);
+    let runtime = Arc::new(
+        build_chain_runtime_state_with_device_rates(
+            &chain,
+            CHAIN_RATE as f32,
+            &device_rates,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("runtime must build"),
+    );
+
+    // Drag the port one row — the live edit he does.
+    let mut reordered = chain.clone();
+    let port = reordered.blocks.remove(1);
+    reordered.blocks.insert(0, port);
+    engine::runtime_graph::update_chain_runtime_state(
+        &runtime,
+        &reordered,
+        CHAIN_RATE as f32,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &registry,
+    )
+    .expect("live rebuild after the reorder");
+
+    let tap = route_index(&reordered, &registry, &[2, 3]);
+    let starved = starves_under_jitter(&runtime, tap);
+    assert_eq!(
+        starved, 0,
+        "#85: after a reorder the tap starved {starved} times — the rebuilt route \
+         lost the cross-rate cushion"
     );
 }

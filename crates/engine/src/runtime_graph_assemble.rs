@@ -65,6 +65,18 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 /// on that tap, never on the chain's own output.
 const CROSS_RATE_CUSHION: usize = 3;
 
+/// The cushion a route needs: the lockstep one when it shares the runtime's
+/// clock, [`CROSS_RATE_CUSHION`] times that when it does not. Shared by the
+/// initial build and the live rebuild — a rebuilt tap that drops back to the
+/// lockstep depth starves on the first bunched callback (#85).
+pub(crate) fn cushion_for_route(lockstep: usize, route_rate: f32, runtime_rate: f32) -> usize {
+    if (route_rate - runtime_rate).abs() >= f32::EPSILON {
+        lockstep * CROSS_RATE_CUSHION
+    } else {
+        lockstep
+    }
+}
+
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
@@ -142,9 +154,8 @@ pub(crate) fn assemble_chain_runtime_state(
         // on that jitter and holds the last frame — the owner hears a clean
         // Scarlett (same clock) and a horrible TEYUN. Give the cross-rate route
         // room to ride it, and prime it so the first seconds are covered too.
-        let cross_rate = (route_rate - sample_rate).abs() >= f32::EPSILON;
-        let (target, prime_frames) = if cross_rate {
-            let deep = target * CROSS_RATE_CUSHION;
+        let deep = cushion_for_route(target, route_rate, sample_rate);
+        let (target, prime_frames) = if deep > target {
             (deep, deep.saturating_sub(target).max(prime_frames))
         } else {
             (target, prime_frames)

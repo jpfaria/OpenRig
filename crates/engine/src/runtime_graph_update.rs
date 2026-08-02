@@ -215,8 +215,23 @@ fn update_chain_runtime_state_impl(
         .enumerate()
         .map(|(route_idx, o)| {
             let base = target_for_route(elastic_targets, route_idx);
-            let target =
+            let lockstep_target =
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
+            // #85: keep the route on its own device's rate across a rebuild —
+            // the old route knows it, and a rebuild never changes a device.
+            let route_rate = old_output_routes
+                .get(route_idx)
+                .map(|old| old.sample_rate)
+                .unwrap_or_else(|| runtime.sample_rate());
+            // …and keep its DEEPER cushion too. Rebuilding a cross-rate route
+            // with the lockstep cushion is what made "mudei a ordem e deu
+            // merda": the tap starved on the first bunched callback after every
+            // live edit.
+            let target = crate::runtime_graph_assemble::cushion_for_route(
+                lockstep_target,
+                route_rate,
+                runtime.sample_rate(),
+            );
             if !reset_output_queue {
                 if let Some(old) = old_output_routes.get(route_idx) {
                     if old.output_channels == o.channels
@@ -234,13 +249,11 @@ fn update_chain_runtime_state_impl(
             // route here left the chain permanently fragile (fill ~0, every
             // scheduling wobble on a real USB interface popped the output
             // empty: the owner's random clicks after adding/swapping a cab).
-            let prime = if rebuild_has_convolution { target } else { 0 };
-            // #85: keep the route on its own device's rate across a rebuild —
-            // the old route knows it, and a rebuild never changes a device.
-            let route_rate = old_output_routes
-                .get(route_idx)
-                .map(|old| old.sample_rate)
-                .unwrap_or_else(|| runtime.sample_rate());
+            let mut prime = if rebuild_has_convolution { target } else { 0 };
+            if target > lockstep_target {
+                // The cross-rate depth only helps if it is actually filled.
+                prime = prime.max(target - lockstep_target);
+            }
             let fresh = build_output_routing_state(o, target, prime, route_rate);
             if let Some(old) = old_output_routes.get(route_idx) {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
