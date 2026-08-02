@@ -102,6 +102,9 @@ mod issue_85_live_rebuild_rates_tests;
 #[cfg(test)]
 #[path = "issue_85_mid_output_device_tests.rs"]
 mod issue_85_mid_output_device_tests;
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+#[path = "issue_871_disabled_io_routing_tests.rs"]
+mod issue_871_disabled_io_routing_tests;
 pub use chain_resolve::resolve_project_chain_sample_rates;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
