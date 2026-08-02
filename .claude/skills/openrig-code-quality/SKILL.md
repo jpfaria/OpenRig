@@ -261,10 +261,10 @@ exceção pra "é só visual".
 4. **`git push` da branch** (sem PR ainda).
 5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
 6. **Quality gate compartilhado** — NÃO rodar localmente. Em Rust o gate compila o workspace duas vezes (base + branch) e é inviável na máquina do dev; ele roda no CI, no job `quality-gate` do `.github/workflows/pr.yml`, quando o PR abre. O veredito verde/vermelho vem de lá.
-7. **Só ENTÃO** o PR, **sempre não-interativo** — push a branch first, then pass every field explicitly:
+7. **Só ENTÃO** o PR, **sempre não-interativo** — push a branch first, then pass every field explicitly. **`--base` = a `release/vX.Y.Z` ativa** (feature/bugfix; fluxo `feature/bug → release → main → develop`), ou `main` (para `release → main` e `hotfix`):
 
    ```bash
-   gh pr create --repo jpfaria/OpenRig --base develop --head <branch> \
+   gh pr create --repo jpfaria/OpenRig --base release/vX.Y.Z --head <branch> \
      --title "<type>(#<issue>): <summary>" --body "Closes #<issue>. …"
    ```
 

@@ -1,0 +1,15 @@
+nav{position:fixed;inset:0 0 auto 0;z-index:60;padding:18px 0;transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
+nav.solid{background:rgba(5,7,11,.86);backdrop-filter:blur(20px) saturate(1.4);border-bottom-color:var(--line)}
+nav .wrap{display:flex;align-items:center;gap:34px}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto}
+.brand img{width:30px;height:30px}
+.brand span{font-family:var(--display);font-size:27px;letter-spacing:.05em}
+.nav-links{display:flex;gap:clamp(16px,1.7vw,28px);font-size:13.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.nav-links a{transition:color .2s}
+.nav-links a:hover{color:var(--white)}
+.nav-gh{color:var(--mute);transition:color .2s;display:flex}
+.nav-gh:hover{color:#fff}
+nav .lang-switch{display:flex;gap:10px}
+nav .lang-switch button{font:inherit;font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--mute);background:none;border:none;cursor:pointer;padding:0}
+nav .lang-switch button:hover,nav .lang-switch button.on{color:#fff}
+@media(max-width:900px){.nav-gh,nav .lang-switch{display:none}}
