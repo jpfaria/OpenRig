@@ -11,18 +11,23 @@
 //! Two rules shape this file and its siblings:
 //!
 //! * **Every control goes through the dispatcher.** A knob callback dispatches
-//!   its `Command` and reacts to the `Event` that comes back — it never edits
-//!   the session or the audio state directly. That keeps MCP, MIDI and the GUI
-//!   on one door, and it is why `metronome_events::apply_events` is the only
-//!   place that writes to the session, the UI, `config.yaml` and the runtime.
-//! * **The lamps read a phase, not a queue.** The timer samples
-//!   `MetronomeShared::position()`, so a frame that arrives late shows the beat
-//!   the click is actually on instead of replaying a backlog.
+//!   its `Command` and nothing else: since #127 the dispatcher OWNS the
+//!   metronome — it validates the value, remembers it, persists it and applies
+//!   it to the audio runtime through `RuntimeControl`. This file only mirrors
+//!   the result onto the screen, which is why it no longer holds the audio
+//!   backend: a footswitch or an MCP client now starts the same click the knob
+//!   does.
+//! * **The lamps read a phase, not a queue.** The timer samples the click's
+//!   position through [`LiveSource`], so a frame that arrives late shows the
+//!   beat the click is actually on instead of replaying a backlog. It also
+//!   re-renders whenever the dispatcher's snapshot changed, so a tempo set from
+//!   another transport lands on the knob while the panel is open.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use infra_cpal::ProjectRuntimeController;
+use application::live_source::LiveSource;
+use application::metronome_state::MetronomeSnapshot;
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
@@ -30,7 +35,7 @@ use crate::metronome_controls_wiring::{
     refresh_metronome_outputs, wire_controls, wire_output_select,
 };
 use crate::metronome_events::{dispatch, render_settings};
-use crate::metronome_session::{resolve_output_endpoint, MetronomeOutput, MetronomeSession};
+use crate::metronome_view::MetronomeOutput;
 use crate::state::ProjectSession;
 use crate::{AppWindow, MetronomeBridge, MetronomeWindow};
 
@@ -44,8 +49,10 @@ const TICK_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
 /// eleven callbacks and they all want the same handful of things.
 pub(crate) struct MetronomeCtx {
     pub(crate) project_session: Rc<RefCell<Option<ProjectSession>>>,
-    pub(crate) project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
-    pub(crate) session: Rc<RefCell<MetronomeSession>>,
+    /// #127: the read seam. The click's beat position and whether it is
+    /// sounding come from here — never from the audio backend directly, which
+    /// is the whole point of the issue.
+    pub(crate) live: Rc<dyn LiveSource>,
     pub(crate) timer: Rc<Timer>,
     /// The standalone window (windowed desktop mode).
     pub(crate) window: slint::Weak<MetronomeWindow>,
@@ -54,18 +61,22 @@ pub(crate) struct MetronomeCtx {
     /// The project's output endpoints as published to the select, cached so
     /// each keystroke filters the list instead of re-reading the bindings.
     pub(crate) outputs: Rc<RefCell<Vec<MetronomeOutput>>>,
+    /// The snapshot the knobs currently show. The lamp timer re-renders only
+    /// when it differs, so mirroring a change made on another transport costs
+    /// one comparison per frame instead of a full label rebuild.
+    pub(crate) rendered: Rc<RefCell<Option<MetronomeSnapshot>>>,
 }
 
 impl MetronomeCtx {
     pub(crate) fn clone_ctx(&self) -> Self {
         Self {
             project_session: self.project_session.clone(),
-            project_runtime: self.project_runtime.clone(),
-            session: self.session.clone(),
+            live: self.live.clone(),
             timer: self.timer.clone(),
             window: self.window.clone(),
             main_window: self.main_window.clone(),
             outputs: self.outputs.clone(),
+            rendered: self.rendered.clone(),
         }
     }
 
@@ -80,6 +91,12 @@ impl MetronomeCtx {
             f(&MetronomeBridge::get(&aw));
         }
     }
+
+    /// Whether the click is sounding, as the AUDIO side reports it. `false`
+    /// with no runtime hosted: nothing can be playing then.
+    pub(crate) fn click_is_playing(&self) -> bool {
+        self.live.metronome().is_some_and(|click| click.running)
+    }
 }
 
 /// Wire every metronome callback (open / close / power / controls) onto the
@@ -88,18 +105,17 @@ pub fn wire_metronome(
     window: &AppWindow,
     metronome_window: &MetronomeWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    metronome_session: &Rc<RefCell<MetronomeSession>>,
+    live: &Rc<dyn LiveSource>,
     metronome_timer: &Rc<Timer>,
 ) {
     let ctx = MetronomeCtx {
         project_session: project_session.clone(),
-        project_runtime: project_runtime.clone(),
-        session: metronome_session.clone(),
+        live: live.clone(),
         timer: metronome_timer.clone(),
         window: metronome_window.as_weak(),
         main_window: window.as_weak(),
         outputs: Rc::new(RefCell::new(Vec::new())),
+        rendered: Rc::new(RefCell::new(None)),
     };
 
     wire_open(window, metronome_window, &ctx);
@@ -127,16 +143,16 @@ fn wire_open(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &Metro
         let Some(main_w) = main_window_weak.upgrade() else {
             return;
         };
-        // Show the CURRENT state: the persisted settings, and POWER reflecting
-        // whether the click is actually playing — closing the window only hides
-        // it (the click keeps going), so reopening must not look stopped.
+        // Show the CURRENT state: the settings the dispatcher holds, and POWER
+        // reflecting whether the click is actually playing — closing the window
+        // only hides it (the click keeps going), so reopening must not look
+        // stopped.
         render_settings(&ctx);
-        let playing = ctx
-            .project_runtime
-            .borrow()
-            .as_ref()
-            .is_some_and(|rt| rt.metronome_shared().enabled());
-        set_power_display(&ctx, playing);
+        set_power_display(&ctx, ctx.click_is_playing());
+        // The lamps only mean anything while a surface is visible, so the timer
+        // lives exactly as long as one is. It is also what mirrors a change made
+        // from MCP or a footswitch while the panel is open.
+        start_lamp_timer(&ctx);
 
         if use_inline_block_editor(&main_w) {
             // Fullscreen / touch: the inline panel is gated by the global.
@@ -172,13 +188,16 @@ fn wire_close(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &Metr
 /// working in the chains screen with the tempo still going.
 fn close_metronome(ctx: &MetronomeCtx) {
     // Hide whichever surface was showing: the inline panel (clear `show`) and
-    // the standalone window (hide it). Do NOT stop the click or the timer.
+    // the standalone window (hide it). Do NOT stop the click.
     if let Some(aw) = ctx.main_window.upgrade() {
         MetronomeBridge::get(&aw).set_show(false);
     }
     if let Some(mw) = ctx.window.upgrade() {
         let _ = mw.hide();
     }
+    // Nothing renders the lamps once both surfaces are hidden, so stop reading
+    // them. The click is unaffected — it lives in its own stream.
+    ctx.timer.stop();
 }
 
 /// Reflect the power state (and reset the lamp) on every surface's bridge.
@@ -197,93 +216,67 @@ pub(crate) fn set_power_display(ctx: &MetronomeCtx, enabled: bool) {
 fn wire_power(bridge: &MetronomeBridge, ctx: &MetronomeCtx) {
     let ctx = ctx.clone_ctx();
     bridge.on_toggle_enabled(move |enabled| {
+        // The dispatcher starts and stops the click itself (#127) — including
+        // creating the audio runtime when no chain is enabled (#808), because
+        // the metronome is an independent pipeline (invariant #4).
         dispatch(
             &ctx,
             Command::Metronome(MetronomeCommand::SetMetronomeEnabled { enabled }),
         );
-        // With no project open there is no dispatcher and therefore no event —
-        // reflect the request on the switch anyway so it never looks stuck.
-        set_power_display(&ctx, enabled);
+        // The switch follows the DISPATCHER, which records a start only once
+        // the runtime accepted it — so a click with no endpoint to play
+        // through does not leave POWER lit over silence. With no project open
+        // there is no dispatcher to ask, and the request itself is the best
+        // answer: the switch must never look stuck.
+        let lit = snapshot(&ctx).map_or(enabled, |state| state.running);
+        set_power_display(&ctx, lit);
     });
 }
 
-/// The metronome is an independent pipeline (invariant #4) — it must open with
-/// NO chain enabled. The runtime controller is created lazily on chain-enable
-/// (#808), so create it here if it does not exist yet; otherwise pressing POWER
-/// with nothing enabled opens no stream and the click never plays.
-pub(crate) fn ensure_metronome_runtime(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-) {
-    let session_borrow = project_session.borrow();
-    let Some(session) = session_borrow.as_ref() else {
-        return; // launcher / no project open — nothing to build a runtime from
-    };
-    if let Err(e) = crate::runtime_lifecycle::ensure_runtime(project_runtime, session) {
-        log::error!("[metronome] ensure_runtime failed: {e}");
-    }
-}
-
-/// Open the metronome's own output stream and start the lamp timer.
-pub(crate) fn start_click(ctx: &MetronomeCtx) {
-    let settings = ctx.session.borrow().settings();
-    let saved = ctx.session.borrow().output_device().map(str::to_string);
-    // The metronome plays through one of the project's configured output
-    // endpoints (#14) — same device and channels the guitar's output uses.
-    let outputs = refresh_metronome_outputs(&ctx.project_session, &ctx.outputs);
-    let target = resolve_output_endpoint(saved.as_deref(), &outputs);
-    // #14: the click plays even with no chain enabled (invariant #4). The
-    // runtime is created lazily on chain-enable, so make sure it exists.
-    ensure_metronome_runtime(&ctx.project_runtime, &ctx.project_session);
-    if let Some(rt) = ctx.project_runtime.borrow().as_ref() {
-        rt.set_metronome_settings(settings);
-        let shared = rt.metronome_shared();
-        shared.set_enabled(true);
-        // Start from beat one of the bar instead of wherever a previous run
-        // left the phase.
-        shared.request_restart();
-        match target {
-            Some(out) => {
-                if let Err(e) = rt.start_metronome(&out.device_id, &out.channels) {
-                    log::warn!("[metronome] start on '{}' failed: {e}", out.label);
-                }
-            }
-            None => log::warn!("[metronome] no project output endpoint to play through"),
-        }
-    }
-    start_lamp_timer(ctx);
-}
-
-pub(crate) fn stop_click(ctx: &MetronomeCtx) {
-    ctx.timer.stop();
-    if let Some(rt) = ctx.project_runtime.borrow().as_ref() {
-        rt.metronome_shared().set_enabled(false);
-        rt.stop_metronome();
-    }
-}
-
-/// Sample the generator's position onto the beat lamps. Reading the phase (not
-/// a queue of beat events) is what makes a late frame harmless.
-fn start_lamp_timer(ctx: &MetronomeCtx) {
+/// Sample the click's position onto the beat lamps, and keep the knobs in step
+/// with the dispatcher.
+///
+/// Reading the phase (not a queue of beat events) is what makes a late frame
+/// harmless. Reading it through [`LiveSource`] is what keeps this module off
+/// the audio backend.
+pub(crate) fn start_lamp_timer(ctx: &MetronomeCtx) {
     let ctx = ctx.clone_ctx();
     ctx.timer
         .clone()
         .start(TimerMode::Repeated, TICK_INTERVAL, move || {
-            let Some(position) = ctx
-                .project_runtime
-                .borrow()
-                .as_ref()
-                .map(|rt| rt.metronome_shared().position())
-            else {
+            let Some(click) = ctx.live.metronome() else {
                 return;
             };
             ctx.for_each_bridge(|bridge| {
-                bridge.set_current_beat(position.beat as i32);
-                bridge.set_counting_in(position.counting_in);
+                bridge.set_metronome_enabled(click.running);
+                bridge.set_current_beat(if click.running { click.beat as i32 } else { 0 });
+                bridge.set_counting_in(click.running && click.counting_in);
             });
+            // A tempo (or timbre, or output) set from MCP or a MIDI CC changes
+            // the dispatcher's snapshot without any event reaching this window.
+            // One comparison a frame is what makes the knobs follow it.
+            //
+            // The borrow ends on its own line on purpose: `render_settings`
+            // borrows `rendered` mutably, so holding this one into the call
+            // would panic.
+            let current = snapshot(&ctx);
+            let changed = ctx.rendered.borrow().as_ref() != current.as_ref();
+            if changed {
+                render_settings(&ctx);
+            }
         });
 }
 
-#[cfg(test)]
-#[path = "metronome_runtime_tests.rs"]
-mod runtime_tests;
+/// The metronome state the dispatcher owns. `None` with no project open —
+/// there is no dispatcher to ask.
+pub(crate) fn snapshot(ctx: &MetronomeCtx) -> Option<MetronomeSnapshot> {
+    ctx.project_session
+        .borrow()
+        .as_ref()
+        .map(|session| session.dispatcher.metronome_snapshot())
+}
+
+/// Re-read the project's endpoints, keeping the select's cache in step.
+pub(crate) fn outputs(ctx: &MetronomeCtx) -> Vec<MetronomeOutput> {
+    refresh_metronome_outputs(&ctx.project_session, &ctx.outputs)
+}

@@ -2,7 +2,6 @@
 //! from project_admin_persistence_tests.rs). Shares session/chain fixtures via super.
 
 use application::command::{BlockCommand, ChainCommand, Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock};

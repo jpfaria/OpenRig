@@ -38,6 +38,8 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetMetronomeTimbre",
     "SetMetronomeTimeSignature",
     "SetMetronomeVolume",
+    // ── Added by #127 (runtime control on the bus) ────────────────────────
+    "SetIoBindings",
     // ── Added on develop (#791 Tone Doctor, #829 device refresh) ──────────
     "ApplyToneDoctorFix",
     "DiagnoseChainTone",
@@ -119,6 +121,10 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetTunerEnabled",
     "StartMidiLearn",
     "StopMidiLearn",
+    // #127: stopping the rig is a Command now, so a client that started the
+    // audio can silence it again.
+    "StopProjectRuntime",
+    "SyncChainRuntime",
     "ToggleActiveBlockNeighborEnabled",
     "ToggleBlockEnabled",
     "ToggleChainEnabled",

@@ -17,7 +17,6 @@ infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 project = { path = "../project" }
 plugin-loader = { path = "../plugin-loader" }
-
-[dev-dependencies]
-# Tick tests build a real chain to drive an off-thread command.
+# #831: `ConsoleLiveSource` names `domain::io_binding::IoBinding` directly
+# (the `ReadContext`/`LiveSource` boundary type) — no longer test-only.
 domain = { path = "../domain" }

@@ -25,6 +25,9 @@ use project::chain::Chain;
 use project::project::Project;
 use std::rc::Rc;
 
+mod common;
+use common::DiRuntimeControl;
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 fn write_mono_wav(path: &Path, sr: u32, samples: &[f32]) {
@@ -96,7 +99,7 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
     let chain_id = ChainId("chain_614_compact_play".to_string());
     let project = make_project(&chain_id.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let controller = RefCell::new(Some(make_controller(&chain_id)));
+    let controller = DiRuntimeControl::attach(&dispatcher, make_controller(&chain_id));
 
     // Load a source via the dispatcher.
     dispatcher
@@ -126,11 +129,7 @@ fn compact_di_loop_play_arms_focused_chain_runtime() {
     );
 
     // Call the compact-view play entry point — this is the new public symbol.
-    adapter_gui::compact_chain_callbacks::compact_chain_di_loop_play(
-        &controller,
-        &dispatcher,
-        &chain_id,
-    );
+    adapter_gui::compact_chain_callbacks::compact_chain_di_loop_play(&dispatcher, &chain_id);
 
     // #717: play arms the DEDICATED DI stream (drives the graph + its meters).
     assert!(
@@ -153,7 +152,7 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
     let chain_id = ChainId("chain_614_compact_stop".to_string());
     let project = make_project(&chain_id.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let controller = RefCell::new(Some(make_controller(&chain_id)));
+    let controller = DiRuntimeControl::attach(&dispatcher, make_controller(&chain_id));
 
     // Load + play to arm the runtime.
     dispatcher
@@ -171,11 +170,7 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
-    adapter_gui::compact_chain_callbacks::compact_chain_di_loop_play(
-        &controller,
-        &dispatcher,
-        &chain_id,
-    );
+    adapter_gui::compact_chain_callbacks::compact_chain_di_loop_play(&dispatcher, &chain_id);
 
     assert!(
         controller
@@ -187,11 +182,7 @@ fn compact_di_loop_stop_disarms_focused_chain_runtime() {
     );
 
     // Stop via the compact entry point.
-    adapter_gui::compact_chain_callbacks::compact_chain_di_loop_stop(
-        &controller,
-        &dispatcher,
-        &chain_id,
-    );
+    adapter_gui::compact_chain_callbacks::compact_chain_di_loop_stop(&dispatcher, &chain_id);
 
     assert!(
         !controller

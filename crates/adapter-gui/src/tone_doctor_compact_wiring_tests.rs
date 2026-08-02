@@ -21,7 +21,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, ToneDoctorCommand};
-use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 use domain::ids::{BlockId, ChainId};
 use domain::value_objects::ParameterValue;

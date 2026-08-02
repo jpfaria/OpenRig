@@ -827,12 +827,8 @@ impl ProjectRuntimeController {
         // matching unregister_client calls here to keep the count honest.
     }
 
-    pub fn is_running(&self) -> bool {
-        // #672 a cold build counts; #808 so does an armed DI (owns its stream).
-        !self.active_chains.is_empty()
-            || !self.pending_activations.is_empty()
-            || !self.di_streams.borrow().is_empty()
-    }
+    // `is_running` — the one question every teardown door asks — lives in
+    // `controller_liveness.rs` (line-cap split).
 
     /// Check whether the audio backend is still healthy.
     ///

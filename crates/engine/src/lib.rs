@@ -17,6 +17,7 @@ pub mod input_tap;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
 mod issue_85_stream_per_pair_tests;
+pub mod loop_pcm;
 pub mod looper;
 pub mod looper_bank;
 pub mod metronome_state;
@@ -44,6 +45,7 @@ pub mod runtime_layout;
 pub mod runtime_load;
 mod runtime_looper_api;
 mod runtime_mid_output_tap;
+mod runtime_output_process;
 pub mod runtime_probe;
 mod runtime_process_segment;
 mod runtime_processor_model;
@@ -58,5 +60,6 @@ pub mod tone_doctor_fix;
 pub mod tone_doctor_suggestion;
 pub mod tone_profile_table;
 pub use di_loop::{DiFrame, DiLoop, DiPcm};
+pub use loop_pcm::LoopPcm;
 pub use looper::{LooperSlot, LooperSpeed, LooperState, LOOPER_MAX_LAYERS};
 pub use looper_bank::{LooperOp, LooperStatus, LOOPER_MAX_PER_CHAIN, LOOPER_MAX_SECONDS};

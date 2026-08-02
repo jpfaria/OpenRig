@@ -27,7 +27,7 @@ use std::time::{Duration, Instant};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::host::jack_server_is_running;

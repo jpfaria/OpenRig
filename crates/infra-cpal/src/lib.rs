@@ -42,12 +42,11 @@ mod jack_handlers;
 
 mod active_runtime;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AudioDeviceDescriptor {
-    pub id: String,
-    pub name: String,
-    pub channels: usize,
-}
+// #127: `AudioDeviceDescriptor` used to be DEFINED here, which meant every UI
+// module that rendered a device name linked this crate. It now lives in
+// `domain::audio_device` — this crate still PRODUCES it (see `device_enum`),
+// and is deliberately not re-exporting it: one name, `domain::AudioDeviceDescriptor`,
+// so a frontend that never opens a stream never mentions the backend.
 
 mod resolved;
 
@@ -73,6 +72,7 @@ mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
+mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_taps;
@@ -96,12 +96,17 @@ pub use device_settings::start_jack_in_background;
 mod chain_resolve;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod chain_resolve_io_map;
-#[cfg(test)]
+// Exercises `device_rates_from_signature`, which only exists off linux+jack.
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "issue_85_live_rebuild_rates_tests.rs"]
 mod issue_85_live_rebuild_rates_tests;
-#[cfg(test)]
+// Exercises `chain_resolve_io_map`, which only exists off linux+jack.
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "issue_85_mid_output_device_tests.rs"]
 mod issue_85_mid_output_device_tests;
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+#[path = "issue_871_disabled_io_routing_tests.rs"]
+mod issue_871_disabled_io_routing_tests;
 pub use chain_resolve::resolve_project_chain_sample_rates;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]

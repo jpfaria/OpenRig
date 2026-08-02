@@ -82,7 +82,15 @@ fn single_take_rec_is_disabled_once_the_loop_has_material() {
     // only on an EMPTY loop (with a live runtime) or to CLOSE one in progress.
     let chain = chain_with(vec![LooperConfig::new(1)]);
     let rec = |state| {
-        looper_items(&chain, &[status(1, state, 0, 100, 1)], 48_000, &[], true, &[])[0].can_record
+        looper_items(
+            &chain,
+            &[status(1, state, 0, 100, 1)],
+            48_000,
+            &[],
+            true,
+            &[],
+        )[0]
+        .can_record
     };
     assert!(
         rec(LooperState::Recording),
@@ -154,7 +162,14 @@ fn persisted_parameters_reach_the_row_in_panel_units() {
 #[test]
 fn a_chain_is_active_while_any_looper_records_or_plays() {
     let chain = chain_with(vec![LooperConfig::new(1), LooperConfig::new(2)]);
-    assert!(!any_looper_active(&looper_items(&chain, &[], 48_000, &[], true, &[])));
+    assert!(!any_looper_active(&looper_items(
+        &chain,
+        &[],
+        48_000,
+        &[],
+        true,
+        &[]
+    )));
 
     let rows = looper_items(
         &chain,

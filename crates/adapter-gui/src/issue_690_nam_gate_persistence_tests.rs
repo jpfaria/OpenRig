@@ -12,7 +12,6 @@ use crate::state::ProjectSession;
 use application::block_factory::{build_default_block, resolve_effect_type_for_model};
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
 use application::command::{BlockCommand, ChainCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::{BlockId, ChainId};
 use project::block::AudioBlockKind;
 use project::param::ParameterSet;

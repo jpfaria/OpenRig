@@ -1,15 +1,20 @@
 //! Wiring for the "back to launcher" callback on the main window.
 //!
-//! Stops the running project runtime, hides the standalone settings/chain
-//! editor/block editor windows, clears the in-memory session and chain rows,
-//! resets dirty state, and routes the UI back to the launcher view.
+//! Hides the standalone settings/chain editor/block editor windows, clears the
+//! in-memory session and chain rows, resets dirty state, and routes the UI back
+//! to the launcher view.
+//!
+//! #127: stopping the audio is NOT done here any more. `CloseProject` stops the
+//! rig from the dispatcher, so a project closed over MCP/gRPC goes silent too —
+//! it used to leave every stream open and sounding, because the teardown lived
+//! in this callback.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 use project::project::Project;
 
 use crate::helpers::clear_status;
@@ -17,15 +22,12 @@ use crate::project_ops::set_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 
-use crate::stop_project_runtime;
 use crate::{AppWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow};
 
 pub(crate) struct BackToLauncherCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
@@ -42,7 +44,6 @@ pub(crate) fn wire(
     let BackToLauncherCtx {
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         chain_editor_window,
@@ -64,11 +65,14 @@ pub(crate) fn wire(
         if let Some(editor_window) = chain_editor_window.borrow().as_ref() {
             let _ = editor_window.hide();
         }
-        // #436 E: fechar o projeto é negócio → ProjectCommand::CloseProject no
-        // dispatcher compartilhado (MCP/MIDI, observável via
-        // Event::ProjectClosed) enquanto a sessão existe. O teardown de
-        // runtime + drop da sessão abaixo é adapter-side (precedente
-        // SaveProject). Fechar janelas acima é regra de tela.
+        // #436 E: closing the project is business → ProjectCommand::CloseProject
+        // on the shared dispatcher (MCP/MIDI, observable through
+        // Event::ProjectClosed) while the session still exists.
+        // #127: that command now also STOPS THE RIG through
+        // `RuntimeControl::stop_project_runtime`, so this callback no longer
+        // tears the audio down itself — dropping the session below is still
+        // adapter-side (the SaveProject precedent). Hiding windows is screen
+        // logic.
         if let Some(session) = project_session.borrow().as_ref() {
             if let Err(e) = session
                 .dispatcher
@@ -77,7 +81,6 @@ pub(crate) fn wire(
                 log::warn!("[back-to-launcher] Command::CloseProject falhou: {e}");
             }
         }
-        stop_project_runtime(&project_runtime);
         *project_session.borrow_mut() = None;
         *saved_project_snapshot.borrow_mut() = None;
         replace_project_chains(

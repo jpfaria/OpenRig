@@ -49,6 +49,18 @@ follow-up.
   diagnosis is expensive and completes asynchronously: the tool call
   returns once accepted, and the verdict is read back from
   `openrig://chains/{chain}/tone`. See `docs/tone-doctor.md`.
+
+  Several tools only became audible over MCP in #127, because their
+  runtime half used to be applied by the GUI callback that had just
+  dispatched: `stop_project_runtime` and `close_project` stop the rig (a
+  client could START audio and had no way to silence it, and a close left
+  every stream open), `save_audio_settings` re-opens the running graph on
+  the new rate/buffer instead of only persisting the numbers,
+  `remove_chain` makes the deleted chain stop sounding, the looper tools
+  actually record / play / clear (from a footswitch or a client they
+  mutated nothing), and `save_project` writes the recorded loops' wav
+  sidecars, which only the GUI's own Save did before. See
+  `docs/architecture.md` → "Write bus: `RuntimeControl`".
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
@@ -65,9 +77,20 @@ follow-up.
     `SetSpectrumEnabled`.
   - `openrig://di` (#829) — per-chain DI loop state: `playing`, the
     playback `in_dbfs` / `out_dbfs`, and the loaded `source` (JSON).
+  - `openrig://metronome` (#127) — the click: the settings the dispatcher
+    owns (`bpm`, `beats_per_bar`, `subdivision`, `timbre`, `volume`,
+    `count_in`, `output`) plus `running` and the live beat position
+    (`bar`, `beat`, `tick`, `counting_in`) (JSON). Read parity for the
+    metronome commands — a client that can start the click can see the
+    tempo it runs at and the beat it is on. With no runtime hosted the
+    position reads as beat zero rather than a fabricated one.
   - `openrig://chains/{chain}/latency` (#829) — measured DSP latency for
     one chain, probed at that chain input's real rate and buffer (never a
-    hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used.
+    hardcoded 48 kHz), plus the `sample_rate` / `buffer_frames` used. With
+    no saved per-device setting the rate comes from the frontend's
+    `LiveSource::chain_sample_rate` — the running stream, or what the
+    chain's own devices resolve to with the rig stopped — and only then
+    from the dispatcher's tracked engine rate (#127).
   - `openrig://presets` — project preset pool (JSON).
   - `openrig://chains/{chain}/presets` — chain preset bank (JSON).
   - `openrig://plugins` — full plugin catalog (JSON).
@@ -93,6 +116,14 @@ follow-up.
     suggested, optional `enable_path`). `diagnose_chain_tone` returns
     as soon as the run is accepted, so poll this until `state` leaves
     `running`.
+  - `openrig://chains/{chain}/loopers` (#323) — one chain's loopers: the
+    persisted parameters (`mix`, `decay`, `speed`, `reverse`) merged with
+    the live transport state (`state`, `position_frames`, `len_frames`,
+    `length_seconds`, `layers`), plus the chain's live `sample_rate` —
+    frame counts mean nothing without the rate they were counted at, and
+    it is never a hardcoded 48 kHz (#669/#723). A stopped rig answers the
+    chain's persisted shape with empty statuses; a chain whose rate cannot
+    be resolved reports that failure instead of a fabricated number.
   - `openrig://paths` (#582) — effective resolved system paths
     (`data_root`, `presets_path`, `plugins_path`, `evaluations_path`)
     as a JSON object. Every value is an absolute path: when the user
@@ -180,6 +211,18 @@ server runs on its own tokio thread and crosses the boundary through
 `application::bridge` (a `Send` channel + `futures` oneshot). It is drained
 each tick on the frontend thread — the same path GUI callbacks use. No
 audio-thread code is touched; invariants 1–10 hold by construction.
+
+Reads follow the same contract from the other direction: every
+`openrig://*` resource resolves through the one `application::read::resolve`
+matcher, which reads live state through `application::live_source::LiveSource`
+instead of a concrete GUI/console type. A resource has exactly **one**
+payload shape no matter which adapter is mounted, because `resolve` — not
+the frontend — owns the serialization. A frontend that hosts no source for a
+given read (the console has no tuner/spectrum/DI runtime, for example) still
+answers the documented empty shape instead of a refusal, so the resource
+stays addressable on every transport. See [Architecture](architecture.md)
+for the `LiveSource` hosting rule and the `devices()` / `chain_loopers()`
+tri-state.
 
 See also: [CLI & env vars](cli.md) · [Architecture](architecture.md) · design
 spec `docs/superpowers/specs/2026-05-17-165-mcp-server-design.md`.

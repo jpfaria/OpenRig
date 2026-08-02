@@ -9,9 +9,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use application::audio_taps::AudioTaps;
 use slint::{SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use application::live_source::LiveSource;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use crate::state::{BlockEditorDraft, ChainDraft, ProjectSession};
@@ -26,7 +28,11 @@ pub(crate) struct ChainWiringDeps<'a> {
 
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the subscription seam the compact view's Tone Doctor records
+    /// through — a capability, not the audio backend.
+    pub audio_taps: Rc<dyn AudioTaps>,
+    /// #127: the blocks' diagnostic-stream read seam.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
 
@@ -55,7 +61,6 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             output_chain_devices: deps.output_chain_devices.clone(),
             chain_editor_window: deps.chain_editor_window.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             toast_timer: deps.toast_timer.clone(),
@@ -69,7 +74,8 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
         deps.window,
         crate::compact_chain_callbacks::CompactChainCallbacksCtx {
             project_session: deps.project_session.clone(),
-            project_runtime: deps.project_runtime.clone(),
+            audio_taps: Rc::clone(&deps.audio_taps),
+            block_stream_reads: Rc::clone(&deps.block_stream_reads),
             project_chains: deps.project_chains.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),

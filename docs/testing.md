@@ -82,9 +82,10 @@ every layer instead of "it plays, ship it":
 | `audio_alloc_invariant_tests::looper_record_overdub_and_undo_do_not_allocate` | zero allocation on the audio thread while recording / overdubbing / undoing (invariant #8) |
 | `infra-cpal/tests/issue_323_controller_loopers.rs` | ops fan out to every runtime of a chain, each with its OWN buffer |
 | `application` dispatcher + `query_loopers` tests | command validation, the footswitch uid-0 sentinel, and the read model every transport shares |
-| `adapter-gui/tests/issue_323_looper_wiring.rs` | the #614 trap: dispatching alone is dead — the runtime state must actually flip |
+| `adapter-gui/tests/issue_323_looper_wiring.rs` | the #614 trap: dispatching alone is dead — a `LooperCommand` must flip the store and the loop's isolated stream, on the bus and with no GUI in the picture |
 | `adapter-gui/tests/issue_323_looper_panel_interaction.rs` | real pointer events on the panel: every transport button fires, disabled ones do not, each row reports its own uid |
-| `adapter-gui/src/looper_persist_tests.rs` | save → reopen round-trip of the wav sidecar, and that a missing sidecar never blocks opening a project |
+| `adapter-gui/src/runtime_loopers_tests.rs` | save → reopen round-trip of the wav sidecar (the save dispatched, not called), and that a missing sidecar never blocks opening a project |
+| `application/src/local_dispatcher_looper_save_tests.rs` | `SaveProject` exports the loops itself, forgets a cleared loop's stale pointer, and touches nothing when the rig is stopped |
 | `infra-cpal/tests/issue_323_looper_hw.rs` (`OPENRIG_HW_TESTS=1`) | the REAL stack: record + 7 overdubs + undo/redo/clear on live CoreAudio streams at buffer 64 cost **zero** xruns / underruns |
 
 The hardware test builds its rig **in the test** instead of loading a fixture
@@ -134,6 +135,35 @@ looks for the Scarlett by name), an idle machine, and ~12 minutes. The
 tests serialize access to the physical device across processes via a lock
 file.
 
+The same gate covers the metronome's runtime doors
+(`crates/adapter-gui/src/metronome_runtime_tests.rs`, issue #127): starting the
+click means `find_output_device_by_id` → `host.output_devices()`, so those
+tests enumerate the machine's real interfaces and one of them opens a (silent)
+output stream. They are seconds, not minutes:
+
+```sh
+OPENRIG_HW_TESTS=1 cargo test -p adapter-gui --lib runtime_lifecycle::metronome_tests
+```
+
+What the ORDER those doors write the generator's `enabled` flag in — the click
+is marked playing only once its stream is proven open — is pinned headless in
+`crates/adapter-gui/src/runtime_pipelines_tests.rs` and runs in the normal
+suite.
+
+`crates/infra-cpal/tests/issue_127_metronome_runtime.rs` is the same gate one
+layer down, on the controller's own doors, and needs a real output device for
+the same reason. It pins that an open click keeps `is_running()` true — the
+predicate the chain-teardown doors drop the WHOLE controller on, so an
+uncounted click dies when a chain is enabled and disabled again — and that an
+output change the device refuses leaves a click that was already playing
+untouched, rather than closing its stream and leaving every reader saying
+"playing" over silence. Seconds, and never audible (the generator is muted and
+never enabled):
+
+```sh
+OPENRIG_HW_TESTS=1 cargo test -p infra-cpal --test issue_127_metronome_runtime
+```
+
 **Mid-chain ports (#85)** get their own three files in the same battery. They
 need no player and make no noise: a **loopback device** (BlackHole 2ch) stands
 in for the second interface, a DI loop (or a tone written by the test) is the
@@ -165,6 +195,77 @@ claim needs that shape of oracle, not a counter.
 `issue_85_owner_interfaces_tap` runs on two REAL interfaces instead of the
 loopback (which shares the machine's clock), which is where a cross-rate tap
 actually misbehaves, and reports the peak callback load alongside the counters.
+
+The teardown / whole-graph doors (issue #127) need no hardware either. At the
+dispatcher level, `crates/application/src/local_dispatcher_runtime_doors_tests.rs`
+drives a spy `RuntimeControl` and pins that `StopProjectRuntime` and
+`CloseProject` stop the rig, that `SaveAudioSettings` rebuilds the whole graph
+(and surfaces a refusal as a dispatch error), and — the isolation pin — that
+`RemoveChain` touches ONLY the deleted chain: the survivor is neither re-synced
+nor named, and the rig-wide stop never fires. At the GUI level,
+`crates/adapter-gui/src/runtime_lifecycle_control_tests.rs` drives the same
+commands against a device-less controller and asserts the controller is dropped
+and the engine rate goes back to the reference, plus that the whole-graph
+rebuild never CREATES a controller on a stopped rig.
+
+The poll tick's doors (`crates/adapter-gui/src/runtime_health_tests.rs`, issue
+#127) need no hardware: they drive a device-less controller
+(`ProjectRuntimeController::for_testing`) whose rebuilds resolve their
+endpoints from the binding registry. They pin that a finished rebuild is
+INSTALLED by the write door (and only into the chain that asked for it), that a
+`BlockError` the audio thread posted surfaces through the read door naming its
+chain, and that the read drains — so nobody promotes it to a shared query.
+
+`crates/adapter-gui/src/chain_row_seams_tests.rs` pins the meter tick's three
+per-chain doors against a device-less controller: a hosted chain reports its own
+runtime state (live, with its own xrun/underrun counters) and its own DI state,
+a chain with no runtime on a hosted frontend reads `live: false` rather than
+`None`, a stopped rig answers neither, and the looper reconcile gives the
+project's looper its slot while leaving a sibling chain's store empty.
+
+`crates/adapter-gui/src/block_stream_read_tests.rs` pins the block-diagnostic
+read's two states against a device-less controller: a hosted runtime always
+answers (an empty table for a block that publishes nothing), and a stopped rig
+answers `None` — the distinction the panel uses to decide between "go inactive"
+and "keep showing what you have".
+
+The subscription seam is tested on both sides and needs no hardware either.
+`crates/application/src/audio_taps_tests.rs` pins the CONTRACT — a tap that
+carries no PCM is still a complete implementation, a frontend that hosts no
+audio subscribes to nothing, and a `TapPoint` is never satisfied by a stream
+index alone. `crates/adapter-gui/src/runtime_taps_tests.rs` drives the GUI's
+implementation against a device-less controller: the reduced reading equals the
+peak of the window the audio callback pushed, the raw window honours its cap, a
+subscription never hears a sibling chain, and one multi-channel subscription
+keeps its channels apart.
+
+## Structural invariant: the UI may not name the audio backend (#127)
+
+`crates/adapter-gui/src/no_infra_cpal_in_wiring_tests.rs` asserts on the crate's
+own SOURCE rather than on behaviour, because what it protects is a boundary no
+runtime test can see: a module that reaches `infra_cpal::ProjectRuntimeController`
+directly still works in the GUI while doing nothing over MCP/gRPC. Three
+assertions:
+
+- no `adapter-gui` module outside an explicit allowlist names the backend — a
+  wiring module reaches the audio through one of the three seams (`Command` +
+  `RuntimeControl` for writes, `LiveSource` for reads, `AudioTaps` for
+  subscriptions);
+- no allowlisted module has STOPPED naming it, so the list can only shrink —
+  a ratchet, not a graveyard;
+- `sync_live_chain_runtime` has exactly ONE caller, the module that owns the
+  runtime.
+
+It walks `src/` recursively (a flat scan would let `settings/audio.rs` past) and
+strips `//` comments before matching, in both directions: an earlier sibling
+guard searched the raw source, and the comment explaining the call it looked for
+contained the identifier — so deleting the real call still passed. The ledger in
+that file justifies every allowlist entry; see `docs/architecture.md` → "The
+guard: the UI may not name the backend".
+
+```sh
+cargo test -p adapter-gui --lib no_infra_cpal
+```
 
 ## Real-plugin VST3 battery (issues #776 / #780)
 

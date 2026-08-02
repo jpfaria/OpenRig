@@ -3,45 +3,65 @@ use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use application::audio_taps::AudioTap;
 use engine::output_meter::SILENT_DBFS;
 use engine::spsc::SpscRing;
 
-fn ring_with(samples: &[f32]) -> Arc<SpscRing<f32>> {
-    let r = Arc::new(SpscRing::<f32>::new(16, 0.0));
-    for &s in samples {
-        r.push(s);
+/// A subscription over rings we push into by hand — the local shape, without
+/// an engine runtime, so the pure meter layer stays unit-testable.
+struct RingsTap(Vec<Arc<SpscRing<f32>>>);
+
+impl AudioTap for RingsTap {
+    fn channels(&self) -> usize {
+        self.0.len()
     }
-    r
+    fn poll_peak_dbfs(&self) -> f32 {
+        engine::output_meter::pop_peak_dbfs(&self.0)
+    }
+}
+
+fn tap_with(channels: &[&[f32]]) -> Arc<dyn AudioTap> {
+    let rings = channels
+        .iter()
+        .map(|samples| {
+            let r = Arc::new(SpscRing::<f32>::new(16, 0.0));
+            for &s in *samples {
+                r.push(s);
+            }
+            r
+        })
+        .collect();
+    Arc::new(RingsTap(rings))
 }
 
 #[test]
-fn empty_taps_return_silent_silent() {
-    let (i, o) = compute_meter_for_chain(&[], &[]);
+fn no_subscription_reads_silent_on_both_sides() {
+    let (i, o) = compute_meter_for_chain(None, None);
     assert_eq!(i, SILENT_DBFS);
     assert_eq!(o, SILENT_DBFS);
 }
 
 #[test]
 fn input_only_signal_returns_input_db_and_silent_out() {
-    let input = vec![ring_with(&[0.5])];
-    let (i, o) = compute_meter_for_chain(&input, &[]);
+    let input = tap_with(&[&[0.5]]);
+    let (i, o) = compute_meter_for_chain(Some(&input), None);
     assert!((i - (-6.02)).abs() < 0.05, "in={i}");
     assert_eq!(o, SILENT_DBFS);
 }
 
 #[test]
 fn output_only_signal_returns_silent_in_and_output_db() {
-    let output: Vec<Arc<SpscRing<f32>>> = vec![ring_with(&[0.25]), ring_with(&[])];
-    let (i, o) = compute_meter_for_chain(&[], &output);
+    let output = tap_with(&[&[0.25], &[]]);
+    let (i, o) = compute_meter_for_chain(None, Some(&output));
     assert_eq!(i, SILENT_DBFS);
     assert!((o - (-12.04)).abs() < 0.05, "out={o}");
 }
 
 #[test]
 fn both_taps_report_independent_peaks() {
-    let input = vec![ring_with(&[0.5])];
-    let output = vec![ring_with(&[0.9]), ring_with(&[])];
-    let (i, o) = compute_meter_for_chain(&input, &output);
+    let input = tap_with(&[&[0.5]]);
+    let output = tap_with(&[&[0.9], &[]]);
+    let (i, o) = compute_meter_for_chain(Some(&input), Some(&output));
     let want_in = 20.0_f32 * 0.5_f32.log10();
     let want_out = 20.0_f32 * 0.9_f32.log10();
     assert!((i - want_in).abs() < 0.05);
@@ -50,8 +70,8 @@ fn both_taps_report_independent_peaks() {
 
 #[test]
 fn above_full_scale_reports_positive_for_clip_indicator() {
-    let output = vec![ring_with(&[1.5]), ring_with(&[])];
-    let (_, o) = compute_meter_for_chain(&[], &output);
+    let output = tap_with(&[&[1.5], &[]]);
+    let (_, o) = compute_meter_for_chain(None, Some(&output));
     assert!(o > 0.0, "above 1.0 should be > 0 dBFS, got {o}");
 }
 
@@ -103,13 +123,13 @@ fn poll_per_stream_returns_one_reading_per_stream() {
     let id = domain::ids::ChainId("rig:input-1".into());
     let make_streams = |_: &domain::ids::ChainId| ChainMeterStreams {
         streams: vec![
-            StreamMeterRings {
-                input: vec![ring_with(&[0.5])],
-                output: vec![ring_with(&[0.9]), ring_with(&[])],
+            StreamMeterTaps {
+                input: Some(tap_with(&[&[0.5]])),
+                output: Some(tap_with(&[&[0.9], &[]])),
             },
-            StreamMeterRings {
-                input: vec![ring_with(&[0.1])],
-                output: vec![ring_with(&[0.25]), ring_with(&[])],
+            StreamMeterTaps {
+                input: Some(tap_with(&[&[0.1]])),
+                output: Some(tap_with(&[&[0.25], &[]])),
             },
         ],
     };
@@ -143,9 +163,9 @@ fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
         move |_: &domain::ids::ChainId| {
             calls.set(calls.get() + 1);
             ChainMeterStreams {
-                streams: vec![StreamMeterRings {
-                    input: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
-                    output: vec![Arc::new(SpscRing::<f32>::new(16, 0.0))],
+                streams: vec![StreamMeterTaps {
+                    input: Some(tap_with(&[&[]])),
+                    output: Some(tap_with(&[&[]])),
                 }],
             }
         }
@@ -181,7 +201,7 @@ fn refresh_subscriptions_lazy_per_stream_skips_when_entry_already_present() {
 fn refresh_subscriptions_lazy_per_stream_drops_missing_chains() {
     let store = new_meter_store_per_stream();
     let make_streams = |_: &domain::ids::ChainId| ChainMeterStreams {
-        streams: vec![StreamMeterRings::default()],
+        streams: vec![StreamMeterTaps::default()],
     };
     refresh_subscriptions_lazy_per_stream(
         &store,

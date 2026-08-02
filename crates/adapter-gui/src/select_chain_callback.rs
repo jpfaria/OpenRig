@@ -15,8 +15,6 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer};
 
-use application::dispatcher::CommandDispatcher;
-
 use crate::helpers::set_status_error;
 use crate::state::ProjectSession;
 use crate::AppWindow;

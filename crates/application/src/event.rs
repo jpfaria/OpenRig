@@ -78,6 +78,20 @@ pub enum Event {
         enabled: bool,
     },
 
+    /// #127: this chain's live audio runtime is out of step with the project
+    /// and the dispatcher could NOT bring it back itself — no frontend has
+    /// handed it a [`crate::runtime_control::RuntimeControl`] (a project opened
+    /// but never synced, or a transport that hosts no audio).
+    ///
+    /// Emitted so the request is never silently dropped: a frontend that owns a
+    /// runtime turns this into its own sync sequence (which is what cold-starts
+    /// an enabled chain), and one that owns none has nothing to do. Never
+    /// emitted when the runtime already took the change — that would rebuild
+    /// the chain right after a cheap in-place edit (#740).
+    ChainRuntimeSyncNeeded {
+        chain: ChainId,
+    },
+
     /// A chain was moved to a new position in the list.
     ChainMoved {
         chain: ChainId,

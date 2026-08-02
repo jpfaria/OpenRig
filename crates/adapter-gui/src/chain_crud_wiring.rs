@@ -14,7 +14,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use crate::audio_devices::ensure_devices_loaded;
@@ -34,7 +34,6 @@ pub(crate) struct ChainCrudCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub toast_timer: Rc<Timer>,
@@ -51,7 +50,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
         output_chain_devices,
         chain_editor_window,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         toast_timer,
@@ -68,7 +66,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
         let output_chain_devices = output_chain_devices.clone();
         let chain_editor_window = chain_editor_window.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
@@ -97,7 +94,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
                 chain_draft.clone(),
                 project_session.clone(),
                 project_chains.clone(),
-                project_runtime.clone(),
                 saved_project_snapshot.clone(),
                 project_dirty.clone(),
                 input_chain_devices.clone(),
@@ -158,7 +154,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
         let output_chain_devices = output_chain_devices.clone();
         let chain_editor_window = chain_editor_window.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
@@ -186,7 +181,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
                 chain_draft.clone(),
                 project_session.clone(),
                 project_chains.clone(),
-                project_runtime.clone(),
                 saved_project_snapshot.clone(),
                 project_dirty.clone(),
                 input_chain_devices.clone(),

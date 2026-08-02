@@ -8,6 +8,7 @@
 //! `dispatcher.dispatch` once per hit.
 
 use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 
 use adapter_midi::pipeline::dispatch_midi_message;
 use adapter_midi::profile::parse_profile_yaml;
@@ -21,12 +22,14 @@ use application::SelectionState;
 /// Spy dispatcher that records every command it sees.
 struct SpyDispatcher {
     seen: RefCell<Vec<Command>>,
+    selection_state: Arc<RwLock<SelectionState>>,
 }
 
 impl SpyDispatcher {
     fn new() -> Self {
         Self {
             seen: RefCell::new(Vec::new()),
+            selection_state: Arc::new(RwLock::new(SelectionState::default())),
         }
     }
 }
@@ -35,6 +38,10 @@ impl CommandDispatcher for SpyDispatcher {
     fn dispatch(&self, cmd: Command) -> Result<Vec<Event>> {
         self.seen.borrow_mut().push(cmd);
         Ok(vec![])
+    }
+
+    fn selection_state(&self) -> Arc<RwLock<SelectionState>> {
+        Arc::clone(&self.selection_state)
     }
 }
 

@@ -19,7 +19,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 use project::param::ParameterSet;
 
 use crate::block_editor::{
@@ -51,7 +51,6 @@ pub(crate) struct BlockInsertCallbacksCtx {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -75,7 +74,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
         eq_band_curves,
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -161,7 +159,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
         let eq_band_curves = eq_band_curves.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
@@ -220,7 +217,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                 &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
-                eq_viz_sample_rate(&project_runtime),
+                eq_viz_sample_rate(&project_session),
             );
             eq_band_curves.set_vec(
                 eq_bands
@@ -247,7 +244,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                     block_parameter_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
