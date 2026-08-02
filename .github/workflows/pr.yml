@@ -1,8 +1,12 @@
 name: PR Quality Gate
 
+# Every hop of the release-branch gitflow (#837) is gated: issue branches PR
+# into the active `release/vX.Y.Z`, the release branch PRs into `main`, and
+# `main` back-merges into `develop`. Listening to `develop` alone let the whole
+# v0.2.0 cut reach `main` with no checks at all (#862).
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, 'release/**', main]
     types: [opened, reopened, synchronize]
 
 # One run per PR; cancel superseded runs to save CI minutes.
@@ -45,10 +49,15 @@ jobs:
 
       - name: Run quality gate (Docker image)
         id: gate
+        env:
+          # The baseline is the PR's OWN base branch, never a fixed `develop`:
+          # a PR into `release/v0.3.0` diffed against `develop` measures the
+          # wrong tree and reports regressions the PR did not cause (#862).
+          BASE_REF: ${{ github.base_ref }}
         run: |
           mkdir -p "$QG_LOG_DIR"
-          # origin/develop must resolve locally for the comparative baseline.
-          git fetch --quiet origin develop || true
+          # origin/$BASE_REF must resolve locally for the comparative baseline.
+          git fetch --quiet origin "$BASE_REF" || true
           set +e
           # Install OpenRig's native build deps inside the container, then run
           # the gate's own entrypoint. apt output goes to stderr so stdout stays
@@ -67,7 +76,7 @@ jobs:
                   libinput-dev libgbm-dev libjack-jackd2-dev
               } >&2
               exec /opt/quality-gate/qg \
-                --base origin/develop \
+                --base "origin/'"$BASE_REF"'" \
                 --format json \
                 --log-dir "'"$QG_LOG_DIR"'"
             ' > qg-result.json 2> "$QG_LOG_DIR/qg-stderr.log"
@@ -106,6 +115,7 @@ jobs:
         id: summary
         env:
           GATE_EXIT: ${{ steps.gate.outputs.gate_exit }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -u
           summary_file=$(mktemp)
@@ -123,14 +133,14 @@ jobs:
                 || echo "(sem stderr capturado)"
               echo '```'
             else
-              echo "O PR **piorou** ≥1 métrica vs \`develop\`. Dívida"
+              echo "O PR **piorou** ≥1 métrica vs \`${BASE_REF}\`. Dívida"
               echo "preexistente nunca bloqueia — só regressão do PR."
               echo ""
               echo "Rode o gate compartilhado localmente até passar:"
               echo ""
               echo '```bash'
               echo "docker run --rm -v \"\$PWD:/src\" -w /src \\"
-              echo "  ghcr.io/xgodev/quality-gate/rust:v1 --base origin/develop"
+              echo "  ghcr.io/xgodev/quality-gate/rust:v1 --base origin/${BASE_REF}"
               echo '```'
               echo ""
               echo "### Métricas regredidas"
@@ -207,7 +217,7 @@ jobs:
           message: |
             ## ✅ Quality gate passed
 
-            Comparativo (PR vs `develop`) pelo gate compartilhado
+            Comparativo (PR vs `${{ github.base_ref }}`) pelo gate compartilhado
             `xgodev/quality-gate` (imagem `rust:v1`): nenhuma métrica regrediu.
             Verificadas: fmt, lint, build, test, complexity, coverage.
 
