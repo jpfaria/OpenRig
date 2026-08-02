@@ -154,6 +154,18 @@ headless run needs and the GUI does for you: install the binding registry
 activations** — the cpal streams are created on the polling thread, so without
 `poll_pending_rebuilds()` nothing ever opens and every measurement reads zero.
 
+**Counting underruns is not listening.** A tap can hold its last frame, alias or
+drift and still report zero underruns; the owner called that evidence what it
+was, a false positive. `issue_85_mid_output_other_rate` keeps every frame the
+device popped and measures how much of it is NOT the tone, per short window (so
+a slow clock trim is not counted as distortion), against the chain's OWN tail
+captured in the same run — same processing, no conversion. Any new audio-path
+claim needs that shape of oracle, not a counter.
+
+`issue_85_owner_interfaces_tap` runs on two REAL interfaces instead of the
+loopback (which shares the machine's clock), which is where a cross-rate tap
+actually misbehaves, and reports the peak callback load alongside the counters.
+
 ## Real-plugin VST3 battery (issues #776 / #780)
 
 Tests that load a real catalog VST3 (ChowCentaur) are gated on
