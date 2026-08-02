@@ -111,6 +111,14 @@ pub(crate) struct InputCallbackScratch {
     /// Segment indices belonging to the current input_index, refreshed per
     /// callback from `input_to_segments`.
     pub(crate) segment_indices: Vec<usize>,
+    /// #85: one sample-rate converter per route whose device runs at a rate
+    /// other than this runtime's. Lives here — with the single producer that
+    /// pushes into the route — so the converter keeps its phase and history
+    /// across callbacks without a lock. Empty for a single-rate rig.
+    pub(crate) route_resamplers:
+        HashMap<usize, Option<crate::runtime_route_resample::RouteResampler>>,
+    /// Frames produced by that conversion, reused every callback.
+    pub(crate) resampled: Vec<AudioFrame>,
 }
 
 impl InputCallbackScratch {
@@ -134,6 +142,12 @@ pub(crate) struct OutputRoutingState {
     pub(crate) output_channels: Vec<usize>,
     pub(crate) output_mixdown: ChainOutputMixdown,
     pub(crate) buffer: ElasticBuffer,
+    /// #85: the rate of the DEVICE this route writes to. Usually the runtime's
+    /// own rate; a mid `Output` can point at an interface that runs at another
+    /// one (the owner's Scarlett at 44.1 kHz tapping a TEYUN that cannot go
+    /// below 48), and then the producer resamples into this route or its
+    /// elastic buffer starves ~8 % of the time — the crackle.
+    pub(crate) sample_rate: f32,
 }
 
 pub(crate) enum RuntimeProcessor {

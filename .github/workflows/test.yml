@@ -1,13 +1,16 @@
 name: Test
 
+# Covers every branch the release-branch gitflow (#837) merges into, not just
+# `develop` — otherwise a release branch and `main` accumulate untested commits
+# and the only evidence before a tag is a green run on some earlier tip (#862).
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, 'release/**', main]
     types: [opened, reopened, synchronize]
   push:
-    branches: [develop]
+    branches: [develop, 'release/**', main]
 
-# One run per PR (or per develop push); cancel superseded runs.
+# One run per PR (or per branch push); cancel superseded runs.
 concurrency:
   group: test-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

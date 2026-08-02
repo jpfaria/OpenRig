@@ -1,39 +1,43 @@
 # Gitflow — OpenRig
 
 ```
-Issue → Branch (from develop) → Commits → PR → Review/Merge
+Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
 ```
+
+**Fluxo:** `feature/bug → release/vX.Y.Z → main → develop` · `hotfix → main → develop`
 
 | Branch | Propósito | Merge into |
 |---|---|---|
-| `main` | Releases | — |
-| `develop` | Próxima release | `main` |
-| `feature/*` | Funcionalidades | `develop` |
-| `bugfix/*` | Correções | `develop` |
-| `hotfix/*` | Urgências em produção | `main` + `develop` |
-| `release/*` | Preparação de release | `main` + `develop` |
+| `main` | Produção — tag `vX.Y.Z` dispara a **entrega final**. NUNCA fica atrás do entregue. | `develop` (back-merge) |
+| `develop` | Referência, **SEMPRE à frente**. `release/vX.Y.Z` é cortada dela. | — |
+| `release/vX.Y.Z` | Ciclo da versão: recebe feature/bugfix; tag `vX.Y.Z-beta.N` dispara **beta**. | `main` |
+| `feature/*` | Funcionalidades | `release/vX.Y.Z` ativa |
+| `bugfix/*` | Correções | `release/vX.Y.Z` ativa |
+| `hotfix/*` | Urgências em produção | `main` (+ back-merge `develop`) |
+
+**Ciclo:** (1) corta `release/vX.Y.Z` da `develop`; (2) feature/bugfix entram nela via PR; (3) tag `vX.Y.Z-beta.N` na release → build **pré-release**; (4) PR `release/vX.Y.Z → main` + tag `vX.Y.Z` na `main` → **entrega final** (milestone fecha, bump vai pra `develop`); (5) back-merge `main → develop`.
 
 ## Regras
 
 1. **Issue primeiro.** `gh issue list --search` antes de criar (evita duplicata). NUNCA criar issue sem pedido explícito do usuário.
 2. **Nome de branch: `feature/issue-{N}` ou `bugfix/issue-{N}`** — sem sufixo descritivo. Antes de criar: `git fetch && git branch -a | grep issue-{N}`.
-3. **A partir de develop atualizado**: `git checkout develop && git pull`.
-4. **Mergear develop antes de qualquer trabalho**: `git merge -X theirs origin/develop`.
+3. **A partir da `release/vX.Y.Z` ativa atualizada**: `git fetch && git checkout release/vX.Y.Z && git pull`. Não existe release ativa ainda? Corta da `develop`: `git checkout develop && git pull && git checkout -b release/vX.Y.Z && git push -u origin release/vX.Y.Z`.
+4. **Mergear a release ativa antes de qualquer trabalho**: `git merge -X theirs origin/release/vX.Y.Z`.
 5. Commits em inglês, sem `Co-Authored-By`, foco no "why".
 6. **NUNCA `Closes #N` ou `Fixes #N`** em commits — GitHub auto-fecha.
-7. Bugfix/hotfix mergeia imediato. Feature aguarda review. Nunca mergear feature→develop sem o usuário pedir.
+7. Bugfix/hotfix mergeia imediato. Feature aguarda review. Nunca mergear `feature → release` sem o usuário pedir.
 8. **NUNCA rebase.** Sempre `git merge`, nunca `git pull --rebase`.
 9. **Quality gate só na criação do PR — NUNCA por push.** Push é direto após o commit. O gate **compartilhado** `xgodev/claude-plugin` (`~/.claude-plugin/tools/quality-gate/qg --base origin/develop` ou a skill `claude-plugin:quality-gate`) roda **uma vez, antes de `gh pr create`**, e o mesmo dispatcher roda no CI do PR (`.github/workflows/pr.yml`): falha lá = sticky comment + request-changes automático. Rodar o gate a cada push arrastou 2 dias de trabalho — proibido. Detalhes em [`quality-gate.md`](quality-gate.md).
 10. **Push imediato após cada commit** (sem gate; o gate é só no PR).
-11. **PR sempre não-interativo.** Push a branch first, then `gh pr create --repo jpfaria/OpenRig --base develop --head <branch> --title "…" --body "…"` — todos os campos explícitos. Sem `--title`/`--body`/`--head` (ou com a branch não pushada) o gh abre o prompt interativo e **pendura** num shell sem TTY até o timeout (~8 min). Guard-rail: `gh config set prompt disabled` (o gh erra na hora em vez de travar).
+11. **PR sempre não-interativo**, com a `--base` correta do fluxo: `feature/bugfix → release/vX.Y.Z` ativa; `release/vX.Y.Z → main`; `hotfix → main`; back-merge `main → develop`. Push a branch first, then `gh pr create --repo jpfaria/OpenRig --base <target> --head <branch> --title "…" --body "…"` — todos os campos explícitos. Sem `--title`/`--body`/`--head` (ou com a branch não pushada) o gh abre o prompt interativo e **pendura** num shell sem TTY até o timeout (~8 min). Guard-rail: `gh config set prompt disabled` (o gh erra na hora em vez de travar).
 
 ## Fechar issue
 
 Só quando o usuário pedir. Antes do close, atribuir milestone — **plain semver**:
 
-1. O milestone é a **versão semver atual ainda não lançada** (hoje `v0.1.0`); depois que ela for taggeada, o próximo é `v0.2.0`.
-2. **NUNCA criar nem reabrir um milestone `vX.Y.Z-dev.N`.** O esquema `-dev.N` está MORTO (virou histórico fechado). Use o milestone aberto da versão atual.
-3. `gh issue edit <N> --milestone "v0.1.0"` → `gh issue close <N>`.
+1. O milestone é a **versão da `release/vX.Y.Z` ativa** — o milestone aberto `vX.Y.Z` (hoje `v0.2.0`). `gh api repos/jpfaria/OpenRig/milestones --jq '.[].title'` lista os abertos.
+2. **NUNCA criar nem reabrir um milestone `vX.Y.Z-dev.N`** (esquema morto) nem `-beta.N` (beta é tag, não milestone). Use o milestone `vX.Y.Z` aberto.
+3. `gh issue edit <N> --milestone "vX.Y.Z"` → `gh issue close <N>`.
 
 ## Labels que excluem das release notes
 
@@ -73,7 +77,7 @@ else
 fi
 
 cd .solvers/issue-{N} && git fetch origin
-# branch existe? checkout. não existe? checkout develop && pull && checkout -b feature/issue-{N}
+# branch existe? checkout. não existe? checkout release/vX.Y.Z && pull && checkout -b feature/issue-{N}
 ```
 
 Após merge+close: `rm -rf .solvers/issue-{N}/`.
@@ -90,7 +94,13 @@ A issue é o log de auditoria. Comentar em: plano antes de começar; cada push (
 
 ## Release mechanics
 
-- Tag `vX.Y.Z` is created on **develop's tip** (not main). `release.yml` triggers on `v*` tag push and derives the version from `GITHUB_REF_NAME`. `main` is updated by merging develop (API merge, not fast-forward). Re-trigger a failed release by deleting and recreating the tag ref at the new develop tip.
-- **The tag is the source of truth for the version — never bump `Cargo.toml` by hand (#820).** Every build job runs `scripts/lib/release-version.sh` to write the tag's version into `[workspace.package]` *before* compiling, because the launcher footer renders `env!("CARGO_PKG_VERSION")`; skipping that shipped `v0.1.1` artifacts containing a `0.1.0` binary. After the release is published, the `commit-version-bump` job re-applies the same bump plus `cargo update --workspace` on **develop** and pushes it, so the repository never drifts behind the last tag; `main` picks it up through the usual develop → main merge. The helper is covered by `scripts/tests/release_version_test.sh` and refuses any non-semver input rather than writing an unparseable manifest.
-- **Windows x64 + macOS universal are built ONLY at release-tag time** — PR CI skips them, so cross-platform build/packaging regressions surface one ~25-min failure at a time after the tag (v0.1.0-dev.24 needed five sequential fixes: MSVC flag guards, `/EHsc`, `WINDOWS_EXPORT_ALL_SYMBOLS`, macOS `Resources` mkdir — #639–#647). Treat MSVC + macOS packaging as the main release risk; Linux is already covered by PR CI.
+Step-by-step for actually cutting one: [`release.md`](release.md).
+
+- **Two tag kinds, both trigger `release.yml`** (`on: push: tags: v*`), which derives the version from `GITHUB_REF_NAME`:
+  - **Beta:** tag `vX.Y.Z-beta.N` on the **`release/vX.Y.Z`** branch → a GitHub **pre-release** (auto-generated notes; the milestone stays OPEN; no version bump to develop).
+  - **Final:** tag `vX.Y.Z` on **`main`** → a full release (curated milestone notes; milestone closes; the bump is pushed to `develop`). Ship it via the `release/vX.Y.Z → main` PR, then tag `main`; afterwards back-merge `main → develop`.
+  - A tag is a pre-release iff its name contains a `-` (semver pre-release), so `create-release` adds `--prerelease` and `commit-version-bump` is skipped for those.
+  - Re-trigger a failed release by deleting and recreating the tag ref at the new tip of its branch.
+- **The tag is the source of truth for the version — never bump `Cargo.toml` by hand (#820).** Every build job runs `scripts/lib/release-version.sh` to write the tag's version (including a `-beta.N` pre-release) into `[workspace.package]` *before* compiling, because the launcher footer renders `env!("CARGO_PKG_VERSION")`; skipping that shipped `v0.1.1` artifacts containing a `0.1.0` binary. After a **final** release, the `commit-version-bump` job re-applies the same bump plus `cargo update --workspace` on **`develop`** (the always-ahead reference and manifest source of truth) and pushes it, so the repository never drifts behind the last tag; `main` never falls behind because every release flows `release/vX.Y.Z → main → develop`. The helper is covered by `scripts/tests/release_version_test.sh` and refuses any non-semver input rather than writing an unparseable manifest.
+- **A release ships macOS only.** The Linux x86_64, Linux aarch64 and Windows x64 jobs carry a hard `if: false` since #816, so `release.yml` produces a single artifact and the job list shows three skipped builds — expected, not a failure. Packaging is exercised **only** at release-tag time (PR CI never builds installers), so regressions surface one ~25-min failure at a time after the tag; v0.1.0-dev.24 needed five sequential fixes (MSVC flag guards, `/EHsc`, `WINDOWS_EXPORT_ALL_SYMBOLS`, macOS `Resources` mkdir — #639–#647). Re-enabling a platform means flipping its build job **and** the matching artifact download in `create-release`.
 - The loudness audit (`qa_audit`, ~22 min) does NOT run in the release path (`QA_AUDIT_SKIP=1`, #641) — it belongs to OpenRig-plugins CI. Keep it that way.

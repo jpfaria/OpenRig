@@ -1,0 +1,13 @@
+/* a pile of capture files -> one amp with knobs */
+.cap-demo{display:grid;grid-template-columns:1fr auto 1fr;gap:clamp(20px,3vw,40px);align-items:stretch;margin-top:56px}
+.pile{border:1px solid var(--line);border-radius:5px;background:var(--ink2);padding:22px 24px}
+.pile-h{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
+.pile ul{list-style:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#5f6d82;line-height:2}
+.pile li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pile li:nth-child(n+4){opacity:.55}
+.pile li:last-child{color:var(--mute)}
+.arrow{align-self:center;font-family:var(--display);font-size:34px;color:var(--amber);letter-spacing:.1em}
+.panel-demo{display:flex;flex-direction:column;justify-content:center;border:1px solid var(--line);border-radius:5px;
+  background:linear-gradient(180deg,var(--panel2) 0%,var(--panel) 100%);padding:26px 24px 22px;
+  box-shadow:0 40px 90px -55px #000,0 0 0 1px rgba(255,255,255,.03) inset}
+@media(max-width:900px){.cap-demo{grid-template-columns:1fr;gap:18px}.arrow{transform:rotate(90deg);justify-self:center}}

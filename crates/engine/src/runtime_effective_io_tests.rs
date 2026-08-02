@@ -138,7 +138,7 @@ fn build_output_routing_state_mono_single_channel() {
         mode: ChainOutputMode::Mono,
         channels: vec![0],
     };
-    let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0);
+    let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0, 48_000.0);
     assert_eq!(state.output_channels, vec![0]);
 }
 
@@ -150,7 +150,7 @@ fn build_output_routing_state_stereo_two_channels() {
         mode: ChainOutputMode::Stereo,
         channels: vec![0, 1],
     };
-    let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0);
+    let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0, 48_000.0);
     assert_eq!(state.output_channels, vec![0, 1]);
 }
 
@@ -162,7 +162,7 @@ fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
         mode: ChainOutputMode::Mono,
         channels: vec![0, 1],
     };
-    let _state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0);
+    let _state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET, 0, 48_000.0);
     // Mono mode with 2 channels: layout should be Mono per the logic
     // Just verifying it doesn't panic and runs correctly
 }
