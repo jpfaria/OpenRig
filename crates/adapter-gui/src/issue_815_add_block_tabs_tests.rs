@@ -81,6 +81,49 @@ fn adding_a_block_opens_the_tabbed_editor_in_add_mode() {
     );
 }
 
+/// #85: the owner cannot place an `Output` (nor an `Input`) block — picking the
+/// type does nothing. The type IS offered by the picker, so the ADD flow must
+/// build an editor for it exactly like any other type; a type that cannot build
+/// its editor can never be added.
+fn io_block_ctx(effect_type: &str) -> BlockEditorWindowSetupCtx {
+    let mut ctx = new_block_ctx();
+    ctx.effect_type = effect_type.to_string();
+    ctx.model_id = "standard".to_string();
+    ctx.editor_data.effect_type = effect_type.to_string();
+    ctx.editor_data.model_id = "standard".to_string();
+    ctx.editor_data.params = Default::default();
+    ctx
+}
+
+#[test]
+fn adding_an_output_block_opens_its_editor() {
+    i_slint_backend_testing::init_no_event_loop();
+    let weak = {
+        let w = crate::AppWindow::new().unwrap();
+        w.as_weak()
+    };
+    let built = create_and_wire(weak, io_block_ctx("output"));
+    assert!(
+        built.is_ok(),
+        "picking OUTPUT built no editor, so the block is never added — \
+         the user clicks and nothing happens (#85)"
+    );
+}
+
+#[test]
+fn adding_an_input_block_opens_its_editor() {
+    i_slint_backend_testing::init_no_event_loop();
+    let weak = {
+        let w = crate::AppWindow::new().unwrap();
+        w.as_weak()
+    };
+    let built = create_and_wire(weak, io_block_ctx("input"));
+    assert!(
+        built.is_ok(),
+        "picking INPUT built no editor, so the block is never added (#85)"
+    );
+}
+
 /// The end-to-end add flow needs a fully wired `AppWindow`, which the codebase
 /// keeps out of tests, so we pin the routing by source (the `no_native_dialogs`
 /// convention): the ADD detached branch must build the editor via

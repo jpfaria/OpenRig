@@ -4,7 +4,7 @@
 //! Pure refactor: no behavior change. Tests live in `rig_tests.rs` and
 //! `rig_scene_tests.rs`.
 
-use crate::block::{AudioBlock, AudioBlockKind};
+use crate::block::{duplicates_chain_binding, AudioBlock, AudioBlockKind};
 use crate::rig::{RigPreset, RigProject, RigScene};
 use domain::value_objects::ParameterValue;
 use std::collections::BTreeMap;
@@ -48,6 +48,7 @@ impl RigProject {
         let mut set_param: Vec<(String, f32)> = Vec::new();
         let mut clear_param: Vec<String> = Vec::new();
         let mut set_base_param: Vec<(String, String, ParameterValue)> = Vec::new();
+        let mut set_port_target: Vec<(String, AudioBlockKind)> = Vec::new();
         let mut set_bypass: Vec<(String, bool)> = Vec::new();
         let mut clear_bypass: Vec<String> = Vec::new();
 
@@ -60,6 +61,18 @@ impl RigProject {
                 set_bypass.push((bid.clone(), !edited.enabled));
             } else {
                 clear_bypass.push(bid.clone());
+            }
+            // #85: a port carries no params — WHERE it points is its whole
+            // state, and it lives in the block kind, not in a `ParameterSet`.
+            // A scene can only hold f32 overrides, so re-pointing a port is a
+            // preset-level edit; without this the new E/S was dropped here and
+            // the port came back on its old binding after save + reopen.
+            if matches!(
+                edited.kind,
+                AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)
+            ) && edited.kind != base_blk.kind
+            {
+                set_port_target.push((bid.clone(), edited.kind.clone()));
             }
             let pair = match (&edited.kind, &base_blk.kind) {
                 (AudioBlockKind::Core(e), AudioBlockKind::Core(b)) => Some((&e.params, &b.params)),
@@ -90,6 +103,12 @@ impl RigProject {
                         }
                     }
                 }
+            }
+        }
+
+        for (bid, kind) in set_port_target {
+            if let Some(block) = preset.blocks.iter_mut().find(|b| b.id.0 == bid) {
+                block.kind = kind;
             }
         }
 
@@ -393,13 +412,37 @@ impl RigProject {
             }
         }
         for (name, preset) in &self.presets {
+            // #85: a preset carries the blocks the user placed, and a mid
+            // `Input`/`Output` port is one of them — the same kind of thing an
+            // `Insert` is, which this rule has always accepted. What it must
+            // keep rejecting is the legacy HEAD/TAIL leftover: a port bound to a
+            // binding ITS OWN chain already carries (#716), which duplicates
+            // that chain's I/O and starves the device. Judged against the chains
+            // that actually play this preset — an E/S another chain carries is
+            // an aux send, and rejecting it made the app refuse its own file.
+            let carriers: Vec<&Vec<String>> = self
+                .inputs
+                .values()
+                .filter(|input| input.bank.values().any(|slot| slot == name))
+                .map(|input| &input.io_binding_ids)
+                .collect();
             for block in &preset.blocks {
-                if matches!(
-                    block.kind,
-                    AudioBlockKind::Input(_) | AudioBlockKind::Output(_)
-                ) {
+                let io = match &block.kind {
+                    AudioBlockKind::Input(b) => &b.io,
+                    AudioBlockKind::Output(b) => &b.io,
+                    AudioBlockKind::Nam(_)
+                    | AudioBlockKind::Core(_)
+                    | AudioBlockKind::Select(_)
+                    | AudioBlockKind::Insert(_) => continue,
+                };
+                if carriers
+                    .iter()
+                    .any(|bindings| duplicates_chain_binding(block, bindings))
+                {
                     return Err(format!(
-                        "preset '{name}' contains an I/O block ({}); presets are processing-only",
+                        "preset '{name}' contains an I/O block ({}) bound to '{io}', a \
+                         binding its own chain already carries; that duplicates the \
+                         chain's own I/O",
                         block.kind.label()
                     ));
                 }

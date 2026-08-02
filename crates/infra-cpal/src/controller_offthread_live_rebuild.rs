@@ -14,6 +14,33 @@ use project::project::Project;
 
 use crate::ProjectRuntimeController;
 
+/// Every device rate the live signature knows, keyed by device.
+///
+/// #85: the rebuild resolves each output route's rate from this map. Built from
+/// the inputs alone, a mid `Output` on another interface fell back to the
+/// chain's rate and stopped being converted — the owner's "primeira vez fica
+/// bom; alterei a ordem e começou a ficar ruim na TEYUN", since only a live
+/// edit goes through here.
+pub(crate) fn device_rates_from_signature(
+    sig: &crate::resolved::ChainStreamSignature,
+) -> std::collections::HashMap<domain::ids::DeviceId, f32> {
+    sig.inputs
+        .iter()
+        .map(|i| {
+            (
+                domain::ids::DeviceId(i.device_id.clone()),
+                i.sample_rate as f32,
+            )
+        })
+        .chain(sig.outputs.iter().map(|o| {
+            (
+                domain::ids::DeviceId(o.device_id.clone()),
+                o.sample_rate as f32,
+            )
+        }))
+        .collect()
+}
+
 impl ProjectRuntimeController {
     /// Issue #672 — if `chain` is already streaming with UNCHANGED IO topology,
     /// rebuild its runtime off the frontend thread (the model-swap freeze) and
@@ -52,16 +79,7 @@ impl ProjectRuntimeController {
                 .first()
                 .map(|i| i.sample_rate as f32)
                 .unwrap_or(48_000.0);
-            let device_sample_rates: std::collections::HashMap<domain::ids::DeviceId, f32> = sig
-                .inputs
-                .iter()
-                .map(|i| {
-                    (
-                        domain::ids::DeviceId(i.device_id.clone()),
-                        i.sample_rate as f32,
-                    )
-                })
-                .collect();
+            let device_sample_rates = device_rates_from_signature(sig);
             let out_buffers: Vec<u32> = sig.outputs.iter().map(|o| o.buffer_size_frames).collect();
             (sample_rate, device_sample_rates, out_buffers)
         };

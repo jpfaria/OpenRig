@@ -192,6 +192,17 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // pointer swaps below — rebuilding the chain for them caused the #670
     // DI-on output starvation (see runtime_sync_policy).
     let mut synced: Vec<ChainId> = Vec::new();
+    // #85: a device rate/buffer change names no chain, so the per-chain loop
+    // below never sees it — the streams kept running against the old config and
+    // the rig went silent until the project was reopened. Re-sync every chain.
+    if crate::runtime_sync_policy::events_require_full_project_sync(events) {
+        if let Some(controller) = ctx.project_runtime.borrow_mut().as_mut() {
+            if let Err(e) = controller.sync_project(&session.project.borrow()) {
+                set_status_error(window, &ctx.toast_timer, &e.to_string());
+            }
+        }
+        synced.extend(session.project.borrow().chains.iter().map(|c| c.id.clone()));
+    }
     for event in events {
         let Some(chain_id) = event.chain() else {
             continue;
