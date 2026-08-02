@@ -72,8 +72,8 @@ fn chow() -> Option<(String, u32)> {
 }
 
 fn chow_project(
-    input: &infra_cpal::AudioDeviceDescriptor,
-    output: &infra_cpal::AudioDeviceDescriptor,
+    input: &domain::AudioDeviceDescriptor,
+    output: &domain::AudioDeviceDescriptor,
     model: &str,
     param_id: u32,
     value: f32,

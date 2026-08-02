@@ -14,7 +14,6 @@ use crate::project_ops::{create_new_project_session, load_project_session, save_
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
 use application::command::{BlockCommand, ChainCommand, Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::{BlockId, ChainId};
 use domain::value_objects::ParameterValue;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock};

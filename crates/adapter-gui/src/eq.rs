@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::state::ProjectSession;
 use crate::{CurveEditorPoint, MultiSliderPoint};
-use infra_cpal::ProjectRuntimeController;
 use project::block::schema_for_block_model;
 use project::param::{CurveEditorRole, ParameterDomain, ParameterSet, ParameterWidget};
 
@@ -170,20 +170,29 @@ pub(crate) const EQ_CURVE_POINTS: usize = 200;
 /// purely illustrative). Once a stream is running the curve is drawn at the
 /// real device rate via [`eq_viz_sample_rate`] so it matches the audible
 /// filter near Nyquist (issue #723). This is the sanctioned pre-device
-/// fallback, NOT an assumption baked into the live path.
-pub(crate) const EQ_VIZ_REFERENCE_SAMPLE_RATE: f32 = 48_000.0;
+/// fallback, NOT an assumption baked into the live path — and it is the same
+/// reference the dispatcher itself reports with nothing running.
+pub(crate) const EQ_VIZ_REFERENCE_SAMPLE_RATE: f32 =
+    application::local_dispatcher::REFERENCE_SAMPLE_RATE as f32;
 
-/// The sample rate to draw EQ curves at: the live device rate when a runtime
-/// is active, else the reference (no audio running). Single source of truth so
-/// no call site re-bakes a fixed rate (issue #723).
-pub(crate) fn eq_viz_sample_rate(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-) -> f32 {
-    project_runtime
+/// The sample rate to draw EQ curves at: the live device rate while a stream
+/// is running, else the reference. Single source of truth so no call site
+/// re-bakes a fixed rate (issue #723).
+///
+/// #127: the rate comes from the session's dispatcher, which tracks the live
+/// device rate (`sync_engine_sr_from_runtime` pushes it on every runtime start
+/// or re-sync, and `stop_project_runtime` puts the reference back), NOT from
+/// the audio backend directly — the block editor is UI wiring and reads engine
+/// state through the same door every other transport uses.
+pub(crate) fn eq_viz_sample_rate(project_session: &Rc<RefCell<Option<ProjectSession>>>) -> f32 {
+    project_session
         .borrow()
         .as_ref()
-        .map(|c| c.sample_rate() as f32)
-        .unwrap_or(EQ_VIZ_REFERENCE_SAMPLE_RATE)
+        .map(|session| session.dispatcher.engine_sr())
+        // `0` is `CommandDispatcher`'s "no rate reported yet" sentinel; a
+        // curve drawn at 0 Hz is NaN, so it falls back like a closed project.
+        .filter(|&sr| sr > 0)
+        .map_or(EQ_VIZ_REFERENCE_SAMPLE_RATE, |sr| sr as f32)
 }
 /// SVG viewbox width (must match Slint CurveEditorControl viewbox).
 pub(crate) const EQ_SVG_W: f32 = 1000.0;

@@ -16,7 +16,7 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 use project::project::Project;
 
-use super::ensure_runtime;
+use crate::runtime_pipelines::ensure_runtime;
 use crate::state::ProjectSession;
 
 fn session_with_disabled_chain() -> ProjectSession {
@@ -55,7 +55,12 @@ fn playing_the_di_gets_a_runtime_without_enabling_a_chain() {
         "precondition: no chain enabled, so no controller exists yet"
     );
 
-    ensure_runtime(&project_runtime, &session).expect("ensure_runtime must succeed");
+    ensure_runtime(
+        &project_runtime,
+        &crate::runtime_analyzers::AnalyzerSessions::detached(),
+        &session,
+    )
+    .expect("ensure_runtime must succeed");
 
     assert!(
         project_runtime.borrow().is_some(),
@@ -92,7 +97,8 @@ mod hw {
     use project::param::ParameterSet;
     use project::project::Project;
 
-    use crate::runtime_lifecycle::{ensure_runtime, sync_live_chain_runtime};
+    use crate::runtime_lifecycle::sync_live_chain_runtime;
+    use crate::runtime_pipelines::ensure_runtime;
     use crate::state::ProjectSession;
 
     const CHAIN_ID: &str = "di808-gui";
@@ -196,7 +202,12 @@ mod hw {
         let cid = ChainId(CHAIN_ID.into());
 
         // The DI play button: create the runtime, then arm.
-        ensure_runtime(&rt, &session).expect("ensure_runtime");
+        ensure_runtime(
+            &rt,
+            &crate::runtime_analyzers::AnalyzerSessions::detached(),
+            &session,
+        )
+        .expect("ensure_runtime");
         let pcm = std::sync::Arc::new(engine::DiPcm::new(vec![0.4; 48_000 * 4], 48_000, 1));
         rt.borrow()
             .as_ref()
@@ -217,7 +228,13 @@ mod hw {
         // The owner's action, through the path the GUI really uses.
         let edited = chain(10.0);
         session.project.borrow_mut().chains[0] = edited.clone();
-        sync_live_chain_runtime(&rt, &session, &cid).expect("gui live sync must not error");
+        sync_live_chain_runtime(
+            &rt,
+            &crate::runtime_analyzers::AnalyzerSessions::detached(),
+            &session,
+            &cid,
+        )
+        .expect("gui live sync must not error");
 
         // (a) it must NEVER fall silent from here on.
         let deadline = Instant::now() + Duration::from_secs(6);

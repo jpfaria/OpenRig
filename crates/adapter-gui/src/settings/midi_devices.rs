@@ -221,7 +221,6 @@ fn dispatch_and_persist(
     rows: &[MidiDeviceSelection],
 ) {
     if let Some(session) = project_session.borrow().as_ref() {
-        use application::dispatcher::CommandDispatcher;
         if let Err(e) = session
             .dispatcher
             .dispatch(Command::Midi(MidiCommand::SaveMidiDevices {

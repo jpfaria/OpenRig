@@ -18,11 +18,10 @@ use std::rc::Rc;
 use rfd::FileDialog;
 use slint::{ComponentHandle, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
@@ -32,9 +31,33 @@ use crate::project_ops::{
     register_recent_project, resolve_project_config_path, set_project_dirty,
 };
 use crate::project_view::replace_project_chains;
+use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::{ProjectPaths, ProjectSession};
-use crate::stop_project_runtime;
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
+
+/// #127: silence the project that is being replaced.
+///
+/// Opening (or creating) a project leaves the previous one's streams open, so
+/// the rig has to be stopped before the session is swapped. It goes on the bus
+/// — `ProjectCommand::StopProjectRuntime`, applied through
+/// `RuntimeControl::stop_project_runtime` — so this callback no longer reaches
+/// the audio backend, and a client that started the rig can stop it the same
+/// way. Dispatched on the OUTGOING session's dispatcher: that is the one
+/// holding the runtime control for the streams that are still open.
+pub(crate) fn stop_the_previous_rig(project_session: &Rc<RefCell<Option<ProjectSession>>>) {
+    let Some(previous) = project_session
+        .borrow()
+        .as_ref()
+        .map(|s| s.dispatcher.clone())
+    else {
+        // No session, so nothing was ever started: the runtime is created by a
+        // session's own chain enable / DI play and torn down with it.
+        return;
+    };
+    if let Err(e) = previous.dispatch(Command::Project(ProjectCommand::StopProjectRuntime)) {
+        log::warn!("[open-project] Command::StopProjectRuntime failed: {e}");
+    }
+}
 
 pub(crate) struct ProjectFileDialogCtx {
     pub project_paths: ProjectPaths,
@@ -42,7 +65,10 @@ pub(crate) struct ProjectFileDialogCtx {
     pub recent_projects: Rc<VecModel<RecentProjectItem>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the capability to hand a freshly built session's dispatcher this
+    /// frontend's audio runtime. Not the runtime itself — opening a project
+    /// wires the seam up, it does not reach through it.
+    pub runtime_attach: RuntimeAttach,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -57,7 +83,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
         recent_projects,
         project_session,
         project_chains,
-        project_runtime,
+        runtime_attach,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -70,7 +96,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
         let app_config = app_config.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
+        let runtime_attach = runtime_attach.clone();
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
@@ -112,7 +138,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                     let title =
                         project_title_for_path(Some(&canonical_path), &session.project.borrow());
                     let display_name = project_display_name(&session.project.borrow());
-                    stop_project_runtime(&project_runtime);
+                    stop_the_previous_rig(&project_session);
                     replace_project_chains(
                         &project_chains,
                         &session.project.borrow(),
@@ -127,6 +153,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                         &session.project.borrow(),
                         &session.io_bindings.borrow(),
                     );
+                    // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
+                    // anything can dispatch against it — a runtime-control command issued before
+                    // the first chain sync must still reach the audio.
+                    runtime_attach.to_session(&session);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
@@ -210,7 +240,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
         let project_paths = project_paths.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
+        let runtime_attach = runtime_attach.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -230,7 +260,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 return;
             }
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-            stop_project_runtime(&project_runtime);
+            stop_the_previous_rig(&project_session);
             let session = create_new_project_session(&project_paths.default_config_path);
             // #436 E: criar projeto é negócio → ProjectCommand::CreateProject no
             // dispatcher da sessão (MCP/MIDI, observável via
@@ -258,6 +288,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 &output_chain_devices.borrow(),
                 &[],
             );
+            // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
+            // anything can dispatch against it — a runtime-control command issued before
+            // the first chain sync must still reach the audio.
+            runtime_attach.to_session(&session);
             *project_session.borrow_mut() = Some(session);
             crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
             *saved_project_snapshot.borrow_mut() = None;
@@ -294,7 +328,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
         // #323: the loop sidecars are written from the live runtimes.
-        let project_runtime = project_runtime.clone();
+        let runtime_attach = runtime_attach.clone();
         window.on_save_project(move || {
             log::info!("on_save_project triggered");
             let Some(window) = weak_window.upgrade() else {
@@ -336,11 +370,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 session
                     .dispatcher
                     .attach_presets_path(session.presets_path.clone());
+                // #127: the runtime control mirrors the session's paths (it
+                // hands them to the sync helpers), so re-attach it here too —
+                // otherwise a cold start after Save As would restore the
+                // project's loops from the OLD path.
+                runtime_attach.to_session(session);
                 path
             };
-            // #323: a recorded loop is audio — write it as a sidecar and let
-            // the chain remember the file, BEFORE the project is serialized.
-            crate::looper_persist::save_chain_loops(session, &project_runtime, &project_path);
+            // #323/#127: the recorded loops are exported as wav sidecars by the
+            // `SaveProject` handler itself, through
+            // `RuntimeControl::export_chain_loops` — this callback used to do
+            // it inline, so a save issued over MCP/gRPC lost every loop.
             // #555: the file writes used to happen here via
             // `save_project_session(session, &project_path)`. They now
             // live inside the `ProjectCommand::SaveProject` dispatcher handler

@@ -26,7 +26,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crate::jack_supervisor;
-use crate::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 /// Represents a USB audio card detected in /proc/asound/cards.
 #[derive(Debug, Clone)]

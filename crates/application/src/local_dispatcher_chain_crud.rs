@@ -80,6 +80,18 @@ impl LocalDispatcher {
                 {
                     rig.borrow_mut().remove_input(name);
                 }
+                // #127: the chain is out of the project, so its stream is now
+                // orphaned — drop it. This used to be a GUI call
+                // (`remove_live_chain_runtime`) made right after the dispatch,
+                // so a chain deleted over MCP/gRPC left the project and kept
+                // sounding. Deliberately NOT `sync_chain` for the missing
+                // chain: that lookalike validates the whole project (an
+                // unrelated invalid chain would abort the teardown) and is a
+                // different sequence. Only this chain is named — a delete must
+                // never touch a neighbour's runtime (invariant #4).
+                if let Some(control) = self.runtime_control() {
+                    control.remove_chain(&chain);
+                }
                 Ok(vec![Event::ChainRemoved { chain }, Event::ProjectMutated])
             }
             // ── Chain volume (issue #440) ─────────────────────────────────────

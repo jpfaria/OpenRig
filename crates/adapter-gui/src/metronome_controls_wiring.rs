@@ -13,7 +13,7 @@ use application::command::{Command, MetronomeCommand};
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::metronome_events::dispatch;
-use crate::metronome_session::{
+use crate::metronome_view::{
     output_endpoints, subdivision_key, timbre_key, time_signature_beats, MetronomeOutput,
 };
 use crate::metronome_wiring::MetronomeCtx;

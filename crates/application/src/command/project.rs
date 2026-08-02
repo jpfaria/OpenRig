@@ -40,6 +40,22 @@ pub enum ProjectCommand {
     /// `Event::ProjectClosed`.
     CloseProject,
 
+    /// #127: stop the rig — drop every audio stream this frontend has open,
+    /// without closing the project.
+    ///
+    /// Distinct from [`Self::CloseProject`], which stops the rig on its way
+    /// out: this is the teardown that happens while the app stays where it is,
+    /// which is what opening ANOTHER project does to the one already running.
+    /// It is a `Command` because "stop the audio" is a state change any
+    /// transport must be able to ask for — before #127 it was a GUI-only
+    /// function call, so a remote client could start the rig (a chain enable, a
+    /// DI play) and had no way to stop it again.
+    ///
+    /// Applied through [`crate::runtime_control::RuntimeControl::stop_project_runtime`].
+    /// Emits nothing, for the same reason `SyncChainRuntime` does: it changes
+    /// no project state.
+    StopProjectRuntime,
+
     // ── Project settings ──────────────────────────────────────────────────────
     /// Update the project's display name.
     UpdateProjectName { name: String },

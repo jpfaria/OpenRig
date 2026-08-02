@@ -16,7 +16,7 @@
 mod hw_harness;
 
 use domain::ids::{BlockId, ChainId};
-use hw_harness::{device_guard, hw_tests_enabled, init_registry, load_di, rig_project};
+use hw_harness::{device_guard, hw_tests_enabled, init_registry, load_di_pcm, rig_project};
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
@@ -70,7 +70,9 @@ fn inserting_the_pitch_shifter_live_does_not_saturate() {
     controller
         .sync_project(&project)
         .expect("resync with bindings");
-    let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
+    // The controller resamples the source PCM to the engine rate on arm, so
+    // the loop still plays at the device rate the chain came up at (#669).
+    let di = load_di_pcm("phil-STRATO-green_day.wav");
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 
     std::thread::sleep(std::time::Duration::from_secs(10));

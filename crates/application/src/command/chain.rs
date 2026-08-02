@@ -47,6 +47,23 @@ pub enum ChainCommand {
     /// Toggle the enabled flag of a chain (starts/stops its audio runtime).
     ToggleChainEnabled { chain: ChainId },
 
+    /// #127: bring ONE chain's live audio runtime back in step with the
+    /// project — start it when it is enabled and nothing is running, pause it
+    /// when it is disabled, drop it when it is gone.
+    ///
+    /// The runtime effect is applied by the dispatcher through the attached
+    /// [`crate::runtime_control::RuntimeControl`], never by the caller after
+    /// the fact: before this, a UI callback reached into the audio controller
+    /// itself, so the same request issued over MCP/gRPC changed nothing.
+    ///
+    /// Records no project state and emits no event — it asks for the runtime
+    /// to catch up with state some other command already wrote. A transport
+    /// that hosts no audio runtime succeeds as a no-op.
+    ///
+    /// **Isolation (`CLAUDE.md` LAW):** exactly the named chain's runtime is
+    /// touched. Never a group, never "everything at this sample rate".
+    SyncChainRuntime { chain: ChainId },
+
     // ── Chain I/O endpoints ───────────────────────────────────────────────────
     /// Bind the input block at `block_index` in the named chain to an I/O
     /// binding reference.

@@ -5,7 +5,6 @@ use super::project_ops_persistence_tests::{chain_descriptions, chain_for, new_se
 use crate::project_ops::{load_project_session, save_project_session};
 use crate::state::ProjectSession;
 use application::command::{BlockCommand, ChainCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::{BlockId, ChainId};
 use domain::value_objects::ParameterValue;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock};

@@ -14,13 +14,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor};
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 use slint::{SharedString, Timer, VecModel, Weak};
 
 use crate::audio_devices::{
-    build_project_device_rows, check_bindings_after_refresh, refresh_input_devices,
-    refresh_output_devices,
+    build_project_device_rows, check_bindings_after_refresh, invalidate_device_cache,
+    refresh_input_devices, refresh_output_devices,
 };
 use crate::helpers::set_status_info;
 use crate::state::ProjectSession;

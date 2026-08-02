@@ -19,9 +19,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, IoBindingCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::io_binding::{IoBinding, IoEndpoint};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
@@ -62,51 +61,44 @@ fn dispatch_if_session(ps: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
     }
 }
 
-/// Apply an `UpdateIoBinding` command produced by the endpoint builders: store
-/// the mutated binding back into the in-memory config slot and dispatch it.
-fn apply_binding_command(
-    slot: &mut IoBinding,
-    ps: &Rc<RefCell<Option<ProjectSession>>>,
-    cmd: Command,
-) {
-    if let Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding }) = &cmd {
-        *slot = binding.clone();
-    }
-    dispatch_if_session(ps, cmd);
-}
-
 /// Name for a new binding: the typed name, or a sequential default ("I/O N").
-fn binding_display_name(name: &str, cfg: &Rc<RefCell<AppConfig>>) -> String {
+fn binding_display_name(name: &str, bindings: &[IoBinding]) -> String {
     let trimmed = name.trim();
     if !trimmed.is_empty() {
         return trimmed.to_string();
     }
-    format!("I/O {}", cfg.borrow().io_bindings.len() + 1)
+    format!("I/O {}", bindings.len() + 1)
 }
 
-/// Mirror the edited registry into the open session so bound chains resolve
-/// against the latest registry on the next runtime sync.
-fn mirror_bindings_to_session(
+/// Refresh the GUI's `AppConfig` snapshot FROM the registry the dispatcher owns
+/// (#127).
+///
+/// The mirror used to run the other way — snapshot INTO the registry — so a
+/// binding created from MCP/gRPC landed in the registry and was then wiped by
+/// the next click on this screen: the command reported success and a GUI code
+/// path silently undid it. Inverting it makes the dispatcher's registry the
+/// single source of truth, and the other GUI readers of `AppConfig.io_bindings`
+/// (chain CRUD, device refresh, the audio section) see those edits too.
+fn sync_snapshot_from_registry(
     ps: &Rc<RefCell<Option<ProjectSession>>>,
     cfg: &Rc<RefCell<AppConfig>>,
 ) {
-    if let Some(session) = ps.borrow().as_ref() {
-        *session.io_bindings.borrow_mut() = cfg.borrow().io_bindings.clone();
+    let registry = ps
+        .borrow()
+        .as_ref()
+        .map(|session| session.io_bindings.borrow().clone());
+    if let Some(bindings) = registry {
+        cfg.borrow_mut().io_bindings = bindings;
     }
 }
 
-/// #716 (AUDIO-CRITICAL): push the edited registry straight into the live
-/// runtime controller so a chain that is ALREADY running re-resolves its
-/// device endpoints against the user's latest binding edit on the next sync.
-/// Without this, a binding change only reaches the controller on the next
-/// cold start; a running rig keeps the stale registry.
-fn push_bindings_to_runtime(
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    cfg: &Rc<RefCell<AppConfig>>,
-) {
-    if let Some(controller) = runtime.borrow_mut().as_mut() {
-        controller.set_io_bindings(cfg.borrow().io_bindings.clone());
-    }
+/// #716 (AUDIO-CRITICAL), as a Command since #127: install the edited registry
+/// into the live runtime so an ALREADY-RUNNING chain re-resolves its device
+/// endpoints against the latest edit instead of waiting for the next cold
+/// start. The GUI used to call the controller directly, which left MCP/gRPC
+/// with no way to reach the live registry at all.
+fn push_bindings_to_runtime(ps: &Rc<RefCell<Option<ProjectSession>>>) {
+    dispatch_if_session(ps, Command::IoBinding(IoBindingCommand::SetIoBindings));
 }
 
 fn delete_reject_message(ps: &Rc<RefCell<Option<ProjectSession>>>, id: &str) -> String {
@@ -186,22 +178,21 @@ fn binding_model(b: &IoBinding) -> IoBindingModel {
     }
 }
 
-fn project_bindings(cfg: &AppConfig) -> Vec<IoBindingModel> {
-    cfg.io_bindings.iter().map(binding_model).collect()
+fn project_bindings(bindings: &[IoBinding]) -> Vec<IoBindingModel> {
+    bindings.iter().map(binding_model).collect()
 }
 
-fn binding_names(cfg: &AppConfig) -> Vec<SharedString> {
-    cfg.io_bindings
+fn binding_names(bindings: &[IoBinding]) -> Vec<SharedString> {
+    bindings
         .iter()
         .map(|b| SharedString::from(b.name.as_str()))
         .collect()
 }
 
 /// Re-project the binding list into the shared Slint models after any mutation.
-fn reproject(models: &BindingModels, cfg: &Rc<RefCell<AppConfig>>) {
-    let config = cfg.borrow();
-    models.bindings.set_vec(project_bindings(&config));
-    models.names.set_vec(binding_names(&config));
+fn reproject(models: &BindingModels, bindings: &[IoBinding]) {
+    models.bindings.set_vec(project_bindings(bindings));
+    models.names.set_vec(binding_names(bindings));
 }
 
 /// Build the (id, name) device-list models for one side from the live
@@ -239,11 +230,14 @@ pub fn wire(
     app_config: Rc<RefCell<AppConfig>>,
     input_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
     let models = Rc::new(BindingModels {
-        bindings: Rc::new(VecModel::from(project_bindings(&app_config.borrow()))),
-        names: Rc::new(VecModel::from(binding_names(&app_config.borrow()))),
+        bindings: Rc::new(VecModel::from(project_bindings(
+            &app_config.borrow().io_bindings,
+        ))),
+        names: Rc::new(VecModel::from(binding_names(
+            &app_config.borrow().io_bindings,
+        ))),
         channels: Rc::new(VecModel::default()),
     });
 
@@ -271,7 +265,6 @@ pub fn wire(
         &models,
         &input_devices,
         &output_devices,
-        &project_runtime,
     );
     install_psw_callbacks(
         project_settings_window,
@@ -280,7 +273,6 @@ pub fn wire(
         &models,
         &input_devices,
         &output_devices,
-        &project_runtime,
     );
 }
 
@@ -327,21 +319,64 @@ struct WireCtx {
     models: Rc<BindingModels>,
     input_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    /// #716: the live runtime controller (if any). Edited bindings are pushed
-    /// here so a running rig picks them up immediately.
-    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
 }
 
 impl WireCtx {
-    /// Mirror the edited registry into the open session AND the live runtime
-    /// controller (#716). Called after every binding/endpoint mutation.
+    /// The effective registry this screen reads: the one the dispatcher owns
+    /// when a project is open (#127 — its command handlers mutate it and
+    /// persist it), else the GUI's own `AppConfig` snapshot.
+    ///
+    /// Returned by value on purpose: nothing may stay borrowed across a
+    /// `dispatch`, because the handler borrows the very same registry.
+    fn bindings(&self) -> Vec<IoBinding> {
+        match self.ps.borrow().as_ref() {
+            Some(session) => session.io_bindings.borrow().clone(),
+            None => self.cfg.borrow().io_bindings.clone(),
+        }
+    }
+
+    /// Apply `mutate` locally ONLY when there is no dispatcher to write
+    /// through. With a project open the command handler owns the registry and
+    /// has already applied the edit — writing it again from here is what
+    /// clobbered edits issued by other transports.
+    fn apply_without_dispatcher(&self, mutate: impl FnOnce(&mut Vec<IoBinding>)) {
+        if self.ps.borrow().is_some() {
+            return;
+        }
+        mutate(&mut self.cfg.borrow_mut().io_bindings);
+    }
+
+    /// Dispatch an `UpdateIoBinding` built by the endpoint helpers, and mirror
+    /// it locally only in the no-dispatcher case.
+    fn apply_binding_command(&self, cmd: Command) {
+        if let Command::IoBinding(IoBindingCommand::UpdateIoBinding { binding }) = &cmd {
+            let binding = binding.clone();
+            self.apply_without_dispatcher(move |list| {
+                match list.iter().position(|b| b.id == binding.id) {
+                    Some(pos) => list[pos] = binding,
+                    None => list.push(binding),
+                }
+            });
+        }
+        dispatch_if_session(&self.ps, cmd);
+    }
+
+    /// Refresh the GUI snapshot from the dispatcher's registry, then install
+    /// that registry into the live runtime (#716). Called after every
+    /// binding/endpoint mutation.
     fn propagate_bindings(&self) {
-        mirror_bindings_to_session(&self.ps, &self.cfg);
-        push_bindings_to_runtime(&self.runtime, &self.cfg);
+        sync_snapshot_from_registry(&self.ps, &self.cfg);
+        push_bindings_to_runtime(&self.ps);
+    }
+
+    /// Re-render the list from the effective registry (never from a snapshot
+    /// captured before the command ran).
+    fn refresh_models(&self) {
+        reproject(&self.models, &self.bindings());
     }
 
     fn create_binding(&self, name: &str) -> SharedString {
-        let display = binding_display_name(name, &self.cfg);
+        let display = binding_display_name(name, &self.bindings());
         let id = make_id(&display);
         let binding = IoBinding {
             id: id.clone(),
@@ -350,32 +385,31 @@ impl WireCtx {
             outputs: vec![],
         };
         dispatch_if_session(&self.ps, build_create_command(binding.clone()));
-        self.cfg.borrow_mut().io_bindings.push(binding);
+        self.apply_without_dispatcher(move |list| list.push(binding));
         self.propagate_bindings();
-        reproject(&self.models, &self.cfg);
+        self.refresh_models();
         SharedString::from(id)
     }
 
     fn delete_binding(&self, id: &str) -> SharedString {
         let msg = delete_reject_message(&self.ps, id);
         if msg.is_empty() {
-            self.cfg.borrow_mut().io_bindings.retain(|b| b.id != id);
+            let id = id.to_string();
+            self.apply_without_dispatcher(move |list| list.retain(|b| b.id != id));
             self.propagate_bindings();
-            reproject(&self.models, &self.cfg);
+            self.refresh_models();
         }
         SharedString::from(msg)
     }
 
     fn rename_binding(&self, id: &str, new_name: &str) {
-        {
-            let mut config = self.cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
-                b.name = new_name.to_string();
-                dispatch_if_session(&self.ps, build_update_command(b.clone()));
-            }
-        }
+        let Some(mut binding) = self.bindings().into_iter().find(|b| b.id == id) else {
+            return;
+        };
+        binding.name = new_name.to_string();
+        self.apply_binding_command(build_update_command(binding));
         self.propagate_bindings();
-        reproject(&self.models, &self.cfg);
+        self.refresh_models();
     }
 
     /// Rebuild the channel checkboxes from the chosen device's channel count.
@@ -405,40 +439,36 @@ impl WireCtx {
             return;
         }
         let parsed_mode = channel_mode_from_str(mode);
-        {
-            let mut config = self.cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
-                let cmd = if !edit_name.is_empty() {
-                    // Edit: replace the endpoint in place, keeping its name.
-                    let ep = if is_input {
-                        build_input_endpoint(edit_name, device_id, channels, parsed_mode)
-                    } else {
-                        build_output_endpoint(edit_name, device_id, channels, parsed_mode)
-                    };
-                    build_update_replacing_endpoint(b.clone(), edit_name, ep, is_input)
-                } else {
-                    let name = next_endpoint_name(
-                        if is_input {
-                            b.inputs.len()
-                        } else {
-                            b.outputs.len()
-                        },
-                        is_input,
-                    );
-                    if is_input {
-                        let ep = build_input_endpoint(&name, device_id, channels, parsed_mode);
-                        build_update_with_input_endpoint(b.clone(), ep)
-                    } else {
-                        let ep = build_output_endpoint(&name, device_id, channels, parsed_mode);
-                        build_update_with_output_endpoint(b.clone(), ep)
-                    }
-                };
-                apply_binding_command(b, &self.ps, cmd);
+        let Some(b) = self.bindings().into_iter().find(|b| b.id == id) else {
+            return;
+        };
+        let cmd = if !edit_name.is_empty() {
+            // Edit: replace the endpoint in place, keeping its name.
+            let ep = if is_input {
+                build_input_endpoint(edit_name, device_id, channels, parsed_mode)
+            } else {
+                build_output_endpoint(edit_name, device_id, channels, parsed_mode)
+            };
+            build_update_replacing_endpoint(b, edit_name, ep, is_input)
+        } else {
+            let existing = if is_input {
+                b.inputs.len()
+            } else {
+                b.outputs.len()
+            };
+            let name = next_endpoint_name(existing, is_input);
+            if is_input {
+                let ep = build_input_endpoint(&name, device_id, channels, parsed_mode);
+                build_update_with_input_endpoint(b, ep)
+            } else {
+                let ep = build_output_endpoint(&name, device_id, channels, parsed_mode);
+                build_update_with_output_endpoint(b, ep)
             }
-        }
+        };
+        self.apply_binding_command(cmd);
         self.models.channels.set_vec(Vec::new());
         self.propagate_bindings();
-        reproject(&self.models, &self.cfg);
+        self.refresh_models();
     }
 
     /// Seed the channel model + prefill props for editing an existing endpoint,
@@ -449,8 +479,8 @@ impl WireCtx {
         } else {
             self.output_devices.borrow()
         };
-        let config = self.cfg.borrow();
-        let Some(binding) = config.io_bindings.iter().find(|b| b.id == id) else {
+        let bindings = self.bindings();
+        let Some(binding) = bindings.iter().find(|b| b.id == id) else {
             return (-1, 0);
         };
         let Some(prefill) = endpoint_prefill(binding, ep_name, is_input, &devices) else {
@@ -466,15 +496,12 @@ impl WireCtx {
     }
 
     fn remove_endpoint(&self, id: &str, ep_name: &str, is_input: bool) {
-        {
-            let mut config = self.cfg.borrow_mut();
-            if let Some(b) = config.io_bindings.iter_mut().find(|b| b.id == id) {
-                let cmd = build_update_removing_endpoint(b.clone(), ep_name, is_input);
-                apply_binding_command(b, &self.ps, cmd);
-            }
-        }
+        let Some(b) = self.bindings().into_iter().find(|b| b.id == id) else {
+            return;
+        };
+        self.apply_binding_command(build_update_removing_endpoint(b, ep_name, is_input));
         self.propagate_bindings();
-        reproject(&self.models, &self.cfg);
+        self.refresh_models();
     }
 }
 
@@ -484,7 +511,6 @@ fn make_ctx(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) -> Rc<WireCtx> {
     Rc::new(WireCtx {
         ps: Rc::clone(ps),
@@ -492,7 +518,6 @@ fn make_ctx(
         models: Rc::clone(models),
         input_devices: Rc::clone(input_devices),
         output_devices: Rc::clone(output_devices),
-        runtime: Rc::clone(runtime),
     })
 }
 
@@ -503,9 +528,8 @@ fn install_window_callbacks(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
-    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices, runtime);
+    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
 
     let c = ctx.clone();
     window.on_create_io_binding(move |name| c.create_binding(name.as_str()));
@@ -549,9 +573,8 @@ fn install_psw_callbacks(
     models: &Rc<BindingModels>,
     input_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
-    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices, runtime);
+    let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
 
     let c = ctx.clone();
     psw.on_create_io_binding(move |name| c.create_binding(name.as_str()));

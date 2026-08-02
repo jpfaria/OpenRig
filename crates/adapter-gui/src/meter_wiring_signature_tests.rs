@@ -98,20 +98,21 @@ fn controller_offline_then_back_invalidates_every_chain() {
         std::collections::HashMap::new();
     let api_on = RecordingTapApi {
         stream_count: 3,
+        hosted: true,
         ..Default::default()
     };
-    // Tick 1: controller online with 3-stream chain.
+    // Tick 1: runtime online with 3-stream chain.
     let inv1 = crate::meter_wiring::detect_invalidations(
         std::slice::from_ref(&chain),
-        Some(&api_on),
+        &api_on,
         &mut last_sig,
     );
     assert_eq!(inv1.len(), 1, "first online tick subscribes the chain");
     assert!(last_sig.contains_key(&chain.id), "signature cached");
-    // Tick 2: controller offline (last chain toggled off).
-    let _ = crate::meter_wiring::detect_invalidations::<RecordingTapApi>(
+    // Tick 2: runtime offline (last chain toggled off).
+    let _ = crate::meter_wiring::detect_invalidations(
         std::slice::from_ref(&chain),
-        None,
+        &RecordingTapApi::default(),
         &mut last_sig,
     );
     assert!(
@@ -124,11 +125,12 @@ fn controller_offline_then_back_invalidates_every_chain() {
     // same project state).
     let api_on2 = RecordingTapApi {
         stream_count: 3,
+        hosted: true,
         ..Default::default()
     };
     let inv3 = crate::meter_wiring::detect_invalidations(
         std::slice::from_ref(&chain),
-        Some(&api_on2),
+        &api_on2,
         &mut last_sig,
     );
     assert_eq!(
@@ -188,37 +190,56 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
 //   - call subscribe_stream_tap once per global stream_index 0..N
 //   - place each subscription in its own row (no Arc broadcasting).
 
+/// A recording stand-in for the subscription seam: it answers every
+/// `TapPoint` with a fresh ring-backed tap and remembers which points were
+/// asked for, so the per-stream subscribe logic is testable without an engine.
 #[derive(Default)]
 struct RecordingTapApi {
     stream_count: usize,
+    hosted: bool,
     stream_input_calls: std::cell::RefCell<Vec<usize>>, // stream_index
     stream_calls: std::cell::RefCell<Vec<usize>>,       // stream_index
 }
 
-impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
+struct OneRing(Vec<Arc<SpscRing<f32>>>);
+
+impl application::audio_taps::AudioTap for OneRing {
+    fn channels(&self) -> usize {
+        self.0.len()
+    }
+    fn poll_peak_dbfs(&self) -> f32 {
+        engine::output_meter::pop_peak_dbfs(&self.0)
+    }
+}
+
+impl application::audio_taps::AudioTaps for RecordingTapApi {
+    fn is_hosted(&self) -> bool {
+        self.hosted
+    }
     fn stream_count(&self, _cid: &domain::ids::ChainId) -> usize {
         self.stream_count
     }
-    fn subscribe_stream_input_tap(
+    fn subscribe(
         &self,
-        _cid: &domain::ids::ChainId,
-        stream_index: usize,
+        point: &application::audio_taps::TapPoint,
         _capacity: usize,
-    ) -> Option<Arc<SpscRing<f32>>> {
-        self.stream_input_calls.borrow_mut().push(stream_index);
-        Some(Arc::new(SpscRing::<f32>::new(16, 0.0)))
-    }
-    fn subscribe_stream_tap(
-        &self,
-        _cid: &domain::ids::ChainId,
-        stream_index: usize,
-        _capacity: usize,
-    ) -> Option<[Arc<SpscRing<f32>>; 2]> {
-        self.stream_calls.borrow_mut().push(stream_index);
-        Some([
-            Arc::new(SpscRing::<f32>::new(16, 0.0)),
-            Arc::new(SpscRing::<f32>::new(16, 0.0)),
-        ])
+    ) -> Option<Arc<dyn application::audio_taps::AudioTap>> {
+        let channels = match point {
+            application::audio_taps::TapPoint::StreamInput { stream, .. } => {
+                self.stream_input_calls.borrow_mut().push(*stream);
+                1
+            }
+            application::audio_taps::TapPoint::StreamOutput { stream, .. } => {
+                self.stream_calls.borrow_mut().push(*stream);
+                2
+            }
+            application::audio_taps::TapPoint::InputChannels { channels, .. } => channels.len(),
+        };
+        Some(Arc::new(OneRing(
+            (0..channels)
+                .map(|_| Arc::new(SpscRing::<f32>::new(16, 0.0)))
+                .collect(),
+        )))
     }
 }
 
@@ -226,6 +247,7 @@ impl crate::meter_wiring::MeterTapApi for RecordingTapApi {
 fn build_streams_subscribes_stream_input_tap_once_per_global_index() {
     let api = RecordingTapApi {
         stream_count: 3,
+        hosted: true,
         ..Default::default()
     };
     let cid = domain::ids::ChainId("c1".into());
@@ -243,6 +265,7 @@ fn build_streams_subscribes_stream_input_tap_once_per_global_index() {
 fn build_streams_subscribes_one_stream_tap_per_global_index_not_just_zero() {
     let api = RecordingTapApi {
         stream_count: 3,
+        hosted: true,
         ..Default::default()
     };
     let cid = domain::ids::ChainId("c1".into());
@@ -260,6 +283,7 @@ fn build_streams_subscribes_one_stream_tap_per_global_index_not_just_zero() {
 fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
     let api = RecordingTapApi {
         stream_count: 3,
+        hosted: true,
         ..Default::default()
     };
     let cid = domain::ids::ChainId("c1".into());
@@ -267,16 +291,16 @@ fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
     assert_eq!(chain.streams.len(), 3, "one row per stream");
     // Every row must hold rings allocated by its OWN subscribe call —
     // not Arc::clone of the previous row's rings.
-    let out_ptrs: Vec<*const SpscRing<f32>> = chain
+    let out_ptrs: Vec<*const ()> = chain
         .streams
         .iter()
-        .flat_map(|s| s.output.iter().map(Arc::as_ptr))
+        .filter_map(|s| s.output.as_ref().map(|t| Arc::as_ptr(t) as *const ()))
         .collect();
     let unique: std::collections::HashSet<_> = out_ptrs.iter().collect();
     assert_eq!(
         unique.len(),
         out_ptrs.len(),
-        "output rings must be distinct across rows; sharing was the \
+        "output subscriptions must be distinct across rows; sharing was the \
          bug — first row drained the SPSC, others saw silence"
     );
 }
@@ -285,6 +309,7 @@ fn build_streams_produces_one_row_per_stream_with_distinct_rings() {
 fn build_streams_returns_empty_when_chain_has_no_runtime() {
     let api = RecordingTapApi {
         stream_count: 0,
+        hosted: true,
         ..Default::default()
     };
     let cid = domain::ids::ChainId("c1".into());

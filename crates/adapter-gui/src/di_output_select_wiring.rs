@@ -1,22 +1,17 @@
 //! #771: wiring for the DI panel's OUTPUT select — its own module so the
 //! (already oversized) chain_row_wiring / compact_chain_callbacks don't grow.
-//! Both entry points delegate to `di_loop_wiring::select_chain_di_output`
-//! (persist via `Command::SetChainDiLoopOutput` + re-arm while playing).
+//! Both entry points delegate to `di_loop_wiring::select_chain_di_output`,
+//! which dispatches `Command::SetChainDiLoopOutput`; the dispatcher moves a
+//! playing loop to the picked endpoint through `RuntimeControl` (#127).
 
 use std::cell::RefCell;
 use std::rc::Rc;
-
-use infra_cpal::ProjectRuntimeController;
 
 use crate::state::ProjectSession;
 use crate::{AppWindow, CompactChainViewWindow};
 
 /// Main window: `di-loop-output-selected(chain-index, output-index)`.
-pub(crate) fn wire_main(
-    window: &AppWindow,
-    project_session: Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
-) {
+pub(crate) fn wire_main(window: &AppWindow, project_session: Rc<RefCell<Option<ProjectSession>>>) {
     window.on_di_loop_output_selected(move |index, output_index| {
         let session_borrow = project_session.borrow();
         let Some(session) = session_borrow.as_ref() else {
@@ -30,8 +25,7 @@ pub(crate) fn wire_main(
             chain.id.clone()
         };
         crate::di_loop_wiring::select_chain_di_output(
-            &project_runtime,
-            &session.dispatcher,
+            session.dispatcher.as_ref(),
             &chain_id,
             &session.io_bindings.borrow(),
             output_index as usize,
@@ -45,7 +39,6 @@ pub(crate) fn wire_compact(
     compact_win: &CompactChainViewWindow,
     chain_index: i32,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
 ) {
     compact_win.on_di_loop_output_selected(move |output_index| {
         let session_borrow = project_session.borrow();
@@ -60,8 +53,7 @@ pub(crate) fn wire_compact(
             chain.id.clone()
         };
         crate::di_loop_wiring::select_chain_di_output(
-            &project_runtime,
-            &session.dispatcher,
+            session.dispatcher.as_ref(),
             &chain_id,
             &session.io_bindings.borrow(),
             output_index as usize,

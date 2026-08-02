@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod app_config_persist;
+pub mod audio_taps;
 pub mod block_factory;
 pub mod bridge;
 pub mod chain_factory;
@@ -21,6 +22,7 @@ mod event_scope;
 #[cfg(test)]
 #[path = "issue_85_port_position_tests.rs"]
 mod issue_85_port_position_tests;
+pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
 mod local_dispatcher_attach;
@@ -50,10 +52,15 @@ mod local_dispatcher_queries;
 mod local_dispatcher_recent;
 mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
+mod local_dispatcher_runtime_sync;
 mod local_dispatcher_selection;
 mod local_dispatcher_subsystems;
 mod local_dispatcher_tone_doctor;
+mod local_dispatcher_trait;
 pub mod looper_audio;
+/// #127: the metronome's control-plane state — settings, chosen output and
+/// tap history — owned by the dispatcher so every transport shares one truth.
+pub mod metronome_state;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
 pub mod persist_worker;
@@ -66,7 +73,11 @@ pub mod query_chain_quality;
 pub mod query_di;
 pub mod query_latency;
 pub mod query_loopers;
+/// #831: the single `QueryKind` resolver every transport answers through —
+/// one match, one payload shape, one error string.
+pub mod read;
 pub mod render_handler;
+pub mod runtime_control;
 pub mod selection_state;
 pub mod session;
 /// #693: published immutable state snapshot — transports serve reads

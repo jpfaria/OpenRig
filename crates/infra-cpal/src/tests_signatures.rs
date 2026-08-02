@@ -5,7 +5,7 @@
 
 #![cfg(test)]
 
-use super::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 // ── AudioDeviceDescriptor additional tests ──────────────────────────────
 

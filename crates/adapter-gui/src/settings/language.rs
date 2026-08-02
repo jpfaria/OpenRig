@@ -14,7 +14,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Global, ModelRc, SharedString, VecModel};
 
 use application::command::{Command, SettingsCommand};
-use application::dispatcher::CommandDispatcher;
 use infra_filesystem::FilesystemStorage;
 
 use crate::i18n::{display_name, font_family_for_locale, locale_for_runtime, SUPPORTED_LANGUAGES};

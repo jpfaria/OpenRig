@@ -21,9 +21,9 @@ use slint::ComponentHandle;
 
 use project::catalog::{model_brand, model_display_name, model_type_label};
 
+use crate::helpers::system_language;
 use crate::plugin_info;
 use crate::project_view::load_screenshot_image;
-use crate::runtime_lifecycle::system_language;
 use crate::{AppWindow, PluginInfoData};
 
 pub(crate) fn wire(window: &AppWindow) {

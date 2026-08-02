@@ -13,10 +13,10 @@ use super::stream_config::{
 use super::stream_config::{max_supported_channels, required_channel_count};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use super::validation::validate_buffer_size;
-use super::AudioDeviceDescriptor;
 use cpal::BufferSize;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::{SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
+use domain::AudioDeviceDescriptor;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn supported_range(

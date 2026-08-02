@@ -38,11 +38,27 @@ impl LocalDispatcher {
                         s.active_block_enabled = new_state;
                     }
                 }
-                Ok(vec![Event::BlockEnabledChanged {
-                    chain,
-                    block,
+                // #127: apply it to the audio runtime from HERE. The GUI used
+                // to dispatch and then poke the controller itself, so the same
+                // command over MCP/gRPC left the pedal sounding. Nothing is
+                // borrowed at this point — `with_block` released the project
+                // and the runtime handle is cloned out of its cell — because
+                // the frontend's sequence borrows both.
+                let mut events = vec![Event::BlockEnabledChanged {
+                    chain: chain.clone(),
+                    block: block.clone(),
                     enabled: new_state,
-                }])
+                }];
+                match self.runtime_control() {
+                    Some(control) => control.set_block_enabled(&chain, &block, new_state)?,
+                    // Nothing to apply it to (yet). Say the sync is owed rather
+                    // than report a silent success: this used to cold-start an
+                    // enabled chain's runtime through the frontend's own sync
+                    // sequence, and an operation that produced audio must not
+                    // become a no-op.
+                    None => events.push(Event::ChainRuntimeSyncNeeded { chain }),
+                }
+                Ok(events)
             }
             Command::Block(BlockCommand::ReplaceBlockModel {
                 chain,
@@ -112,3 +128,7 @@ impl LocalDispatcher {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "local_dispatcher_block_lifecycle_tests.rs"]
+mod tests;

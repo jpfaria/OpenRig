@@ -119,10 +119,7 @@ fn device_guard() -> DeviceFileLock {
 }
 
 /// The owner's Scarlett input+output descriptors.
-fn scarlett() -> (
-    infra_cpal::AudioDeviceDescriptor,
-    infra_cpal::AudioDeviceDescriptor,
-) {
+fn scarlett() -> (domain::AudioDeviceDescriptor, domain::AudioDeviceDescriptor) {
     let input = list_input_device_descriptors()
         .expect("list inputs")
         .into_iter()
@@ -165,8 +162,8 @@ fn load_di_arc(name: &str) -> Arc<engine::DiPcm> {
 /// (48 kHz / 64 frames, chain volume 0 = identical DSP, silent monitors).
 fn preset_project(
     preset_file: &str,
-    input: &infra_cpal::AudioDeviceDescriptor,
-    output: &infra_cpal::AudioDeviceDescriptor,
+    input: &domain::AudioDeviceDescriptor,
+    output: &domain::AudioDeviceDescriptor,
 ) -> (Project, ChainId, Vec<IoBinding>) {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")
