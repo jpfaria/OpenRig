@@ -36,6 +36,8 @@ O mesmo checklist vai no `gh issue comment` da issue. Sem prosa em volta: o coma
 
 **How to apply:** terminou algo que depende da validação dele → antes de responder, montar o bloco (comando + `- [ ]`), colar no chat e mandar `gh issue comment` com o mesmo. Se não precisa de validação dele (pergunta, diagnóstico, WIP), não força checklist.
 
+**Checklist é SÓ pra coisa que ele valida com ouvido, olho, hardware ou app rodando — NUNCA pra artefato meu de texto.** Spec, design doc, plano, comentário de issue, diagnóstico: são insumo MEU de trabalho, não entrega pra ele revisar. Pedir "leia o spec e confirme" é empurrar meu trabalho pra ele. **Why:** ele não vai ler spec — quem escreve o documento é responsável por ele estar certo; o que ele valida é o app tocando, a tela renderizada, o som. **How to apply:** escreveu spec/plano/doc? Commita, comenta na issue com o hash em uma linha e SEGUE. A decisão que preciso dele é sempre uma pergunta curta sobre o produto, nunca "confere meu documento".
+
 ## LEI ZERO — PERGUNTA CURTA E OBJETIVA, SEMPRE
 
 **PROIBIDO pergunta confusa ou com textão.** Pergunta = uma coisa, mínimo de palavras, direto. Sem contexto longo, sem opções aninhadas, sem explicação antes. Se não cabe em uma linha, corta. Confundir o usuário com pergunta enorme é falha grave.
