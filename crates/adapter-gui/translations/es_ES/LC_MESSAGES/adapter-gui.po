@@ -767,8 +767,6 @@ msgid "⌨"
 msgstr "⌨"
 
 # I/O Bindings UI strings (added #716)
-#~ msgid "label-io-binding"
-#~ msgstr "Enlace de E/S"
 
 # Looper UI strings (added #323)
 
@@ -895,3 +893,27 @@ msgstr "SALIDA"
 #: crates/adapter-gui/ui/pages/metronome_window.slint
 msgid "status-no-outputs"
 msgstr "Sin salidas configuradas en el proyecto"
+
+msgid "title-window-chain-port"
+msgstr "Puerto"
+
+msgid "title-section-configure-input"
+msgstr "Configurar entrada"
+
+msgid "title-section-configure-output"
+msgstr "Configurar salida"
+
+msgid "label-io-endpoint"
+msgstr "Punto"
+
+msgid "action-toggle-block-enabled"
+msgstr "Activar / desactivar"
+
+msgid "action-delete-block"
+msgstr "Eliminar bloque"
+
+msgid "msg-pick-io-endpoint"
+msgstr "Elige una E/S y un punto"
+
+msgid "label-io-binding"
+msgstr "E/S"

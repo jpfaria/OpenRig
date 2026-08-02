@@ -58,3 +58,13 @@ fn graph_changing_events_do_rebuild() {
         path: "drive".into(),
     }));
 }
+
+// #85's pair of tests for `events_require_full_project_sync` lived here. The
+// rate/buffer rebuild they described is no longer a drain decision this
+// frontend makes: `SettingsCommand::SaveAudioSettings` applies
+// `RuntimeControl::apply_device_settings` and then `sync_project` from the
+// dispatcher, so the same save over MCP or MIDI re-opens the graph too. The
+// behaviour is pinned there, against a real dispatch, by
+// `application::local_dispatcher_runtime_doors_tests::
+// saving_the_device_settings_rebuilds_the_whole_graph` and
+// `..._makes_the_driver_adopt_them_first`.

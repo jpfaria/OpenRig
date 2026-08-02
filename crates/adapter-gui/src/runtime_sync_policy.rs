@@ -64,3 +64,11 @@ pub(crate) fn event_requires_runtime_sync(event: &Event) -> bool {
             | Event::BlockEnabledChanged { .. }
     )
 }
+
+// #85's `events_require_full_project_sync` lived here: `AudioSettingsSaved`
+// names no chain, so the per-chain loop skipped it and a rate/buffer change
+// left the streams on the old device config. The rebuild is no longer a
+// frontend-drain decision — `SettingsCommand::SaveAudioSettings` applies
+// `RuntimeControl::apply_device_settings` + `sync_project` from the dispatcher,
+// so every transport gets it (`local_dispatcher_runtime_doors_tests::
+// saving_the_device_settings_rebuilds_the_whole_graph`).

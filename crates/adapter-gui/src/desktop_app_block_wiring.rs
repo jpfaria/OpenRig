@@ -30,6 +30,9 @@ use crate::{
 pub(crate) struct BlockWiringDeps<'a> {
     pub window: &'a AppWindow,
     pub chain_insert_window: &'a ChainInsertWindow,
+    /// #85 — the mid-chain I/O port editor.
+    pub chain_port_window: &'a crate::ChainPortWindow,
+    pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
 
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
@@ -92,6 +95,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::select_chain_block_callback::wire(
         deps.window,
         deps.chain_insert_window,
+        deps.chain_port_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
             inline_tab_state: inline_tab_state.clone(),
             selected_block: deps.selected_block.clone(),
@@ -120,6 +124,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             inline_stream_timer: deps.inline_stream_timer.clone(),
             toast_timer: deps.toast_timer.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
+            port_draft: deps.port_draft.clone(),
             auto_save: deps.auto_save,
         },
     );
@@ -183,7 +188,9 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::block_choose_type_callback::wire(
         deps.window,
         deps.chain_insert_window,
+        deps.chain_port_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
+            port_draft: deps.port_draft.clone(),
             inline_tab_state: inline_tab_state.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),

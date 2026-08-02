@@ -37,6 +37,16 @@ pub const EFFECT_TYPE_MODULATION: &str = "modulation";
 pub const EFFECT_TYPE_BODY: &str = "body";
 pub const EFFECT_TYPE_VST3: &str = "vst3";
 
+// I/O port types (#85). Not effects: they carry no parameter schema and no
+// model catalog of their own — each references a binding endpoint and has the
+// single model "standard". Named here so every layer (block factory, catalog,
+// GUI) tests the same string instead of its own literal.
+pub const EFFECT_TYPE_INPUT: &str = "input";
+pub const EFFECT_TYPE_OUTPUT: &str = "output";
+pub const EFFECT_TYPE_INSERT: &str = "insert";
+/// The one model an I/O port block carries.
+pub const IO_PORT_MODEL: &str = "standard";
+
 // Default instrument (used as fallback)
 pub const DEFAULT_INSTRUMENT: &str = INST_ELECTRIC_GUITAR;
 

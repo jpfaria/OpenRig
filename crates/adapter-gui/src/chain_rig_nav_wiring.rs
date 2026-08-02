@@ -209,6 +209,14 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     // to end in the same function. The attach right above
     // guarantees the dispatcher can honour the request even on the very first
     // external command of a freshly opened project.
+    // #85 wanted a device rate/buffer change to re-open the whole graph: the
+    // event names no chain, so the per-chain loop below never sees it and the
+    // streams kept running against the old config. It is handled one layer
+    // down now — `SettingsCommand::SaveAudioSettings` applies
+    // `RuntimeControl::apply_device_settings` and then `sync_project` from the
+    // dispatcher, so the rebuild happens for the GUI, MCP and MIDI alike
+    // (pinned by `local_dispatcher_runtime_doors_tests`). Re-syncing here too
+    // would re-open every device a second time for one save.
     let mut synced: Vec<ChainId> = Vec::new();
     for event in events {
         let Some(chain_id) = event.chain() else {

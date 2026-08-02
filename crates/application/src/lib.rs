@@ -19,6 +19,9 @@ pub mod di_loader;
 pub mod dispatcher;
 pub mod event;
 mod event_scope;
+#[cfg(test)]
+#[path = "issue_85_port_position_tests.rs"]
+mod issue_85_port_position_tests;
 pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;

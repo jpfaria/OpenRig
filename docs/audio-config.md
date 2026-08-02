@@ -294,6 +294,45 @@ openrig://ids` reads back);
 `volume_invariants` + `stream_isolation` prove the resolved path is bit-exact
 to the legacy entries path.
 
+### Mid-chain ports (issue #85)
+
+A port the user drops **between** effect blocks is not the chain's own I/O — it
+is an extra endpoint at that exact position:
+
+- **Mid `Output`** — a non-destructive **tap**: it emits the signal *as
+  processed up to its position* while the chain keeps flowing to the blocks
+  after it (`runtime_segments::classify_output_routes` + `SegmentTap`,
+  `runtime_mid_output_tap.rs`). It never spawns its own `(input × output)`
+  segment; it rides the segment that covers the whole chain, once per input, or
+  the same signal would sum into it once per tail output.
+- **Mid `Input`** — enters **at its own offset**: its segment runs only the
+  blocks *after* the port, so the blocks before it never see (or gate away) a
+  signal they do not touch (`runtime_segments::input_ports` + `blocks_from`).
+  `ChainPort.from_block` is what tells a head port at offset 0 from a mid port
+  at offset 0.
+
+**Their device belongs to this chain's streams.** An output device's stream
+mixes only the runtimes listed for it in `output_devices_by_input_cpal`
+(`chain_resolve_io_map.rs`) — the stream-isolation LAW. That map is built per
+binding group, and a mid port's binding usually contributes no input (mid
+`Output`) or no output (mid `Input`) to this chain, so both cases needed an
+explicit pass: the mid outputs' devices are added to this chain's input streams,
+and the chain's tail devices are added to each mid input's stream. Neither
+widens isolation — only this chain's own runtimes are involved. #716 still
+governs HEAD inputs: a TEYUN in never exits a SCARLET out.
+
+**Persistence.** A mid port lives in the preset (`sync_synthetic_into_rig` keeps
+it; only the chain's own head/tail I/O is filtered out) and re-pointing one is a
+preset-level edit — a port has no params, so `write_back_processing_blocks`
+writes its block kind, not a scene override. `RigProject::validate` judges a
+port against the chains that actually **play that preset**: an E/S another chain
+carries is an aux send, not a duplicate.
+
+Real-hardware evidence (`OPENRIG_HW_TESTS=1`, macOS):
+`crates/infra-cpal/tests/issue_85_mid_output_reaches_its_device.rs` and
+`issue_85_mid_input_reaches_the_tail.rs` play a tone through real CoreAudio
+streams and measure it on the other side of a loopback.
+
 ### DSP worker per input stream (issue #670, macOS)
 
 The chain DSP does NOT run inside the CoreAudio input callback. The HAL
@@ -349,6 +388,22 @@ there are no separate I/O lists.
   binding endpoint; they carry **no** device data (legacy `entries` removed).
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
+
+**A mid port is a normal block (#85).** It is a row in the chain like any effect
+— the head input and tail output are chips drawn from the bindings, not rows —
+and it survives a project load. #716 still drops the legacy leftovers, but only
+those pointing at a binding the chain ALREADY carries (that duplicate is what
+starved the device); a port pointing at another E/S, or not yet pointed
+anywhere, is the user's and stays.
+
+**A mid `Output` emits the signal at ITS OWN position (#85).** It taps the bus
+right where it sits — only the blocks BEFORE it have run — while the chain keeps
+flowing through the blocks after it down to the tail output. Nothing is cut and
+no DSP runs twice: the tap is a copy of the segment bus at that point, so a
+`Cab → [Output] → Delay → Reverb` chain sends the un-delayed cab signal to that
+endpoint and the full chain to the tail. Both routes get the same click-safe
+rebuild fade. A disabled mid `Output` keeps its (silent) route and emits
+nothing, like any other disabled block.
 
 ### I/O binding registry (#716)
 

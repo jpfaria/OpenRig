@@ -208,7 +208,7 @@ fn refresh_chain_meter_row(
         .find(|(c, _)| c == cid)
         .map(|(_, streams)| streams.clone())
         .unwrap_or_default();
-    let project_streams = project_input_count(&project.chains[idx], &session.io_bindings.borrow());
+    let project_streams = project_stream_count(&project.chains[idx], &session.io_bindings.borrow());
     // #750: a disabled chain renders no per-stream rows. The timer
     // still visits it (a stale tap may report a tick after toggle-off),
     // so the `enabled` flag — not just the resolved count — gates the

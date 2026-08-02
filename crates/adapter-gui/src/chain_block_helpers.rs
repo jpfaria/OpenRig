@@ -27,26 +27,18 @@ fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
     }
 }
 
-/// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
+/// Map a UI block position to the real `chain.blocks` index.
 pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
-    let first_input_idx = chain
-        .blocks
-        .iter()
-        .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-    let last_output_idx = chain
-        .blocks
-        .iter()
-        .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
-    let mut visible_count = 0;
-    for (real_idx, _) in chain.blocks.iter().enumerate() {
-        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
-            continue; // hidden
-        }
-        if visible_count == ui_index {
-            return real_idx;
-        }
-        visible_count += 1;
-    }
-    // If ui_index is past all visible blocks, return end (before last output)
-    last_output_idx.unwrap_or(chain.blocks.len())
+    // Model A (#716): the chain's head input and tail output are NOT blocks —
+    // they are materialized from its E/S bindings and drawn as fixed chips. So
+    // every entry in `chain.blocks` is a block the user placed, including a mid
+    // `Input`/`Output`/`Insert` port, and the UI row list shows all of them:
+    // the mapping is the identity.
+    //
+    // #85: this used to skip the first `Input` and the LAST `Output`, a leftover
+    // from when those were real head/tail blocks. With no head/tail blocks left,
+    // a single mid `Output` IS the last output — so the row the user had just
+    // added was swallowed, and every index derived from a UI row (select, move,
+    // insert-before) pointed one block off.
+    ui_index.min(chain.blocks.len())
 }
