@@ -1,6 +1,6 @@
 # Score reader — Guitar Pro tab + standard notation (#864)
 
-**Status:** design approved (owner, 2026-08-02); spec under review.
+**Status:** closed — design and spec approved by the owner, 2026-08-02.
 
 ## Problem
 
