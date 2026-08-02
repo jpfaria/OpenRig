@@ -80,6 +80,12 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
 
     // Mid Input/Output blocks reference one binding endpoint by io/endpoint.
     for (i, block) in chain.blocks.iter().enumerate() {
+        // #871: a disabled block is out of the signal path, so it owns no port —
+        // otherwise its stream still opens and its route still gets written (a
+        // disabled Input on the Scarlett's 2nd channel came out of the TEYUN).
+        if !block.enabled {
+            continue;
+        }
         let (direction, io, endpoint_name) = match &block.kind {
             AudioBlockKind::Input(b) => (PortDirection::Input, &b.io, &b.endpoint),
             AudioBlockKind::Output(b) => (PortDirection::Output, &b.io, &b.endpoint),

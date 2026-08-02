@@ -308,6 +308,13 @@ and the chain's tail devices are added to each mid input's stream. Neither
 widens isolation — only this chain's own runtimes are involved. #716 still
 governs HEAD inputs: a TEYUN in never exits a SCARLET out.
 
+**A disabled port is no port at all (#871).** `resolve_chain_ports` skips a mid
+`Input`/`Output` block whose `enabled` is `false`, so it opens no stream and
+claims no device route. Until #871 the flag was ignored here: a disabled `Input`
+on the Scarlett's channel 1 still opened that channel, and the mid-input pass
+above still routed it to the chain's tail devices — the owner heard his 2nd
+Scarlett input come out of the TEYUN.
+
 **A DI loop plays on every pipeline this input feeds.** #699 fed the loop to
 segment 0 alone — right when the other segments were split-mono siblings summing
 into ONE route, wrong under this model, where each pipeline owns its own route:
