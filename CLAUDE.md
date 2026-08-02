@@ -56,6 +56,18 @@ Escopo, modelo de dados, comportamento esperado, camada certa, qual arquivo, A v
 
 **How to apply:** qualquer seleção/agrupamento de runtimes no caminho de I/O (`slots_for_*`, output mixing, taps, DI, meters) tem que ser por identidade de STREAM/DEVICE — nunca por rate, nunca por "todos os que batem". Um output só toca o runtime do seu stream; um tap só lê o seu; um rebuild só reconstrói o seu. Achou código que junta/seleciona runtimes de streams diferentes por qualquer critério que não seja a identidade do próprio stream/device → é violação, PARA, reporta e corrige. Ver invariante #4 e o red flag correspondente abaixo.
 
+## LEI ZERO — UM ARQUIVO, UMA RESPONSABILIDADE (só teste pode ser grande)
+
+**Todo arquivo de produção faz UMA coisa.** Uma responsabilidade = um motivo pra mudar. Se você precisa de "e" pra descrever o arquivo ("controla o rebuild **e** o ciclo de vida do JACK **e** o health check"), são 3 arquivos, não 1. Cap de linhas (`.rs` 600, `.slint` 500) é só o alarme de fumaça — **o limite real é a responsabilidade, e um arquivo de 300 linhas fazendo 4 coisas já viola esta lei.**
+
+**Arquivo de TESTE é a única exceção de TAMANHO.** Teste não tem cap de linhas — e continua sem cap. Nada mais tem exceção: nem "esse é o wiring", nem "é só uma fn a mais", nem "eu divido depois".
+
+**Antes de adicionar QUALQUER linha a um arquivo de produção existente:** olhe o tamanho e a responsabilidade dele. Se o que você vai escrever é uma responsabilidade nova, **o destino é um arquivo novo** — não o fim do arquivo aberto. Dispatcher/`mod.rs`/`lib.rs` é roteador fino (< 100 LOC, só re-export e delegação).
+
+**Why:** já foi pedido em #194, #276, #793 e os god-files voltaram todas as vezes, porque a única checagem era contagem de linha num allowlist congelado — então bastava "só mais um handler aqui" pra crescer pra sempre. `controller.rs` chegou a 1055 linhas com 5 responsabilidades; `desktop_app.rs` a 947 numa única `fn`. Arquivo que faz N coisas quebra as N quando você mexe em 1, e nenhum teste isola qual.
+
+**How to apply:** (1) **todo arquivo de produção DECLARA sua responsabilidade no cabeçalho** — `//! Responsibility: <uma frase>` em `.rs`, `// Responsibility: <uma frase>` em `.slint`. `scripts/validate.sh` (check 1) reprova arquivo tocado sem a declaração, e reprova declaração com conjunção/lista ("faz X **e** Y") — é o arquivo confessando que faz duas coisas. Não conseguiu escrever a frase? Você não sabe o que o arquivo faz. (2) Vai adicionar responsabilidade nova em arquivo existente? PARA e cria o arquivo/módulo dela. (3) `DEBT_FILES` no `validate.sh` é catraca: arquivo em débito que CRESCE reprova, e sai da lista só encolhendo abaixo do cap. (4) O `line-cap-guard` (PreToolUse, plugin dev-rules) NEGA Edit/Write que cresça arquivo acima do cap — edit que encolhe passa, então o split nunca fica bloqueado. Split é sempre behavior-preserving: move código, não muda comportamento, e nenhum teste existente é reescrito pra caber na forma nova. Escopo e inventário: #873 + `docs/development/file-organization.md`.
+
 ## Invariantes que NUNCA podem piorar
 
 OpenRig é áudio em tempo real. **Qualidade sonora e latência são os valores centrais.** Toda mudança que toca audio thread, DSP, roteamento, I/O ou cadeia de blocos precisa provar que não regride NADA abaixo:

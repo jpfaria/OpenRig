@@ -1,8 +1,29 @@
-# Organização de arquivos (issue #194)
+# Organização de arquivos (issues #194, #873)
 
 God-files surgem quando lógica feature-specific entra em arquivos compartilhados. Regra dura:
 
 > **Código compartilhado SÓ quando 2+ features usam aquele código.** Lógica feature-specific mora no módulo da feature.
+
+## A lei: um arquivo, uma responsabilidade
+
+**Arquivo de produção faz UMA coisa** — uma responsabilidade é um motivo pra mudar. O teste é verbal: descreva o arquivo em uma frase; precisou de "e", são dois arquivos.
+
+**Só arquivo de teste pode ser grande.** Teste não tem cap de linhas. Produção (`.rs` não-test, `.slint`) tem cap E tem a lei da responsabilidade — e a lei é a que manda: 300 linhas fazendo 4 coisas já viola, mesmo passando no cap.
+
+Responsabilidade nova nunca entra no fim de um arquivo existente — nasce no arquivo dela.
+
+### A declaração no cabeçalho
+
+Todo arquivo de produção declara sua responsabilidade na primeira dúzia de linhas:
+
+```rust
+//! Responsibility: rebuilds a chain runtime in place
+```
+```slint
+// Responsibility: renders one block tile inside a chain row
+```
+
+`validate.sh` (check 1) reprova arquivo tocado que não declara, e reprova declaração que precisa de "and"/"+"/vírgula pra ser escrita — isso é o arquivo dizendo que faz duas coisas. Arquivo legado que você não tocou só avisa: a regra entra sem rewrite do repo, e cada arquivo paga a dele quando alguém o edita.
 
 ## Onde mora cada coisa
 
@@ -36,9 +57,26 @@ God-files surgem quando lógica feature-specific entra em arquivos compartilhado
 ## Caps de tamanho (validate.sh)
 
 - `.rs` (não-test): **600 LOC**
-- `.rs` test: ilimitado, mas split se passa de 1000 LOC e cobre múltiplas responsabilidades
 - `.slint`: **500 LOC**
+- `.rs` de teste: **sem cap** — é a única exceção de tamanho do repo, e `validate.sh` nem mede
 - `lib.rs` / `mod.rs`: só re-exports, < 100 LOC
+
+### Catraca do débito (#873)
+
+`validate.sh` mantém `DEBT_FILES` com o LOC de referência de cada arquivo de produção que já nasceu acima do cap. A lista é catraca, não anistia:
+
+| Situação | Resultado do gate |
+|---|---|
+| Arquivo NOVO acima do cap | ❌ FAIL — split antes de commitar |
+| Arquivo em débito que **cresceu** acima do LOC de referência | ❌ FAIL — proibido crescer |
+| Arquivo em débito que encolheu, ainda acima do cap | ⚠️ WARN + baixe o LOC de referência no mesmo commit |
+| Arquivo em débito que caiu **abaixo** do cap | ❌ FAIL — tire a linha da lista (o débito acabou) |
+
+Nunca se acrescenta arquivo à lista. Ela só encolhe.
+
+### Guard em tempo de edição
+
+O `line-cap-guard` do plugin dev-rules (PreToolUse) **nega Edit/Write que cresça** um arquivo já acima do cap; edit que encolhe passa, então o split nunca fica bloqueado por si mesmo. Os caps que ele usa vêm do `.dev-rules.json` do repo (`line_caps`) — mesma fonte de números do `validate.sh`.
 
 ## LV2 plugin — `audio_mode` vs builder (issue #130)
 
