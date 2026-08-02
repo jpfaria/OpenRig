@@ -7,6 +7,8 @@
 //! machinery. Isolation (#4) is already enforced there — one runtime per
 //! input, distinct `ChainId` per input. Pure and hardware-free.
 
+use crate::rig_runtime_normalize::duplicates_chain_binding;
+pub use crate::rig_runtime_normalize::looper_playback_blocks;
 use crate::runtime_audio_frame::DEFAULT_ELASTIC_TARGET;
 use crate::runtime_graph::RuntimeGraph;
 use anyhow::{anyhow, Result};
@@ -137,15 +139,11 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             });
         }
 
-        // #716: a binding-bound chain is the new format — its I/O is the
-        // system binding (io_binding_ids), never chain blocks. Drop any legacy
-        // Input/Output blocks left in the preset; keeping them duplicates the
-        // binding's I/O (e.g. a second output stream on the same device →
-        // absurd latency + underruns).
+        // #716: the chain's head/tail I/O is the system binding, never blocks.
+        // Drop the legacy leftovers that duplicate it; a port pointing at
+        // another E/S is a mid port the user placed (#85) and stays.
         if bound {
-            blocks.retain(|b| {
-                !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
-            });
+            blocks.retain(|b| !duplicates_chain_binding(b, &input.io_binding_ids));
         }
 
         chains.push(Chain {
@@ -177,27 +175,6 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
         });
     }
     chains
-}
-
-/// #323 phase 2: the processing blocks a loop LINKED to `preset_id` plays
-/// through, resolved against `rig`. Mirrors [`rig_to_chains`]'s block build for
-/// one input: the linked preset's blocks with the input's active scene applied,
-/// and — for a binding-bound input (#716) — the synthesized I/O stripped, since
-/// the isolated playback stream resolves I/O from the chain's bindings, not from
-/// blocks. `None` when the input or the linked preset no longer exists (a
-/// deleted preset ⇒ the caller falls back to the chain's current blocks).
-pub fn looper_playback_blocks(
-    rig: &RigProject,
-    input_name: &str,
-    preset_id: &str,
-) -> Option<Vec<AudioBlock>> {
-    let input = rig.inputs.get(input_name)?;
-    let preset = rig.presets.get(preset_id)?;
-    let mut blocks = preset.apply_scene(input.active_scene);
-    if !input.io_binding_ids.is_empty() {
-        blocks.retain(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)));
-    }
-    Some(blocks)
 }
 
 /// Build the iteration order for [`rig_to_chains`]: honour

@@ -140,6 +140,21 @@ pub(crate) struct InsertDraft {
     pub(crate) return_mode: ChainInputMode,
 }
 
+/// #85 — the mid-chain I/O port being edited: which block it is and where it
+/// points (E/S binding + endpoint). A port has no model and no parameters, so
+/// this is its whole editable state.
+#[derive(Clone)]
+pub(crate) struct PortDraft {
+    pub(crate) chain_index: usize,
+    pub(crate) block_index: usize,
+    /// `true` for an `Input` port, `false` for an `Output` one — it decides
+    /// which side of the binding the endpoint list comes from.
+    pub(crate) is_input: bool,
+    pub(crate) io: String,
+    pub(crate) endpoint: String,
+    pub(crate) enabled: bool,
+}
+
 pub(crate) struct BlockEditorData {
     pub(crate) effect_type: String,
     pub(crate) model_id: String,

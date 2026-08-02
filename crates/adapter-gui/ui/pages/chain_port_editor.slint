@@ -1,0 +1,147 @@
+// #85 — the editor of a mid-chain I/O PORT (an `Input`/`Output` block the user
+// placed between effects).
+//
+// A port has no model and no parameters: what it carries is WHERE it reads from
+// / writes to. That is exactly one E/S binding plus one endpoint of it, which is
+// what the model persists (`SaveChainInputEndpoints` /
+// `SaveChainOutputEndpoints`) — so those are the only two choices this page
+// offers. Device / mode / channels belong to the E/S itself and are edited in
+// the I/O bindings screen, not here.
+
+import { ComboBox } from "std-widgets.slint";
+import { PortEditorFooterButton } from "port_editor_widgets.slint";
+
+export component ChainPortEditorPage inherits Rectangle {
+    in property <bool> is-input;
+    in property <[string]> binding-options;
+    in-out property <int> selected-binding-index;
+    in property <[string]> endpoint-options;
+    in-out property <int> selected-endpoint-index;
+    in property <bool> block-enabled: true;
+    in property <bool> show-endpoint-warning;
+
+    callback select-binding(int);
+    callback select-endpoint(int);
+    callback toggle-enabled();
+    callback delete-block();
+    callback save();
+    callback cancel();
+
+    background: #171a1f;
+
+    VerticalLayout {
+        padding: 32px;
+        spacing: 20px;
+
+        HorizontalLayout {
+            spacing: 12px;
+
+            Text {
+                text: root.is-input ? @tr("title-section-configure-input") : @tr("title-section-configure-output");
+                color: #edf2f9;
+                font-size: 20px;
+                font-weight: 800;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            // Enabled dot — same affordance as the insert editor.
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: toggle-hover.has-hover ? #1e2229 : transparent;
+                accessible-role: button;
+                accessible-label: @tr("action-toggle-block-enabled");
+
+                Rectangle {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: root.block-enabled ? #29df85 : #697382;
+                }
+
+                toggle-hover := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.toggle-enabled(); }
+                }
+            }
+
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 4px;
+                background: delete-hover.has-hover ? #2a1015 : transparent;
+                accessible-role: button;
+                accessible-label: @tr("action-delete-block");
+
+                Image {
+                    width: 20px;
+                    height: 20px;
+                    source: @image-url("../assets/trash.svg");
+                    colorize: delete-hover.has-hover ? #ff4455 : #5a6270;
+                    image-fit: contain;
+                }
+
+                delete-hover := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.delete-block(); }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: #2a2f38; }
+
+        Text {
+            text: @tr("label-io-binding");
+            color: #8c96a6;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        ComboBox {
+            model: root.binding-options;
+            current-index <=> root.selected-binding-index;
+            selected(value) => { root.select-binding(self.current-index); }
+        }
+
+        Text {
+            text: @tr("label-io-endpoint");
+            color: #8c96a6;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        ComboBox {
+            model: root.endpoint-options;
+            current-index <=> root.selected-endpoint-index;
+            selected(value) => { root.select-endpoint(self.current-index); }
+        }
+
+        if root.show-endpoint-warning : Text {
+            text: @tr("msg-pick-io-endpoint");
+            color: #ff9f43;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
+
+        // Pushes the footer to the bottom.
+        Rectangle { vertical-stretch: 1; }
+
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: end;
+
+            PortEditorFooterButton {
+                label: @tr("btn-cancel");
+                clicked => { root.cancel(); }
+            }
+
+            PortEditorFooterButton {
+                label: @tr("btn-ok");
+                primary: true;
+                clicked => { root.save(); }
+            }
+        }
+    }
+}

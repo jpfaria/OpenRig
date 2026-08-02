@@ -430,11 +430,11 @@ pub(crate) fn replace_project_chains(
                     // resolved input endpoint (#716: from the binding registry,
                     // not per block `entries`), min 1 so an enabled-but-
                     // unresolved chain still shows a row.
+                    // #85: one row per STREAM — a (input × output) pipeline —
+                    // so a mid `Input`/`Output` port shows its own bar instead
+                    // of hiding inside the chain's single input row.
                     let stream_count: usize = if chain.enabled {
-                        engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
-                            .0
-                            .len()
-                            .max(1)
+                        crate::meter_wiring::project_stream_count(chain, io_bindings).max(1)
                     } else {
                         0
                     };
@@ -448,23 +448,18 @@ pub(crate) fn replace_project_chains(
                     ModelRc::from(model)
                 },
                 blocks: {
-                    let first_input_idx = chain
-                        .blocks
-                        .iter()
-                        .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-                    let last_output_idx = chain
-                        .blocks
-                        .iter()
-                        .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+                    // #85 / model A (#716): every block in the chain is a row.
+                    // The head input and tail output are not blocks anymore —
+                    // they come from the chain's E/S bindings and are drawn as
+                    // fixed chips — so a mid `Input`/`Output`/`Insert` port the
+                    // user placed must be visible. Hiding "the first Input and
+                    // the last Output" swallowed exactly that row.
                     log::info!(
                         "[replace_project_chains] chain[{}] '{}' UI blocks:",
                         index,
                         chain.description.as_deref().unwrap_or("")
                     );
                     for (real_idx, b) in chain.blocks.iter().enumerate() {
-                        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
-                            continue;
-                        }
                         log::info!(
                             "[replace_project_chains]   real_index={} kind={}",
                             real_idx,
@@ -478,10 +473,6 @@ pub(crate) fn replace_project_chains(
                             .blocks
                             .iter()
                             .enumerate()
-                            .filter(|(i, _)| {
-                                // Hide only the first Input (fixed chip) and last Output (fixed chip)
-                                Some(*i) != first_input_idx && Some(*i) != last_output_idx
-                            })
                             .map(|(real_idx, b)| {
                                 let mut item = chain_block_item_from_block(b);
                                 item.real_index = real_idx as i32;

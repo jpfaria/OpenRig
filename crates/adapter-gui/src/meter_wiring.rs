@@ -353,20 +353,16 @@ pub fn rebuild_stream_meters_row(
         .collect()
 }
 
-/// Count of resolved input endpoints for a chain — the number of independent
-/// per-input runtimes the engine owns for the chain (issue #350). This is the
-/// GUI's source of truth for how many meter rows to render. Mirrors the count
-/// `replace_project_chains` uses when it first builds the row model.
-///
-/// #716: device endpoints resolve from the binding registry, not from block
-/// `entries` (which no longer exist on the model).
-pub fn project_input_count(
+/// #85: how many meter rows the chain draws — one per STREAM, i.e. per
+/// (input × output) pipeline, which is also how the engine indexes its
+/// per-stream taps. A mid `Input`/`Output` is a stream of its own, so it gets
+/// its own INPUT/OUTPUT bar; without this the row count came from the resolved
+/// INPUTS and a mid port had no meter at all.
+pub fn project_stream_count(
     chain: &project::chain::Chain,
     io_bindings: &[domain::io_binding::IoBinding],
 ) -> usize {
-    engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
-        .0
-        .len()
+    engine::runtime_graph::chain_stream_count(chain, io_bindings)
 }
 
 /// Drain the per-stream rings and return one `StreamMeterReading`

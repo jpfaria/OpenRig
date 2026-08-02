@@ -230,8 +230,9 @@ pub fn process_input_f32(
     let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
+        let plays_di = input_states.get(seg_idx).is_some_and(|s| s.plays_di_loop);
         let feed = match di_for_seg {
-            Some((d, pos)) if seg_idx == 0 => SegmentFeed::Loop(d, pos),
+            Some((d, pos)) if plays_di => SegmentFeed::Loop(d, pos),
             Some(_) => SegmentFeed::Silence,
             None => SegmentFeed::Live,
         };
@@ -288,13 +289,51 @@ pub fn process_input_f32(
     }
 
     // Push mixed frames to their output routes (lock-free via SPSC).
+    //
+    // #85: when a route's DEVICE runs at another rate than this runtime (a mid
+    // `Output` tapping a second interface), the frames are converted first —
+    // otherwise the route is fed at the wrong pace and its elastic buffer
+    // starves, which is the crackle. Same-rate routes take the untouched path.
+    let mut resamplers = std::mem::take(&mut scratch.route_resamplers);
+    let mut resampled = std::mem::take(&mut scratch.resampled);
     for (route_idx, route) in &scratch.route_arcs {
-        if let Some(frames) = scratch.mixed_per_route.get(route_idx) {
+        let Some(frames) = scratch.mixed_per_route.get(route_idx) else {
+            continue;
+        };
+        if (route.sample_rate - runtime.sample_rate).abs() < f32::EPSILON {
             for &frame in frames {
                 route.buffer.push(frame);
             }
+            continue;
+        }
+        let converter = resamplers.entry(*route_idx).or_insert_with(|| {
+            crate::runtime_route_resample::RouteResampler::new(
+                runtime.sample_rate,
+                route.sample_rate,
+                frames
+                    .first()
+                    .copied()
+                    .unwrap_or(crate::runtime_audio_frame::AudioFrame::Mono(0.0)),
+            )
+        });
+        let Some(converter) = converter.as_mut() else {
+            for &frame in frames {
+                route.buffer.push(frame);
+            }
+            continue;
+        };
+        // Follow the device's real clock, not its label (#85).
+        converter.track(route.buffer.len(), route.buffer.target_level());
+        resampled.clear();
+        for &frame in frames {
+            converter.push(frame, &mut resampled);
+        }
+        for &frame in resampled.iter() {
+            route.buffer.push(frame);
         }
     }
+    scratch.route_resamplers = resamplers;
+    scratch.resampled = resampled;
 
     if let Some(slot) = input_scratches.get_mut(input_index) {
         *slot = scratch;

@@ -389,7 +389,6 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
     Ok(resolved)
 }
 
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_chain_audio_config(
     host: &cpal::Host,
     project: &Project,
@@ -445,30 +444,8 @@ pub(crate) fn resolve_chain_audio_config(
     // the same rate. Map each input cpal index (Nth distinct input device,
     // first-seen over the resolved input order — the same order the engine
     // assigns cpal indices) to its binding's output device id(s).
-    let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
-    for lin in &logical_inputs {
-        let next = device_to_cpal.len();
-        device_to_cpal
-            .entry(lin.device_id.0.clone())
-            .or_insert(next);
-    }
-    let mut output_devices_by_input_cpal: Vec<Vec<String>> = vec![Vec::new(); device_to_cpal.len()];
-    for group in resolve_chain_io_by_binding(chain, registry) {
-        let out_devs: Vec<String> = group
-            .outputs
-            .iter()
-            .map(|o| o.device_id.0.clone())
-            .collect();
-        for inp in &group.inputs {
-            if let Some(&ci) = device_to_cpal.get(&inp.device_id.0) {
-                for d in &out_devs {
-                    if !output_devices_by_input_cpal[ci].contains(d) {
-                        output_devices_by_input_cpal[ci].push(d.clone());
-                    }
-                }
-            }
-        }
-    }
+    let output_devices_by_input_cpal =
+        crate::chain_resolve_io_map::output_devices_by_input_cpal(chain, registry, &logical_inputs);
 
     Ok(ResolvedChainAudioConfig {
         inputs,

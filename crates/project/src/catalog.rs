@@ -102,6 +102,30 @@ pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> 
         })
 }
 
+/// The single catalog entry of an I/O port type, or `None` for a normal
+/// (registry-backed) effect. An I/O port has one model and no knobs — what the
+/// user picks afterwards is its binding endpoint, not a plugin.
+fn io_port_model(effect_type: &str) -> Option<BlockModelCatalogEntry> {
+    let display_name = match effect_type {
+        block_core::constants::EFFECT_TYPE_INPUT => "Input",
+        block_core::constants::EFFECT_TYPE_OUTPUT => "Output",
+        block_core::constants::EFFECT_TYPE_INSERT => "Insert",
+        _ => return None,
+    };
+    Some(BlockModelCatalogEntry {
+        effect_type: effect_type.to_string(),
+        model_id: block_core::constants::IO_PORT_MODEL.to_string(),
+        display_name: display_name.to_string(),
+        brand: block_core::BRAND_NATIVE.to_string(),
+        type_label: "I/O".to_string(),
+        supported_instruments: block_core::ALL_INSTRUMENTS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect(),
+        knob_layout: &[],
+    })
+}
+
 pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalogEntry>, String> {
     log::trace!("looking up models for effect_type='{}'", effect_type);
 
@@ -122,6 +146,15 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                 knob_layout: &[],
             })
             .collect());
+    }
+
+    // I/O port types (#85): `input` / `output` / `insert` are not in the block
+    // registry — they have no parameter schema, they reference a binding
+    // endpoint. They must still answer the model step of the add flow with
+    // their single model, or the GUI stalls right after the type is picked and
+    // the click does nothing at all.
+    if let Some(entry) = io_port_model(effect_type) {
+        return Ok(vec![entry]);
     }
 
     let disk_pkg_instruments: Vec<String> = default_instruments_for_effect_type(effect_type)

@@ -227,6 +227,14 @@ pub fn run_desktop_app(
         use slint::Global;
         crate::Locale::get(&chain_insert_window).set_font_family(boot_font.into());
     }
+    // #85 — the mid-chain I/O port editor and its option models.
+    let chain_port_window =
+        crate::ChainPortWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&chain_port_window).set_font_family(boot_font.into());
+    }
+    let port_draft: Rc<RefCell<Option<crate::state::PortDraft>>> = Rc::new(RefCell::new(None));
     let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let tuner_window = TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -417,6 +425,22 @@ pub fn run_desktop_app(
     chain_insert_window.set_selected_return_device_index(-1);
     chain_insert_window.set_status_message("".into());
     // --- ChainInsertWindow callbacks (extracted to insert_wiring) ---
+    // #85 — the mid-chain I/O port editor's own callbacks.
+    crate::port_wiring::wire_port_window(
+        &window,
+        &chain_port_window,
+        crate::port_wiring::PortWiringCtx {
+            port_draft: port_draft.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            auto_save,
+        },
+    );
     crate::insert_wiring::wire(
         &window,
         &chain_insert_window,
@@ -705,6 +729,8 @@ pub fn run_desktop_app(
     });
     // --- Block-related callback wirings (extracted to desktop_app_block_wiring) ---
     crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
+        chain_port_window: &chain_port_window,
+        port_draft: port_draft.clone(),
         window: &window,
         chain_insert_window: &chain_insert_window,
         selected_block: selected_block.clone(),
