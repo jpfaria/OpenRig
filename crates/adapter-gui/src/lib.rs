@@ -239,6 +239,10 @@ mod tests;
 mod lib_recent_tests;
 
 #[cfg(test)]
+#[path = "lib_ui_index_tests.rs"]
+mod lib_ui_index_tests;
+
+#[cfg(test)]
 mod compact_block_search_wiring_tests;
 
 #[cfg(test)]
