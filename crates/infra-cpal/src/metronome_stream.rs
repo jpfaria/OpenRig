@@ -113,6 +113,17 @@ impl ProjectRuntimeController {
     /// Open the metronome's own output stream on `device_id`. Re-opening on the
     /// device already in use is a no-op, so a settings change never restarts a
     /// running click.
+    ///
+    /// #127: nothing is torn down until the replacement is proven open AND
+    /// started. A click that is already sounding is the one the user can hear,
+    /// so an output change that cannot be honoured — the picked device gone,
+    /// renamed or taken by another app — leaves it playing and returns the
+    /// reason. Closing first left the flags claiming a click with no stream:
+    /// `refresh_metronome_output` does not clear `enabled`, so the beat lamps,
+    /// `LiveSource::metronome` and `openrig://metronome` all read "playing"
+    /// over silence until the app was restarted. The cost is at most one buffer
+    /// where both endpoints carry the click, which only a real output change
+    /// can reach.
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     pub fn start_metronome(&self, device_id: &str, target_channels: &[usize]) -> Result<()> {
         use cpal::traits::{DeviceTrait, StreamTrait};
@@ -125,7 +136,6 @@ impl ProjectRuntimeController {
         {
             return Ok(());
         }
-        self.stop_metronome();
 
         let host = crate::host::get_host();
         let device = crate::find_output_device_by_id(host, device_id)?
@@ -170,11 +180,15 @@ impl ProjectRuntimeController {
         )?;
         stream.play()?;
 
-        *self.metronome_stream.borrow_mut() = Some(MetronomeStreamHandle {
+        // Only now does the click that was playing go: the previous handle is
+        // swapped out and dropped OUTSIDE the borrow, so the stream it owns is
+        // closed with nothing else held.
+        let previous = self.metronome_stream.replace(Some(MetronomeStreamHandle {
             device_id: device_id.to_string(),
             targets,
             stream,
-        });
+        }));
+        drop(previous);
         Ok(())
     }
 

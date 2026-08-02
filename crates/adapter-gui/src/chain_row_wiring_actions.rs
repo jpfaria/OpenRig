@@ -3,8 +3,6 @@
 
 use slint::ComponentHandle;
 
-use application::dispatcher::CommandDispatcher;
-
 use crate::chain_row_wiring::{
     apply_move_chain_down, apply_move_chain_up, shift_selected_chain_index_after_swap, ChainRowCtx,
 };
@@ -142,7 +140,6 @@ pub(crate) fn wire_reorder(window: &AppWindow, ctx: &ChainRowCtx) {
 
 pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
     let project_session = &ctx.project_session;
-    let project_runtime = &ctx.project_runtime;
     let toast_timer = &ctx.toast_timer;
 
     // ── on_di_loop_source_selected ───────────────────────────────────────────
@@ -201,12 +198,11 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
     // dialog crate; chain_row_wiring.rs is forbidden from that — issue #511).
 
     // ── on_di_loop_play ─────────────────────────────────────────────────────
-    // User pressed ▶. Dispatch SetChainDiLoopEnabled { enabled: true } AND
-    // apply the arc to the chain runtime immediately (mirrors wire_mute_inline
-    // in tuner_wiring.rs — dispatch + apply in the same callback, no polling).
+    // User pressed ▶. Dispatch SetChainDiLoopEnabled { enabled: true }; the
+    // dispatcher arms this chain's isolated DI stream (#127), creating the
+    // runtime if none is up (#808).
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         window.on_di_loop_play(move |index| {
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
@@ -219,24 +215,15 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
                 };
                 chain.id.clone()
             };
-            // #808: DI is independent — play with no chain enabled needs a runtime.
-            if crate::runtime_lifecycle::ensure_runtime(&project_runtime, session).is_err() {
-                return;
-            }
-            crate::di_loop_wiring::play_chain_di_loop(
-                &project_runtime,
-                &session.dispatcher,
-                &chain_id,
-            );
+            crate::di_loop_wiring::play_chain_di_loop(session.dispatcher.as_ref(), &chain_id);
         });
     }
 
     // ── on_di_loop_stop ──────────────────────────────────────────────────────
-    // User pressed ■. Dispatch SetChainDiLoopEnabled { enabled: false } AND
-    // clear the chain runtime immediately.
+    // User pressed ■. Dispatch SetChainDiLoopEnabled { enabled: false }; the
+    // dispatcher disarms this chain's stream.
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         window.on_di_loop_stop(move |index| {
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
@@ -249,11 +236,7 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
                 };
                 chain.id.clone()
             };
-            crate::di_loop_wiring::stop_chain_di_loop(
-                &project_runtime,
-                &session.dispatcher,
-                &chain_id,
-            );
+            crate::di_loop_wiring::stop_chain_di_loop(session.dispatcher.as_ref(), &chain_id);
         });
     }
 }

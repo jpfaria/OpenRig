@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::persist_block_editor_draft;
 use crate::compact_block_view::build_compact_blocks;
@@ -33,7 +33,6 @@ pub(crate) struct BlockDrawerSaveDeleteCtx {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub block_editor_persist_timer: Rc<Timer>,
@@ -56,7 +55,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
         eq_band_curves,
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         block_editor_persist_timer,
@@ -87,7 +85,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
                 &block_parameter_items_save,
                 &project_session_save,
                 &project_chains,
-                &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
                 &input_chain_devices.borrow(),

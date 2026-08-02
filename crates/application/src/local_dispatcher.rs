@@ -8,13 +8,20 @@
 //! dispatcher so both sides always see the same `Project` data with no extra
 //! sync step.
 //!
-//! `dispatch` is a thin router: it groups commands by category and delegates
-//! each to the `handle_*` method that owns it — one per sibling
-//! `local_dispatcher_<feature>` module. The read accessors, the dependency-
-//! attach setters, and the shared chain/block borrow helpers live in their own
-//! sibling modules too (`local_dispatcher_queries` / `_attach` / `_access`),
-//! keeping this file to the struct definition, construction, and the router
-//! (issue #792 single-responsibility split).
+//! `dispatch` groups commands by category and delegates each to the
+//! `handle_*` method that owns it — one per sibling `local_dispatcher_<feature>`
+//! module. The read accessors, the dependency-attach setters, and the shared
+//! chain/block borrow helpers live in their own sibling modules too
+//! (`local_dispatcher_queries` / `_attach` / `_access`), keeping this file to
+//! the struct definition and construction (issue #792 single-responsibility
+//! split).
+//!
+//! #127: the single `impl CommandDispatcher for LocalDispatcher` block (Rust
+//! allows only one per (trait, type) pair — E0119 otherwise) lives in
+//! `local_dispatcher_trait.rs`, not here — this file was already at the
+//! line cap before the GUI-facing surface moved onto the trait, and that
+//! impl block's `dispatch`/`poll_async_results` bodies are large enough on
+//! their own that keeping them here left no room.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -22,20 +29,27 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use anyhow::Result;
-
 use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
 use engine::DiPcm;
 use project::project::Project;
 use project::rig::RigProject;
 
-use crate::command::{
-    BlockCommand, ChainCommand, Command, IoBindingCommand, MidiCommand, PluginCommand,
-    ProjectCommand, SelectionCommand, SettingsCommand,
-};
 use crate::di_loader::DiLoopSource;
-use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
+use crate::metronome_state::MetronomeControlState;
+use crate::runtime_control::RuntimeControl;
+
+/// The rate the dispatcher reports when NO audio stream is running: before the
+/// first stream opens, and again once the runtime stops.
+///
+/// It is a REFERENCE, never an assumption about a live stream — a running
+/// stream always overwrites it through `attach_engine_sr` with the rate the
+/// device actually negotiated (issue #723: nothing on the live path may bake
+/// in a fixed rate). Consumers that draw or measure with no device present
+/// (the EQ curve in the block editor, the latency probe on a stopped rig) need
+/// SOME rate to work with, and this is the one they agree on.
+pub const REFERENCE_SAMPLE_RATE: u32 = 48_000;
 use crate::selection_state::SelectionState;
 use crate::tone_doctor_report::{ToneReport, ToneRun};
 
@@ -94,8 +108,9 @@ pub struct LocalDispatcher {
     pub(crate) di_loop_state: RefCell<HashMap<ChainId, (DiLoopSource, Arc<DiPcm>)>>,
 
     /// #614: sample rate used for DI loop decoding + resampling.
-    /// Defaults to 48 000 Hz; the adapter sets the real value via
-    /// `attach_engine_sr` once the audio stream is running.
+    /// [`REFERENCE_SAMPLE_RATE`] while nothing is running; the adapter sets
+    /// the real value via `attach_engine_sr` once the audio stream is running,
+    /// and puts it back when the runtime stops (#127).
     pub(crate) engine_sr: RefCell<u32>,
 
     /// #693: completion channel for command work running on its own
@@ -113,6 +128,32 @@ pub struct LocalDispatcher {
     /// #791: the adapter's live-input source for the doctor. `None` until
     /// attached — a chain with a loaded DI is diagnosable without it.
     pub(crate) tone_doctor_input: RefCell<Option<ToneDoctorInput>>,
+    /// #127: the effective per-machine I/O binding registry, SHARED with the
+    /// frontend (`Rc`, same allocation — the `attach_rig` pattern). The CRUD
+    /// handlers mutate it and persist it; `SetIoBindings` installs it into the
+    /// runtime; the frontend's sync path re-installs the very same handle, so
+    /// an edit issued off the GUI is not reverted at the next chain sync.
+    /// `None` until the frontend attaches one — then nothing is installed,
+    /// rather than wiping the runtime's registry with an empty list.
+    pub(crate) io_bindings: RefCell<Option<Rc<RefCell<Vec<IoBinding>>>>>,
+    /// #127: how runtime-control commands reach the frontend's audio runtime.
+    /// `None` ⇒ this process hosts no runtime (MCP-only, tests): the commands
+    /// still record their state and emit their events, they just have nothing
+    /// to apply the change to.
+    pub(crate) runtime_control: RefCell<Option<Rc<dyn RuntimeControl>>>,
+    /// #127/#14: the metronome's settings, chosen output endpoint, POWER state
+    /// and tap history. It lived in the GUI, which is why a footswitch or an
+    /// MCP client could flip `metronome_enabled` and hear nothing — only the
+    /// GUI's own knob callbacks knew how to turn the event into sound.
+    ///
+    /// Attached by the frontend and owned HERE: `ProjectSession::new` builds a
+    /// fresh state per project open and keeps no clone, so this
+    /// `Rc<RefCell<…>>` is the handle shape rather than a shared allocation.
+    /// The tempo still survives opening another project — it is restored from
+    /// the per-machine `config.yaml` every time (ADR 0003) — while POWER and
+    /// the tap history start over. A dispatcher nobody attached one to keeps
+    /// this private, unpersisted allocation.
+    pub(crate) metronome: RefCell<Rc<RefCell<MetronomeControlState>>>,
 }
 
 /// Completed off-thread command work (#693).
@@ -156,11 +197,14 @@ impl LocalDispatcher {
             io_config_path: RefCell::new(None),
             selection_state: Arc::new(RwLock::new(SelectionState::default())),
             di_loop_state: RefCell::new(HashMap::new()),
-            engine_sr: RefCell::new(48_000),
+            engine_sr: RefCell::new(REFERENCE_SAMPLE_RATE),
             async_done_tx,
             async_done_rx,
             tone_doctor_runs: RefCell::new(HashMap::new()),
             tone_doctor_input: RefCell::new(None),
+            io_bindings: RefCell::new(None),
+            runtime_control: RefCell::new(None),
+            metronome: RefCell::new(Rc::new(RefCell::new(MetronomeControlState::default()))),
         }
     }
 
@@ -170,322 +214,43 @@ impl LocalDispatcher {
     pub fn attach_tone_doctor_input(&self, provider: ToneDoctorInput) {
         *self.tone_doctor_input.borrow_mut() = Some(provider);
     }
-}
 
-impl CommandDispatcher for LocalDispatcher {
-    fn dispatch(&self, cmd: Command) -> Result<Vec<Event>> {
-        // Pure grouping switch: no logic, just routes each command to the
-        // handler that owns its category. Behaviour is byte-identical to the
-        // original flat match — each handler runs the original arm body
-        // unchanged.
-        match cmd {
-            Command::Block(
-                BlockCommand::SetBlockParameterNumber { .. }
-                | BlockCommand::SetBlockParameterBool { .. }
-                | BlockCommand::SetBlockParameterText { .. }
-                | BlockCommand::SelectBlockParameterOption { .. }
-                | BlockCommand::PickBlockParameterFile { .. },
-            ) => self.handle_block_param(cmd),
-
-            Command::Block(
-                BlockCommand::ToggleBlockEnabled { .. }
-                | BlockCommand::ReplaceBlockModel { .. }
-                | BlockCommand::AddBlock { .. }
-                | BlockCommand::InsertPrebuiltBlock { .. },
-            ) => self.handle_block_lifecycle(cmd),
-
-            Command::Settings(SettingsCommand::RefreshAudioDevices) => {
-                self.handle_refresh_audio_devices()
-            }
-
-            Command::Block(
-                BlockCommand::OverwriteBlock { .. }
-                | BlockCommand::RemoveBlock { .. }
-                | BlockCommand::MoveBlock { .. }
-                | BlockCommand::SaveInsertBlock { .. },
-            ) => self.handle_block_edit(cmd),
-
-            Command::Chain(
-                ChainCommand::AddChain { .. }
-                | ChainCommand::ConfigureChain { .. }
-                | ChainCommand::RemoveChain { .. }
-                | ChainCommand::SetChainVolume { .. }
-                | ChainCommand::SetChainIoBindings { .. },
-            ) => self.handle_chain_crud(cmd),
-
-            Command::Chain(
-                ChainCommand::MoveChainUp { .. }
-                | ChainCommand::MoveChainDown { .. }
-                | ChainCommand::ToggleChainEnabled { .. },
-            ) => self.handle_chain_order(cmd),
-
-            Command::Chain(
-                ChainCommand::SaveChain { .. }
-                | ChainCommand::SaveChainInputEndpoints { .. }
-                | ChainCommand::SaveChainOutputEndpoints { .. },
-            ) => self.handle_chain_save(cmd),
-
-            Command::Chain(
-                ChainCommand::SaveChainIo { .. } | ChainCommand::LoadChainPreset { .. },
-            ) => self.handle_chain_io_replace(cmd),
-
-            Command::Project(
-                ProjectCommand::SaveProject
-                | ProjectCommand::LoadProject { .. }
-                | ProjectCommand::CreateProject { .. }
-                | ProjectCommand::UpdateProjectName { .. },
-            )
-            | Command::Settings(SettingsCommand::SaveAudioSettings { .. }) => {
-                self.handle_project(cmd)
-            }
-
-            // #513 / #493: system-side MIDI commands — no project mutation.
-            // The adapter persists `config.yaml` / forwards to the daemon on
-            // each event; the dispatcher just records the intent.
-            Command::Midi(
-                MidiCommand::SaveMidiDevices { .. }
-                | MidiCommand::StartMidiLearn
-                | MidiCommand::StopMidiLearn
-                | MidiCommand::PublishMidiEvent { .. },
-            ) => self.handle_midi_system(cmd),
-
-            // #513 / #493: project-side MIDI mapping — writes `project.midi`.
-            Command::Midi(MidiCommand::SaveMidiMapping { .. }) => self.handle_project(cmd),
-
-            Command::Selection(SelectionCommand::ApplyRigNav { .. }) => self.handle_rig_nav(cmd),
-
-            // #576: offline render — does not mutate the live project,
-            // lives on the Command bus purely for transport-adapter
-            // parity (MCP/gRPC auto-derive the tool via command_schema).
-            Command::Chain(ChainCommand::RenderChain {
-                chain_path,
-                input_path,
-                output_path,
-                start_s,
-                end_s,
-                sample_rate_hz,
-                block_size,
-                bit_depth,
-                tail_ms,
-            }) => {
-                // #693: bad args / missing input still error immediately
-                // (cheap checks); only the render itself is deferred.
-                crate::render_handler::precheck(bit_depth, &input_path)?;
-                // #693: the offline render (file reads + full engine pass +
-                // WAV write) runs on its own task. Completion — success or
-                // failure — surfaces via poll_async_results as
-                // RenderCompleted / Event::Error.
-                let tx = self.async_done_tx.clone();
-                std::thread::Builder::new()
-                    .name("render-chain".into())
-                    .spawn(move || {
-                        let done = match crate::render_handler::run(
-                            chain_path,
-                            input_path,
-                            output_path,
-                            start_s,
-                            end_s,
-                            sample_rate_hz,
-                            block_size,
-                            bit_depth,
-                            tail_ms,
-                        ) {
-                            Ok(ev) => ev,
-                            Err(e) => Event::Error {
-                                message: format!("RenderChain failed: {e}"),
-                            },
-                        };
-                        let _ = tx.send(AsyncDone::Events(vec![done]));
-                    })
-                    .map_err(|e| anyhow::anyhow!("failed to spawn render-chain task: {e}"))?;
-                Ok(vec![])
-            }
-
-            Command::Project(ProjectCommand::CaptureRigEdits) => self.handle_capture_rig_edits(),
-
-            Command::Selection(SelectionCommand::RenameRigPreset { .. }) => {
-                self.handle_rename_rig_preset(cmd)
-            }
-
-            Command::Selection(SelectionCommand::SelectChainBlock { chain, block_index }) => {
-                // #548: record the click in the GUI selection state that
-                // MIDI/MCP/gRPC read (`QueryKind::Selection`). Resolve the
-                // block id from the index inside the project — slots address
-                // blocks by id.
-                {
-                    let project = self.project.borrow();
-                    let block_id = project
-                        .chains
-                        .iter()
-                        .find(|c| c.id == chain)
-                        .and_then(|c| c.blocks.get(block_index))
-                        .map(|b| b.id.0.clone());
-                    if let Ok(mut sel) = self.selection_state.write() {
-                        sel.active_chain = Some(chain.0.clone());
-                        sel.active_block = block_id;
-                    }
-                }
-                Ok(vec![Event::ProjectMutated])
-            }
-
-            Command::Selection(SelectionCommand::SelectActiveChain { chain }) => {
-                self.handle_select_active_chain(chain)
-            }
-
-            Command::Settings(SettingsCommand::SetLanguage { .. }) => self.handle_set_language(cmd),
-
-            Command::Selection(SelectionCommand::SetOutputMuted { .. }) => {
-                self.handle_set_output_muted(cmd)
-            }
-
-            Command::Project(ProjectCommand::RemoveRecentProject { .. }) => {
-                self.handle_remove_recent_project(cmd)
-            }
-
-            Command::Chain(
-                ChainCommand::SaveChainPreset { .. } | ChainCommand::DeleteChainPreset { .. },
-            ) => self.handle_chain_preset(cmd),
-
-            Command::Selection(
-                SelectionCommand::SetTunerEnabled { .. }
-                | SelectionCommand::SetSpectrumEnabled { .. },
-            ) => self.handle_diagnostic_enabled(cmd),
-
-            Command::Metronome(_) => self.handle_metronome(cmd),
-
-            // #791: the Tone Doctor — diagnosis and its measured fix, on the
-            // bus so MCP/gRPC reach the same verdict the GUI panel shows.
-            Command::ToneDoctor(_) => self.handle_tone_doctor(cmd),
-
-            Command::Project(ProjectCommand::CloseProject) => self.handle_close_project(cmd),
-
-            Command::Project(
-                ProjectCommand::RegisterRecentProject { .. }
-                | ProjectCommand::MarkRecentProjectInvalid { .. },
-            ) => self.handle_recent_register(cmd),
-
-            // #513: system-level paths overrides. No project mutation —
-            // the adapter persists `config.yaml` on `Event::PathsSaved`,
-            // mirroring `SaveMidiDevices` (ADR 0003).
-            Command::Settings(
-                SettingsCommand::SetPresetsPath { .. }
-                | SettingsCommand::SetPluginsPath { .. }
-                | SettingsCommand::SetEvaluationsPath { .. },
-            ) => self.handle_paths_system(cmd),
-
-            // #561: hot-reload the plugin catalog (no payload).
-            Command::Plugin(PluginCommand::ReloadPluginCatalog) => {
-                self.handle_reload_plugin_catalog()
-            }
-            // #561 (expanded scope): per-plugin load / unload.
-            Command::Plugin(PluginCommand::LoadPlugin { id }) => self.handle_load_plugin(id),
-            Command::Plugin(PluginCommand::UnloadPlugin { id }) => self.handle_unload_plugin(id),
-
-            // #548: selection / view mutations driven by MIDI slots.
-            Command::Selection(SelectionCommand::SelectActiveChainRelative { delta }) => {
-                self.handle_select_active_chain_relative(delta)
-            }
-            Command::Selection(SelectionCommand::SelectActiveBlockRelative { delta }) => {
-                self.handle_select_active_block_relative(delta)
-            }
-            Command::Selection(SelectionCommand::SetCompactViewEnabled { enabled }) => {
-                self.selection_state
-                    .write()
-                    .expect("selection state poisoned")
-                    .compact_view_enabled = enabled;
-                // #591: emit so the adapter can open/close the compact view
-                // for the active chain — the MIDI footswitch path drains
-                // events and had nothing to act on before.
-                Ok(vec![Event::CompactViewEnabledChanged { enabled }])
-            }
-            Command::Selection(SelectionCommand::ToggleActiveBlockNeighborEnabled) => {
-                self.handle_toggle_active_block_neighbor_enabled()
-            }
-
-            // #712: per-machine MIDI/MCP master switches → config.yaml.
-            Command::Midi(MidiCommand::SetMidiEnabled { enabled }) => {
-                self.handle_set_midi_enabled(enabled)
-            }
-            Command::Settings(SettingsCommand::SetMcpEnabled { enabled }) => {
-                self.handle_set_mcp_enabled(enabled)
-            }
-
-            // #614/#717: per-chain virtual DI loop (source/enabled ephemeral;
-            // output persisted into project via SetChainDiLoopOutput).
-            Command::Chain(
-                ChainCommand::SetChainDiLoopSource { .. }
-                | ChainCommand::SetChainDiLoopEnabled { .. }
-                | ChainCommand::SetChainDiLoopOutput { .. },
-            ) => self.handle_di_loop(cmd),
-
-            // #323: per-chain loopers (membership + params persisted; the
-            // transport is runtime state and travels as an event).
-            Command::Looper(_) => self.handle_looper(cmd),
-
-            // #716: per-machine I/O binding registry (persisted to config.yaml).
-            Command::IoBinding(
-                IoBindingCommand::CreateIoBinding { binding }
-                | IoBindingCommand::UpdateIoBinding { binding },
-            ) => self.handle_create_or_update_io_binding(binding),
-            Command::IoBinding(IoBindingCommand::DeleteIoBinding { id }) => {
-                self.handle_delete_io_binding(id)
-            }
-            Command::IoBinding(IoBindingCommand::RenameIoBinding { id, name }) => {
-                self.handle_rename_io_binding(id, name)
-            }
-            Command::IoBinding(IoBindingCommand::AddIoEndpoint {
-                binding_id,
-                is_input,
-                device_id,
-                channels,
-                mode,
-            }) => self.handle_add_io_endpoint(binding_id, is_input, device_id, channels, mode),
-            Command::IoBinding(IoBindingCommand::RemoveIoEndpoint {
-                binding_id,
-                is_input,
-                endpoint_name,
-            }) => self.handle_remove_io_endpoint(binding_id, is_input, endpoint_name),
-        }
+    /// #127: register the frontend's audio runtime so runtime-control commands
+    /// apply their effect from here instead of from a UI callback. Idempotent
+    /// — the frontend re-attaches whenever it rebuilds its runtime handle.
+    pub fn attach_runtime_control(&self, control: Rc<dyn RuntimeControl>) {
+        *self.runtime_control.borrow_mut() = Some(control);
     }
 
-    /// #693: install completed off-thread DI decodes and emit their
-    /// events. Failures are logged (non-blocking logger) — same policy
-    /// as every other async side-effect.
-    fn poll_async_results(&self) -> Vec<Event> {
-        let mut events = Vec::new();
-        while let Ok(done) = self.async_done_rx.try_recv() {
-            match done {
-                AsyncDone::DiLoad(chain, source, result) => match result {
-                    Ok(arc) => {
-                        self.di_loop_state
-                            .borrow_mut()
-                            .insert(chain.clone(), (source, arc));
-                        events.push(Event::ChainDiLoopSourceChanged { chain });
-                    }
-                    Err(e) => log::error!("DI loop load failed for chain '{}': {e}", chain.0),
-                },
-                AsyncDone::ToneDiagnosis(chain, result) => match result {
-                    Ok(report) => {
-                        self.tone_doctor_runs
-                            .borrow_mut()
-                            .insert(chain.clone(), ToneRun::finished(report.clone()));
-                        events.push(Event::ChainToneDiagnosed { chain, report });
-                    }
-                    Err(e) => {
-                        // A reader-only transport never sees this event, so the
-                        // failure is recorded where it can read it back.
-                        self.tone_doctor_runs
-                            .borrow_mut()
-                            .insert(chain.clone(), ToneRun::failed(e.clone()));
-                        events.push(Event::Error {
-                            message: format!("tone diagnosis failed for chain '{}': {e}", chain.0),
-                        });
-                    }
-                },
-                AsyncDone::Events(completed) => events.extend(completed),
-            }
-        }
-        events
+    /// The attached runtime control, cloned OUT of its `RefCell`.
+    ///
+    /// Always reach the runtime through this: the frontend's sync sequence
+    /// re-attaches the control on its way out, so calling a method while the
+    /// `RefCell` is still borrowed panics with `BorrowMutError`. Cloning one
+    /// `Rc` is the whole cost of not having that landmine.
+    pub(crate) fn runtime_control(&self) -> Option<Rc<dyn RuntimeControl>> {
+        self.runtime_control.borrow().clone()
+    }
+
+    /// #127: adopt the metronome state the frontend built for this session.
+    /// Idempotent.
+    pub fn attach_metronome_state(&self, state: Rc<RefCell<MetronomeControlState>>) {
+        *self.metronome.borrow_mut() = state;
+    }
+
+    /// The metronome state, cloned OUT of its `RefCell` — same discipline as
+    /// [`Self::runtime_control`]: the handler drops the outer borrow before it
+    /// calls into the frontend, which may re-attach on its way back.
+    pub(crate) fn metronome_state(&self) -> Rc<RefCell<MetronomeControlState>> {
+        self.metronome.borrow().clone()
+    }
+
+    /// #127: share the frontend's per-machine I/O binding registry handle, so
+    /// the binding commands mutate the SAME allocation the frontend renders
+    /// from and re-installs on every runtime sync. Same pattern as
+    /// [`Self::attach_rig`]. Idempotent.
+    pub fn attach_io_bindings(&self, registry: Rc<RefCell<Vec<IoBinding>>>) {
+        *self.io_bindings.borrow_mut() = Some(registry);
     }
 }
 

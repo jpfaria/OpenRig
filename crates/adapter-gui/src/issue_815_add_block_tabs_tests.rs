@@ -48,7 +48,7 @@ fn new_block_ctx() -> BlockEditorWindowSetupCtx {
         block_id: None,
         project_session: empty_session(),
         project_chains: Rc::new(VecModel::default()),
-        project_runtime: Rc::new(RefCell::new(None)),
+        block_stream_reads: Rc::new(application::live_source::NoLiveSource),
         saved_project_snapshot: Rc::new(RefCell::new(None)),
         project_dirty: Rc::new(RefCell::new(false)),
         input_chain_devices: Rc::new(RefCell::new(Vec::new())),

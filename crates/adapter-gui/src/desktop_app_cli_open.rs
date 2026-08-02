@@ -14,7 +14,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 use slint::VecModel;
 
 use crate::project_ops::{
@@ -25,7 +24,7 @@ use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 #[allow(clippy::too_many_arguments)]

@@ -278,15 +278,7 @@ fn io_bindings_ui_interactions() {
         let ps = Rc::new(RefCell::new(None));
         let in_dev = Rc::new(RefCell::new(Vec::new()));
         let out_dev = Rc::new(RefCell::new(Vec::new()));
-        crate::settings::io_bindings::wire(
-            &app,
-            &psw,
-            ps,
-            cfg.clone(),
-            in_dev,
-            out_dev,
-            Rc::new(RefCell::new(None)),
-        );
+        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
         psw.show().unwrap();
 
         // The confirm-rename button calls rename-io-binding(id, draft); simulate
@@ -315,7 +307,7 @@ fn io_bindings_ui_interactions() {
     //    a stub-callback test would miss.
     {
         use domain::io_binding::IoBinding;
-        use infra_cpal::AudioDeviceDescriptor;
+        use domain::AudioDeviceDescriptor;
         use infra_filesystem::AppConfig;
 
         let app = AppWindow::new().unwrap();
@@ -337,15 +329,7 @@ fn io_bindings_ui_interactions() {
             channels: 2,
         }]));
         let out_dev = Rc::new(RefCell::new(Vec::new()));
-        crate::settings::io_bindings::wire(
-            &app,
-            &psw,
-            ps,
-            cfg.clone(),
-            in_dev,
-            out_dev,
-            Rc::new(RefCell::new(None)),
-        );
+        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
         psw.show().unwrap();
 
         // Expand the binding so its input editor materialises (collapsed shows
@@ -413,15 +397,7 @@ fn io_bindings_ui_interactions() {
         let ps = Rc::new(RefCell::new(None));
         let in_dev = Rc::new(RefCell::new(Vec::new()));
         let out_dev = Rc::new(RefCell::new(Vec::new()));
-        crate::settings::io_bindings::wire(
-            &app,
-            &psw,
-            ps,
-            cfg.clone(),
-            in_dev,
-            out_dev,
-            Rc::new(RefCell::new(None)),
-        );
+        crate::settings::io_bindings::wire(&app, &psw, ps, cfg.clone(), in_dev, out_dev);
         psw.show().unwrap();
 
         assert!(

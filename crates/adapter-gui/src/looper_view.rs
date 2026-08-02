@@ -132,7 +132,15 @@ pub fn looper_items(
     runtime_live: bool,
     preset_ids: &[String],
 ) -> Vec<LooperItem> {
-    looper_items_with_recorded(chain, statuses, sample_rate, &[], registry, runtime_live, preset_ids)
+    looper_items_with_recorded(
+        chain,
+        statuses,
+        sample_rate,
+        &[],
+        registry,
+        runtime_live,
+        preset_ids,
+    )
 }
 
 /// Rows built from the chain's PERSISTED config alone — no live runtime yet.
@@ -176,19 +184,31 @@ pub fn apply_looper_endpoints_to_rows(
         let Some(mut row) = project_chains.row_data(idx) else {
             continue;
         };
-        let (inputs, outputs) =
-            project::binding_discovery::chain_endpoint_labels(chain, registry);
-        let cur_in: Vec<String> = row.looper_input_options.iter().map(|s| s.to_string()).collect();
-        let cur_out: Vec<String> =
-            row.looper_output_options.iter().map(|s| s.to_string()).collect();
+        let (inputs, outputs) = project::binding_discovery::chain_endpoint_labels(chain, registry);
+        let cur_in: Vec<String> = row
+            .looper_input_options
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let cur_out: Vec<String> = row
+            .looper_output_options
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         if cur_in == inputs && cur_out == outputs {
             continue;
         }
         row.looper_input_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
-            inputs.into_iter().map(slint::SharedString::from).collect::<Vec<_>>(),
+            inputs
+                .into_iter()
+                .map(slint::SharedString::from)
+                .collect::<Vec<_>>(),
         )));
         row.looper_output_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
-            outputs.into_iter().map(slint::SharedString::from).collect::<Vec<_>>(),
+            outputs
+                .into_iter()
+                .map(slint::SharedString::from)
+                .collect::<Vec<_>>(),
         )));
         project_chains.set_row_data(idx, row);
     }
@@ -218,12 +238,19 @@ pub fn apply_looper_presets_to_rows(
                 .collect(),
             None => Vec::new(),
         };
-        let cur: Vec<String> = row.looper_preset_options.iter().map(|s| s.to_string()).collect();
+        let cur: Vec<String> = row
+            .looper_preset_options
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         if cur == options {
             continue;
         }
         row.looper_preset_options = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(
-            options.into_iter().map(slint::SharedString::from).collect::<Vec<_>>(),
+            options
+                .into_iter()
+                .map(slint::SharedString::from)
+                .collect::<Vec<_>>(),
         )));
         project_chains.set_row_data(idx, row);
     }

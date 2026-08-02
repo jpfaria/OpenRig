@@ -1,42 +1,50 @@
 //! TunerWindow live session — owns the per-row sample taps, accumulators and
 //! pitch detectors that drive the row model.
 //!
-//! The audio thread pushes samples into per-channel SPSC rings (registered via
-//! [`infra_cpal::ProjectRuntimeController::subscribe_input_tap`]). On a UI
-//! timer the session drains each ring into a small accumulator buffer; once
-//! the buffer reaches `pitch_yin::BUFFER_SIZE` (≈85 ms @ 48 kHz) it is fed
-//! to a [`PitchDetector`] and the resulting `PitchUpdate` is reflected on the
-//! row model via [`TunerRow`].
+//! The audio thread pushes samples into per-channel rings behind ONE
+//! subscription per input ([`TapPoint::InputChannels`]). On a UI timer the
+//! session drains each channel into a small accumulator buffer; once the
+//! buffer reaches `pitch_yin::BUFFER_SIZE` (≈85 ms @ 48 kHz) it is fed to a
+//! [`PitchDetector`] and the resulting `PitchUpdate` is reflected on the row
+//! model via [`TunerRow`].
+//!
+//! #127: the session reaches the audio through `application::audio_taps`, never
+//! through the backend. YIN runs here, next to the audio, because that is what
+//! makes the raw window free to read; a remote frontend is served the RESULT
+//! (`LiveSource::tuner` / `openrig://tuner`) and needs no samples of its own.
 
 use std::sync::Arc;
 
+use application::audio_taps::{AudioTap, AudioTaps, TapPoint};
 use domain::io_binding::IoBinding;
-use engine::spsc::SpscRing;
-use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE};
-use infra_cpal::ProjectRuntimeController;
+use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE, DEFAULT_REFERENCE_HZ};
 use project::project::Project;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 
 use crate::TunerRow;
 
-/// Tuner default reference (440 Hz). Per-row reference would require a UI control.
-pub const REFERENCE_HZ: f32 = 440.0;
 /// Capacity per channel ring: ≥ BUFFER_SIZE × 2 so we never lose samples between
 /// UI ticks under any reasonable timer cadence.
 const RING_CAPACITY: usize = BUFFER_SIZE * 4;
 
 /// One pitch-detection pipeline per (chain, input, channel).
+///
+/// The whole input shares ONE subscription — a tap per channel would be N
+/// taps on the audio callback where the engine needs one — so a row holds the
+/// shared handle plus the channel index it reads.
 struct RowState {
-    ring: Arc<SpscRing<f32>>,
+    tap: Arc<dyn AudioTap>,
+    channel: usize,
     sample_buf: Vec<f32>,
     detector: PitchDetector,
 }
 
 impl RowState {
-    fn new(ring: Arc<SpscRing<f32>>, sample_rate: usize, reference_hz: f32) -> Self {
+    fn new(tap: Arc<dyn AudioTap>, channel: usize, sample_rate: usize, reference_hz: f32) -> Self {
         Self {
-            ring,
+            tap,
+            channel,
             sample_buf: Vec::with_capacity(BUFFER_SIZE * 2),
             detector: PitchDetector::new(sample_rate, reference_hz),
         }
@@ -138,18 +146,14 @@ pub struct TunerSession {
 impl TunerSession {
     /// Build a tuner session for the given project: subscribe taps for every
     /// active input channel of every enabled chain.
-    pub fn build(
-        project: &Project,
-        controller: &ProjectRuntimeController,
-        registry: &[IoBinding],
-    ) -> Self {
+    pub fn build(project: &Project, taps: &dyn AudioTaps, registry: &[IoBinding]) -> Self {
         let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::<TunerRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
         let mut identities: Vec<RowIdentity> = Vec::new();
 
         // The rate the live streams actually run at — authoritative fallback
         // for inputs without a saved per-device setting (issue #723).
-        let live_sample_rate = controller.sample_rate();
+        let live_sample_rate = taps.live_sample_rate();
 
         for chain in &project.chains {
             if !chain.enabled {
@@ -179,22 +183,27 @@ impl TunerSession {
                 let max_channel = *entry.channels.iter().max().unwrap_or(&0);
                 let total_channels = max_channel + 1;
 
-                let rings = controller.subscribe_input_tap(
-                    &chain.id,
-                    input_index,
-                    total_channels,
-                    &entry.channels,
+                let Some(tap) = taps.subscribe(
+                    &TapPoint::InputChannels {
+                        chain: chain.id.clone(),
+                        input: input_index,
+                        total_channels,
+                        channels: entry.channels.clone(),
+                    },
                     RING_CAPACITY,
-                );
+                ) else {
+                    continue;
+                };
 
                 let chain_label = chain
                     .description
                     .clone()
                     .unwrap_or_else(|| chain.id.0.clone());
 
-                for (ch_pos, (channel, ring)) in
-                    entry.channels.iter().zip(rings.into_iter()).enumerate()
-                {
+                // One row per channel the subscription actually carries — the
+                // old code zipped the rings it got back, so a partial answer
+                // must still not invent rows.
+                for (ch_pos, channel) in entry.channels.iter().enumerate().take(tap.channels()) {
                     let ch_label = if entry.channels.len() == 1 {
                         String::new()
                     } else if ch_pos == 0 {
@@ -212,7 +221,12 @@ impl TunerSession {
                         ch_label
                     );
                     rows_model.push(placeholder_row(label));
-                    row_states.push(RowState::new(ring, sample_rate, REFERENCE_HZ));
+                    row_states.push(RowState::new(
+                        Arc::clone(&tap),
+                        ch_pos,
+                        sample_rate,
+                        DEFAULT_REFERENCE_HZ,
+                    ));
                     identities.push(RowIdentity {
                         chain: chain.id.0.clone(),
                         input: input_index,
@@ -250,8 +264,13 @@ impl TunerSession {
     /// Drain rings, run the detector when enough samples accumulated, and
     /// update the row model. Call from a UI timer (~30 Hz is plenty).
     pub fn tick(&mut self) {
+        let mut window: Vec<f32> = Vec::new();
         for (idx, state) in self.row_states.iter_mut().enumerate() {
-            while let Some(s) = state.ring.pop() {
+            window.clear();
+            state
+                .tap
+                .drain_channel(state.channel, usize::MAX, &mut window);
+            for s in window.drain(..) {
                 if state.sample_buf.len() >= BUFFER_SIZE * 2 {
                     state.sample_buf.drain(..BUFFER_SIZE);
                 }
@@ -278,7 +297,7 @@ impl TunerSession {
                     PitchUpdate::Update { note, cents, freq } => {
                         if let Some(mut row) = self.rows_model.row_data(idx) {
                             row.note = note.into();
-                            row.octave = freq_to_octave(freq, REFERENCE_HZ);
+                            row.octave = freq_to_octave(freq, DEFAULT_REFERENCE_HZ);
                             row.cents = cents;
                             row.frequency = freq;
                             row.active = true;

@@ -48,7 +48,16 @@ use application::command_schema::command_variant_names;
 /// (`AddChainLooper`/`RemoveChainLooper`/`SetChainLooperTransport`/`Param`/
 /// `Input`/`Output`/`AudioFile`/`Preset`) — the per-chain looper, incl.
 /// phase-2 tone independence (`SetChainLooperPreset`).
-const COMMAND_VARIANT_COUNT: usize = 93;
+/// #127 bumped to 94 with `SetIoBindings` — installing the effective I/O
+/// binding registry into the LIVE runtime was reachable only from the GUI
+/// (it called `ProjectRuntimeController::set_io_bindings` directly).
+/// #127 bumped to 95 with `SyncChainRuntime` — bringing ONE chain's live
+/// runtime back in step with the project was a UI-only call
+/// (`sync_live_chain_runtime` inside a Slint closure).
+/// #127 bumped to 96 with `StopProjectRuntime` — STOPPING the rig was
+/// reachable only from the GUI's back-to-launcher button, so a client that
+/// started the audio (a chain enable, a DI play) could not silence it again.
+const COMMAND_VARIANT_COUNT: usize = 96;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

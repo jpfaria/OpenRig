@@ -4,14 +4,14 @@
 use slint::ComponentHandle;
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use project::catalog::{model_brand, model_display_name, model_type_label};
 
 use crate::helpers::show_child_window;
+use crate::helpers::system_language;
 use crate::plugin_info;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{load_screenshot_image, replace_project_chains, set_selected_block};
-use crate::runtime_lifecycle::{sync_live_chain_runtime, system_language};
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::{AppWindow, BlockEditorWindow, PluginInfoWindow};
 
 use crate::block_editor_window_lifecycle::BlockEditorWindowLifecycleCtx;
@@ -25,7 +25,6 @@ pub(crate) fn wire_block_delete(
     let win_timer = &ctx.win_timer;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -73,7 +72,6 @@ pub(crate) fn wire_block_delete(
         let win_draft = win_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -127,7 +125,7 @@ pub(crate) fn wire_block_delete(
                 }
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-window.delete: {e}");
                 if let Some(w) = weak_main.upgrade() {
                     w.set_block_drawer_status_message(e.to_string().into());

@@ -1,20 +1,23 @@
-//! Frontend side of the read bus: resolves every [`QueryKind`] that needs
-//! the GUI thread's live state (`!Send` project, runtime meters, analyzer
-//! sessions) into the serialized payload a transport hands back.
+//! Frontend side of the read bus: hands the GUI thread's live state
+//! (`!Send` project, runtime meters, analyzer sessions) to the one
+//! [`QueryKind`] resolver.
 //!
-//! Extracted from `desktop_app` (#829) so the resolver can grow with the
-//! read surface without inflating the window bootstrap, and so each arm is
-//! one call into `application::query*` — the adapter never re-derives what
-//! domain code already serializes.
+//! #831: this file used to carry its own copy of the `QueryKind` match and
+//! decide, per read, what the GUI answers — which is how the payloads
+//! drifted between transports. It now only borrows what a read needs and
+//! calls [`application::read::resolve`]; the single match lives in
+//! `application::read`, and everything live comes from [`GuiLiveSource`].
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::bridge::QueryKind;
-use slint::{Model, VecModel};
+use application::read::{resolve, ReadContext};
+use slint::VecModel;
 
 use infra_cpal::ProjectRuntimeController;
 
+use crate::gui_live_source::GuiLiveSource;
 use crate::spectrum_session::SpectrumSession;
 use crate::state::ProjectSession;
 use crate::tuner_session::TunerSession;
@@ -34,166 +37,33 @@ pub(crate) struct QueryResolver<'a> {
 
 impl QueryResolver<'_> {
     pub(crate) fn resolve(&self, kind: &QueryKind) -> Result<String, String> {
-        let project = &self.session.project;
-        match kind {
-            QueryKind::ProjectYaml => {
-                infra_yaml::serialize_project(&project.borrow()).map_err(|e| e.to_string())
-            }
-            QueryKind::Devices => infra_cpal::list_devices()
-                .map(|d| d.join("\n"))
-                .map_err(|e| e.to_string()),
-            QueryKind::Ids => Ok(application::query::list_ids(&project.borrow())),
-            QueryKind::ChainMeters => Ok(self.chain_meters()),
-            // #829: the tuner / spectrum numbers the user reads on screen.
-            QueryKind::TunerReadings => Ok(self.tuner_readings()),
-            QueryKind::SpectrumReadings => Ok(self.spectrum_readings()),
-            QueryKind::DiLoopState => Ok(self.di_loop_state()),
-            // #323: one chain's loopers — persisted params merged with the live
-            // transport state, at the chain's real rate (no fictional 48 kHz).
-            QueryKind::ChainLoopers { chain } => {
-                let proj = project.borrow();
-                let c = proj
-                    .chains
-                    .iter()
-                    .find(|c| &c.id == chain)
-                    .ok_or_else(|| format!("chain not found: {}", chain.0))?;
-                let rt = self.runtime.borrow();
-                match rt.as_ref() {
-                    Some(controller) => Ok(application::query_loopers::loopers_json(
-                        c,
-                        &controller.chain_looper_statuses(chain),
-                        controller.sample_rate(),
-                    )),
-                    None => Err("no live audio runtime — loopers report nothing \
-                                 until the project is started"
-                        .to_string()),
-                }
-            }
-            QueryKind::ChainLatency { chain } => application::query_latency::chain_latency_report(
-                &project.borrow(),
-                &self.session.io_bindings.borrow(),
-                chain,
-                self.session.dispatcher.engine_sr() as f32,
-            ),
-            QueryKind::ListChainPresets { chain } => {
-                // #554: the chain's preset bank, served from the in-memory
-                // RigProject so MCP / gRPC see the same list the GUI shows
-                // in the chain-title combobox.
-                match self.session.rig.as_ref() {
-                    Some(rig) => application::query::list_chain_presets(&rig.borrow(), chain),
-                    None => Err("no rig attached to the session".to_string()),
-                }
-            }
-            QueryKind::ListProjectPresets => {
-                // #554 follow-up: project-level preset pool
-                // (RigProject.presets in memory). A preset can sit here
-                // without being wired to any input bank yet.
-                match self.session.rig.as_ref() {
-                    Some(rig) => Ok(application::query::list_project_presets(&rig.borrow())),
-                    None => Err("no rig attached to the session".to_string()),
-                }
-            }
-            // #561 (expanded scope): plugin catalog reads — same pure
-            // helpers MCP would call (process-wide registry, no project
-            // state).
-            QueryKind::ListPluginCatalog => Ok(application::query::list_plugin_catalog()),
-            QueryKind::GetPlugin { id } => Ok(application::query::get_plugin(id)),
-            QueryKind::FindPlugins { query } => Ok(application::query::find_plugins(query)),
-            // #572: per-plugin parameter schema (catalog-level).
-            QueryKind::GetPluginParams { plugin_id } => {
-                Ok(application::query::get_plugin_params(plugin_id))
-            }
-            // #572: per-block-instance descriptors (schema + current value).
-            QueryKind::GetBlockParams { chain, block } => {
-                application::query::get_block_params(&project.borrow(), chain, block)
-            }
-            // #582: resolved system paths (reloads config.yaml).
-            QueryKind::Paths => Ok(application::query::resolved_paths_json()),
-            // #791: objective quality report, measured offline.
-            QueryKind::ChainQualityReport { chain } => {
-                application::query_chain_quality::chain_quality_report(&project.borrow(), chain)
-            }
-            // #791: the Tone Doctor's last run, read back from dispatcher
-            // state — MCP sees exactly what the panel is showing.
-            QueryKind::ChainToneReport { chain } => {
-                Ok(self.session.dispatcher.tone_report_json(chain))
-            }
-        }
-    }
-
-    /// `<chain id>\t<in dBFS>\t<out dBFS>` per line — the numbers the IN/OUT
-    /// bars show, read from the same rows.
-    fn chain_meters(&self) -> String {
+        // Every borrow is held for exactly this call — the read path never
+        // mutates, so the project stays borrowed while the resolver reads
+        // it and the live source reads the rows aligned with it.
         let project = self.session.project.borrow();
-        let mut out = String::new();
-        for (idx, chain) in project.chains.iter().enumerate() {
-            let (in_db, out_db) = self
-                .chain_rows
-                .row_data(idx)
-                .map(|r| (r.meter_in_dbfs, r.meter_out_dbfs))
-                .unwrap_or((
-                    engine::output_meter::SILENT_DBFS,
-                    engine::output_meter::SILENT_DBFS,
-                ));
-            out.push_str(&format!("{}\t{:.1}\t{:.1}\n", chain.id.0, in_db, out_db));
-        }
-        out
-    }
-
-    fn tuner_readings(&self) -> String {
-        let session = self.tuner.borrow();
-        let rows = session
-            .as_ref()
-            .map(TunerSession::readings)
-            .unwrap_or_default();
-        application::query_analyzers::tuner_readings_json(
-            session.is_some(),
-            crate::tuner_session::REFERENCE_HZ,
-            &rows,
-        )
-    }
-
-    /// Per-chain DI loop state, read from the live controller — the same
-    /// `di_stream_active` / `di_playback_peaks` the chain tile shows.
-    fn di_loop_state(&self) -> String {
-        let runtime = self.runtime.borrow();
-        let project = self.session.project.borrow();
-        let rows: Vec<application::query_di::DiLoopReading> = project
-            .chains
-            .iter()
-            .map(|chain| {
-                let playing = runtime
-                    .as_ref()
-                    .map(|c| c.di_stream_active(&chain.id))
-                    .unwrap_or(false);
-                let meter = crate::di_meter::di_meter_from_peaks(
-                    runtime
-                        .as_ref()
-                        .and_then(|c| c.di_playback_peaks(&chain.id)),
-                    playing,
-                );
-                application::query_di::DiLoopReading {
-                    chain: chain.id.0.clone(),
-                    playing,
-                    in_dbfs: meter.in_dbfs,
-                    out_dbfs: meter.out_dbfs,
-                    source: self.session.dispatcher.di_loop_source_for_chain(&chain.id),
-                }
-            })
-            .collect();
-        application::query_di::di_loop_state_json(&rows)
-    }
-
-    fn spectrum_readings(&self) -> String {
-        let session = self.spectrum.borrow();
-        let rows = session
-            .as_ref()
-            .map(SpectrumSession::readings)
-            .unwrap_or_default();
-        application::query_analyzers::spectrum_readings_json(
-            session.is_some(),
-            &feature_dsp::spectrum_fft::BAND_FREQS,
-            &rows,
+        let rig = self.session.rig.as_ref().map(|rig| rig.borrow());
+        let io_bindings = self.session.io_bindings.borrow();
+        let live = GuiLiveSource {
+            project: &project,
+            chain_rows: self.chain_rows,
+            io_bindings: &io_bindings,
+            tuner: self.tuner,
+            spectrum: self.spectrum,
+            runtime: self.runtime,
+        };
+        resolve(
+            kind,
+            &ReadContext {
+                project: &project,
+                rig: rig.as_deref(),
+                io_bindings: &io_bindings,
+                dispatcher: self.session.dispatcher.as_ref(),
+                live: &live,
+            },
         )
     }
 }
+
+#[cfg(test)]
+#[path = "mcp_query_resolver_tests.rs"]
+mod tests;

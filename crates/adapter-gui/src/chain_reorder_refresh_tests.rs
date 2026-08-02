@@ -14,7 +14,6 @@ use crate::project_ops::create_new_project_session;
 use crate::state::ProjectSession;
 use application::chain_factory::{build_default_chain, DefaultChainParams, EndpointSpec};
 use application::command::{ChainCommand, Command, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use std::path::PathBuf;
 use tempfile::TempDir;

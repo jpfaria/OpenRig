@@ -1,76 +1,12 @@
+//! The knob vocabulary and the output-endpoint resolution.
+//!
+//! #127: the tap-tempo history and the config→settings restore that used to be
+//! tested here moved with the state itself, to
+//! `application::metronome_state` — same assertions, one owner.
+
 use super::*;
 
-fn ms(n: u64) -> Duration {
-    Duration::from_millis(n)
-}
-
-// ── tap_bpm ──────────────────────────────────────────────────────────────
-
-#[test]
-fn two_taps_give_the_interval_bpm() {
-    // Two taps half a second apart is one interval — 120 BPM.
-    assert_eq!(tap_bpm(&[ms(500)]), Some(120.0));
-}
-
-#[test]
-fn a_single_tap_yields_nothing() {
-    // One tap produces no interval, so there is no tempo to report yet.
-    assert_eq!(tap_bpm(&[]), None);
-}
-
-#[test]
-fn a_gap_above_two_seconds_restarts_the_count() {
-    // The player stopped, thought about it, and counted off again: everything
-    // before the long gap is a different count and must not drag the average.
-    assert_eq!(
-        tap_bpm(&[ms(1000), ms(1000), ms(2500), ms(500), ms(500)]),
-        Some(120.0)
-    );
-    // A long gap as the LAST interval leaves a single fresh tap — nothing yet.
-    assert_eq!(tap_bpm(&[ms(500), ms(500), ms(2500)]), None);
-}
-
-#[test]
-fn only_the_last_four_intervals_count() {
-    // Six intervals: averaging all of them gives 90 BPM, the last four give
-    // 120 — the window has to follow the player, not their warm-up.
-    assert_eq!(
-        tap_bpm(&[ms(1000), ms(1000), ms(500), ms(500), ms(500), ms(500)]),
-        Some(120.0)
-    );
-}
-
-#[test]
-fn result_is_clamped_to_the_bpm_range() {
-    // 100 ms between taps is 600 BPM — past what the generator supports.
-    assert_eq!(tap_bpm(&[ms(100)]), Some(BPM_MAX));
-    // Two seconds exactly is still one count (not a reset) and lands on the
-    // slow end of the range.
-    assert_eq!(tap_bpm(&[ms(2000)]), Some(BPM_MIN));
-}
-
-// ── the tap history on the session ───────────────────────────────────────
-
-fn session() -> MetronomeSession {
-    MetronomeSession::from_config(&MetronomeConfig::default())
-}
-
-#[test]
-fn the_first_tap_of_a_count_off_changes_nothing() {
-    let mut s = session();
-    assert_eq!(s.tap_at(Instant::now()), None);
-}
-
-#[test]
-fn four_taps_at_a_steady_tempo_report_it() {
-    let mut s = session();
-    let start = Instant::now();
-    let mut bpm = None;
-    for beat in 0..4 {
-        bpm = s.tap_at(start + Duration::from_millis(500 * beat));
-    }
-    assert_eq!(bpm, Some(120.0));
-}
+use engine::metronome_state::{MetronomeSettings, Subdivision, Timbre};
 
 // ── knob index ↔ command key ─────────────────────────────────────────────
 
@@ -82,10 +18,10 @@ fn the_time_signature_knob_walks_the_seven_supported_bars() {
 
 #[test]
 fn the_time_signature_knob_rests_on_four_four() {
-    let s = session();
-    assert_eq!(s.time_signature_index(), 2);
-    assert_eq!(s.time_signature_label(), "4/4");
-    assert_eq!(s.beats_per_bar(), 4);
+    let beats = MetronomeSettings::default().beats_per_bar;
+    assert_eq!(beats, 4);
+    assert_eq!(time_signature_index(beats), 2);
+    assert_eq!(time_signature_label(beats), "4/4");
 }
 
 #[test]
@@ -117,53 +53,36 @@ fn a_knob_index_past_the_last_position_stays_on_the_last_one() {
 
 #[test]
 fn an_event_key_comes_back_as_the_knob_position_that_produced_it() {
-    let mut s = session();
-    s.set_subdivision_key("triplets");
-    assert_eq!(s.subdivision_index(), 2);
-    assert_eq!(s.subdivision_label(), "1/8T");
-    s.set_timbre_key("beep");
-    assert_eq!(s.timbre_index(), 2);
+    assert_eq!(subdivision_index("triplets"), 2);
+    assert_eq!(subdivision_label("triplets"), "1/8T");
+    assert_eq!(timbre_index("beep"), 2);
 }
 
-// ── persisted config → window state ──────────────────────────────────────
-
 #[test]
-fn the_saved_config_comes_back_on_every_control() {
-    let config = MetronomeConfig {
+fn a_snapshot_from_the_dispatcher_lands_on_every_knob() {
+    // Whatever the dispatcher owns is what the window shows — including a
+    // value only another transport could have set.
+    let settings = MetronomeSettings {
         bpm: 96.0,
         beats_per_bar: 6,
-        subdivision: "sixteenths".into(),
-        timbre: "wood".into(),
+        subdivision: Subdivision::Sixteenths,
+        timbre: Timbre::Wood,
         volume: 0.4,
         count_in: true,
-        output_device: Some("dev:1".into()),
     };
-    let s = MetronomeSession::from_config(&config);
-    assert_eq!(s.bpm(), 96.0);
-    assert_eq!(s.time_signature_index(), 4);
-    assert_eq!(s.time_signature_label(), "6/8");
-    assert_eq!(s.subdivision_index(), 3);
-    assert_eq!(s.timbre_index(), 1);
-    assert_eq!(s.volume(), 0.4);
-    assert!(s.count_in());
-    assert_eq!(s.output_device(), Some("dev:1"));
+    assert_eq!(time_signature_index(settings.beats_per_bar), 4);
+    assert_eq!(time_signature_label(settings.beats_per_bar), "6/8");
+    assert_eq!(subdivision_index(settings.subdivision.key()), 3);
+    assert_eq!(timbre_index(settings.timbre.key()), 1);
 }
 
 #[test]
-fn a_config_written_by_hand_cannot_push_the_generator_out_of_range() {
-    let config = MetronomeConfig {
-        bpm: 9000.0,
-        volume: 4.0,
-        subdivision: "quintuplets".into(),
-        timbre: "gong".into(),
-        ..MetronomeConfig::default()
-    };
-    let s = MetronomeSession::from_config(&config);
-    assert_eq!(s.bpm(), BPM_MAX);
-    assert_eq!(s.volume(), 1.0);
-    // Unknown enum names fall back to the defaults rather than to nothing.
-    assert_eq!(s.subdivision_key(), "off");
-    assert_eq!(s.timbre_key(), "click");
+fn a_key_no_knob_position_carries_rests_on_the_first_one() {
+    // The dispatcher rejects an unknown key on a command, but a hand-edited
+    // `config.yaml` still has to render — on a real position, never at random.
+    assert_eq!(subdivision_index("quintuplets"), 0);
+    assert_eq!(subdivision_label("quintuplets"), "1/4");
+    assert_eq!(timbre_index("gong"), 0);
 }
 
 // ── #14: output selection from the project's I/O bindings ─────────────────

@@ -13,14 +13,13 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use application::command::{BlockCommand, ChainCommand, Command};
-use application::dispatcher::CommandDispatcher;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::IoBinding;
 
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{PortDraft, ProjectSession};
-use crate::sync_live_chain_runtime;
 use crate::{AppWindow, ChainPortWindow, ProjectChainItem};
 
 /// The bindings the port may point at, in registry order.
@@ -65,7 +64,6 @@ pub(crate) struct PortWiringCtx {
     pub port_draft: Rc<RefCell<Option<PortDraft>>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -203,7 +201,10 @@ pub(crate) fn wire_port_window(
                 pw.set_show_endpoint_warning(true);
                 return;
             }
-            if let Err(e) = sync_live_chain_runtime(&ctx_save.project_runtime, session, &chain_id) {
+            // #127: the endpoint change is a GRAPH change, so the chain has to
+            // be rebuilt — asked for on the bus, never by calling the
+            // controller from here. Scoped to this chain by identity.
+            if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("port save runtime sync error: {e}");
             }
             replace_project_chains(
@@ -262,7 +263,15 @@ pub(crate) fn wire_port_window(
                 log::error!("port toggle error: {e}");
                 return;
             }
-            let _ = sync_live_chain_runtime(&ctx_toggle.project_runtime, session, &chain_id);
+            // #85/#127: a PORT is not a processor — `runtime_block_builders`
+            // skips Input/Output as routing metadata and `runtime_segments`
+            // splits the chain on the enabled ones. So the #522 in-place toggle
+            // the handler applies finds no node and changes nothing audible;
+            // only a rebuild re-splits the chain into its pipelines. Asked for
+            // on the bus, scoped to this chain by identity.
+            if let Err(e) = request_chain_sync(session, &chain_id) {
+                log::error!("port toggle runtime sync error: {e}");
+            }
             replace_project_chains(
                 &ctx_toggle.project_chains,
                 &session.project.borrow(),
@@ -319,7 +328,10 @@ pub(crate) fn wire_port_window(
                 log::error!("port delete error: {e}");
                 return;
             }
-            let _ = sync_live_chain_runtime(&ctx_del.project_runtime, session, &chain_id);
+            // #127: `RemoveBlock` changes the graph and applies no runtime
+            // effect of its own, so the rebuild is requested on the bus — the
+            // same road `block_delete_wiring` takes.
+            let _ = request_chain_sync(session, &chain_id);
             replace_project_chains(
                 &ctx_del.project_chains,
                 &session.project.borrow(),
@@ -351,7 +363,6 @@ impl PortWiringCtx {
             port_draft: self.port_draft.clone(),
             project_session: self.project_session.clone(),
             project_chains: self.project_chains.clone(),
-            project_runtime: self.project_runtime.clone(),
             saved_project_snapshot: self.saved_project_snapshot.clone(),
             project_dirty: self.project_dirty.clone(),
             input_chain_devices: self.input_chain_devices.clone(),

@@ -20,6 +20,9 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, DiOutputRef};
 use project::project::Project;
 
+mod common;
+use common::DiRuntimeControl;
+
 fn write_mono_wav(path: &Path, sr: u32, samples: &[f32]) {
     let spec = hound::WavSpec {
         channels: 1,
@@ -120,7 +123,7 @@ fn output_pick_persists_and_moves_a_playing_di() {
     let chain_id = ChainId("chain_771_outsel".to_string());
     let project = make_project(&chain_id);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let controller = RefCell::new(Some(make_controller(&chain_id)));
+    let controller = DiRuntimeControl::attach(&dispatcher, make_controller(&chain_id));
 
     dispatcher
         .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
@@ -134,20 +137,14 @@ fn output_pick_persists_and_moves_a_playing_di() {
         std::thread::sleep(Duration::from_millis(10));
     }
 
-    adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
+    adapter_gui::di_loop_wiring::play_chain_di_loop(&dispatcher, &chain_id);
     assert!(
         wait_for_output(&controller, &chain_id, 0),
         "precondition: the DI plays on the main output before the pick"
     );
 
     // Pick the 2nd output (FX Out) — the panel callback path.
-    adapter_gui::di_loop_wiring::select_chain_di_output(
-        &controller,
-        &dispatcher,
-        &chain_id,
-        &registry(),
-        1,
-    );
+    adapter_gui::di_loop_wiring::select_chain_di_output(&dispatcher, &chain_id, &registry(), 1);
 
     assert_eq!(
         dispatcher

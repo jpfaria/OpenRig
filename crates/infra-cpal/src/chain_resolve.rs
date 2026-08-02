@@ -389,11 +389,10 @@ pub(crate) fn resolve_enabled_chain_audio_configs(
     Ok(resolved)
 }
 
-// Every symbol this reads (`resolve_chain_io`, `chain_resolve_io_map`, the
-// sample-rate helpers) is gated out on Linux+JACK, where the JACK-direct path
-// resolves its own config — so this must carry the same gate as its callers
-// (`resolve_enabled_chain_audio_configs` above, `controller.rs`). Without it the
-// crate does not compile there at all (#755 gated the siblings and missed this).
+// Every helper this calls, and every caller it has, is compiled out under
+// linux+jack — where the chain's I/O comes from the JACK graph instead of a
+// cpal device query. Without the same gate the body alone survives and the
+// crate stops compiling on that target.
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn resolve_chain_audio_config(
     host: &cpal::Host,

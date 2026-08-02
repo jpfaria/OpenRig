@@ -14,7 +14,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::{AppConfig, GuiSystemSettings};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use ui_openrig::UiRuntimeContext;

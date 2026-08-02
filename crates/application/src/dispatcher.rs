@@ -12,10 +12,25 @@
 //! internally. At that point a blanket impl or a second `RemoteCommandDispatcher`
 //! supertrait will restore the `Send + Sync` contract for cross-thread callers.
 
+use std::cell::RefCell;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::{Arc, RwLock};
+
 use anyhow::Result;
 
+use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
+use engine::DiPcm;
+use project::rig::RigProject;
+
 use crate::command::Command;
+use crate::di_loader::DiLoopSource;
 use crate::event::Event;
+use crate::local_dispatcher::ToneDoctorInput;
+use crate::metronome_state::{MetronomeControlState, MetronomeSnapshot};
+use crate::runtime_control::RuntimeControl;
+use crate::selection_state::SelectionState;
 
 /// The single abstraction every consumer of the command bus uses.
 ///
@@ -38,4 +53,93 @@ pub trait CommandDispatcher {
     fn poll_async_results(&self) -> Vec<Event> {
         Vec::new()
     }
+
+    /// Engine sample rate the dispatcher last saw. `0` until the audio
+    /// runtime reports one.
+    fn engine_sr(&self) -> u32 {
+        0
+    }
+
+    /// Shared UI selection state. Every implementation owns one — the
+    /// selection is frontend state, not engine state.
+    fn selection_state(&self) -> Arc<RwLock<SelectionState>>;
+
+    /// Immutable copy of one chain, or `None` when the id is unknown.
+    fn chain_snapshot(&self, _chain: &ChainId) -> Option<project::chain::Chain> {
+        None
+    }
+
+    /// Decoded DI loop bound to a chain, when the implementation holds one.
+    fn di_loop_for_chain(&self, _chain: &ChainId) -> Option<Arc<DiPcm>> {
+        None
+    }
+
+    /// Where a chain's DI loop came from (file, looper, …).
+    fn di_loop_source_for_chain(&self, _chain: &ChainId) -> Option<DiLoopSource> {
+        None
+    }
+
+    /// Last Tone Doctor run for a chain, already serialized. `{}` when the
+    /// implementation has never run one.
+    fn tone_report_json(&self, _chain: &ChainId) -> String {
+        "{}".to_string()
+    }
+
+    // --- session attach: local setup, no-op by default ---
+    fn attach_rig(&self, _rig: Rc<RefCell<RigProject>>) {}
+    fn attach_presets_path(&self, _path: PathBuf) {}
+    fn attach_project_path(&self, _path: PathBuf) {}
+    fn attach_config_path(&self, _path: Option<PathBuf>) {}
+    /// Returns the chains whose resolved rate changed.
+    fn attach_engine_sr(&self, _sr: u32) -> Vec<ChainId> {
+        Vec::new()
+    }
+    /// #791: register how the Tone Doctor reaches a chain's live input. Only
+    /// the adapter that owns the audio runtime can supply one, so a transport
+    /// that does not own audio keeps the default no-op.
+    fn attach_tone_doctor_input(&self, _provider: ToneDoctorInput) {}
+
+    /// #127: register how runtime-control commands (output mute, I/O binding
+    /// install) reach the audio runtime. Only the frontend that hosts one can
+    /// supply it; a transport that owns no audio keeps the default no-op and
+    /// its commands still report their events.
+    fn attach_runtime_control(&self, _control: Rc<dyn RuntimeControl>) {}
+
+    /// #127: hand the dispatcher the metronome state it owns — settings,
+    /// chosen output endpoint, POWER, tap history, and where they persist.
+    ///
+    /// The handle has the same shape as [`Self::attach_rig`] and
+    /// [`Self::attach_io_bindings`], but do not read app-lifetime sharing into
+    /// it: the only caller, `adapter-gui`'s `ProjectSession::new`, builds a
+    /// FRESH state on every project open and keeps no clone of it. What
+    /// survives opening another project is what was PERSISTED — the tempo, the
+    /// timbre and the chosen endpoint come back from the per-machine
+    /// `config.yaml` (ADR 0003) each time the state is restored; POWER and the
+    /// tap history start over with the new session's state.
+    ///
+    /// A dispatcher nobody attaches one to keeps a private, unpersisted state:
+    /// every command still validates, records and reports, it just has no
+    /// `config.yaml` to write to (which is what keeps tests off the user's
+    /// real one — issue #701).
+    fn attach_metronome_state(&self, _state: Rc<RefCell<MetronomeControlState>>) {}
+
+    /// #127: the metronome's control-plane state, for the frontend that
+    /// RENDERS it. The dispatcher owns the truth; a window mirrors it.
+    fn metronome_snapshot(&self) -> MetronomeSnapshot {
+        MetronomeSnapshot::default()
+    }
+
+    /// #127: share the frontend's per-machine I/O binding registry handle, so
+    /// the binding commands mutate the same allocation the frontend renders
+    /// from and re-installs on every runtime sync. A transport with no
+    /// frontend registry keeps the default no-op.
+    fn attach_io_bindings(&self, _registry: Rc<RefCell<Vec<IoBinding>>>) {}
 }
+
+#[cfg(test)]
+#[path = "dispatcher_object_safety_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "dispatcher_tone_doctor_attach_tests.rs"]
+mod tone_doctor_attach_tests;

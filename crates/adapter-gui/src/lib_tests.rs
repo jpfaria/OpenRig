@@ -94,7 +94,7 @@ pub(super) fn delay_model_ids() -> Vec<String> {
 
 // --- ui_index_to_real_block_index tests ---
 
-use crate::runtime_lifecycle::ui_index_to_real_block_index;
+use crate::chain_block_helpers::ui_index_to_real_block_index;
 use domain::ids::ChainId;
 use project::block::{InputBlock, OutputBlock};
 use project::chain::{Chain, ChainInputMode};
@@ -400,7 +400,7 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
 // --- selected_device_index ---
 
 use crate::audio_devices::selected_device_index;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 #[test]
 fn selected_device_index_finds_matching_device() {

@@ -20,9 +20,8 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
 use project::rig::{humanize_preset_label, RigProject};
@@ -31,14 +30,13 @@ use crate::assign_new_block_ids;
 use crate::helpers::{clear_status, set_status_error, set_status_info};
 use crate::project_ops::{load_preset_file, sync_project_dirty};
 use crate::project_view::replace_project_chains;
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::ProjectSession;
-use crate::sync_live_chain_runtime;
 use crate::{AppWindow, ProjectChainItem};
 
 pub(crate) struct ChainPresetCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -52,7 +50,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
     let ChainPresetCtx {
         project_session,
         project_chains,
-        project_runtime,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -152,7 +149,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -230,9 +226,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                                 log::warn!("[preset] Command::RenameRigPreset falhou: {e}");
                             }
                         }
-                        if let Err(error) =
-                            sync_live_chain_runtime(&project_runtime, session, &chain_id)
-                        {
+                        if let Err(error) = request_chain_sync(session, &chain_id) {
                             set_status_error(&window, &toast_timer, &error.to_string());
                             return;
                         }

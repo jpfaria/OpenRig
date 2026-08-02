@@ -18,7 +18,7 @@ mod hw_harness;
 
 use domain::ids::{BlockId, ChainId};
 use hw_harness::{
-    device_guard, hw_tests_enabled, init_registry_with_root, load_di, rig_project_with,
+    device_guard, hw_tests_enabled, init_registry_with_root, load_di_pcm, rig_project_with,
 };
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
@@ -79,7 +79,9 @@ fn owner_chain2_live_pitch_insert_does_not_saturate() {
     controller
         .sync_project(&project)
         .expect("resync with bindings");
-    let di = load_di("phil-STRATO-green_day.wav", controller.sample_rate());
+    // Same as the sibling recipe: the controller resamples the source PCM to
+    // the engine rate on arm (#669).
+    let di = load_di_pcm("phil-STRATO-green_day.wav");
     controller.set_chain_di_loop(&chain_id, Some(di.clone()));
 
     std::thread::sleep(std::time::Duration::from_secs(10));

@@ -1,20 +1,33 @@
-//! Issue #323 — the wiring that turns looper EVENTS into controller-store
-//! mutations. A dispatch alone is dead (#614); `apply_looper_event` is what
-//! makes the store learn about it. These tests drive the event path and assert
-//! on the store state and the isolated playback stream — never on the event.
+//! Issue #323 / #127 — a looper command reaches the controller's looper store,
+//! and it gets there on the BUS.
+//!
+//! A dispatch alone used to be dead (#614): the dispatcher recorded the
+//! project half and the GUI callback pushed the runtime half into the store
+//! right afterwards, with the external-event drain running a second copy for
+//! MCP/MIDI. Task 13 moved that half onto
+//! `application::runtime_control::RuntimeControl`, so these tests dispatch
+//! `LooperCommand`s — never a GUI function, never an event applier — and
+//! assert on the store and on the isolated playback stream.
 
+mod common;
+
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
-use adapter_gui::looper_wiring::{apply_looper_event, apply_looper_events};
-use application::command::{LooperAction, LooperParam};
-use application::event::Event;
+use application::command::{Command, LooperAction, LooperCommand, LooperParam};
+use application::dispatcher::CommandDispatcher;
+use application::local_dispatcher::LocalDispatcher;
 use domain::ids::{ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use engine::runtime::{build_chain_runtime_state, RuntimeGraph};
 use engine::LooperState;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, EndpointRef, LooperConfig, LooperSpeed};
+use project::project::Project;
+
+use common::LooperRuntimeControl;
 
 const UID: u64 = 1;
 
@@ -78,137 +91,186 @@ fn controller_for(chain: &Chain) -> ProjectRuntimeController {
     c
 }
 
-fn feed_input(c: &ProjectRuntimeController, chain: &ChainId, level: f32) {
-    let frames = 128usize;
-    let input = vec![level; frames * 2];
-    let mut out = vec![0.0f32; frames * 2];
-    for rt in c.runtimes_for_chain(chain) {
-        engine::runtime::process_input_f32(&rt, 0, &input, 2);
-        engine::runtime::process_output_f32(&rt, 0, &mut out, 2);
-    }
+/// One chain with one looper, a dispatcher that owns it, and this frontend's
+/// looper doors attached to a real (device-less) controller. Nothing here is
+/// GUI: an MCP client or a MIDI footswitch drives exactly this.
+struct Rig {
+    dispatcher: LocalDispatcher,
+    runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    chain: Chain,
 }
 
-fn ev(chain: &ChainId, action: LooperAction) -> Event {
-    Event::ChainLooperTransportChanged {
-        chain: chain.clone(),
-        looper: UID,
-        action,
-    }
-}
-
-/// Record + close one loop through the EVENT path + the input tap, so it plays.
-fn record_and_arm(c: &ProjectRuntimeController, chain: &Chain) {
-    apply_looper_event(
-        c,
-        &Event::ChainLooperAdded {
-            chain: chain.id.clone(),
+impl Rig {
+    /// The project starts with NO looper: the fixture's looper is created by
+    /// dispatching `AddChainLooper` (uid 1) and pointed at `out1` by
+    /// dispatching `SetChainLooperOutput`, so every step of the setup is a
+    /// command too.
+    fn new(id: &str) -> Self {
+        let shape = chain_with_looper(id);
+        let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![Chain {
+                loopers: vec![],
+                ..shape.clone()
+            }],
+            midi: None,
+        })));
+        let runtime = LooperRuntimeControl::attach(&dispatcher, controller_for(&shape));
+        let rig = Self {
+            dispatcher,
+            runtime,
+            chain: shape,
+        };
+        rig.dispatch(LooperCommand::AddChainLooper {
+            chain: rig.chain.id.clone(),
+        });
+        rig.dispatch(LooperCommand::SetChainLooperOutput {
+            chain: rig.chain.id.clone(),
             looper: UID,
-        },
-    );
-    apply_looper_event(c, &ev(&chain.id, LooperAction::Record)); // → Recording
-    c.drain_looper_recording(chain); // subscribe tap
-    feed_input(c, &chain.id, 0.5); // fill ring
-    c.drain_looper_recording(chain); // drain into loop
-    apply_looper_event(c, &ev(&chain.id, LooperAction::Record)); // close → Playing
-    c.sync_looper_streams(chain);
-    assert!(
-        c.looper_stream_active(&chain.id, UID),
-        "precondition: a closed loop arms its isolated stream"
-    );
+            output: Some(EndpointRef {
+                binding_id: "io".into(),
+                endpoint: "out1".into(),
+            }),
+        });
+        rig
+    }
+
+    fn dispatch(&self, cmd: LooperCommand) {
+        self.dispatcher
+            .dispatch(Command::Looper(cmd))
+            .unwrap_or_else(|e| panic!("looper command failed: {e}"));
+    }
+
+    fn transport(&self, action: LooperAction) {
+        self.dispatch(LooperCommand::SetChainLooperTransport {
+            chain: self.chain.id.clone(),
+            looper: UID,
+            action,
+        });
+    }
+
+    fn with_controller<T>(&self, f: impl FnOnce(&ProjectRuntimeController) -> T) -> T {
+        let borrow = self.runtime.borrow();
+        f(borrow.as_ref().expect("controller"))
+    }
+
+    fn state(&self) -> Option<LooperState> {
+        self.with_controller(|c| c.chain_looper_status(&self.chain.id, UID).map(|s| s.state))
+    }
+
+    fn stream_active(&self) -> bool {
+        self.with_controller(|c| c.looper_stream_active(&self.chain.id, UID))
+    }
+
+    fn feed_input(&self, level: f32) {
+        self.with_controller(|c| {
+            let frames = 128usize;
+            let input = vec![level; frames * 2];
+            let mut out = vec![0.0f32; frames * 2];
+            for rt in c.runtimes_for_chain(&self.chain.id) {
+                engine::runtime::process_input_f32(&rt, 0, &input, 2);
+                engine::runtime::process_output_f32(&rt, 0, &mut out, 2);
+            }
+        });
+    }
+
+    /// Record + close one loop through the COMMAND path + the input tap, so it
+    /// plays.
+    fn record_and_arm(&self) {
+        self.transport(LooperAction::Record); // → Recording
+        self.with_controller(|c| c.drain_looper_recording(&self.chain)); // subscribe tap
+        self.feed_input(0.5); // fill ring
+        self.with_controller(|c| c.drain_looper_recording(&self.chain)); // drain into loop
+        self.transport(LooperAction::Record); // close → Playing
+        assert!(
+            self.stream_active(),
+            "precondition: a closed loop arms its isolated stream"
+        );
+    }
 }
 
 /// The bug the MCP repro exposed: a looper driven by a NON-GUI transport
-/// (MCP/MIDI) drains its events through the shared `apply_events_to_ui`, which
-/// never touched the looper store — so Record left the loop `Empty`. The store
-/// must learn about the batch through the shared `apply_looper_events` path,
-/// exactly like the GUI button path does inline.
+/// (MCP/MIDI) mutated nothing, so Record left the loop `Empty`. The command
+/// itself now carries the mutation, so there is only one road left.
 #[test]
-fn drained_looper_events_reach_the_store() {
-    let chain = chain_with_looper("wire-drain");
-    let c = controller_for(&chain);
-    let chains = vec![chain.clone()];
-    // The batch a non-GUI transport (MCP/MIDI) drains: add then record.
-    let events = vec![
-        Event::ChainLooperAdded {
-            chain: chain.id.clone(),
-            looper: UID,
-        },
-        ev(&chain.id, LooperAction::Record),
-    ];
-    apply_looper_events(&c, &chains, &events);
+fn a_looper_driven_off_the_gui_reaches_the_store() {
+    let rig = Rig::new("wire-drain");
+    rig.transport(LooperAction::Record);
     assert_eq!(
-        c.chain_looper_status(&chain.id, UID).map(|s| s.state),
+        rig.state(),
         Some(LooperState::Recording),
-        "a looper transport drained from MCP/MIDI must reach the store, not just the GUI"
+        "a looper transport dispatched off the GUI must reach the store, not \
+         just emit an event"
     );
 }
 
 #[test]
-fn added_event_creates_the_loop_in_the_store() {
-    let chain = chain_with_looper("wire-add");
-    let c = controller_for(&chain);
-    apply_looper_event(
-        &c,
-        &Event::ChainLooperAdded {
+fn adding_a_looper_creates_it_in_the_store() {
+    let chain = Chain {
+        loopers: vec![],
+        ..chain_with_looper("wire-add")
+    };
+    let dispatcher = LocalDispatcher::new(Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain.clone()],
+        midi: None,
+    })));
+    let runtime = LooperRuntimeControl::attach(&dispatcher, controller_for(&chain));
+    dispatcher
+        .dispatch(Command::Looper(LooperCommand::AddChainLooper {
             chain: chain.id.clone(),
-            looper: UID,
-        },
-    );
+        }))
+        .expect("add");
     assert_eq!(
-        c.chain_looper_status(&chain.id, UID).map(|s| s.state),
+        runtime
+            .borrow()
+            .as_ref()
+            .expect("controller")
+            .chain_looper_status(&chain.id, UID)
+            .map(|s| s.state),
         Some(LooperState::Empty),
         "the store holds the loop — a dispatch alone is dead (#614)"
     );
 }
 
 #[test]
-fn record_event_records_then_closes_the_loop() {
-    let chain = chain_with_looper("wire-record");
-    let c = controller_for(&chain);
-    apply_looper_event(
-        &c,
-        &Event::ChainLooperAdded {
-            chain: chain.id.clone(),
-            looper: UID,
-        },
-    );
-    apply_looper_event(&c, &ev(&chain.id, LooperAction::Record));
-    assert_eq!(
-        c.chain_looper_status(&chain.id, UID).map(|s| s.state),
-        Some(LooperState::Recording)
-    );
-    c.drain_looper_recording(&chain);
-    feed_input(&c, &chain.id, 0.5);
-    c.drain_looper_recording(&chain);
-    apply_looper_event(&c, &ev(&chain.id, LooperAction::Record));
-    let s = c.chain_looper_status(&chain.id, UID).expect("status");
+fn record_records_then_closes_the_loop() {
+    let rig = Rig::new("wire-record");
+    rig.transport(LooperAction::Record);
+    assert_eq!(rig.state(), Some(LooperState::Recording));
+    rig.with_controller(|c| c.drain_looper_recording(&rig.chain));
+    rig.feed_input(0.5);
+    rig.with_controller(|c| c.drain_looper_recording(&rig.chain));
+    rig.transport(LooperAction::Record);
+    let s = rig
+        .with_controller(|c| c.chain_looper_status(&rig.chain.id, UID))
+        .expect("status");
     assert_eq!(s.state, LooperState::Playing);
     assert!(s.len_frames > 0, "the captured input defines the loop");
 }
 
 #[test]
-fn stop_and_clear_events_reach_the_store() {
-    let chain = chain_with_looper("wire-transport");
-    let c = controller_for(&chain);
-    record_and_arm(&c, &chain);
+fn stop_and_clear_reach_the_store() {
+    let rig = Rig::new("wire-transport");
+    rig.record_and_arm();
 
-    apply_looper_event(&c, &ev(&chain.id, LooperAction::Stop));
-    assert_eq!(
-        c.chain_looper_status(&chain.id, UID).map(|s| s.state),
-        Some(LooperState::Stopped)
-    );
+    rig.transport(LooperAction::Stop);
+    assert_eq!(rig.state(), Some(LooperState::Stopped));
 
-    apply_looper_event(&c, &ev(&chain.id, LooperAction::Clear));
-    let s = c.chain_looper_status(&chain.id, UID).expect("status");
+    rig.transport(LooperAction::Clear);
+    let s = rig
+        .with_controller(|c| c.chain_looper_status(&rig.chain.id, UID))
+        .expect("status");
     assert_eq!(s.state, LooperState::Empty);
     assert_eq!(s.len_frames, 0);
 }
 
 #[test]
-fn param_events_reach_the_store_and_the_loop_keeps_playing() {
-    let chain = chain_with_looper("wire-params");
-    let c = controller_for(&chain);
-    record_and_arm(&c, &chain);
+fn param_commands_reach_the_store_and_the_loop_keeps_playing() {
+    let rig = Rig::new("wire-params");
+    rig.record_and_arm();
 
     for param in [
         LooperParam::Mix(0.5),
@@ -216,70 +278,62 @@ fn param_events_reach_the_store_and_the_loop_keeps_playing() {
         LooperParam::Speed(LooperSpeed::Double),
         LooperParam::Reverse(true),
     ] {
-        apply_looper_event(
-            &c,
-            &Event::ChainLooperParamChanged {
-                chain: chain.id.clone(),
-                looper: UID,
-                param,
-            },
-        );
+        rig.dispatch(LooperCommand::SetChainLooperParam {
+            chain: rig.chain.id.clone(),
+            looper: UID,
+            param,
+        });
     }
-    let s = c.chain_looper_status(&chain.id, UID).expect("status");
+    let s = rig
+        .with_controller(|c| c.chain_looper_status(&rig.chain.id, UID))
+        .expect("status");
     assert_eq!(s.state, LooperState::Playing);
-    assert!(c.export_chain_looper(&chain.id, UID).is_some());
+    assert!(rig.with_controller(|c| c.export_chain_looper(&rig.chain.id, UID).is_some()));
 }
 
 #[test]
 fn stop_disarms_the_stream_even_when_the_chain_is_not_streaming() {
     // The redesign's core: stop is authoritative regardless of the chain
-    // callback. After arming, stop with NO further tick/drain and reconcile.
-    let chain = chain_with_looper("wire-stop-no-stream");
-    let c = controller_for(&chain);
-    record_and_arm(&c, &chain);
+    // callback — and the reconcile that silences the loop is part of the door,
+    // so no poll tick has to run first.
+    let rig = Rig::new("wire-stop-no-stream");
+    rig.record_and_arm();
 
-    apply_looper_event(&c, &ev(&chain.id, LooperAction::Stop));
-    c.sync_looper_streams(&chain);
+    rig.transport(LooperAction::Stop);
     assert!(
-        !c.looper_stream_active(&chain.id, UID),
+        !rig.stream_active(),
         "stop silences the loop even when nothing is streaming"
     );
 }
 
 #[test]
 fn play_after_stop_re_arms() {
-    let chain = chain_with_looper("wire-replay");
-    let c = controller_for(&chain);
-    record_and_arm(&c, &chain);
+    let rig = Rig::new("wire-replay");
+    rig.record_and_arm();
 
-    apply_looper_event(&c, &ev(&chain.id, LooperAction::Stop));
-    c.sync_looper_streams(&chain);
-    assert!(!c.looper_stream_active(&chain.id, UID));
+    rig.transport(LooperAction::Stop);
+    assert!(!rig.stream_active());
 
-    apply_looper_event(&c, &ev(&chain.id, LooperAction::PlayStop)); // stopped → play
-    c.sync_looper_streams(&chain);
+    rig.transport(LooperAction::PlayStop); // stopped → play
     assert!(
-        c.looper_stream_active(&chain.id, UID),
-        "play after stop must sound the loop again"
+        rig.stream_active(),
+        "play after stop must sound the loop again — and PlayStop is resolved \
+         against the store, so the button and a footswitch agree"
     );
 }
 
 #[test]
-fn removed_event_frees_the_loop_and_disarms_its_stream() {
-    let chain = chain_with_looper("wire-remove");
-    let c = controller_for(&chain);
-    record_and_arm(&c, &chain);
+fn removing_a_looper_frees_it_and_disarms_its_stream() {
+    let rig = Rig::new("wire-remove");
+    rig.record_and_arm();
 
-    apply_looper_event(
-        &c,
-        &Event::ChainLooperRemoved {
-            chain: chain.id.clone(),
-            looper: UID,
-        },
-    );
-    assert!(c.chain_looper_status(&chain.id, UID).is_none());
+    rig.dispatch(LooperCommand::RemoveChainLooper {
+        chain: rig.chain.id.clone(),
+        looper: UID,
+    });
+    assert!(rig.with_controller(|c| c.chain_looper_status(&rig.chain.id, UID).is_none()));
     assert!(
-        !c.looper_stream_active(&chain.id, UID),
+        !rig.stream_active(),
         "removing a loop stops its isolated stream"
     );
 }
