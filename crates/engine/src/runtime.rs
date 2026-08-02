@@ -322,6 +322,8 @@ pub fn process_input_f32(
             }
             continue;
         };
+        // Follow the device's real clock, not its label (#85).
+        converter.track(route.buffer.len(), route.buffer.target_level());
         resampled.clear();
         for &frame in frames {
             converter.push(frame, &mut resampled);

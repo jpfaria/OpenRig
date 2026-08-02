@@ -18,10 +18,20 @@
 
 use crate::runtime_audio_frame::AudioFrame;
 
+/// How hard the ratio follows the route's fill. Small on purpose: the loop has
+/// to absorb a crystal's drift (tens of ppm), not chase per-callback jitter.
+const TRACK_GAIN: f64 = 0.02;
+/// Hard limit on the correction, so the loop can never bend the pitch audibly.
+const MAX_TRIM: f64 = 0.002;
+
 /// Converts one route's frame stream from the chain's rate to the device's.
 pub(crate) struct RouteResampler {
-    /// Source frames consumed per output frame (`in_rate / out_rate`).
+    /// Nominal source frames per output frame (`in_rate / out_rate`).
+    base_step: f64,
+    /// The ratio actually in use — `base_step` trimmed by the tracking loop.
     step: f64,
+    /// Smoothed fill of the route, in frames.
+    fill: f64,
     /// Position of the next output frame between `hist[1]` and `hist[2]`.
     phase: f64,
     /// Four consecutive source frames: the cubic reads `[-1, 0, +1, +2]`.
@@ -76,11 +86,35 @@ impl RouteResampler {
         if (in_rate - out_rate).abs() < f32::EPSILON {
             return None;
         }
+        let step = in_rate as f64 / out_rate as f64;
         Some(Self {
-            step: in_rate as f64 / out_rate as f64,
+            base_step: step,
+            step,
+            fill: 0.0,
             phase: 0.0,
             hist: [layout_seed; 4],
         })
+    }
+
+    /// Follow the route's real clock.
+    ///
+    /// Two interfaces have two crystals: a device nominally at 48 kHz runs a
+    /// hair fast or slow against the chain's 44.1 kHz, and a FIXED ratio bleeds
+    /// the route dry (or overflows it) at exactly that pace — the owner's 256
+    /// underruns per poll with zero xruns. The ratio is trimmed by how far the
+    /// route's cushion sits from its target: too empty ⇒ produce a little more,
+    /// too full ⇒ a little less. Clamped to ±0.2 %, so the correction stays
+    /// inaudible while covering any real crystal.
+    #[inline]
+    pub(crate) fn track(&mut self, fill: usize, target: usize) {
+        if target == 0 {
+            return;
+        }
+        // One-pole smoothing: the raw fill swings by a whole callback.
+        self.fill += 0.05 * (fill as f64 - self.fill);
+        let error = (self.fill - target as f64) / target as f64;
+        let trim = (TRACK_GAIN * error).clamp(-MAX_TRIM, MAX_TRIM);
+        self.step = self.base_step * (1.0 + trim);
     }
 
     /// Feed one source frame; append every output frame it completes.

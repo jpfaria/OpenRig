@@ -180,7 +180,8 @@ impl ElasticBuffer {
         );
     }
 
-    #[cfg(test)]
+    /// Frames currently queued. Read on the producer side by the per-route
+    /// resampler's clock tracking (#85) and by tests.
     pub(crate) fn len(&self) -> usize {
         self.ring.len()
     }

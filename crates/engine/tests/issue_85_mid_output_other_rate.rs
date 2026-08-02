@@ -64,10 +64,34 @@ fn registry() -> Vec<IoBinding> {
         IoBinding {
             id: "aux".into(),
             name: "AUX".into(),
-            inputs: Vec::new(),
+            inputs: vec![IoEndpoint {
+                name: "aux-in".into(),
+                device_id: DeviceId("teyun".into()),
+                mode: ChannelMode::Mono,
+                channels: vec![1],
+            }],
             outputs: vec![endpoint("aux-out", "teyun", vec![2, 3])],
         },
     ]
+}
+
+/// The owner's shape: a mid `Input` from the other interface AND a mid `Output`
+/// to it, both inside the chain.
+fn chain_with_mid_input() -> Chain {
+    let mut chain = chain();
+    chain.blocks.insert(
+        1,
+        AudioBlock {
+            id: BlockId("issue85:mid-input".into()),
+            enabled: true,
+            kind: AudioBlockKind::Input(project::block::InputBlock {
+                model: "standard".into(),
+                io: "aux".into(),
+                endpoint: "aux-in".into(),
+            }),
+        },
+    );
+    chain
 }
 
 fn chain() -> Chain {
@@ -114,9 +138,19 @@ fn route_index(chain: &Chain, registry: &[IoBinding], channels: &[usize]) -> usi
 
 /// Runs the two clocks against each other: the chain's input callback delivers
 /// `BUF` frames at 44.1 kHz while the tap's device pops the frames its own
-/// 48 kHz callback would ask for in the same wall-clock time.
-fn run_both_clocks(runtime: &Arc<ChainRuntimeState>, tap_route: usize) -> (u64, f32) {
-    const CALLBACKS: usize = 2_000;
+/// callback would ask for in the same wall-clock time.
+///
+/// `device_rate` is what the tap's device ACTUALLY runs at. Two interfaces have
+/// two crystals: a TEYUN nominally at 48 kHz runs a hair fast or slow against a
+/// Scarlett's 44.1 kHz, and a fixed conversion ratio accumulates that error
+/// until the route runs dry — 256 underruns per poll on the owner's rig, with
+/// zero xruns.
+fn run_both_clocks(
+    runtime: &Arc<ChainRuntimeState>,
+    tap_route: usize,
+    device_rate: f64,
+) -> (u64, f32) {
+    const CALLBACKS: usize = 8_000;
 
     let mut input = vec![0.0_f32; BUF];
     let mut output = vec![0.0_f32; BUF * 2 * DEVICE_CHANNELS];
@@ -133,7 +167,7 @@ fn run_both_clocks(runtime: &Arc<ChainRuntimeState>, tap_route: usize) -> (u64, 
         }
         process_input_f32(runtime, 0, &input, 1);
 
-        owed += BUF as f64 * TAP_RATE as f64 / CHAIN_RATE as f64;
+        owed += BUF as f64 * device_rate / CHAIN_RATE as f64;
         let frames = owed.floor() as usize;
         owed -= frames as f64;
         let len = frames * DEVICE_CHANNELS;
@@ -169,7 +203,7 @@ fn a_mid_output_on_another_clock_does_not_starve() {
         .expect("runtime must build with a mid output on another clock"),
     );
 
-    let (underruns, peak) = run_both_clocks(&runtime, tap);
+    let (underruns, peak) = run_both_clocks(&runtime, tap, TAP_RATE as f64);
 
     assert!(peak > 0.1, "the tap is silent (peak {peak})");
     assert_eq!(
@@ -177,5 +211,148 @@ fn a_mid_output_on_another_clock_does_not_starve() {
         "#85: the mid Output's route starved {underruns} times — the tap writes at \
          the chain's {CHAIN_RATE} Hz while its device pops at {TAP_RATE} Hz, and \
          the difference is the crackle"
+    );
+}
+
+/// The owner's rig, with the detail that matters: the tap's interface does not
+/// run at EXACTLY its nominal rate. 0.05 % fast is an ordinary crystal
+/// tolerance, and a fixed ratio bleeds the route dry at that pace — his
+/// "falhando o som na saída para TEYUN", 256 underruns per poll with 0 xruns.
+/// The converter has to follow the device instead of trusting the label.
+#[test]
+fn a_mid_output_follows_its_devices_real_clock() {
+    init_registry();
+    let chain = chain();
+    let registry = registry();
+    let tap = route_index(&chain, &registry, &[2, 3]);
+    let device_rates = std::collections::HashMap::from([
+        (DeviceId("scarlett".into()), CHAIN_RATE as f32),
+        (DeviceId("teyun".into()), TAP_RATE as f32),
+    ]);
+    let runtime = Arc::new(
+        build_chain_runtime_state_with_device_rates(
+            &chain,
+            CHAIN_RATE as f32,
+            &device_rates,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("runtime must build"),
+    );
+
+    // Nominally 48 kHz, actually 0.05 % fast.
+    let (underruns, peak) = run_both_clocks(&runtime, tap, TAP_RATE as f64 * 1.0005);
+
+    assert!(peak > 0.1, "the tap is silent (peak {peak})");
+    assert_eq!(
+        underruns, 0,
+        "#85: the tap starved {underruns} times against a device drifting 0.05 % — \
+         the conversion ratio must follow the route's fill, not the nominal rate"
+    );
+}
+
+/// The owner's actual trigger: "se eu ligar sem alterar a ordem não dá
+/// problema; agora se eu alterar a ordem começa". Moving a block rebuilds the
+/// runtime in place, and the rebuild re-derives each route — if the tap's route
+/// loses the device rate it was built with, the conversion stops and the route
+/// starves exactly as before.
+#[test]
+fn reordering_the_chain_keeps_the_tap_on_its_own_clock() {
+    init_registry();
+    let chain = chain();
+    let registry = registry();
+    let device_rates = std::collections::HashMap::from([
+        (DeviceId("scarlett".into()), CHAIN_RATE as f32),
+        (DeviceId("teyun".into()), TAP_RATE as f32),
+    ]);
+    let runtime = Arc::new(
+        build_chain_runtime_state_with_device_rates(
+            &chain,
+            CHAIN_RATE as f32,
+            &device_rates,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("runtime must build"),
+    );
+
+    // Move the mid Output ahead of the wire block — the reorder the user does
+    // by dragging a row — and rebuild in place, the way a live edit does.
+    let mut reordered = chain.clone();
+    let port = reordered.blocks.remove(1);
+    reordered.blocks.insert(0, port);
+    engine::runtime_graph::update_chain_runtime_state(
+        &runtime,
+        &reordered,
+        CHAIN_RATE as f32,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &registry,
+    )
+    .expect("live rebuild after a reorder");
+
+    let tap = route_index(&reordered, &registry, &[2, 3]);
+    let (underruns, peak) = run_both_clocks(&runtime, tap, TAP_RATE as f64);
+
+    assert!(
+        peak > 0.1,
+        "the tap went silent after the reorder (peak {peak})"
+    );
+    assert_eq!(
+        underruns, 0,
+        "#85: after moving a block the tap starved {underruns} times — the rebuilt \
+         route must keep the device rate it converts to"
+    );
+}
+
+/// His exact trigger, with his chain shape: a mid `Input` AND a mid `Output`,
+/// and then he MOVES the input. Reordering rebuilds the runtime in place and
+/// re-groups the per-input segments; the tap must come back converting to its
+/// own device rate.
+#[test]
+fn moving_the_mid_input_keeps_the_tap_on_its_own_clock() {
+    init_registry();
+    let chain = chain_with_mid_input();
+    let registry = registry();
+    let device_rates = std::collections::HashMap::from([
+        (DeviceId("scarlett".into()), CHAIN_RATE as f32),
+        (DeviceId("teyun".into()), TAP_RATE as f32),
+    ]);
+    let runtime = Arc::new(
+        build_chain_runtime_state_with_device_rates(
+            &chain,
+            CHAIN_RATE as f32,
+            &device_rates,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("runtime must build"),
+    );
+
+    // Drag the mid Input one row down.
+    let mut reordered = chain.clone();
+    let port = reordered.blocks.remove(1);
+    reordered.blocks.insert(2, port);
+    engine::runtime_graph::update_chain_runtime_state(
+        &runtime,
+        &reordered,
+        CHAIN_RATE as f32,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &registry,
+    )
+    .expect("live rebuild after moving the input");
+
+    let tap = route_index(&reordered, &registry, &[2, 3]);
+    let (underruns, peak) = run_both_clocks(&runtime, tap, TAP_RATE as f64);
+
+    assert!(
+        peak > 0.1,
+        "the tap went silent after moving the input (peak {peak})"
+    );
+    assert_eq!(
+        underruns, 0,
+        "#85: after moving the mid Input the tap starved {underruns} times — \
+         'se eu ligar sem alterar a ordem não dá problema; se eu alterar a ordem começa'"
     );
 }
