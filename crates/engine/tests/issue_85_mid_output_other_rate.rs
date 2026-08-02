@@ -481,11 +481,12 @@ fn the_resampled_tap_sounds_like_the_chains_own_output() {
     );
 }
 
-/// Control: the SAME rig with both devices on ONE rate — no conversion at all.
-/// Whatever residual this leaves is the tap path's own, so the test above can
-/// only be blamed on the conversion.
+/// Control: the same rig with both devices on ONE rate — no conversion at all.
+/// The tap must match the chain's own tail here too, which is what makes the
+/// comparison above meaningful (and is exactly what the owner hears: "só fica
+/// bom se eu colocar na mesma frequência").
 #[test]
-fn the_same_rate_tap_is_the_reference() {
+fn the_same_rate_tap_matches_the_chains_output() {
     init_registry();
     let chain = chain();
     let registry = registry();
@@ -505,14 +506,15 @@ fn the_same_rate_tap_is_the_reference() {
         .expect("runtime must build"),
     );
 
-    let (_, peak, captured) = run_both_clocks_capturing(&runtime, tap, CHAIN_RATE as f64);
+    let (_, peak, tap_pcm, tail_pcm) = run_capturing_both(&runtime, tap, CHAIN_RATE as f64);
     assert!(peak > 0.1, "the tap is silent (peak {peak})");
-    let body = &captured[captured.len() / 2..];
-    let residual = worst_window_residual_db(body, CHAIN_RATE as f64);
-    eprintln!("[#85] residual with NO conversion (same rate): {residual:.1} dB");
+    let tap_residual = worst_window_residual_db(&tap_pcm[tap_pcm.len() / 2..], CHAIN_RATE as f64);
+    let tail_residual =
+        worst_window_residual_db(&tail_pcm[tail_pcm.len() / 2..], CHAIN_RATE as f64);
+    eprintln!("[#85] same rate — tap {tap_residual:.1} dB, chain tail {tail_residual:.1} dB");
     assert!(
-        residual < -40.0,
-        "the tap path itself is dirty ({residual:.1} dB) — fix the probe before \
-         blaming the conversion"
+        tap_residual <= tail_residual + 6.0,
+        "even at one rate the tap is dirtier than the chain's own output \
+         ({tap_residual:.1} vs {tail_residual:.1})"
     );
 }
