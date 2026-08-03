@@ -144,31 +144,39 @@ msgstr "DI-Ausgang"
 msgid "accessible-language-selector"
 msgstr "Sprachauswahl"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:86
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:92
 msgid "looper-editor-title"
 msgstr "Loop bearbeiten"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:115
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-trim"
 msgstr "Kürzen"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:124
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:130
 msgid "looper-editor-crop"
 msgstr "Zuschneiden"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:139
 msgid "looper-editor-cut"
 msgstr "Ausschneiden"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:144
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:151
+msgid "looper-editor-stop"
+msgstr "Stopp"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:152
+msgid "looper-editor-play"
+msgstr "Abspielen"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:161
 msgid "looper-editor-undo"
 msgstr "Rückgängig"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:150
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
 msgid "looper-editor-redo"
 msgstr "Wiederholen"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:156
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:173
 msgid "looper-editor-close"
 msgstr "Schließen"
 

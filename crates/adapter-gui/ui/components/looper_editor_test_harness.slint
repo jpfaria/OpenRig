@@ -20,6 +20,7 @@ export component LooperEditorHarness inherits Window {
         0.81, 0.95, 0.77, 0.53, 0.34, 0.20, 0.13, 0.24, 0.42, 0.61,
     ];
     callback apply(int, int, LoopEditKind, float, float);
+    callback play-stop(int, int);
     callback undo(int, int);
     callback redo(int, int);
 
@@ -39,6 +40,7 @@ export component LooperEditorHarness inherits Window {
         width: root.width;
         height: root.height;
         apply(chain, uid, kind, from, to) => { root.apply(chain, uid, kind, from, to); }
+        play-stop(chain, uid) => { root.play-stop(chain, uid); }
         undo(chain, uid) => { root.undo(chain, uid); }
         redo(chain, uid) => { root.redo(chain, uid); }
     }

@@ -144,31 +144,39 @@ msgstr "DI 출력"
 msgid "accessible-language-selector"
 msgstr "언어 선택기"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:86
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:92
 msgid "looper-editor-title"
 msgstr "루프 편집"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:115
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-trim"
 msgstr "다듬기"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:124
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:130
 msgid "looper-editor-crop"
 msgstr "잘라내기"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:139
 msgid "looper-editor-cut"
 msgstr "구간 삭제"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:144
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:151
+msgid "looper-editor-stop"
+msgstr "정지"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:152
+msgid "looper-editor-play"
+msgstr "재생"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:161
 msgid "looper-editor-undo"
 msgstr "실행 취소"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:150
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
 msgid "looper-editor-redo"
 msgstr "다시 실행"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:156
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:173
 msgid "looper-editor-close"
 msgstr "닫기"
 

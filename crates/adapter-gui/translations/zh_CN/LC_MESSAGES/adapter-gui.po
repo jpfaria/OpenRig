@@ -144,31 +144,39 @@ msgstr "DI输出"
 msgid "accessible-language-selector"
 msgstr "语言选择器"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:86
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:92
 msgid "looper-editor-title"
 msgstr "编辑循环"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:115
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-trim"
 msgstr "修剪"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:124
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:130
 msgid "looper-editor-crop"
 msgstr "裁剪"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:139
 msgid "looper-editor-cut"
 msgstr "剪切"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:144
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:151
+msgid "looper-editor-stop"
+msgstr "停止"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:152
+msgid "looper-editor-play"
+msgstr "播放"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:161
 msgid "looper-editor-undo"
 msgstr "撤销"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:150
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
 msgid "looper-editor-redo"
 msgstr "重做"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:156
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:173
 msgid "looper-editor-close"
 msgstr "关闭"
 

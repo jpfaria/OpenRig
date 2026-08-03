@@ -221,6 +221,7 @@ export component AppWindow inherits Window {
     // #826 — the waveform editor: open it for a loop, and the three edits.
     callback looper-edit(int, int);
     callback looper-edit-apply(int, int, LoopEditKind, float, float);
+    callback looper-edit-play-stop(int, int);
     callback looper-edit-undo(int, int);
     callback looper-edit-redo(int, int);
 
@@ -912,6 +913,7 @@ export component AppWindow inherits Window {
     LooperEditorOverlay {
         width: root.width; height: root.height;
         apply(ci, uid, kind, from, to) => { root.looper-edit-apply(ci, uid, kind, from, to); }
+        play-stop(ci, uid) => { root.looper-edit-play-stop(ci, uid); }
         undo(ci, uid) => { root.looper-edit-undo(ci, uid); }
         redo(ci, uid) => { root.looper-edit-redo(ci, uid); }
     }

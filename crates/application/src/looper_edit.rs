@@ -74,6 +74,10 @@ pub struct LoopEditReading {
     /// frontend that knows the rate — the editor states how much audio it is
     /// about to reshape instead of making the user guess from a drawing.
     pub length_label: String,
+    /// Whether the loop is sounding right now — the editor's transport shows
+    /// play or stop, and the edits are dead while it is true (the store
+    /// refuses to reshape a live take).
+    pub playing: bool,
     /// Whether the edit history has anything to step through.
     pub can_undo: bool,
     pub can_redo: bool,

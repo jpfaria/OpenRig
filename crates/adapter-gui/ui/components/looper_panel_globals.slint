@@ -40,6 +40,10 @@ export global LooperEditor {
     // The loop's length, formatted in Rust ("0:08") — the editor says how much
     // audio it is reshaping instead of leaving the drawing to be guessed at.
     in-out property <string> length-label;
+    // Whether the loop is sounding right now. An edit is judged by ear, so the
+    // editor runs the loop itself — and while it runs, the edits are dead (the
+    // store refuses to reshape a live take).
+    in-out property <bool> playing;
     // Whether the edit history has anything to step through.
     in-out property <bool> can-undo;
     in-out property <bool> can-redo;

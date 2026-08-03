@@ -124,6 +124,38 @@ fn dragging_the_start_handle_moves_the_selection_the_host_is_told_about() {
 }
 
 #[test]
+fn the_play_button_asks_the_host_to_run_the_loop() {
+    // #826: an edit is judged by EAR. Without a transport in the editor the
+    // user has to close it, hit play in the row, and reopen to keep working.
+    let (w, _applied) = harness();
+    let played: Rc<RefCell<Vec<i32>>> = Rc::new(RefCell::new(Vec::new()));
+    let p = played.clone();
+    w.on_play_stop(move |_chain, uid| p.borrow_mut().push(uid));
+    w.show().unwrap();
+
+    assert!(
+        click(&w, "EditorButton::area", 3),
+        "the play button must be hittable"
+    );
+    assert_eq!(*played.borrow(), vec![1], "play names the loop it runs");
+}
+
+#[test]
+fn the_edits_are_dead_while_the_loop_is_playing() {
+    // The store refuses an edit on a live loop, so the buttons must say so
+    // rather than dispatch something that comes back as a warning.
+    let (w, applied) = harness();
+    w.show().unwrap();
+    w.global::<adapter_gui::LooperEditor>().set_playing(true);
+
+    click(&w, "EditorButton::area", 0);
+    assert!(
+        applied.borrow().is_empty(),
+        "trim must not reach the host while the loop plays"
+    );
+}
+
+#[test]
 fn the_undo_button_asks_the_host_to_step_the_history() {
     let (w, _applied) = harness();
     let undone: Rc<RefCell<Vec<i32>>> = Rc::new(RefCell::new(Vec::new()));
@@ -131,8 +163,9 @@ fn the_undo_button_asks_the_host_to_step_the_history() {
     w.on_undo(move |_chain, uid| u.borrow_mut().push(uid));
     w.show().unwrap();
 
-    // The harness seeds `can-undo`, so the button is live; index 3 is undo.
-    assert!(click(&w, "EditorButton::area", 3), "undo must be hittable");
+    // The harness seeds `can-undo`, so the button is live; index 4 is undo
+    // (trim, crop, cut, play, undo, redo, close).
+    assert!(click(&w, "EditorButton::area", 4), "undo must be hittable");
     assert_eq!(*undone.borrow(), vec![1], "undo names the loop it steps");
 }
 
@@ -146,7 +179,7 @@ fn a_disabled_button_asks_for_nothing() {
     w.on_redo(move |_chain, uid| r.borrow_mut().push(uid));
     w.show().unwrap();
 
-    click(&w, "EditorButton::area", 4);
+    click(&w, "EditorButton::area", 5);
     assert!(
         redone.borrow().is_empty(),
         "a disabled redo must not reach the host"

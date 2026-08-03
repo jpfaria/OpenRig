@@ -144,31 +144,39 @@ msgstr "DI出力"
 msgid "accessible-language-selector"
 msgstr "言語セレクター"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:86
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:92
 msgid "looper-editor-title"
 msgstr "ループを編集"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:115
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:121
 msgid "looper-editor-trim"
 msgstr "トリム"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:124
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:130
 msgid "looper-editor-crop"
 msgstr "切り抜き"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:133
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:139
 msgid "looper-editor-cut"
 msgstr "カット"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:144
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:151
+msgid "looper-editor-stop"
+msgstr "停止"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:152
+msgid "looper-editor-play"
+msgstr "再生"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:161
 msgid "looper-editor-undo"
 msgstr "元に戻す"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:150
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:167
 msgid "looper-editor-redo"
 msgstr "やり直す"
 
-#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:156
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:173
 msgid "looper-editor-close"
 msgstr "閉じる"
 

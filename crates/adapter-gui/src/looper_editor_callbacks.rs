@@ -13,7 +13,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::{Command, LooperCommand};
+use application::command::{Command, LooperAction, LooperCommand};
 use application::live_source::LiveSource;
 use application::looper_edit::{LoopEdit, LoopEditKind};
 use domain::ids::ChainId;
@@ -38,6 +38,7 @@ fn refresh_editor(window: &AppWindow, live: &Live, chain: &ChainId, uid: u64) ->
     let editor = window.global::<LooperEditor>();
     editor.set_peaks(ModelRc::new(VecModel::from(reading.peaks)));
     editor.set_length_label(reading.length_label.into());
+    editor.set_playing(reading.playing);
     editor.set_can_undo(reading.can_undo);
     editor.set_can_redo(reading.can_redo);
     Some(reading.len_frames)
@@ -136,6 +137,42 @@ pub(crate) fn wire_looper_editor_callbacks(
                 }
                 Err(err) => log::warn!("loop edit refused: {err}"),
             }
+        });
+    }
+
+    // ── the transport ───────────────────────────────────────────────────
+    //
+    // The SAME command the row's play button dispatches: one button, one
+    // meaning, and `PlayStop` is resolved against the store's own state so the
+    // editor can never disagree with the panel about what the loop is doing.
+    {
+        let session = session.clone();
+        let live = live.clone();
+        let window_weak = window.as_weak();
+        window.on_looper_edit_play_stop(move |index, uid| {
+            let Some(window) = window_weak.upgrade() else {
+                return;
+            };
+            let session_borrow = session.borrow();
+            let Some(s) = session_borrow.as_ref() else {
+                return;
+            };
+            let Some(chain) = chain_id_at(s, index) else {
+                return;
+            };
+            let uid = uid as u64;
+            if let Err(err) =
+                s.dispatcher
+                    .dispatch(Command::Looper(LooperCommand::SetChainLooperTransport {
+                        chain: chain.clone(),
+                        looper: uid,
+                        action: LooperAction::PlayStop,
+                    }))
+            {
+                log::warn!("loop transport from the editor failed: {err}");
+                return;
+            }
+            refresh_editor(&window, &live, &chain, uid);
         });
     }
 

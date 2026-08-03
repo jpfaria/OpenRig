@@ -17,7 +17,7 @@ component EditorButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    min-width: 92px;
+    min-width: 78px;
     height: 34px;
     border-radius: 8px;
     border-width: 1px;
@@ -51,10 +51,16 @@ export component LooperEditorOverlay inherits Rectangle {
     // (chain-index, uid, kind, sel-start, sel-end) — the ratios become frames
     // in Rust, which is the only side that knows the loop's length.
     callback apply(int, int, LoopEditKind, float, float);
+    // (chain-index, uid) — run or silence the loop, so an edit can be judged
+    // by ear without leaving the editor.
+    callback play-stop(int, int);
     callback undo(int, int);
     callback redo(int, int);
 
-    private property <bool> has-selection: LooperEditor.sel-end - LooperEditor.sel-start > 0.02;
+    // An edit needs a region AND a stopped loop: the store refuses to reshape
+    // a take that is sounding, so a live button would only earn a warning.
+    private property <bool> can-edit:
+        LooperEditor.sel-end - LooperEditor.sel-start > 0.02 && !LooperEditor.playing;
 
     x: 0;
     y: 0;
@@ -67,7 +73,7 @@ export component LooperEditorOverlay inherits Rectangle {
     if LooperEditor.open : Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
-        width: min(root.width - 80px, 720px);
+        width: min(root.width - 80px, 760px);
         height: 258px;
         background: #1e1f22;
         border-radius: 12px;
@@ -109,11 +115,10 @@ export component LooperEditorOverlay inherits Rectangle {
 
             HorizontalLayout {
                 spacing: 8px;
-                alignment: start;
 
                 EditorButton {
                     label: @tr("looper-editor-trim");
-                    enabled: root.has-selection;
+                    enabled: root.can-edit;
                     clicked => {
                         root.apply(LooperEditor.chain-index, LooperEditor.uid,
                             LoopEditKind.trim, LooperEditor.sel-start, LooperEditor.sel-end);
@@ -122,7 +127,7 @@ export component LooperEditorOverlay inherits Rectangle {
 
                 EditorButton {
                     label: @tr("looper-editor-crop");
-                    enabled: root.has-selection;
+                    enabled: root.can-edit;
                     clicked => {
                         root.apply(LooperEditor.chain-index, LooperEditor.uid,
                             LoopEditKind.crop, LooperEditor.sel-start, LooperEditor.sel-end);
@@ -131,14 +136,25 @@ export component LooperEditorOverlay inherits Rectangle {
 
                 EditorButton {
                     label: @tr("looper-editor-cut");
-                    enabled: root.has-selection;
+                    enabled: root.can-edit;
                     clicked => {
                         root.apply(LooperEditor.chain-index, LooperEditor.uid,
                             LoopEditKind.cut, LooperEditor.sel-start, LooperEditor.sel-end);
                     }
                 }
 
-                Rectangle { width: 16px; }
+                Rectangle { min-width: 8px; }
+
+                EditorButton {
+                    label: LooperEditor.playing
+                        ? @tr("looper-editor-stop")
+                        : @tr("looper-editor-play");
+                    clicked => {
+                        root.play-stop(LooperEditor.chain-index, LooperEditor.uid);
+                    }
+                }
+
+                Rectangle { min-width: 8px; }
 
                 EditorButton {
                     label: @tr("looper-editor-undo");

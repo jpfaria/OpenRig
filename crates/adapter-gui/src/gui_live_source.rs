@@ -235,6 +235,7 @@ impl LiveSource for LooperLiveSource {
             peaks: loop_edit::peaks(&pcm, buckets),
             len_frames,
             length_label: crate::looper_view::clock_label(len_frames, controller.sample_rate()),
+            playing: controller.looper_is_playing(chain, looper),
             can_undo: can_undo > 0,
             can_redo: can_redo > 0,
         })
