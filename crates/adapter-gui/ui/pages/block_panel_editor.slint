@@ -50,11 +50,9 @@ export component BlockPanelEditor inherits Rectangle {
     in property <int> panel-grid-cols: 0;
     in property <int> panel-grid-rows: 0;
 
-    // Fallback constants — keep in sync with
-    // `block_panel_dimensions::MAX_COLS` / `ROW_STRIDE_PX`. The Rust
-    // policy is the source of truth (gated by unit tests); the Slint
-    // formula below only fires when the Rust value has not been
-    // pushed yet.
+    // Fallback constants — keep in sync with `block_panel_dimensions::MAX_COLS`
+    // / `ROW_STRIDE_PX`. The Rust policy is the source of truth (gated by unit
+    // tests); the formula below only fires before Rust has pushed its value.
     private property <int> grid-max-cols-fallback: 6;
     private property <int> knob-count-fallback:
         root.block-knob-overlays.length > 0
@@ -142,8 +140,11 @@ export component BlockPanelEditor inherits Rectangle {
         root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
     private property <length> brand-strip-height: 0px;
-    // Parameter-tab bar (#780): present only with >1 group; shifts panel down.
-    private property <bool> has-param-tabs: root.block-parameter-groups.length > 1;
+    // Parameter-tab bar (#780): >1 group only, and never on an EQ-widget block
+    // (#878) — there the tabs filter a knob grid the block never shows, and
+    // their 40px pushes the band sliders past the bottom of the window.
+    private property <bool> has-param-tabs:
+        root.block-parameter-groups.length > 1 && !root.has-eq-widget;
     private property <length> tab-bar-height: root.has-param-tabs ? 40px : 0px;
     private property <length> content-top: root.header-height + root.tab-bar-height + root.brand-strip-height;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).

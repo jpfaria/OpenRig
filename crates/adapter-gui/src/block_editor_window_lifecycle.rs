@@ -86,9 +86,11 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
         has_eq_widget,
     });
     win.set_panel_knob_window_width(dims.window_width_px);
+    // The tab bar is suppressed for EQ-widget blocks (#878), so its 40px must
+    // not be added to their window either — it would only pad dead space.
     win.set_panel_knob_window_height(
         dims.window_height_px
-            + if win.get_block_parameter_groups().row_count() > 1 {
+            + if !has_eq_widget && win.get_block_parameter_groups().row_count() > 1 {
                 40.0
             } else {
                 0.0
