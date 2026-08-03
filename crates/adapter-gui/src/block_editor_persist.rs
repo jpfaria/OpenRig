@@ -21,9 +21,8 @@ use anyhow::{anyhow, Result};
 use slint::{Timer, TimerMode, VecModel};
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::BlockId;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::block::{build_audio_block_kind, AudioBlock, AudioBlockKind};
 
 use crate::block_editor_values::{block_parameter_values, internal_block_parameter_value};
@@ -43,7 +42,6 @@ pub(crate) fn schedule_block_editor_persist(
     block_parameter_items: Rc<VecModel<BlockParameterItem>>,
     project_session: Rc<RefCell<Option<crate::state::ProjectSession>>>,
     project_chains: Rc<VecModel<ProjectChainItem>>,
-    project_runtime: Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -73,7 +71,6 @@ pub(crate) fn schedule_block_editor_persist(
                 &block_parameter_items,
                 &project_session,
                 &project_chains,
-                &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
                 &devs_in,
@@ -97,7 +94,6 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
     block_parameter_items: Rc<VecModel<BlockParameterItem>>,
     project_session: Rc<RefCell<Option<crate::state::ProjectSession>>>,
     project_chains: Rc<VecModel<ProjectChainItem>>,
-    project_runtime: Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -131,7 +127,6 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
                 &block_parameter_items,
                 &project_session,
                 &project_chains,
-                &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
                 &devs_in,
@@ -153,7 +148,6 @@ pub(crate) fn persist_block_editor_draft(
     block_parameter_items: &Rc<VecModel<BlockParameterItem>>,
     project_session: &Rc<RefCell<Option<crate::state::ProjectSession>>>,
     project_chains: &Rc<VecModel<ProjectChainItem>>,
-    project_runtime: &Rc<RefCell<Option<infra_cpal::ProjectRuntimeController>>>,
     saved_project_snapshot: &Rc<RefCell<Option<String>>>,
     project_dirty: &Rc<RefCell<bool>>,
     input_chain_devices: &[AudioDeviceDescriptor],
@@ -327,7 +321,7 @@ pub(crate) fn persist_block_editor_draft(
             .map_err(|e| anyhow!(e))?;
         log::info!("[persist] INSERT dispatched for chain_id='{}'", chain_id.0);
     }
-    if let Err(error) = crate::sync_live_chain_runtime(project_runtime, session, &chain_id) {
+    if let Err(error) = crate::runtime_sync_policy::request_chain_sync(session, &chain_id) {
         log_gui_error("block-drawer.persist", &error);
         return Err(error);
     }

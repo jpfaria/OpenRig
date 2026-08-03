@@ -32,6 +32,20 @@ fn di_loop_events_do_not_rebuild() {
     ));
 }
 
+/// #127 (Task 8): `BlockCommand::ToggleBlockEnabled` now applies the #522 LIVE
+/// in-place toggle from the dispatcher itself. If the drain ALSO rebuilt on the
+/// resulting event, an MCP/footswitch block toggle would pay a full chain sync
+/// (device resolve + model reload) right after the cheap toggle already
+/// happened — the #740 freeze, on the wrong side of the fix.
+#[test]
+fn a_block_enable_toggle_does_not_rebuild() {
+    assert!(!event_requires_runtime_sync(&Event::BlockEnabledChanged {
+        chain: chain(),
+        block: domain::ids::BlockId("b".into()),
+        enabled: false,
+    }));
+}
+
 #[test]
 fn graph_changing_events_do_rebuild() {
     assert!(event_requires_runtime_sync(&Event::ChainEnabledChanged {
@@ -45,29 +59,12 @@ fn graph_changing_events_do_rebuild() {
     }));
 }
 
-/// #85 — the user changed the sample rate in the audio settings and the rig
-/// went silent until the project was reopened. `AudioSettingsSaved` names no
-/// chain, so the per-chain loop above skipped it and NOTHING re-synced: the
-/// streams kept running against the old device config. A rate/buffer change is
-/// a rebuild of every chain, not a stop.
-#[test]
-fn saving_the_audio_settings_rebuilds_every_chain() {
-    assert!(
-        super::runtime_sync_policy::events_require_full_project_sync(&[Event::AudioSettingsSaved]),
-        "#85: after a device rate/buffer change the whole project must be re-synced"
-    );
-}
-
-/// It must stay a rebuild of the WHOLE project only for that: a DI toggle or a
-/// per-chain edit keeps the targeted path.
-#[test]
-fn ordinary_events_do_not_force_a_full_project_sync() {
-    assert!(
-        !super::runtime_sync_policy::events_require_full_project_sync(&[
-            Event::ChainDiLoopEnabledChanged {
-                chain: chain(),
-                enabled: true,
-            },
-        ])
-    );
-}
+// #85's pair of tests for `events_require_full_project_sync` lived here. The
+// rate/buffer rebuild they described is no longer a drain decision this
+// frontend makes: `SettingsCommand::SaveAudioSettings` applies
+// `RuntimeControl::apply_device_settings` and then `sync_project` from the
+// dispatcher, so the same save over MCP or MIDI re-opens the graph too. The
+// behaviour is pinned there, against a real dispatch, by
+// `application::local_dispatcher_runtime_doors_tests::
+// saving_the_device_settings_rebuilds_the_whole_graph` and
+// `..._makes_the_driver_adopt_them_first`.

@@ -59,9 +59,9 @@ pub enum SelectionCommand {
     // ── Output / analyzers ────────────────────────────────────────────────────
     /// #436 G: mute/unmute the audio output (tuner mute). Was GUI-only
     /// (`rt.set_output_muted` in a wiring closure). Now a Command so
-    /// MIDI/MCP can request it too. `SaveProject` precedent: the adapter
-    /// applies it to the audio runtime; the dispatcher records the
-    /// intent and signals it via `Event::OutputMutedChanged`.
+    /// MIDI/MCP can request it too. #127: the dispatcher records the state,
+    /// applies it to the runtime through the attached `RuntimeControl`, and
+    /// signals `Event::OutputMutedChanged` — the caller does nothing after.
     SetOutputMuted { muted: bool },
 
     /// #436 H: power the Tuner analyzer on/off. Was GUI-only (build/

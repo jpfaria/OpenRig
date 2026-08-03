@@ -25,6 +25,12 @@ pub enum Subdivision {
 }
 
 impl Subdivision {
+    /// Every value, as the key commands and `config.yaml` spell it. The one
+    /// place the vocabulary is written down: the dispatcher validates against
+    /// this list and the UI labels its knob from it, so a new subdivision
+    /// cannot be legal in one and unknown in the other.
+    pub const KEYS: [&'static str; 4] = ["off", "eighths", "triplets", "sixteenths"];
+
     /// How many ticks the generator fires per beat.
     pub fn ticks_per_beat(self) -> u32 {
         match self {
@@ -32,6 +38,28 @@ impl Subdivision {
             Subdivision::Eighths => 2,
             Subdivision::Triplets => 3,
             Subdivision::Sixteenths => 4,
+        }
+    }
+
+    /// This value's command key.
+    pub fn key(self) -> &'static str {
+        match self {
+            Subdivision::Off => "off",
+            Subdivision::Eighths => "eighths",
+            Subdivision::Triplets => "triplets",
+            Subdivision::Sixteenths => "sixteenths",
+        }
+    }
+
+    /// The value `key` names, or `None` when it names none — never a silent
+    /// fallback to a different sound.
+    pub fn from_key(key: &str) -> Option<Self> {
+        match key {
+            "off" => Some(Subdivision::Off),
+            "eighths" => Some(Subdivision::Eighths),
+            "triplets" => Some(Subdivision::Triplets),
+            "sixteenths" => Some(Subdivision::Sixteenths),
+            _ => None,
         }
     }
 }
@@ -46,6 +74,29 @@ pub enum Timbre {
 }
 
 impl Timbre {
+    /// Every value, as the key commands and `config.yaml` spell it. Same role
+    /// as [`Subdivision::KEYS`] — one vocabulary, one place.
+    pub const KEYS: [&'static str; 3] = ["click", "wood", "beep"];
+
+    /// This value's command key.
+    pub fn key(self) -> &'static str {
+        match self {
+            Timbre::Click => "click",
+            Timbre::Wood => "wood",
+            Timbre::Beep => "beep",
+        }
+    }
+
+    /// The value `key` names, or `None` when it names none.
+    pub fn from_key(key: &str) -> Option<Self> {
+        match key {
+            "click" => Some(Timbre::Click),
+            "wood" => Some(Timbre::Wood),
+            "beep" => Some(Timbre::Beep),
+            _ => None,
+        }
+    }
+
     /// `(beat Hz, downbeat Hz, count-in Hz, decay seconds)`.
     fn voicing(self) -> (f32, f32, f32, f32) {
         match self {

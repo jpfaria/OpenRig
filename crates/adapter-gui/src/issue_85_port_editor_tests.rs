@@ -103,7 +103,6 @@ impl Harness {
             port_draft,
             project_session: session.clone(),
             project_chains: Rc::new(VecModel::default()),
-            project_runtime: Rc::new(RefCell::new(None)),
             saved_project_snapshot: Rc::new(RefCell::new(None)),
             project_dirty: Rc::new(RefCell::new(false)),
             input_chain_devices: Rc::new(RefCell::new(Vec::new())),
@@ -178,5 +177,48 @@ fn ok_without_a_pick_warns_instead_of_writing() {
     assert!(
         h.port_target().0.is_empty(),
         "nothing may be written before a pick"
+    );
+}
+
+/// Records which chain the dispatcher asked the runtime to rebuild.
+#[derive(Default)]
+struct SyncSpy {
+    synced: RefCell<Vec<String>>,
+}
+
+impl application::runtime_control::RuntimeControl for SyncSpy {
+    fn sync_chain(&self, chain: &ChainId) -> anyhow::Result<()> {
+        self.synced.borrow_mut().push(chain.0.clone());
+        Ok(())
+    }
+}
+
+/// #85/#127 — enabling or disabling a mid port is a TOPOLOGY change, not a
+/// processor fade. `runtime_segments` splits the chain on `b.enabled` ports, and
+/// `runtime_block_builders` skips Input/Output entirely ("routing metadata"), so
+/// the #522 in-place toggle the `ToggleBlockEnabled` handler applies finds no
+/// node, reports success and leaves the pipelines exactly as they were: the port
+/// would go grey on screen and keep sounding.
+///
+/// So the editor asks for THIS chain's rebuild after the toggle — by identity,
+/// never a group.
+#[test]
+fn toggling_a_port_rebuilds_its_chain() {
+    let h = Harness::new();
+    let spy = Rc::new(SyncSpy::default());
+    {
+        let borrow = h.session.borrow();
+        let session = borrow.as_ref().unwrap();
+        session.dispatcher.attach_runtime_control(spy.clone());
+    }
+
+    h.window.invoke_toggle_enabled();
+
+    assert_eq!(
+        spy.synced.borrow().as_slice(),
+        ["rig:input-1"],
+        "#85: a mid port's enablement changes how the chain splits into \
+         pipelines, so the toggle must ask for that chain's rebuild — the \
+         in-place block toggle cannot apply it"
     );
 }

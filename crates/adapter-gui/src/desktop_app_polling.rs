@@ -1,16 +1,23 @@
 //! Two background timers wired by `run_desktop_app` against the main window.
 //!
-//! * **Error poll** (200 ms) — drains the audio engine's bounded
-//!   `BlockError` queue and surfaces the first message as a toast. The queue
-//!   is lock-free and dropped from the audio thread when full, so the UI
-//!   only sees a fraction during error storms — that's intentional.
-//! * **Audio health check** (2 s) — when a runtime is running but
-//!   `is_healthy()` reports false (JACK server down, CoreAudio device
-//!   removed), shows a "reconnecting" toast and calls `try_reconnect` on the
-//!   active project until the backend recovers. Device hot-plug detection
-//!   was deliberately moved out of this timer because polling
-//!   `/proc/asound/cards` triggered scarlett2_notify freezes on the Orange
-//!   Pi USB-C OTG port; the device list now refreshes only on demand.
+//! * **Error poll** (200 ms) — installs any chain rebuild the control worker
+//!   finished (#672) and drains the audio engine's bounded `BlockError` queue,
+//!   surfacing the first message as a toast. The queue is lock-free and
+//!   dropped from the audio thread when full, so the UI only sees a fraction
+//!   during error storms — that's intentional.
+//! * **Audio health check** (2 s) — when a runtime is running but the backend
+//!   reports itself unhealthy (JACK server down, CoreAudio device removed),
+//!   shows a "reconnecting" toast and asks for a reconnect until the backend
+//!   recovers. Device hot-plug detection was deliberately moved out of this
+//!   timer because polling `/proc/asound/cards` triggered scarlett2_notify
+//!   freezes on the Orange Pi USB-C OTG port; the device list now refreshes
+//!   only on demand.
+//!
+//! #127: this module holds NO audio backend. It reads through
+//! `LiveSource` (the errors, the health) and writes through `RuntimeControl`
+//! (installing a rebuild, reconnecting) — the same two seams every other
+//! module uses. Neither write is a `Command`: nobody asks for either one (see
+//! `runtime_health`), so the tick calls its own control instead of dispatching.
 //!
 //! Both timers are leaked with `std::mem::forget` so they live for the
 //! whole application lifetime — there's no `drop(window)` path that needs
@@ -20,18 +27,18 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use infra_cpal::ProjectRuntimeController;
+use application::live_source::LiveSource;
+use application::runtime_control::RuntimeControl;
 use slint::{ComponentHandle, Timer};
 
 use crate::helpers::{set_status_error, set_status_info, set_status_warning};
-use crate::state::ProjectSession;
 use crate::AppWindow;
 
 pub(crate) fn start(
     window: &AppWindow,
     toast_timer: Rc<Timer>,
-    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
-    project_session: Rc<RefCell<Option<ProjectSession>>>,
+    live: Rc<dyn LiveSource>,
+    control: Rc<dyn RuntimeControl>,
 ) {
     // Issue #778: this is the UI/AppKit (main) thread. Record it so a VST3 plugin
     // whose native editor is open, when dropped on the control worker, has its
@@ -41,7 +48,8 @@ pub(crate) fn start(
     {
         let weak_window = window.as_weak();
         let toast_timer_for_errors = toast_timer.clone();
-        let project_runtime_for_errors = project_runtime.clone();
+        let live_for_errors = live.clone();
+        let control_for_errors = control.clone();
         let error_poll_timer = Timer::default();
         error_poll_timer.start(
             slint::TimerMode::Repeated,
@@ -50,18 +58,17 @@ pub(crate) fn start(
                 let Some(win) = weak_window.upgrade() else {
                     return;
                 };
-                let mut rt_borrow = project_runtime_for_errors.borrow_mut();
-                let Some(rt) = rt_borrow.as_mut() else {
-                    return;
-                };
                 // Issue #672: apply any off-thread chain rebuilds finished by the
                 // control worker — swaps the live runtime in on the frontend tick
                 // so the heavy build never blocked the UI.
-                rt.poll_pending_rebuilds();
+                control_for_errors.apply_finished_rebuilds();
                 // Issue #778: run any VST3 teardown the control worker deferred to
                 // the main thread (dropping a plugin off-main crashes).
                 project::vst3_editor::drain_deferred_vst3_teardowns();
-                let errors = rt.poll_errors();
+                // A draining read: whatever this takes, nobody else will see.
+                let Some(errors) = live_for_errors.block_errors() else {
+                    return;
+                };
                 if let Some(first) = errors.first() {
                     set_status_error(
                         &win,
@@ -80,8 +87,6 @@ pub(crate) fn start(
     {
         let weak_window = window.as_weak();
         let toast_timer_health = toast_timer;
-        let runtime_health = project_runtime;
-        let session_health = project_session;
         let disconnected = Rc::new(RefCell::new(false));
         let health_timer = Timer::default();
         health_timer.start(
@@ -98,16 +103,15 @@ pub(crate) fn start(
                 // freezes the device. The device list now refreshes only when the
                 // user enters a UI surface that needs it (chain I/O editor, Settings,
                 // configure-project) — see the refresh_input_devices call sites.
-                let mut rt_borrow = runtime_health.borrow_mut();
-                let Some(rt) = rt_borrow.as_mut() else {
+                let Some(health) = live.audio_health() else {
                     return;
                 };
-                if !rt.is_running() {
+                if !health.running {
                     return;
                 }
                 let mut is_disconnected = disconnected.borrow_mut();
 
-                if rt.is_healthy() {
+                if health.healthy {
                     if *is_disconnected {
                         // Was disconnected, now healthy again — nothing to do,
                         // reconnection already happened
@@ -128,12 +132,7 @@ pub(crate) fn start(
                 }
 
                 // Try to reconnect
-                let session_borrow = session_health.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                let proj_borrow = session.project.borrow();
-                match rt.try_reconnect(&proj_borrow) {
+                match control.reconnect_audio() {
                     Ok(true) => {
                         *is_disconnected = false;
                         set_status_info(

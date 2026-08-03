@@ -3,7 +3,7 @@ use crate::state::SelectedBlock;
 use crate::ui_state::{chain_io_chip_label_from_bindings, chain_routing_summary};
 use crate::AppWindow;
 use crate::{BlockModelPickerItem, BlockTypePickerItem, ProjectChainItem};
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::IoBinding;
 use project::block::AudioBlockKind;
 use project::catalog::{supported_block_models, supported_block_type, supported_block_types};

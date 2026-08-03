@@ -55,8 +55,8 @@ pub fn init_registry_with_root(root: &std::path::Path) {
 
 pub fn rig_project(
     preset_file: &str,
-    input: &infra_cpal::AudioDeviceDescriptor,
-    output: &infra_cpal::AudioDeviceDescriptor,
+    input: &domain::AudioDeviceDescriptor,
+    output: &domain::AudioDeviceDescriptor,
 ) -> (Project, ChainId, Vec<IoBinding>) {
     rig_project_with(preset_file, input, output, 48_000, BUFFER)
 }
@@ -71,8 +71,8 @@ pub fn rig_project(
 /// re-sync) so the streams resolve to the real devices.
 pub fn rig_project_with(
     preset_file: &str,
-    input: &infra_cpal::AudioDeviceDescriptor,
-    output: &infra_cpal::AudioDeviceDescriptor,
+    input: &domain::AudioDeviceDescriptor,
+    output: &domain::AudioDeviceDescriptor,
     sample_rate: u32,
     buffer_frames: u32,
 ) -> (Project, ChainId, Vec<IoBinding>) {

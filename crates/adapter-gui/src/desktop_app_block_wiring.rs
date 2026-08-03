@@ -16,7 +16,8 @@ use std::rc::Rc;
 
 use slint::{SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use application::live_source::LiveSource;
+use domain::AudioDeviceDescriptor;
 
 use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::{
@@ -48,7 +49,8 @@ pub(crate) struct BlockWiringDeps<'a> {
 
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the block editors' diagnostic-stream read seam.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
 
@@ -109,7 +111,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
+            block_stream_reads: Rc::clone(&deps.block_stream_reads),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -148,7 +150,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -175,7 +176,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -203,7 +203,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
+            block_stream_reads: Rc::clone(&deps.block_stream_reads),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -267,7 +267,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
@@ -291,7 +290,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
@@ -316,7 +314,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),

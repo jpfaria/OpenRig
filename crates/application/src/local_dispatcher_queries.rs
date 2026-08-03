@@ -3,6 +3,15 @@
 //! Single responsibility: exposing dispatcher-owned state for reads
 //! (selection, engine rate, DI-loop source, chain snapshot) plus the
 //! immutable state-snapshot publish. No command handling, no wiring.
+//!
+//! #127: these read accessors are `pub(crate)` — the crate's public surface
+//! for them is `CommandDispatcher` (see `local_dispatcher_trait.rs`), which
+//! delegates one line into each. They stay here (not inlined into the trait
+//! impl) because Rust allows exactly one `impl CommandDispatcher for
+//! LocalDispatcher` block per crate (E0119 otherwise), and concentrating
+//! every trait method's full body there would blow past this file's line
+//! cap; keeping the bodies in their existing single-responsibility modules
+//! and delegating from the trait impl satisfies both constraints.
 
 use std::sync::{Arc, RwLock};
 
@@ -20,7 +29,7 @@ impl LocalDispatcher {
     /// mutates; `Rc<RefCell<…>>` was tried first but `RefCell` is
     /// single-threaded and the daemon runs on its own midir-callback
     /// thread.
-    pub fn selection_state(&self) -> Arc<RwLock<SelectionState>> {
+    pub(crate) fn selection_state(&self) -> Arc<RwLock<SelectionState>> {
         Arc::clone(&self.selection_state)
     }
 
@@ -38,7 +47,7 @@ impl LocalDispatcher {
     /// The sample rate the live engine is currently running at, as last
     /// synced via [`Self::attach_engine_sr`]. Authoritative fallback for any
     /// consumer that would otherwise assume a fixed rate (issue #723).
-    pub fn engine_sr(&self) -> u32 {
+    pub(crate) fn engine_sr(&self) -> u32 {
         *self.engine_sr.borrow()
     }
 
@@ -48,7 +57,7 @@ impl LocalDispatcher {
     /// `ChainDiLoopEnabledChanged { enabled: true }` event handler to
     /// forward the arc to the chain's audio runtime. Returns `None` when
     /// no source has been loaded for this chain yet.
-    pub fn di_loop_for_chain(&self, chain: &ChainId) -> Option<Arc<DiPcm>> {
+    pub(crate) fn di_loop_for_chain(&self, chain: &ChainId) -> Option<Arc<DiPcm>> {
         self.di_loop_state
             .borrow()
             .get(chain)
@@ -58,7 +67,7 @@ impl LocalDispatcher {
     /// #717: a clone of the chain's current definition, so the runtime layer can
     /// build the dedicated DI runtime from a copy of the chain's graph without
     /// holding a borrow on the project.
-    pub fn chain_snapshot(&self, chain: &ChainId) -> Option<project::chain::Chain> {
+    pub(crate) fn chain_snapshot(&self, chain: &ChainId) -> Option<project::chain::Chain> {
         self.project
             .borrow()
             .chains
@@ -76,7 +85,7 @@ impl LocalDispatcher {
     /// Serving it from the dispatcher rather than from whichever frontend ran
     /// the diagnosis is what makes MCP see exactly what the GUI panel shows,
     /// instead of paying for a second render of its own.
-    pub fn tone_report_json(&self, chain: &ChainId) -> String {
+    pub(crate) fn tone_report_json(&self, chain: &ChainId) -> String {
         let run = self
             .tone_doctor_runs
             .borrow()
@@ -94,7 +103,7 @@ impl LocalDispatcher {
     /// reopened (the popup is re-instantiated on each show, so the selection
     /// must be re-derived from dispatcher state rather than held in the view).
     /// Returns `None` when no source has been loaded for this chain yet.
-    pub fn di_loop_source_for_chain(&self, chain: &ChainId) -> Option<DiLoopSource> {
+    pub(crate) fn di_loop_source_for_chain(&self, chain: &ChainId) -> Option<DiLoopSource> {
         self.di_loop_state
             .borrow()
             .get(chain)

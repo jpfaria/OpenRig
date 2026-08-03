@@ -2,7 +2,7 @@
 //! so the parent module stays under the size cap.
 
 use domain::io_binding::IoBinding;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::project::Project;
 

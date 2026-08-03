@@ -25,7 +25,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use application::live_source::LiveSource;
+use domain::AudioDeviceDescriptor;
 use project::param::ParameterSet;
 
 use crate::block_editor::{block_parameter_items_for_editor, build_knob_overlays};
@@ -62,7 +63,9 @@ pub(crate) struct BlockEditorWindowSetupCtx {
     pub block_id: Option<domain::ids::BlockId>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the block's diagnostic stream comes through the read seam, not
+    /// from the audio backend.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -89,7 +92,7 @@ pub(crate) fn create_and_wire(
         block_id,
         project_session,
         project_chains,
-        project_runtime,
+        block_stream_reads,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -193,7 +196,7 @@ pub(crate) fn create_and_wire(
         &effect_type,
         &model_id,
         &editor_data.params,
-        eq_viz_sample_rate(&project_runtime),
+        eq_viz_sample_rate(&project_session),
     );
     let win_eq_band_curves = Rc::new(VecModel::from(
         win_eq_bands
@@ -257,7 +260,7 @@ pub(crate) fn create_and_wire(
         );
         let stream_timer = Rc::new(Timer::default());
         let weak_win_stream = win.as_weak();
-        let project_runtime_stream = project_runtime.clone();
+        let block_stream_reads = Rc::clone(&block_stream_reads);
         let block_id_for_stream = block_id.clone();
         let mut poll_count: u32 = 0;
         stream_timer.start(
@@ -265,19 +268,20 @@ pub(crate) fn create_and_wire(
             std::time::Duration::from_millis(50),
             move || {
                 let Some(win) = weak_win_stream.upgrade() else { return; };
-                let runtime_borrow = project_runtime_stream.borrow();
                 // No utility block currently produces a "spectrum" stream
                 // (the spectrum_analyzer block was promoted to a top-bar
                 // feature in #320). Kept generic for future stream blocks.
                 let kind: slint::SharedString = "stream".into();
-                let Some(runtime) = runtime_borrow.as_ref() else {
+                // `None` ⇒ nothing hosted: leave the panel showing whatever it
+                // had, exactly as the runtime-less early return did.
+                let Some(entries) = block_stream_reads.block_stream(&block_id_for_stream) else {
                     poll_count += 1;
                     if poll_count.is_multiple_of(40) {
                         log::debug!("[block-editor-stream] runtime not available (poll #{})", poll_count);
                     }
                     return;
                 };
-                if let Some(entries) = runtime.poll_stream(&block_id_for_stream) {
+                if !entries.is_empty() {
                     let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
                         key: e.key.clone().into(),
                         value: e.value,
@@ -323,7 +327,6 @@ pub(crate) fn create_and_wire(
             win_timer: win_timer.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -346,7 +349,6 @@ pub(crate) fn create_and_wire(
             win_timer,
             project_session,
             project_chains,
-            project_runtime,
             saved_project_snapshot,
             project_dirty,
             input_chain_devices,

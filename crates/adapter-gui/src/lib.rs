@@ -27,10 +27,14 @@ mod block_panel_dimensions;
 mod block_parameter_extras;
 mod block_parameter_wiring;
 mod block_picker_wiring;
+#[cfg(test)]
+#[path = "block_stream_read_tests.rs"]
+mod block_stream_read_tests;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
 pub mod chain_binding_choices;
 mod chain_block_crud_wiring;
+mod chain_block_helpers;
 mod chain_crud_wiring;
 mod chain_editor_callbacks;
 mod chain_editor_forwarders_wiring;
@@ -40,6 +44,9 @@ mod chain_name_wiring;
 mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;
+#[cfg(test)]
+#[path = "chain_row_seams_tests.rs"]
+mod chain_row_seams_tests;
 mod chain_row_wiring;
 mod chain_row_wiring_actions;
 mod chain_save_cancel_callbacks;
@@ -75,17 +82,26 @@ mod di_output_select_wiring;
 /// (the shared `Select` component), mirroring the preset picker global.
 pub mod di_source_picker_wiring;
 mod insert_wiring;
+mod live_sync_plan;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod preset_save_wiring;
 mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_projects_wiring;
+mod runtime_analyzers;
+mod runtime_devices;
+mod runtime_health;
 mod runtime_lifecycle;
+pub mod runtime_loopers;
+mod runtime_pipelines;
+mod runtime_session_handle;
 mod runtime_sync_policy;
 #[cfg(test)]
 #[path = "runtime_sync_policy_tests.rs"]
 mod runtime_sync_policy_tests;
+mod runtime_taps;
+mod runtime_teardown;
 mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
@@ -105,7 +121,7 @@ pub use settings::paths::{
 mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
-mod metronome_session;
+mod metronome_view;
 mod metronome_wiring;
 mod sample_rate;
 pub mod spectrum_close;
@@ -124,13 +140,10 @@ pub use cli::{
     parse_cli_args_from, parse_mcp_addr, parse_midi_map, resolve_mcp_addr, resolve_midi_map,
     validate_project_path, MidiMapArg,
 };
-pub(crate) use runtime_lifecycle::{
-    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime, sync_block_toggle,
-    sync_live_chain_runtime, sync_project_runtime, ui_index_to_real_block_index,
-};
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.
-pub use runtime_lifecycle::{plan_live_sync, LiveSyncAction};
+pub(crate) use chain_block_helpers::{assign_new_block_ids, ui_index_to_real_block_index};
+pub use live_sync_plan::{plan_live_sync, LiveSyncAction};
 
 mod defaults;
 pub(crate) use defaults::*;
@@ -145,6 +158,7 @@ mod chain_editor;
 mod default_io_binding;
 mod eq;
 pub mod graph_view_model;
+mod gui_live_source;
 mod helpers;
 #[cfg(test)]
 mod issue_692_project_open_time_tests;
@@ -159,9 +173,7 @@ mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
-mod looper_persist;
 pub mod looper_view;
-pub mod looper_wiring;
 mod meter_wiring;
 mod meter_wiring_poll;
 #[cfg(test)]
@@ -178,6 +190,9 @@ mod issue_85_port_editor_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
+/// #127: the UI must not name the audio backend outside the modules that own it.
+#[cfg(test)]
+mod no_infra_cpal_in_wiring_tests;
 mod port_wiring;
 mod preset_search;
 mod project_load_normalize;
@@ -222,6 +237,10 @@ mod tests;
 #[cfg(test)]
 #[path = "lib_recent_tests.rs"]
 mod lib_recent_tests;
+
+#[cfg(test)]
+#[path = "lib_ui_index_tests.rs"]
+mod lib_ui_index_tests;
 
 #[cfg(test)]
 mod compact_block_search_wiring_tests;

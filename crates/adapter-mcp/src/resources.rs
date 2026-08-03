@@ -17,6 +17,10 @@ pub const URI_TUNER: &str = "openrig://tuner";
 pub const URI_SPECTRUM: &str = "openrig://spectrum";
 /// #829: per-chain DI loop state — read parity for the DI commands.
 pub const URI_DI: &str = "openrig://di";
+/// #127: the metronome — settings, chosen output endpoint, and the live beat
+/// position. Read parity for the metronome commands: a client that can start
+/// the click must be able to see the tempo it runs at and the beat it is on.
+pub const URI_METRONOME: &str = "openrig://metronome";
 /// #829: per-chain latency probe. Concrete URIs look like
 /// `openrig://chains/<chain_id>/latency`.
 pub const URI_CHAIN_LATENCY_TEMPLATE: &str = "openrig://chains/{chain}/latency";
@@ -102,6 +106,13 @@ pub fn resources() -> Vec<Resource> {
             RawResource::new(
                 URI_DI,
                 "Per-chain DI loop state (playing, playback peaks, source) — JSON",
+            ),
+            None,
+        ),
+        Annotated::new(
+            RawResource::new(
+                URI_METRONOME,
+                "Metronome state (settings, chosen output, live beat position) — JSON",
             ),
             None,
         ),
@@ -231,6 +242,7 @@ pub fn kind_for_uri(uri: &str) -> Result<QueryKind> {
             URI_TUNER => QueryKind::TunerReadings,
             URI_SPECTRUM => QueryKind::SpectrumReadings,
             URI_DI => QueryKind::DiLoopState,
+            URI_METRONOME => QueryKind::MetronomeState,
             URI_PRESETS => QueryKind::ListProjectPresets,
             URI_PLUGINS => QueryKind::ListPluginCatalog,
             URI_PATHS => QueryKind::Paths,
@@ -261,6 +273,7 @@ pub fn uri_for(kind: &QueryKind) -> String {
         QueryKind::TunerReadings => URI_TUNER.to_string(),
         QueryKind::SpectrumReadings => URI_SPECTRUM.to_string(),
         QueryKind::DiLoopState => URI_DI.to_string(),
+        QueryKind::MetronomeState => URI_METRONOME.to_string(),
         QueryKind::ChainLatency { chain } => {
             format!("openrig://chains/{}/latency", chain.0)
         }

@@ -10,24 +10,28 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Model, ModelRc, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 
-use application::command::{ChainId, Command, RigNavKind, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
+use application::command::{ChainCommand, ChainId, Command, RigNavKind, SelectionCommand};
 use application::event::Event;
 
 use crate::chain_rig_nav::rig_nav_rows;
 use crate::helpers::set_status_error;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
+use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
-use crate::sync_live_chain_runtime;
 use crate::{AppWindow, ChainRigNav, PresetOption, PresetPicker, ProjectChainItem};
 
 pub(crate) struct ChainRigNavCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the capability to hand this session's dispatcher the frontend's
+    /// audio runtime — the drain is the first place an external transport
+    /// touches this frontend, so the seam must be wired before it dispatches.
+    /// Not the runtime itself: the drain asks for every runtime effect on the
+    /// bus.
+    pub runtime_attach: RuntimeAttach,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
@@ -185,24 +189,35 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
     let Some(session) = session_borrow.as_ref() else {
         return;
     };
+    // #127: this is where external transports (MCP tools, MIDI footswitch) meet
+    // the frontend, so make sure the dispatcher can reach this frontend's audio
+    // runtime before any of their requests are honoured. Idempotent, and it
+    // closes the window between opening a project and its first chain sync —
+    // where a command that used to cold-start the runtime would otherwise
+    // have nothing to apply itself to.
+    ctx.runtime_attach.to_session(session);
     let mut compact_open_idx: Option<i32> = None;
 
     // Re-sync the live runtime for each chain a GRAPH-changing command
     // touched (once). Runtime-only events (DI loop) are applied as wait-free
     // pointer swaps below — rebuilding the chain for them caused the #670
     // DI-on output starvation (see runtime_sync_policy).
+    //
+    // #127: this goes through the BUS, exactly like the GUI's own callbacks.
+    // It used to call `sync_live_chain_runtime` directly, which meant MCP/MIDI
+    // and the GUI reached the runtime by two different roads that only happened
+    // to end in the same function. The attach right above
+    // guarantees the dispatcher can honour the request even on the very first
+    // external command of a freshly opened project.
+    // #85 wanted a device rate/buffer change to re-open the whole graph: the
+    // event names no chain, so the per-chain loop below never sees it and the
+    // streams kept running against the old config. It is handled one layer
+    // down now — `SettingsCommand::SaveAudioSettings` applies
+    // `RuntimeControl::apply_device_settings` and then `sync_project` from the
+    // dispatcher, so the rebuild happens for the GUI, MCP and MIDI alike
+    // (pinned by `local_dispatcher_runtime_doors_tests`). Re-syncing here too
+    // would re-open every device a second time for one save.
     let mut synced: Vec<ChainId> = Vec::new();
-    // #85: a device rate/buffer change names no chain, so the per-chain loop
-    // below never sees it — the streams kept running against the old config and
-    // the rig went silent until the project was reopened. Re-sync every chain.
-    if crate::runtime_sync_policy::events_require_full_project_sync(events) {
-        if let Some(controller) = ctx.project_runtime.borrow_mut().as_mut() {
-            if let Err(e) = controller.sync_project(&session.project.borrow()) {
-                set_status_error(window, &ctx.toast_timer, &e.to_string());
-            }
-        }
-        synced.extend(session.project.borrow().chains.iter().map(|c| c.id.clone()));
-    }
     for event in events {
         let Some(chain_id) = event.chain() else {
             continue;
@@ -214,33 +229,24 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
             continue;
         }
         synced.push(chain_id.clone());
-        if let Err(e) = sync_live_chain_runtime(&ctx.project_runtime, session, chain_id) {
+        if let Err(e) =
+            session
+                .dispatcher
+                .dispatch(Command::Chain(ChainCommand::SyncChainRuntime {
+                    chain: chain_id.clone(),
+                }))
+        {
             set_status_error(window, &ctx.toast_timer, &e.to_string());
         }
     }
-    // Apply DI-loop events to the runtime directly (the same wait-free path
-    // the GUI buttons use), so MCP/MIDI DI toggles work without a rebuild.
-    for event in events {
-        if let Event::ChainDiLoopEnabledChanged { chain, enabled } = event {
-            crate::di_loop_wiring::handle_chain_di_loop_enabled_changed(
-                &ctx.project_runtime,
-                &session.dispatcher,
-                chain,
-                *enabled,
-            );
-        }
-    }
-    // Apply looper transport/param events to the controller's store (the same
-    // mutation the GUI button path does inline in `dispatch_and_apply`). Without
-    // this a looper driven over MCP/MIDI updated nothing — Record left the loop
-    // `Empty` (the parity LEI: every transport reaches what the GUI reaches).
-    if let Some(controller) = ctx.project_runtime.borrow().as_ref() {
-        crate::looper_wiring::apply_looper_events(
-            controller,
-            &session.project.borrow().chains,
-            events,
-        );
-    }
+    // #127: DI-loop events need nothing applied here any more. The command
+    // that produced them armed (or disarmed) the chain's isolated stream from
+    // the dispatcher, so an MCP/MIDI DI toggle already sounded — this drain
+    // used to be the second road to that same runtime.
+    // Looper events need nothing applied here any more either (Task 13). The
+    // command that produced them mutated the store and reconciled the loop's
+    // isolated stream from the dispatcher, so a Record over MCP/MIDI already
+    // recorded — this drain used to be the second road to that same store.
     replace_project_chains(
         &ctx.project_chains,
         &session.project.borrow(),

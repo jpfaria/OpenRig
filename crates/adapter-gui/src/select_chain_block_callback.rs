@@ -25,8 +25,8 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
 
-use application::dispatcher::CommandDispatcher;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use application::live_source::LiveSource;
+use domain::AudioDeviceDescriptor;
 use project::block::AudioBlockKind;
 
 use crate::audio_devices::{
@@ -37,6 +37,7 @@ use crate::block_editor::{
     block_editor_data, block_parameter_items_for_editor, build_knob_overlays,
 };
 use crate::block_editor_window_setup;
+use crate::chain_block_helpers::ui_index_to_real_block_index;
 use crate::chain_editor::insert_mode_to_index;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
@@ -46,7 +47,6 @@ use crate::project_view::{
     block_model_index, block_model_picker_items, block_model_picker_labels, block_type_index,
     block_type_picker_items, set_selected_block,
 };
-use crate::runtime_lifecycle::ui_index_to_real_block_index;
 use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::ui_state::block_drawer_state;
 use crate::{
@@ -70,7 +70,8 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub eq_band_curves: Rc<VecModel<SharedString>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the block's diagnostic stream, through the read seam.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -110,7 +111,7 @@ pub(crate) fn wire(
         eq_band_curves,
         project_session,
         project_chains,
-        project_runtime,
+        block_stream_reads,
         saved_project_snapshot,
         project_dirty,
         input_chain_devices,
@@ -134,7 +135,6 @@ pub(crate) fn wire(
         port_draft,
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
-        project_runtime: project_runtime.clone(),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),
@@ -305,7 +305,7 @@ pub(crate) fn wire(
         );
         multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
         curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
-        let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_runtime));
+        let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_session));
         eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
         window.set_eq_total_curve(eq_total.into());
         set_selected_block(&window, selected_block.borrow().as_ref(), Some(&chain));
@@ -342,20 +342,20 @@ pub(crate) fn wire(
                 if is_utility {
                     let timer = Timer::default();
                     let weak_win = window.as_weak();
-                    let runtime = project_runtime.clone();
+                    let block_stream_reads = Rc::clone(&block_stream_reads);
                     let bid = block_id_for_editor.clone();
                     timer.start(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
                         move || {
                             let Some(win) = weak_win.upgrade() else { return; };
-                            let runtime_borrow = runtime.borrow();
+
                             // No utility block currently produces a "spectrum" stream
                             // (the spectrum_analyzer block was promoted to a top-bar
                             // feature in #320). Kept generic for future stream blocks.
                             let kind: slint::SharedString = "stream".into();
-                            let Some(rt) = runtime_borrow.as_ref() else { return; };
-                            if let Some(entries) = rt.poll_stream(&bid) {
+                            let Some(entries) = block_stream_reads.block_stream(&bid) else { return; };
+                            if !entries.is_empty() {
                                 let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
                                     key: e.key.clone().into(),
                                     value: e.value,
@@ -416,7 +416,7 @@ pub(crate) fn wire(
                 block_id: Some(block_id_for_editor),
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
-                project_runtime: project_runtime.clone(),
+                block_stream_reads: Rc::clone(&block_stream_reads),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 input_chain_devices: input_chain_devices.clone(),

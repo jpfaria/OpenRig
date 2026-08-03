@@ -33,10 +33,10 @@ use std::time::Duration;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+use domain::AudioDeviceDescriptor;
 use hw_harness::{device_guard, hw_tests_enabled, init_registry, BUFFER};
 use infra_cpal::{
-    list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
-    ProjectRuntimeController,
+    list_input_device_descriptors, list_output_device_descriptors, ProjectRuntimeController,
 };
 use project::block::{AudioBlock, AudioBlockKind, OutputBlock};
 use project::chain::Chain;

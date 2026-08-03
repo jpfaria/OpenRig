@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, ProjectCommand};
-use application::dispatcher::CommandDispatcher;
 
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectSettingsWindow};

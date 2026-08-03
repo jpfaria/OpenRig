@@ -18,7 +18,6 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use project::chain::Chain;
 

@@ -13,7 +13,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::di_loader::DiLoopSource;
-use application::dispatcher::CommandDispatcher;
 use rfd::FileDialog;
 use slint::{ComponentHandle, Timer};
 

@@ -5,9 +5,8 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use domain::io_binding::IoBinding;
-use infra_cpal::{
-    list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
-};
+use domain::AudioDeviceDescriptor;
+use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors};
 use infra_filesystem::GuiAudioDeviceSettings;
 use project::device::DeviceSettings;
 use slint::{Model, SharedString, VecModel};
@@ -56,6 +55,16 @@ pub(crate) fn check_bindings_after_refresh(
             }
         })
         .collect()
+}
+
+/// Drop the cached enumeration so the next refresh asks the host again.
+///
+/// #127: the wiring modules that re-scan after a hot-swap or a settings save
+/// call THIS, not `infra_cpal` — enumeration is this module's job, and a
+/// callback that only wants a fresh device list has no business linking the
+/// audio backend.
+pub(crate) fn invalidate_device_cache() {
+    infra_cpal::invalidate_device_cache();
 }
 
 pub(crate) fn refresh_input_devices(

@@ -27,6 +27,9 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 use project::project::Project;
 
+mod common;
+use common::DiRuntimeControl;
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 fn write_mono_wav(path: &Path, sr: u32, samples: &[f32]) {
@@ -104,7 +107,7 @@ fn play_chain_di_loop_arms_runtime() {
     let chain_id = ChainId("chain_614_play".to_string());
     let project = make_project(&chain_id.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let controller = RefCell::new(Some(make_controller(&chain_id)));
+    let controller = DiRuntimeControl::attach(&dispatcher, make_controller(&chain_id));
 
     // Load a source into the dispatcher's ephemeral store.
     dispatcher
@@ -135,7 +138,7 @@ fn play_chain_di_loop_arms_runtime() {
     );
 
     // Call the combined play helper (the function the Slint callback invokes).
-    adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
+    adapter_gui::di_loop_wiring::play_chain_di_loop(&dispatcher, &chain_id);
 
     // The runtime must now be armed.
     assert!(
@@ -162,7 +165,7 @@ fn stop_chain_di_loop_disarms_runtime() {
     let chain_id = ChainId("chain_614_stop".to_string());
     let project = make_project(&chain_id.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let controller = RefCell::new(Some(make_controller(&chain_id)));
+    let controller = DiRuntimeControl::attach(&dispatcher, make_controller(&chain_id));
 
     // Load + play so the runtime is armed.
     dispatcher
@@ -182,7 +185,7 @@ fn stop_chain_di_loop_disarms_runtime() {
         }
     }
 
-    adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
+    adapter_gui::di_loop_wiring::play_chain_di_loop(&dispatcher, &chain_id);
 
     assert!(
         controller
@@ -194,7 +197,7 @@ fn stop_chain_di_loop_disarms_runtime() {
     );
 
     // Now stop — runtime must be cleared.
-    adapter_gui::di_loop_wiring::stop_chain_di_loop(&controller, &dispatcher, &chain_id);
+    adapter_gui::di_loop_wiring::stop_chain_di_loop(&dispatcher, &chain_id);
 
     assert!(
         !controller
@@ -221,7 +224,7 @@ fn play_leaves_the_guitar_runtime_unarmed() {
     let chain_id = ChainId("chain_771_isolated".to_string());
     let project = make_project(&chain_id.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let controller = RefCell::new(Some(make_controller(&chain_id)));
+    let controller = DiRuntimeControl::attach(&dispatcher, make_controller(&chain_id));
 
     dispatcher
         .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
@@ -239,7 +242,7 @@ fn play_leaves_the_guitar_runtime_unarmed() {
         }
     }
 
-    adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
+    adapter_gui::di_loop_wiring::play_chain_di_loop(&dispatcher, &chain_id);
 
     assert!(
         controller

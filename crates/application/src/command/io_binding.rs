@@ -55,4 +55,16 @@ pub enum IoBindingCommand {
         is_input: bool,
         endpoint_name: String,
     },
+
+    /// #127 (AUDIO-CRITICAL): install the effective registry into the LIVE
+    /// audio runtime so a rig that is already running re-resolves its device
+    /// endpoints against the latest edit, instead of keeping the stale
+    /// registry until the next cold start.
+    ///
+    /// Carries NO payload on purpose: it installs the registry the dispatcher
+    /// already owns — the one the CRUD commands above mutate and persist, and
+    /// the one the frontend's sync path re-installs on every chain sync. An
+    /// arbitrary list would be reverted at that next sync, so the command
+    /// would report success and then evaporate for every caller but the GUI.
+    SetIoBindings,
 }

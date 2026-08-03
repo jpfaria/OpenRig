@@ -66,8 +66,8 @@ fn init_registry() {
 
 fn rig_project(
     preset_file: &str,
-    input: &infra_cpal::AudioDeviceDescriptor,
-    output: &infra_cpal::AudioDeviceDescriptor,
+    input: &domain::AudioDeviceDescriptor,
+    output: &domain::AudioDeviceDescriptor,
 ) -> (Project, ChainId) {
     let preset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../engine/tests/fixtures/presets")

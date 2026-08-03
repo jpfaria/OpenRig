@@ -18,35 +18,25 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use application::audio_taps::{AudioTap, AudioTaps, TapPoint};
 use application::command::{Command, ToneDoctorCommand};
-use application::dispatcher::CommandDispatcher;
-use engine::spsc::SpscRing;
-use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, Weak};
 
 use crate::helpers::set_status_error;
 use crate::state::ProjectSession;
 use crate::{AppWindow, CompactChainViewWindow, ToneDoctorState};
 
-type ProjectRuntime = Rc<RefCell<Option<ProjectRuntimeController>>>;
-
 /// Record up to `seconds` of the mono input tap, broadcast to stereo frames.
-/// Polls the lock-free ring; the player should be playing during the window.
-fn record(ring: Arc<SpscRing<f32>>, sr: f32, seconds: usize) -> Vec<[f32; 2]> {
+/// Polls the lock-free subscription; the player should be playing during the
+/// window.
+fn record(tap: Arc<dyn AudioTap>, sr: f32, seconds: usize) -> Vec<[f32; 2]> {
     let target = seconds * sr as usize;
     let mut mono: Vec<f32> = Vec::with_capacity(target);
     let start = Instant::now();
     let deadline = Duration::from_secs(seconds as u64 + 2);
     while mono.len() < target && start.elapsed() < deadline {
-        let mut got = false;
-        while let Some(s) = ring.pop() {
-            mono.push(s);
-            got = true;
-            if mono.len() >= target {
-                break;
-            }
-        }
-        if !got {
+        let want = target - mono.len();
+        if tap.drain_channel(0, want, &mut mono) == 0 {
             std::thread::sleep(Duration::from_millis(15));
         }
     }
@@ -55,18 +45,24 @@ fn record(ring: Arc<SpscRing<f32>>, sr: f32, seconds: usize) -> Vec<[f32; 2]> {
 
 /// Give the dispatcher a way to capture this machine's live input, so a chain
 /// with no DI is diagnosable from any transport, not just from the GUI.
-/// Subscribing to the tap happens on the calling thread; only the fill blocks.
-fn attach_live_input(session: &ProjectSession, project_runtime: &ProjectRuntime) {
-    let project_runtime = project_runtime.clone();
+/// Subscribing happens on the calling thread; only the fill blocks — which is
+/// why the subscription (not the authority that issues it) is what crosses
+/// into the `Send` capture closure.
+fn attach_live_input(session: &ProjectSession, taps: &Rc<dyn AudioTaps>) {
+    let taps = Rc::clone(taps);
     session
         .dispatcher
         .attach_tone_doctor_input(Box::new(move |chain_id, seconds| {
-            let rt_borrow = project_runtime.borrow();
-            let rt = rt_borrow.as_ref()?;
-            let sr = rt.sample_rate();
-            let ring = rt.subscribe_stream_input_tap(chain_id, 0, seconds * sr as usize)?;
+            let sr = taps.live_sample_rate();
+            let tap = taps.subscribe(
+                &TapPoint::StreamInput {
+                    chain: chain_id.clone(),
+                    stream: 0,
+                },
+                seconds * sr as usize,
+            )?;
             Some(Box::new(move || {
-                Some((record(ring, sr as f32, seconds), sr as f32))
+                Some((record(tap, sr as f32, seconds), sr as f32))
             }))
         }));
 }
@@ -156,13 +152,12 @@ fn start_run(st: &ToneDoctorState, session: &ProjectSession, chain_index: i32) {
 /// main window.
 fn apply_fix(
     session: &ProjectSession,
-    project_runtime: &ProjectRuntime,
     chain_index: i32,
     main_weak: &Weak<AppWindow>,
     toast_timer: &Rc<slint::Timer>,
 ) {
     let result = apply_fix_inner(session, chain_index, |chain_id| {
-        crate::sync_live_chain_runtime(project_runtime, session, chain_id)
+        crate::runtime_sync_policy::request_chain_sync(session, chain_id)
     });
     if let Err(err) = result {
         if let Some(main_win) = main_weak.upgrade() {
@@ -205,7 +200,7 @@ mod tests;
 pub(crate) fn wire(
     compact_win: &CompactChainViewWindow,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: ProjectRuntime,
+    taps: Rc<dyn AudioTaps>,
     chain_index: i32,
     main_weak: Weak<AppWindow>,
     toast_timer: Rc<slint::Timer>,
@@ -224,7 +219,7 @@ pub(crate) fn wire(
     }
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
+        let taps = Rc::clone(&taps);
         let weak = compact_win.as_weak();
         compact_win.on_tone_doctor_run(move |_ci| {
             let Some(win) = weak.upgrade() else {
@@ -238,25 +233,18 @@ pub(crate) fn wire(
             };
             // Re-registered per run so a device change (new runtime) is picked
             // up without restarting the app.
-            attach_live_input(session, &project_runtime);
+            attach_live_input(session, &taps);
             start_run(&st, session, chain_index);
         });
     }
     {
         let project_session = project_session;
-        let project_runtime = project_runtime;
         compact_win.on_tone_doctor_apply(move |_ci| {
             let sb = project_session.borrow();
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_fix(
-                session,
-                &project_runtime,
-                chain_index,
-                &main_weak,
-                &toast_timer,
-            );
+            apply_fix(session, chain_index, &main_weak, &toast_timer);
         });
     }
 }
@@ -265,7 +253,7 @@ pub(crate) fn wire(
 pub(crate) fn wire_main(
     window: &AppWindow,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: ProjectRuntime,
+    taps: Rc<dyn AudioTaps>,
     toast_timer: Rc<slint::Timer>,
 ) {
     let main_weak = window.as_weak();
@@ -283,7 +271,7 @@ pub(crate) fn wire_main(
     }
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
+        let taps = Rc::clone(&taps);
         let weak = window.as_weak();
         window.on_tone_doctor_run(move |ci| {
             let Some(win) = weak.upgrade() else {
@@ -295,19 +283,18 @@ pub(crate) fn wire_main(
                 st.set_running(false);
                 return;
             };
-            attach_live_input(session, &project_runtime);
+            attach_live_input(session, &taps);
             start_run(&st, session, ci);
         });
     }
     {
         let project_session = project_session;
-        let project_runtime = project_runtime;
         window.on_tone_doctor_apply(move |ci| {
             let sb = project_session.borrow();
             let Some(session) = sb.as_ref() else {
                 return;
             };
-            apply_fix(session, &project_runtime, ci, &main_weak, &toast_timer);
+            apply_fix(session, ci, &main_weak, &toast_timer);
         });
     }
 }
