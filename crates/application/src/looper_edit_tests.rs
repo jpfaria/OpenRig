@@ -48,3 +48,19 @@ fn an_empty_loop_yields_an_empty_region_instead_of_dividing_by_zero() {
         LoopEdit::Trim { start: 0, end: 0 }
     );
 }
+
+#[test]
+fn an_edit_that_changes_nothing_is_its_own_outcome() {
+    // The bug this exists for: FIT on an already-tight take did nothing and
+    // said nothing, which reads as broken.
+    assert_eq!(EditOutcome::of(4000, Some(3200)), EditOutcome::Applied);
+    assert_eq!(EditOutcome::of(4000, Some(4000)), EditOutcome::NoChange);
+    assert_eq!(EditOutcome::of(4000, None), EditOutcome::Refused);
+}
+
+#[test]
+fn the_outcome_travels_as_a_code_so_the_message_stays_translatable() {
+    assert_eq!(EditOutcome::Applied.code(), 0);
+    assert_eq!(EditOutcome::NoChange.code(), 1);
+    assert_eq!(EditOutcome::Refused.code(), 2);
+}

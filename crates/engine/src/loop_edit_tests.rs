@@ -220,3 +220,30 @@ fn fitting_a_silent_take_is_refused_rather_than_leaving_a_click() {
         Err(LoopEditError::EmptyRegion)
     );
 }
+
+#[test]
+fn fit_trims_a_take_whose_silence_is_real_world_hiss() {
+    // The user pressed FIT and nothing happened. A guitar take's "silence" is
+    // never -60 dBFS: a single-coil into a live rig hisses around -45 dBFS, so
+    // an absolute floor finds nothing to trim and the button looks dead. What
+    // matters is the take's OWN dynamic range: hiss sits far below the playing.
+    let mut pcm = vec![0.0f32; 4000 * 2];
+    for (i, s) in pcm.iter_mut().enumerate() {
+        // ~-45 dBFS hiss everywhere, alternating so it is not DC.
+        *s = if i % 2 == 0 { 0.0056 } else { -0.0056 };
+    }
+    for f in 1000..3000 {
+        pcm[f * 2] = 0.5;
+        pcm[f * 2 + 1] = -0.5;
+    }
+
+    let (start, end) = content_bounds(&pcm).expect("the playing is well above the hiss");
+    assert!(
+        start > 900 && start <= 1000,
+        "the hiss before the first note is not the take ({start})"
+    );
+    assert!(
+        (3000..=3100).contains(&end),
+        "the hiss after the last note is not the take ({end})"
+    );
+}

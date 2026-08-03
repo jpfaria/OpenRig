@@ -184,6 +184,14 @@ msgstr "फिर करें"
 msgid "looper-editor-close"
 msgstr "बंद करें"
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr "काटने को कुछ नहीं — टेक पहले से सटीक है"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr "इस संपादन से बहुत कम ऑडियो बचेगा"
+
 #: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr "प्रीसेट से बजाएं"

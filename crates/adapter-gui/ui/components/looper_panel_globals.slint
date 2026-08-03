@@ -44,6 +44,10 @@ export global LooperEditor {
     // editor runs the loop itself — and while it runs, the edits are dead (the
     // store refuses to reshape a live take).
     in-out property <bool> playing;
+    // What the last edit did: 0 quiet, 1 it changed nothing, 2 it was refused.
+    // A silent button is indistinguishable from a broken one, so the editor
+    // says which of the three happened.
+    in-out property <int> status-code;
     // Whether the edit history has anything to step through.
     in-out property <bool> can-undo;
     in-out property <bool> can-redo;

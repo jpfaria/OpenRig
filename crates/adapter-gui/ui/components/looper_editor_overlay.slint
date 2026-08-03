@@ -74,7 +74,7 @@ export component LooperEditorOverlay inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: min(root.width - 80px, 760px);
-        height: 258px;
+        height: 282px;
         background: #1e1f22;
         border-radius: 12px;
         border-width: 1px;
@@ -183,6 +183,19 @@ export component LooperEditorOverlay inherits Rectangle {
                     label: @tr("looper-editor-close");
                     clicked => { LooperEditor.open = false; }
                 }
+            }
+
+            // The outcome of the last edit — the answer to "I pressed it and
+            // nothing happened".
+            Text {
+                height: 16px;
+                text: LooperEditor.status-code == 1 ? @tr("looper-editor-no-change")
+                    : LooperEditor.status-code == 2 ? @tr("looper-editor-refused")
+                    : "";
+                color: LooperEditor.status-code == 2
+                    ? #ffb454
+                    : Theme.palette.text-muted;
+                font-size: 12px;
             }
         }
     }

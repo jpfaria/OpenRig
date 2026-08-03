@@ -32,10 +32,17 @@ pub enum LoopEditOp {
     Fit,
 }
 
-/// Anything quieter than this is the room and the interface, not playing.
-/// -60 dBFS: below a guitar's quietest useful note, above every noise floor
-/// worth keeping out of a loop.
+/// The absolute floor: anything quieter is digital silence, whatever else the
+/// take contains. -60 dBFS.
 const SILENCE_FLOOR: f32 = 0.001;
+
+/// How far below the take's OWN peak the playing is assumed to stay above.
+/// -32 dB: a real take's "silence" is hiss, hum and string noise — a live rig
+/// idles around -45 dBFS, far above the absolute floor — so the threshold has
+/// to be relative to what was actually played, or FIT finds nothing to trim
+/// and the button looks dead. A note decaying more than 32 dB below the take's
+/// loudest moment is a tail, not a phrase.
+const CONTENT_PEAK_RATIO: f32 = 0.025;
 
 /// How long the signal must stay above the floor before it counts as playing
 /// (and stay below it before it counts as over). ~1 ms at 48 kHz: long enough
@@ -58,7 +65,10 @@ pub fn content_bounds(pcm: &[f32]) -> Option<(usize, usize)> {
     if frames == 0 {
         return None;
     }
-    let loud = |f: usize| pcm[f * 2].abs().max(pcm[f * 2 + 1].abs()) > SILENCE_FLOOR;
+    // The threshold rides the take's own peak, never below the absolute floor.
+    let peak = pcm.iter().fold(0.0f32, |a, s| a.max(s.abs()));
+    let threshold = (peak * CONTENT_PEAK_RATIO).max(SILENCE_FLOOR);
+    let loud = |f: usize| pcm[f * 2].abs().max(pcm[f * 2 + 1].abs()) > threshold;
 
     let mut run = 0;
     let mut start = None;

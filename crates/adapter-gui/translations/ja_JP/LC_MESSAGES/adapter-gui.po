@@ -184,6 +184,14 @@ msgstr "やり直す"
 msgid "looper-editor-close"
 msgstr "閉じる"
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr "カットする箇所がありません — すでに収まっています"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr "この編集では音が短くなりすぎます"
+
 #: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr "プリセットで再生"

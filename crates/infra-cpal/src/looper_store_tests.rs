@@ -279,3 +279,34 @@ fn clearing_the_loop_clears_the_edit_history() {
     store.clear(&chain, uid);
     assert_eq!(store.edit_history_depth(&chain, uid), (0, 0));
 }
+
+#[test]
+fn fitting_a_stopped_loop_through_the_store_shortens_it() {
+    // The user pressed FIT and nothing happened. The intended behaviour: a
+    // stopped take with silence at both ends comes back shorter, through the
+    // very path the command takes — store, not just the pure transform.
+    let mut store = LooperStore::default();
+    store.set_sample_rate(48_000);
+    store.create(&cid(), 1);
+    store.tap_record(&cid(), 1);
+    // 4000 frames: silence, then music from 800 to 3000, then silence.
+    let mut pcm = vec![0.0f32; 4000 * 2];
+    for f in 800..3000 {
+        pcm[f * 2] = 0.5;
+        pcm[f * 2 + 1] = -0.5;
+    }
+    store.record_frames(&cid(), 1, &pcm);
+    store.tap_record(&cid(), 1); // close
+    store.stop(&cid(), 1);
+    let before = store.status(&cid(), 1).unwrap().len_frames;
+
+    let fitted = store
+        .apply_edit(&cid(), 1, LoopEditOp::Fit, 0, 0)
+        .expect("a stopped take with silence at both ends can be fitted");
+
+    assert!(
+        fitted < before,
+        "FIT must shorten the take ({before} → {fitted})"
+    );
+    assert_eq!(store.status(&cid(), 1).unwrap().len_frames, fitted);
+}

@@ -184,6 +184,14 @@ msgstr "Rehacer"
 msgid "looper-editor-close"
 msgstr "Cerrar"
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr "Nada que recortar — la toma ya está ajustada"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr "Ese corte dejaría muy poco audio"
+
 #: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr "Reproducir con el preset"

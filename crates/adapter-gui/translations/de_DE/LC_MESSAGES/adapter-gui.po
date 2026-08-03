@@ -184,6 +184,14 @@ msgstr "Wiederholen"
 msgid "looper-editor-close"
 msgstr "Schließen"
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr "Nichts zu kürzen — die Aufnahme sitzt bereits"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr "Diese Bearbeitung ließe zu wenig Audio übrig"
+
 #: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr "Über Preset abspielen"

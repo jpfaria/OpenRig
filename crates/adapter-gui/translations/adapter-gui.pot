@@ -183,6 +183,14 @@ msgstr ""
 msgid "looper-editor-close"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr ""
+
 #: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr ""

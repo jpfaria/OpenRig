@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 use application::command::{Command, LooperAction, LooperCommand};
 use application::live_source::LiveSource;
-use application::looper_edit::{LoopEdit, LoopEditKind};
+use application::looper_edit::{EditOutcome, LoopEdit, LoopEditKind};
 use domain::ids::ChainId;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
@@ -90,6 +90,7 @@ pub(crate) fn wire_looper_editor_callbacks(
             editor.set_uid(uid);
             editor.set_sel_start(0.0);
             editor.set_sel_end(1.0);
+            editor.set_status_code(0);
             editor.set_open(true);
         });
     }
@@ -120,24 +121,28 @@ pub(crate) fn wire_looper_editor_callbacks(
                 return;
             };
             let edit = LoopEdit::from_ratios(edit_kind(kind), len_frames, from, to);
-            match s
+            let dispatched = s
                 .dispatcher
                 .dispatch(Command::Looper(LooperCommand::EditChainLooperAudio {
                     chain: chain.clone(),
                     looper: uid,
                     edit,
-                })) {
-                Ok(_) => {
-                    // The loop is a different length now: reset the selection
-                    // to the whole take rather than keep ratios of a loop that
-                    // no longer exists.
-                    let editor = window.global::<LooperEditor>();
-                    editor.set_sel_start(0.0);
-                    editor.set_sel_end(1.0);
-                    refresh_editor(&window, &live, &chain, uid);
-                }
-                Err(err) => log::warn!("loop edit refused: {err}"),
+                }));
+            if let Err(err) = &dispatched {
+                log::warn!("loop edit refused: {err}");
             }
+            // The loop may be a different length now: reset the selection to
+            // the whole take rather than keep ratios of a loop that no longer
+            // exists, and re-read what the store actually holds.
+            let editor = window.global::<LooperEditor>();
+            editor.set_sel_start(0.0);
+            editor.set_sel_end(1.0);
+            let after = refresh_editor(&window, &live, &chain, uid);
+            let outcome = EditOutcome::of(
+                len_frames,
+                if dispatched.is_ok() { after } else { None },
+            );
+            editor.set_status_code(outcome.code());
         });
     }
 

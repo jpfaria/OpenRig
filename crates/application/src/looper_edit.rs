@@ -95,3 +95,42 @@ pub struct LoopEditReading {
 #[cfg(test)]
 #[path = "looper_edit_tests.rs"]
 mod tests;
+
+/// What an edit did, as the editor reports it back to the user.
+///
+/// "Nothing happened" is a real outcome, not an absence of one: FIT on a take
+/// that is already tight, or an edit the store refused, must SAY so — a silent
+/// button is indistinguishable from a broken one, which is exactly how this
+/// was first reported.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditOutcome {
+    /// The loop changed. Nothing to say: the waveform says it.
+    Applied,
+    /// The edit ran and left the loop as it was (a FIT with nothing to trim).
+    NoChange,
+    /// The store refused it (not stopped, empty, or too little would be left).
+    Refused,
+}
+
+impl EditOutcome {
+    /// The code the view switches its message on — 0 quiet, 1 no change,
+    /// 2 refused. A code, not a sentence: the strings live in the UI catalog,
+    /// translated like every other label.
+    pub fn code(self) -> i32 {
+        match self {
+            Self::Applied => 0,
+            Self::NoChange => 1,
+            Self::Refused => 2,
+        }
+    }
+
+    /// Read an edit's result: `None` ⇒ the store refused it; otherwise the
+    /// length it left behind, compared with the length before.
+    pub fn of(before_len: usize, after: Option<usize>) -> Self {
+        match after {
+            None => Self::Refused,
+            Some(len) if len == before_len => Self::NoChange,
+            Some(_) => Self::Applied,
+        }
+    }
+}

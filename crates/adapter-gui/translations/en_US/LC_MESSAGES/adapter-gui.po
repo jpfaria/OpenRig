@@ -187,6 +187,14 @@ msgstr "Redo"
 msgid "looper-editor-close"
 msgstr "Close"
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr "Nothing to trim — the take is already tight"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr "That edit would leave too little audio"
+
 #: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr "Play through preset"

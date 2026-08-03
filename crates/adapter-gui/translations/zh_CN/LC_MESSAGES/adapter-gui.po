@@ -184,6 +184,14 @@ msgstr "重做"
 msgid "looper-editor-close"
 msgstr "关闭"
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr "没有可修剪的部分 — 这段已经很紧凑"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr "这次编辑会让音频剩得太少"
+
 #: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr "通过预设播放"
