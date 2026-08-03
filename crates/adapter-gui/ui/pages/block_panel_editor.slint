@@ -150,16 +150,16 @@ export component BlockPanelEditor inherits Rectangle {
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
     // Panel-height is driven by the Rust knob-grid policy
-    // (`block_panel_dimensions`): the inner Rectangle grows past the
-    // amp-head 4:1 aspect so wrapped rows (knob overlays OR param
-    // items, the count source does not matter) stay inside it instead
-    // of being clipped by the footer / drawer below.
-    // `grid-row-stride` is the vertical step between wrapped rows;
-    // must match `block_panel_dimensions::ROW_STRIDE_PX`.
+    // (`block_panel_dimensions`): the inner Rectangle grows past the amp-head
+    // 4:1 aspect so wrapped rows (knob overlays OR param items) stay inside it
+    // instead of being clipped by the footer / drawer below. `grid-row-stride`
+    // is the vertical step between rows — match `ROW_STRIDE_PX` in Rust.
     private property <length> grid-row-stride: 100px;
     private property <length> base-panel-height: root.width / 4;
+    // An EQ block's strip holds the power switch plus the knobs its widget does
+    // not draw (#878), so it is one param cell (90px) tall.
     private property <length> panel-height:
-        self.has-eq-widget ? 76px : root.panel-knob-inner-height;
+        self.has-eq-widget ? 92px : root.panel-knob-inner-height;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
@@ -252,19 +252,16 @@ export component BlockPanelEditor inherits Rectangle {
         }
 
         // ── Knob grid (overlays OR params, never both) ──
-        // The wrap policy is universal: knob_overlays (curated NAM /
-        // native layouts) and block_parameter_items (LV2-synthesized
-        // ControlIn ports) feed into the same grid with the same
-        // `panel-grid-cols` / `panel-grid-rows` chosen by Rust.
-        // When a stream is active (tuner etc.) the grid is pushed to
-        // the right edge and rendered as a single dense row.
+        // The wrap policy is universal: knob_overlays (curated NAM / native
+        // layouts) and block_parameter_items (LV2 ControlIn ports) share the
+        // grid and the `panel-grid-cols` / `panel-grid-rows` Rust chose. With a
+        // live stream (tuner etc.) the grid moves to the right as a dense row.
         property <bool> has-stream: root.block-stream-data.stream-kind != ""
             && root.block-stream-data.stream-kind != "spectrum";
         property <bool> show-overlays: root.block-knob-overlays.length > 0;
-        property <bool> show-params:
-            !self.show-overlays
-            && root.curve-editor-points.length == 0
-            && root.multi-slider-points.length == 0;
+        // An EQ block still shows the rows its widget does not draw (#878) —
+        // `BlockPanelParameterItem` renders nothing for the widget-owned ones.
+        property <bool> show-params: !self.show-overlays;
         property <length> grid-area-x: has-stream ? parent.width - 220px : 60px;
         property <length> grid-area-w: has-stream ? 212px : parent.width - 68px;
         property <length> grid-cell-w:
@@ -282,6 +279,7 @@ export component BlockPanelEditor inherits Rectangle {
             knob-overlays: root.block-knob-overlays;
             param-items: root.block-parameter-items;
             has-param-tabs: root.has-param-tabs;
+            has-eq-widget: root.has-eq-widget;
             show-overlays: parent.show-overlays;
             show-params: parent.show-params;
             grid-area-x: parent.grid-area-x;

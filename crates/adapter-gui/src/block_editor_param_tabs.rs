@@ -46,13 +46,31 @@ fn is_pinned(it: &BlockParameterItem) -> bool {
 /// pinned rows and the rows of the `active` group get a running 0-based slot;
 /// every other row gets -1 (hidden). Values are preserved — only `tab_slot`
 /// changes — so switching tabs never loses an edit.
+///
+/// A row with no widget of its own is drawn by the block's EQ widget, never by
+/// the grid (#878) — it is hidden so it does not eat a slot and push the rows
+/// that DO render (an EQ's output trim) out of the panel.
 pub fn retag_for_group(items: &[BlockParameterItem], active: &str) -> Vec<BlockParameterItem> {
+    retag(items, |it| is_pinned(it) || group_label(it) == active)
+}
+
+/// Tag EVERY grid-owned row visible, with no tab filter — what a block whose
+/// EQ widget draws the rest needs: there is no tab bar to pick a group with,
+/// and the handful of remaining knobs form a single dense strip (#878).
+pub fn retag_all(items: &[BlockParameterItem]) -> Vec<BlockParameterItem> {
+    retag(items, |_| true)
+}
+
+fn retag(
+    items: &[BlockParameterItem],
+    in_tab: impl Fn(&BlockParameterItem) -> bool,
+) -> Vec<BlockParameterItem> {
     let mut slot = 0i32;
     items
         .iter()
         .map(|it| {
             let mut out = it.clone();
-            let visible = is_pinned(it) || group_label(it) == active;
+            let visible = !it.widget_kind.is_empty() && in_tab(it);
             out.tab_slot = if visible {
                 let s = slot;
                 slot += 1;
@@ -65,16 +83,20 @@ pub fn retag_for_group(items: &[BlockParameterItem], active: &str) -> Vec<BlockP
         .collect()
 }
 
-/// Rebuild the tab bar + grid for `full_items`: derive the groups, publish the
-/// labels, reset to the first tab, and tag every row's `tab_slot` for that tab
-/// while keeping the model FULL. Idempotent — calling it again for a different
-/// plugin fully replaces the previous state.
-pub fn apply_param_tabs(
-    win: &BlockEditorWindow,
-    items_model: &Rc<VecModel<BlockParameterItem>>,
-    state: &Rc<RefCell<TabState>>,
-    full_items: Vec<BlockParameterItem>,
-) {
+/// Whether an EQ widget (CurveEditor / MultiSlider) draws part of this block's
+/// parameters: those rows carry no widget of their own. Such a block gets no
+/// tab bar — the widget already shows every band at once (#878).
+fn drawn_by_eq_widget(items: &[BlockParameterItem]) -> bool {
+    items.iter().any(|it| it.widget_kind.is_empty())
+}
+
+/// The tab labels to publish for a fresh parameter list, plus the same list
+/// tagged for its first tab. An EQ-widget block gets no labels at all and shows
+/// every grid-owned row at once.
+fn groups_and_rows(full_items: &[BlockParameterItem]) -> (Vec<String>, Vec<BlockParameterItem>) {
+    if drawn_by_eq_widget(full_items) {
+        return (Vec::new(), retag_all(full_items));
+    }
     let groupable: Vec<BlockParameterItem> = full_items
         .iter()
         .filter(|it| !is_pinned(it))
@@ -85,7 +107,22 @@ pub fn apply_param_tabs(
         .first()
         .map(String::as_str)
         .unwrap_or(DEFAULT_PARAM_GROUP);
-    items_model.set_vec(retag_for_group(&full_items, active));
+    let rows = retag_for_group(full_items, active);
+    (groups, rows)
+}
+
+/// Rebuild the tab bar + grid for `full_items`: derive the groups, publish the
+/// labels, reset to the first tab, and tag every row's `tab_slot` for that tab
+/// while keeping the model FULL. Idempotent — calling it again for a different
+/// plugin fully replaces the previous state.
+pub fn apply_param_tabs(
+    win: &BlockEditorWindow,
+    items_model: &Rc<VecModel<BlockParameterItem>>,
+    state: &Rc<RefCell<TabState>>,
+    full_items: Vec<BlockParameterItem>,
+) {
+    let (groups, rows) = groups_and_rows(&full_items);
+    items_model.set_vec(rows);
     win.set_block_parameter_groups(ModelRc::from(Rc::new(VecModel::from(
         groups
             .iter()
@@ -130,17 +167,8 @@ pub(crate) fn apply_inline_param_tabs(
     state: &Rc<RefCell<TabState>>,
     full_items: Vec<BlockParameterItem>,
 ) {
-    let groupable: Vec<BlockParameterItem> = full_items
-        .iter()
-        .filter(|it| !is_pinned(it))
-        .cloned()
-        .collect();
-    let groups = parameter_groups(&groupable);
-    let active = groups
-        .first()
-        .map(String::as_str)
-        .unwrap_or(DEFAULT_PARAM_GROUP);
-    items_model.set_vec(retag_for_group(&full_items, active));
+    let (groups, rows) = groups_and_rows(&full_items);
+    items_model.set_vec(rows);
     let tabs = crate::BlockParamTabs::get(window);
     tabs.set_groups(ModelRc::from(Rc::new(VecModel::from(
         groups

@@ -73,6 +73,39 @@ fn multi_slider_block_renders_no_parameter_tabs() {
     );
 }
 
+/// The symptom the tabs caused: their 40px shifted the widget down while it
+/// kept sizing itself off the window height, so the band sliders ran past the
+/// bottom edge and the window clipped them.
+#[test]
+fn every_band_slider_fits_inside_the_editor_window() {
+    i_slint_backend_testing::init_no_event_loop();
+
+    const WINDOW_H: f32 = 520.0;
+    let w = panel_editor_window();
+    w.set_block_parameter_groups(groups(&[
+        "Band 1", "Band 2", "Band 3", "Band 4", "Band 5", "Band 6", "Band 7", "Band 8", "Output",
+    ]));
+    w.set_curve_editor_points(ModelRc::new(VecModel::from(vec![
+        CurveEditorPoint::default();
+        8
+    ])));
+    w.window()
+        .set_size(slint::LogicalSize::new(1200.0, WINDOW_H));
+    w.show().unwrap();
+
+    let sliders: Vec<_> =
+        i_slint_backend_testing::ElementHandle::find_by_element_id(&w, "EqBandSlider::ta").collect();
+    assert_eq!(sliders.len(), 8, "one slider per band");
+    for (i, s) in sliders.iter().enumerate() {
+        let bottom = s.absolute_position().y + s.size().height;
+        assert!(
+            bottom <= WINDOW_H,
+            "band {i} runs {}px past the bottom of the window",
+            bottom - WINDOW_H
+        );
+    }
+}
+
 #[test]
 fn grouped_block_without_eq_widget_keeps_its_tabs() {
     i_slint_backend_testing::init_no_event_loop();
