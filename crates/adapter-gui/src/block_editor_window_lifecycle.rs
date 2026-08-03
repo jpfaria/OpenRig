@@ -26,10 +26,9 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 
 use application::command::{BlockCommand, Command};
-use application::dispatcher::CommandDispatcher;
 use application::event::Event;
 
 use crate::block_editor::{
@@ -41,7 +40,6 @@ use crate::eq::{
 };
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{block_model_picker_items, replace_project_chains, set_selected_block};
-use crate::runtime_lifecycle::sync_block_toggle;
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockEditorWindow, BlockKnobOverlay, BlockParameterItem, CurveEditorPoint,
@@ -121,7 +119,6 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub win_timer: Rc<Timer>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -160,7 +157,6 @@ fn wire_model_selection(
     let win_timer = &ctx.win_timer;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -179,7 +175,6 @@ fn wire_model_selection(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -236,7 +231,7 @@ fn wire_model_selection(
                 &model.effect_type,
                 &model.model_id,
                 &default_params,
-                eq_viz_sample_rate(&project_runtime),
+                eq_viz_sample_rate(&project_session),
             );
             win_eq_band_curves.set_vec(
                 eq_bands
@@ -263,7 +258,6 @@ fn wire_model_selection(
                     win_param_items.clone(),
                     project_session.clone(),
                     project_chains.clone(),
-                    project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
                     input_chain_devices.clone(),
@@ -286,7 +280,6 @@ fn wire_drawer_toggle_save(
     let win_timer = &ctx.win_timer;
     let project_session = &ctx.project_session;
     let project_chains = &ctx.project_chains;
-    let project_runtime = &ctx.project_runtime;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
@@ -300,7 +293,6 @@ fn wire_drawer_toggle_save(
         let win_draft = win_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -375,18 +367,13 @@ fn wire_drawer_toggle_save(
             if let Some(draft) = win_draft.borrow_mut().as_mut() {
                 draft.enabled = new_enabled;
             }
-            // Step 4: resync runtime + refresh UI.
+            // Step 4: refresh UI. #127: the runtime was already updated by the
+            // `ToggleBlockEnabled` dispatch above (through `RuntimeControl`),
+            // which is where a runtime failure now surfaces.
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) =
-                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
-            {
-                log::error!("[adapter-gui] block-window.toggle-enabled runtime sync: {e}");
-                main.set_block_drawer_status_message(e.to_string().into());
-                return;
-            }
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),
@@ -413,7 +400,6 @@ fn wire_drawer_toggle_save(
         let win_timer = win_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
@@ -439,7 +425,6 @@ fn wire_drawer_toggle_save(
                 &win_param_items,
                 &project_session,
                 &project_chains,
-                &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
                 &input_chain_devices.borrow(),

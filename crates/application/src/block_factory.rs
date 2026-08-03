@@ -13,7 +13,8 @@ use anyhow::{anyhow, Result};
 
 use domain::ids::BlockId;
 use project::block::{
-    build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind, InsertBlock,
+    build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind, InputBlock,
+    InsertBlock, OutputBlock,
 };
 use project::param::ParameterSet;
 
@@ -22,31 +23,29 @@ use project::param::ParameterSet;
 /// All parameters are reset to the schema's default values. The block starts
 /// `enabled = true`. The caller supplies the `block_id` to use.
 ///
-/// Special case: `effect_type == "insert"` produces a default `InsertBlock`
-/// that is unbound (`io` empty) — the user picks its I/O binding afterwards
-/// (#716, model A). `model_id` is ignored for insert blocks (always
-/// "standard").
+/// Special case: the I/O port types — `"insert"`, `"input"` and `"output"` —
+/// have no parameter schema. They produce an UNBOUND port block (`io` /
+/// `endpoint` empty); the user picks the binding endpoint afterwards (#716,
+/// model A). `model_id` is ignored for them (always "standard").
+///
+/// #85: `input`/`output` used to fall through to the schema lookup, which fails
+/// ("unsupported block type"), so every transport silently refused to build the
+/// block — in the GUI, picking OUTPUT on a chain did nothing at all.
 ///
 /// # Errors
 ///
 /// Returns `Err` when `effect_type` or `model_id` is not recognised by the
-/// block registry (schema lookup fails). Insert blocks never return an error.
+/// block registry (schema lookup fails). I/O port blocks never return an error.
 pub fn build_default_block(
     block_id: BlockId,
     effect_type: &str,
     model_id: &str,
 ) -> Result<AudioBlock> {
-    if effect_type == "insert" {
-        // Model A (#716): a fresh insert is unbound — the user picks its I/O
-        // binding (`io`) later; the send/return device endpoints are then
-        // resolved from the per-machine registry.
+    if let Some(port) = io_port_kind(effect_type) {
         return Ok(AudioBlock {
             id: block_id,
             enabled: true,
-            kind: AudioBlockKind::Insert(InsertBlock {
-                model: "standard".to_string(),
-                io: String::new(),
-            }),
+            kind: port,
         });
     }
     let params = default_params_for_model(effect_type, model_id)?;
@@ -57,6 +56,31 @@ pub fn build_default_block(
         enabled: true,
         kind,
     })
+}
+
+/// The unbound port block for an I/O `effect_type`, or `None` when the type is
+/// a normal (schema-backed) effect. A port carries no parameters: it references
+/// a binding endpoint, and it is born with that reference EMPTY so the editor
+/// can ask the user which E/S endpoint it points at (#716, model A).
+fn io_port_kind(effect_type: &str) -> Option<AudioBlockKind> {
+    let model = "standard".to_string();
+    match effect_type {
+        "insert" => Some(AudioBlockKind::Insert(InsertBlock {
+            model,
+            io: String::new(),
+        })),
+        "input" => Some(AudioBlockKind::Input(InputBlock {
+            model,
+            io: String::new(),
+            endpoint: String::new(),
+        })),
+        "output" => Some(AudioBlockKind::Output(OutputBlock {
+            model,
+            io: String::new(),
+            endpoint: String::new(),
+        })),
+        _ => None,
+    }
 }
 
 /// Build the seeded default [`ParameterSet`] for a new `(effect_type,

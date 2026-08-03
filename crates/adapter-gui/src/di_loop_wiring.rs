@@ -1,23 +1,27 @@
 //! Adapter-gui wiring for the per-chain virtual DI loop (issue #614).
 //!
-//! Two pure, testable pieces live here:
+//! #127: this module names no audio backend. Every DI control here is a
+//! `Command` on the bus; the dispatcher applies the runtime effect through
+//! `application::runtime_control::RuntimeControl`, whose GUI implementation
+//! lives in `runtime_lifecycle` — the one module that owns the controller.
 //!
 //! ## A — `apply_di_loop_event`
-//! Called by the Slint event-poll loop when `Event::ChainDiLoopEnabledChanged`
-//! arrives. Receives the already-resolved `ChainRuntimeState` plus the
-//! `Option<Arc<DiPcm>>` (the un-resampled source) fetched from the
-//! dispatcher's ephemeral store, and `enabled`. The resample to the runtime's
-//! rate happens here, off the audio thread.
+//! Applies a `ChainDiLoopEnabledChanged` to a single already-resolved
+//! `ChainRuntimeState`: the pre-#771 in-graph injection, kept for the runtime
+//! tests that pin its semantics. The audible path is the isolated DI stream.
 //!
 //! ## B — `di_loop_commands` / `DiLoopIntent`
 //! Maps the four chain-tile DI control intents to `Vec<Command>`. No
-//! `AppWindow`, no Slint — pure Rust. Task 7 (Slint) calls this from its
-//! callbacks.
+//! `AppWindow`, no Slint — pure Rust.
+//!
+//! ## C — play / stop / output select
+//! What the Slint callbacks call: dispatch, and nothing else.
 
 use std::sync::Arc;
 
 use application::command::{ChainCommand, Command};
 use application::di_loader::DiLoopSource;
+use application::dispatcher::CommandDispatcher;
 use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 use engine::DiPcm;
@@ -97,97 +101,47 @@ pub fn di_loop_commands(chain: ChainId, intent: DiLoopIntent) -> Vec<Command> {
     }
 }
 
-// ── Event consumer (wires into the polling loop) ────────────────────────────
-
-/// Handle `Event::ChainDiLoopEnabledChanged` adapter-side.
-///
-/// Resolves the chain's runtime(s) from `project_runtime`, fetches the stored
-/// `Arc<DiLoop>` from `dispatcher` (if `enabled`), and calls
-/// `apply_di_loop_event` on each runtime.
-///
-/// Mirrors the `Event::OutputMutedChanged` handler in `tuner_wiring.rs` but
-/// scoped to a single chain (isolation invariant).
-pub fn handle_chain_di_loop_enabled_changed(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
-    chain: &ChainId,
-    enabled: bool,
-) {
-    let arc_opt: Option<Arc<DiPcm>> = if enabled {
-        dispatcher.di_loop_for_chain(chain)
-    } else {
-        None
-    };
-
-    if let Some(rt) = project_runtime.borrow().as_ref() {
-        // #771: the DI plays ONLY on its isolated pre-rendered stream —
-        // arm resolves the chain's chosen output, renders the loop through a
-        // copy of the block graph off-thread, and the output callback plays
-        // it at its own cursor. The guitar runtime is never touched.
-        match (enabled, dispatcher.chain_snapshot(chain), arc_opt) {
-            (true, Some(chain_def), Some(pcm)) => {
-                let _ = rt.arm_di_stream(&chain_def, pcm);
-            }
-            _ => rt.disarm_di_stream(chain),
-        }
-    }
-}
-
-// ── Combined play / stop helpers (called from Slint callbacks) ──────────────
+// ── Play / stop / output helpers (called from Slint callbacks) ──────────────
 //
-// Mirror the `wire_mute_inline` pattern in `tuner_wiring.rs` (lines 231-238):
-// dispatch the command (so the event bus records the state change) and
-// immediately apply the effect to the audio runtime — no polling loop needed.
+// #127: these dispatch, and only dispatch. The runtime effect — arming the
+// chain's isolated DI stream, disarming it, moving a playing loop to a newly
+// picked output — is applied by the dispatcher through
+// `application::runtime_control::RuntimeControl`, so a play asked for over
+// MCP/gRPC/MIDI sounds exactly like the one asked for with the button.
 
-/// Dispatch `SetChainDiLoopEnabled { enabled: true }` and apply the
-/// `Arc<DiLoop>` stored in `dispatcher` to the chain's runtime.
+/// User pressed ▶ on this chain's DI.
 ///
-/// If no source has been loaded yet (`di_loop_for_chain` returns `None`) the
-/// apply is a no-op — the UI must guard the Play button until a source is
-/// confirmed.  Dispatch still fires so the event bus stays in sync.
-pub fn play_chain_di_loop(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
-    chain: &ChainId,
-) {
-    use application::dispatcher::CommandDispatcher;
-    // #693: the DI decode runs on its own task — apply any completion
-    // that already landed before arming, so play right after picking a
-    // source uses the freshly decoded loop.
+/// #808 is handled behind the door: arming an independent pipeline creates the
+/// audio runtime if none is up, so the DI plays with no chain enabled.
+pub fn play_chain_di_loop(dispatcher: &dyn CommandDispatcher, chain: &ChainId) {
+    // #693: the DI decode runs on its own task — apply any completion that
+    // already landed before arming, so play right after picking a source uses
+    // the freshly decoded loop.
     let _ = dispatcher.poll_async_results();
     let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
         chain: chain.clone(),
         enabled: true,
     }));
-    handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, true);
 }
 
-/// Dispatch `SetChainDiLoopEnabled { enabled: false }` and clear the chain's
-/// runtime immediately.
-pub fn stop_chain_di_loop(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
-    chain: &ChainId,
-) {
-    use application::dispatcher::CommandDispatcher;
+/// User pressed ■.
+pub fn stop_chain_di_loop(dispatcher: &dyn CommandDispatcher, chain: &ChainId) {
     let _ = dispatcher.dispatch(Command::Chain(ChainCommand::SetChainDiLoopEnabled {
         chain: chain.clone(),
         enabled: false,
     }));
-    handle_chain_di_loop_enabled_changed(project_runtime, dispatcher, chain, false);
 }
 
-/// #771: the DI panel's OUTPUT select was picked. Persist the choice through
-/// `ChainCommand::SetChainDiLoopOutput` and, when the DI is playing, re-arm so the
-/// sound moves to the picked output (re-render + park on its cell).
+/// #771: the DI panel's OUTPUT select was picked. The index is a position in
+/// the list the panel is showing, so it is resolved against the same options
+/// builder here; the endpoint it names then travels as
+/// `ChainCommand::SetChainDiLoopOutput`.
 pub fn select_chain_di_output(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn CommandDispatcher,
     chain: &ChainId,
     registry: &[domain::io_binding::IoBinding],
     output_index: usize,
 ) {
-    use application::dispatcher::CommandDispatcher;
     let Some(chain_def) = dispatcher.chain_snapshot(chain) else {
         return;
     };
@@ -199,58 +153,4 @@ pub fn select_chain_di_output(
         chain: chain.clone(),
         output: option.di_ref.clone(),
     }));
-    // While playing, move the sound to the picked output now — arm re-resolves
-    // the (updated) di_output, re-renders and parks on the new cell.
-    if let Some(rt) = project_runtime.borrow().as_ref() {
-        if rt.di_stream_active(chain) {
-            if let (Some(updated), Some(pcm)) = (
-                dispatcher.chain_snapshot(chain),
-                dispatcher.di_loop_for_chain(chain),
-            ) {
-                let _ = rt.arm_di_stream(&updated, pcm);
-            }
-        }
-    }
-}
-
-/// #669/#749: push the running controller's real device sample rate into the
-/// dispatcher's `engine_sr` (the authoritative-rate fallback for consumers
-/// that would otherwise assume 48000). No-op when no runtime is active.
-///
-/// Called from the runtime lifecycle whenever the controller is started or
-/// re-synced (a sample-rate change rebuilds the runtime).
-///
-/// On an actual rate change, `attach_engine_sr` returns every chain with a
-/// loaded DI source; we re-arm any chain whose loop is currently playing so
-/// the arm path (`set_chain_di_loop`) rebuilds the loop at the runtime's NEW
-/// rate — otherwise a loop that was *playing* when the device rate changed
-/// drags in slow motion against its rebuilt runtime.
-pub fn sync_engine_sr_from_runtime(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
-) {
-    let rate = match project_runtime.borrow().as_ref() {
-        Some(runtime) => runtime.sample_rate(),
-        None => return,
-    };
-    let rebuilt = dispatcher.attach_engine_sr(rate);
-    if rebuilt.is_empty() {
-        return;
-    }
-    if let Some(runtime) = project_runtime.borrow().as_ref() {
-        for chain in rebuilt {
-            // #771: re-arm the isolated DI stream at the new rate — arm
-            // re-resolves the chosen output's rate and re-renders, so a
-            // playing loop never drags into slow motion on a device-rate
-            // change (#669).
-            if runtime.di_stream_active(&chain) {
-                if let (Some(chain_def), Some(pcm)) = (
-                    dispatcher.chain_snapshot(&chain),
-                    dispatcher.di_loop_for_chain(&chain),
-                ) {
-                    let _ = runtime.arm_di_stream(&chain_def, pcm);
-                }
-            }
-        }
-    }
 }

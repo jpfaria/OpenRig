@@ -169,7 +169,14 @@ pub fn build_from_package(
     let sr = sample_rate as f64;
 
     let processor = match (plan.audio_in.len(), plan.audio_out.len()) {
-        (1, 1) | (1, 2) => build_mono_input(
+        // (2, 1) is a SIDECHAIN plugin (ZaMcomp, ZamGate…): main input plus a
+        // detector input, one output. It is mono as far as the chain is
+        // concerned — and `Lv2Processor` connects every audio-in port to the
+        // same buffer, so the detector reads the signal the main input carries
+        // (an internal sidechain, which is what the plugin does with its own
+        // sidechain switch off). Refusing the shape bypassed the block, so the
+        // owner's compressor never ran.
+        (1, 1) | (1, 2) | (2, 1) => build_mono_input(
             &lib_str,
             &plugin_uri,
             sr,

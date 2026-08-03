@@ -1,25 +1,27 @@
-//! SpectrumWindow wiring — all callbacks and the polling timer for the
-//! top-bar Spectrum feature. Mirrors `tuner_wiring.rs` (open / close /
-//! power) minus the mute path — the spectrum view is a passive display.
+//! SpectrumWindow wiring — all callbacks for the top-bar Spectrum feature.
+//! Mirrors `tuner_wiring.rs` (open / close / power) minus the mute path — the
+//! spectrum view is a passive display.
 //!
 //! `wire_spectrum` is the single entry point. `lib.rs` calls it once
 //! during window setup and never touches spectrum logic again.
+//!
+//! #127: like the tuner, this module RENDERS. `SelectionCommand::
+//! SetSpectrumEnabled` powers the analyzer through `RuntimeControl`
+//! (`runtime_analyzers`), so the `toggle_spectrum` footswitch and an MCP
+//! client start the same FFT this button does; the bars' model arrives through
+//! the sink installed below.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
-use infra_cpal::ProjectRuntimeController;
-use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
+use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
+use crate::runtime_analyzers::AnalyzerSessions;
 use crate::spectrum_close::spectrum_close_commands;
-use crate::spectrum_session::SpectrumSession;
 use crate::state::ProjectSession;
 use crate::{AppWindow, SpectrumRow, SpectrumWindow};
-
-const TICK_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
 
 /// Wire every Spectrum callback (open / close / power) onto the supplied
 /// windows. Idempotent in spirit but should only be called once per
@@ -28,33 +30,33 @@ pub fn wire_spectrum(
     window: &AppWindow,
     spectrum_window: &SpectrumWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    spectrum_timer: &Rc<Timer>,
+    analyzers: &AnalyzerSessions,
 ) {
+    install_row_sink(window, spectrum_window, analyzers);
     wire_open(window, spectrum_window);
-    wire_close_inline(
-        window,
-        project_session,
-        project_runtime,
-        spectrum_session,
-        spectrum_timer,
-    );
-    wire_close_windowed(
-        spectrum_window,
-        project_session,
-        project_runtime,
-        spectrum_session,
-        spectrum_timer,
-    );
-    wire_power(
-        window,
-        spectrum_window,
-        project_session,
-        project_runtime,
-        spectrum_session,
-        spectrum_timer,
-    );
+    wire_close_inline(window, project_session);
+    wire_close_windowed(spectrum_window, project_session);
+    wire_power(window, spectrum_window, project_session);
+}
+
+/// Where the analyzer's bars are rendered — see `tuner_wiring::install_row_sink`
+/// for why the model has to be re-bound on every rebuild.
+fn install_row_sink(
+    window: &AppWindow,
+    spectrum_window: &SpectrumWindow,
+    analyzers: &AnalyzerSessions,
+) {
+    let main_window_weak = window.as_weak();
+    let spectrum_window_weak = spectrum_window.as_weak();
+    analyzers.on_spectrum_rows(move |rows| {
+        let rows = rows.unwrap_or_else(empty_rows_model);
+        if let Some(sw) = spectrum_window_weak.upgrade() {
+            sw.set_spectrum_rows(rows.clone());
+        }
+        if let Some(mw) = main_window_weak.upgrade() {
+            mw.set_spectrum_rows(rows);
+        }
+    });
 }
 
 fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
@@ -89,21 +91,11 @@ fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
     });
 }
 
-fn wire_close_inline(
-    window: &AppWindow,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    spectrum_timer: &Rc<Timer>,
-) {
+fn wire_close_inline(window: &AppWindow, project_session: &Rc<RefCell<Option<ProjectSession>>>) {
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
-    let spectrum_session = spectrum_session.clone();
-    let spectrum_timer = spectrum_timer.clone();
     let main_window_weak = window.as_weak();
     window.on_close_spectrum(move || {
         dispatch_close_commands(&project_session);
-        teardown_session(&spectrum_timer, &spectrum_session, &project_runtime);
         if let Some(mw) = main_window_weak.upgrade() {
             mw.set_show_spectrum(false);
             // #546: keep the Slint power state in sync with the backend
@@ -117,30 +109,18 @@ fn wire_close_inline(
 fn wire_close_windowed(
     spectrum_window: &SpectrumWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    spectrum_timer: &Rc<Timer>,
 ) {
     // Mirrors `tuner_wiring::wire_close_windowed` (#544). The windowed
     // SpectrumWindow renders with `show-close-button: false`, so
     // `on_close_spectrum_window` never fires today; the only way to
     // close that window is the OS chrome (X / Cmd-W), which Slint
     // routes through `Window::on_close_requested`. Wire BOTH so neither
-    // path leaves the FFT polling timer + stream taps alive (#546).
+    // path leaves the FFT analyzer + stream taps alive (#546).
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
-        let spectrum_session = spectrum_session.clone();
-        let spectrum_timer = spectrum_timer.clone();
         let spectrum_window_weak = spectrum_window.as_weak();
         spectrum_window.on_close_spectrum_window(move || {
-            close_spectrum_windowed_impl(
-                &project_session,
-                &project_runtime,
-                &spectrum_session,
-                &spectrum_timer,
-                &spectrum_window_weak,
-            );
+            close_spectrum_windowed_impl(&project_session, &spectrum_window_weak);
             if let Some(sw) = spectrum_window_weak.upgrade() {
                 let _ = sw.hide();
             }
@@ -148,18 +128,9 @@ fn wire_close_windowed(
     }
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
-        let spectrum_session = spectrum_session.clone();
-        let spectrum_timer = spectrum_timer.clone();
         let spectrum_window_weak = spectrum_window.as_weak();
         spectrum_window.window().on_close_requested(move || {
-            close_spectrum_windowed_impl(
-                &project_session,
-                &project_runtime,
-                &spectrum_session,
-                &spectrum_timer,
-                &spectrum_window_weak,
-            );
+            close_spectrum_windowed_impl(&project_session, &spectrum_window_weak);
             slint::CloseRequestResponse::HideWindow
         });
     }
@@ -167,13 +138,9 @@ fn wire_close_windowed(
 
 fn close_spectrum_windowed_impl(
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    spectrum_timer: &Rc<Timer>,
     spectrum_window_weak: &slint::Weak<SpectrumWindow>,
 ) {
     dispatch_close_commands(project_session);
-    teardown_session(spectrum_timer, spectrum_session, project_runtime);
     if let Some(sw) = spectrum_window_weak.upgrade() {
         sw.set_spectrum_enabled(false);
     }
@@ -183,15 +150,10 @@ fn dispatch_close_commands(project_session: &Rc<RefCell<Option<ProjectSession>>>
     // #546 + architectural law "every state change is a Command": close
     // routes through the shared dispatcher so MCP / MIDI / future gRPC
     // see Event::SpectrumEnabledChanged { false } instead of the adapter
-    // mutating runtime state silently.
-    let pj = project_session.borrow();
-    let Some(session) = pj.as_ref() else {
-        return;
-    };
+    // mutating runtime state silently. #127: the same dispatch also stops the
+    // analyzer and releases its taps.
     for cmd in spectrum_close_commands() {
-        if let Err(e) = session.dispatcher.dispatch(cmd) {
-            log::warn!("[spectrum.close] dispatch falhou: {e}");
-        }
+        dispatch(project_session, cmd);
     }
 }
 
@@ -199,68 +161,27 @@ fn wire_power(
     window: &AppWindow,
     spectrum_window: &SpectrumWindow,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    spectrum_timer: &Rc<Timer>,
 ) {
     let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
-    let spectrum_session = spectrum_session.clone();
-    let spectrum_timer = spectrum_timer.clone();
     let main_window_weak = window.as_weak();
     let spectrum_window_weak = spectrum_window.as_weak();
 
     let on_toggle_enabled = move |enabled: bool| {
-        // #436 H: power do spectrum é negócio → Command no dispatcher
-        // compartilhado (MCP/MIDI, observável via
-        // Event::SpectrumEnabledChanged) quando há sessão. O build/
-        // teardown da sessão de análise + timer abaixo é adapter-side
-        // (precedente SaveProject).
-        if let Some(session) = project_session.borrow().as_ref() {
-            if let Err(e) = session.dispatcher.dispatch(Command::Selection(
-                SelectionCommand::SetSpectrumEnabled { enabled },
-            )) {
-                log::warn!("[spectrum] Command::SetSpectrumEnabled falhou: {e}");
-            }
+        // #436 H / #127: POWER is business → a Command on the shared
+        // dispatcher, which builds or tears down the FFT session through
+        // `RuntimeControl::set_spectrum_running`. The bars arrive through the
+        // sink, whoever asked for them.
+        dispatch(
+            &project_session,
+            Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled }),
+        );
+        // Always reflect the new enabled state on the UI even if no session
+        // could be built, so the toggle never traps OFF.
+        if let Some(sw) = spectrum_window_weak.upgrade() {
+            sw.set_spectrum_enabled(enabled);
         }
-        if enabled {
-            let new_session = build_session(&project_session, &project_runtime);
-            let rows = new_session
-                .as_ref()
-                .map(SpectrumSession::rows_model_rc)
-                .unwrap_or_else(empty_rows_model);
-            // Always reflect the new enabled state on the UI even if no
-            // session could be built, so the toggle never traps OFF.
-            if let Some(sw) = spectrum_window_weak.upgrade() {
-                sw.set_spectrum_rows(rows.clone());
-                sw.set_spectrum_enabled(true);
-            }
-            if let Some(mw) = main_window_weak.upgrade() {
-                mw.set_spectrum_rows(rows);
-                mw.set_spectrum_enabled(true);
-            }
-            *spectrum_session.borrow_mut() = new_session;
-            start_polling_timer(
-                &spectrum_timer,
-                &spectrum_session,
-                &project_session,
-                &project_runtime,
-                &spectrum_window_weak,
-                &main_window_weak,
-            );
-        } else {
-            teardown_session(&spectrum_timer, &spectrum_session, &project_runtime);
-            // Power off clears the row list so the window reflects the
-            // stopped state instead of stale rows.
-            let empty = empty_rows_model();
-            if let Some(sw) = spectrum_window_weak.upgrade() {
-                sw.set_spectrum_rows(empty.clone());
-                sw.set_spectrum_enabled(false);
-            }
-            if let Some(mw) = main_window_weak.upgrade() {
-                mw.set_spectrum_rows(empty);
-                mw.set_spectrum_enabled(false);
-            }
+        if let Some(mw) = main_window_weak.upgrade() {
+            mw.set_spectrum_enabled(enabled);
         }
     };
     let cloned = on_toggle_enabled.clone();
@@ -270,104 +191,21 @@ fn wire_power(
 
 // ── helpers ─────────────────────────────────────────────────────────────
 
-fn build_session(
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-) -> Option<SpectrumSession> {
-    let pj = project_session.borrow();
-    let rt = project_runtime.borrow();
-    match (pj.as_ref(), rt.as_ref()) {
-        (Some(session), Some(runtime)) => Some(SpectrumSession::build(
-            &session.project.borrow(),
-            runtime,
-            &session.io_bindings.borrow(),
-        )),
-        _ => None,
-    }
-}
-
 fn empty_rows_model() -> ModelRc<SpectrumRow> {
     ModelRc::from(Rc::new(VecModel::from(Vec::<SpectrumRow>::new())))
 }
 
-fn teardown_session(
-    spectrum_timer: &Rc<Timer>,
-    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-) {
-    spectrum_timer.stop();
-    *spectrum_session.borrow_mut() = None;
-    if let Some(rt) = project_runtime.borrow().as_ref() {
-        rt.prune_dead_stream_taps();
+/// Clone the dispatcher handle out FIRST: dispatching applies the runtime
+/// effect, and that must not run while the session cell is still borrowed.
+fn dispatch(project_session: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
+    let dispatcher = project_session
+        .borrow()
+        .as_ref()
+        .map(|s| s.dispatcher.clone());
+    let Some(dispatcher) = dispatcher else {
+        return;
+    };
+    if let Err(e) = dispatcher.dispatch(cmd) {
+        log::warn!("[spectrum] command failed: {e}");
     }
-}
-
-/// Drive the per-frame loop: drain rings, run the FFT, rebuild the session
-/// when the project's output topology changed under us.
-fn start_polling_timer(
-    spectrum_timer: &Rc<Timer>,
-    spectrum_session: &Rc<RefCell<Option<SpectrumSession>>>,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    spectrum_window_weak: &slint::Weak<SpectrumWindow>,
-    main_window_weak: &slint::Weak<AppWindow>,
-) {
-    let spectrum_session = spectrum_session.clone();
-    let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
-    let spectrum_window_weak = spectrum_window_weak.clone();
-    let main_window_weak = main_window_weak.clone();
-    spectrum_timer.start(TimerMode::Repeated, TICK_INTERVAL, move || {
-        if let Some(session) = spectrum_session.borrow_mut().as_mut() {
-            session.tick();
-        }
-        let needs_rebuild = {
-            let pj = project_session.borrow();
-            let session = spectrum_session.borrow();
-            match (pj.as_ref(), session.as_ref()) {
-                (Some(s), Some(sess)) => {
-                    sess.needs_rebuild(&s.project.borrow(), &s.io_bindings.borrow())
-                }
-                (Some(_), None) => true,
-                _ => false,
-            }
-        };
-        if needs_rebuild {
-            let pj = project_session.borrow();
-            let rt = project_runtime.borrow();
-            match (pj.as_ref(), rt.as_ref()) {
-                (Some(s), Some(rt)) => {
-                    let new_session =
-                        SpectrumSession::build(&s.project.borrow(), rt, &s.io_bindings.borrow());
-                    let rows = new_session.rows_model_rc();
-                    if let Some(sw) = spectrum_window_weak.upgrade() {
-                        sw.set_spectrum_rows(rows.clone());
-                    }
-                    if let Some(mw) = main_window_weak.upgrade() {
-                        mw.set_spectrum_rows(rows);
-                    }
-                    *spectrum_session.borrow_mut() = Some(new_session);
-                    rt.prune_dead_stream_taps();
-                }
-                _ => {
-                    // No runtime (last chain disabled, runtime torn down).
-                    // Drop any stale session and clear the visible bars so
-                    // the window does not freeze on the last live frame.
-                    if let Some(session) = spectrum_session.borrow_mut().as_mut() {
-                        session.freeze_to_zero();
-                    }
-                    *spectrum_session.borrow_mut() = None;
-                    let empty: Rc<VecModel<SpectrumRow>> =
-                        Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
-                    let empty_rc = ModelRc::from(empty);
-                    if let Some(sw) = spectrum_window_weak.upgrade() {
-                        sw.set_spectrum_rows(empty_rc.clone());
-                    }
-                    if let Some(mw) = main_window_weak.upgrade() {
-                        mw.set_spectrum_rows(empty_rc);
-                    }
-                }
-            }
-        }
-    });
 }

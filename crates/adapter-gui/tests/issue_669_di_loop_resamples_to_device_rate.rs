@@ -29,6 +29,9 @@ use infra_cpal::ProjectRuntimeController;
 use project::chain::Chain;
 use project::project::Project;
 
+mod common;
+use common::DiRuntimeControl;
+
 fn write_mono_wav(path: &Path, sr: u32, samples: &[f32]) {
     let spec = hound::WavSpec {
         channels: 1,
@@ -91,9 +94,12 @@ fn armed_loop_len_at(device_sr: u32, wav: &Path) -> usize {
     let chain_id = ChainId(format!("chain_669_{device_sr}"));
     let project = make_project(&chain_id.0);
     let dispatcher = LocalDispatcher::new(Rc::clone(&project));
-    let controller = RefCell::new(Some(make_controller_at(&chain_id, device_sr)));
+    let controller =
+        DiRuntimeControl::attach(&dispatcher, make_controller_at(&chain_id, device_sr));
 
-    adapter_gui::di_loop_wiring::sync_engine_sr_from_runtime(&controller, &dispatcher);
+    // The runtime lifecycle publishes the live device rate to the dispatcher;
+    // this is that publish, at the rate the controller above is running at.
+    dispatcher.attach_engine_sr(device_sr);
 
     dispatcher
         .dispatch(Command::Chain(ChainCommand::SetChainDiLoopSource {
@@ -113,7 +119,7 @@ fn armed_loop_len_at(device_sr: u32, wav: &Path) -> usize {
     }
 
     // Arm it: the arm path resamples the source to the runtime's device rate.
-    adapter_gui::di_loop_wiring::play_chain_di_loop(&controller, &dispatcher, &chain_id);
+    adapter_gui::di_loop_wiring::play_chain_di_loop(&dispatcher, &chain_id);
 
     // #771: the audible loop is the isolated pre-rendered playback; it parks
     // off-thread, so poll its length (rendered at the resolved output rate).

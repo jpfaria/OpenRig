@@ -24,7 +24,6 @@ use std::rc::Rc;
 use slint::ComponentHandle;
 
 use application::command::{Command, MidiCommand, SettingsCommand};
-use application::dispatcher::CommandDispatcher;
 use infra_filesystem::{AppConfig, FilesystemStorage};
 
 use crate::state::ProjectSession;

@@ -41,8 +41,12 @@ pub(crate) use crate::runtime_state::SelectRuntimeState;
 // Slice 6 of Phase 2: probe state machine + probe impl methods lifted to
 // runtime_probe.rs. Re-exports below preserve `crate::runtime::PROBE_*`
 // paths in runtime_graph.rs and probe.rs.
-use crate::runtime_probe::{PROBE_ARMED, PROBE_DETECT_THRESHOLD, PROBE_FIRED};
+use crate::runtime_probe::{PROBE_ARMED, PROBE_FIRED};
 pub(crate) use crate::runtime_probe::{PROBE_BEEP_FRAMES, PROBE_IDLE};
+
+// #127: the output-side callback lives in runtime_output_process.rs; re-exported
+// so `engine::runtime::process_output_f32{,_mixed}` stays the public path.
+pub use crate::runtime_output_process::{process_output_f32, process_output_f32_mixed};
 
 // Slice 3: graph + block builders. External callers keep using
 // `engine::runtime::*` paths via these re-exports.
@@ -71,8 +75,13 @@ pub(crate) use crate::runtime_segments::split_chain_into_segments;
 #[cfg(test)]
 pub(crate) use crate::runtime_dsp::apply_mixdown;
 use crate::runtime_dsp::ensure_flush_to_zero;
-use crate::runtime_dsp::output_limiter;
-use crate::runtime_io::write_output_frame;
+// Test-only re-exports: the #127 split moved the output callback out to
+// runtime_output_process.rs, but the sibling #[path] test modules still reach
+// these via `super::`.
+#[cfg(test)]
+pub(crate) use crate::runtime_dsp::output_limiter;
+#[cfg(test)]
+pub(crate) use crate::runtime_io::write_output_frame;
 #[cfg(test)]
 pub(crate) use crate::runtime_layout::layout_from_channels;
 pub(crate) use crate::runtime_layout::layout_label;
@@ -230,8 +239,9 @@ pub fn process_input_f32(
     let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
+        let plays_di = input_states.get(seg_idx).is_some_and(|s| s.plays_di_loop);
         let feed = match di_for_seg {
-            Some((d, pos)) if seg_idx == 0 => SegmentFeed::Loop(d, pos),
+            Some((d, pos)) if plays_di => SegmentFeed::Loop(d, pos),
             Some(_) => SegmentFeed::Silence,
             None => SegmentFeed::Live,
         };
@@ -288,152 +298,56 @@ pub fn process_input_f32(
     }
 
     // Push mixed frames to their output routes (lock-free via SPSC).
+    //
+    // #85: when a route's DEVICE runs at another rate than this runtime (a mid
+    // `Output` tapping a second interface), the frames are converted first —
+    // otherwise the route is fed at the wrong pace and its elastic buffer
+    // starves, which is the crackle. Same-rate routes take the untouched path.
+    let mut resamplers = std::mem::take(&mut scratch.route_resamplers);
+    let mut resampled = std::mem::take(&mut scratch.resampled);
     for (route_idx, route) in &scratch.route_arcs {
-        if let Some(frames) = scratch.mixed_per_route.get(route_idx) {
+        let Some(frames) = scratch.mixed_per_route.get(route_idx) else {
+            continue;
+        };
+        if (route.sample_rate - runtime.sample_rate).abs() < f32::EPSILON {
             for &frame in frames {
                 route.buffer.push(frame);
             }
+            continue;
+        }
+        let converter = resamplers.entry(*route_idx).or_insert_with(|| {
+            crate::runtime_route_resample::RouteResampler::new(
+                runtime.sample_rate,
+                route.sample_rate,
+                frames
+                    .first()
+                    .copied()
+                    .unwrap_or(crate::runtime_audio_frame::AudioFrame::Mono(0.0)),
+            )
+        });
+        let Some(converter) = converter.as_mut() else {
+            for &frame in frames {
+                route.buffer.push(frame);
+            }
+            continue;
+        };
+        // Follow the device's real clock, not its label (#85).
+        converter.track(route.buffer.len(), route.buffer.target_level());
+        resampled.clear();
+        for &frame in frames {
+            converter.push(frame, &mut resampled);
+        }
+        for &frame in resampled.iter() {
+            route.buffer.push(frame);
         }
     }
+    scratch.route_resamplers = resamplers;
+    scratch.resampled = resampled;
 
     if let Some(slot) = input_scratches.get_mut(input_index) {
         *slot = scratch;
     }
 }
-
-pub fn process_output_f32(
-    runtime: &Arc<ChainRuntimeState>,
-    output_index: usize,
-    out: &mut [f32],
-    output_total_channels: usize,
-) {
-    if runtime.is_draining() {
-        out.fill(0.0);
-        return;
-    }
-    ensure_flush_to_zero();
-
-    // Snapshot the current routes via ArcSwap — no lock on the RT thread.
-    let routes = runtime.output_routes.load();
-    let route = match routes.get(output_index) {
-        Some(r) => r,
-        None => {
-            out.fill(0.0);
-            return;
-        }
-    };
-    // Issue #440 / #350 fidelity: apply Chain.volume to the AudioFrame
-    // BEFORE `write_output_frame` (which runs the output limiter). Applying
-    // it after the limiter let a hot chain × volume>100 clip the DAC with
-    // nothing to catch it on the single-stream path. Single atomic load of
-    // volume_pct per callback. No clamp here — the limiter inside
-    // write_output_frame is the gate (this file's pinned contract:
-    // "clipping is the output limiter's job"). Sub-knee signals are
-    // unaffected (tanh transparent below 0.95), so k01–k04 stay green.
-    let volume_ratio = runtime.volume_pct() / 100.0;
-    let num_frames = out.len() / output_total_channels;
-    for frame in out.chunks_mut(output_total_channels).take(num_frames) {
-        frame.fill(0.0);
-        let mut processed = route.buffer.pop();
-        if volume_ratio != 1.0 {
-            processed = processed.scaled(volume_ratio);
-        }
-        write_output_frame(
-            processed,
-            &route.output_channels,
-            frame,
-            route.output_mixdown,
-        );
-    }
-
-    // Output mute: silence the entire output stage when toggled by any
-    // consumer (e.g. the Tuner window). Single atomic load — cheap.
-    if runtime
-        .output_muted
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        out.fill(0.0);
-    }
-
-    // Latency probe detection: only the primary output (index 0) scans.
-    // When Fired, look for the leading edge of the injected beep. Measure
-    // wall-clock nanos from injection to detection; that is the real
-    // end-to-end latency of the signal path for the user.
-    if output_index == 0 && runtime.probe_state.load(Ordering::Acquire) == PROBE_FIRED {
-        let detected_at_idx = out.iter().position(|s| s.abs() > PROBE_DETECT_THRESHOLD);
-        if detected_at_idx.is_some() {
-            let now = runtime.created_at.elapsed().as_nanos() as u64;
-            let injected_at = runtime.last_input_nanos.load(Ordering::Relaxed);
-            // Measure wall-clock nanos from the input callback that
-            // injected the beep to this output callback that detected
-            // it. This is callback-level granularity; we intentionally
-            // do NOT add the intra-buffer offset because that couples
-            // the measurement to signal amplitude (through the
-            // threshold-crossing position) and inflates readings for
-            // chains that attenuate the signal.
-            let delta = now.saturating_sub(injected_at);
-            runtime
-                .measured_latency_nanos
-                .store(delta, Ordering::Relaxed);
-            runtime.probe_state.store(PROBE_IDLE, Ordering::Release);
-        }
-    }
-}
-
-/// Drive one physical output device from the N per-input runtimes of a
-/// chain (issue #350, phase 3). Each `InputBlock` entry on a distinct
-/// physical device is its own isolated [`ChainRuntimeState`] with its own
-/// SPSC output ring; the shared output device must sum them at the
-/// backend — the ONLY place CLAUDE.md invariant #4 permits mixing across
-/// streams. Each ring still has exactly one producer (its own input
-/// callback) and is consumed once here, so SPSC is preserved.
-///
-/// Single-runtime chains (the 99% case, and every `volume_invariants` /
-/// golden scenario) take the `[1]` fast path: `process_output_f32` writes
-/// straight into `out` with ZERO extra work — byte-identical to pre-#350.
-///
-/// Multi-runtime: each runtime's output (already per-runtime limited +
-/// volume-scaled inside `process_output_f32`) is rendered into the
-/// caller-owned `scratch` and summed into `out`; the summed buffer then
-/// passes through `output_limiter` (the same tanh the chain already
-/// trusts to hold a multi-stream sum transparent below 0 dBFS — see the
-/// route-mix note in `mix_segment_into_routes`) so the device never
-/// receives a clipped buffer. `scratch` MUST be pre-allocated by the
-/// caller at stream-build time and be at least `out.len()` long — this
-/// function performs ZERO allocation and ZERO locking on the audio
-/// thread (it only does the lock-free work `process_output_f32` already
-/// did, once per runtime).
-pub fn process_output_f32_mixed(
-    runtimes: &[Arc<ChainRuntimeState>],
-    output_index: usize,
-    out: &mut [f32],
-    output_total_channels: usize,
-    scratch: &mut [f32],
-) {
-    match runtimes {
-        [] => out.fill(0.0),
-        // Fast path: one isolated stream → byte-identical to pre-#350.
-        [runtime] => process_output_f32(runtime, output_index, out, output_total_channels),
-        many => {
-            out.fill(0.0);
-            let n = out.len();
-            for runtime in many {
-                let buf = &mut scratch[..n];
-                process_output_f32(runtime, output_index, buf, output_total_channels);
-                for (dst, src) in out.iter_mut().zip(buf.iter()) {
-                    *dst += *src;
-                }
-            }
-            // Backend mix saturation guard: N per-runtime-limited streams
-            // can sum past 1.0; tanh holds it transparent below 0 dBFS.
-            for s in out.iter_mut() {
-                *s = output_limiter(*s);
-            }
-        }
-    }
-}
-
-// Soft limiter — transparent below 0dBFS, gentle saturation above.
 
 #[cfg(test)]
 #[path = "runtime_tests.rs"]

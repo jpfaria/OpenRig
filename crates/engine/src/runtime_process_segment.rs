@@ -13,6 +13,7 @@ use crossbeam_queue::ArrayQueue;
 
 use crate::runtime_audio_frame::{read_input_frame, AudioFrame};
 use crate::runtime_dsp::{blend_frame, ensure_flush_to_zero};
+use crate::runtime_mid_output_tap::emit_mid_output_taps;
 use crate::runtime_state::{
     BlockError, BlockRuntimeNode, FadeState, InputCallbackScratch, InputProcessingState,
     RuntimeProcessor, FADE_IN_FRAMES,
@@ -118,7 +119,9 @@ pub(crate) fn process_single_segment(
         frame_buffer,
         fade_in_remaining,
         output_route_indices,
+        mid_output_taps,
         split_mono_sibling_count,
+        plays_di_loop: _,
         outgoing,
     } = input_state;
 
@@ -181,9 +184,29 @@ pub(crate) fn process_single_segment(
         bank.process(seg_idx, frame_buffer.as_mut_slice(), *processing_layout);
     }
 
-    for block in blocks.iter_mut() {
+    // #85: a mid-chain `Output` emits the signal AS PROCESSED UP TO ITS OWN
+    // POSITION. The chain keeps flowing to the blocks after it, so the tap is
+    // non-destructive — it copies the bus into its route right where it sits.
+    // The click-safe fade below is replayed onto the copy from the same
+    // starting counter, so a rebuilt segment ramps identically on every route.
+    let fade_at_entry = *fade_in_remaining;
+    for (processed, block) in blocks.iter_mut().enumerate() {
+        emit_mid_output_taps(
+            mid_output_taps,
+            processed,
+            frame_buffer,
+            fade_at_entry,
+            scratch,
+        );
         process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
     }
+    emit_mid_output_taps(
+        mid_output_taps,
+        blocks.len(),
+        frame_buffer,
+        fade_at_entry,
+        scratch,
+    );
 
     // Per-stream sample tap (post-FX, pre-mixdown). The Spectrum window
     // subscribes per-stream so it can show one analyzer per input source

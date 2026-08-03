@@ -89,26 +89,8 @@ impl LocalDispatcher {
             let mut proj = self.project.borrow_mut();
             if let Some(slot) = proj.chains.iter_mut().find(|c| c.id == chain) {
                 let was_enabled = slot.enabled;
-                let preserved_inputs: Vec<AudioBlock> = slot
-                    .blocks
-                    .iter()
-                    .filter(|b| matches!(b.kind, AudioBlockKind::Input(_)))
-                    .cloned()
-                    .collect();
-                let preserved_outputs: Vec<AudioBlock> = slot
-                    .blocks
-                    .iter()
-                    .filter(|b| matches!(b.kind, AudioBlockKind::Output(_)))
-                    .cloned()
-                    .collect();
                 let mut rebuilt = rebuilt;
-                rebuilt.blocks.retain(|b| {
-                    !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
-                });
-                let mut final_blocks = preserved_inputs;
-                final_blocks.append(&mut rebuilt.blocks);
-                final_blocks.extend(preserved_outputs);
-                rebuilt.blocks = final_blocks;
+                rebuilt.blocks = merge_preserved_ports(&slot.blocks, rebuilt.blocks);
                 *slot = rebuilt;
                 slot.enabled = was_enabled;
             }
@@ -155,4 +137,34 @@ impl LocalDispatcher {
         }
         Ok(vec![Event::ChainReloaded { chain }, Event::ProjectMutated])
     }
+}
+
+/// Re-project a rebuilt preset onto the chain while keeping the user's I/O
+/// PORTS where they are.
+///
+/// A rig preset carries processing blocks; the `Input`/`Output` ports belong to
+/// the chain and survive a preset/scene switch. This used to rebuild the list as
+/// `[all inputs] + [effects] + [all outputs]`, which was harmless when the only
+/// ports were the head input and the tail output. #85 puts a port BETWEEN
+/// effects on purpose — an aux send after the cab — and its position is the
+/// whole point, so the merge walks the CURRENT chain and keeps each port at its
+/// own index, feeding the rebuilt effects into the slots between them.
+pub(crate) fn merge_preserved_ports(
+    current: &[AudioBlock],
+    rebuilt: Vec<AudioBlock>,
+) -> Vec<AudioBlock> {
+    let is_port =
+        |b: &AudioBlock| matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_));
+    let mut effects = rebuilt.into_iter().filter(|b| !is_port(b));
+    let mut merged = Vec::with_capacity(current.len());
+    for block in current {
+        if is_port(block) {
+            merged.push(block.clone());
+        } else if let Some(effect) = effects.next() {
+            merged.push(effect);
+        }
+    }
+    // Effects the preset added beyond the slots the chain had.
+    merged.extend(effects);
+    merged
 }

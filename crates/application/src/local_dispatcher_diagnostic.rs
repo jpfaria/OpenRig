@@ -1,9 +1,12 @@
-//! #436 H — `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled`: ligar/
-//! desligar o tuner/spectrum (analisadores) é negócio (runtime). O
-//! adapter constrói/derruba a sessão de análise + timer + runtime
-//! (`wire_power`); o dispatcher registra a intenção e sinaliza via
-//! evento, pra MCP/MIDI/GUI pedirem pela mesma porta (precedente
-//! `SaveProject`). File-per-feature.
+//! #436 H / #127 — `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled`:
+//! powering the tuner and the spectrum analyzers.
+//!
+//! The dispatcher records the intention, APPLIES it to the frontend's analyzer
+//! through `RuntimeControl`, and reports the event. Before #127 the second step
+//! lived in the GUI's POWER callback, so the same command from `adapter-midi`'s
+//! `toggle_tuner` / `toggle_spectrum` footswitch slots — or from an MCP client
+//! — flipped the mirror in `SelectionState` and started no analyzer at all.
+//! File-per-feature.
 
 use anyhow::Result;
 
@@ -12,9 +15,12 @@ use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
 
 impl LocalDispatcher {
-    /// `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled` — registra a
-    /// intenção e sinaliza o evento. O build/teardown da sessão de
-    /// análise é do adapter (precedente `SaveProject`).
+    /// `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled` — record the
+    /// intention, power the analyzer, report the event.
+    ///
+    /// Neither is fallible and neither may wake audio: an analyzer READS what
+    /// is already sounding, so with nothing hosted it subscribes to nothing and
+    /// the reading stays empty (`running: false` over `openrig://tuner`).
     pub(crate) fn handle_diagnostic_enabled(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             Command::Selection(SelectionCommand::SetTunerEnabled { enabled }) => {
@@ -24,11 +30,17 @@ impl LocalDispatcher {
                 if let Ok(mut s) = self.selection_state.write() {
                     s.tuner_enabled = enabled;
                 }
+                if let Some(control) = self.runtime_control() {
+                    control.set_tuner_running(enabled);
+                }
                 Ok(vec![Event::TunerEnabledChanged { enabled }])
             }
             Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled }) => {
                 if let Ok(mut s) = self.selection_state.write() {
                     s.spectrum_enabled = enabled;
+                }
+                if let Some(control) = self.runtime_control() {
+                    control.set_spectrum_running(enabled);
                 }
                 Ok(vec![Event::SpectrumEnabledChanged { enabled }])
             }

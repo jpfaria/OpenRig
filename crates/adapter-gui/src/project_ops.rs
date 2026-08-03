@@ -1,5 +1,4 @@
 use application::command::{Command, ProjectCommand, SelectionCommand};
-use application::dispatcher::CommandDispatcher;
 
 use crate::state::{AppConfigYaml, ProjectPaths, ProjectSession};
 use crate::AppWindow;

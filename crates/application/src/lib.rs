@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod app_config_persist;
+pub mod audio_taps;
 pub mod block_factory;
 pub mod bridge;
 pub mod chain_factory;
@@ -18,6 +19,10 @@ pub mod di_loader;
 pub mod dispatcher;
 pub mod event;
 mod event_scope;
+#[cfg(test)]
+#[path = "issue_85_port_position_tests.rs"]
+mod issue_85_port_position_tests;
+pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
 mod local_dispatcher_attach;
@@ -47,10 +52,15 @@ mod local_dispatcher_queries;
 mod local_dispatcher_recent;
 mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
+mod local_dispatcher_runtime_sync;
 mod local_dispatcher_selection;
 mod local_dispatcher_subsystems;
-pub mod looper_audio;
 mod local_dispatcher_tone_doctor;
+mod local_dispatcher_trait;
+pub mod looper_audio;
+/// #127: the metronome's control-plane state — settings, chosen output and
+/// tap history — owned by the dispatcher so every transport shares one truth.
+pub mod metronome_state;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
 pub mod persist_worker;
@@ -60,18 +70,22 @@ pub mod publishing_dispatcher;
 pub mod query;
 pub mod query_analyzers;
 pub mod query_chain_quality;
-pub mod query_loopers;
 pub mod query_di;
 pub mod query_latency;
+pub mod query_loopers;
+/// #831: the single `QueryKind` resolver every transport answers through —
+/// one match, one payload shape, one error string.
+pub mod read;
 pub mod render_handler;
+pub mod runtime_control;
 pub mod selection_state;
-/// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
-/// that apply its measured fix.
-pub mod tone_doctor_report;
 pub mod session;
 /// #693: published immutable state snapshot — transports serve reads
 /// concurrently on their own thread (API-style), never via the GUI tick.
 pub mod snapshot;
+/// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
+/// that apply its measured fix.
+pub mod tone_doctor_report;
 
 pub use selection_state::SelectionState;
 pub mod validate;
@@ -83,6 +97,10 @@ mod local_dispatcher_tests;
 #[cfg(test)]
 #[path = "ld_block2_tests.rs"]
 mod ld_block2;
+
+#[cfg(test)]
+#[path = "ld_block_param_tests.rs"]
+mod ld_block_param;
 
 #[cfg(test)]
 #[path = "ld_chain_tests.rs"]

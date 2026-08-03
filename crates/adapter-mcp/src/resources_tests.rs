@@ -97,7 +97,8 @@ fn rejects_non_tone_uris() {
         "quality is a different resource"
     );
     assert_eq!(parse_chain_tone_uri("openrig://chains//tone"), None);
-    assert_eq!(parse_chain_tone_uri("openrig://project"), None);}
+    assert_eq!(parse_chain_tone_uri("openrig://project"), None);
+}
 
 #[test]
 fn parses_chain_quality_uri() {

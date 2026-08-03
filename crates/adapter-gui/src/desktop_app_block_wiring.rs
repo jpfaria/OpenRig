@@ -16,7 +16,8 @@ use std::rc::Rc;
 
 use slint::{SharedString, Timer, VecModel};
 
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use application::live_source::LiveSource;
+use domain::AudioDeviceDescriptor;
 
 use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::{
@@ -29,6 +30,9 @@ use crate::{
 pub(crate) struct BlockWiringDeps<'a> {
     pub window: &'a AppWindow,
     pub chain_insert_window: &'a ChainInsertWindow,
+    /// #85 — the mid-chain I/O port editor.
+    pub chain_port_window: &'a crate::ChainPortWindow,
+    pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
 
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
@@ -45,7 +49,8 @@ pub(crate) struct BlockWiringDeps<'a> {
 
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the block editors' diagnostic-stream read seam.
+    pub block_stream_reads: Rc<dyn LiveSource>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
 
@@ -90,6 +95,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::select_chain_block_callback::wire(
         deps.window,
         deps.chain_insert_window,
+        deps.chain_port_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
             inline_tab_state: inline_tab_state.clone(),
             selected_block: deps.selected_block.clone(),
@@ -105,7 +111,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
+            block_stream_reads: Rc::clone(&deps.block_stream_reads),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -118,6 +124,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             inline_stream_timer: deps.inline_stream_timer.clone(),
             toast_timer: deps.toast_timer.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
+            port_draft: deps.port_draft.clone(),
             auto_save: deps.auto_save,
         },
     );
@@ -143,7 +150,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -170,7 +176,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -183,7 +188,9 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
     crate::block_choose_type_callback::wire(
         deps.window,
         deps.chain_insert_window,
+        deps.chain_port_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
+            port_draft: deps.port_draft.clone(),
             inline_tab_state: inline_tab_state.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             insert_draft: deps.insert_draft.clone(),
@@ -196,7 +203,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
+            block_stream_reads: Rc::clone(&deps.block_stream_reads),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
@@ -260,7 +267,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
@@ -284,7 +290,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
@@ -309,7 +314,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             eq_band_curves: deps.eq_band_curves.clone(),
             project_session: deps.project_session.clone(),
             project_chains: deps.project_chains.clone(),
-            project_runtime: deps.project_runtime.clone(),
             saved_project_snapshot: deps.saved_project_snapshot.clone(),
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),

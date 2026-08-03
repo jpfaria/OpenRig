@@ -19,8 +19,10 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
 
+use application::audio_taps::AudioTaps;
+use application::live_source::LiveSource;
 use domain::ids::BlockId;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 
 use crate::compact_block_view::build_compact_blocks;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
@@ -41,30 +43,31 @@ use crate::{
 
 /// Arm the DI loop for `chain` from the compact chain view.
 ///
-/// Delegates to `di_loop_wiring::play_chain_di_loop` — same dispatch +
-/// runtime-apply path the main chains screen uses.
+/// Delegates to `di_loop_wiring::play_chain_di_loop` — the same dispatch the
+/// main chains screen uses; the dispatcher applies the arm.
 pub fn compact_chain_di_loop_play(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn application::dispatcher::CommandDispatcher,
     chain: &domain::ids::ChainId,
 ) {
-    crate::di_loop_wiring::play_chain_di_loop(project_runtime, dispatcher, chain);
+    crate::di_loop_wiring::play_chain_di_loop(dispatcher, chain);
 }
 
 /// Disarm the DI loop for `chain` from the compact chain view.
 ///
 /// Delegates to `di_loop_wiring::stop_chain_di_loop`.
 pub fn compact_chain_di_loop_stop(
-    project_runtime: &std::cell::RefCell<Option<infra_cpal::ProjectRuntimeController>>,
-    dispatcher: &application::local_dispatcher::LocalDispatcher,
+    dispatcher: &dyn application::dispatcher::CommandDispatcher,
     chain: &domain::ids::ChainId,
 ) {
-    crate::di_loop_wiring::stop_chain_di_loop(project_runtime, dispatcher, chain);
+    crate::di_loop_wiring::stop_chain_di_loop(dispatcher, chain);
 }
 
 pub(crate) struct CompactChainCallbacksCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    /// #127: the blocks' diagnostic streams, through the read seam.
+    pub block_stream_reads: Rc<dyn LiveSource>,
+    /// #127: the subscription seam the Tone Doctor records through.
+    pub audio_taps: Rc<dyn AudioTaps>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -80,7 +83,8 @@ pub(crate) struct CompactChainCallbacksCtx {
 pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
     let CompactChainCallbacksCtx {
         project_session,
-        project_runtime,
+        block_stream_reads,
+        audio_taps,
         project_chains,
         input_chain_devices,
         output_chain_devices,
@@ -232,7 +236,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             &compact_win,
             CompactChainBlockHandlersCtx {
                 project_session: project_session.clone(),
-                project_runtime: project_runtime.clone(),
                 project_chains: project_chains.clone(),
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),
@@ -250,7 +253,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             &compact_win,
             CompactChainParamHandlersCtx {
                 project_session: project_session.clone(),
-                project_runtime: project_runtime.clone(),
                 project_chains: project_chains.clone(),
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),
@@ -286,7 +288,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             crate::compact_chain_delete_wiring::CompactChainDeleteCtx {
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
-                project_runtime: project_runtime.clone(),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 input_chain_devices: input_chain_devices.clone(),
@@ -349,17 +350,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // Stream polling timer — updates stream_data for enabled utility blocks
         {
             let weak_cw = compact_win.as_weak();
-            let project_runtime_poll = project_runtime.clone();
+            let block_stream_reads = Rc::clone(&block_stream_reads);
             let stream_timer = Timer::default();
             stream_timer.start(
                 slint::TimerMode::Repeated,
                 std::time::Duration::from_millis(80),
                 move || {
                     let Some(cw) = weak_cw.upgrade() else {
-                        return;
-                    };
-                    let rt_borrow = project_runtime_poll.borrow();
-                    let Some(rt) = rt_borrow.as_ref() else {
                         return;
                     };
                     let compact_blocks = cw.get_compact_blocks();
@@ -374,7 +371,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                                             item.model_id.as_str(),
                                         )
                                         .into();
-                                    if let Some(entries) = rt.poll_stream(&bid) {
+                                    let Some(entries) = block_stream_reads.block_stream(&bid)
+                                    else {
+                                        continue;
+                                    };
+                                    if !entries.is_empty() {
                                         let slint_entries: Vec<BlockStreamEntry> = entries
                                             .iter()
                                             .map(|e| BlockStreamEntry {
@@ -447,7 +448,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         crate::compact_chain_di_callbacks::wire(
             &compact_win,
             project_session.clone(),
-            project_runtime.clone(),
             window.as_weak(),
             toast_timer.clone(),
             chain_index,
@@ -457,7 +457,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         crate::tone_doctor_compact_wiring::wire(
             &compact_win,
             project_session.clone(),
-            project_runtime.clone(),
+            Rc::clone(&audio_taps),
             chain_index,
             window.as_weak(),
             toast_timer.clone(),

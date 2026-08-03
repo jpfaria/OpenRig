@@ -23,6 +23,7 @@ pub mod types;
 pub mod vst3_schema;
 
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};
+pub use methods::duplicates_chain_binding;
 pub use types::{
     AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef, CoreBlock, InputBlock,
     InsertBlock, NamBlock, OutputBlock, SelectBlock,

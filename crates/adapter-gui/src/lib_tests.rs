@@ -92,9 +92,8 @@ pub(super) fn delay_model_ids() -> Vec<String> {
         .collect()
 }
 
-// --- ui_index_to_real_block_index tests ---
+// --- shared chain fixtures (lib_ui_index_tests, lib_recent_tests) ---
 
-use crate::runtime_lifecycle::ui_index_to_real_block_index;
 use domain::ids::ChainId;
 use project::block::{InputBlock, OutputBlock};
 use project::chain::{Chain, ChainInputMode};
@@ -143,81 +142,6 @@ pub(super) fn effect_kind(effect_type: &str) -> AudioBlockKind {
         model: "test".into(),
         params: ParameterSet::default(),
     })
-}
-
-#[test]
-fn ui_index_maps_correctly_with_standard_chain() {
-    // [Input, Comp, Preamp, Delay, Output]
-    // UI sees: [Comp(0), Preamp(1), Delay(2)]
-    // Real:    [0=Input, 1=Comp, 2=Preamp, 3=Delay, 4=Output]
-    let chain = test_chain(vec![
-        input_kind(),
-        effect_kind("dynamics"),
-        effect_kind("preamp"),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
-    assert_eq!(ui_index_to_real_block_index(&chain, 0), 1); // UI 0 = Comp = real 1
-    assert_eq!(ui_index_to_real_block_index(&chain, 1), 2); // UI 1 = Preamp = real 2
-    assert_eq!(ui_index_to_real_block_index(&chain, 2), 3); // UI 2 = Delay = real 3
-}
-
-#[test]
-fn ui_index_past_end_returns_before_last_output() {
-    let chain = test_chain(vec![input_kind(), effect_kind("delay"), output_kind()]);
-    // UI sees [Delay(0)], asking for UI index 1 (past end) → before Output = real 2
-    assert_eq!(ui_index_to_real_block_index(&chain, 1), 2);
-}
-
-#[test]
-fn ui_index_with_extra_input_in_middle() {
-    // [Input, Comp, Input2, Delay, Output]
-    // Hidden: first Input (0) and last Output (4)
-    // UI sees: [Comp(0), Input2(1), Delay(2)]
-    // Real:    [0=Input, 1=Comp, 2=Input2, 3=Delay, 4=Output]
-    let chain = test_chain(vec![
-        input_kind(),
-        effect_kind("dynamics"),
-        input_kind(),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
-    assert_eq!(ui_index_to_real_block_index(&chain, 0), 1); // Comp
-    assert_eq!(ui_index_to_real_block_index(&chain, 1), 2); // Input2
-    assert_eq!(ui_index_to_real_block_index(&chain, 2), 3); // Delay
-}
-
-#[test]
-fn ui_index_with_extra_output_in_middle() {
-    // [Input, Comp, Output_mid, Delay, Output]
-    // Hidden: first Input (0) and last Output (4)
-    // UI sees: [Comp(0), Output_mid(1), Delay(2)]
-    let chain = test_chain(vec![
-        input_kind(),
-        effect_kind("dynamics"),
-        output_kind(),
-        effect_kind("delay"),
-        output_kind(),
-    ]);
-    assert_eq!(ui_index_to_real_block_index(&chain, 0), 1); // Comp
-    assert_eq!(ui_index_to_real_block_index(&chain, 1), 2); // Output_mid (visible!)
-    assert_eq!(ui_index_to_real_block_index(&chain, 2), 3); // Delay
-}
-
-#[test]
-fn ui_index_with_no_io_blocks() {
-    // [Comp, Delay] — no I/O blocks at all
-    let chain = test_chain(vec![effect_kind("dynamics"), effect_kind("delay")]);
-    assert_eq!(ui_index_to_real_block_index(&chain, 0), 0);
-    assert_eq!(ui_index_to_real_block_index(&chain, 1), 1);
-}
-
-#[test]
-fn ui_index_with_only_io_blocks() {
-    // [Input, Output] — no effect blocks
-    let chain = test_chain(vec![input_kind(), output_kind()]);
-    // UI sees nothing, asking for 0 → before Output = real 1
-    assert_eq!(ui_index_to_real_block_index(&chain, 0), 1);
 }
 
 // --- format_channel_list ---
@@ -383,7 +307,7 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
 // --- selected_device_index ---
 
 use crate::audio_devices::selected_device_index;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 
 #[test]
 fn selected_device_index_finds_matching_device() {

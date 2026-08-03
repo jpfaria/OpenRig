@@ -31,6 +31,10 @@ pub struct ChainPort {
     /// `chain.blocks.len()` = tail (after all blocks); otherwise the index of
     /// the mid `Input`/`Output` block that produced this port.
     pub offset: usize,
+    /// Whether a mid `Input`/`Output` BLOCK produced this port. A head port
+    /// sits before block 0 and a mid port at offset 0 sits after it — the
+    /// offset alone cannot tell them apart (#85).
+    pub from_block: bool,
     /// Id of the binding (E/S) this port belongs to.
     pub binding_id: String,
     /// Device endpoint resolved from the binding.
@@ -58,6 +62,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             ports.push(ChainPort {
                 direction: PortDirection::Input,
                 offset: 0,
+                from_block: false,
                 binding_id: binding.id.clone(),
                 endpoint: ep.clone(),
             });
@@ -66,6 +71,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             ports.push(ChainPort {
                 direction: PortDirection::Output,
                 offset: tail,
+                from_block: false,
                 binding_id: binding.id.clone(),
                 endpoint: ep.clone(),
             });
@@ -74,6 +80,12 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
 
     // Mid Input/Output blocks reference one binding endpoint by io/endpoint.
     for (i, block) in chain.blocks.iter().enumerate() {
+        // #871: a disabled block is out of the signal path, so it owns no port —
+        // otherwise its stream still opens and its route still gets written (a
+        // disabled Input on the Scarlett's 2nd channel came out of the TEYUN).
+        if !block.enabled {
+            continue;
+        }
         let (direction, io, endpoint_name) = match &block.kind {
             AudioBlockKind::Input(b) => (PortDirection::Input, &b.io, &b.endpoint),
             AudioBlockKind::Output(b) => (PortDirection::Output, &b.io, &b.endpoint),
@@ -92,6 +104,7 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
         ports.push(ChainPort {
             direction,
             offset: i,
+            from_block: true,
             binding_id: binding.id.clone(),
             endpoint: ep.clone(),
         });

@@ -8,6 +8,8 @@
 //!
 //! Lives in its own module — does not bloat `lib.rs` (issue #276).
 
+use application::live_source::LiveSource;
+
 use crate::state::ProjectSession;
 use crate::AppWindow;
 use crate::ProjectChainItem;
@@ -38,6 +40,7 @@ pub fn install_handler(
     project_session: Rc<RefCell<Option<ProjectSession>>>,
     project_chains: Rc<VecModel<ProjectChainItem>>,
     probe_windows: ProbeWindows,
+    live: Rc<dyn LiveSource>,
 ) {
     window.on_probe_chain_latency(move |index| {
         let session_borrow = project_session.borrow();
@@ -56,11 +59,18 @@ pub fn install_handler(
         // #829: rate/buffer resolution and the probe itself live in
         // `application::query_latency`, shared with `openrig://chains/{id}/latency`
         // — the badge and every transport measure the same way (#723).
+        // #127: the rate comes from the seam FIRST — `engine_sr` mirrors a
+        // running stream and resets to the reference rate when the rig stops,
+        // so asking it first measured a stopped rig on a 44.1 kHz interface at
+        // 48 kHz. Same order as `openrig://chains/{id}/latency`.
+        let sample_rate = live
+            .chain_sample_rate(&chain_id)
+            .unwrap_or_else(|| session.dispatcher.engine_sr() as f32);
         let report = application::query_latency::measure_chain_latency(
             &session.project.borrow(),
             &session.io_bindings.borrow(),
             &chain_id,
-            session.dispatcher.engine_sr() as f32,
+            sample_rate,
         );
         let Ok(report) = report else {
             return;

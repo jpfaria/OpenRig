@@ -44,10 +44,10 @@ pub use tone_doctor::ToneDoctorCommand;
 
 pub use crate::di_loader::DiLoopSource;
 pub use ::project::chain::DiOutputRef;
-pub use domain::ids::{BlockId, ChainId};
-pub use domain::io_binding::{ChannelMode, IoBinding};
 pub use ::project::chain::EndpointRef;
 pub use ::project::chain::LooperSpeed;
+pub use domain::ids::{BlockId, ChainId};
+pub use domain::io_binding::{ChannelMode, IoBinding};
 
 /// Every state change the UI or any controller can request.
 ///

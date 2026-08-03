@@ -16,8 +16,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SettingsCommand};
-use application::dispatcher::CommandDispatcher;
-use infra_cpal::AudioDeviceDescriptor;
+use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, SharedString, Timer, VecModel};
 

@@ -1,10 +1,11 @@
 //! Per-chain IN/OUT dBFS meter wiring — issue #496 / #32 / #36.
 //!
 //! Lifecycle:
-//! 1. On chain create/upsert, subscribe to the chain's input_tap
-//!    (channel 0) and stream_tap (stream 0) via the
-//!    `ProjectRuntimeController`. Store the returned SPSC ring
-//!    handles in `MeterState::chains` keyed by `ChainId`.
+//! 1. On chain create/upsert, subscribe to the chain's input tap
+//!    (channel 0) and stream tap (stream 0) through the subscription
+//!    seam (`application::audio_taps::AudioTaps`), by the identity of
+//!    the stream. Store the returned tap handles in the per-stream
+//!    meter store keyed by `ChainId`.
 //! 2. A Slint `Timer` running at ~30 Hz calls
 //!    [`compute_meter_for_chain`] for each subscribed chain, then
 //!    writes the resulting dBFS pair into the matching
@@ -19,8 +20,8 @@
 
 use std::sync::Arc;
 
-use engine::output_meter::{pop_peak_dbfs, SILENT_DBFS};
-use engine::spsc::SpscRing;
+use application::audio_taps::{AudioTap, AudioTaps, TapPoint};
+use engine::output_meter::SILENT_DBFS;
 
 // Issue #792: the meter-polling timer + its per-chain row refresh live in
 // meter_wiring_poll.rs (decomposed, not just relocated). Re-exported so
@@ -43,44 +44,40 @@ pub fn apply_chain_volume_db(base_dbfs: f32, volume_pct: f32) -> f32 {
     base_dbfs + 20.0 * (volume_pct / 100.0).log10()
 }
 
-/// Drain the current windows of a chain's input and output taps and
-/// return `(input_peak_dbfs, output_peak_dbfs)`. Either side reports
-/// [`SILENT_DBFS`] when its rings are empty.
+/// Poll one stream's input and output subscriptions and return
+/// `(input_peak_dbfs, output_peak_dbfs)`. Either side reports
+/// [`SILENT_DBFS`] when it has no subscription — a stream that is not
+/// there to tap is silent, never a fabricated level.
 ///
-/// Pure over the supplied rings — no Slint, no engine runtime,
-/// directly testable.
+/// Pure over the supplied taps — no Slint, no engine runtime,
+/// directly testable. The reduction itself lives behind the seam
+/// ([`AudioTap::poll_peak_dbfs`]), so a frontend that carries only
+/// finished readings reports the same numbers.
 pub fn compute_meter_for_chain(
-    input_rings: &[Arc<SpscRing<f32>>],
-    output_rings: &[Arc<SpscRing<f32>>],
+    input: Option<&Arc<dyn AudioTap>>,
+    output: Option<&Arc<dyn AudioTap>>,
 ) -> (f32, f32) {
-    let i = if input_rings.is_empty() {
-        SILENT_DBFS
-    } else {
-        pop_peak_dbfs(input_rings)
-    };
-    let o = if output_rings.is_empty() {
-        SILENT_DBFS
-    } else {
-        pop_peak_dbfs(output_rings)
-    };
-    (i, o)
+    (
+        input.map_or(SILENT_DBFS, |tap| tap.poll_peak_dbfs()),
+        output.map_or(SILENT_DBFS, |tap| tap.poll_peak_dbfs()),
+    )
 }
 
-/// One stream's worth of meter rings (input + output). A chain owns
-/// N streams (multi-input layouts); the per-stream meter layer keeps
-/// one entry per stream so each one is visible in the GUI instead of
-/// only the first.
+/// One stream's worth of meter subscriptions (input + output). A chain
+/// owns N streams (multi-input layouts); the per-stream meter layer
+/// keeps one entry per stream so each one is visible in the GUI instead
+/// of only the first.
 #[derive(Default, Clone)]
-pub struct StreamMeterRings {
-    pub input: Vec<Arc<SpscRing<f32>>>,
-    pub output: Vec<Arc<SpscRing<f32>>>,
+pub struct StreamMeterTaps {
+    pub input: Option<Arc<dyn AudioTap>>,
+    pub output: Option<Arc<dyn AudioTap>>,
 }
 
-/// All meter rings for one chain, indexed by stream order. The list
-/// length equals `controller.stream_count(chain_id)` at subscribe time.
+/// All meter subscriptions for one chain, indexed by stream order. The
+/// list length equals `taps.stream_count(chain_id)` at subscribe time.
 #[derive(Default, Clone)]
 pub struct ChainMeterStreams {
-    pub streams: Vec<StreamMeterRings>,
+    pub streams: Vec<StreamMeterTaps>,
 }
 
 /// Per-stream peak readings for one chain, returned by `poll_per_stream`.
@@ -130,26 +127,26 @@ pub fn refresh_subscriptions_lazy_per_stream<F>(
 /// return the list of chains whose signature changed (must be
 /// re-subscribed).
 ///
-/// `api == None` means the controller is offline. The whole cache is
-/// wiped so the next online tick treats every chain as a fresh
-/// subscription — without this, toggling off the last enabled chain
-/// drops the controller, and the subsequent toggle-on (which spins up
-/// a NEW controller with the same project state) would produce the
-/// same cached signature, skip invalidation, and leave the meter
-/// store handing out rings allocated against the dropped controller.
-pub fn detect_invalidations<T: MeterTapApi>(
+/// Nothing hosted ([`AudioTaps::is_hosted`] false) means the runtime is
+/// offline. The whole cache is wiped so the next online tick treats
+/// every chain as a fresh subscription — without this, toggling off the
+/// last enabled chain drops the runtime, and the subsequent toggle-on
+/// (which spins up a NEW one with the same project state) would produce
+/// the same cached signature, skip invalidation, and leave the meter
+/// store handing out taps opened against the dropped runtime.
+pub fn detect_invalidations(
     chains: &[project::chain::Chain],
-    api: Option<&T>,
+    taps: &dyn AudioTaps,
     last_signature: &mut std::collections::HashMap<domain::ids::ChainId, u64>,
 ) -> Vec<domain::ids::ChainId> {
     let chain_ids: Vec<_> = chains.iter().map(|c| c.id.clone()).collect();
-    let Some(api) = api else {
+    if !taps.is_hosted() {
         last_signature.clear();
         return Vec::new();
-    };
+    }
     let mut invalidate = Vec::new();
     for c in chains.iter() {
-        let sig = timer_chain_signature(c, api.stream_count(&c.id));
+        let sig = timer_chain_signature(c, taps.stream_count(&c.id));
         if last_signature.get(&c.id).copied() != Some(sig) {
             invalidate.push(c.id.clone());
             last_signature.insert(c.id.clone(), sig);
@@ -199,64 +196,6 @@ pub fn chain_meter_signature(chain: &project::chain::Chain) -> u64 {
     h.finish()
 }
 
-/// Minimal projection of the engine controller's meter-relevant
-/// surface, narrowed so the per-stream subscription logic can be unit
-/// tested with a recording fake. Production wires this to
-/// `infra_cpal::ProjectRuntimeController` via the blanket impl below.
-pub trait MeterTapApi {
-    fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize;
-    /// Issue #557: subscribe the per-stream INPUT meter ring by GLOBAL
-    /// `stream_index`. The controller resolves the right per-input
-    /// runtime, the segment's cpal-callback group, and the device
-    /// channel the chain is actually wired to — so the meter for a
-    /// chain on device channel 1 sees channel 1's signal, and stream
-    /// `n >= 1` of a same-device multi-stream chain is no longer silent.
-    fn subscribe_stream_input_tap(
-        &self,
-        chain_id: &domain::ids::ChainId,
-        stream_index: usize,
-        capacity_per_channel: usize,
-    ) -> Option<Arc<SpscRing<f32>>>;
-    fn subscribe_stream_tap(
-        &self,
-        chain_id: &domain::ids::ChainId,
-        stream_index: usize,
-        capacity_per_channel: usize,
-    ) -> Option<[Arc<SpscRing<f32>>; 2]>;
-}
-
-impl MeterTapApi for infra_cpal::ProjectRuntimeController {
-    fn stream_count(&self, chain_id: &domain::ids::ChainId) -> usize {
-        infra_cpal::ProjectRuntimeController::stream_count(self, chain_id)
-    }
-    fn subscribe_stream_input_tap(
-        &self,
-        chain_id: &domain::ids::ChainId,
-        stream_index: usize,
-        capacity_per_channel: usize,
-    ) -> Option<Arc<SpscRing<f32>>> {
-        infra_cpal::ProjectRuntimeController::subscribe_stream_input_tap(
-            self,
-            chain_id,
-            stream_index,
-            capacity_per_channel,
-        )
-    }
-    fn subscribe_stream_tap(
-        &self,
-        chain_id: &domain::ids::ChainId,
-        stream_index: usize,
-        capacity_per_channel: usize,
-    ) -> Option<[Arc<SpscRing<f32>>; 2]> {
-        infra_cpal::ProjectRuntimeController::subscribe_stream_tap(
-            self,
-            chain_id,
-            stream_index,
-            capacity_per_channel,
-        )
-    }
-}
-
 /// Issue #670: a chain is "overloading" when its audio callback counted
 /// MORE deadline misses (xruns) than the previous meter poll saw — i.e.
 /// the user is hearing dropouts right now. The timer keeps the previous
@@ -281,28 +220,34 @@ pub(crate) fn chain_overloaded(prev_xruns: u64, cur_xruns: u64) -> bool {
 /// channels (the meter for a chain wired to device channel 1 ended up
 /// reading channel 0 — the wrong guitar).
 ///
-/// Now each row subscribes via [`MeterTapApi::subscribe_stream_input_tap`]
-/// (controller resolves the per-input runtime, cpal group, and
-/// endpoint channel) and [`MeterTapApi::subscribe_stream_tap`]
-/// (per-stream stereo post-FX, unchanged — its dispatch already
-/// translates global stream index to local segment).
-pub fn build_streams_from_taps<T: MeterTapApi>(
-    api: &T,
+/// Now each row subscribes by IDENTITY through the seam:
+/// [`TapPoint::StreamInput`] (the implementation resolves the per-input
+/// runtime, the cpal group, and the endpoint channel) and
+/// [`TapPoint::StreamOutput`] (per-stream stereo post-FX, unchanged —
+/// its dispatch already translates global stream index to local
+/// segment).
+pub fn build_streams_from_taps(
+    taps: &dyn AudioTaps,
     chain_id: &domain::ids::ChainId,
     capacity_per_channel: usize,
 ) -> ChainMeterStreams {
-    let stream_count = api.stream_count(chain_id);
+    let stream_count = taps.stream_count(chain_id);
     let streams = (0..stream_count)
-        .map(|i| {
-            let input = api
-                .subscribe_stream_input_tap(chain_id, i, capacity_per_channel)
-                .map(|ring| vec![ring])
-                .unwrap_or_default();
-            let output = api
-                .subscribe_stream_tap(chain_id, i, capacity_per_channel)
-                .map(|[l, r]| vec![l, r])
-                .unwrap_or_default();
-            StreamMeterRings { input, output }
+        .map(|i| StreamMeterTaps {
+            input: taps.subscribe(
+                &TapPoint::StreamInput {
+                    chain: chain_id.clone(),
+                    stream: i,
+                },
+                capacity_per_channel,
+            ),
+            output: taps.subscribe(
+                &TapPoint::StreamOutput {
+                    chain: chain_id.clone(),
+                    stream: i,
+                },
+                capacity_per_channel,
+            ),
         })
         .collect();
     ChainMeterStreams { streams }
@@ -353,24 +298,20 @@ pub fn rebuild_stream_meters_row(
         .collect()
 }
 
-/// Count of resolved input endpoints for a chain — the number of independent
-/// per-input runtimes the engine owns for the chain (issue #350). This is the
-/// GUI's source of truth for how many meter rows to render. Mirrors the count
-/// `replace_project_chains` uses when it first builds the row model.
-///
-/// #716: device endpoints resolve from the binding registry, not from block
-/// `entries` (which no longer exist on the model).
-pub fn project_input_count(
+/// #85: how many meter rows the chain draws — one per STREAM, i.e. per
+/// (input × output) pipeline, which is also how the engine indexes its
+/// per-stream taps. A mid `Input`/`Output` is a stream of its own, so it gets
+/// its own INPUT/OUTPUT bar; without this the row count came from the resolved
+/// INPUTS and a mid port had no meter at all.
+pub fn project_stream_count(
     chain: &project::chain::Chain,
     io_bindings: &[domain::io_binding::IoBinding],
 ) -> usize {
-    engine::runtime_endpoints::resolve_chain_io(chain, io_bindings)
-        .0
-        .len()
+    engine::runtime_graph::chain_stream_count(chain, io_bindings)
 }
 
-/// Drain the per-stream rings and return one `StreamMeterReading`
-/// per stream for every chain in the store.
+/// Poll the per-stream subscriptions and return one
+/// `StreamMeterReading` per stream for every chain in the store.
 pub fn poll_per_stream(
     store: &MeterStorePerStream,
 ) -> Vec<(domain::ids::ChainId, Vec<StreamMeterReading>)> {
@@ -382,7 +323,7 @@ pub fn poll_per_stream(
                 .streams
                 .iter()
                 .map(|s| {
-                    let (i, o) = compute_meter_for_chain(&s.input, &s.output);
+                    let (i, o) = compute_meter_for_chain(s.input.as_ref(), s.output.as_ref());
                     StreamMeterReading {
                         in_dbfs: i,
                         out_dbfs: o,

@@ -39,12 +39,23 @@ impl ProjectRuntimeController {
         None
     }
 
-    /// Drains and returns all block errors that occurred since the last call.
-    pub fn poll_errors(&self) -> Vec<engine::runtime::BlockError> {
+    /// Drains every runtime's error queue, tagging each failure with the chain
+    /// whose runtime raised it.
+    ///
+    /// #127: the chain identity is part of the result, not dropped on the
+    /// floor. Every queue is drained on its own and its errors carry their own
+    /// stream's name — a reader can always tell WHICH stream is failing, which
+    /// an anonymous pool cannot say (`CLAUDE.md` LAW).
+    pub fn poll_errors(&self) -> Vec<(ChainId, engine::runtime::BlockError)> {
         self.runtime_graph
             .chains
-            .values()
-            .flat_map(|runtime| runtime.poll_errors())
+            .iter()
+            .flat_map(|((chain, _group), runtime)| {
+                runtime
+                    .poll_errors()
+                    .into_iter()
+                    .map(move |error| (chain.clone(), error))
+            })
             .collect()
     }
 

@@ -48,7 +48,7 @@ fn new_block_ctx() -> BlockEditorWindowSetupCtx {
         block_id: None,
         project_session: empty_session(),
         project_chains: Rc::new(VecModel::default()),
-        project_runtime: Rc::new(RefCell::new(None)),
+        block_stream_reads: Rc::new(application::live_source::NoLiveSource),
         saved_project_snapshot: Rc::new(RefCell::new(None)),
         project_dirty: Rc::new(RefCell::new(false)),
         input_chain_devices: Rc::new(RefCell::new(Vec::new())),
@@ -78,6 +78,49 @@ fn adding_a_block_opens_the_tabbed_editor_in_add_mode() {
     assert!(
         !win.get_block_drawer_edit_mode(),
         "adding a block must NOT be in edit mode"
+    );
+}
+
+/// #85: the owner cannot place an `Output` (nor an `Input`) block — picking the
+/// type does nothing. The type IS offered by the picker, so the ADD flow must
+/// build an editor for it exactly like any other type; a type that cannot build
+/// its editor can never be added.
+fn io_block_ctx(effect_type: &str) -> BlockEditorWindowSetupCtx {
+    let mut ctx = new_block_ctx();
+    ctx.effect_type = effect_type.to_string();
+    ctx.model_id = "standard".to_string();
+    ctx.editor_data.effect_type = effect_type.to_string();
+    ctx.editor_data.model_id = "standard".to_string();
+    ctx.editor_data.params = Default::default();
+    ctx
+}
+
+#[test]
+fn adding_an_output_block_opens_its_editor() {
+    i_slint_backend_testing::init_no_event_loop();
+    let weak = {
+        let w = crate::AppWindow::new().unwrap();
+        w.as_weak()
+    };
+    let built = create_and_wire(weak, io_block_ctx("output"));
+    assert!(
+        built.is_ok(),
+        "picking OUTPUT built no editor, so the block is never added — \
+         the user clicks and nothing happens (#85)"
+    );
+}
+
+#[test]
+fn adding_an_input_block_opens_its_editor() {
+    i_slint_backend_testing::init_no_event_loop();
+    let weak = {
+        let w = crate::AppWindow::new().unwrap();
+        w.as_weak()
+    };
+    let built = create_and_wire(weak, io_block_ctx("input"));
+    assert!(
+        built.is_ok(),
+        "picking INPUT built no editor, so the block is never added (#85)"
     );
 }
 

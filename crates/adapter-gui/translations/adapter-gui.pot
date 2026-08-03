@@ -883,3 +883,27 @@ msgstr ""
 #: crates/adapter-gui/ui/components/looper_row.slint:1
 msgid "looper-preset-picker-title"
 msgstr ""
+
+msgid "title-window-chain-port"
+msgstr ""
+
+msgid "title-section-configure-input"
+msgstr ""
+
+msgid "title-section-configure-output"
+msgstr ""
+
+msgid "label-io-binding"
+msgstr ""
+
+msgid "label-io-endpoint"
+msgstr ""
+
+msgid "action-toggle-block-enabled"
+msgstr ""
+
+msgid "action-delete-block"
+msgstr ""
+
+msgid "msg-pick-io-endpoint"
+msgstr ""

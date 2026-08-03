@@ -1,0 +1,36 @@
+// Footer button shared by the I/O port editor (#85). Same visual language as
+// the insert editor's footer.
+
+export component PortEditorFooterButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
+
+    width: 96px;
+    height: 36px;
+    background: root.primary ? #188cff : #2a2f38;
+    border-width: 1px;
+    border-color: root.primary ? #45a7ff : #41464f;
+    border-radius: 6px;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}

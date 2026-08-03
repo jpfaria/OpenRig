@@ -14,8 +14,7 @@ use std::rc::Rc;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 
 use application::command::{BlockCommand, ChainCommand, Command};
-use application::dispatcher::CommandDispatcher;
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::block_editor_data;
 use crate::compact_block_view::build_compact_blocks;
@@ -24,13 +23,12 @@ use crate::helpers::set_status_error;
 use crate::helpers::set_status_info;
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::{block_model_picker_items, replace_project_chains};
+use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{BlockEditorDraft, ProjectSession};
-use crate::{sync_block_toggle, sync_live_chain_runtime};
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
 
 pub(crate) struct CompactChainBlockHandlersCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
-    pub project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -58,7 +56,6 @@ fn wire_block_toggle_and_model(
     ctx: &CompactChainBlockHandlersCtx,
 ) {
     let project_session = &ctx.project_session;
-    let project_runtime = &ctx.project_runtime;
     let project_chains = &ctx.project_chains;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
@@ -71,7 +68,6 @@ fn wire_block_toggle_and_model(
     // Wire toggle-enabled callback
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -80,7 +76,6 @@ fn wire_block_toggle_and_model(
         let block_editor_draft = block_editor_draft.clone();
         let weak_main = main_window.as_weak();
         let weak_compact = compact_win.as_weak();
-        let toast_timer = toast_timer.clone();
         compact_win.on_toggle_block_enabled(move |ci, bi| {
             let Some(main_win) = weak_main.upgrade() else {
                 return;
@@ -130,12 +125,9 @@ fn wire_block_toggle_and_model(
                     draft.enabled = new_enabled;
                 }
             }
-            if let Err(error) =
-                sync_block_toggle(&project_runtime, session, &chain_id, &block_id, new_enabled)
-            {
-                set_status_error(&main_win, &toast_timer, &error.to_string());
-                return;
-            }
+            // #127: the runtime already knows — `ToggleBlockEnabled` applied the
+            // live toggle from the dispatcher (through `RuntimeControl`), so a
+            // failure came back out of the dispatch above.
             replace_project_chains(
                 &project_chains,
                 &session.project.borrow(),
@@ -159,7 +151,6 @@ fn wire_block_toggle_and_model(
     // Wire choose-block-model
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -251,7 +242,7 @@ fn wire_block_toggle_and_model(
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            if let Err(error) = request_chain_sync(session, &chain_id) {
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }
@@ -281,7 +272,6 @@ fn wire_chain_toggle(
     ctx: &CompactChainBlockHandlersCtx,
 ) {
     let project_session = &ctx.project_session;
-    let project_runtime = &ctx.project_runtime;
     let project_chains = &ctx.project_chains;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
@@ -290,7 +280,6 @@ fn wire_chain_toggle(
     // Wire toggle-chain-enabled
     {
         let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
         let project_chains = project_chains.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -365,10 +354,9 @@ fn wire_chain_toggle(
                 );
 
                 let rx = Rc::new(std::cell::RefCell::new(
-                    infra_cpal::start_jack_in_background(device_settings),
+                    crate::runtime_devices::start_jack_in_background(device_settings),
                 ));
                 let project_session_t = project_session.clone();
-                let project_runtime_t = project_runtime.clone();
                 let project_chains_t = project_chains.clone();
                 let input_chain_devices_t = input_chain_devices.clone();
                 let output_chain_devices_t = output_chain_devices.clone();
@@ -425,9 +413,13 @@ fn wire_chain_toggle(
                                 let Some(session) = sb.as_mut() else {
                                     return;
                                 };
-                                if let Err(e) =
-                                    sync_live_chain_runtime(&project_runtime_t, session, &chain_id)
-                                {
+                                // #127: JACK is up — now ask the bus to sync this
+                                // chain's runtime (the dispatcher applies it).
+                                if let Err(e) = session.dispatcher.dispatch(Command::Chain(
+                                    ChainCommand::SyncChainRuntime {
+                                        chain: chain_id.clone(),
+                                    },
+                                )) {
                                     set_status_error(&win, &toast_timer_t, &e.to_string());
                                     // Revert chain.enabled on runtime sync failure
                                     let _ = session.dispatcher.dispatch(Command::Chain(
@@ -454,7 +446,15 @@ fn wire_chain_toggle(
                 return;
             }
 
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+            // #127: the sync is a request on the bus; the dispatcher applies it
+            // through `RuntimeControl`.
+            if let Err(error) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Chain(ChainCommand::SyncChainRuntime {
+                        chain: chain_id.clone(),
+                    }))
+            {
                 set_status_error(&main_win, &toast_timer, &error.to_string());
                 return;
             }

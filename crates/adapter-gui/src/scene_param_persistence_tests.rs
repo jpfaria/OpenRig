@@ -11,7 +11,6 @@ use application::chain_factory::{build_default_chain, DefaultChainParams, Endpoi
 use application::command::{
     BlockCommand, ChainCommand, Command, ProjectCommand, RigNavKind, SelectionCommand,
 };
-use application::dispatcher::CommandDispatcher;
 use domain::ids::BlockId;
 use std::path::PathBuf;
 use tempfile::TempDir;

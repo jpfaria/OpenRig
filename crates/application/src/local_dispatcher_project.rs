@@ -96,6 +96,9 @@ impl LocalDispatcher {
                         flat.push(dev.clone());
                     }
                 }
+                // Kept for the runtime door below: the project's borrow must
+                // not be held while a handler calls into the frontend.
+                let applied_devices = flat.clone();
                 self.project.borrow_mut().device_settings = flat;
 
                 // #581: persist the pick into the per-machine `config.yaml`
@@ -142,6 +145,25 @@ impl LocalDispatcher {
                     config.input_devices = gui_inputs;
                     config.output_devices = gui_outputs;
                 });
+
+                // #127: the new rate / buffer size / bit depth apply to every
+                // device the project names, so the whole running graph has to
+                // be re-opened against them. This used to be the settings
+                // screen's own `sync_project_runtime(..)` call right after the
+                // dispatch — so the same command over MCP/gRPC persisted the
+                // numbers and left the audio running on the old ones. The door
+                // is project-scoped and walks the chains the PROJECT names; it
+                // is never a selection over live runtimes by rate.
+                //
+                // The DRIVER is told first, for the same reason and in the same
+                // order the settings screen used to do it itself: on
+                // macOS/Windows a device only adopts the requested rate when a
+                // stream is built at it, so a graph re-opened before that step
+                // comes up against the OLD rate.
+                if let Some(control) = self.runtime_control() {
+                    control.apply_device_settings(&applied_devices);
+                    control.sync_project()?;
+                }
 
                 Ok(vec![Event::AudioSettingsSaved])
             }
@@ -197,6 +219,12 @@ impl LocalDispatcher {
         // case is "saved without the very latest edit", same as the
         // pre-#555 GUI behaviour on dispatch failure.
         let _ = self.dispatch(Command::Project(ProjectCommand::CaptureRigEdits));
+
+        // #323/#127: a recorded loop is audio — write it as a sidecar and let
+        // the chain remember the file, BEFORE the project is serialized. The
+        // GUI used to do this inline in its Save callback, so a save issued
+        // over MCP/gRPC lost every loop.
+        self.export_project_loops(project_path);
 
         // Build the rig that will hit disk.
         let project_snapshot = self.project.borrow().clone();

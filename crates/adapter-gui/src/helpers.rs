@@ -89,3 +89,16 @@ pub(crate) fn clear_status(window: &AppWindow, toast_timer: &Timer) {
     window.set_toast_message("".into());
     window.set_toast_level("info".into());
 }
+
+/// Best-effort BCP-47-ish locale tag from `LANG` (`pt_BR.UTF-8` → `pt-BR`),
+/// defaulting to `en-US` when the env is missing, POSIX or empty. Used where
+/// a plugin/block description is shown in the user's language.
+pub(crate) fn system_language() -> String {
+    let lang = std::env::var("LANG").unwrap_or_default();
+    let base = lang.split('.').next().unwrap_or("");
+    // "C", "POSIX", empty, or too short = not a real locale → fall back to English
+    if base.is_empty() || base.len() < 2 || matches!(base, "C" | "POSIX") {
+        return "en-US".to_string();
+    }
+    base.replace('_', "-")
+}

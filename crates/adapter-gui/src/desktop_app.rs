@@ -13,7 +13,7 @@
 //! linear startup order that the comments here document.
 
 use anyhow::{anyhow, Result};
-use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::ProjectRuntimeController;
 use infra_filesystem::FilesystemStorage;
 use slint::{ComponentHandle, ModelRc, Timer, VecModel};
 use std::cell::RefCell;
@@ -172,6 +172,24 @@ pub fn run_desktop_app(
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
     let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
+    // #127: the two capabilities the wiring modules get INSTEAD of the runtime
+    // handle — installing the seam on a freshly opened session, and reading the
+    // loopers' transport state (the same finished reading MCP gets). Neither
+    // can start, stop or sync audio.
+    let looper_live = crate::gui_live_source::looper_live_source(&project_runtime);
+    // #127: the subscription seam. Every tap consumer (meters, tuner,
+    // spectrum, Tone Doctor) asks THIS for a subscription by stream identity
+    // instead of holding the audio backend.
+    let audio_taps = crate::runtime_taps::gui_audio_taps(&project_runtime);
+    // #127: the analyzers' lifecycle. The tuner and the spectrum are powered
+    // by `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled`, applied
+    // through `RuntimeControl` — so a MIDI footswitch and an MCP client start
+    // the same analyzer the window's POWER does. The windows only render.
+    let analyzers = crate::runtime_analyzers::AnalyzerSessions::new(&project_session, &audio_taps);
+    let runtime_attach = crate::runtime_lifecycle::RuntimeAttach::new(&project_runtime, &analyzers);
+    // #127: the block editors' diagnostic-stream reading — the same seam MCP
+    // reads through, so a panel never holds the audio backend for it.
+    let block_stream_reads = crate::gui_live_source::block_stream_live_source(&project_runtime);
     let probe_windows = latency_probe::new_windows();
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
@@ -188,9 +206,9 @@ pub fn run_desktop_app(
     // refresh_input_devices / refresh_output_devices when the user actually
     // opens a chain I/O editor or the Settings panel — i.e. when they
     // explicitly ask the app to look at the hardware.
-    let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> =
+    let input_chain_devices: Rc<RefCell<Vec<domain::AudioDeviceDescriptor>>> =
         Rc::new(RefCell::new(Vec::new()));
-    let output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> =
+    let output_chain_devices: Rc<RefCell<Vec<domain::AudioDeviceDescriptor>>> =
         Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -227,6 +245,14 @@ pub fn run_desktop_app(
         use slint::Global;
         crate::Locale::get(&chain_insert_window).set_font_family(boot_font.into());
     }
+    // #85 — the mid-chain I/O port editor and its option models.
+    let chain_port_window =
+        crate::ChainPortWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    {
+        use slint::Global;
+        crate::Locale::get(&chain_port_window).set_font_family(boot_font.into());
+    }
+    let port_draft: Rc<RefCell<Option<crate::state::PortDraft>>> = Rc::new(RefCell::new(None));
     let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let tuner_window = TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -234,28 +260,25 @@ pub fn run_desktop_app(
         use slint::Global;
         crate::Locale::get(&tuner_window).set_font_family(boot_font.into());
     }
-    let tuner_session: Rc<RefCell<Option<crate::tuner_session::TunerSession>>> =
-        Rc::new(RefCell::new(None));
-    let tuner_timer = Rc::new(Timer::default());
+    // The analyzer owns the session; this is the same cell, for the reads
+    // (`GuiLiveSource::tuner`, `openrig://tuner`) that answer from it.
+    let tuner_session = analyzers.tuner_cell().clone();
     let spectrum_window = SpectrumWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     {
         use slint::Global;
         crate::Locale::get(&spectrum_window).set_font_family(boot_font.into());
     }
-    let spectrum_session: Rc<RefCell<Option<crate::spectrum_session::SpectrumSession>>> =
-        Rc::new(RefCell::new(None));
-    let spectrum_timer = Rc::new(Timer::default());
+    let spectrum_session = analyzers.spectrum_cell().clone();
     let metronome_window = MetronomeWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     {
         use slint::Global;
         crate::Locale::get(&metronome_window).set_font_family(boot_font.into());
     }
-    // #14: the metronome's settings come from the per-machine config and outlive
-    // any project — unlike the tuner, whose session is built on power-on. What
-    // config.yaml does NOT carry is `enabled`, so the click always boots off.
-    let metronome_session = Rc::new(RefCell::new(
-        crate::metronome_session::MetronomeSession::from_config(&app_config.borrow().metronome),
-    ));
+    // #14/#127: the metronome's settings live in the dispatcher, restored from
+    // the per-machine config by every session (`state::attach_metronome_state`).
+    // What this window keeps is the read seam it draws the beat lamps from —
+    // the same `LiveSource` an MCP client reads the click's position through.
+    let metronome_live = crate::gui_live_source::metronome_live_source(&project_runtime);
     let metronome_timer = Rc::new(Timer::default());
 
     // settings::language needs to know how to push the new font to every Window
@@ -320,7 +343,6 @@ pub fn run_desktop_app(
         app_config.clone(),
         input_chain_devices.clone(),
         output_chain_devices.clone(),
-        project_runtime.clone(),
     );
     let input_devices = Rc::new(VecModel::from(build_device_selection_items(
         &input_chain_devices.borrow(),
@@ -371,6 +393,14 @@ pub fn run_desktop_app(
         &app_config,
         &recent_projects,
     );
+    // #127: hand the session the CLI just installed this frontend's audio
+    // runtime, so a runtime-control command issued before the first chain sync
+    // still reaches the audio (it used to cold-start the runtime itself). Done
+    // here rather than inside `try_auto_open` because this is the module that
+    // owns the runtime handle; nothing in between reaches the audio.
+    if let Some(session) = project_session.borrow().as_ref() {
+        crate::runtime_lifecycle::attach_runtime_control(&project_runtime, &analyzers, session);
+    }
     let crate::desktop_app_block_models::BlockEditorModels {
         block_type_options,
         block_model_options,
@@ -387,18 +417,24 @@ pub fn run_desktop_app(
     window.set_toast_level("info".into());
 
     // Background polling timers (extracted to desktop_app_polling)
+    // #127: the tick gets the two seams, never the runtime handle.
+    let tick_reads = crate::gui_live_source::health_live_source(&project_runtime);
+    let tick_writes =
+        crate::runtime_health::polling_runtime_control(&project_runtime, &project_session);
     crate::desktop_app_polling::start(
         &window,
         toast_timer.clone(),
-        project_runtime.clone(),
-        project_session.clone(),
+        tick_reads,
+        Rc::clone(&tick_writes),
     );
 
     // Issue #496 / #32 / #36: per-chain IN/OUT dBFS meter polling.
     // ~30 Hz timer that subscribes new chains' input + stream taps
     // and writes peak dBFS into the matching ProjectChainItem rows.
     crate::meter_wiring::start_meter_polling(
-        project_runtime.clone(),
+        Rc::clone(&audio_taps),
+        crate::gui_live_source::chain_row_live_source(&project_runtime),
+        Rc::clone(&tick_writes),
         project_chains.clone(),
         project_session.clone(),
     );
@@ -417,6 +453,21 @@ pub fn run_desktop_app(
     chain_insert_window.set_selected_return_device_index(-1);
     chain_insert_window.set_status_message("".into());
     // --- ChainInsertWindow callbacks (extracted to insert_wiring) ---
+    // #85 — the mid-chain I/O port editor's own callbacks.
+    crate::port_wiring::wire_port_window(
+        &window,
+        &chain_port_window,
+        crate::port_wiring::PortWiringCtx {
+            port_draft: port_draft.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            auto_save,
+        },
+    );
     crate::insert_wiring::wire(
         &window,
         &chain_insert_window,
@@ -427,7 +478,6 @@ pub fn run_desktop_app(
             insert_send_channels: insert_send_channels.clone(),
             insert_return_channels: insert_return_channels.clone(),
             project_session: project_session.clone(),
-            project_runtime: project_runtime.clone(),
             project_chains: project_chains.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
@@ -484,7 +534,6 @@ pub fn run_desktop_app(
             audio_settings_mode: audio_settings_mode.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -574,7 +623,7 @@ pub fn run_desktop_app(
             recent_projects: recent_projects.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -590,7 +639,7 @@ pub fn run_desktop_app(
             recent_projects: recent_projects.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -623,7 +672,6 @@ pub fn run_desktop_app(
         crate::chain_preset_wiring::ChainPresetCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -638,32 +686,18 @@ pub fn run_desktop_app(
         project_session.clone(),
         project_chains.clone(),
         probe_windows.clone(),
+        crate::gui_live_source::chain_rate_live_source(&project_runtime, &project_session),
     );
     // ── Tuner window — top-bar feature ──
-    crate::tuner_wiring::wire_tuner(
-        &window,
-        &tuner_window,
-        &project_session,
-        &project_runtime,
-        &tuner_session,
-        &tuner_timer,
-    );
+    crate::tuner_wiring::wire_tuner(&window, &tuner_window, &project_session, &analyzers);
     // ── Spectrum window — top-bar feature ──
-    crate::spectrum_wiring::wire_spectrum(
-        &window,
-        &spectrum_window,
-        &project_session,
-        &project_runtime,
-        &spectrum_session,
-        &spectrum_timer,
-    );
+    crate::spectrum_wiring::wire_spectrum(&window, &spectrum_window, &project_session, &analyzers);
     // ── Metronome window — top-bar feature ──
     crate::metronome_wiring::wire_metronome(
         &window,
         &metronome_window,
         &project_session,
-        &project_runtime,
-        &metronome_session,
+        &metronome_live,
         &metronome_timer,
     );
     // --- Back-to-launcher callback (extracted to back_to_launcher_wiring) ---
@@ -673,7 +707,6 @@ pub fn run_desktop_app(
         crate::back_to_launcher_wiring::BackToLauncherCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             chain_editor_window: chain_editor_window.clone(),
@@ -689,7 +722,8 @@ pub fn run_desktop_app(
         block_editor_draft: block_editor_draft.clone(),
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
-        project_runtime: project_runtime.clone(),
+        audio_taps: Rc::clone(&audio_taps),
+        block_stream_reads: Rc::clone(&block_stream_reads),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),
@@ -705,6 +739,8 @@ pub fn run_desktop_app(
     });
     // --- Block-related callback wirings (extracted to desktop_app_block_wiring) ---
     crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
+        chain_port_window: &chain_port_window,
+        port_draft: port_draft.clone(),
         window: &window,
         chain_insert_window: &chain_insert_window,
         selected_block: selected_block.clone(),
@@ -720,7 +756,7 @@ pub fn run_desktop_app(
         eq_band_curves: eq_band_curves.clone(),
         project_session: project_session.clone(),
         project_chains: project_chains.clone(),
-        project_runtime: project_runtime.clone(),
+        block_stream_reads: Rc::clone(&block_stream_reads),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),
@@ -747,7 +783,6 @@ pub fn run_desktop_app(
             chain_draft: chain_draft.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -762,7 +797,7 @@ pub fn run_desktop_app(
         crate::chain_row_wiring::ChainRowCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            looper_live: looper_live.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
@@ -772,6 +807,15 @@ pub fn run_desktop_app(
             pending_delete_chain_id: std::rc::Rc::new(std::cell::RefCell::new(None)),
         },
     );
+    // #791: Tone Doctor's run/apply for the main chains page. Wired here
+    // because its taps need the runtime handle, which this module owns —
+    // `chain_row_wiring` used to forward it and now names no audio backend.
+    crate::tone_doctor_compact_wiring::wire_main(
+        &window,
+        project_session.clone(),
+        Rc::clone(&audio_taps),
+        toast_timer.clone(),
+    );
     // #614: DI loop file picker — separate module because chain_row_wiring
     // is forbidden from using rfd:: (issue #511).
     crate::di_loop_chooser_wiring::wire(&window, project_session.clone(), toast_timer.clone());
@@ -780,7 +824,7 @@ pub fn run_desktop_app(
         crate::chain_rig_nav_wiring::ChainRigNavCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
@@ -830,7 +874,7 @@ pub fn run_desktop_app(
         let mcp_ctx = crate::chain_rig_nav_wiring::ChainRigNavCtx {
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
-            project_runtime: project_runtime.clone(),
+            runtime_attach: runtime_attach.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
@@ -864,7 +908,6 @@ pub fn run_desktop_app(
                     // #693: completions of off-thread command work (DI
                     // decode, ...) ride the same event path as a dispatch.
                     {
-                        use application::dispatcher::CommandDispatcher as _;
                         events.extend(session.dispatcher.poll_async_results());
                     }
                     drain.serve_queries(
@@ -904,7 +947,7 @@ pub fn run_desktop_app(
             crate::chain_rig_nav_wiring::ChainRigNavCtx {
                 project_session: project_session.clone(),
                 project_chains: project_chains.clone(),
-                project_runtime: project_runtime.clone(),
+                runtime_attach: runtime_attach.clone(),
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),
                 toast_timer: toast_timer.clone(),
