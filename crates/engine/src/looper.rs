@@ -324,6 +324,32 @@ impl LooperSlot {
         Some(out)
     }
 
+    /// The recorded material exactly as captured — the audible layers summed,
+    /// with NO `mix`, `decay` or `reverse` — one loop long, interleaved stereo.
+    ///
+    /// This is what the waveform editor (#826) reads and re-installs. Exporting
+    /// the mixdown instead would bake the loop level and the reverse flag into
+    /// the buffer, and playback would then apply them a second time.
+    ///
+    /// Allocates, so it is for the CONTROL thread only.
+    pub fn export_raw(&self) -> Option<Vec<f32>> {
+        if self.active == 0 || self.len_frames == 0 {
+            return None;
+        }
+        let mut out = Vec::with_capacity(self.len_frames * 2);
+        for frame in 0..self.len_frames {
+            let mut acc = [0.0f32; 2];
+            for layer in 0..self.active {
+                let buf = &self.layers[layer];
+                acc[0] += buf[frame * 2];
+                acc[1] += buf[frame * 2 + 1];
+            }
+            out.push(acc[0]);
+            out.push(acc[1]);
+        }
+        Some(out)
+    }
+
     /// A counter that changes whenever the exported mixdown would change
     /// (record close, overdub, undo/redo, clear, load, level/decay/reverse).
     /// The controller re-arms the isolated stream only when this moves, so the
