@@ -3,6 +3,7 @@
 //! could not hold (stop/clear only landed inside a running audio callback).
 
 use super::*;
+use application::looper_edit::SEAM_FRAMES;
 use engine::LooperState;
 
 fn cid() -> ChainId {
@@ -166,4 +167,115 @@ fn each_loop_is_isolated_and_carries_its_routing() {
     store.create(&cid(), 8);
     assert!(store.output(&cid(), 8).is_none());
     assert_eq!(store.statuses(&cid()).len(), 2);
+}
+
+/// #826 — a stopped loop of `frames` frames, ready to be edited.
+fn store_with_recorded_loop(frames: usize) -> (LooperStore, ChainId, u64) {
+    let mut store = LooperStore::default();
+    store.set_sample_rate(48_000);
+    store.create(&cid(), 1);
+    store.tap_record(&cid(), 1);
+    // A ramp, so an edit is visible sample by sample.
+    let pcm: Vec<f32> = (0..frames)
+        .flat_map(|i| {
+            let v = i as f32 / frames as f32;
+            [v, -v]
+        })
+        .collect();
+    store.record_frames(&cid(), 1, &pcm);
+    store.tap_record(&cid(), 1); // close → Playing
+    (store, cid(), 1)
+}
+
+#[test]
+fn an_edit_is_refused_while_the_loop_is_not_stopped() {
+    // #826: editing is a stopped-only operation — a live loop must never be
+    // reshaped under the player's feet, and never silently stopped either.
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.play(&chain, uid);
+
+    assert_eq!(
+        store.apply_edit(&chain, uid, LoopEdit::Trim { start: 64, end: 448 }),
+        Err(LooperEditRefused::NotStopped)
+    );
+    assert_eq!(
+        store.status(&chain, uid).unwrap().len_frames,
+        512,
+        "the refused edit changed nothing"
+    );
+}
+
+#[test]
+fn a_trim_on_a_stopped_loop_installs_the_shorter_loop() {
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+
+    let new_len = store
+        .apply_edit(&chain, uid, LoopEdit::Trim { start: 64, end: 448 })
+        .expect("a stopped loop can be trimmed");
+
+    assert_eq!(new_len, 384 - SEAM_FRAMES);
+    assert_eq!(store.status(&chain, uid).unwrap().len_frames, new_len);
+    assert_eq!(
+        store.export_raw(&chain, uid).unwrap().len() / 2,
+        new_len,
+        "the installed buffer is the edited one"
+    );
+}
+
+#[test]
+fn undo_restores_the_pre_edit_audio_sample_for_sample() {
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+    let before = store.export_raw(&chain, uid).unwrap();
+
+    store
+        .apply_edit(&chain, uid, LoopEdit::Cut { start: 100, end: 200 })
+        .unwrap();
+    assert_ne!(store.export_raw(&chain, uid).unwrap(), before);
+
+    assert!(store.undo_edit(&chain, uid));
+    assert_eq!(store.export_raw(&chain, uid).unwrap(), before);
+
+    assert!(store.redo_edit(&chain, uid), "redo puts the edit back");
+    assert_ne!(store.export_raw(&chain, uid).unwrap(), before);
+}
+
+#[test]
+fn undo_on_an_untouched_loop_does_nothing() {
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+    assert!(!store.undo_edit(&chain, uid));
+    assert!(!store.redo_edit(&chain, uid));
+    assert_eq!(store.edit_history_depth(&chain, uid), (0, 0));
+}
+
+#[test]
+fn the_history_is_capped_and_drops_the_oldest() {
+    let (mut store, chain, uid) = store_with_recorded_loop(8192);
+    store.stop(&chain, uid);
+    for _ in 0..LOOPER_EDIT_HISTORY_MAX + 3 {
+        store
+            .apply_edit(&chain, uid, LoopEdit::Cut { start: 100, end: 200 })
+            .unwrap();
+    }
+    assert_eq!(
+        store.edit_history_depth(&chain, uid).0,
+        LOOPER_EDIT_HISTORY_MAX
+    );
+}
+
+#[test]
+fn clearing_the_loop_clears_the_edit_history() {
+    // The old buffers belong to audio that no longer exists; undoing into them
+    // would resurrect a take the player replaced.
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+    store
+        .apply_edit(&chain, uid, LoopEdit::Trim { start: 64, end: 448 })
+        .unwrap();
+    assert_eq!(store.edit_history_depth(&chain, uid).0, 1);
+
+    store.clear(&chain, uid);
+    assert_eq!(store.edit_history_depth(&chain, uid), (0, 0));
 }
