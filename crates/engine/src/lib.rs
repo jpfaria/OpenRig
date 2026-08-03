@@ -9,6 +9,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod chain_quality;
+pub mod crossfade;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;

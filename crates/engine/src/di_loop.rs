@@ -228,7 +228,7 @@ fn apply_loop_crossfade(
     // last frame frames[m-1] ⇒ continuous wrap); at i=xfade-1 the output
     // ≈ frames[xfade-1] (adjacent to frames[xfade], the first body frame).
     for i in 0..xfade {
-        let head_w = (i + 1) as f32 / (xfade + 1) as f32; // 0 -> 1
+        let head_w = crate::crossfade::head_weight(i, xfade); // 0 -> 1
         let head = frames[i];
         let tail = frames[m + i];
         out.push(mix_frame(head, head_w, tail, 1.0 - head_w, layout));
