@@ -23,3 +23,24 @@ export global LooperPanel {
     // The open loop's current preset option index, so the modal marks it.
     in-out property <int> preset-picker-selected;
 }
+
+// #826 — the waveform editor's own state. Separate from `LooperPanel` because
+// the editor is its own root-level overlay: the panel may be closed while a
+// loop is being reshaped.
+export global LooperEditor {
+    in-out property <bool> open;
+    // Which loop is being edited (the chain's index in the rig, and the uid).
+    in-out property <int> chain-index;
+    in-out property <int> uid;
+    // The loop's peak envelope, 0..=1 per bar, computed in Rust.
+    in-out property <[float]> peaks;
+    // The selection, as ratios of the loop. Rust turns them into frames.
+    in-out property <float> sel-start: 0.0;
+    in-out property <float> sel-end: 1.0;
+    // The loop's length, formatted in Rust ("0:08") — the editor says how much
+    // audio it is reshaping instead of leaving the drawing to be guessed at.
+    in-out property <string> length-label;
+    // Whether the edit history has anything to step through.
+    in-out property <bool> can-undo;
+    in-out property <bool> can-redo;
+}

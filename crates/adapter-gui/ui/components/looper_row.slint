@@ -35,6 +35,8 @@ export component LooperRow inherits Rectangle {
     callback input-picked(int);
     callback output-picked(int);
     callback preset-open();
+    // #826: open the waveform editor for this loop.
+    callback edit();
 
     // 0 empty · 1 recording · 2 playing · 3 overdubbing · 4 stopped
     private property <bool> recording: root.looper.state_code == 1 || root.looper.state_code == 3;
@@ -91,11 +93,22 @@ export component LooperRow inherits Rectangle {
         clicked => { root.clear(); }
     }
 
+    // #826: reshape the take. Stopped-only — the store refuses an edit on a
+    // live loop, so an enabled button there would be a lie.
+    edit-btn := LooperIconButton {
+        x: 140px;
+        y: 10px;
+        icon: @image-url("../assets/pencil.svg");
+        label: @tr("looper-edit");
+        is-enabled: root.looper.can_edit;
+        clicked => { root.edit(); }
+    }
+
     // ── state + progress ────────────────────────────────────────────────
     Rectangle {
-        x: 144px;
+        x: 188px;
         y: 10px;
-        width: parent.width - 144px - 96px;
+        width: parent.width - 188px - 96px;
         height: 40px;
         clip: true;
         background: transparent;

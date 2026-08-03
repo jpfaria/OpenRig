@@ -1,0 +1,104 @@
+// #826 — the recorded loop as a peak envelope, with a draggable selection.
+//
+// The peaks are computed in Rust (`engine::loop_edit::peaks`) and handed in as
+// values in 0..=1, one per bar: the view never sees samples and never decides
+// anything. The selection travels back as two ratios of the loop (0..=1), so
+// the frame arithmetic stays on the Rust side too.
+
+import { Theme } from "../theme.slint";
+
+export component WaveformView inherits Rectangle {
+    in property <[float]> peaks;
+    // Selection bounds as a ratio of the loop, `start` <= `end`.
+    in-out property <float> sel-start: 0.0;
+    in-out property <float> sel-end: 1.0;
+
+    private property <length> handle-width: 10px;
+
+    background: Theme.palette.pure-black;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Theme.palette.border;
+    clip: true;
+
+    accessible-role: progress-indicator;
+    accessible-label: @tr("looper-editor-waveform");
+
+    // The envelope: one bar per bucket, centred on the mid line.
+    HorizontalLayout {
+        padding: 6px;
+        spacing: 0px;
+        for p[i] in root.peaks: Rectangle {
+            // Every bar takes the same share of the width.
+            width: (root.width - 12px) / max(1, root.peaks.length);
+            Rectangle {
+                width: parent.width * 0.7;
+                height: max(1px, p * (parent.height - 4px));
+                y: (parent.height - self.height) / 2;
+                background: Theme.palette.accent-start;
+                border-radius: 1px;
+            }
+        }
+    }
+
+    // Everything outside the selection is dimmed, so what an edit keeps (or
+    // removes) is readable at a glance.
+    Rectangle {
+        x: 0;
+        width: root.width * root.sel-start;
+        height: root.height;
+        background: #000000b0;
+    }
+
+    Rectangle {
+        x: root.width * root.sel-end;
+        width: root.width - self.x;
+        height: root.height;
+        background: #000000b0;
+    }
+
+    start-handle := Rectangle {
+        x: root.width * root.sel-start - self.width / 2;
+        width: root.handle-width;
+        height: root.height;
+        background: start-area.has-hover || start-area.pressed
+            ? Theme.palette.accent-border
+            : Theme.palette.accent-end;
+        border-radius: 3px;
+
+        accessible-role: slider;
+        accessible-label: @tr("looper-editor-selection-start");
+        accessible-value: root.sel-start;
+
+        start-area := TouchArea {
+            mouse-cursor: ew-resize;
+            moved => {
+                // Clamp to the loop and never cross the other handle.
+                root.sel-start = max(0.0, min(root.sel-end - 0.02,
+                    (self.absolute-position.x + self.mouse-x - root.absolute-position.x) / root.width));
+            }
+        }
+    }
+
+    end-handle := Rectangle {
+        x: root.width * root.sel-end - self.width / 2;
+        width: root.handle-width;
+        height: root.height;
+        background: end-area.has-hover || end-area.pressed
+            ? Theme.palette.accent-border
+            : Theme.palette.accent-end;
+        border-radius: 3px;
+
+        accessible-role: slider;
+        accessible-label: @tr("looper-editor-selection-end");
+        accessible-value: root.sel-end;
+
+        end-area := TouchArea {
+            mouse-cursor: ew-resize;
+            moved => {
+                root.sel-end = min(1.0, max(root.sel-start + 0.02,
+                    (self.absolute-position.x + self.mouse-x - root.absolute-position.x) / root.width));
+            }
+        }
+    }
+}

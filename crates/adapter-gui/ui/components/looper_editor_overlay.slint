@@ -1,0 +1,162 @@
+// #826 — the loop waveform editor: trim / crop / cut a recorded take.
+//
+// A root-level overlay, never a PopupWindow (#749/#761: a popup's content
+// never receives clicks), so every button is an in-tree TouchArea the headless
+// interaction test can actuate. Opened from the looper row's edit button, and
+// only while that loop is STOPPED — the store refuses an edit on a live loop.
+
+import { Theme } from "../theme.slint";
+import { LooperEditor } from "looper_panel_globals.slint";
+import { WaveformView } from "waveform_view.slint";
+
+// The action a button asks for, as the host's callback spells it.
+export enum LoopEditKind { trim, crop, cut }
+
+component EditorButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    min-width: 92px;
+    height: 34px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: root.enabled ? Theme.palette.secondary-border : Theme.palette.border;
+    background: !root.enabled
+        ? #2a2c3160
+        : (area.has-hover ? #6e8aff28 : #2a2c31);
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.clicked(); }
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        text: root.label;
+        font-size: 13px;
+        color: root.enabled ? Theme.palette.text-primary : Theme.palette.text-muted;
+    }
+
+    area := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component LooperEditorOverlay inherits Rectangle {
+    // (chain-index, uid, kind, sel-start, sel-end) — the ratios become frames
+    // in Rust, which is the only side that knows the loop's length.
+    callback apply(int, int, LoopEditKind, float, float);
+    callback undo(int, int);
+    callback redo(int, int);
+
+    private property <bool> has-selection: LooperEditor.sel-end - LooperEditor.sel-start > 0.02;
+
+    x: 0;
+    y: 0;
+    visible: LooperEditor.open;
+    background: #000000a8;
+
+    // Click-outside closes, leaving the loop as it stands.
+    TouchArea { clicked => { LooperEditor.open = false; } }
+
+    if LooperEditor.open : Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(root.width - 80px, 720px);
+        height: 258px;
+        background: #1e1f22;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: Theme.palette.border-strong;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+            alignment: start;
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: @tr("looper-editor-title");
+                    color: Theme.palette.text-primary;
+                    font-size: 15px;
+                    font-weight: 700;
+                }
+
+                // How long the take is, so the drawing is not the only clue to
+                // how much audio an edit reshapes.
+                Text {
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                    text: LooperEditor.length-label;
+                    color: Theme.palette.text-muted;
+                    font-size: 12px;
+                }
+            }
+
+            WaveformView {
+                height: 150px;
+                peaks: LooperEditor.peaks;
+                sel-start <=> LooperEditor.sel-start;
+                sel-end <=> LooperEditor.sel-end;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                EditorButton {
+                    label: @tr("looper-editor-trim");
+                    enabled: root.has-selection;
+                    clicked => {
+                        root.apply(LooperEditor.chain-index, LooperEditor.uid,
+                            LoopEditKind.trim, LooperEditor.sel-start, LooperEditor.sel-end);
+                    }
+                }
+
+                EditorButton {
+                    label: @tr("looper-editor-crop");
+                    enabled: root.has-selection;
+                    clicked => {
+                        root.apply(LooperEditor.chain-index, LooperEditor.uid,
+                            LoopEditKind.crop, LooperEditor.sel-start, LooperEditor.sel-end);
+                    }
+                }
+
+                EditorButton {
+                    label: @tr("looper-editor-cut");
+                    enabled: root.has-selection;
+                    clicked => {
+                        root.apply(LooperEditor.chain-index, LooperEditor.uid,
+                            LoopEditKind.cut, LooperEditor.sel-start, LooperEditor.sel-end);
+                    }
+                }
+
+                Rectangle { width: 16px; }
+
+                EditorButton {
+                    label: @tr("looper-editor-undo");
+                    enabled: LooperEditor.can-undo;
+                    clicked => { root.undo(LooperEditor.chain-index, LooperEditor.uid); }
+                }
+
+                EditorButton {
+                    label: @tr("looper-editor-redo");
+                    enabled: LooperEditor.can-redo;
+                    clicked => { root.redo(LooperEditor.chain-index, LooperEditor.uid); }
+                }
+
+                EditorButton {
+                    label: @tr("looper-editor-close");
+                    clicked => { LooperEditor.open = false; }
+                }
+            }
+        }
+    }
+}

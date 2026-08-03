@@ -26,6 +26,7 @@ use engine::LooperStatus;
 
 use crate::query_analyzers::{SpectrumReading, TunerReading};
 use crate::query_di::DiLoopReading;
+use crate::looper_edit::LoopEditReading;
 
 /// #14/#127: where the click is in the bar, and whether it is sounding.
 ///
@@ -165,6 +166,24 @@ pub trait LiveSource {
     /// and resolved.
     fn chain_loopers(&self, chain: &ChainId) -> Option<Result<(Vec<LooperStatus>, u32), String>> {
         let _ = chain;
+        None
+    }
+
+    /// #826: one loop as the waveform editor needs it — the peak envelope to
+    /// draw, the length its selection resolves against, and what its edit
+    /// history can step through.
+    ///
+    /// A FINISHED reading, like every other door here: the peaks are computed
+    /// on this side and the samples never cross the seam. `buckets` is how
+    /// many bars the view draws. `None` ⇒ no store is hosted or the loop holds
+    /// no material.
+    fn chain_loop_edit(
+        &self,
+        chain: &ChainId,
+        looper: u64,
+        buckets: usize,
+    ) -> Option<LoopEditReading> {
+        let _ = (chain, looper, buckets);
         None
     }
 
