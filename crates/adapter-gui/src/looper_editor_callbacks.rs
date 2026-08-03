@@ -52,6 +52,7 @@ fn edit_kind(kind: LoopEditKind_slint) -> LoopEditKind {
         LoopEditKind_slint::Trim => LoopEditKind::Trim,
         LoopEditKind_slint::Crop => LoopEditKind::Crop,
         LoopEditKind_slint::Cut => LoopEditKind::Cut,
+        LoopEditKind_slint::Fit => LoopEditKind::Fit,
     }
 }
 

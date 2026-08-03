@@ -10,7 +10,7 @@ import { LooperEditor } from "looper_panel_globals.slint";
 import { WaveformView } from "waveform_view.slint";
 
 // The action a button asks for, as the host's callback spells it.
-export enum LoopEditKind { trim, crop, cut }
+export enum LoopEditKind { trim, crop, cut, fit }
 
 component EditorButton inherits Rectangle {
     in property <string> label;
@@ -115,6 +115,17 @@ export component LooperEditorOverlay inherits Rectangle {
 
             HorizontalLayout {
                 spacing: 8px;
+
+                // The one-button answer: no selection needed, it finds the
+                // music itself. First, because it is what most takes need.
+                EditorButton {
+                    label: @tr("looper-editor-fit");
+                    enabled: !LooperEditor.playing;
+                    clicked => {
+                        root.apply(LooperEditor.chain-index, LooperEditor.uid,
+                            LoopEditKind.fit, 0.0, 1.0);
+                    }
+                }
 
                 EditorButton {
                     label: @tr("looper-editor-trim");

@@ -22,6 +22,10 @@ pub enum LoopEdit {
     Crop { start: usize, end: usize },
     /// Drop `[start, end)` and join the two halves.
     Cut { start: usize, end: usize },
+    /// Find where the playing actually starts and ends and keep THAT — no
+    /// region to give, because the point is that the user does not have to
+    /// measure it: the count-in and the late release go, the take stays.
+    Fit,
 }
 
 impl LoopEdit {
@@ -41,6 +45,8 @@ impl LoopEdit {
             LoopEditKind::Trim => Self::Trim { start, end },
             LoopEditKind::Crop => Self::Crop { start, end },
             LoopEditKind::Cut => Self::Cut { start, end },
+            // A fit ignores the selection: it finds its own.
+            LoopEditKind::Fit => Self::Fit,
         }
     }
 
@@ -49,6 +55,8 @@ impl LoopEdit {
         match *self {
             Self::Trim { start, end } | Self::Crop { start, end } => (LoopEditOp::Keep, start, end),
             Self::Cut { start, end } => (LoopEditOp::Cut, start, end),
+            // The region is worked out from the audio itself.
+            Self::Fit => (LoopEditOp::Fit, 0, 0),
         }
     }
 }
@@ -60,6 +68,7 @@ pub enum LoopEditKind {
     Trim,
     Crop,
     Cut,
+    Fit,
 }
 
 /// #826: one loop as the waveform editor reads it — a FINISHED reading, so no

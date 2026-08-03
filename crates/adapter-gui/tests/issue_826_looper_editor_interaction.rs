@@ -82,9 +82,8 @@ fn each_edit_button_asks_the_host_for_its_own_edit() {
     let (w, applied) = harness();
     w.show().unwrap();
 
-    // The buttons are the overlay's own component, in declaration order:
-    // trim, crop, cut, undo, redo, close.
-    for nth in 0..3 {
+    // Declaration order: fit, trim, crop, cut, play, undo, redo, close.
+    for nth in 1..4 {
         assert!(
             click(&w, "EditorButton::area", nth),
             "edit button {nth} must be hittable — a render proves nothing here"
@@ -114,13 +113,29 @@ fn dragging_the_start_handle_moves_the_selection_the_host_is_told_about() {
 
     // And the edit the host is handed carries the DRAGGED bounds, not the
     // ones the editor opened with.
-    assert!(click(&w, "EditorButton::area", 0), "trim must be hittable");
+    assert!(click(&w, "EditorButton::area", 1), "trim must be hittable");
     let calls = applied.borrow();
     assert_eq!(calls.len(), 1);
     assert!(
         (calls[0].1 - after).abs() < 1e-4,
         "the trim carries the dragged selection start"
     );
+}
+
+#[test]
+fn the_fit_button_asks_for_a_fit_without_any_selection() {
+    // #826: the button the user reaches for when they just want the loop to be
+    // right — it carries no region, because it finds its own.
+    let (w, applied) = harness();
+    w.show().unwrap();
+
+    assert!(
+        click(&w, "EditorButton::area", 0),
+        "the fit button must be hittable"
+    );
+    let calls = applied.borrow();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].0, LoopEditKind::Fit);
 }
 
 #[test]
@@ -134,7 +149,7 @@ fn the_play_button_asks_the_host_to_run_the_loop() {
     w.show().unwrap();
 
     assert!(
-        click(&w, "EditorButton::area", 3),
+        click(&w, "EditorButton::area", 4),
         "the play button must be hittable"
     );
     assert_eq!(*played.borrow(), vec![1], "play names the loop it runs");
@@ -148,7 +163,7 @@ fn the_edits_are_dead_while_the_loop_is_playing() {
     w.show().unwrap();
     w.global::<adapter_gui::LooperEditor>().set_playing(true);
 
-    click(&w, "EditorButton::area", 0);
+    click(&w, "EditorButton::area", 1);
     assert!(
         applied.borrow().is_empty(),
         "trim must not reach the host while the loop plays"
@@ -163,9 +178,9 @@ fn the_undo_button_asks_the_host_to_step_the_history() {
     w.on_undo(move |_chain, uid| u.borrow_mut().push(uid));
     w.show().unwrap();
 
-    // The harness seeds `can-undo`, so the button is live; index 4 is undo
-    // (trim, crop, cut, play, undo, redo, close).
-    assert!(click(&w, "EditorButton::area", 4), "undo must be hittable");
+    // The harness seeds `can-undo`, so the button is live; index 5 is undo
+    // (fit, trim, crop, cut, play, undo, redo, close).
+    assert!(click(&w, "EditorButton::area", 5), "undo must be hittable");
     assert_eq!(*undone.borrow(), vec![1], "undo names the loop it steps");
 }
 
@@ -179,7 +194,7 @@ fn a_disabled_button_asks_for_nothing() {
     w.on_redo(move |_chain, uid| r.borrow_mut().push(uid));
     w.show().unwrap();
 
-    click(&w, "EditorButton::area", 5);
+    click(&w, "EditorButton::area", 6);
     assert!(
         redone.borrow().is_empty(),
         "a disabled redo must not reach the host"

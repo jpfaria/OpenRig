@@ -25,6 +25,74 @@ pub enum LoopEditOp {
     Keep,
     /// Drop the region and join the two halves.
     Cut,
+    /// Find where the playing actually starts and ends and keep THAT — the
+    /// region argument is ignored. The one-button answer to "make the loop
+    /// right": a take carries a count-in at the head and a late release at the
+    /// tail, and neither belongs in a loop that repeats.
+    Fit,
+}
+
+/// Anything quieter than this is the room and the interface, not playing.
+/// -60 dBFS: below a guitar's quietest useful note, above every noise floor
+/// worth keeping out of a loop.
+const SILENCE_FLOOR: f32 = 0.001;
+
+/// How long the signal must stay above the floor before it counts as playing
+/// (and stay below it before it counts as over). ~1 ms at 48 kHz: long enough
+/// that one stray sample of noise is not "the take", short enough that no
+/// attack is clipped.
+const CONTENT_RUN_FRAMES: usize = 48;
+
+/// A little air kept on each side of the music, so `Fit` never eats the very
+/// start of an attack or the tail of a ring-out.
+const CONTENT_MARGIN_FRAMES: usize = 16;
+
+/// Where the playing actually starts and ends, in frames — `None` when the
+/// take is silence all the way through.
+///
+/// A run-length rule, not a single-sample one: a lone tick of noise is not the
+/// take starting, and a single zero-crossing is not it ending. The bounds are
+/// widened by [`CONTENT_MARGIN_FRAMES`] so an attack is never clipped.
+pub fn content_bounds(pcm: &[f32]) -> Option<(usize, usize)> {
+    let frames = pcm.len() / 2;
+    if frames == 0 {
+        return None;
+    }
+    let loud = |f: usize| pcm[f * 2].abs().max(pcm[f * 2 + 1].abs()) > SILENCE_FLOOR;
+
+    let mut run = 0;
+    let mut start = None;
+    for f in 0..frames {
+        if loud(f) {
+            run += 1;
+            if run >= CONTENT_RUN_FRAMES {
+                start = Some(f + 1 - run);
+                break;
+            }
+        } else {
+            run = 0;
+        }
+    }
+    let start = start?;
+
+    let mut run = 0;
+    let mut end = frames;
+    for f in (start..frames).rev() {
+        if loud(f) {
+            run += 1;
+            if run >= CONTENT_RUN_FRAMES {
+                end = f + run;
+                break;
+            }
+        } else {
+            run = 0;
+        }
+    }
+
+    Some((
+        start.saturating_sub(CONTENT_MARGIN_FRAMES),
+        (end + CONTENT_MARGIN_FRAMES).min(frames),
+    ))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +130,13 @@ pub fn apply_edit(
     end: usize,
 ) -> Result<Vec<f32>, LoopEditError> {
     let len = pcm.len() / 2;
+    // `Fit` works out its own region: the caller has no way to know where the
+    // music is, which is the whole point of the button.
+    let (start, end) = if matches!(op, LoopEditOp::Fit) {
+        content_bounds(pcm).ok_or(LoopEditError::EmptyRegion)?
+    } else {
+        (start, end)
+    };
     if start >= end {
         return Err(LoopEditError::EmptyRegion);
     }
@@ -70,7 +145,7 @@ pub fn apply_edit(
     }
 
     let kept: Vec<f32> = match op {
-        LoopEditOp::Keep => {
+        LoopEditOp::Keep | LoopEditOp::Fit => {
             if (end - start) < MIN_LOOP_FRAMES + SEAM_FRAMES {
                 return Err(LoopEditError::ResultTooShort);
             }

@@ -139,3 +139,84 @@ fn peaks_never_divides_by_zero_on_a_short_or_empty_loop() {
         "fewer frames than buckets still fills them"
     );
 }
+
+#[test]
+fn content_bounds_find_where_the_playing_actually_starts_and_ends() {
+    // #826: the take the player keeps is rarely the take they recorded — there
+    // is a count-in at the head and a late release at the tail. "Fit" is the
+    // one-button answer: find the music, drop the rest.
+    let mut pcm = vec![0.0f32; 2000 * 2];
+    // Music from frame 400 to 1500, at a healthy level.
+    for f in 400..1500 {
+        pcm[f * 2] = 0.6;
+        pcm[f * 2 + 1] = -0.6;
+    }
+
+    let (start, end) = content_bounds(&pcm).expect("there is material");
+    // Just BEFORE the first note: the margin is deliberate air, so an attack
+    // is never clipped — but never more than that margin.
+    assert!(
+        (400 - CONTENT_MARGIN_FRAMES..=400).contains(&start),
+        "the head is trimmed to just before the first note, not into it ({start})"
+    );
+    assert!(
+        (1500..=1500 + CONTENT_MARGIN_FRAMES).contains(&end),
+        "the tail keeps the last note whole ({end})"
+    );
+}
+
+#[test]
+fn content_bounds_ignore_a_noise_floor_but_keep_quiet_playing() {
+    // A silent stretch is never truly zero: an interface's noise floor sits
+    // around -60 dBFS. A quiet note must survive it.
+    let mut pcm = vec![0.0f32; 1200 * 2];
+    for (i, s) in pcm.iter_mut().enumerate() {
+        *s = if i % 2 == 0 { 0.0005 } else { -0.0005 };
+    }
+    for f in 600..900 {
+        pcm[f * 2] = 0.05;
+        pcm[f * 2 + 1] = -0.05;
+    }
+
+    let (start, end) = content_bounds(&pcm).expect("quiet playing is still playing");
+    assert!(
+        (500..=600).contains(&start),
+        "the noise floor is not music ({start})"
+    );
+    assert!(
+        (900..=1000).contains(&end),
+        "the quiet note is kept ({end})"
+    );
+}
+
+#[test]
+fn content_bounds_report_nothing_on_a_silent_take() {
+    assert_eq!(content_bounds(&vec![0.0f32; 1000 * 2]), None);
+    assert_eq!(content_bounds(&[]), None);
+}
+
+#[test]
+fn fitting_a_take_trims_the_silence_off_both_ends() {
+    let mut pcm = vec![0.0f32; 4000 * 2];
+    for f in 800..3000 {
+        pcm[f * 2] = 0.5;
+        pcm[f * 2 + 1] = -0.5;
+    }
+
+    let out = apply_edit(&pcm, LoopEditOp::Fit, 0, 0).expect("a take with music can be fitted");
+    let fitted = out.len() / 2;
+    assert!(
+        (2100..=2300).contains(&fitted),
+        "the fitted loop is about the music's own length ({fitted})"
+    );
+    let head_peak = out[..200].iter().fold(0.0f32, |a, s| a.max(s.abs()));
+    assert!(head_peak > 0.1, "the fitted loop starts on the music");
+}
+
+#[test]
+fn fitting_a_silent_take_is_refused_rather_than_leaving_a_click() {
+    assert_eq!(
+        apply_edit(&vec![0.0f32; 4000 * 2], LoopEditOp::Fit, 0, 0),
+        Err(LoopEditError::EmptyRegion)
+    );
+}
