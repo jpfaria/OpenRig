@@ -44,6 +44,9 @@ export global LooperEditor {
     // editor runs the loop itself — and while it runs, the edits are dead (the
     // store refuses to reshape a live take).
     in-out property <bool> playing;
+    // Where the loop is while it plays, as a ratio of its length. Refreshed by
+    // the same poll tick that drives the panel's meters.
+    in-out property <float> playhead;
     // What the last edit did: 0 quiet, 1 it changed nothing, 2 it was refused.
     // A silent button is indistinguishable from a broken one, so the editor
     // says which of the three happened.

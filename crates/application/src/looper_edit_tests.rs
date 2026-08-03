@@ -64,3 +64,20 @@ fn the_outcome_travels_as_a_code_so_the_message_stays_translatable() {
     assert_eq!(EditOutcome::NoChange.code(), 1);
     assert_eq!(EditOutcome::Refused.code(), 2);
 }
+
+#[test]
+fn the_playhead_is_the_position_over_the_loop() {
+    // #826: while the loop runs, the editor draws a line where it is — the
+    // waveform alone never answers "where am I".
+    assert_eq!(playhead_ratio(0, 1000), 0.0);
+    assert_eq!(playhead_ratio(250, 1000), 0.25);
+    assert_eq!(playhead_ratio(1000, 1000), 1.0);
+}
+
+#[test]
+fn the_playhead_never_divides_by_zero_or_runs_off_the_view() {
+    // An empty loop has no position, and a cursor read a tick after an edit
+    // shortened the loop can sit past its end.
+    assert_eq!(playhead_ratio(0, 0), 0.0);
+    assert_eq!(playhead_ratio(4000, 1000), 1.0);
+}

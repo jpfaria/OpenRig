@@ -96,6 +96,16 @@ pub struct LoopEditReading {
 #[path = "looper_edit_tests.rs"]
 mod tests;
 
+/// Where the loop is, as a ratio of its own length — what the editor draws
+/// its playhead at. Clamped, because a cursor read a tick after an edit
+/// shortened the loop can sit past its end.
+pub fn playhead_ratio(position_frames: usize, len_frames: usize) -> f32 {
+    if len_frames == 0 {
+        return 0.0;
+    }
+    (position_frames as f32 / len_frames as f32).clamp(0.0, 1.0)
+}
+
 /// What an edit did, as the editor reports it back to the user.
 ///
 /// "Nothing happened" is a real outcome, not an absence of one: FIT on a take

@@ -15,8 +15,9 @@ use std::rc::Rc;
 
 use application::command::{Command, LooperAction, LooperCommand};
 use application::live_source::LiveSource;
-use application::looper_edit::{EditOutcome, LoopEdit, LoopEditKind};
+use application::looper_edit::{playhead_ratio, EditOutcome, LoopEdit, LoopEditKind};
 use domain::ids::ChainId;
+use engine::LooperState;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::state::ProjectSession;
@@ -24,6 +25,11 @@ use crate::{AppWindow, LoopEditKind as LoopEditKind_slint, LooperEditor};
 
 type Session = Rc<RefCell<Option<ProjectSession>>>;
 type Live = Rc<dyn LiveSource>;
+
+/// How often the playhead is refreshed while the loop runs — the same ~15 Hz
+/// the panel's meters use (#715): fast enough to read as motion, slow enough
+/// that the poll never competes with the audio worker for cache.
+const PLAYHEAD_TICK_MS: u64 = 66;
 
 /// How many bars the waveform draws. Fixed: the view is a fixed-width overlay,
 /// so a per-loop count would only make short loops look chunkier.
@@ -66,12 +72,62 @@ pub(crate) fn wire_looper_editor_callbacks(
     session: &Session,
     live: &Live,
 ) {
+    // ── the playhead ────────────────────────────────────────────────────
+    //
+    // Its own tick, not the meter poll's: that poll never sees the window, and
+    // this one is idle unless the editor is OPEN. It reads only the transport
+    // (wait-free atomics, through the same seam MCP reads) — the loop's PCM is
+    // never re-exported per frame.
+    let playhead_timer = {
+        let session = session.clone();
+        let live = live.clone();
+        let window_weak = window.as_weak();
+        let timer = slint::Timer::default();
+        timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_millis(PLAYHEAD_TICK_MS),
+            move || {
+                let Some(window) = window_weak.upgrade() else {
+                    return;
+                };
+                let editor = window.global::<LooperEditor>();
+                if !editor.get_open() {
+                    return;
+                }
+                let session_borrow = session.borrow();
+                let Some(chain) = session_borrow
+                    .as_ref()
+                    .and_then(|s| chain_id_at(s, editor.get_chain_index()))
+                else {
+                    return;
+                };
+                let uid = editor.get_uid() as u64;
+                let Some(Ok((statuses, _rate))) = live.chain_loopers(&chain) else {
+                    return;
+                };
+                let Some(status) = statuses.iter().find(|s| s.uid == uid) else {
+                    return;
+                };
+                editor.set_playing(matches!(
+                    status.state,
+                    LooperState::Playing | LooperState::Overdubbing
+                ));
+                editor.set_playhead(playhead_ratio(status.position_frames, status.len_frames));
+            },
+        );
+        timer
+    };
+
     // ── open ────────────────────────────────────────────────────────────
     {
         let session = session.clone();
         let live = live.clone();
         let window_weak = window.as_weak();
+        // The timer is owned by this callback, so it lives exactly as long as
+        // the window does and is dropped with it.
+        let _playhead_timer = playhead_timer;
         window.on_looper_edit(move |index, uid| {
+            let _keep_ticking = &_playhead_timer;
             let Some(window) = window_weak.upgrade() else {
                 return;
             };

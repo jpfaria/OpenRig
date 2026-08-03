@@ -109,6 +109,8 @@ export component LooperEditorOverlay inherits Rectangle {
             WaveformView {
                 height: 150px;
                 peaks: LooperEditor.peaks;
+                playing: LooperEditor.playing;
+                playhead: LooperEditor.playhead;
                 sel-start <=> LooperEditor.sel-start;
                 sel-end <=> LooperEditor.sel-end;
             }

@@ -9,6 +9,10 @@ import { Theme } from "../theme.slint";
 
 export component WaveformView inherits Rectangle {
     in property <[float]> peaks;
+    // Where the loop is playing, as a ratio (0..=1); the line is hidden when
+    // nothing is sounding.
+    in property <bool> playing;
+    in property <float> playhead;
     // Selection bounds as a ratio of the loop, `start` <= `end`.
     in-out property <float> sel-start: 0.0;
     in-out property <float> sel-end: 1.0;
@@ -55,6 +59,15 @@ export component WaveformView inherits Rectangle {
         width: root.width - self.x;
         height: root.height;
         background: #000000b0;
+    }
+
+    // The playhead: drawn over the envelope and under the handles, so a drag
+    // is never fighting it for the pointer.
+    if root.playing : Rectangle {
+        x: root.width * root.playhead - self.width / 2;
+        width: 2px;
+        height: root.height;
+        background: #ffffff;
     }
 
     start-handle := Rectangle {
