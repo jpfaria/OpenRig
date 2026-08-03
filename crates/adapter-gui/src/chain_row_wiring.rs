@@ -177,6 +177,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         window,
         &ctx.project_session,
         &ctx.looper_live,
+        &crate::looper_editor_callbacks::EditorDirtyCtx {
+            window: window.as_weak(),
+            saved_project_snapshot: ctx.saved_project_snapshot.clone(),
+            project_dirty: ctx.project_dirty.clone(),
+            auto_save: ctx.auto_save,
+        },
     );
 }
 

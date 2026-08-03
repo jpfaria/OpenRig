@@ -310,3 +310,56 @@ fn fitting_a_stopped_loop_through_the_store_shortens_it() {
     );
     assert_eq!(store.status(&cid(), 1).unwrap().len_frames, fitted);
 }
+
+#[test]
+fn what_the_project_save_exports_is_the_EDITED_loop() {
+    // The user edited a loop and it came back unedited. The save path reads
+    // `export` (the mixdown), NOT `export_raw` — if an edit only reached the
+    // raw side, the wav on disk would still be the take before the edit.
+    let (mut store, chain, uid) = store_with_recorded_loop(4096);
+    store.stop(&chain, uid);
+    let before = store.export(&chain, uid).expect("there is material").len() / 2;
+
+    let fitted = store
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 512, 3584)
+        .expect("a stopped loop can be trimmed");
+
+    let exported = store.export(&chain, uid).expect("still material").len() / 2;
+    assert_eq!(
+        exported, fitted,
+        "the save path must export the edited loop ({before} → {exported})"
+    );
+}
+
+#[test]
+fn an_edited_loop_survives_a_save_and_reopen() {
+    // The user's report: edit a loop, reopen the app, the looper is EMPTY.
+    // The round trip the project takes: export what the save writes, then load
+    // it into a fresh store the way project-open does. It must come back with
+    // the edited audio — never empty.
+    let (mut store, chain, uid) = store_with_recorded_loop(4096);
+    store.stop(&chain, uid);
+    store
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 512, 3584)
+        .expect("a stopped loop can be trimmed");
+    let saved = store.export(&chain, uid).expect("the save writes this");
+
+    // Reopen: a fresh store, the slot claimed, the wav loaded back.
+    let mut reopened = LooperStore::default();
+    reopened.set_sample_rate(48_000);
+    reopened.create(&chain, uid);
+    reopened.load(&chain, uid, &saved);
+
+    let status = reopened.status(&chain, uid).expect("the slot exists");
+    assert_ne!(
+        status.state,
+        LooperState::Empty,
+        "the reopened looper must hold the edited take, not nothing"
+    );
+    assert_eq!(status.len_frames, saved.len() / 2);
+    assert_eq!(
+        reopened.export(&chain, uid).map(|p| p.len()),
+        Some(saved.len()),
+        "what comes back is what was written"
+    );
+}

@@ -33,9 +33,10 @@ export component LooperEditorHarness inherits Window {
         LooperEditor.sel-start = 0.15;
         LooperEditor.sel-end = 0.8;
         LooperEditor.length-label = "0:08";
-        LooperEditor.playing = true;
+        // NOT playing: the editor's default state is a stopped loop, which is
+        // the only state its edits are offered in. A test that wants the
+        // playing case sets it itself.
         LooperEditor.playhead = 0.42;
-        LooperEditor.status-code = 1;
         LooperEditor.can-undo = true;
     }
 

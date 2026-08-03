@@ -20,11 +20,39 @@ use domain::ids::ChainId;
 use engine::LooperState;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
+use crate::project_ops::sync_project_dirty;
 use crate::state::ProjectSession;
 use crate::{AppWindow, LoopEditKind as LoopEditKind_slint, LooperEditor};
 
 type Session = Rc<RefCell<Option<ProjectSession>>>;
 type Live = Rc<dyn LiveSource>;
+
+/// What the editor needs to raise the project's dirty flag after an edit.
+///
+/// Without it the disquete stays grey and the edited loop is never written:
+/// the audio lives in the store, and only a SAVE puts it on disk. Cloned into
+/// each closure, exactly as the panel's callbacks do it.
+#[derive(Clone)]
+pub(crate) struct EditorDirtyCtx {
+    pub window: slint::Weak<AppWindow>,
+    pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
+    pub project_dirty: Rc<RefCell<bool>>,
+    pub auto_save: bool,
+}
+
+/// Mark the project dirty after an edit, so the loop's new audio reaches disk
+/// on the next save (or right away when auto-save is on).
+fn mark_dirty(session: &ProjectSession, dirty: &EditorDirtyCtx) {
+    if let Some(window) = dirty.window.upgrade() {
+        sync_project_dirty(
+            &window,
+            session,
+            &dirty.saved_project_snapshot,
+            &dirty.project_dirty,
+            dirty.auto_save,
+        );
+    }
+}
 
 /// How often the playhead is refreshed while the loop runs — the same ~15 Hz
 /// the panel's meters use (#715): fast enough to read as motion, slow enough
@@ -71,6 +99,7 @@ pub(crate) fn wire_looper_editor_callbacks(
     window: &AppWindow,
     session: &Session,
     live: &Live,
+    dirty_ctx: &EditorDirtyCtx,
 ) {
     // ── the playhead ────────────────────────────────────────────────────
     //
@@ -156,6 +185,7 @@ pub(crate) fn wire_looper_editor_callbacks(
         let session = session.clone();
         let live = live.clone();
         let window_weak = window.as_weak();
+        let dirty_ctx = dirty_ctx.clone();
         window.on_looper_edit_apply(move |index, uid, kind, from, to| {
             let Some(window) = window_weak.upgrade() else {
                 return;
@@ -199,6 +229,11 @@ pub(crate) fn wire_looper_editor_callbacks(
                 if dispatched.is_ok() { after } else { None },
             );
             editor.set_status_code(outcome.code());
+            // The loop's audio is runtime state: only a SAVE writes it to disk,
+            // and the save only happens if the project knows it is dirty.
+            if outcome == EditOutcome::Applied {
+                mark_dirty(s, &dirty_ctx);
+            }
         });
     }
 
@@ -244,6 +279,7 @@ pub(crate) fn wire_looper_editor_callbacks(
             let session = session.clone();
             let live = live.clone();
             let window_weak = window.as_weak();
+            let dirty_ctx = dirty_ctx.clone();
             window.$setter(move |index, uid| {
                 let Some(window) = window_weak.upgrade() else {
                     return;
@@ -270,6 +306,7 @@ pub(crate) fn wire_looper_editor_callbacks(
                 editor.set_sel_start(0.0);
                 editor.set_sel_end(1.0);
                 refresh_editor(&window, &live, &chain, uid);
+                mark_dirty(s, &dirty_ctx);
             });
         }};
     }
