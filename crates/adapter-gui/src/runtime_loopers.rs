@@ -36,6 +36,7 @@ use std::sync::Arc;
 
 use application::command::{LooperAction, LooperParam};
 use application::looper_audio::{read_loop_wav, resample_loop};
+use application::looper_edit::LoopEdit;
 use engine::LoopPcm;
 use infra_cpal::ProjectRuntimeController;
 use project::chain::{Chain, EndpointRef};
@@ -78,6 +79,45 @@ pub fn transport(runtime: &Runtime, chain: &Chain, looper: u64, action: LooperAc
         LooperAction::Undo => c.looper_undo(&chain.id, looper),
         LooperAction::Redo => c.looper_redo(&chain.id, looper),
         LooperAction::Clear => c.looper_clear(&chain.id, looper),
+    });
+}
+
+/// #826: reshape a stopped loop and install the result, returning its new
+/// length in frames. The store is the single gate: it refuses the edit while
+/// the looper is not stopped, and `with_store` reconciles this chain's — and
+/// only this chain's — playback stream so the shorter loop is what plays next.
+pub fn apply_edit(
+    runtime: &Runtime,
+    chain: &Chain,
+    looper: u64,
+    edit: LoopEdit,
+) -> anyhow::Result<usize> {
+    let mut applied = 0;
+    let mut refusal = None;
+    with_store(runtime, chain, |c| {
+        let (op, start, end) = edit.resolve();
+        match c.looper_apply_edit(&chain.id, looper, op, start, end) {
+            Ok(len) => applied = len,
+            Err(err) => refusal = Some(err),
+        }
+    });
+    match refusal {
+        Some(err) => Err(anyhow::anyhow!("{err}")),
+        None => Ok(applied),
+    }
+}
+
+/// #826: step back one waveform edit on this loop.
+pub fn undo_edit(runtime: &Runtime, chain: &Chain, looper: u64) {
+    with_store(runtime, chain, |c| {
+        c.looper_undo_edit(&chain.id, looper);
+    });
+}
+
+/// #826: step forward one undone waveform edit on this loop.
+pub fn redo_edit(runtime: &Runtime, chain: &Chain, looper: u64) {
+    with_store(runtime, chain, |c| {
+        c.looper_redo_edit(&chain.id, looper);
     });
 }
 

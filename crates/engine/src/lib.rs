@@ -10,6 +10,7 @@
 
 pub mod chain_quality;
 pub mod crossfade;
+pub mod loop_edit;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;

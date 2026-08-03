@@ -17,7 +17,7 @@ use std::sync::Arc;
 use domain::ids::ChainId;
 use engine::spsc::SpscRing;
 use engine::{LooperSlot, LooperSpeed, LooperState, LooperStatus, LOOPER_MAX_SECONDS};
-use application::looper_edit::{self, LoopEdit, LoopEditError};
+use engine::loop_edit::{self, LoopEditError, LoopEditOp};
 use project::block::AudioBlock;
 use project::chain::EndpointRef;
 
@@ -424,7 +424,9 @@ impl LooperStore {
         &mut self,
         chain: &ChainId,
         uid: u64,
-        edit: LoopEdit,
+        op: LoopEditOp,
+        start: usize,
+        end: usize,
     ) -> Result<usize, LooperEditRefused> {
         let entry = self
             .slots
@@ -434,7 +436,8 @@ impl LooperStore {
             return Err(LooperEditRefused::NotStopped);
         }
         let before = entry.slot.export_raw().ok_or(LooperEditRefused::Empty)?;
-        let edited = looper_edit::apply_edit(&before, edit).map_err(LooperEditRefused::Edit)?;
+        let edited =
+            loop_edit::apply_edit(&before, op, start, end).map_err(LooperEditRefused::Edit)?;
 
         self.load(chain, uid, &edited);
         if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {

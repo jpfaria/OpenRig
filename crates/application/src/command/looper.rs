@@ -12,6 +12,7 @@ use domain::ids::ChainId;
 use project::chain::EndpointRef;
 
 use crate::command::{LooperAction, LooperParam};
+use crate::looper_edit::LoopEdit;
 
 /// Every per-chain looper state change any controller (GUI, MIDI, MCP) can
 /// request. The transport carries no project state (a recording is runtime
@@ -58,6 +59,23 @@ pub enum LooperCommand {
         looper: u64,
         output: Option<EndpointRef>,
     },
+
+    /// #826: reshape a recorded loop — trim its bounds, crop to a region, or
+    /// cut a region out. Frame indices over the loop as it stands. The audio
+    /// work happens on the control thread behind the runtime door, and is
+    /// refused unless the looper is stopped.
+    EditChainLooperAudio {
+        chain: ChainId,
+        looper: u64,
+        edit: LoopEdit,
+    },
+
+    /// #826: step back one waveform edit. Independent of the transport's
+    /// `Undo`, which is a no-op for the single-take looper.
+    UndoChainLooperEdit { chain: ChainId, looper: u64 },
+
+    /// #826: step forward one undone waveform edit.
+    RedoChainLooperEdit { chain: ChainId, looper: u64 },
 
     /// #323: remember (or forget) the file holding a looper's recorded audio.
     /// Dispatched by whoever wrote the wav — only the pointer lives in the

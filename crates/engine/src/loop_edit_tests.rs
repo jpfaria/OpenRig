@@ -16,7 +16,7 @@ fn frame(pcm: &[f32], i: usize) -> [f32; 2] {
 #[test]
 fn trim_keeps_only_the_selected_frames() {
     let pcm = ramp(1024);
-    let out = apply_edit(&pcm, LoopEdit::Trim { start: 64, end: 704 }).unwrap();
+    let out = apply_edit(&pcm, LoopEditOp::Keep, 64, 704).unwrap();
 
     assert_eq!(
         out.len() / 2,
@@ -30,8 +30,8 @@ fn trim_keeps_only_the_selected_frames() {
 #[test]
 fn crop_is_the_same_transform_as_trim() {
     let pcm = ramp(1024);
-    let trimmed = apply_edit(&pcm, LoopEdit::Trim { start: 64, end: 704 }).unwrap();
-    let cropped = apply_edit(&pcm, LoopEdit::Crop { start: 64, end: 704 }).unwrap();
+    let trimmed = apply_edit(&pcm, LoopEditOp::Keep, 64, 704).unwrap();
+    let cropped = apply_edit(&pcm, LoopEditOp::Keep, 64, 704).unwrap();
     assert_eq!(
         trimmed, cropped,
         "crop and trim differ in intent, not in audio"
@@ -41,7 +41,7 @@ fn crop_is_the_same_transform_as_trim() {
 #[test]
 fn cut_removes_the_region_and_joins_the_halves() {
     let pcm = ramp(400);
-    let out = apply_edit(&pcm, LoopEdit::Cut { start: 100, end: 200 }).unwrap();
+    let out = apply_edit(&pcm, LoopEditOp::Cut, 100, 200).unwrap();
 
     // Two seams are folded in: the join between the halves, and the loop's
     // own wrap.
@@ -56,7 +56,7 @@ fn cut_removes_the_region_and_joins_the_halves() {
     for s in marked[100 * 2..200 * 2].iter_mut() {
         *s = 9_999.0;
     }
-    let out_marked = apply_edit(&marked, LoopEdit::Cut { start: 100, end: 200 }).unwrap();
+    let out_marked = apply_edit(&marked, LoopEditOp::Cut, 100, 200).unwrap();
     assert!(
         out_marked.iter().all(|s| s.abs() < 1_000.0),
         "the cut region is gone, not merely faded"
@@ -71,7 +71,7 @@ fn the_seam_is_a_blend_not_a_step() {
     // The point of the seam: the join is blended, and nothing overshoots the
     // source peak (equal-gain, #614).
     let pcm = ramp(400);
-    let out = apply_edit(&pcm, LoopEdit::Cut { start: 100, end: 200 }).unwrap();
+    let out = apply_edit(&pcm, LoopEditOp::Cut, 100, 200).unwrap();
     let peak = pcm.iter().fold(0.0f32, |a, s| a.max(s.abs()));
 
     assert_ne!(frame(&out, 100), frame(&pcm, 100), "the join is blended");
@@ -85,15 +85,15 @@ fn the_seam_is_a_blend_not_a_step() {
 fn an_out_of_range_or_empty_region_is_an_error_not_a_panic() {
     let pcm = ramp(256);
     assert_eq!(
-        apply_edit(&pcm, LoopEdit::Trim { start: 0, end: 999 }),
+        apply_edit(&pcm, LoopEditOp::Keep, 0, 999),
         Err(LoopEditError::OutOfRange)
     );
     assert_eq!(
-        apply_edit(&pcm, LoopEdit::Trim { start: 100, end: 100 }),
+        apply_edit(&pcm, LoopEditOp::Keep, 100, 100),
         Err(LoopEditError::EmptyRegion)
     );
     assert_eq!(
-        apply_edit(&pcm, LoopEdit::Trim { start: 200, end: 100 }),
+        apply_edit(&pcm, LoopEditOp::Keep, 200, 100),
         Err(LoopEditError::EmptyRegion)
     );
 }
@@ -102,11 +102,11 @@ fn an_out_of_range_or_empty_region_is_an_error_not_a_panic() {
 fn an_edit_that_would_leave_almost_nothing_is_refused() {
     let pcm = ramp(256);
     assert_eq!(
-        apply_edit(&pcm, LoopEdit::Trim { start: 0, end: 8 }),
+        apply_edit(&pcm, LoopEditOp::Keep, 0, 8),
         Err(LoopEditError::ResultTooShort)
     );
     assert_eq!(
-        apply_edit(&pcm, LoopEdit::Cut { start: 8, end: 250 }),
+        apply_edit(&pcm, LoopEditOp::Cut, 8, 250),
         Err(LoopEditError::ResultTooShort)
     );
 }

@@ -3,7 +3,7 @@
 //! could not hold (stop/clear only landed inside a running audio callback).
 
 use super::*;
-use application::looper_edit::SEAM_FRAMES;
+use engine::loop_edit::{LoopEditOp, SEAM_FRAMES};
 use engine::LooperState;
 
 fn cid() -> ChainId {
@@ -195,7 +195,7 @@ fn an_edit_is_refused_while_the_loop_is_not_stopped() {
     store.play(&chain, uid);
 
     assert_eq!(
-        store.apply_edit(&chain, uid, LoopEdit::Trim { start: 64, end: 448 }),
+        store.apply_edit(&chain, uid, LoopEditOp::Keep, 64, 448),
         Err(LooperEditRefused::NotStopped)
     );
     assert_eq!(
@@ -211,7 +211,7 @@ fn a_trim_on_a_stopped_loop_installs_the_shorter_loop() {
     store.stop(&chain, uid);
 
     let new_len = store
-        .apply_edit(&chain, uid, LoopEdit::Trim { start: 64, end: 448 })
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 64, 448)
         .expect("a stopped loop can be trimmed");
 
     assert_eq!(new_len, 384 - SEAM_FRAMES);
@@ -230,7 +230,7 @@ fn undo_restores_the_pre_edit_audio_sample_for_sample() {
     let before = store.export_raw(&chain, uid).unwrap();
 
     store
-        .apply_edit(&chain, uid, LoopEdit::Cut { start: 100, end: 200 })
+        .apply_edit(&chain, uid, LoopEditOp::Cut, 100, 200)
         .unwrap();
     assert_ne!(store.export_raw(&chain, uid).unwrap(), before);
 
@@ -256,7 +256,7 @@ fn the_history_is_capped_and_drops_the_oldest() {
     store.stop(&chain, uid);
     for _ in 0..LOOPER_EDIT_HISTORY_MAX + 3 {
         store
-            .apply_edit(&chain, uid, LoopEdit::Cut { start: 100, end: 200 })
+            .apply_edit(&chain, uid, LoopEditOp::Cut, 100, 200)
             .unwrap();
     }
     assert_eq!(
@@ -272,7 +272,7 @@ fn clearing_the_loop_clears_the_edit_history() {
     let (mut store, chain, uid) = store_with_recorded_loop(512);
     store.stop(&chain, uid);
     store
-        .apply_edit(&chain, uid, LoopEdit::Trim { start: 64, end: 448 })
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 64, 448)
         .unwrap();
     assert_eq!(store.edit_history_depth(&chain, uid).0, 1);
 

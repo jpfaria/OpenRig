@@ -22,6 +22,7 @@ use project::chain::{Chain, EndpointRef, LooperConfig, LooperSpeed};
 use project::project::Project;
 
 use crate::command::{Command, LooperAction, LooperCommand, LooperParam};
+use crate::looper_edit::LoopEdit;
 use crate::dispatcher::CommandDispatcher;
 use crate::local_dispatcher::LocalDispatcher;
 use crate::runtime_control::RuntimeControl;
@@ -83,6 +84,30 @@ impl RuntimeControl for SpyRuntimeControl {
             output.map(|e| e.endpoint).unwrap_or_else(|| "-".into()),
             chain.id.0
         ));
+    }
+
+    fn apply_looper_edit(
+        &self,
+        chain: &Chain,
+        looper: u64,
+        edit: LoopEdit,
+    ) -> anyhow::Result<usize> {
+        self.calls
+            .borrow_mut()
+            .push(format!("edit {edit:?} {} #{looper}", chain.id.0));
+        Ok(0)
+    }
+
+    fn undo_looper_edit(&self, chain: &Chain, looper: u64) {
+        self.calls
+            .borrow_mut()
+            .push(format!("edit-undo {} #{looper}", chain.id.0));
+    }
+
+    fn redo_looper_edit(&self, chain: &Chain, looper: u64) {
+        self.calls
+            .borrow_mut()
+            .push(format!("edit-redo {} #{looper}", chain.id.0));
     }
 
     fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<LoopPcm>)>> {
@@ -366,5 +391,67 @@ fn the_door_sees_the_chain_as_the_command_left_it() {
         seen.borrow().as_slice(),
         [0usize],
         "the door must see the chain without the looper the command removed"
+    );
+}
+
+#[test]
+fn a_waveform_edit_reaches_the_runtime_through_the_bus() {
+    // #826: the audio half of an edit travels the door, so a loop trimmed over
+    // MCP is really trimmed — the #127 parity property.
+    let (dispatcher, calls) = dispatcher_with_spy(vec![chain_with_loopers("rig:input-1", &[UID])]);
+    let edit = LoopEdit::Trim {
+        start: 10,
+        end: 100,
+    };
+
+    dispatcher
+        .dispatch(Command::Looper(LooperCommand::EditChainLooperAudio {
+            chain: ChainId("rig:input-1".into()),
+            looper: UID,
+            edit,
+        }))
+        .expect("a known looper accepts an edit");
+
+    assert_eq!(
+        calls.borrow().as_slice(),
+        ["edit Trim { start: 10, end: 100 } rig:input-1 #1"]
+    );
+}
+
+#[test]
+fn edit_undo_and_redo_reach_the_runtime_through_the_bus() {
+    let (dispatcher, calls) = dispatcher_with_spy(vec![chain_with_loopers("rig:input-1", &[UID])]);
+    dispatcher
+        .dispatch(Command::Looper(LooperCommand::UndoChainLooperEdit {
+            chain: ChainId("rig:input-1".into()),
+            looper: UID,
+        }))
+        .expect("undo");
+    dispatcher
+        .dispatch(Command::Looper(LooperCommand::RedoChainLooperEdit {
+            chain: ChainId("rig:input-1".into()),
+            looper: UID,
+        }))
+        .expect("redo");
+
+    assert_eq!(
+        calls.borrow().as_slice(),
+        ["edit-undo rig:input-1 #1", "edit-redo rig:input-1 #1"]
+    );
+}
+
+#[test]
+fn editing_an_unknown_looper_is_an_error() {
+    let (dispatcher, calls) = dispatcher_with_spy(vec![chain_with_loopers("rig:input-1", &[UID])]);
+    assert!(dispatcher
+        .dispatch(Command::Looper(LooperCommand::EditChainLooperAudio {
+            chain: ChainId("rig:input-1".into()),
+            looper: 999,
+            edit: LoopEdit::Trim { start: 0, end: 10 },
+        }))
+        .is_err());
+    assert!(
+        calls.borrow().is_empty(),
+        "an unknown looper never reaches the runtime"
     );
 }
