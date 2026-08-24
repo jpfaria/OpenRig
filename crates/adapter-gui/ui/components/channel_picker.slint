@@ -99,6 +99,8 @@ export component ChannelPicker inherits Rectangle {
     // channel count and never stretches to fill its row.
     private property <length> box-height: 22px + root.list-height + 20px;
     private property <bool> scrollable: root.channels.length > root.visible-rows;
+    // Where the list stood when the scrollbar drag started.
+    private property <length> drag-origin: 0px;
 
     // Explicit height: layouts read it as a fixed constraint, and an
     // absolutely-positioned instance (the insert editor) needs it too —
@@ -115,7 +117,7 @@ export component ChannelPicker inherits Rectangle {
         spacing: 4px;
 
         // Selection echo — what is picked stays visible while the list scrolls.
-        HorizontalLayout {
+        header := HorizontalLayout {
             height: 22px;
             padding-left: 4px;
             spacing: 0px;
@@ -203,13 +205,32 @@ export component ChannelPicker inherits Rectangle {
                 background: #232327;
                 border-radius: 3px;
 
-                Rectangle {
+                scroll-thumb := Rectangle {
                     x: 0px;
                     width: 5px;
                     height: Math.max(28px, parent.height * fl.height / fl.viewport-height);
                     y: -fl.viewport-y / fl.viewport-height * parent.height;
-                    background: #5b5b63;
+                    background: bar-ta.pressed ? #8a8a95 : (bar-ta.has-hover ? #71717a : #5b5b63);
                     border-radius: 3px;
+                }
+
+                // The bar has to be GRABBABLE, not just visible. The hit area is
+                // wider than the 5px it paints so the thumb is easy to catch.
+                bar-ta := TouchArea {
+                    x: -7px;
+                    y: 0px;
+                    width: 19px;
+                    height: parent.height;
+                    mouse-cursor: pointer;
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.down) { root.drag-origin = fl.viewport-y; }
+                    }
+                    moved => {
+                        fl.viewport-y = Math.min(0px, Math.max(
+                            -(fl.viewport-height - fl.height),
+                            root.drag-origin
+                                - (self.mouse-y - self.pressed-y) / parent.height * fl.viewport-height));
+                    }
                 }
             }
         }

@@ -81,12 +81,16 @@ fn window_with_open_input_form() -> ProjectSettingsWindow {
     window_with_open_input_form_selecting(&[])
 }
 
+fn window_with_open_input_form_selecting(selected: &[i32]) -> ProjectSettingsWindow {
+    sized_window_with_open_input_form(selected, WIN_H)
+}
+
 /// A window on the I/O bindings section with a 30-channel device selected and
 /// the add-input form open. `selected` pre-selects channels by index (the
 /// toggle callback is unwired here, so the model is seeded directly).
-fn window_with_open_input_form_selecting(selected: &[i32]) -> ProjectSettingsWindow {
+fn sized_window_with_open_input_form(selected: &[i32], win_h: f32) -> ProjectSettingsWindow {
     let w = ProjectSettingsWindow::new().unwrap();
-    w.window().set_size(LogicalSize::new(WIN_W, WIN_H));
+    w.window().set_size(LogicalSize::new(WIN_W, win_h));
     w.set_io_bindings(ModelRc::new(VecModel::from(vec![binding()])));
     w.set_settings_selected_section(6);
     let chans: Vec<ChannelOptionItem> = (0..CHANNEL_COUNT)
@@ -187,43 +191,67 @@ fn thirty_channels_stay_inside_the_window_and_the_last_one_is_reachable() {
     assert!(sel, "clicking an unselected channel must toggle it ON");
 
     // ── 5. The wheel over the LIST scrolls the LIST, not the page ────────────
-    //    The picker lives inside the settings panel's own ScrollView. If the
-    //    outer one takes the wheel, the only way to reach channel 30 is to grab
-    //    the thin scrollbar by hand.
-    let w = window_with_open_input_form();
-    let device_y_before = i_slint_backend_testing::ElementHandle::find_by_element_id(
-        &w,
-        "SectionSystemIoBindings::add-input-submit-btn",
-    )
-    .next()
-    .expect("the open form's submit button must be on screen")
-    .absolute_position()
-    .y;
-    let first_cell = channel_cells(&w).remove(0);
-    let over_list = center_of(&first_cell);
-    let first_y_before = first_cell.absolute_position().y;
+    //    The picker lives inside the settings panel's own ScrollView. The window
+    //    is SHORT here on purpose so the panel itself has somewhere to scroll —
+    //    with a tall window the outer scroll cannot move and the test proves
+    //    nothing. If the outer one wins the wheel, the only way down the channel
+    //    list is to grab its scrollbar by hand.
+    //
+    //    The picker's HEADER is the landmark: it sits inside the picker but
+    //    outside the list, so it moves only when the PAGE moves.
+    let header_y = |w: &ProjectSettingsWindow| {
+        i_slint_backend_testing::ElementHandle::find_by_element_id(w, "ChannelPicker::header")
+            .next()
+            .expect("the channel picker header must be on screen")
+            .absolute_position()
+            .y
+    };
+    // Which channel is the topmost row right now — clicking it reports its index.
+    let top_channel = |w: &ProjectSettingsWindow| {
+        let fired: Rc<Cell<i32>> = Rc::new(Cell::new(-1));
+        let f = fired.clone();
+        w.on_toggle_endpoint_channel(move |idx, _sel, _mode| f.set(idx));
+        let cells = channel_cells(w);
+        // Second row: the first can be clipped mid-scroll.
+        click_at(w, center_of(&cells[1]));
+        fired.get()
+    };
 
-    scroll_at(&w, over_list, -120.0);
-
-    let first_y_after = channel_cells(&w)[0].absolute_position().y;
-    let device_y_after = i_slint_backend_testing::ElementHandle::find_by_element_id(
-        &w,
-        "SectionSystemIoBindings::add-input-submit-btn",
-    )
-    .next()
-    .expect("the submit button must still be on screen")
-    .absolute_position()
-    .y;
+    // Sanity: the panel really can scroll. Without this the assertions below are
+    // vacuous — which is exactly how the first version of this test passed.
+    let w = sized_window_with_open_input_form(&[], 620.0);
+    let page_point = center_of(
+        &i_slint_backend_testing::ElementHandle::find_by_element_id(
+            &w,
+            "SectionSystemIoBindings::rename-btn",
+        )
+        .next()
+        .expect("the binding card pencil must be on screen"),
+    );
+    let before = header_y(&w);
+    scroll_at(&w, page_point, -120.0);
     assert!(
-        (device_y_after - device_y_before).abs() < 1.0,
-        "one wheel notch over the channel list moved the PAGE (submit button \
-         {device_y_before} -> {device_y_after}) — the list must take the wheel"
+        header_y(&w) < before - 10.0,
+        "the settings panel did not scroll — this test cannot tell which scroll \
+         area wins the wheel"
+    );
+
+    let w = sized_window_with_open_input_form(&[], 620.0);
+    let header_before = header_y(&w);
+    let top_before = top_channel(&w);
+    scroll_at(&w, center_of(&channel_cells(&w)[1]), -120.0);
+    let header_after = header_y(&w);
+    let top_after = top_channel(&w);
+    assert!(
+        (header_after - header_before).abs() < 1.0,
+        "one wheel notch over the channel list moved the PAGE \
+         ({header_before} -> {header_after}) — the list must take the wheel"
     );
     assert!(
-        first_y_after < first_y_before - 10.0,
+        top_after > top_before,
         "one wheel notch over the channel list did not scroll the list \
-         (first cell {first_y_before} -> {first_y_after}) — the user has to \
-         drag the scrollbar by hand"
+         (top channel {top_before} -> {top_after}) — the user has to drag the \
+         scrollbar by hand"
     );
 
     // ── 6. The selection echo lists EVERY selected channel, side by side ─────
@@ -246,5 +274,41 @@ fn thirty_channels_stay_inside_the_window_and_the_last_one_is_reachable() {
         chips[0].0 + chips[0].1 <= chips[1].0,
         "the selection chips overlap ({chips:?}) — the second one draws on top \
          of the first, so the header reads as garbage"
+    );
+
+    // ── 7. The scrollbar can be DRAGGED ──────────────────────────────────────
+    //    An indicator you cannot grab is worse than the hairline it replaced.
+    let w = window_with_open_input_form();
+    let thumb = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        &w,
+        "ChannelPicker::scroll-thumb",
+    )
+    .next()
+    .expect("the channel list has no scrollbar thumb element");
+    let first_y_before = channel_cells(&w)[0].absolute_position().y;
+
+    let grab = center_of(&thumb);
+    let win = w.window();
+    win.dispatch_event(WindowEvent::PointerMoved { position: grab });
+    win.dispatch_event(WindowEvent::PointerPressed {
+        position: grab,
+        button: PointerEventButton::Left,
+    });
+    for step in 1..=6 {
+        win.dispatch_event(WindowEvent::PointerMoved {
+            position: LogicalPosition::new(grab.x, grab.y + 10.0 * step as f32),
+        });
+    }
+    win.dispatch_event(WindowEvent::PointerReleased {
+        position: LogicalPosition::new(grab.x, grab.y + 60.0),
+        button: PointerEventButton::Left,
+    });
+
+    let first_y_after = channel_cells(&w)[0].absolute_position().y;
+    assert!(
+        first_y_after < first_y_before - 10.0,
+        "dragging the scrollbar thumb down did not scroll the channel list \
+         ({first_y_before} -> {first_y_after}) — the bar is a painted indicator \
+         with nothing to grab"
     );
 }
