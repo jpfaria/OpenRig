@@ -344,3 +344,7 @@ mod tests;
 #[cfg(test)]
 #[path = "runtime_loopers_808_tests.rs"]
 mod tests_808;
+
+#[cfg(test)]
+#[path = "runtime_loopers_826_tests.rs"]
+mod tests_826;
