@@ -55,13 +55,10 @@ SLINT_CHANGED=false
 # the repo exempt from the size cap.
 DEBT_FILES="
 crates/adapter-gui/src/desktop_app.rs 964
-crates/adapter-gui/src/settings/io_bindings.rs 610
 crates/adapter-gui/ui/app-window.slint 926
 crates/adapter-gui/ui/desktop_main.slint 612
-crates/adapter-gui/ui/pages/block_panel_editor.slint 501
 crates/adapter-gui/ui/pages/chain_row.slint 895
 crates/adapter-gui/ui/touch_main.slint 679
-crates/engine/src/runtime.rs 603
 crates/infra-cpal/src/controller.rs 1051
 crates/infra-cpal/src/jack_supervisor/live_backend.rs 627
 crates/infra-cpal/src/jack_supervisor/supervisor.rs 759
