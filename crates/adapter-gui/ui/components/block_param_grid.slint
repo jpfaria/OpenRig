@@ -24,6 +24,11 @@ export component BlockParamGrid inherits ScrollView {
     // rows (tab_slot >= 0), positioned by tab_slot; otherwise every row shows,
     // positioned by loop index (unchanged behaviour).
     in property <bool> has-param-tabs;
+    // #878: the block's EQ widget draws the band parameters, so the grid holds
+    // only the knobs it does NOT own (the output trim). They live in the short
+    // panel strip beside the power switch, in their own dense row — the wrapped
+    // knob geometry above would place them under the widget.
+    in property <bool> has-eq-widget;
     in property <length> grid-area-x;
     in property <length> grid-cell-w;
     in property <int> grid-cols;
@@ -38,6 +43,17 @@ export component BlockParamGrid inherits ScrollView {
 
     viewport-width: self.visible-width;
     viewport-height: root.content-height;
+
+    // Slot geometry of the param rows. `tab_slot` is the row's compacted
+    // position among the rows that actually render, so it also drives the EQ
+    // strip, where the widget-owned rows are tagged -1 (#878).
+    private property <bool> slotted: root.has-param-tabs || root.has-eq-widget;
+    private property <length> eq-cell-w: 96px;
+    private property <int> eq-cols: Math.max(1, Math.floor((root.width - 64px) / self.eq-cell-w));
+    private property <length> cell-w: root.has-eq-widget ? self.eq-cell-w : root.grid-cell-w;
+    private property <length> area-x: root.has-eq-widget ? 64px : root.grid-area-x;
+    private property <length> base-y: root.has-eq-widget ? 2px : root.grid-base-y;
+    private property <int> cols: root.has-eq-widget ? self.eq-cols : root.grid-cols;
 
     for knob[ki] in root.knob-overlays : Rectangle {
         visible: root.show-overlays;
@@ -70,10 +86,10 @@ export component BlockParamGrid inherits ScrollView {
     }
 
     for param[pi] in root.param-items : BlockPanelParameterItem {
-        visible: root.show-params && (!root.has-param-tabs || param.tab_slot >= 0);
-        x: root.grid-area-x + mod(root.has-param-tabs ? param.tab_slot : pi, root.grid-cols) * root.grid-cell-w;
-        y: root.grid-base-y + Math.floor((root.has-param-tabs ? param.tab_slot : pi) / root.grid-cols) * root.grid-row-stride;
-        width: root.grid-cell-w;
+        visible: root.show-params && (!root.slotted || param.tab_slot >= 0);
+        x: root.area-x + mod(root.slotted ? param.tab_slot : pi, root.cols) * root.cell-w;
+        y: root.base-y + Math.floor((root.slotted ? param.tab_slot : pi) / root.cols) * root.grid-row-stride;
+        width: root.cell-w;
         height: 90px;
         param: param;
         panel-text: root.panel-text;

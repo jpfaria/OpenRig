@@ -89,6 +89,14 @@ msgstr "Tone Doctor"
 msgid "Volume"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/channel_picker.slint:125
+msgid "label-channels-selected"
+msgstr "선택됨:"
+
+#: crates/adapter-gui/ui/components/channel_picker.slint:159
+msgid "label-channels-total"
+msgstr "채널 {}개"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:72
 msgid "placeholder-search-models"
 msgstr "모델 검색..."
@@ -399,31 +407,31 @@ msgstr "체인 만들기"
 msgid "btn-save-chain"
 msgstr "체인 저장"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:35
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:51
 msgid "title-section-configure-insert"
 msgstr "Insert 구성"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:50
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:66
 msgid "action-toggle-block-enabled"
 msgstr "켜기 / 끄기"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:71
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:87
 msgid "action-delete-block"
 msgstr "블록 삭제"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:91
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:110
 msgid "label-io-binding"
 msgstr "I/O"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:104
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
 msgid "msg-insert-loop-uses-binding"
 msgstr "센드는 이 I/O의 출력으로 나가고, 리턴은 그 입력으로 돌아옵니다."
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:111
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
 msgid "msg-pick-io-binding"
 msgstr "루프가 지나갈 I/O를 선택하세요"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:130
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:147
 msgid "btn-ok"
 msgstr "확인"
 
@@ -667,51 +675,55 @@ msgstr "엔드포인트 추가"
 msgid "label-channels-prefix"
 msgstr "채널"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:229
 msgid "help-io-bindings"
 msgstr ""
 "같은 인터페이스의 입력과 출력을 묶습니다. 각 체인은 하나의 바인딩을 사용합니"
 "다."
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:233
 msgid "btn-new-binding"
 msgstr "새 바인딩"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:259
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "empty-no-bindings"
 msgstr "아직 바인딩이 없습니다"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:247
 msgid "empty-no-bindings-hint"
 msgstr "인터페이스의 입력과 출력을 묶을 바인딩을 만드세요."
 
 #. ── Entradas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:345
 msgid "label-group-inputs"
 msgstr "입력"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:346
 msgid "empty-no-input-endpoints"
 msgstr "아직 입력이 없습니다"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:372
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
 msgid "btn-add-input"
 msgstr "+ 입력 추가"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:379
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:366
 msgid "placeholder-pick-device"
 msgstr "장치 선택"
 
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:374
+msgid "hint-channels-pick-device"
+msgstr "장치를 선택하면 채널이 표시됩니다"
+
 #. ── Saídas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:411
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:399
 msgid "label-group-outputs"
 msgstr "출력"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:412
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:400
 msgid "empty-no-output-endpoints"
 msgstr "아직 출력이 없습니다"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:425
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:413
 msgid "btn-add-output"
 msgstr "+ 출력 추가"
 
@@ -863,7 +875,7 @@ msgstr "OpenRig · Tuner"
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:239
+#: crates/adapter-gui/ui/secondary_windows_block.slint:211
 msgid "title-window-chain-view"
 msgstr "OpenRig · 체인"
 

@@ -89,6 +89,14 @@ msgstr "Tone Doctor"
 msgid "Volume"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/channel_picker.slint:125
+msgid "label-channels-selected"
+msgstr "चयनित:"
+
+#: crates/adapter-gui/ui/components/channel_picker.slint:159
+msgid "label-channels-total"
+msgstr "{} चैनल"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:72
 msgid "placeholder-search-models"
 msgstr "मॉडल खोजें..."
@@ -398,31 +406,31 @@ msgstr "चेन बनाएं"
 msgid "btn-save-chain"
 msgstr "चेन सहेजें"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:35
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:51
 msgid "title-section-configure-insert"
 msgstr "Insert कॉन्फ़िगर करें"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:50
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:66
 msgid "action-toggle-block-enabled"
 msgstr "सक्षम / अक्षम"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:71
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:87
 msgid "action-delete-block"
 msgstr "ब्लॉक हटाएं"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:91
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:110
 msgid "label-io-binding"
 msgstr "I/O"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:104
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
 msgid "msg-insert-loop-uses-binding"
 msgstr "सेंड इस I/O के आउटपुट से जाता है; रिटर्न उसके इनपुट पर वापस आता है।"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:111
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
 msgid "msg-pick-io-binding"
 msgstr "वह I/O चुनें जिससे यह लूप गुज़रता है"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:130
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:147
 msgid "btn-ok"
 msgstr "ठीक है"
 
@@ -666,50 +674,54 @@ msgstr "एंडपॉइंट जोड़ें"
 msgid "label-channels-prefix"
 msgstr "चैनल"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:229
 msgid "help-io-bindings"
 msgstr ""
 "एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:233
 msgid "btn-new-binding"
 msgstr "नई बाइंडिंग"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:259
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "empty-no-bindings"
 msgstr "अभी तक कोई बाइंडिंग नहीं"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:247
 msgid "empty-no-bindings-hint"
 msgstr "किसी इंटरफ़ेस के इनपुट और आउटपुट को समूहित करने के लिए एक बनाएँ।"
 
 #. ── Entradas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:345
 msgid "label-group-inputs"
 msgstr "इनपुट"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:346
 msgid "empty-no-input-endpoints"
 msgstr "अभी कोई इनपुट नहीं"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:372
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
 msgid "btn-add-input"
 msgstr "+ इनपुट जोड़ें"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:379
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:366
 msgid "placeholder-pick-device"
 msgstr "डिवाइस चुनें"
 
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:374
+msgid "hint-channels-pick-device"
+msgstr "चैनल देखने के लिए डिवाइस चुनें"
+
 #. ── Saídas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:411
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:399
 msgid "label-group-outputs"
 msgstr "आउटपुट"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:412
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:400
 msgid "empty-no-output-endpoints"
 msgstr "अभी कोई आउटपुट नहीं"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:425
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:413
 msgid "btn-add-output"
 msgstr "+ आउटपुट जोड़ें"
 
@@ -861,7 +873,7 @@ msgstr "OpenRig · Tuner"
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:239
+#: crates/adapter-gui/ui/secondary_windows_block.slint:211
 msgid "title-window-chain-view"
 msgstr "OpenRig · चेन"
 

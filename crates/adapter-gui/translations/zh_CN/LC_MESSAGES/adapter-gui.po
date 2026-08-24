@@ -89,6 +89,14 @@ msgstr "Tone Doctor"
 msgid "Volume"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/channel_picker.slint:125
+msgid "label-channels-selected"
+msgstr "已选择："
+
+#: crates/adapter-gui/ui/components/channel_picker.slint:159
+msgid "label-channels-total"
+msgstr "{} 个通道"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:72
 msgid "placeholder-search-models"
 msgstr "搜索模型..."
@@ -398,31 +406,31 @@ msgstr "创建链"
 msgid "btn-save-chain"
 msgstr "保存链"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:35
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:51
 msgid "title-section-configure-insert"
 msgstr "配置Insert"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:50
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:66
 msgid "action-toggle-block-enabled"
 msgstr "启用 / 停用"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:71
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:87
 msgid "action-delete-block"
 msgstr "删除块"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:91
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:110
 msgid "label-io-binding"
 msgstr "I/O"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:104
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
 msgid "msg-insert-loop-uses-binding"
 msgstr "发送从该 I/O 的输出送出，返回从其输入回来。"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:111
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
 msgid "msg-pick-io-binding"
 msgstr "选择该环路经过的 I/O"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:130
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:147
 msgid "btn-ok"
 msgstr "确定"
 
@@ -666,49 +674,53 @@ msgstr "添加端点"
 msgid "label-channels-prefix"
 msgstr "通道"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:229
 msgid "help-io-bindings"
 msgstr "将同一接口的输入和输出归为一组。每个链使用一个绑定。"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:233
 msgid "btn-new-binding"
 msgstr "新建绑定"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:259
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "empty-no-bindings"
 msgstr "还没有绑定"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:247
 msgid "empty-no-bindings-hint"
 msgstr "创建一个，将接口的输入和输出归为一组。"
 
 #. ── Entradas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:345
 msgid "label-group-inputs"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:346
 msgid "empty-no-input-endpoints"
 msgstr "暂无输入端点"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:372
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
 msgid "btn-add-input"
 msgstr "+ 添加输入"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:379
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:366
 msgid "placeholder-pick-device"
 msgstr "选择设备"
 
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:374
+msgid "hint-channels-pick-device"
+msgstr "选择设备以列出其通道"
+
 #. ── Saídas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:411
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:399
 msgid "label-group-outputs"
 msgstr "输出"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:412
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:400
 msgid "empty-no-output-endpoints"
 msgstr "暂无输出端点"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:425
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:413
 msgid "btn-add-output"
 msgstr "+ 添加输出"
 
@@ -860,7 +872,7 @@ msgstr "OpenRig · Tuner"
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:239
+#: crates/adapter-gui/ui/secondary_windows_block.slint:211
 msgid "title-window-chain-view"
 msgstr "OpenRig · 链"
 

@@ -89,6 +89,14 @@ msgstr "Tone Doctor"
 msgid "Volume"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/channel_picker.slint:125
+msgid "label-channels-selected"
+msgstr "Sélectionnés :"
+
+#: crates/adapter-gui/ui/components/channel_picker.slint:159
+msgid "label-channels-total"
+msgstr "{} canaux"
+
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:72
 msgid "placeholder-search-models"
 msgstr "Rechercher des modèles..."
@@ -400,31 +408,31 @@ msgstr "Créer la chaîne"
 msgid "btn-save-chain"
 msgstr "Enregistrer la chaîne"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:35
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:51
 msgid "title-section-configure-insert"
 msgstr "Configurer Insert"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:50
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:66
 msgid "action-toggle-block-enabled"
 msgstr "Activer / désactiver"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:71
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:87
 msgid "action-delete-block"
 msgstr "Supprimer le bloc"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:91
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:110
 msgid "label-io-binding"
 msgstr "E/S"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:104
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
 msgid "msg-insert-loop-uses-binding"
 msgstr "Le send sort par la sortie de cette E/S ; le return revient par son entrée."
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:111
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
 msgid "msg-pick-io-binding"
 msgstr "Choisissez l'E/S par laquelle passe la boucle"
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:130
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:147
 msgid "btn-ok"
 msgstr "OK"
 
@@ -668,51 +676,55 @@ msgstr "Ajouter un point d'E/S"
 msgid "label-channels-prefix"
 msgstr "Canaux"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:229
 msgid "help-io-bindings"
 msgstr ""
 "Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise "
 "une liaison."
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:233
 msgid "btn-new-binding"
 msgstr "Nouvelle liaison"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:259
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "empty-no-bindings"
 msgstr "Aucune liaison pour l'instant"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:247
 msgid "empty-no-bindings-hint"
 msgstr "Créez-en une pour regrouper l'entrée et la sortie d'une interface."
 
 #. ── Entradas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:345
 msgid "label-group-inputs"
 msgstr "Entrées"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:346
 msgid "empty-no-input-endpoints"
 msgstr "Aucune entrée pour l'instant"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:372
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
 msgid "btn-add-input"
 msgstr "+ Ajouter une entrée"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:379
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:366
 msgid "placeholder-pick-device"
 msgstr "Sélectionnez un périphérique"
 
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:374
+msgid "hint-channels-pick-device"
+msgstr "Choisissez un périphérique pour voir ses canaux"
+
 #. ── Saídas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:411
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:399
 msgid "label-group-outputs"
 msgstr "Sorties"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:412
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:400
 msgid "empty-no-output-endpoints"
 msgstr "Aucune sortie pour l'instant"
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:425
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:413
 msgid "btn-add-output"
 msgstr "+ Ajouter une sortie"
 
@@ -865,7 +877,7 @@ msgstr "OpenRig · Tuner"
 msgid "title-window-block-editor"
 msgstr "OpenRig · Block"
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:239
+#: crates/adapter-gui/ui/secondary_windows_block.slint:211
 msgid "title-window-chain-view"
 msgstr "OpenRig · Chaîne"
 
