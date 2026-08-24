@@ -45,9 +45,23 @@ pub const BASE_PANEL_HEIGHT_PX: f32 = 275.0;
 /// `block_panel_editor.slint`.
 pub const HEADER_HEIGHT_PX: f32 = 48.0;
 
-/// Shortest an EQ widget ever draws — match the `Math.max(280px, …)` floor
-/// the `CurveEditorControl` / `MultiSliderControl` branches use.
-pub const EQ_WIDGET_MIN_HEIGHT_PX: f32 = 280.0;
+/// Height of a `CurveEditorControl`. 280px (not the 200px it started at) so a
+/// band dragged to the bottom of the -24..+24 dB range still clears its
+/// frequency label (issue #358).
+pub const CURVE_EDITOR_HEIGHT_PX: f32 = 280.0;
+
+/// Height of a `MultiSliderControl` — same reasoning, narrower range.
+pub const MULTI_SLIDER_HEIGHT_PX: f32 = 240.0;
+
+/// Horizontal room one band takes in each EQ widget, plus the chrome around
+/// the row. A curve editor gives each band a draggable node, so it needs far
+/// more width per band than a fixed-frequency slider.
+pub const CURVE_EDITOR_BAND_WIDTH_PX: f32 = 200.0;
+pub const MULTI_SLIDER_BAND_WIDTH_PX: f32 = 35.0;
+pub const EQ_WIDTH_CHROME_PX: f32 = 80.0;
+pub const EQ_MIN_WIDTH_PX: f32 = 600.0;
+pub const CURVE_EDITOR_MAX_WIDTH_PX: f32 = 1200.0;
+pub const MULTI_SLIDER_MAX_WIDTH_PX: f32 = 1400.0;
 
 /// Vertical breathing room around the EQ widget (8px above, 8px below) —
 /// match its `y` offset and height subtraction in Slint.
@@ -76,6 +90,48 @@ pub const FORM_ROW_PX: f32 = 96.0;
 /// tall plus `param_count * FORM_ROW_PX` to show every parameter.
 pub const FORM_CHROME_PX: f32 = 164.0;
 
+/// The EQ widget a block renders instead of the knob grid, with the number of
+/// bands it draws — both drive the window it needs.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EqWidget {
+    None,
+    CurveEditor { bands: usize },
+    MultiSlider { bands: usize },
+}
+
+impl EqWidget {
+    pub const fn is_some(self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    /// Height the widget draws at.
+    const fn height_px(self) -> f32 {
+        match self {
+            Self::None => 0.0,
+            Self::CurveEditor { .. } => CURVE_EDITOR_HEIGHT_PX,
+            Self::MultiSlider { .. } => MULTI_SLIDER_HEIGHT_PX,
+        }
+    }
+
+    /// Width the widget needs for its bands, clamped to a sane window.
+    fn width_px(self) -> f32 {
+        let (bands, per_band, max) = match self {
+            Self::None => return MIN_PANEL_WIDTH_PX,
+            Self::CurveEditor { bands } => (
+                bands,
+                CURVE_EDITOR_BAND_WIDTH_PX,
+                CURVE_EDITOR_MAX_WIDTH_PX,
+            ),
+            Self::MultiSlider { bands } => (
+                bands,
+                MULTI_SLIDER_BAND_WIDTH_PX,
+                MULTI_SLIDER_MAX_WIDTH_PX,
+            ),
+        };
+        (bands as f32 * per_band + EQ_WIDTH_CHROME_PX).clamp(EQ_MIN_WIDTH_PX, max)
+    }
+}
+
 /// Inputs to the dimension solver. Every flag that can shift the
 /// resulting window size sits here so the test matrix can enumerate
 /// combinations explicitly.
@@ -84,15 +140,15 @@ pub struct PanelInputs {
     /// Number of knobs to render in the grid. Caller picks the
     /// authoritative source: when curated `knob_layout` overlays are
     /// present, use their count; otherwise use `block_parameter_items`
-    /// length. EQ blocks (see `has_eq_widget`) pass 0.
+    /// length. EQ blocks (see `eq_widget`) pass the knobs their widget
+    /// does not draw.
     pub knob_count: usize,
     /// `true` when the selected effect type renders a panel-style
     /// editor (Amp, Cab, Dyn, Mod, Filter, …). Native form blocks
     /// fall back to the form editor regardless of knob count.
     pub use_panel_editor: bool,
-    /// `true` when an EQ widget (`MultiSliderControl` or
-    /// `CurveEditorControl`) is rendered instead of the knob grid.
-    pub has_eq_widget: bool,
+    /// The EQ widget rendered instead of the knob grid, if any.
+    pub eq_widget: EqWidget,
 }
 
 impl PanelInputs {
@@ -101,7 +157,7 @@ impl PanelInputs {
         Self {
             knob_count,
             use_panel_editor: true,
-            has_eq_widget: false,
+            eq_widget: EqWidget::None,
         }
     }
 }
@@ -151,13 +207,29 @@ pub fn grid_rows(knob_count: usize) -> usize {
     }
 }
 
+/// Pick the widget from the two point models the editor publishes — the curve
+/// editor wins when both carry rows, exactly as the Slint branches do.
+pub fn eq_widget_for(curve_points: usize, slider_points: usize) -> EqWidget {
+    if curve_points > 0 {
+        EqWidget::CurveEditor {
+            bands: curve_points,
+        }
+    } else if slider_points > 0 {
+        EqWidget::MultiSlider {
+            bands: slider_points,
+        }
+    } else {
+        EqWidget::None
+    }
+}
+
 /// Solve dimensions for a given input. Pure function — every Slint
 /// branch maps to a path here, every path is unit-tested below.
 pub fn compute(inputs: PanelInputs) -> PanelDimensions {
     if !inputs.use_panel_editor {
         return form_dimensions(inputs.knob_count);
     }
-    if inputs.has_eq_widget {
+    if inputs.eq_widget.is_some() {
         // The strip above the widget holds the power switch, plus one cell of
         // knobs when the widget leaves any for the grid (#878).
         let strip = if inputs.knob_count > 0 {
@@ -166,13 +238,13 @@ pub fn compute(inputs: PanelInputs) -> PanelDimensions {
             EQ_STRIP_BARE_PX
         };
         return PanelDimensions {
-            window_width_px: MIN_PANEL_WIDTH_PX,
-            // The widget is laid out below the header and the strip and never
-            // draws shorter than its floor: a window sized for the knob grid
-            // it never renders clipped the band sliders' labels (#878).
+            window_width_px: inputs.eq_widget.width_px(),
+            // Exactly what the window stacks: the widget sits below the header
+            // and the strip, so a window sized for anything else cuts off its
+            // bottom row of frequency labels (#878, #358).
             window_height_px: HEADER_HEIGHT_PX
                 + strip
-                + EQ_WIDGET_MIN_HEIGHT_PX
+                + inputs.eq_widget.height_px()
                 + EQ_WIDGET_MARGIN_PX,
             grid_cols: 0,
             grid_rows: 0,

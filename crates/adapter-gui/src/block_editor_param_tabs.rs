@@ -241,8 +241,10 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     } else {
         param_count
     };
-    let has_eq_widget = window.get_multi_slider_points().row_count() > 0
-        || window.get_curve_editor_points().row_count() > 0;
+    let eq_widget = crate::block_panel_dimensions::eq_widget_for(
+        window.get_curve_editor_points().row_count(),
+        window.get_multi_slider_points().row_count(),
+    );
     let type_idx = window.get_block_drawer_selected_type_index();
     let types = window.get_block_type_options();
     let use_panel_editor = if type_idx >= 0 {
@@ -256,11 +258,11 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     let dims = crate::block_panel_dimensions::compute(crate::block_panel_dimensions::PanelInputs {
         knob_count,
         use_panel_editor,
-        has_eq_widget,
+        eq_widget,
     });
     // EQ-widget blocks render no tab bar (#878) — no 40px to reserve for it.
     tabs.set_panel_height(
-        dims.window_height_px + if has_tabs && !has_eq_widget { 40.0 } else { 0.0 },
+        dims.window_height_px + if has_tabs && !eq_widget.is_some() { 40.0 } else { 0.0 },
     );
     // #500 inner knob-grid dimensions: BlockPanelEditor lays out the grid from
     // these, so the inline editor must get them exactly like the detached one.

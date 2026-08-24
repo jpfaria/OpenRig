@@ -303,11 +303,8 @@ export component BlockPanelEditor inherits Rectangle {
         x: 8px;
         y: root.content-top + root.panel-height + 8px;
         width: root.width - 16px;
-        height: Math.max(
-            280px,
-            root.height - root.header-height - root.brand-strip-height
-                - root.panel-height - 16px,
-        );
+        height: root.height - root.header-height - root.brand-strip-height
+            - root.panel-height - 16px;
         points: root.curve-editor-points;
         total-curve: root.eq-total-curve;
         band-curves: root.eq-band-curves;
@@ -319,11 +316,8 @@ export component BlockPanelEditor inherits Rectangle {
         x: 8px;
         y: root.content-top + root.panel-height + 8px;
         width: root.width - 16px;
-        height: Math.max(
-            280px,
-            root.height - root.header-height - root.brand-strip-height
-                - root.panel-height - 16px,
-        );
+        height: root.height - root.header-height - root.brand-strip-height
+            - root.panel-height - 16px;
         points: root.multi-slider-points;
         update-parameter(path, value) => { root.update-block-parameter-number(path, value); }
     }

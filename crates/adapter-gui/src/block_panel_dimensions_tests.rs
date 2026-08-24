@@ -286,12 +286,12 @@ fn req_layout_does_not_depend_on_knob_origin() {
         let a = compute(PanelInputs {
             knob_count: n,
             use_panel_editor: true,
-            has_eq_widget: false,
+            eq_widget: EqWidget::None,
         });
         let b = compute(PanelInputs {
             knob_count: n,
             use_panel_editor: true,
-            has_eq_widget: false,
+            eq_widget: EqWidget::None,
         });
         assert_eq!(a, b, "n={n}");
     }
@@ -310,7 +310,7 @@ fn req_form_window_grows_to_fit_all_params() {
         compute(PanelInputs {
             knob_count: n,
             use_panel_editor: false,
-            has_eq_widget: false,
+            eq_widget: EqWidget::None,
         })
     }
     assert!(
@@ -342,7 +342,7 @@ fn req_form_editor_bypasses_wrap_math_with_fixed_width() {
         let d = compute(PanelInputs {
             knob_count: n,
             use_panel_editor: false,
-            has_eq_widget: false,
+            eq_widget: EqWidget::None,
         });
         assert_eq!(d.grid_rows, 0, "n={n}");
         assert_eq!(d.grid_cols, 0, "n={n}");
@@ -360,7 +360,7 @@ fn req_eq_mode_does_not_open_the_param_grid() {
         let d = compute(PanelInputs {
             knob_count: n,
             use_panel_editor: true,
-            has_eq_widget: true,
+            eq_widget: EqWidget::CurveEditor { bands: 8 },
         });
         assert_eq!(d.grid_cols, 0, "n={n}");
         assert_eq!(d.grid_rows, 0, "n={n}");
@@ -375,21 +375,25 @@ fn req_eq_window_is_tall_enough_for_the_widget_below_the_strip() {
     // and never draws shorter than `EQ_WIDGET_MIN_HEIGHT_PX`. A window sized
     // for a knob grid it never renders left the widget hanging past the
     // bottom edge, so the band sliders' frequency labels were cut in half.
-    for n in [0usize, 1, 3] {
-        let d = compute(PanelInputs {
-            knob_count: n,
-            use_panel_editor: true,
-            has_eq_widget: true,
-        });
-        let needed = HEADER_HEIGHT_PX
-            + d.inner_panel_height_px
-            + EQ_WIDGET_MIN_HEIGHT_PX
-            + EQ_WIDGET_MARGIN_PX;
-        assert!(
-            d.window_height_px >= needed,
-            "knob_count={n}: window is {}px, the widget needs {needed}px",
-            d.window_height_px
-        );
+    let widgets = [
+        (EqWidget::CurveEditor { bands: 8 }, CURVE_EDITOR_HEIGHT_PX),
+        (EqWidget::MultiSlider { bands: 3 }, MULTI_SLIDER_HEIGHT_PX),
+    ];
+    for (widget, widget_h) in widgets {
+        for n in [0usize, 1, 3] {
+            let d = compute(PanelInputs {
+                knob_count: n,
+                use_panel_editor: true,
+                eq_widget: widget,
+            });
+            let needed =
+                HEADER_HEIGHT_PX + d.inner_panel_height_px + widget_h + EQ_WIDGET_MARGIN_PX;
+            assert!(
+                d.window_height_px >= needed,
+                "{widget:?} knob_count={n}: window is {}px, the widget needs {needed}px",
+                d.window_height_px
+            );
+        }
     }
 }
 
@@ -401,12 +405,12 @@ fn req_eq_strip_shrinks_when_the_grid_has_no_knobs() {
     let bare = compute(PanelInputs {
         knob_count: 0,
         use_panel_editor: true,
-        has_eq_widget: true,
+        eq_widget: EqWidget::CurveEditor { bands: 8 },
     });
     let with_knob = compute(PanelInputs {
         knob_count: 1,
         use_panel_editor: true,
-        has_eq_widget: true,
+        eq_widget: EqWidget::CurveEditor { bands: 8 },
     });
     assert!(
         bare.inner_panel_height_px < with_knob.inner_panel_height_px,

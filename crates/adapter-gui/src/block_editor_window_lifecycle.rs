@@ -64,8 +64,10 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     } else {
         param_count
     };
-    let has_eq_widget = win.get_multi_slider_points().row_count() > 0
-        || win.get_curve_editor_points().row_count() > 0;
+    let eq_widget = crate::block_panel_dimensions::eq_widget_for(
+        win.get_curve_editor_points().row_count(),
+        win.get_multi_slider_points().row_count(),
+    );
     let type_idx = win.get_block_drawer_selected_type_index();
     let types = win.get_block_type_options();
     let use_panel_editor = if type_idx >= 0 {
@@ -83,14 +85,14 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     let dims = crate::block_panel_dimensions::compute(crate::block_panel_dimensions::PanelInputs {
         knob_count,
         use_panel_editor,
-        has_eq_widget,
+        eq_widget,
     });
     win.set_panel_knob_window_width(dims.window_width_px);
     // The tab bar is suppressed for EQ-widget blocks (#878), so its 40px must
     // not be added to their window either — it would only pad dead space.
     win.set_panel_knob_window_height(
         dims.window_height_px
-            + if !has_eq_widget && win.get_block_parameter_groups().row_count() > 1 {
+            + if !eq_widget.is_some() && win.get_block_parameter_groups().row_count() > 1 {
                 40.0
             } else {
                 0.0

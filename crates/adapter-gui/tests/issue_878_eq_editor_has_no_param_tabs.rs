@@ -87,7 +87,7 @@ fn every_band_slider_fits_inside_the_editor_window() {
         adapter_gui::block_panel_dimensions::PanelInputs {
             knob_count: 1,
             use_panel_editor: true,
-            has_eq_widget: true,
+            eq_widget: adapter_gui::block_panel_dimensions::EqWidget::CurveEditor { bands: 8 },
         },
     );
     let window_h = dims.window_height_px;
