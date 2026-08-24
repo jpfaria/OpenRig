@@ -54,11 +54,21 @@ pub fn retag_for_group(items: &[BlockParameterItem], active: &str) -> Vec<BlockP
     retag(items, |it| is_pinned(it) || group_label(it) == active)
 }
 
-/// Tag EVERY grid-owned row visible, with no tab filter — what a block whose
-/// EQ widget draws the rest needs: there is no tab bar to pick a group with,
-/// and the handful of remaining knobs form a single dense strip (#878).
+/// Tag the rows of the groups the EQ widget does NOT draw, with no tab filter —
+/// what a block whose widget draws the rest needs: there is no tab bar to pick
+/// a group with, and the handful of remaining knobs form a single dense strip.
+///
+/// A group the widget draws is drawn WHOLE: a band's on/off toggle and filter
+/// type belong to that band, so the widget owns them along with its curve. An
+/// equalizer shows sliders — a loose row of ENABLED toggles and TYPE dropdowns
+/// above them is not something an equalizer has (#878).
 pub fn retag_all(items: &[BlockParameterItem]) -> Vec<BlockParameterItem> {
-    retag(items, |_| true)
+    let widget_groups: Vec<&str> = items
+        .iter()
+        .filter(|it| it.widget_kind.is_empty())
+        .map(group_label)
+        .collect();
+    retag(items, |it| !widget_groups.contains(&group_label(it)))
 }
 
 fn retag(
