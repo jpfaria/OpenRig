@@ -72,10 +72,16 @@ mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
+mod controller_health;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod controller_jack_servers;
 mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
+mod controller_rebuild_queue;
+mod controller_sync;
 mod controller_taps;
+mod controller_upsert;
 mod device_enum;
 mod di_playback;
 mod di_stream;

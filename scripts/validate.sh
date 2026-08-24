@@ -59,7 +59,6 @@ crates/adapter-gui/ui/app-window.slint 926
 crates/adapter-gui/ui/desktop_main.slint 612
 crates/adapter-gui/ui/pages/chain_row.slint 895
 crates/adapter-gui/ui/touch_main.slint 679
-crates/infra-cpal/src/controller.rs 1051
 crates/infra-cpal/src/jack_supervisor/live_backend.rs 627
 crates/infra-cpal/src/jack_supervisor/supervisor.rs 759
 crates/lv2/src/host.rs 653
