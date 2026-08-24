@@ -66,6 +66,33 @@ pub(crate) fn output_devices_by_input_cpal(
         }
     }
 
+    // #881: an insert's SEND is an output of this chain too. Its E/S usually
+    // contributes no input, so the binding-group pass never lists that device —
+    // and an output stream mixes only the runtimes mapped to its device, so the
+    // send wrote silence into the loop while the segment's own tap carried the
+    // signal. Like the mid-output case above, this adds the device to THIS
+    // chain's input streams only: this chain's runtime is the one that feeds it.
+    let insert_send_devices: Vec<String> = chain
+        .blocks
+        .iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            project::block::AudioBlockKind::Insert(ib) => registry
+                .iter()
+                .find(|binding| binding.id == ib.io)
+                .and_then(|binding| binding.outputs.first())
+                .map(|ep| ep.device_id.0.clone()),
+            _ => None,
+        })
+        .collect();
+    for devices in by_cpal.iter_mut() {
+        for device in &insert_send_devices {
+            if !devices.contains(device) {
+                devices.push(device.clone());
+            }
+        }
+    }
+
     // #85 (the mirror case): a mid `Input` brings its own E/S into the chain and
     // its signal flows on to the chain's TAIL. Its binding usually has no output
     // at all, so the group pass leaves that stream mapped to nothing and the
