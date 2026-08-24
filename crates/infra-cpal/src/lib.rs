@@ -128,8 +128,15 @@ mod dsp_worker;
 mod dsp_worker_recovery_tests;
 mod metronome_stream;
 mod stream_builder;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod stream_builder_input;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod stream_builder_output;
+mod stream_builder_project;
 mod stream_config;
-pub use stream_builder::build_streams_for_project;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod stream_signature;
+pub use stream_builder_project::build_streams_for_project;
 
 // Cross-module helpers — these used to live in lib.rs and are referenced
 // by sibling modules (chain_resolve, controller, validation, device_enum,
@@ -138,10 +145,7 @@ pub use stream_builder::build_streams_for_project;
 // flip-day across every file.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub(crate) use jack_chain_resolve::jack_resolve_chain_config;
-#[cfg(all(target_os = "linux", feature = "jack"))]
 pub(crate) use stream_builder::build_active_chain_runtime;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) use stream_builder::{build_active_chain_runtime, build_chain_stream_signature_multi};
 pub(crate) use stream_config::resolved_output_buffer_size_frames;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use stream_config::{
@@ -149,6 +153,8 @@ pub(crate) use stream_config::{
     required_channel_count, resolve_binding_sample_rates, resolved_input_sample_rate,
     resolved_output_sample_rate, select_supported_stream_config,
 };
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+pub(crate) use stream_signature::build_chain_stream_signature_multi;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use validation::{
     find_input_device_by_id, find_output_device_by_id, validate_buffer_size,
