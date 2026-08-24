@@ -10,7 +10,6 @@
 // and which scrolls inside that cap. The selection is echoed above the list, so
 // the user never has to scroll to see what they picked.
 
-import { ScrollView } from "std-widgets.slint";
 import { ChannelOptionItem } from "../models.slint";
 
 component ChannelPickerRow inherits Rectangle {
@@ -88,7 +87,7 @@ export component ChannelPicker inherits Rectangle {
     // Single-select (mono) draws radios; multi-select draws checkboxes.
     in property <bool> single-select: false;
     // How many rows are on screen before the list starts scrolling.
-    in property <int> visible-rows: 6;
+    in property <int> visible-rows: 8;
     in property <string> empty-hint;
     callback toggled(int /* index */, bool /* selected */);
 
@@ -99,6 +98,7 @@ export component ChannelPicker inherits Rectangle {
     // Header + capped list + padding. Pinned so the picker never grows with the
     // channel count and never stretches to fill its row.
     private property <length> box-height: 22px + root.list-height + 20px;
+    private property <bool> scrollable: root.channels.length > root.visible-rows;
 
     // Explicit height: layouts read it as a fixed constraint, and an
     // absolutely-positioned instance (the insert editor) needs it too —
@@ -127,23 +127,26 @@ export component ChannelPicker inherits Rectangle {
                 vertical-alignment: center;
             }
             for ch in root.channels : Rectangle {
-                // Only the selected channels claim any width here, so an
-                // unselected 30-channel list costs nothing.
-                if ch.selected : HorizontalLayout {
-                    padding-left: 4px;
-                    Rectangle {
-                        background: #112540;
-                        border-radius: 4px;
-                        HorizontalLayout {
-                            padding-left: 6px;
-                            padding-right: 6px;
-                            Text {
-                                text: ch.label;
-                                color: #60a5fa;
-                                font-size: 12px;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
+                // The chip is ALWAYS built so the layout can measure it; an
+                // unselected channel just collapses to zero width. Under an
+                // `if` the chip reported no width at all and every selected
+                // chip drew on top of the previous one.
+                width: ch.selected ? chip.preferred-width + 6px : 0px;
+                clip: true;
+                chip := Rectangle {
+                    x: 6px;
+                    width: parent.width - 6px;
+                    background: #112540;
+                    border-radius: 4px;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: ch.label;
+                            color: #60a5fa;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
                         }
                     }
                 }
@@ -167,19 +170,47 @@ export component ChannelPicker inherits Rectangle {
             vertical-alignment: center;
         }
 
-        if root.channels.length > 0 : ScrollView {
+        if root.channels.length > 0 : Rectangle {
             height: root.list-height;
-            viewport-width: self.width;
-            viewport-height: root.channels.length * root.row-height;
 
-            for ch[i] in root.channels : chan-cell := ChannelPickerRow {
+            fl := Flickable {
                 x: 0px;
-                y: i * root.row-height;
-                width: parent.width;
-                height: root.row-height;
-                channel: ch;
-                radio: root.single-select;
-                toggled => { root.toggled(i, !ch.selected); }
+                y: 0px;
+                width: parent.width - (root.scrollable ? 12px : 0px);
+                height: parent.height;
+                viewport-width: self.width;
+                viewport-height: root.channels.length * root.row-height;
+
+                for ch[i] in root.channels : chan-cell := ChannelPickerRow {
+                    x: 0px;
+                    y: i * root.row-height;
+                    width: parent.width;
+                    height: root.row-height;
+                    channel: ch;
+                    radio: root.single-select;
+                    toggled => { root.toggled(i, !ch.selected); }
+                }
+            }
+
+            // The track is drawn whenever the list is longer than the box: with
+            // 30 channels the user has to SEE that it continues, not discover a
+            // hairline that only appears once you are already scrolling.
+            if root.scrollable : Rectangle {
+                x: parent.width - 7px;
+                y: 0px;
+                width: 5px;
+                height: parent.height;
+                background: #232327;
+                border-radius: 3px;
+
+                Rectangle {
+                    x: 0px;
+                    width: 5px;
+                    height: Math.max(28px, parent.height * fl.height / fl.viewport-height);
+                    y: -fl.viewport-y / fl.viewport-height * parent.height;
+                    background: #5b5b63;
+                    border-radius: 3px;
+                }
             }
         }
     }

@@ -77,9 +77,14 @@ fn binding() -> IoBindingModel {
     }
 }
 
-/// A window on the I/O bindings section with a 30-channel device selected and
-/// the add-input form open.
 fn window_with_open_input_form() -> ProjectSettingsWindow {
+    window_with_open_input_form_selecting(&[])
+}
+
+/// A window on the I/O bindings section with a 30-channel device selected and
+/// the add-input form open. `selected` pre-selects channels by index (the
+/// toggle callback is unwired here, so the model is seeded directly).
+fn window_with_open_input_form_selecting(selected: &[i32]) -> ProjectSettingsWindow {
     let w = ProjectSettingsWindow::new().unwrap();
     w.window().set_size(LogicalSize::new(WIN_W, WIN_H));
     w.set_io_bindings(ModelRc::new(VecModel::from(vec![binding()])));
@@ -88,7 +93,7 @@ fn window_with_open_input_form() -> ProjectSettingsWindow {
         .map(|i| ChannelOptionItem {
             index: i,
             label: format!("{}", i + 1).into(),
-            selected: false,
+            selected: selected.contains(&i),
             available: true,
         })
         .collect();
@@ -180,4 +185,66 @@ fn thirty_channels_stay_inside_the_window_and_the_last_one_is_reachable() {
         CHANNEL_COUNT - 1
     );
     assert!(sel, "clicking an unselected channel must toggle it ON");
+
+    // ── 5. The wheel over the LIST scrolls the LIST, not the page ────────────
+    //    The picker lives inside the settings panel's own ScrollView. If the
+    //    outer one takes the wheel, the only way to reach channel 30 is to grab
+    //    the thin scrollbar by hand.
+    let w = window_with_open_input_form();
+    let device_y_before = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        &w,
+        "SectionSystemIoBindings::add-input-submit-btn",
+    )
+    .next()
+    .expect("the open form's submit button must be on screen")
+    .absolute_position()
+    .y;
+    let first_cell = channel_cells(&w).remove(0);
+    let over_list = center_of(&first_cell);
+    let first_y_before = first_cell.absolute_position().y;
+
+    scroll_at(&w, over_list, -120.0);
+
+    let first_y_after = channel_cells(&w)[0].absolute_position().y;
+    let device_y_after = i_slint_backend_testing::ElementHandle::find_by_element_id(
+        &w,
+        "SectionSystemIoBindings::add-input-submit-btn",
+    )
+    .next()
+    .expect("the submit button must still be on screen")
+    .absolute_position()
+    .y;
+    assert!(
+        (device_y_after - device_y_before).abs() < 1.0,
+        "one wheel notch over the channel list moved the PAGE (submit button \
+         {device_y_before} -> {device_y_after}) — the list must take the wheel"
+    );
+    assert!(
+        first_y_after < first_y_before - 10.0,
+        "one wheel notch over the channel list did not scroll the list \
+         (first cell {first_y_before} -> {first_y_after}) — the user has to \
+         drag the scrollbar by hand"
+    );
+
+    // ── 6. The selection echo lists EVERY selected channel, side by side ─────
+    //    Real device labels are words ("Channel 1"), not digits: chips that do
+    //    not claim their own width draw on top of each other.
+    let w = window_with_open_input_form_selecting(&[0, 1]);
+    let chips: Vec<(f32, f32)> =
+        i_slint_backend_testing::ElementHandle::find_by_element_id(&w, "ChannelPicker::chip")
+            .map(|el| (el.absolute_position().x, el.size().width))
+            .filter(|(_, w)| *w > 0.0)
+            .collect();
+    assert_eq!(
+        chips.len(),
+        2,
+        "two channels are selected but the header shows {} chip(s) with a \
+         width: {chips:?}",
+        chips.len()
+    );
+    assert!(
+        chips[0].0 + chips[0].1 <= chips[1].0,
+        "the selection chips overlap ({chips:?}) — the second one draws on top \
+         of the first, so the header reads as garbage"
+    );
 }
