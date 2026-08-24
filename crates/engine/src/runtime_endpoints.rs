@@ -304,7 +304,7 @@ pub(crate) fn effective_inputs(
     let insert_returns: Vec<InputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
+        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
             _ => None,
@@ -347,7 +347,7 @@ pub(crate) fn effective_outputs(
     let insert_sends: Vec<OutputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
+        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
             _ => None,
@@ -364,6 +364,20 @@ pub(crate) fn effective_outputs(
         mode: ChainOutputMode::Mono,
         channels: vec![0],
     }]
+}
+
+/// Whether an Insert block is a real send/return boundary: BOTH sides of its
+/// binding have to resolve (#881). A half- or un-resolved insert appends no
+/// shim on either side, so the segment walker never points at an endpoint that
+/// was not created — the chain simply flows through it.
+pub(crate) fn insert_is_bound(kind: &AudioBlockKind, registry: &[IoBinding]) -> bool {
+    match kind {
+        AudioBlockKind::Insert(ib) => {
+            insert_send_as_output_entry(ib, registry).is_some()
+                && insert_return_as_input_entry(ib, registry).is_some()
+        }
+        _ => false,
+    }
 }
 
 /// Resolve an `InsertBlock`'s RETURN (the signal coming back from the external

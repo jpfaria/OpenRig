@@ -436,3 +436,83 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
     assert_eq!(runtime.chains.len(), 1);
     assert!(!runtime.runtimes_for(&ChainId("enabled".into())).is_empty());
 }
+
+#[test]
+fn split_chain_with_unbound_insert_produces_one_segment() {
+    // #881: an insert whose binding does not resolve contributes no send and no
+    // return, so it cannot split the chain — it has to be bypassed, not turn
+    // into a segment boundary pointing at endpoints that were never created.
+    let mut chain = insert_chain();
+    if let AudioBlockKind::Insert(ref mut ib) = chain.blocks[2].kind {
+        ib.io = String::new();
+    } else {
+        panic!("block 2 should be the insert");
+    }
+    let (resolved_in, resolved_out) =
+        crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
+    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
+        effective_inputs(&chain, &resolved_in, &insert_registry());
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
+    let segments = split_chain_into_segments(
+        &chain,
+        &eff_inputs,
+        &cpal_indices,
+        &split_positions,
+        &entry_groups,
+        &eff_outputs,
+        &insert_registry(),
+    );
+
+    assert_eq!(
+        segments.len(),
+        1,
+        "an unbound insert must not split the chain"
+    );
+    assert_eq!(
+        segments[0].block_indices,
+        vec![1, 3],
+        "the chain must flow straight through the unbound insert"
+    );
+    assert!(
+        segments[0]
+            .output_route_indices
+            .iter()
+            .all(|&i| i < eff_outputs.len()),
+        "every output route must exist: {:?} against {} outputs",
+        segments[0].output_route_indices,
+        eff_outputs.len()
+    );
+}
+
+#[test]
+fn split_mono_input_does_not_steal_the_insert_return() {
+    // #881: `effective_inputs` expands a mono multi-channel endpoint into one
+    // entry per channel and appends the insert return AFTER them, but the
+    // segment walker counted Input BLOCKS — so the post-insert segment read
+    // from the second split-mono sibling (the guitar) instead of the return.
+    let chain = insert_chain();
+    let mut registry = insert_registry();
+    registry[0].inputs[0].mode = domain::io_binding::ChannelMode::Mono;
+    registry[0].inputs[0].channels = vec![0, 1];
+
+    let (resolved_in, resolved_out) = crate::runtime_endpoints::resolve_chain_io(&chain, &registry);
+    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
+        effective_inputs(&chain, &resolved_in, &registry);
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &registry);
+    let segments = split_chain_into_segments(
+        &chain,
+        &eff_inputs,
+        &cpal_indices,
+        &split_positions,
+        &entry_groups,
+        &eff_outputs,
+        &registry,
+    );
+
+    let last = segments.last().expect("a post-insert segment exists");
+    assert_eq!(
+        last.input.device_id.0, "return_dev",
+        "the post-insert segment must read the insert RETURN, got {:?}",
+        last.input
+    );
+}
