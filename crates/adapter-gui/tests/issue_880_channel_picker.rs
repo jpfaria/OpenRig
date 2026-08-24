@@ -24,10 +24,13 @@ const CHANNEL_COUNT: i32 = 30;
 /// when this issue was fixed; the test asks about the CELLS, not about which
 /// file declares them, so it keeps working across that move.
 fn channel_cells(w: &ProjectSettingsWindow) -> Vec<i_slint_backend_testing::ElementHandle> {
-    ["ChannelPicker::chan-cell", "SectionSystemIoBindings::chan-cell"]
-        .iter()
-        .flat_map(|id| i_slint_backend_testing::ElementHandle::find_by_element_id(w, id))
-        .collect()
+    [
+        "ChannelPicker::chan-cell",
+        "SectionSystemIoBindings::chan-cell",
+    ]
+    .iter()
+    .flat_map(|id| i_slint_backend_testing::ElementHandle::find_by_element_id(w, id))
+    .collect()
 }
 
 fn click_element(w: &impl ComponentHandle, id: &str) -> bool {
@@ -166,14 +169,12 @@ fn thirty_channels_stay_inside_the_window_and_the_last_one_is_reachable() {
     //    dragging its scrollbar by hand.
     //    (Cells below the window are culled from the rendered tree, so the
     //    proof is the LIST's own height: it must hold all 30 rows.)
-    let list_h = i_slint_backend_testing::ElementHandle::find_by_element_id(
-        &w,
-        "ChannelPicker::chan-list",
-    )
-    .next()
-    .expect("the channel list container is missing")
-    .size()
-    .height;
+    let list_h =
+        i_slint_backend_testing::ElementHandle::find_by_element_id(&w, "ChannelPicker::chan-list")
+            .next()
+            .expect("the channel list container is missing")
+            .size()
+            .height;
     assert!(
         list_h >= CHANNEL_COUNT as f32 * 34.0,
         "the channel list is {list_h}px tall, too short for {CHANNEL_COUNT} \
