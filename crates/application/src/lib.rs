@@ -99,6 +99,10 @@ mod local_dispatcher_tests;
 mod ld_block2;
 
 #[cfg(test)]
+#[path = "ld_block_param_tests.rs"]
+mod ld_block_param;
+
+#[cfg(test)]
 #[path = "ld_chain_tests.rs"]
 mod ld_chain;
 

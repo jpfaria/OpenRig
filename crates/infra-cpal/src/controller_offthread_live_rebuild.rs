@@ -21,6 +21,9 @@ use crate::ProjectRuntimeController;
 /// chain's rate and stopped being converted — the owner's "primeira vez fica
 /// bom; alterei a ordem e começou a ficar ruim na TEYUN", since only a live
 /// edit goes through here.
+// Its only caller is the cpal rebuild below; under linux+jack the rates come
+// from the JACK graph and this map has nobody to serve.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn device_rates_from_signature(
     sig: &crate::resolved::ChainStreamSignature,
 ) -> std::collections::HashMap<domain::ids::DeviceId, f32> {

@@ -10,10 +10,14 @@ use slint::{Model, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// A plugin parameter the grid draws itself. The widget kind matters: a row
+/// with none is one an EQ widget draws, and such a block publishes no tabs at
+/// all (#878).
 fn item(label: &str, group: &str) -> BlockParameterItem {
     BlockParameterItem {
         label: label.into(),
         group: group.into(),
+        widget_kind: "knob".into(),
         ..Default::default()
     }
 }

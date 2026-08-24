@@ -23,7 +23,7 @@ mod block_editor_window_params;
 mod block_editor_window_setup;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
-mod block_panel_dimensions;
+pub mod block_panel_dimensions;
 mod block_parameter_extras;
 mod block_parameter_wiring;
 mod block_picker_wiring;
@@ -237,6 +237,10 @@ mod tests;
 #[cfg(test)]
 #[path = "lib_recent_tests.rs"]
 mod lib_recent_tests;
+
+#[cfg(test)]
+#[path = "lib_ui_index_tests.rs"]
+mod lib_ui_index_tests;
 
 #[cfg(test)]
 mod compact_block_search_wiring_tests;

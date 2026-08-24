@@ -921,3 +921,12 @@ msgstr "E/A und Endpunkt wählen"
 
 msgid "label-io-binding"
 msgstr "E/A"
+
+msgid "label-channels-selected"
+msgstr "Ausgewählt:"
+
+msgid "hint-channels-pick-device"
+msgstr "Gerät wählen, um dessen Kanäle zu sehen"
+
+msgid "label-channels-total"
+msgstr "{} Kanäle"

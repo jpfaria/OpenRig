@@ -916,3 +916,12 @@ msgstr "एक I/O और एंडपॉइंट चुनें"
 
 msgid "label-io-binding"
 msgstr "I/O"
+
+msgid "label-channels-selected"
+msgstr "चयनित:"
+
+msgid "hint-channels-pick-device"
+msgstr "चैनल देखने के लिए डिवाइस चुनें"
+
+msgid "label-channels-total"
+msgstr "{} चैनल"

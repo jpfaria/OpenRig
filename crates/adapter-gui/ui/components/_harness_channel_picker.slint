@@ -1,0 +1,63 @@
+// #880 render harness — the shared ChannelPicker at the size that broke the
+// old horizontal row: a 30-in / 30-out interface. Not compiled into the app;
+// rendered headlessly with tools/slint-render to check the layout.
+import { ChannelPicker } from "channel_picker.slint";
+import "../fonts/BebasNeue.ttf";
+
+export component Harness inherits Window {
+    default-font-size: 14px;
+    preferred-width: 720px;
+    preferred-height: 340px;
+    background: #09090b;
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 20px;
+
+        HorizontalLayout {
+            spacing: 16px;
+            Text {
+                text: "Canais";
+                color: #a1a1aa;
+                font-size: 14px;
+                width: 92px;
+                vertical-alignment: center;
+            }
+            ChannelPicker {
+                single-select: false;
+                channels: [
+                    { index: 0, label: "Channel 1", selected: true, available: true },
+                    { index: 1, label: "Channel 2", selected: true, available: true },
+                    { index: 2, label: "Channel 3", selected: false, available: true },
+                    { index: 3, label: "Channel 4", selected: false, available: true },
+                    { index: 4, label: "Channel 5", selected: false, available: true },
+                    { index: 5, label: "Channel 6", selected: false, available: true },
+                    { index: 6, label: "Channel 7", selected: false, available: true },
+                    { index: 7, label: "Channel 8", selected: false, available: true },
+                    { index: 8, label: "Channel 9", selected: false, available: true },
+                    { index: 9, label: "Channel 10", selected: false, available: true },
+                    { index: 10, label: "Channel 11", selected: false, available: true },
+                    { index: 11, label: "Channel 12", selected: false, available: true },
+                    { index: 12, label: "Channel 13", selected: false, available: true },
+                    { index: 13, label: "Channel 14", selected: false, available: true },
+                    { index: 14, label: "Channel 15", selected: false, available: true },
+                    { index: 15, label: "Channel 16", selected: false, available: true },
+                    { index: 16, label: "Channel 17", selected: false, available: true },
+                    { index: 17, label: "Channel 18", selected: false, available: true },
+                    { index: 18, label: "Channel 19", selected: false, available: true },
+                    { index: 19, label: "Channel 20", selected: false, available: true },
+                    { index: 20, label: "Channel 21", selected: false, available: true },
+                    { index: 21, label: "Channel 22", selected: false, available: true },
+                    { index: 22, label: "Channel 23", selected: false, available: true },
+                    { index: 23, label: "Channel 24", selected: false, available: true },
+                    { index: 24, label: "Channel 25", selected: false, available: true },
+                    { index: 25, label: "Channel 26", selected: false, available: true },
+                    { index: 26, label: "Channel 27", selected: false, available: true },
+                    { index: 27, label: "Channel 28", selected: false, available: true },
+                    { index: 28, label: "Channel 29", selected: false, available: true },
+                    { index: 29, label: "Channel 30", selected: false, available: true },
+                ];
+            }
+        }
+    }
+}

@@ -915,3 +915,12 @@ msgstr "选择 I/O 和端点"
 
 msgid "label-io-binding"
 msgstr "I/O"
+
+msgid "label-channels-selected"
+msgstr "已选择："
+
+msgid "hint-channels-pick-device"
+msgstr "选择设备以列出其通道"
+
+msgid "label-channels-total"
+msgstr "{} 个通道"

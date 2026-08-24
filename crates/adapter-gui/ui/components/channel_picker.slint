@@ -1,0 +1,188 @@
+// #880 — the ONE channel picker for the whole app.
+//
+// Interfaces routinely carry 30 inputs and 30 outputs. A row of checkboxes
+// cannot hold that: everything past the right edge is rendered off-screen with
+// no wrap and no scrollbar, so those channels are simply unreachable. Picking
+// "input 23" out of 30 is a scanning task, and a vertical list with one channel
+// per line is what people can scan.
+//
+// So: one channel per row, in a plain column, and the PAGE does the scrolling.
+// The list deliberately has no scroll area of its own — Slint's Flickable
+// intercepts a wheel gesture at `TouchPhase::Started` before its children
+// (i-slint-core `items/flickable.rs`), so the settings panel's scroll area owns
+// the whole gesture and a nested list never sees the wheel: it could only be
+// moved by dragging its own scrollbar by hand. The selection is echoed above
+// the list so it stays readable while the page scrolls.
+
+import { ChannelOptionItem } from "../models.slint";
+
+component ChannelPickerRow inherits Rectangle {
+    in property <ChannelOptionItem> channel;
+    // Mono takes exactly one channel — a radio, not a checkbox.
+    in property <bool> radio: false;
+    callback toggled();
+
+    background: ta.has-hover ? #1f1f23 : transparent;
+    border-radius: 6px;
+    accessible-role: checkbox;
+    accessible-label: root.channel.label;
+    accessible-checked: root.channel.selected;
+    accessible-action-default => { root.toggled(); }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 18px;
+                height: 18px;
+                border-radius: root.radio ? 9px : 4px;
+                background: root.channel.selected && !root.radio ? #2f80ff : #18181b;
+                border-width: 1px;
+                border-color: root.channel.selected
+                    ? #2f80ff
+                    : (root.channel.available ? #3f3f46 : #2a2a2e);
+                opacity: root.channel.available ? 1 : 0.4;
+
+                if root.channel.selected && root.radio : Rectangle {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: #2f80ff;
+                }
+                if root.channel.selected && !root.radio : Image {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 10px;
+                    height: 10px;
+                    source: @image-url("../assets/check.svg");
+                    colorize: #ffffff;
+                }
+            }
+        }
+
+        Text {
+            horizontal-stretch: 1;
+            text: root.channel.label;
+            color: root.channel.available
+                ? (root.channel.selected ? #fafafa : #a1a1aa)
+                : #52525b;
+            font-size: 14px;
+            font-weight: root.channel.selected ? 600 : 400;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.channel.available;
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}
+
+export component ChannelPicker inherits Rectangle {
+    in property <[ChannelOptionItem]> channels;
+    // Single-select (mono) draws radios; multi-select draws checkboxes.
+    in property <bool> single-select: false;
+    in property <string> empty-hint;
+    callback toggled(int /* index */, bool /* selected */);
+
+    private property <length> row-height: 34px;
+    private property <length> list-height: root.channels.length == 0
+        ? 20px
+        : root.channels.length * root.row-height;
+    // Header + capped list + padding. Pinned so the picker never grows with the
+    // channel count and never stretches to fill its row.
+    private property <length> box-height: 22px + root.list-height + 20px;
+
+    // Explicit height: layouts read it as a fixed constraint, and an
+    // absolutely-positioned instance (the insert editor) needs it too —
+    // without it the picker stretches to fill its parent.
+    height: root.box-height;
+
+    background: #111114;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #27272a;
+
+    VerticalLayout {
+        padding: 8px;
+        spacing: 4px;
+
+        // Selection echo — what is picked stays visible while the list scrolls.
+        header := HorizontalLayout {
+            height: 22px;
+            padding-left: 4px;
+            spacing: 0px;
+
+            Text {
+                text: @tr("label-channels-selected");
+                color: #71717a;
+                font-size: 12px;
+                vertical-alignment: center;
+            }
+            for ch in root.channels : Rectangle {
+                // The chip is ALWAYS built so the layout can measure it; an
+                // unselected channel just collapses to zero width. Under an
+                // `if` the chip reported no width at all and every selected
+                // chip drew on top of the previous one.
+                width: ch.selected ? chip.preferred-width + 6px : 0px;
+                clip: true;
+                chip := Rectangle {
+                    x: 6px;
+                    width: parent.width - 6px;
+                    background: #112540;
+                    border-radius: 4px;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        Text {
+                            text: ch.label;
+                            color: #60a5fa;
+                            font-size: 12px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            // How many channels the device actually has — with 30 of them the
+            // scrollbar alone is too quiet an affordance.
+            Text {
+                text: @tr("label-channels-total", root.channels.length);
+                color: #52525b;
+                font-size: 12px;
+                vertical-alignment: center;
+            }
+        }
+
+        if root.channels.length == 0 : Text {
+            height: root.list-height;
+            text: root.empty-hint;
+            color: #52525b;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+
+        if root.channels.length > 0 : chan-list := Rectangle {
+            height: root.list-height;
+
+            for ch[i] in root.channels : chan-cell := ChannelPickerRow {
+                x: 0px;
+                y: i * root.row-height;
+                width: parent.width;
+                height: root.row-height;
+                channel: ch;
+                radio: root.single-select;
+                toggled => { root.toggled(i, !ch.selected); }
+            }
+        }
+    }
+}
