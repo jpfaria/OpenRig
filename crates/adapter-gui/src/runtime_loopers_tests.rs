@@ -134,7 +134,7 @@ fn record_loop(runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>, chain: &
 fn save_through_the_bus(
     session: &ProjectSession,
     runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    project_path: &std::path::Path,
+    #[allow(clippy::ptr_arg)] project_path: &PathBuf,
 ) {
     crate::runtime_lifecycle::attach_runtime_control(
         runtime,

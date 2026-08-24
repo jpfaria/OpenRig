@@ -164,6 +164,30 @@ fn the_window_offers_every_binding_of_the_session() {
     );
 }
 
+/// Reopening a bound insert must show WHERE it points — the editor that forgets
+/// the current pick is how a binding silently gets rewritten.
+#[test]
+fn reopening_a_bound_insert_shows_its_binding() {
+    let h = Harness::new();
+    open_insert_window(
+        &h.window,
+        &Rc::new(RefCell::new(None)),
+        InsertDraft {
+            chain_index: 0,
+            block_index: 0,
+            io: "fx".into(),
+        },
+        &registry(),
+        true,
+    );
+
+    assert_eq!(
+        h.window.get_selected_binding_index(),
+        1,
+        "#881: the editor must open on the E/S the insert already points at"
+    );
+}
+
 #[test]
 fn ok_without_a_pick_warns_instead_of_writing() {
     let h = Harness::new();
