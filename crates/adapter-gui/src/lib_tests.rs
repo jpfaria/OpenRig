@@ -96,7 +96,7 @@ pub(super) fn delay_model_ids() -> Vec<String> {
 
 use domain::ids::ChainId;
 use project::block::{InputBlock, OutputBlock};
-use project::chain::{Chain, ChainInputMode};
+use project::chain::Chain;
 
 pub(super) fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
     Chain {
@@ -179,33 +179,6 @@ fn unit_label_returns_correct_suffix_for_all_variants() {
     assert_eq!(unit_label(&ParameterUnit::Percent), "%");
     assert_eq!(unit_label(&ParameterUnit::Ratio), "Ratio");
     assert_eq!(unit_label(&ParameterUnit::Semitones), "st");
-}
-
-// --- insert_mode_to_index / insert_mode_from_index ---
-
-use crate::chain_editor::insert_mode_from_index;
-use crate::chain_editor::insert_mode_to_index;
-
-#[test]
-fn insert_mode_mono_roundtrip() {
-    assert_eq!(insert_mode_to_index(ChainInputMode::Mono), 0);
-    assert_eq!(insert_mode_from_index(0), ChainInputMode::Mono);
-}
-
-#[test]
-fn insert_mode_stereo_roundtrip() {
-    assert_eq!(insert_mode_to_index(ChainInputMode::Stereo), 1);
-    assert_eq!(insert_mode_from_index(1), ChainInputMode::Stereo);
-}
-
-#[test]
-fn insert_mode_dual_mono_maps_to_zero() {
-    assert_eq!(insert_mode_to_index(ChainInputMode::DualMono), 0);
-}
-
-#[test]
-fn insert_mode_from_negative_index_defaults_to_mono() {
-    assert_eq!(insert_mode_from_index(-1), ChainInputMode::Mono);
 }
 
 // --- normalized_chain_description ---
@@ -302,70 +275,6 @@ fn project_title_no_name_no_path_with_chains_is_projeto() {
         midi: None,
     };
     assert_eq!(project_title_for_path(None, &project), "Projeto");
-}
-
-// --- selected_device_index ---
-
-use crate::audio_devices::selected_device_index;
-use domain::AudioDeviceDescriptor;
-
-#[test]
-fn selected_device_index_finds_matching_device() {
-    let devices = vec![
-        AudioDeviceDescriptor {
-            id: "dev_a".into(),
-            name: "A".into(),
-            channels: 2,
-        },
-        AudioDeviceDescriptor {
-            id: "dev_b".into(),
-            name: "B".into(),
-            channels: 4,
-        },
-    ];
-    assert_eq!(selected_device_index(&devices, Some("dev_b")), 1);
-}
-
-#[test]
-fn selected_device_index_falls_back_to_zero_when_single_device() {
-    // When there is exactly one device and the saved ID doesn't match,
-    // auto-select it (index 0) so the user doesn't have to manually
-    // pick the only option (common on single-device setups like Orange Pi).
-    let devices = vec![AudioDeviceDescriptor {
-        id: "dev_a".into(),
-        name: "A".into(),
-        channels: 2,
-    }];
-    assert_eq!(selected_device_index(&devices, Some("dev_x")), 0);
-}
-
-#[test]
-fn selected_device_index_returns_negative_when_not_found_multiple_devices() {
-    // When there are multiple devices and none match, return -1
-    // so the UI shows "Select device" instead of picking one arbitrarily.
-    let devices = vec![
-        AudioDeviceDescriptor {
-            id: "dev_a".into(),
-            name: "A".into(),
-            channels: 2,
-        },
-        AudioDeviceDescriptor {
-            id: "dev_b".into(),
-            name: "B".into(),
-            channels: 4,
-        },
-    ];
-    assert_eq!(selected_device_index(&devices, Some("dev_x")), -1);
-}
-
-#[test]
-fn selected_device_index_returns_negative_for_none() {
-    let devices = vec![AudioDeviceDescriptor {
-        id: "dev_a".into(),
-        name: "A".into(),
-        channels: 2,
-    }];
-    assert_eq!(selected_device_index(&devices, None), -1);
 }
 
 // --- real_block_index_to_ui ---

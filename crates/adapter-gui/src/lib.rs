@@ -187,6 +187,9 @@ mod issue_85_click_port_opens_editor_tests;
 #[cfg(test)]
 #[path = "issue_85_port_editor_tests.rs"]
 mod issue_85_port_editor_tests;
+#[cfg(test)]
+#[path = "issue_881_insert_editor_tests.rs"]
+mod issue_881_insert_editor_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;

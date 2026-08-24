@@ -21,12 +21,8 @@ use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use application::command::{BlockCommand, Command};
 use application::live_source::LiveSource;
 use domain::AudioDeviceDescriptor;
-use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 
-use crate::audio_devices::{
-    refresh_input_devices, refresh_output_devices, replace_channel_options,
-};
 use crate::block_editor::{block_parameter_items_for_model, build_knob_overlays};
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
@@ -44,8 +40,7 @@ use crate::state::{
 use crate::ui_state::block_drawer_state;
 use crate::{
     block_editor_window_setup, AppWindow, BlockModelPickerItem, BlockParameterItem,
-    ChainInsertWindow, ChannelOptionItem, CurveEditorPoint, MultiSliderPoint, PluginInfoWindow,
-    ProjectChainItem,
+    ChainInsertWindow, CurveEditorPoint, MultiSliderPoint, PluginInfoWindow, ProjectChainItem,
 };
 
 pub(crate) struct BlockChooseTypeCallbackCtx {
@@ -68,10 +63,6 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub chain_input_device_options: Rc<VecModel<SharedString>>,
-    pub chain_output_device_options: Rc<VecModel<SharedString>>,
-    pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
-    pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
     // #815: the ADD detached editor is now built via `create_and_wire`, so this
     // callback needs the same per-block window deps as the edit path.
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
@@ -106,10 +97,6 @@ pub(crate) fn wire(
         project_dirty,
         input_chain_devices,
         output_chain_devices,
-        chain_input_device_options,
-        chain_output_device_options,
-        insert_send_channels,
-        insert_return_channels,
         selected_block,
         open_block_windows,
         plugin_info_window,
@@ -287,29 +274,19 @@ pub(crate) fn wire(
             let draft = InsertDraft {
                 chain_index,
                 block_index: before_index,
-                // #716 (model A): a fresh insert is unbound; the user picks its
-                // binding later. See TODO(#716) in insert_wiring.rs.
+                // #716 (model A): a fresh insert is unbound — the editor asks
+                // which E/S its loop runs through.
                 io: String::new(),
-                send_device_id: None,
-                send_channels: Vec::new(),
-                send_mode: ChainInputMode::Mono,
-                return_device_id: None,
-                return_channels: Vec::new(),
-                return_mode: ChainInputMode::Mono,
             };
             if let Some(iw) = weak_insert_window.upgrade() {
-                refresh_input_devices(&chain_input_device_options);
-                refresh_output_devices(&chain_output_device_options);
-                replace_channel_options(&insert_send_channels, Vec::new());
-                replace_channel_options(&insert_return_channels, Vec::new());
-                iw.set_selected_send_device_index(-1);
-                iw.set_selected_return_device_index(-1);
-                iw.set_selected_send_mode_index(0);
-                iw.set_selected_return_mode_index(0);
-                iw.set_show_block_controls(true);
-                iw.set_block_enabled(true);
-                iw.set_status_message("".into());
-                *insert_draft.borrow_mut() = Some(draft);
+                let registry = crate::port_wiring::session_registry(&project_session.borrow());
+                crate::insert_wiring::open_insert_window(
+                    &iw,
+                    &insert_draft,
+                    draft,
+                    &registry,
+                    true,
+                );
                 show_child_window(window.window(), iw.window());
             }
             return;

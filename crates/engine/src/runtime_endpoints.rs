@@ -127,12 +127,9 @@ pub fn resolve_chain_io_by_binding(chain: &Chain, registry: &[IoBinding]) -> Vec
 /// outputs are never checked (many inputs may feed one output).
 pub fn input_port_conflict(inputs: &[InputEntry]) -> Option<(String, usize)> {
     let mut claimed: std::collections::HashSet<(String, usize)> = std::collections::HashSet::new();
-    for tap in input_taps(inputs) {
-        if !claimed.insert(tap.clone()) {
-            return Some(tap);
-        }
-    }
-    None
+    input_taps(inputs)
+        .into_iter()
+        .find(|tap| !claimed.insert(tap.clone()))
 }
 
 /// Every physical capture point `(device_id, channel)` these input endpoints
