@@ -6,9 +6,13 @@
 // "input 23" out of 30 is a scanning task, and a vertical list with one channel
 // per line is what people can scan.
 //
-// So: one channel per row, in a column whose height is capped at `visible-rows`
-// and which scrolls inside that cap. The selection is echoed above the list, so
-// the user never has to scroll to see what they picked.
+// So: one channel per row, in a plain column, and the PAGE does the scrolling.
+// The list deliberately has no scroll area of its own — Slint's Flickable
+// intercepts a wheel gesture at `TouchPhase::Started` before its children
+// (i-slint-core `items/flickable.rs`), so the settings panel's scroll area owns
+// the whole gesture and a nested list never sees the wheel: it could only be
+// moved by dragging its own scrollbar by hand. The selection is echoed above
+// the list so it stays readable while the page scrolls.
 
 import { ChannelOptionItem } from "../models.slint";
 
@@ -17,10 +21,6 @@ component ChannelPickerRow inherits Rectangle {
     // Mono takes exactly one channel — a radio, not a checkbox.
     in property <bool> radio: false;
     callback toggled();
-    // The row itself consumes the wheel. Relying on the enclosing Flickable to
-    // win the event against the settings panel's own scroll area worked
-    // headlessly and did NOT work in the running app.
-    callback scrolled(length /* delta-y */);
 
     background: ta.has-hover ? #1f1f23 : transparent;
     border-radius: 6px;
@@ -83,10 +83,6 @@ component ChannelPickerRow inherits Rectangle {
         enabled: root.channel.available;
         mouse-cursor: pointer;
         clicked => { root.toggled(); }
-        scroll-event(e) => {
-            root.scrolled(e.delta-y);
-            return EventResult.accept;
-        }
     }
 }
 
@@ -94,21 +90,16 @@ export component ChannelPicker inherits Rectangle {
     in property <[ChannelOptionItem]> channels;
     // Single-select (mono) draws radios; multi-select draws checkboxes.
     in property <bool> single-select: false;
-    // How many rows are on screen before the list starts scrolling.
-    in property <int> visible-rows: 8;
     in property <string> empty-hint;
     callback toggled(int /* index */, bool /* selected */);
 
     private property <length> row-height: 34px;
     private property <length> list-height: root.channels.length == 0
         ? 20px
-        : Math.min(root.channels.length, root.visible-rows) * root.row-height;
+        : root.channels.length * root.row-height;
     // Header + capped list + padding. Pinned so the picker never grows with the
     // channel count and never stretches to fill its row.
     private property <length> box-height: 22px + root.list-height + 20px;
-    private property <bool> scrollable: root.channels.length > root.visible-rows;
-    // Where the list stood when the scrollbar drag started.
-    private property <length> drag-origin: 0px;
 
     // Explicit height: layouts read it as a fixed constraint, and an
     // absolutely-positioned instance (the insert editor) needs it too —
@@ -180,70 +171,17 @@ export component ChannelPicker inherits Rectangle {
             vertical-alignment: center;
         }
 
-        if root.channels.length > 0 : Rectangle {
+        if root.channels.length > 0 : chan-list := Rectangle {
             height: root.list-height;
 
-            fl := Flickable {
+            for ch[i] in root.channels : chan-cell := ChannelPickerRow {
                 x: 0px;
-                y: 0px;
-                width: parent.width - (root.scrollable ? 12px : 0px);
-                height: parent.height;
-                viewport-width: self.width;
-                viewport-height: root.channels.length * root.row-height;
-
-                for ch[i] in root.channels : chan-cell := ChannelPickerRow {
-                    x: 0px;
-                    y: i * root.row-height;
-                    width: parent.width;
-                    height: root.row-height;
-                    channel: ch;
-                    radio: root.single-select;
-                    toggled => { root.toggled(i, !ch.selected); }
-                    scrolled(dy) => {
-                        fl.viewport-y = Math.min(0px, Math.max(
-                            -(fl.viewport-height - fl.height), fl.viewport-y + dy));
-                    }
-                }
-            }
-
-            // The track is drawn whenever the list is longer than the box: with
-            // 30 channels the user has to SEE that it continues, not discover a
-            // hairline that only appears once you are already scrolling.
-            if root.scrollable : Rectangle {
-                x: parent.width - 7px;
-                y: 0px;
-                width: 5px;
-                height: parent.height;
-                background: #232327;
-                border-radius: 3px;
-
-                scroll-thumb := Rectangle {
-                    x: 0px;
-                    width: 5px;
-                    height: Math.max(28px, parent.height * fl.height / fl.viewport-height);
-                    y: -fl.viewport-y / fl.viewport-height * parent.height;
-                    background: bar-ta.pressed ? #8a8a95 : (bar-ta.has-hover ? #71717a : #5b5b63);
-                    border-radius: 3px;
-                }
-
-                // The bar has to be GRABBABLE, not just visible. The hit area is
-                // wider than the 5px it paints so the thumb is easy to catch.
-                bar-ta := TouchArea {
-                    x: -7px;
-                    y: 0px;
-                    width: 19px;
-                    height: parent.height;
-                    mouse-cursor: pointer;
-                    pointer-event(e) => {
-                        if (e.kind == PointerEventKind.down) { root.drag-origin = fl.viewport-y; }
-                    }
-                    moved => {
-                        fl.viewport-y = Math.min(0px, Math.max(
-                            -(fl.viewport-height - fl.height),
-                            root.drag-origin
-                                - (self.mouse-y - self.pressed-y) / parent.height * fl.viewport-height));
-                    }
-                }
+                y: i * root.row-height;
+                width: parent.width;
+                height: root.row-height;
+                channel: ch;
+                radio: root.single-select;
+                toggled => { root.toggled(i, !ch.selected); }
             }
         }
     }
