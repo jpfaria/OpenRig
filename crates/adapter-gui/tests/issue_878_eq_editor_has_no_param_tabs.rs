@@ -80,7 +80,17 @@ fn multi_slider_block_renders_no_parameter_tabs() {
 fn every_band_slider_fits_inside_the_editor_window() {
     i_slint_backend_testing::init_no_event_loop();
 
-    const WINDOW_H: f32 = 520.0;
+    // Size the window exactly as production does — off the Rust policy, not a
+    // number picked here: the clipping is a mismatch between the window the
+    // policy asks for and the space the widget needs (#878).
+    let dims = adapter_gui::block_panel_dimensions::compute(
+        adapter_gui::block_panel_dimensions::PanelInputs {
+            knob_count: 1,
+            use_panel_editor: true,
+            has_eq_widget: true,
+        },
+    );
+    let window_h = dims.window_height_px;
     let w = panel_editor_window();
     w.set_block_parameter_groups(groups(&[
         "Band 1", "Band 2", "Band 3", "Band 4", "Band 5", "Band 6", "Band 7", "Band 8", "Output",
@@ -89,8 +99,9 @@ fn every_band_slider_fits_inside_the_editor_window() {
         CurveEditorPoint::default();
         8
     ])));
+    w.set_panel_knob_inner_height(dims.inner_panel_height_px);
     w.window()
-        .set_size(slint::LogicalSize::new(1200.0, WINDOW_H));
+        .set_size(slint::LogicalSize::new(dims.window_width_px, window_h));
     w.show().unwrap();
 
     let sliders: Vec<_> =
@@ -99,9 +110,9 @@ fn every_band_slider_fits_inside_the_editor_window() {
     for (i, s) in sliders.iter().enumerate() {
         let bottom = s.absolute_position().y + s.size().height;
         assert!(
-            bottom <= WINDOW_H,
+            bottom <= window_h,
             "band {i} runs {}px past the bottom of the window",
-            bottom - WINDOW_H
+            bottom - window_h
         );
     }
 }

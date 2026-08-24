@@ -369,6 +369,52 @@ fn req_eq_mode_does_not_open_the_param_grid() {
     }
 }
 
+#[test]
+fn req_eq_window_is_tall_enough_for_the_widget_below_the_strip() {
+    // #878 — the EQ widget is laid out BELOW the header and the panel strip
+    // and never draws shorter than `EQ_WIDGET_MIN_HEIGHT_PX`. A window sized
+    // for a knob grid it never renders left the widget hanging past the
+    // bottom edge, so the band sliders' frequency labels were cut in half.
+    for n in [0usize, 1, 3] {
+        let d = compute(PanelInputs {
+            knob_count: n,
+            use_panel_editor: true,
+            has_eq_widget: true,
+        });
+        let needed = HEADER_HEIGHT_PX
+            + d.inner_panel_height_px
+            + EQ_WIDGET_MIN_HEIGHT_PX
+            + EQ_WIDGET_MARGIN_PX;
+        assert!(
+            d.window_height_px >= needed,
+            "knob_count={n}: window is {}px, the widget needs {needed}px",
+            d.window_height_px
+        );
+    }
+}
+
+#[test]
+fn req_eq_strip_shrinks_when_the_grid_has_no_knobs() {
+    // A Three Band EQ keeps no knob of its own: its strip holds the power
+    // switch alone, so it must not reserve a full parameter cell of empty
+    // grey above the sliders (#878).
+    let bare = compute(PanelInputs {
+        knob_count: 0,
+        use_panel_editor: true,
+        has_eq_widget: true,
+    });
+    let with_knob = compute(PanelInputs {
+        knob_count: 1,
+        use_panel_editor: true,
+        has_eq_widget: true,
+    });
+    assert!(
+        bare.inner_panel_height_px < with_knob.inner_panel_height_px,
+        "an EQ with no knobs reserved the same strip as one with a knob: {}px",
+        bare.inner_panel_height_px
+    );
+}
+
 // ── Requirement 9: continuous correctness over a wide range ──
 // User: "300000 se forem necessario.. com todos os tipos de prametros".
 // 1..=300 covers every realistic plugin and a 4× safety margin

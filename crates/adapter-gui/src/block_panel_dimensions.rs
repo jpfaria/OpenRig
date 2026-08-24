@@ -41,6 +41,25 @@ pub const MIN_PANEL_WIDTH_PX: f32 = 900.0;
 /// Baseline outer-window height for a single-row panel.
 pub const BASE_PANEL_HEIGHT_PX: f32 = 275.0;
 
+/// Header height of `BlockPanelEditor` — match `header-height` in
+/// `block_panel_editor.slint`.
+pub const HEADER_HEIGHT_PX: f32 = 48.0;
+
+/// Shortest an EQ widget ever draws — match the `Math.max(280px, …)` floor
+/// the `CurveEditorControl` / `MultiSliderControl` branches use.
+pub const EQ_WIDGET_MIN_HEIGHT_PX: f32 = 280.0;
+
+/// Vertical breathing room around the EQ widget (8px above, 8px below) —
+/// match its `y` offset and height subtraction in Slint.
+pub const EQ_WIDGET_MARGIN_PX: f32 = 16.0;
+
+/// EQ strip holding the power switch alone.
+pub const EQ_STRIP_BARE_PX: f32 = 56.0;
+
+/// EQ strip holding the power switch plus the knobs the widget does not draw
+/// — one parameter cell tall.
+pub const EQ_STRIP_WITH_KNOBS_PX: f32 = 92.0;
+
 /// Window dimensions when no panel editor is shown (form-based editor).
 pub const FORM_EDITOR_WIDTH_PX: f32 = 520.0;
 pub const FORM_EDITOR_HEIGHT_PX: f32 = 820.0;
@@ -139,12 +158,25 @@ pub fn compute(inputs: PanelInputs) -> PanelDimensions {
         return form_dimensions(inputs.knob_count);
     }
     if inputs.has_eq_widget {
+        // The strip above the widget holds the power switch, plus one cell of
+        // knobs when the widget leaves any for the grid (#878).
+        let strip = if inputs.knob_count > 0 {
+            EQ_STRIP_WITH_KNOBS_PX
+        } else {
+            EQ_STRIP_BARE_PX
+        };
         return PanelDimensions {
             window_width_px: MIN_PANEL_WIDTH_PX,
-            window_height_px: BASE_PANEL_HEIGHT_PX,
+            // The widget is laid out below the header and the strip and never
+            // draws shorter than its floor: a window sized for the knob grid
+            // it never renders clipped the band sliders' labels (#878).
+            window_height_px: HEADER_HEIGHT_PX
+                + strip
+                + EQ_WIDGET_MIN_HEIGHT_PX
+                + EQ_WIDGET_MARGIN_PX,
             grid_cols: 0,
             grid_rows: 0,
-            inner_panel_height_px: MIN_PANEL_WIDTH_PX / 4.0,
+            inner_panel_height_px: strip,
         };
     }
 
