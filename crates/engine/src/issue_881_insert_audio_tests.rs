@@ -178,3 +178,88 @@ fn a_loop_on_the_guitars_interface_sends_and_returns() {
          peak was {tail_peak}"
     );
 }
+
+/// A block BEFORE the insert must colour what leaves on the SEND — that is the
+/// whole point of putting a pedal in front of the loop. Reported after the
+/// routing fix: "coloquei o pedal de ganho antes do insert e não altera o
+/// timbre".
+#[test]
+fn a_block_before_the_insert_shapes_the_send() {
+    use domain::ids::DeviceId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use domain::value_objects::ParameterValue;
+    use project::param::ParameterSet;
+
+    const HD8: &str = "coreaudio:hd8";
+    const DEVICE_CHANNELS: usize = 8;
+    const SEND_CH: usize = 4;
+
+    let mono = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(HD8.into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![
+        IoBinding {
+            id: "io".into(),
+            name: "HD 8 - 1".into(),
+            inputs: vec![mono("in0", 0)],
+            outputs: vec![IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "SYNERGY".into(),
+            inputs: vec![mono("ret", 3)],
+            outputs: vec![mono("snd", SEND_CH)],
+        },
+    ];
+
+    // `insert_chain` is [input, gain:volume, insert, gain:volume, output] — the
+    // block at index 1 is the pedal in FRONT of the loop.
+    let send_peak_at = |volume: f32| {
+        let mut chain = insert_chain();
+        let AudioBlockKind::Core(ref mut cb) = chain.blocks[1].kind else {
+            panic!("block 1 should be the gain in front of the insert");
+        };
+        let mut params = ParameterSet::default();
+        params.insert("volume", ParameterValue::Float(volume));
+        cb.params = params;
+
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &registry)
+                .expect("the chain must build a runtime"),
+        );
+        let mut input = vec![0.0_f32; FRAMES * DEVICE_CHANNELS];
+        for frame in input.chunks_exact_mut(DEVICE_CHANNELS) {
+            frame[0] = 0.5;
+        }
+        let mut send = vec![0.0_f32; FRAMES * DEVICE_CHANNELS];
+        let mut peak = 0.0_f32;
+        for i in 0..256 {
+            process_input_f32(&runtime, 0, &input, DEVICE_CHANNELS);
+            send.fill(0.0);
+            process_output_f32(&runtime, 1, &mut send, DEVICE_CHANNELS);
+            if i >= 128 {
+                for frame in send.chunks_exact(DEVICE_CHANNELS) {
+                    peak = peak.max(frame[SEND_CH].abs());
+                }
+            }
+        }
+        peak
+    };
+
+    let quiet = send_peak_at(10.0);
+    let loud = send_peak_at(100.0);
+
+    assert!(
+        loud > quiet * 1.5,
+        "the pedal in front of the loop must shape what goes out the send — \
+         volume 10 gave {quiet}, volume 100 gave {loud}"
+    );
+}
