@@ -504,6 +504,16 @@ portable. An insert whose binding does not resolve on this machine is
 **bypassed** — the chain flows straight through it (#881) — instead of splitting
 at an endpoint that was never opened. See ADR 0004.
 
+**The loop usually shares the guitar's interface, and that is the normal case**
+(a Synergy on OUT 5 / IN 4 of the same box). cpal opens ONE input stream per
+DEVICE and binds every runtime fed by it (#703), so the insert return takes the
+cpal index of its DEVICE — from the same first-seen map the regular inputs use —
+and reads its own channel off that shared stream. A return with a stream index
+of its own names a stream nobody opens: the post-insert segment is never fed and
+the rig goes silent with the send still working (#881). The return keeps its own
+entry group either way: it is never summed with the input it shares the device
+with (invariant #4).
+
 ### Legacy projects open UNBOUND (clean break, #716)
 
 There is **no device migration**. The block model no longer has an `entries`
