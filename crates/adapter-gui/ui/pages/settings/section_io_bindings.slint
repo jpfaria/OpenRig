@@ -8,6 +8,7 @@
 // (inherited; NOT hardcoded — system fallback keeps CJK translations tofu-free).
 
 import { IoBindingModel, IoEndpointModel, ChannelOptionItem } from "../../models.slint";
+import { ChannelPicker } from "../../components/channel_picker.slint";
 
 component Hairline inherits Rectangle { height: 1px; background: #27272a; }
 
@@ -20,7 +21,10 @@ component Badge inherits Rectangle {
     border-radius: 7px;
     HorizontalLayout {
         padding-left: 11px; padding-right: 11px;
-        Text { text: root.text; color: root.fg; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+        // Elided: a multi-channel endpoint must never push the device name or
+        // the row's edit/delete actions out of view (#880).
+        Text { text: root.text; color: root.fg; font-size: 13px; font-weight: 600;
+            vertical-alignment: center; overflow: elide; max-width: 120px; }
     }
 }
 
@@ -130,37 +134,20 @@ component Segmented inherits Rectangle {
     }
 }
 
-// One channel selector cell. Radio (round) when single-select (mono),
-// checkbox (square) otherwise.
-// Rectangle (not a layout) so the TouchArea below the content overlays the
-// WHOLE cell — box + label. As a HorizontalLayout the TouchArea was a third
-// column and only a sliver was clickable, so the radio/checkbox never toggled.
-component ChannelCell inherits Rectangle {
-    in property <string> n;
-    in property <bool> on: false;
-    in property <bool> radio: false;
-    callback toggled();
-    HorizontalLayout {
-        spacing: 8px;
-        Rectangle {
-            width: 18px; height: 18px;
-            border-radius: root.radio ? 9px : 4px;
-            background: root.on && !root.radio ? #2f80ff : #18181b;
-            border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
-            if root.on && root.radio : Rectangle { width: 8px; height: 8px;
-                x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; border-radius: 4px; background: #2f80ff; }
-            if root.on && !root.radio : Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
-                width: 10px; height: 10px; source: @image-url("../../assets/check.svg"); colorize: #ffffff; }
-        }
-        Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
-    }
-    TouchArea { mouse-cursor: pointer; clicked => { root.toggled(); } }
-}
-
 component FieldRow inherits HorizontalLayout {
     in property <string> label;
+    // A tall field (the channel list) reads better with its label at the top;
+    // one-line fields keep it centred against the control.
+    in property <bool> label-top: false;
     spacing: 16px;
-    Text { text: root.label; color: #a1a1aa; font-size: 14px; vertical-alignment: center; width: 92px; }
+    Rectangle {
+        width: 92px;
+        VerticalLayout {
+            alignment: root.label-top ? start : center;
+            padding-top: root.label-top ? 9px : 0px;
+            Text { text: root.label; color: #a1a1aa; font-size: 14px; }
+        }
+    }
     @children
 }
 
@@ -380,12 +367,13 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 picked(i) => { root.endpoint-device-changed(binding.id, true, root.input-device-ids[i]); } } }
                         FieldRow { label: @tr("label-endpoint-mode");
                             Segmented { options: [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]; current <=> root.add-mode-index; } }
-                        FieldRow { label: @tr("label-endpoint-channels");
-                            HorizontalLayout { alignment: start; spacing: 22px;
-                                for ch[ci] in root.channel-options : chan-cell := ChannelCell {
-                                    n: ch.label; on: ch.selected; radio: root.add-mode-index == 0;
-                                    toggled => { root.toggle-endpoint-channel(ci, !ch.selected,
-                                        root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } } }
+                        FieldRow { label: @tr("label-endpoint-channels"); label-top: true;
+                            ChannelPicker {
+                                channels: root.channel-options;
+                                single-select: root.add-mode-index == 0;
+                                empty-hint: @tr("hint-channels-pick-device");
+                                toggled(ci, sel) => { root.toggle-endpoint-channel(ci, sel,
+                                    root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } }
                         HorizontalLayout { spacing: 8px;
                             Rectangle { horizontal-stretch: 1; }
                             GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }
@@ -433,12 +421,13 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 picked(i) => { root.endpoint-device-changed(binding.id, false, root.output-device-ids[i]); } } }
                         FieldRow { label: @tr("label-endpoint-mode");
                             Segmented { options: [@tr("mode-mono"), @tr("mode-stereo")]; current <=> root.add-mode-index; } }
-                        FieldRow { label: @tr("label-endpoint-channels");
-                            HorizontalLayout { alignment: start; spacing: 22px;
-                                for ch[ci] in root.channel-options : ChannelCell {
-                                    n: ch.label; on: ch.selected; radio: root.add-mode-index == 0;
-                                    toggled => { root.toggle-endpoint-channel(ci, !ch.selected,
-                                        root.add-mode-index == 0 ? "mono" : "stereo"); } } } }
+                        FieldRow { label: @tr("label-endpoint-channels"); label-top: true;
+                            ChannelPicker {
+                                channels: root.channel-options;
+                                single-select: root.add-mode-index == 0;
+                                empty-hint: @tr("hint-channels-pick-device");
+                                toggled(ci, sel) => { root.toggle-endpoint-channel(ci, sel,
+                                    root.add-mode-index == 0 ? "mono" : "stereo"); } } }
                         HorizontalLayout { spacing: 8px;
                             Rectangle { horizontal-stretch: 1; }
                             GhostButton { text: @tr("btn-cancel"); clicked => { root.active-add = ""; root.editing-endpoint = ""; } }

@@ -968,3 +968,12 @@ msgstr "Port"
 #: crates/adapter-gui/ui/touch_main.slint:631
 msgid "⌨"
 msgstr "⌨"
+
+msgid "label-channels-selected"
+msgstr "Sélectionnés :"
+
+msgid "hint-channels-pick-device"
+msgstr "Choisissez un périphérique pour voir ses canaux"
+
+msgid "label-channels-total"
+msgstr "{} canaux"

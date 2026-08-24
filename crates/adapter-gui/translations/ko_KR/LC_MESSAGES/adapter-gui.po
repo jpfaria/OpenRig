@@ -966,3 +966,12 @@ msgstr "포트"
 #: crates/adapter-gui/ui/touch_main.slint:631
 msgid "⌨"
 msgstr "⌨"
+
+msgid "label-channels-selected"
+msgstr "선택됨:"
+
+msgid "hint-channels-pick-device"
+msgstr "장치를 선택하면 채널이 표시됩니다"
+
+msgid "label-channels-total"
+msgstr "채널 {}개"

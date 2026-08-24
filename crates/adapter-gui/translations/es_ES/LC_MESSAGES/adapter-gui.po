@@ -967,3 +967,12 @@ msgstr "Puerto"
 #: crates/adapter-gui/ui/touch_main.slint:631
 msgid "⌨"
 msgstr "⌨"
+
+msgid "label-channels-selected"
+msgstr "Seleccionados:"
+
+msgid "hint-channels-pick-device"
+msgstr "Elige un dispositivo para ver sus canales"
+
+msgid "label-channels-total"
+msgstr "{} canales"

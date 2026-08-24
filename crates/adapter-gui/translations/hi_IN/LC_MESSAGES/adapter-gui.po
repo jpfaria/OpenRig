@@ -964,3 +964,12 @@ msgstr "पोर्ट"
 #: crates/adapter-gui/ui/touch_main.slint:631
 msgid "⌨"
 msgstr "⌨"
+
+msgid "label-channels-selected"
+msgstr "चयनित:"
+
+msgid "hint-channels-pick-device"
+msgstr "चैनल देखने के लिए डिवाइस चुनें"
+
+msgid "label-channels-total"
+msgstr "{} चैनल"

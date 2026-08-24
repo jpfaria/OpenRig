@@ -963,3 +963,12 @@ msgstr "端口"
 #: crates/adapter-gui/ui/touch_main.slint:631
 msgid "⌨"
 msgstr "⌨"
+
+msgid "label-channels-selected"
+msgstr "已选择："
+
+msgid "hint-channels-pick-device"
+msgstr "选择设备以列出其通道"
+
+msgid "label-channels-total"
+msgstr "{} 个通道"
