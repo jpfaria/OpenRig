@@ -516,3 +516,78 @@ fn split_mono_input_does_not_steal_the_insert_return() {
         last.input
     );
 }
+
+/// #881 — the reported rig: the SYNERGY loop lives on the SAME interface as the
+/// guitar (HD 8 — send on OUT 5, return on IN 4). infra-cpal opens ONE input
+/// stream per DEVICE and feeds every runtime bound to it (#703), so the return
+/// has to ride the guitar's stream and pick its own channel. It was instead
+/// given a cpal index of its own (`raw_entries.len() + i`), which no stream ever
+/// carries — the post-insert segment was never fed and the rig went silent.
+#[test]
+fn a_return_on_the_input_device_rides_that_devices_stream() {
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+
+    const HD8: &str = "coreaudio:hd8";
+    let registry = vec![
+        IoBinding {
+            id: IO_BINDING_ID.into(),
+            name: "HD 8 - 1".into(),
+            inputs: vec![IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            }],
+            outputs: vec![IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "SYNERGY".into(),
+            // IN 4 / OUT 5 of the same interface, one-based on the panel.
+            inputs: vec![IoEndpoint {
+                name: "ret".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Mono,
+                channels: vec![3],
+            }],
+            outputs: vec![IoEndpoint {
+                name: "snd".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Mono,
+                channels: vec![4],
+            }],
+        },
+    ];
+
+    let chain = insert_chain();
+    let (resolved_in, resolved_out) = crate::runtime_endpoints::resolve_chain_io(&chain, &registry);
+    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
+        effective_inputs(&chain, &resolved_in, &registry);
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &registry);
+    let segments = split_chain_into_segments(
+        &chain,
+        &eff_inputs,
+        &cpal_indices,
+        &split_positions,
+        &entry_groups,
+        &eff_outputs,
+        &registry,
+    );
+
+    assert_eq!(segments.len(), 2, "the bound insert splits the chain");
+    assert_eq!(
+        segments[1].input.channels,
+        vec![3],
+        "the post-insert segment must read the RETURN channel"
+    );
+    assert_eq!(
+        segments[1].cpal_input_index, segments[0].cpal_input_index,
+        "send and return share the interface, so the return rides the same cpal \
+         input stream — a private index is a stream that is never opened"
+    );
+}

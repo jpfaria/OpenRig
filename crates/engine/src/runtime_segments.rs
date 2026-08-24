@@ -132,6 +132,7 @@ pub(crate) fn split_chain_into_segments(
     segments_with_inserts(
         chain,
         effective_ins,
+        cpal_indices,
         split_positions,
         entry_groups,
         &insert_positions,
@@ -353,6 +354,7 @@ fn segments_without_inserts(
 fn segments_with_inserts(
     chain: &Chain,
     effective_ins: &[InputEntry],
+    cpal_indices: &[usize],
     split_positions: &[Option<usize>],
     entry_groups: &[usize],
     insert_positions: &[usize],
@@ -400,7 +402,9 @@ fn segments_with_inserts(
             for (i, input) in effective_ins.iter().take(input_count).enumerate() {
                 segments.push(ChainSegment {
                     input: input.clone(),
-                    cpal_input_index: i,
+                    // The DEVICE's stream index, never the entry's position
+                    // (#881) — infra-cpal dedupes its input streams by device.
+                    cpal_input_index: cpal_indices.get(i).copied().unwrap_or(i),
                     block_indices: block_indices.clone(),
                     output_route_indices: output_indices.clone(),
                     // One segment per input here, so every input taps the
@@ -416,7 +420,10 @@ fn segments_with_inserts(
             let prev_return_idx = insert_return_idx - 1;
             segments.push(ChainSegment {
                 input: effective_ins[prev_return_idx].clone(),
-                cpal_input_index: prev_return_idx,
+                cpal_input_index: cpal_indices
+                    .get(prev_return_idx)
+                    .copied()
+                    .unwrap_or(prev_return_idx),
                 block_indices,
                 output_route_indices: output_indices,
                 mid_output_taps: taps,
@@ -456,7 +463,10 @@ fn segments_with_inserts(
     let last_return_idx = insert_return_idx - 1;
     segments.push(ChainSegment {
         input: effective_ins[last_return_idx].clone(),
-        cpal_input_index: last_return_idx,
+        cpal_input_index: cpal_indices
+            .get(last_return_idx)
+            .copied()
+            .unwrap_or(last_return_idx),
         block_indices,
         output_route_indices: tail_routes.to_vec(),
         mid_output_taps: taps,
