@@ -28,8 +28,8 @@ use std::sync::Arc;
 use anyhow::Result;
 
 use application::command::{LooperAction, LooperParam};
-use application::looper_edit::LoopEdit;
 use application::dispatcher::CommandDispatcher;
+use application::looper_edit::LoopEdit;
 use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};

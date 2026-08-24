@@ -103,7 +103,10 @@ fn dragging_the_start_handle_moves_the_selection_the_host_is_told_about() {
     w.show().unwrap();
 
     let before = w.global::<adapter_gui::LooperEditor>().get_sel_start();
-    assert!(drag(&w, "WaveformView::start-handle", 120.0), "the handle must be draggable");
+    assert!(
+        drag(&w, "WaveformView::start-handle", 120.0),
+        "the handle must be draggable"
+    );
     let after = w.global::<adapter_gui::LooperEditor>().get_sel_start();
 
     assert!(

@@ -33,7 +33,12 @@ impl RuntimeControl for RecordedLoop {
             chain
                 .loopers
                 .iter()
-                .map(|cfg| (cfg.uid, Arc::new(LoopPcm::new([0.25f32, -0.25].repeat(128).to_vec(), 48_000))))
+                .map(|cfg| {
+                    (
+                        cfg.uid,
+                        Arc::new(LoopPcm::new([0.25f32, -0.25].repeat(128).to_vec(), 48_000)),
+                    )
+                })
                 .collect(),
         )
     }
@@ -94,7 +99,10 @@ fn the_saved_project_points_at_the_loop_it_just_wrote() {
     application::persist_worker::flush();
 
     let wav = tmp.path().join("project.loops").join("rig-in-looper-1.wav");
-    assert!(wav.exists(), "the loop's audio must be written beside the project");
+    assert!(
+        wav.exists(),
+        "the loop's audio must be written beside the project"
+    );
 
     let yaml = std::fs::read_to_string(&project_path).expect("the project must be on disk");
     assert!(

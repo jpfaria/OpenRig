@@ -119,13 +119,7 @@ fn every_transport_button_fires_for_its_row() {
 
     assert_eq!(
         *fired.borrow(),
-        vec![
-            "record:7",
-            "play-stop:7",
-            "clear:7",
-            "drawer:7",
-            "remove:7",
-        ]
+        vec!["record:7", "play-stop:7", "clear:7", "drawer:7", "remove:7",]
     );
 }
 

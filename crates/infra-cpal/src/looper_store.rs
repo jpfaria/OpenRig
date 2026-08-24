@@ -15,9 +15,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use domain::ids::ChainId;
+use engine::loop_edit::{self, LoopEditError, LoopEditOp};
 use engine::spsc::SpscRing;
 use engine::{LooperSlot, LooperSpeed, LooperState, LooperStatus, LOOPER_MAX_SECONDS};
-use engine::loop_edit::{self, LoopEditError, LoopEditOp};
 use project::block::AudioBlock;
 use project::chain::EndpointRef;
 
@@ -181,10 +181,7 @@ impl LooperStore {
             .filter(|((c, u), e)| {
                 c == chain
                     && *u != uid
-                    && matches!(
-                        e.slot.state(),
-                        LooperState::Playing | LooperState::Stopped
-                    )
+                    && matches!(e.slot.state(), LooperState::Playing | LooperState::Stopped)
                     && e.slot.len_frames() > 0
             })
             .map(|(_, e)| e.slot.len_frames())

@@ -18,12 +18,12 @@ use application::live_source::{
     AudioHealthReading, BlockErrorReading, ChainMeterReading, ChainRuntimeReading, LiveSource,
     MetronomeReading,
 };
-use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::looper_edit::LoopEditReading;
+use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
-use engine::loop_edit;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
+use engine::loop_edit;
 use engine::LooperStatus;
 use infra_cpal::ProjectRuntimeController;
 use project::project::Project;

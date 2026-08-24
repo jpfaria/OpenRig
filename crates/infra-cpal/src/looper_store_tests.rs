@@ -57,13 +57,19 @@ fn record_close_play_stop_clear_are_deterministic_without_any_runtime() {
 
     // Record: start, feed 3 stereo frames of dry audio, close.
     store.tap_record(&cid(), 1);
-    assert_eq!(store.status(&cid(), 1).unwrap().state, LooperState::Recording);
+    assert_eq!(
+        store.status(&cid(), 1).unwrap().state,
+        LooperState::Recording
+    );
     store.record_frames(&cid(), 1, &[0.2, 0.2, 0.3, 0.3, 0.4, 0.4]);
     store.tap_record(&cid(), 1); // close → Playing
     let s = store.status(&cid(), 1).unwrap();
     assert_eq!(s.state, LooperState::Playing);
     assert_eq!(s.len_frames, 3);
-    assert!(store.export(&cid(), 1).is_some(), "a closed loop exports audio");
+    assert!(
+        store.export(&cid(), 1).is_some(),
+        "a closed loop exports audio"
+    );
 
     // Stop / clear act with NO runtime — the whole point of the redesign.
     store.stop(&cid(), 1);

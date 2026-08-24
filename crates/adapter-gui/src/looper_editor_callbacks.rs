@@ -207,13 +207,13 @@ pub(crate) fn wire_looper_editor_callbacks(
                 return;
             };
             let edit = LoopEdit::from_ratios(edit_kind(kind), len_frames, from, to);
-            let dispatched = s
-                .dispatcher
-                .dispatch(Command::Looper(LooperCommand::EditChainLooperAudio {
-                    chain: chain.clone(),
-                    looper: uid,
-                    edit,
-                }));
+            let dispatched =
+                s.dispatcher
+                    .dispatch(Command::Looper(LooperCommand::EditChainLooperAudio {
+                        chain: chain.clone(),
+                        looper: uid,
+                        edit,
+                    }));
             if let Err(err) = &dispatched {
                 log::warn!("loop edit refused: {err}");
             }
@@ -224,10 +224,8 @@ pub(crate) fn wire_looper_editor_callbacks(
             editor.set_sel_start(0.0);
             editor.set_sel_end(1.0);
             let after = refresh_editor(&window, &live, &chain, uid);
-            let outcome = EditOutcome::of(
-                len_frames,
-                if dispatched.is_ok() { after } else { None },
-            );
+            let outcome =
+                EditOutcome::of(len_frames, if dispatched.is_ok() { after } else { None });
             editor.set_status_code(outcome.code());
             // The loop's audio is runtime state: only a SAVE writes it to disk,
             // and the save only happens if the project knows it is dirty.
@@ -292,12 +290,12 @@ pub(crate) fn wire_looper_editor_callbacks(
                     return;
                 };
                 let uid = uid as u64;
-                if let Err(err) =
-                    s.dispatcher
-                        .dispatch(Command::Looper(LooperCommand::$command {
-                            chain: chain.clone(),
-                            looper: uid,
-                        }))
+                if let Err(err) = s
+                    .dispatcher
+                    .dispatch(Command::Looper(LooperCommand::$command {
+                        chain: chain.clone(),
+                        looper: uid,
+                    }))
                 {
                     log::warn!("loop edit history step failed: {err}");
                     return;

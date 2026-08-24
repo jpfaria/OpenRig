@@ -24,9 +24,9 @@
 use domain::ids::{BlockId, ChainId};
 use engine::LooperStatus;
 
+use crate::looper_edit::LoopEditReading;
 use crate::query_analyzers::{SpectrumReading, TunerReading};
 use crate::query_di::DiLoopReading;
-use crate::looper_edit::LoopEditReading;
 
 /// #14/#127: where the click is in the bar, and whether it is sounding.
 ///

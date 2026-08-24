@@ -10,7 +10,6 @@
 
 pub mod chain_quality;
 pub mod crossfade;
-pub mod loop_edit;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
@@ -19,6 +18,7 @@ pub mod input_tap;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
 mod issue_85_stream_per_pair_tests;
+pub mod loop_edit;
 pub mod loop_pcm;
 pub mod looper;
 pub mod looper_bank;

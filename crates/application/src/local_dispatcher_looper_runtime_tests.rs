@@ -22,9 +22,9 @@ use project::chain::{Chain, EndpointRef, LooperConfig, LooperSpeed};
 use project::project::Project;
 
 use crate::command::{Command, LooperAction, LooperCommand, LooperParam};
-use crate::looper_edit::LoopEdit;
 use crate::dispatcher::CommandDispatcher;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::looper_edit::LoopEdit;
 use crate::runtime_control::RuntimeControl;
 
 /// What the runtime was asked to do, in order. Every entry names the chain it
