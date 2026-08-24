@@ -23,7 +23,7 @@ mod block_editor_window_params;
 mod block_editor_window_setup;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
-mod block_panel_dimensions;
+pub mod block_panel_dimensions;
 mod block_parameter_extras;
 mod block_parameter_wiring;
 mod block_picker_wiring;
