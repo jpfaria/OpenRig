@@ -3,9 +3,12 @@
 //
 // Since #716 (model A) an insert carries exactly ONE thing: the E/S binding its
 // loop runs through — the SEND goes out that binding's output, the RETURN comes
-// back on its input. So this page offers that single choice, mirroring the mid
-// port editor. Device / mode / channels belong to the E/S itself and are edited
-// in the I/O bindings screen, not here.
+// back on its input. So this page offers that single choice. Device / mode /
+// channels belong to the E/S itself and are edited in the I/O bindings screen.
+//
+// One choice is a DIALOG, not a page: the card hugs its content and sits in the
+// middle of whatever window size the OS hands us, instead of a header stranded
+// at the top with the buttons a screen away at the bottom.
 
 import { ComboBox } from "std-widgets.slint";
 import { PortEditorFooterButton } from "port_editor_widgets.slint";
@@ -24,113 +27,128 @@ export component ChainInsertEditorPage inherits Rectangle {
 
     background: #171a1f;
 
-    VerticalLayout {
-        padding: 32px;
-        spacing: 20px;
+    // A direct child of the page (never inside a layout) so sizing the card
+    // from the page's own width cannot feed back into a layout that measures
+    // it — that pairing is a Slint binding loop.
+    card := Rectangle {
+        width: min(520px, root.width - 48px);
+        height: body.preferred-height;
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        background: #1b1f26;
+        border-width: 1px;
+        border-color: #2a2f38;
+        border-radius: 10px;
 
-        HorizontalLayout {
-            spacing: 12px;
+        body := VerticalLayout {
+                    padding: 24px;
+                    spacing: 16px;
 
-            Text {
-                text: @tr("title-section-configure-insert");
-                color: #edf2f9;
-                font-size: 20px;
-                font-weight: 800;
-                vertical-alignment: center;
-                horizontal-stretch: 1;
-            }
+                    HorizontalLayout {
+                        spacing: 12px;
 
-            // Enabled dot — same affordance as the port editor.
-            Rectangle {
-                width: 24px;
-                height: 24px;
-                border-radius: 4px;
-                background: toggle-hover.has-hover ? #1e2229 : transparent;
-                accessible-role: button;
-                accessible-label: @tr("action-toggle-block-enabled");
+                        Text {
+                            text: @tr("title-section-configure-insert");
+                            color: #edf2f9;
+                            font-size: 18px;
+                            font-weight: 800;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
 
-                Rectangle {
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 4px;
-                    background: root.block-enabled ? #29df85 : #697382;
-                }
+                        // Enabled dot — same affordance as the port editor.
+                        Rectangle {
+                            width: 24px;
+                            height: 24px;
+                            border-radius: 4px;
+                            background: toggle-hover.has-hover ? #1e2229 : transparent;
+                            accessible-role: button;
+                            accessible-label: @tr("action-toggle-block-enabled");
 
-                toggle-hover := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.toggle-enabled(); }
-                }
-            }
+                            Rectangle {
+                                width: 8px;
+                                height: 8px;
+                                border-radius: 4px;
+                                background: root.block-enabled ? #29df85 : #697382;
+                            }
 
-            Rectangle {
-                width: 24px;
-                height: 24px;
-                border-radius: 4px;
-                background: delete-hover.has-hover ? #2a1015 : transparent;
-                accessible-role: button;
-                accessible-label: @tr("action-delete-block");
+                            toggle-hover := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.toggle-enabled(); }
+                            }
+                        }
 
-                Image {
-                    width: 20px;
-                    height: 20px;
-                    source: @image-url("../assets/trash.svg");
-                    colorize: delete-hover.has-hover ? #ff4455 : #5a6270;
-                    image-fit: contain;
-                }
+                        Rectangle {
+                            width: 24px;
+                            height: 24px;
+                            border-radius: 4px;
+                            background: delete-hover.has-hover ? #2a1015 : transparent;
+                            accessible-role: button;
+                            accessible-label: @tr("action-delete-block");
 
-                delete-hover := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.delete-block(); }
-                }
-            }
-        }
+                            Image {
+                                width: 20px;
+                                height: 20px;
+                                source: @image-url("../assets/trash.svg");
+                                colorize: delete-hover.has-hover ? #ff4455 : #5a6270;
+                                image-fit: contain;
+                            }
 
-        Rectangle { height: 1px; background: #2a2f38; }
+                            delete-hover := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.delete-block(); }
+                            }
+                        }
+                    }
 
-        Text {
-            text: @tr("label-io-binding");
-            color: #8c96a6;
-            font-size: 12px;
-            font-weight: 700;
-        }
+                    Rectangle { height: 1px; background: #2a2f38; }
 
-        ComboBox {
-            model: root.binding-options;
-            current-index <=> root.selected-binding-index;
-            selected(value) => { root.select-binding(self.current-index); }
-        }
+                    VerticalLayout {
+                        spacing: 6px;
 
-        Text {
-            text: @tr("msg-insert-loop-uses-binding");
-            color: #697382;
-            font-size: 12px;
-            wrap: word-wrap;
-        }
+                        Text {
+                            text: @tr("label-io-binding");
+                            color: #8c96a6;
+                            font-size: 12px;
+                            font-weight: 700;
+                        }
 
-        if root.show-binding-warning : Text {
-            text: @tr("msg-pick-io-binding");
-            color: #ff9f43;
-            font-size: 12px;
-            wrap: word-wrap;
-        }
+                        ComboBox {
+                            model: root.binding-options;
+                            current-index <=> root.selected-binding-index;
+                            selected(value) => { root.select-binding(self.current-index); }
+                        }
 
-        // Pushes the footer to the bottom.
-        Rectangle { vertical-stretch: 1; }
+                        Text {
+                            text: @tr("msg-insert-loop-uses-binding");
+                            color: #697382;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                        }
+                    }
 
-        HorizontalLayout {
-            spacing: 12px;
-            alignment: end;
+                    if root.show-binding-warning : Text {
+                        text: @tr("msg-pick-io-binding");
+                        color: #ff9f43;
+                        font-size: 12px;
+                        wrap: word-wrap;
+                    }
 
-            PortEditorFooterButton {
-                label: @tr("btn-cancel");
-                clicked => { root.cancel(); }
-            }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: end;
 
-            PortEditorFooterButton {
-                label: @tr("btn-ok");
-                primary: true;
-                clicked => { root.save(); }
-            }
+                        PortEditorFooterButton {
+                            label: @tr("btn-cancel");
+                            clicked => { root.cancel(); }
+                        }
+
+                        PortEditorFooterButton {
+                            label: @tr("btn-ok");
+                            primary: true;
+                            clicked => { root.save(); }
+                        }
+                    }
         }
     }
 }
