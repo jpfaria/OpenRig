@@ -918,3 +918,12 @@ msgstr "Choisissez une E/S et un point"
 
 msgid "label-io-binding"
 msgstr "E/S"
+
+msgid "label-channels-selected"
+msgstr "Sélectionnés :"
+
+msgid "hint-channels-pick-device"
+msgstr "Choisissez un périphérique pour voir ses canaux"
+
+msgid "label-channels-total"
+msgstr "{} canaux"

@@ -918,3 +918,12 @@ msgstr "I/O とエンドポイントを選択"
 
 msgid "label-io-binding"
 msgstr "I/O"
+
+msgid "label-channels-selected"
+msgstr "選択中:"
+
+msgid "hint-channels-pick-device"
+msgstr "デバイスを選ぶとチャンネルが表示されます"
+
+msgid "label-channels-total"
+msgstr "{} チャンネル"

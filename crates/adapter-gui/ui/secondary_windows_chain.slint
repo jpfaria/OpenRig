@@ -225,9 +225,12 @@ export component ChainInsertWindow inherits Window {
 
     title: @tr("title-window-chain-insert");
     min-width: 680px;
-    min-height: 580px;
+    // #880: the send and return channel lists are real lists now. Below ~720px
+    // the two of them plus the fixed chrome stop fitting and the return list
+    // climbs over the footer; the preferred size shows four channels per list.
+    min-height: 720px;
     preferred-width: 820px;
-    preferred-height: 720px;
+    preferred-height: 900px;
     background: #040708;
 
     ChainInsertEditorPage {

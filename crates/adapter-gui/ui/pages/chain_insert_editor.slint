@@ -1,5 +1,6 @@
-import { ComboBox, ScrollView } from "std-widgets.slint";
+import { ComboBox } from "std-widgets.slint";
 import { ChannelOptionItem } from "../models.slint";
+import { ChannelPicker } from "../components/channel_picker.slint";
 
 component FooterButton inherits Rectangle {
     in property <string> label;
@@ -30,68 +31,6 @@ component FooterButton inherits Rectangle {
         height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
-    }
-}
-
-component ChannelRow inherits Rectangle {
-    in property <ChannelOptionItem> channel;
-    callback toggled(bool);
-
-    height: 40px;
-    background: transparent;
-
-    Rectangle {
-        x: 0px;
-        y: parent.height - 1px;
-        width: parent.width;
-        height: 1px;
-        background: #252a33;
-    }
-
-    Rectangle {
-        x: 0px;
-        y: 10px;
-        width: 20px;
-        height: 20px;
-        background: root.channel.selected ? #188cff : #1e2229;
-        border-width: 1px;
-        border-color: root.channel.selected ? #45a7ff : (root.channel.available ? #3d4450 : #2a2f38);
-        border-radius: 4px;
-        opacity: root.channel.available ? 1 : 0.4;
-
-        if root.channel.selected : Text {
-            width: parent.width;
-            height: parent.height;
-            text: @tr("\u{2713}");
-            color: #ffffff;
-            font-size: 12px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
-
-    Text {
-        x: 32px;
-        y: 0px;
-        width: parent.width - 32px;
-        height: parent.height;
-        text: root.channel.label;
-        color: root.channel.available
-            ? (root.channel.selected ? #edf2f9 : #8a95a5)
-            : #4a5060;
-        font-size: 13px;
-        font-weight: root.channel.selected ? 600 : 400;
-        vertical-alignment: center;
-    }
-
-    if root.channel.available : TouchArea {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-        mouse-cursor: pointer;
-        clicked => { root.toggled(!root.channel.selected); }
     }
 }
 
@@ -304,24 +243,23 @@ export component ChainInsertEditorPage inherits Rectangle {
 
     // Each section takes half the remaining vertical space (total - fixed header/footer)
     // Fixed: title 72px + send header 172px + footer 56px + return header 192px = 492px
-    // Channel areas split the remainder equally
-    private property <length> channel-area-height: (root.height - 560px) / 2;
+    // Channel areas split the remainder equally. The picker sizes itself from a
+    // ROW COUNT, so convert; at least two rows stay visible on a short window.
+    // The picker sizes itself from a ROW COUNT, so the split drives the rows and
+    // the rows drive the area — otherwise the picker overflows into the section
+    // below on a short window. 42px = the picker's header + padding.
+    private property <int> rows-per-area: Math.max(2, Math.floor(((root.height - 500px) / 2 - 42px) / 34px));
+    private property <length> channel-area-height: 42px + root.rows-per-area * 34px;
 
-    ScrollView {
+    ChannelPicker {
         x: 32px;
         y: 244px;
         width: parent.width - 64px;
-        height: root.channel-area-height;
-        viewport-width: self.width;
-        viewport-height: Math.max(self.height, root.send-channels.length * 40px);
-
-        for channel[index] in root.send-channels : ChannelRow {
-            x: 0px;
-            y: index * 40px;
-            width: parent.width - 8px;
-            channel: channel;
-            toggled(selected) => { root.toggle-send-channel(index, selected); }
-        }
+        channels: root.send-channels;
+        single-select: root.selected-send-mode-index == 0;
+        visible-rows: root.rows-per-area;
+        empty-hint: @tr("hint-channels-pick-device");
+        toggled(index, selected) => { root.toggle-send-channel(index, selected); }
     }
 
     // Separator between sections
@@ -432,21 +370,15 @@ export component ChainInsertEditorPage inherits Rectangle {
         font-weight: 600;
     }
 
-    ScrollView {
+    ChannelPicker {
         x: 32px;
         y: root.return-start + 184px;
         width: parent.width - 64px;
-        height: root.height - root.return-start - 184px - 56px;
-        viewport-width: self.width;
-        viewport-height: Math.max(self.height, root.return-channels.length * 40px);
-
-        for channel[index] in root.return-channels : ChannelRow {
-            x: 0px;
-            y: index * 40px;
-            width: parent.width - 8px;
-            channel: channel;
-            toggled(selected) => { root.toggle-return-channel(index, selected); }
-        }
+        channels: root.return-channels;
+        single-select: root.selected-return-mode-index == 0;
+        visible-rows: root.rows-per-area;
+        empty-hint: @tr("hint-channels-pick-device");
+        toggled(index, selected) => { root.toggle-return-channel(index, selected); }
     }
 
     // Status message
