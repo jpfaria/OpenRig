@@ -50,6 +50,9 @@ export component IoEndpointRow inherits Rectangle {
             color: #8a92a3;
             font-size: 12px;
             vertical-alignment: center;
+            // #880: a many-channel endpoint must not push the row's actions out.
+            overflow: elide;
+            max-width: 120px;
         }
         Text {
             text: root.endpoint.mode;

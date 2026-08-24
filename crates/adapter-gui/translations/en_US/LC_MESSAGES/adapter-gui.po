@@ -919,3 +919,12 @@ msgstr "Pick an I/O and an endpoint"
 
 msgid "label-io-binding"
 msgstr "I/O"
+
+msgid "label-channels-selected"
+msgstr "Selected:"
+
+msgid "hint-channels-pick-device"
+msgstr "Pick a device to list its channels"
+
+msgid "label-channels-total"
+msgstr "{} channels"

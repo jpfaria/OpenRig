@@ -907,3 +907,12 @@ msgstr ""
 
 msgid "msg-pick-io-endpoint"
 msgstr ""
+
+msgid "label-channels-selected"
+msgstr ""
+
+msgid "hint-channels-pick-device"
+msgstr ""
+
+msgid "label-channels-total"
+msgstr ""

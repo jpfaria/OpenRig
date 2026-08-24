@@ -139,8 +139,9 @@ fn io_bindings_ui_interactions() {
         let f = fired.clone();
         w.on_toggle_endpoint_channel(move |_idx, _sel, _mode| f.set(true));
 
+        // The cell lives in the shared ChannelPicker component since #880.
         assert!(
-            click_element(&w, "SectionSystemIoBindings::chan-cell"),
+            click_element(&w, "ChannelPicker::chan-cell"),
             "channel cell not found — add-endpoint form did not open"
         );
         assert!(

@@ -917,3 +917,12 @@ msgstr "I/O와 엔드포인트를 선택하세요"
 
 msgid "label-io-binding"
 msgstr "I/O"
+
+msgid "label-channels-selected"
+msgstr "선택됨:"
+
+msgid "hint-channels-pick-device"
+msgstr "장치를 선택하면 채널이 표시됩니다"
+
+msgid "label-channels-total"
+msgstr "채널 {}개"
