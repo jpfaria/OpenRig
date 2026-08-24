@@ -17,6 +17,10 @@ component ChannelPickerRow inherits Rectangle {
     // Mono takes exactly one channel — a radio, not a checkbox.
     in property <bool> radio: false;
     callback toggled();
+    // The row itself consumes the wheel. Relying on the enclosing Flickable to
+    // win the event against the settings panel's own scroll area worked
+    // headlessly and did NOT work in the running app.
+    callback scrolled(length /* delta-y */);
 
     background: ta.has-hover ? #1f1f23 : transparent;
     border-radius: 6px;
@@ -79,6 +83,10 @@ component ChannelPickerRow inherits Rectangle {
         enabled: root.channel.available;
         mouse-cursor: pointer;
         clicked => { root.toggled(); }
+        scroll-event(e) => {
+            root.scrolled(e.delta-y);
+            return EventResult.accept;
+        }
     }
 }
 
@@ -191,6 +199,10 @@ export component ChannelPicker inherits Rectangle {
                     channel: ch;
                     radio: root.single-select;
                     toggled => { root.toggled(i, !ch.selected); }
+                    scrolled(dy) => {
+                        fl.viewport-y = Math.min(0px, Math.max(
+                            -(fl.viewport-height - fl.height), fl.viewport-y + dy));
+                    }
                 }
             }
 
