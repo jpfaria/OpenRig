@@ -41,10 +41,8 @@ fn curve_editor_block_renders_no_parameter_tabs() {
 
     let w = panel_editor_window();
     w.set_block_parameter_groups(groups(&["Band 1", "Band 2", "Band 3", "Output"]));
-    w.set_curve_editor_points(ModelRc::new(VecModel::from(vec![
-        CurveEditorPoint::default();
-        4
-    ])));
+    let bands = vec![CurveEditorPoint::default(); 4];
+    w.set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
     w.show().unwrap();
 
     assert_eq!(
@@ -60,10 +58,8 @@ fn multi_slider_block_renders_no_parameter_tabs() {
 
     let w = panel_editor_window();
     w.set_block_parameter_groups(groups(&["Low", "Mid", "High"]));
-    w.set_multi_slider_points(ModelRc::new(VecModel::from(vec![
-        MultiSliderPoint::default();
-        3
-    ])));
+    let bands = vec![MultiSliderPoint::default(); 3];
+    w.set_multi_slider_points(ModelRc::new(VecModel::from(bands)));
     w.show().unwrap();
 
     assert_eq!(
@@ -95,17 +91,16 @@ fn every_band_slider_fits_inside_the_editor_window() {
     w.set_block_parameter_groups(groups(&[
         "Band 1", "Band 2", "Band 3", "Band 4", "Band 5", "Band 6", "Band 7", "Band 8", "Output",
     ]));
-    w.set_curve_editor_points(ModelRc::new(VecModel::from(vec![
-        CurveEditorPoint::default();
-        8
-    ])));
+    let bands = vec![CurveEditorPoint::default(); 8];
+    w.set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
     w.set_panel_knob_inner_height(dims.inner_panel_height_px);
     w.window()
         .set_size(slint::LogicalSize::new(dims.window_width_px, window_h));
     w.show().unwrap();
 
     let sliders: Vec<_> =
-        i_slint_backend_testing::ElementHandle::find_by_element_id(&w, "EqBandSlider::ta").collect();
+        i_slint_backend_testing::ElementHandle::find_by_element_id(&w, "EqBandSlider::ta")
+            .collect();
     assert_eq!(sliders.len(), 8, "one slider per band");
     for (i, s) in sliders.iter().enumerate() {
         let bottom = s.absolute_position().y + s.size().height;

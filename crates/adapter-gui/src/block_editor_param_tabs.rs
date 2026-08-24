@@ -262,7 +262,12 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     });
     // EQ-widget blocks render no tab bar (#878) — no 40px to reserve for it.
     tabs.set_panel_height(
-        dims.window_height_px + if has_tabs && !eq_widget.is_some() { 40.0 } else { 0.0 },
+        dims.window_height_px
+            + if has_tabs && !eq_widget.is_some() {
+                40.0
+            } else {
+                0.0
+            },
     );
     // #500 inner knob-grid dimensions: BlockPanelEditor lays out the grid from
     // these, so the inline editor must get them exactly like the detached one.

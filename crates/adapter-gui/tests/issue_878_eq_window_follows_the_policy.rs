@@ -15,10 +15,8 @@ fn eq_window(bands: usize) -> BlockEditorWindow {
     kind.use_panel_editor = true;
     w.set_block_type_options(ModelRc::new(VecModel::from(vec![kind])));
     w.set_block_drawer_selected_type_index(0);
-    w.set_curve_editor_points(ModelRc::new(VecModel::from(vec![
-        CurveEditorPoint::default();
-        bands
-    ])));
+    let points = vec![CurveEditorPoint::default(); bands];
+    w.set_curve_editor_points(ModelRc::new(VecModel::from(points)));
     w
 }
 

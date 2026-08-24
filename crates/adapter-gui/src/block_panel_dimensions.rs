@@ -117,16 +117,12 @@ impl EqWidget {
     fn width_px(self) -> f32 {
         let (bands, per_band, max) = match self {
             Self::None => return MIN_PANEL_WIDTH_PX,
-            Self::CurveEditor { bands } => (
-                bands,
-                CURVE_EDITOR_BAND_WIDTH_PX,
-                CURVE_EDITOR_MAX_WIDTH_PX,
-            ),
-            Self::MultiSlider { bands } => (
-                bands,
-                MULTI_SLIDER_BAND_WIDTH_PX,
-                MULTI_SLIDER_MAX_WIDTH_PX,
-            ),
+            Self::CurveEditor { bands } => {
+                (bands, CURVE_EDITOR_BAND_WIDTH_PX, CURVE_EDITOR_MAX_WIDTH_PX)
+            }
+            Self::MultiSlider { bands } => {
+                (bands, MULTI_SLIDER_BAND_WIDTH_PX, MULTI_SLIDER_MAX_WIDTH_PX)
+            }
         };
         (bands as f32 * per_band + EQ_WIDTH_CHROME_PX).clamp(EQ_MIN_WIDTH_PX, max)
     }

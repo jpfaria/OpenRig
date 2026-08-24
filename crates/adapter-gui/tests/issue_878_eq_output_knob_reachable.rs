@@ -5,9 +5,7 @@
 //! panel. The panel must keep rendering the knobs the widget does NOT own, in
 //! the panel strip above the widget.
 
-use adapter_gui::{
-    BlockEditorWindow, BlockParameterItem, BlockTypePickerItem, CurveEditorPoint,
-};
+use adapter_gui::{BlockEditorWindow, BlockParameterItem, BlockTypePickerItem, CurveEditorPoint};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
 /// Bottom of the block panel strip: the header (48px) plus the strip an EQ
@@ -50,10 +48,8 @@ fn eq_block_keeps_the_knobs_its_widget_does_not_draw() {
     i_slint_backend_testing::init_no_event_loop();
 
     let w = panel_editor_window();
-    w.set_curve_editor_points(ModelRc::new(VecModel::from(vec![
-        CurveEditorPoint::default();
-        4
-    ])));
+    let bands = vec![CurveEditorPoint::default(); 4];
+    w.set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
     w.set_block_parameter_items(ModelRc::new(VecModel::from(vec![
         widget_owned("band1_freq"),
         widget_owned("band1_gain"),
