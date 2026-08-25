@@ -9,7 +9,7 @@
 // instance (Rust installs on each), but the DECLARATION exists once and every
 // section reads it directly with no prop drilling.
 
-import { MidiDeviceRow } from "models.slint";
+import { ChannelOptionItem, IoBindingModel, MidiDeviceRow } from "models.slint";
 
 export global SettingsBridge {
     // ── System / Paths (#513, #582) ──────────────────────────────────────
@@ -45,4 +45,33 @@ export global SettingsBridge {
     in-out property <bool> mcp-enabled;
     callback set-midi-enabled(bool);
     callback set-mcp-enabled(bool);
+
+    // ── System / I/O bindings (#716) ─────────────────────────────────────
+    // `io-binding-names` feeds the chain-level endpoint picker; the registry
+    // editor consumes `io-bindings`.
+    in-out property <[string]> io-binding-names;
+    in-out property <[IoBindingModel]> io-bindings;
+    in-out property <[string]> input-device-ids;
+    in-out property <[string]> input-device-names;
+    in-out property <[string]> output-device-ids;
+    in-out property <[string]> output-device-names;
+    in-out property <[ChannelOptionItem]> io-binding-channel-options;
+    in-out property <string> io-binding-error: "";
+    // Prefill read-backs (#716 Bug 3): Rust sets these synchronously inside
+    // the `edit-endpoint` callback so the edit handler can seed the open
+    // add-form with the endpoint's device + mode.
+    in-out property <int> io-edit-prefill-device-index: -1;
+    in-out property <int> io-edit-prefill-mode-index: 0;
+
+    callback create-io-binding(string /* name */) -> string;
+    callback delete-io-binding(string /* id */) -> string;
+    callback rename-io-binding(string /* id */, string /* new_name */);
+    callback endpoint-device-changed(string /* binding */, bool /* is_input */, string /* device_id */);
+    callback toggle-endpoint-channel(int /* index */, bool /* selected */, string /* mode */);
+    // `edit_name` empty ⇒ append a new endpoint; non-empty ⇒ replace that one.
+    callback add-input-endpoint(string /* binding */, string /* device_id */, string /* mode */, string /* edit_name */);
+    callback add-output-endpoint(string /* binding */, string /* device_id */, string /* mode */, string /* edit_name */);
+    callback remove-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
+    // Fires before the form opens; Rust seeds the channel model + prefill props.
+    callback edit-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
 }

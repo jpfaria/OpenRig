@@ -7,7 +7,8 @@
 // IN = green #4ade80, OUT = orange #fb923c. Body font = Locale.font-family
 // (inherited; NOT hardcoded — system fallback keeps CJK translations tofu-free).
 
-import { IoBindingModel, IoEndpointModel, ChannelOptionItem } from "../../models.slint";
+import { IoEndpointModel } from "../../models.slint";
+import { SettingsBridge } from "../../settings_globals.slint";
 import { ChannelPicker } from "../../components/channel_picker.slint";
 
 component Hairline inherits Rectangle { height: 1px; background: #27272a; }
@@ -171,33 +172,6 @@ component EndpointRow inherits Rectangle {
 }
 
 export component SectionSystemIoBindings inherits Rectangle {
-    // ── Data surface ──────────────────────────────────────────────────────────
-    in property <[IoBindingModel]> io-bindings;
-    in property <[string]> input-device-ids;
-    in property <[string]> input-device-names;
-    in property <[string]> output-device-ids;
-    in property <[string]> output-device-names;
-    in property <[ChannelOptionItem]> channel-options;
-    in-out property <string> io-binding-error: "";
-    // Prefill read-backs (#716 Bug 3): Rust sets these synchronously inside the
-    // `edit-endpoint` callback so the edit handler can seed the open add-form
-    // with the endpoint's device + mode.
-    in property <int> edit-prefill-device-index: -1;
-    in property <int> edit-prefill-mode-index: 0;
-
-    // ── Callbacks ─────────────────────────────────────────────────────────────
-    callback create-io-binding(string /* name */) -> string;
-    callback delete-io-binding(string /* id */) -> string;
-    callback rename-io-binding(string /* id */, string /* new_name */);
-    callback endpoint-device-changed(string /* binding */, bool /* is_input */, string /* device_id */);
-    callback toggle-endpoint-channel(int /* index */, bool /* selected */, string /* mode */);
-    // `edit_name` empty ⇒ append a new endpoint; non-empty ⇒ replace that one.
-    callback add-input-endpoint(string /* binding */, string /* device_id */, string /* mode */, string /* edit_name */);
-    callback add-output-endpoint(string /* binding */, string /* device_id */, string /* mode */, string /* edit_name */);
-    callback remove-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
-    // Fires before the form opens; Rust seeds the channel model + prefill props.
-    callback edit-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
-
     // ── Private state ─────────────────────────────────────────────────────────
     // Which add-row is open: "<binding>|in" / "<binding>|out" ("" = none).
     private property <string> active-add: "";
@@ -230,24 +204,24 @@ export component SectionSystemIoBindings inherits Rectangle {
                 color: #a1a1aa; font-size: 14px; vertical-alignment: center; wrap: word-wrap;
             }
             Rectangle { width: 138px; VerticalLayout { alignment: center;
-                new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.expanded-binding-id = root.create-io-binding(""); } } } }
+                new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); } } } }
         }
 
-        if root.io-binding-error != "" : Rectangle {
+        if SettingsBridge.io-binding-error != "" : Rectangle {
             height: 40px; background: #3a1a1a; border-radius: 8px; border-width: 1px; border-color: #7f1d1d;
             HorizontalLayout { padding-left: 14px; padding-right: 8px; spacing: 8px;
-                Text { horizontal-stretch: 1; text: root.io-binding-error; color: #fca5a5; font-size: 13px; vertical-alignment: center; overflow: elide; }
-                IconBtn { icon: @image-url("../../assets/close.svg"); clicked => { root.io-binding-error = ""; } } }
+                Text { horizontal-stretch: 1; text: SettingsBridge.io-binding-error; color: #fca5a5; font-size: 13px; vertical-alignment: center; overflow: elide; }
+                IconBtn { icon: @image-url("../../assets/close.svg"); clicked => { SettingsBridge.io-binding-error = ""; } } }
         }
 
-        if root.io-bindings.length == 0 : Rectangle {
+        if SettingsBridge.io-bindings.length == 0 : Rectangle {
             height: 96px; background: #16161a; border-radius: 10px; border-width: 1px; border-color: #27272a;
             VerticalLayout { alignment: center; spacing: 4px;
                 Text { text: @tr("empty-no-bindings"); color: #d4d4d8; font-size: 15px; font-weight: 600; horizontal-alignment: center; }
                 Text { text: @tr("empty-no-bindings-hint"); color: #71717a; font-size: 13px; horizontal-alignment: center; } }
         }
 
-        for binding[bi] in root.io-bindings : Rectangle {
+        for binding[bi] in SettingsBridge.io-bindings : Rectangle {
             background: #18181b; border-radius: 10px; border-width: 1px; border-color: #27272a;
             VerticalLayout {
                 padding: 24px; spacing: 18px;
@@ -307,12 +281,12 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 // stuck in edit mode (looks like "nothing happened").
                                 accepted => {
                                     root.renaming-binding-id = "";
-                                    root.rename-io-binding(binding.id, root.rename-draft);
+                                    SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
                                 }
                                 changed has-focus => {
                                     if !self.has-focus && root.renaming-binding-id == binding.id {
                                         root.renaming-binding-id = "";
-                                        root.rename-io-binding(binding.id, root.rename-draft);
+                                        SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
                                     }
                                 }
                             }
@@ -325,12 +299,12 @@ export component SectionSystemIoBindings inherits Rectangle {
                         root.renaming-binding-id = binding.id;
                     } }
                     if root.renaming-binding-id != binding.id : delete-btn := IconBtn { icon: @image-url("../../assets/trash.svg"); hover-bg: #3a1a1a; clicked => {
-                        let err = root.delete-io-binding(binding.id); if err != "" { root.io-binding-error = err; } } }
+                        let err = SettingsBridge.delete-io-binding(binding.id); if err != "" { SettingsBridge.io-binding-error = err; } } }
                     // Editing actions: confirm commits the rename, cancel discards.
                     if root.renaming-binding-id == binding.id : confirm-rename-btn := IconBtn { icon: @image-url("../../assets/check.svg"); hover-bg: #14321f; clicked => {
                         // Reset before dispatch — see the accepted/blur note above.
                         root.renaming-binding-id = "";
-                        root.rename-io-binding(binding.id, root.rename-draft);
+                        SettingsBridge.rename-io-binding(binding.id, root.rename-draft);
                     } }
                     if root.renaming-binding-id == binding.id : IconBtn { icon: @image-url("../../assets/close.svg"); clicked => {
                         root.renaming-binding-id = "";
@@ -347,13 +321,13 @@ export component SectionSystemIoBindings inherits Rectangle {
                 for ep[ii] in binding.inputs : EndpointRow {
                     endpoint: ep;
                     edit-requested => {
-                        root.edit-endpoint(binding.id, ep.name, true);
-                        root.add-device-index = root.edit-prefill-device-index;
-                        root.add-mode-index = root.edit-prefill-mode-index;
+                        SettingsBridge.edit-endpoint(binding.id, ep.name, true);
+                        root.add-device-index = SettingsBridge.io-edit-prefill-device-index;
+                        root.add-mode-index = SettingsBridge.io-edit-prefill-mode-index;
                         root.editing-endpoint = ep.name;
                         root.active-add = binding.id + "|in";
                     }
-                    remove-requested => { root.remove-endpoint(binding.id, ep.name, true); }
+                    remove-requested => { SettingsBridge.remove-endpoint(binding.id, ep.name, true); }
                 }
                 if root.active-add != (binding.id + "|in") : add-input-btn := AddButton {
                     text: @tr("btn-add-input");
@@ -363,16 +337,16 @@ export component SectionSystemIoBindings inherits Rectangle {
                     background: #111114; border-radius: 8px; border-width: 1px; border-color: #27272a;
                     VerticalLayout { padding: 16px; spacing: 14px;
                         FieldRow { label: @tr("label-endpoint-device");
-                            DropDown { model: root.input-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
-                                picked(i) => { root.endpoint-device-changed(binding.id, true, root.input-device-ids[i]); } } }
+                            DropDown { model: SettingsBridge.input-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
+                                picked(i) => { SettingsBridge.endpoint-device-changed(binding.id, true, SettingsBridge.input-device-ids[i]); } } }
                         FieldRow { label: @tr("label-endpoint-mode");
                             Segmented { options: [@tr("mode-mono"), @tr("mode-stereo"), @tr("mode-dual-mono")]; current <=> root.add-mode-index; } }
                         FieldRow { label: @tr("label-endpoint-channels"); label-top: true;
                             ChannelPicker {
-                                channels: root.channel-options;
+                                channels: SettingsBridge.io-binding-channel-options;
                                 single-select: root.add-mode-index == 0;
                                 empty-hint: @tr("hint-channels-pick-device");
-                                toggled(ci, sel) => { root.toggle-endpoint-channel(ci, sel,
+                                toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
                                     root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono"); } } }
                         HorizontalLayout { spacing: 8px;
                             Rectangle { horizontal-stretch: 1; }
@@ -388,7 +362,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 // is still needed by the call below; it's reset on
                                 // the next form open by add-input-btn / the pencil.)
                                 root.active-add = "";
-                                root.add-input-endpoint(binding.id, root.add-device-index >= 0 ? root.input-device-ids[root.add-device-index] : "",
+                                SettingsBridge.add-input-endpoint(binding.id, root.add-device-index >= 0 ? SettingsBridge.input-device-ids[root.add-device-index] : "",
                                     root.add-mode-index == 0 ? "mono" : root.add-mode-index == 1 ? "stereo" : "dual_mono", root.editing-endpoint); } } }
                     }
                 }
@@ -401,13 +375,13 @@ export component SectionSystemIoBindings inherits Rectangle {
                 for ep[oi] in binding.outputs : EndpointRow {
                     endpoint: ep;
                     edit-requested => {
-                        root.edit-endpoint(binding.id, ep.name, false);
-                        root.add-device-index = root.edit-prefill-device-index;
-                        root.add-mode-index = root.edit-prefill-mode-index;
+                        SettingsBridge.edit-endpoint(binding.id, ep.name, false);
+                        root.add-device-index = SettingsBridge.io-edit-prefill-device-index;
+                        root.add-mode-index = SettingsBridge.io-edit-prefill-mode-index;
                         root.editing-endpoint = ep.name;
                         root.active-add = binding.id + "|out";
                     }
-                    remove-requested => { root.remove-endpoint(binding.id, ep.name, false); }
+                    remove-requested => { SettingsBridge.remove-endpoint(binding.id, ep.name, false); }
                 }
                 if root.active-add != (binding.id + "|out") : AddButton {
                     text: @tr("btn-add-output");
@@ -417,16 +391,16 @@ export component SectionSystemIoBindings inherits Rectangle {
                     background: #111114; border-radius: 8px; border-width: 1px; border-color: #27272a;
                     VerticalLayout { padding: 16px; spacing: 14px;
                         FieldRow { label: @tr("label-endpoint-device");
-                            DropDown { model: root.output-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
-                                picked(i) => { root.endpoint-device-changed(binding.id, false, root.output-device-ids[i]); } } }
+                            DropDown { model: SettingsBridge.output-device-names; current <=> root.add-device-index; placeholder: @tr("placeholder-pick-device");
+                                picked(i) => { SettingsBridge.endpoint-device-changed(binding.id, false, SettingsBridge.output-device-ids[i]); } } }
                         FieldRow { label: @tr("label-endpoint-mode");
                             Segmented { options: [@tr("mode-mono"), @tr("mode-stereo")]; current <=> root.add-mode-index; } }
                         FieldRow { label: @tr("label-endpoint-channels"); label-top: true;
                             ChannelPicker {
-                                channels: root.channel-options;
+                                channels: SettingsBridge.io-binding-channel-options;
                                 single-select: root.add-mode-index == 0;
                                 empty-hint: @tr("hint-channels-pick-device");
-                                toggled(ci, sel) => { root.toggle-endpoint-channel(ci, sel,
+                                toggled(ci, sel) => { SettingsBridge.toggle-endpoint-channel(ci, sel,
                                     root.add-mode-index == 0 ? "mono" : "stereo"); } } }
                         HorizontalLayout { spacing: 8px;
                             Rectangle { horizontal-stretch: 1; }
@@ -436,7 +410,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                                 // add-input submit note: reproject rebuilds this
                                 // repeater and a reset after the call is lost.
                                 root.active-add = "";
-                                root.add-output-endpoint(binding.id, root.add-device-index >= 0 ? root.output-device-ids[root.add-device-index] : "",
+                                SettingsBridge.add-output-endpoint(binding.id, root.add-device-index >= 0 ? SettingsBridge.output-device-ids[root.add-device-index] : "",
                                     root.add-mode-index == 0 ? "mono" : "stereo", root.editing-endpoint); } } }
                     }
                 }
