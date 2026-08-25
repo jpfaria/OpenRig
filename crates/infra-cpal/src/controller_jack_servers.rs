@@ -57,7 +57,7 @@ impl ProjectRuntimeController {
     /// been SIGTERMed leaves the libjack global state in the
     /// `ClientStatus(FAILURE | SERVER_ERROR)` limbo documented in issue #294.
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    fn ensure_jack_servers(&mut self, project: &Project) -> Result<()> {
+    pub(crate) fn ensure_jack_servers(&mut self, project: &Project) -> Result<()> {
         let cards = detect_all_usb_audio_cards();
         if cards.is_empty() {
             bail!("no USB audio interface found — connect a device before starting audio");

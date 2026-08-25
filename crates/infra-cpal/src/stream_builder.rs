@@ -11,6 +11,7 @@ use anyhow::Result;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::{DeviceTrait, StreamTrait};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::Stream;
 
 use domain::ids::ChainId;

@@ -34,15 +34,7 @@ use crate::resolved::ResolvedChainAudioConfig;
 use crate::{ControlWorker, LiveRuntimeSlot};
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
-use crate::host::using_jack_direct;
-#[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::jack_supervisor;
-#[cfg(all(target_os = "linux", feature = "jack"))]
-use crate::resolved::stream_signatures_require_client_rebuild;
-#[cfg(all(target_os = "linux", feature = "jack"))]
-use crate::usb_proc::{detect_all_usb_audio_cards, UsbAudioCard};
-#[cfg(all(target_os = "linux", feature = "jack"))]
-use anyhow::bail;
 
 pub struct ProjectRuntimeController {
     pub(crate) runtime_graph: RuntimeGraph,

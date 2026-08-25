@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use super::backend::JackBackend;
 use super::supervisor::JackSupervisor;
-use super::types::{HealthStatus, JackServerState, ServerName, SupervisorEvent};
+use super::types::{HealthStatus, JackServerState, ServerName};
 
 impl<B: JackBackend> JackSupervisor<B> {
     /// Non-destructive check. Uses ONLY the cheap filesystem-level

@@ -3,7 +3,7 @@
 //! A `buf=64` the driver rejects with "Broken pipe" is bumped (128, 256, …)
 //! up to `MAX_BUFFER_CLAMP` before the server is declared failed.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use std::time::{Duration, Instant};
 
 use super::backend::{JackBackend, PostReadyStatus};

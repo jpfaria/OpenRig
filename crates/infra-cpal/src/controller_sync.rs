@@ -4,6 +4,9 @@
 //! every surviving chain to the upsert path.
 
 use anyhow::Result;
+// Only the cpal path builds a resolved-config map here; the jack path resolves
+// per chain inside the supervisor.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use std::collections::HashMap;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]

@@ -31,15 +31,14 @@
 //! 4. `health_check` is non-destructive — it only records a verdict; actual
 //!    restarts happen on the next `ensure_server`.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
 
-use super::backend::{JackBackend, PostReadyStatus};
+use super::backend::JackBackend;
 use super::types::{
-    HealthStatus, JackConfig, JackMeta, JackServerState, RestartReason, ServerName, SupervisorEvent,
+    HealthStatus, JackMeta, JackServerState, ServerName, SupervisorEvent,
 };
 
 /// Per-server state kept inside the supervisor. The backend owns the
