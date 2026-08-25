@@ -1,10 +1,4 @@
 {
-  "story.eyebrow": "De onde veio",
-  "story.h2": "Isso começou porque três<br>pedaleiras custam caro.",
-  "story.p1": "Meu filho começou a ter aula de guitarra. O professor tinha um som, a gente tinha outro em casa, e o que ele aprendia na aula não se repetia depois. Resolver comprando a mesma pedaleira pra todo mundo custava mais que o instrumento.",
-  "story.p2": "Sou desenvolvedor há 26 anos. Na época eu estava investigando, com método, até onde dá pra ir programando com IA — e um estudo desses só vale se o problema for duro. Áudio ao vivo é duro: o código roda algumas centenas de vezes por segundo e, quando erra, o som falha na hora, na frente de todo mundo. Não tem como maquiar.",
-  "story.p3": "Deu certo além do que eu esperava. O OpenRig hoje é uma plataforma de áudio em tempo real escrita em Rust: cada entrada é um runtime isolado, então duas guitarras na mesma interface são dois rigs independentes de verdade. Amp, caixa e pedal misturando DSP nativo, captura neural e IR na mesma cadeia. Preset em texto aberto, que você abre e edita.",
-  "story.p4": "E a ideia do começo cresceu junto: em vez de um timbre pra mim e pro meu filho, um computador no palco processando a banda inteira, cada músico mexendo no próprio som. Só um precisa do equipamento.",
   "fund.eyebrow": "Apoie o projeto",
   "fund.h2": "Ajuda a manter<br>de graça.",
   "fund.lede": "O OpenRig não tem empresa atrás e não tem nada pra te vender. Continua grátis e de código aberto de qualquer jeito — o dinheiro decide a velocidade e em quantas máquinas ele roda.",

@@ -203,6 +203,7 @@ impl ProjectRuntimeController {
             let di_cells: Vec<_> = (0..resolved.outputs.len())
                 .map(|j| self.di_playback_cell(&chain.id, j))
                 .collect();
+            self.stream_generation += 1;
             let active = crate::build_active_chain_runtime(
                 &chain.id,
                 chain,
@@ -210,6 +211,7 @@ impl ProjectRuntimeController {
                 slots,
                 &self.io_bindings,
                 &di_cells,
+                self.stream_generation,
             )?;
             self.active_chains.insert(chain.id.clone(), active);
             // #771: an armed DI re-renders against the fresh streams.

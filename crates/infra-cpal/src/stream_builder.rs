@@ -136,6 +136,7 @@ pub(crate) fn build_active_chain_runtime(
     slots: Vec<(usize, LiveRuntimeSlot)>,
     #[allow(unused_variables)] registry: &[IoBinding],
     di_cells: &[crate::di_playback::DiPlaybackCell],
+    generation: u64,
 ) -> Result<ActiveChainRuntime> {
     log::info!(
         "building active chain runtime for '{}', sample_rate={}",
@@ -143,6 +144,7 @@ pub(crate) fn build_active_chain_runtime(
         resolved.sample_rate
     );
     let stream_signature = resolved.stream_signature.clone();
+    let structure = crate::io_topology::chain_structure_signature(chain);
 
     // On Linux with JACK: use the jack crate directly for zero-overhead audio.
     // This bypasses CPAL entirely — the JACK process callback runs in the
@@ -168,6 +170,8 @@ pub(crate) fn build_active_chain_runtime(
                 build_jack_direct_chain(chain_id, chain, runtime, registry, di_cells.to_vec())?;
             return Ok(ActiveChainRuntime {
                 stream_signature,
+                structure,
+                generation,
                 _input_streams: Vec::new(),
                 _output_streams: Vec::new(),
                 _jack_client: Some(jack_client),
@@ -184,6 +188,8 @@ pub(crate) fn build_active_chain_runtime(
         let _ = di_cells;
         return Ok(ActiveChainRuntime {
             stream_signature,
+            structure,
+            generation,
             _input_streams: Vec::new(),
             _output_streams: Vec::new(),
             _jack_client: None,
@@ -209,6 +215,8 @@ pub(crate) fn build_active_chain_runtime(
         );
         Ok(ActiveChainRuntime {
             stream_signature,
+            structure,
+            generation,
             _input_streams: input_streams,
             _output_streams: output_streams,
         })

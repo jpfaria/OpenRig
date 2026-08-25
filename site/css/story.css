@@ -1,5 +1,0 @@
-/* a reading column, not cards */
-.story{max-width:70ch;margin-top:46px}
-.story p{font-size:clamp(16.5px,1.25vw,19px);line-height:1.72;color:var(--mute)}
-.story p+p{margin-top:20px}
-.story p:first-child{color:var(--soft)}

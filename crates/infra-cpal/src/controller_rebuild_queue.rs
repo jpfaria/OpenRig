@@ -127,6 +127,16 @@ impl ProjectRuntimeController {
                             .insert((chain_id.clone(), *group), Arc::clone(runtime));
                     }
                     let slots = crate::build_chain_slots(&runtimes);
+                    // #881: this build OWNS the chain's slots now. A previous
+                    // topology may have had more groups; leaving those behind
+                    // keeps an old runtime alive for anything still holding a
+                    // handle — garbage that plays.
+                    let live_groups: Vec<usize> = slots.iter().map(|(g, _)| *g).collect();
+                    self.chain_slots
+                        .retain(|(id, g), _| id != &chain_id || live_groups.contains(g));
+                    self.runtime_graph
+                        .chains
+                        .retain(|(id, g), _| id != &chain_id || live_groups.contains(g));
                     for (group, slot) in &slots {
                         self.chain_slots
                             .insert((chain_id.clone(), *group), slot.handle());
@@ -140,6 +150,7 @@ impl ProjectRuntimeController {
                     let di_cells: Vec<_> = (0..resolved.outputs.len())
                         .map(|j| self.di_playback_cell(&chain_id, j))
                         .collect();
+                    self.stream_generation += 1;
                     match crate::build_active_chain_runtime(
                         &chain_id,
                         &chain,
@@ -147,6 +158,7 @@ impl ProjectRuntimeController {
                         slots,
                         &self.io_bindings,
                         &di_cells,
+                        self.stream_generation,
                     ) {
                         Ok(active) => {
                             self.active_chains.insert(chain_id, active);

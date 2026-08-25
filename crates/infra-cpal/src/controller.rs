@@ -51,6 +51,9 @@ pub struct ProjectRuntimeController {
     /// publishes a rebuilt runtime here; once the stream callbacks read through
     /// these slots the swap is observed live, with no stream rebuild.
     pub(crate) chain_slots: HashMap<(ChainId, usize), LiveRuntimeSlot>,
+    /// #881: incremented on every stream build so a test can prove a chain
+    /// change opened NEW streams instead of reusing the live ones.
+    pub(crate) stream_generation: u64,
     /// Issue #672 — dedicated thread that builds chain runtimes off the
     /// frontend thread so heavy commands never block the UI.
     pub(crate) worker: ControlWorker,
@@ -165,6 +168,7 @@ impl ProjectRuntimeController {
             runtime_graph: graph,
             active_chains: HashMap::new(),
             chain_slots,
+            stream_generation: 0,
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
@@ -207,6 +211,7 @@ impl ProjectRuntimeController {
             },
             active_chains: HashMap::new(),
             chain_slots: HashMap::new(),
+            stream_generation: 0,
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
@@ -271,6 +276,17 @@ impl ProjectRuntimeController {
         }
         self.active_chains.remove(chain_id);
         self.runtime_graph.remove_chain(chain_id);
+        // #881: a build that was already in flight for this chain must not land
+        // afterwards. It would republish a runtime into the slots (and, for an
+        // activation, open a second set of streams) behind the caller's back —
+        // two graphs processing the same input, which is heard as a doubled,
+        // delayed signal until the project is reopened. Dropping the receivers
+        // cancels them; the worker's result is discarded when it arrives.
+        self.pending_activations.retain(|(id, _, _)| id != chain_id);
+        self.pending_rebuilds.retain(|(id, _)| id != chain_id);
+        // The slots the dropped streams were reading. Keeping them alive holds
+        // the old runtime and lets a later publish resurrect it.
+        self.chain_slots.retain(|(id, _), _| id != chain_id);
         // #771: never leak a parked render buffer past its chain.
         self.drop_di_state_for_chain(chain_id);
         // #323: drop the looper stream bookkeeping too.

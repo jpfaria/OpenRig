@@ -412,9 +412,13 @@ pub(crate) fn sync_live_chain_runtime(
                     // With unchanged I/O it reuses the live stream config and
                     // rebuilds the DSP off-thread; the GUI returns immediately.
                     let chain = chain.expect("Enable implies the chain is present");
-                    if io_changed {
-                        runtime.remove_chain(&chain.id);
-                    }
+                    // #881 (owner's rule): the old streams die only AFTER the
+                    // new ones are up. `schedule_chain_activation` builds
+                    // off-thread, starts the new streams and the install swaps
+                    // them in, dropping the previous set at that moment.
+                    // Tearing them down here — as this path used to on every
+                    // re-bind — is a hole of silence on each topology edit.
+                    let _ = io_changed;
                     if !runtime.schedule_chain_activation(&proj, chain)?
                         && !runtime.request_offthread_rebuild_if_live(&proj, chain)?
                     {

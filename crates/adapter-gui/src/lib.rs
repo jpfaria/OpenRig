@@ -62,6 +62,7 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod compact_routing_pick;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
@@ -189,6 +190,9 @@ mod issue_85_click_port_opens_editor_tests;
 #[cfg(test)]
 #[path = "issue_85_port_editor_tests.rs"]
 mod issue_85_port_editor_tests;
+#[cfg(test)]
+#[path = "issue_881_compact_insert_tests.rs"]
+mod issue_881_compact_insert_tests;
 #[cfg(test)]
 #[path = "issue_881_insert_editor_tests.rs"]
 mod issue_881_insert_editor_tests;

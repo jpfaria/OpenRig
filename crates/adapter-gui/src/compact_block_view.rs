@@ -24,8 +24,8 @@ use crate::compact_block_tabs::active_group_index;
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::project_view::block_model_picker_items;
 use crate::{
-    BlockKnobOverlay, BlockParameterItem, CompactBlockItem, CompactOverlayLine, CompactParamLine,
-    SELECT_SELECTED_BLOCK_ID,
+    BlockKnobOverlay, BlockModelPickerItem, BlockParameterItem, CompactBlockItem,
+    CompactOverlayLine, CompactParamLine, SELECT_SELECTED_BLOCK_ID,
 };
 
 /// Group the laid-out cells by their `strip_line` — Slint cannot filter inside a
@@ -70,7 +70,162 @@ fn compact_parameter_groups(params: &[BlockParameterItem]) -> Vec<String> {
     parameter_groups(&groupable)
 }
 
-pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec<CompactBlockItem> {
+/// The name the user gave an E/S, falling back to its id.
+fn binding_label(binding: &infra_filesystem::IoBinding) -> String {
+    let name = binding.name.trim();
+    if name.is_empty() {
+        binding.id.clone()
+    } else {
+        name.to_string()
+    }
+}
+
+/// The registry as picker rows, so a routing block re-points through the same
+/// select every other block uses for its model (#881). `model_id` carries the
+/// binding id — that is what the pick dispatches.
+fn binding_picker_items(
+    effect_type: &str,
+    io_bindings: &[infra_filesystem::IoBinding],
+) -> Vec<BlockModelPickerItem> {
+    io_bindings
+        .iter()
+        .map(|b| BlockModelPickerItem {
+            effect_type: effect_type.into(),
+            model_id: b.id.clone().into(),
+            label: binding_label(b).into(),
+            display_name: binding_label(b).into(),
+            subtitle: SharedString::new(),
+            icon_kind: effect_type.into(),
+            brand: SharedString::new(),
+            type_label: "I/O".into(),
+            panel_bg: slint::Color::from_argb_u8(0, 0, 0, 0),
+            panel_text: slint::Color::from_argb_u8(0, 0, 0, 0),
+            brand_strip_bg: slint::Color::from_argb_u8(0, 0, 0, 0),
+            model_font: SharedString::new(),
+            available: true,
+            thumbnail_path: SharedString::new(),
+        })
+        .collect()
+}
+
+/// A compact row for a routing block (#881): what it IS and where it sits, with
+/// no parameter strip — its whole state is the E/S it points at, edited in its
+/// own window.
+fn routing_compact_item(
+    chain_index: usize,
+    block_index: usize,
+    block: &project::block::AudioBlock,
+    io_bindings: &[infra_filesystem::IoBinding],
+) -> CompactBlockItem {
+    let effect_type = block.kind.label().to_string();
+    let model_id = block
+        .model_ref()
+        .map(|m| m.model.to_string())
+        .unwrap_or_else(|| block_core::constants::IO_PORT_MODEL.to_string());
+    // The icon set draws `input` / `output` / `insert` by name (#85), and the
+    // row's label is the block kind — an "I/O" label on every port tells the
+    // user nothing about which one it is.
+    let icon_kind = effect_type.clone();
+    // What the port POINTS AT is its content, so it takes the slot where a
+    // processing block shows its model: the E/S by the name the user gave it.
+    let target = match &block.kind {
+        project::block::AudioBlockKind::Insert(b) => Some(b.io.as_str()),
+        project::block::AudioBlockKind::Input(b) => Some(b.io.as_str()),
+        project::block::AudioBlockKind::Output(b) => Some(b.io.as_str()),
+        _ => None,
+    };
+    let target_label = target
+        .map(|id| {
+            io_bindings
+                .iter()
+                .find(|b| b.id == id)
+                .map(|b| {
+                    let name = b.name.trim();
+                    if name.is_empty() {
+                        b.id.clone()
+                    } else {
+                        name.to_string()
+                    }
+                })
+                .unwrap_or_else(|| id.to_string())
+        })
+        .unwrap_or_default();
+    let visual = project::catalog::supported_block_models(&effect_type)
+        .ok()
+        .and_then(|models| models.into_iter().next());
+    CompactBlockItem {
+        chain_index: chain_index as i32,
+        block_index: block_index as i32,
+        block_id: block.id.0.clone().into(),
+        effect_type: effect_type.clone().into(),
+        model_id: model_id.into(),
+        icon_kind: icon_kind.clone().into(),
+        brand: visual
+            .as_ref()
+            .map(|v| v.brand.clone())
+            .unwrap_or_default()
+            .into(),
+        display_name: target_label.clone().into(),
+        type_label: visual
+            .as_ref()
+            .map(|v| v.type_label.clone())
+            .unwrap_or_default()
+            .into(),
+        display_label: effect_type.to_uppercase().into(),
+        enabled: block.enabled,
+        panel_bg: {
+            let vc = project::catalog::resolve_color_scheme(&effect_type, "", "");
+            let [r, g, b] = vc.panel_bg;
+            slint::Color::from_argb_u8(0xff, r, g, b)
+        },
+        panel_text: {
+            let vc = project::catalog::resolve_color_scheme(&effect_type, "", "");
+            let [r, g, b] = vc.panel_text;
+            slint::Color::from_argb_u8(0xff, r, g, b)
+        },
+        accent_color: crate::ui_state::accent_color_for_icon_kind(&icon_kind),
+        icon_source: slint::Image::default(),
+        knob_overlays: ModelRc::from(Rc::new(VecModel::default())),
+        parameter_items: ModelRc::from(Rc::new(VecModel::default())),
+        multi_slider_points: ModelRc::from(Rc::new(VecModel::default())),
+        curve_editor_points: ModelRc::from(Rc::new(VecModel::default())),
+        // #881: the slot where a pedal picks its MODEL is where a port picks its
+        // E/S — same widget, same place, so the loop can be re-pointed without
+        // leaving the compact view.
+        model_labels: ModelRc::from(Rc::new(VecModel::from(
+            io_bindings
+                .iter()
+                .map(|b| SharedString::from(binding_label(b)))
+                .collect::<Vec<_>>(),
+        ))),
+        model_selected_index: target
+            .and_then(|id| io_bindings.iter().position(|b| b.id == id))
+            .map(|i| i as i32)
+            .unwrap_or(-1),
+        models: ModelRc::from(Rc::new(VecModel::from(binding_picker_items(
+            &effect_type,
+            io_bindings,
+        )))),
+        filtered_models: ModelRc::from(Rc::new(VecModel::from(binding_picker_items(
+            &effect_type,
+            io_bindings,
+        )))),
+        stream_data: Default::default(),
+        has_external_gui: false,
+        parameter_groups: ModelRc::from(Rc::new(VecModel::<SharedString>::default())),
+        active_parameter_group: 0,
+        parameter_lines: ModelRc::from(Rc::new(VecModel::default())),
+        overlay_lines: ModelRc::from(Rc::new(VecModel::default())),
+        row_height: row_height_px(1, false),
+        row_y: 0.0,
+    }
+}
+
+pub(crate) fn build_compact_blocks(
+    project: &Project,
+    chain_index: usize,
+    io_bindings: &[infra_filesystem::IoBinding],
+) -> Vec<CompactBlockItem> {
     let Some(chain) = project.chains.get(chain_index) else {
         return Vec::new();
     };
@@ -79,6 +234,20 @@ pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec
         .iter()
         .enumerate()
         .filter_map(|(block_index, block)| {
+            // #881: routing blocks (`Insert`, mid `Input`/`Output`) carry no
+            // model and no parameters, so `block_editor_data` answers None and
+            // they used to vanish from this list — the loop the user placed
+            // between two pedals simply was not on screen, and the rows no
+            // longer matched the signal path. They are chain rows like any
+            // other; they just have nothing to tweak inline.
+            if block.kind.is_routing() {
+                return Some(routing_compact_item(
+                    chain_index,
+                    block_index,
+                    block,
+                    io_bindings,
+                ));
+            }
             let editor_data = block_editor_data(block)?;
             let effect_type = editor_data.effect_type.clone();
             let model_id = editor_data.model_id.clone();
