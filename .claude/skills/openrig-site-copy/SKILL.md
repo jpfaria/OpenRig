@@ -153,3 +153,25 @@ that fits in English can wrap to a fourth line in Portuguese or Spanish.
 - **"em um", never "num"** (and "em uma", not "numa"). The contraction reads as
   sloppy speech in a headline. Same for "pra" in a headline — fine in body copy,
   wrong in an H1.
+
+## Shipping a copy fix
+
+**Site fixes go straight to `main`, without being asked.** Pages only deploys
+from `main`, so a copy fix that stops at the release branch is invisible. The
+owner has said this twice — treat it as standing authorization for `site/**`
+changes only.
+
+The route, once the copy is agreed:
+
+1. Branch off `origin/main` (`hotfix/issue-N`), take the site tree from the
+   working branch: `git checkout <branch> -- site/`.
+2. Check what came with it. A branch cut from `release/vX.Y.Z` carries whatever
+   that release still holds — files already deleted on `main` come back from
+   the dead. Diff against `main` and drop anything that isn't the copy fix.
+3. PR into `main` and merge. `main` is not protected and the PR workflow has no
+   path filter, so the full Rust suite runs on a text change — don't wait for
+   it on a `site/**`-only diff.
+4. Confirm the deploy: `gh run list --workflow=pages.yml`, then read the live
+   file back (`curl https://jpfaria.github.io/OpenRig/i18n/pt-BR/shell.json`).
+5. The working branch still needs its own PR into the active release, or the
+   next release ships the old copy back.
