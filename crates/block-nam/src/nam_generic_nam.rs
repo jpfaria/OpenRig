@@ -1,3 +1,4 @@
+//! Responsibility: implements the generic neural amp model.
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
@@ -17,7 +18,11 @@ fn schema() -> Result<ModelParameterSchema> {
     ))
 }
 
-fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
     nam::build_processor_for_layout(params, sample_rate, layout)
 }
 

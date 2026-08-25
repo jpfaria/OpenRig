@@ -1,3 +1,4 @@
+//! Responsibility: implements the generic impulse response model.
 use anyhow::{Error, Result};
 use block_core::param::{file_path_parameter, required_string, ModelParameterSchema, ParameterSet};
 use block_core::{

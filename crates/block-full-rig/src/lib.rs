@@ -1,3 +1,4 @@
+//! Responsibility: routes the full rig crate's public surface.
 mod registry;
 
 use anyhow::Result;

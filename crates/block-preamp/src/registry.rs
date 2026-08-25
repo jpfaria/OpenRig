@@ -1,3 +1,4 @@
+//! Responsibility: registers the preamp models this crate exposes.
 use anyhow::{anyhow, Result};
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};

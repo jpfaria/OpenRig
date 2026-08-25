@@ -1,3 +1,4 @@
+//! Responsibility: names the colour override each amp model renders with.
 //! Per-model visual color overrides for native amps owned by this crate.
 //!
 //! Phase 4b of issue #194 — visual data for a native model lives WITH the

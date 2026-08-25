@@ -1,3 +1,4 @@
+//! Responsibility: routes the impulse response crate's public surface.
 mod registry;
 
 use anyhow::Result;

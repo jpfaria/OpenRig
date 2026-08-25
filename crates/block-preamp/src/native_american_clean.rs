@@ -1,10 +1,9 @@
+//! Responsibility: implements the american clean preamp model.
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
-use crate::native_core::{
-    self, NativeAmpHeadProfile, NativeAmpHeadSchemaDefaults,
-};
+use crate::native_core::{self, NativeAmpHeadProfile, NativeAmpHeadSchemaDefaults};
 use crate::registry::PreampModelDefinition;
 use crate::PreampBackendKind;
 
@@ -61,15 +60,87 @@ pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     build,
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[
-        block_core::KnobLayoutEntry { param_key: "input",     svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "treble",    svg_cx: 382.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "presence",  svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "depth",     svg_cx: 550.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "sag",       svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "master",    svg_cx: 706.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+        block_core::KnobLayoutEntry {
+            param_key: "input",
+            svg_cx: 44.0,
+            svg_cy: 90.0,
+            svg_r: 16.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "gain",
+            svg_cx: 130.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "bass",
+            svg_cx: 222.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "middle",
+            svg_cx: 302.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "treble",
+            svg_cx: 382.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "presence",
+            svg_cx: 470.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "depth",
+            svg_cx: 550.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "sag",
+            svg_cx: 630.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "master",
+            svg_cx: 706.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
     ],
 };
 

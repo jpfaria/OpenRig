@@ -1,3 +1,4 @@
+//! Responsibility: implements the eq eight band filter model.
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
 use anyhow::{Error, Result};

@@ -1,3 +1,4 @@
+//! Responsibility: routes the neural amp crate's public surface.
 mod registry;
 
 use anyhow::Result;

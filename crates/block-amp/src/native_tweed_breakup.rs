@@ -1,8 +1,9 @@
+//! Responsibility: implements the tweed breakup amp model.
 use anyhow::Result;
-use block_preamp::native_core::NativeAmpHeadProfile;
 use block_cab::native_core::NativeCabProfile;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
+use block_preamp::native_core::NativeAmpHeadProfile;
 
 use crate::native_core::{self, NativeAmpProfile, NativeAmpSchemaDefaults};
 use crate::registry::{AmpBackendKind, AmpModelDefinition};
@@ -91,13 +92,69 @@ pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     build,
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[
-        block_core::KnobLayoutEntry { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "treble",    svg_cx: 382.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "master",    svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "sag",       svg_cx: 550.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        block_core::KnobLayoutEntry { param_key: "room_mix",  svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+        block_core::KnobLayoutEntry {
+            param_key: "gain",
+            svg_cx: 130.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "bass",
+            svg_cx: 222.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "middle",
+            svg_cx: 302.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "treble",
+            svg_cx: 382.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "master",
+            svg_cx: 470.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "sag",
+            svg_cx: 550.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
+        block_core::KnobLayoutEntry {
+            param_key: "room_mix",
+            svg_cx: 630.0,
+            svg_cy: 90.0,
+            svg_r: 22.0,
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+        },
     ],
 };
 

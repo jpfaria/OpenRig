@@ -1,3 +1,4 @@
+//! Responsibility: routes the pitch crate's public surface.
 //! Pitch correction block implementations.
 mod pitch_engine;
 mod registry;

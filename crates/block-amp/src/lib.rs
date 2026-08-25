@@ -1,3 +1,4 @@
+//! Responsibility: routes the amp crate's public surface.
 pub mod model_visual;
 pub mod native_core;
 mod registry;

@@ -1,3 +1,4 @@
+//! Responsibility: shifts the pitch of a signal in the time domain.
 //! Low-latency time-domain pitch shifter (granular dual-tap overlap-add).
 //!
 //! Reusable foundation — `native_pitch_shifter` consumes it now, and Wave 2

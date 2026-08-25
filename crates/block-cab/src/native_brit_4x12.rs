@@ -1,3 +1,4 @@
+//! Responsibility: implements the brit 4x12 cab model.
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};

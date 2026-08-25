@@ -1,3 +1,4 @@
+//! Responsibility: registers the utility models this crate exposes.
 use crate::UtilBackendKind;
 use anyhow::{anyhow, Result};
 use block_core::param::ModelParameterSchema;

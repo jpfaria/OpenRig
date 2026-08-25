@@ -1,3 +1,4 @@
+//! Responsibility: names the colour override each filter model renders with.
 //! Per-model visual color overrides for native filters owned by this crate.
 //! Phase 4b of issue #194.
 

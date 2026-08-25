@@ -1,3 +1,4 @@
+//! Responsibility: implements the core amp model.
 use anyhow::Result;
 use block_cab::native_core::{
     build_native_cab_mono_processor, NativeCabProfile, NativeCabSettings,
