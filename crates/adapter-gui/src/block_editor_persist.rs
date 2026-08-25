@@ -18,7 +18,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use slint::{Timer, TimerMode, VecModel, Global};
+use slint::{Global, Timer, TimerMode, VecModel};
 
 use application::command::{BlockCommand, Command};
 use domain::ids::BlockId;
@@ -79,7 +79,8 @@ pub(crate) fn schedule_block_editor_persist(
                 auto_save,
             ) {
                 log::error!("[adapter-gui] {context}: {error}");
-                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(error.to_string().into());
+                crate::BlockEditorBridge::get(&window)
+                    .set_block_drawer_status_message(error.to_string().into());
             }
         },
     );
@@ -135,7 +136,8 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
                 auto_save,
             ) {
                 log::error!("[adapter-gui] {context}: {error}");
-                crate::BlockEditorBridge::get(&main_window).set_block_drawer_status_message(error.to_string().into());
+                crate::BlockEditorBridge::get(&main_window)
+                    .set_block_drawer_status_message(error.to_string().into());
             }
         },
     );

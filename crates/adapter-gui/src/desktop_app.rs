@@ -9,7 +9,7 @@
 use anyhow::{anyhow, Result};
 use infra_cpal::ProjectRuntimeController;
 use infra_filesystem::FilesystemStorage;
-use slint::{ComponentHandle, ModelRc, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, Timer, VecModel};
 use std::cell::RefCell;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -256,7 +256,8 @@ pub fn run_desktop_app(
         project_session.clone(),
     );
 
-    crate::SettingsBridge::get(&project_settings_window).set_project_devices(ModelRc::from(project_devices.clone()));
+    crate::SettingsBridge::get(&project_settings_window)
+        .set_project_devices(ModelRc::from(project_devices.clone()));
     crate::SettingsBridge::get(&window).set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());

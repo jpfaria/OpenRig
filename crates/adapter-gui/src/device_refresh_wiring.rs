@@ -18,7 +18,7 @@ use std::rc::Rc;
 use application::command::{Command, SettingsCommand};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
-use slint::{ComponentHandle, SharedString, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use crate::device_refresh_apply::{refresh_now, register, DeviceRefreshHandles};
 use crate::state::ProjectSession;

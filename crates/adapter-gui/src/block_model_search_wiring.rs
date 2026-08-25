@@ -9,7 +9,7 @@
 
 use std::rc::Rc;
 
-use slint::{ComponentHandle, VecModel, Global};
+use slint::{ComponentHandle, Global, VecModel};
 
 use crate::{AppWindow, BlockModelPickerItem};
 

@@ -17,7 +17,7 @@ use application::command::{Command, IoBindingCommand};
 use domain::io_binding::IoBinding;
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
-use slint::{ComponentHandle, Model, SharedString, Global};
+use slint::{ComponentHandle, Global, Model, SharedString};
 
 use super::{
     apply_channel_toggle, binding_display_name, build_create_command, build_input_endpoint,
@@ -254,11 +254,14 @@ pub(super) fn install_window_callbacks(
     let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
 
     let c = ctx.clone();
-    crate::SettingsBridge::get(window).on_create_io_binding(move |name| c.create_binding(name.as_str()));
+    crate::SettingsBridge::get(window)
+        .on_create_io_binding(move |name| c.create_binding(name.as_str()));
     let c = ctx.clone();
-    crate::SettingsBridge::get(window).on_delete_io_binding(move |id| c.delete_binding(id.as_str()));
+    crate::SettingsBridge::get(window)
+        .on_delete_io_binding(move |id| c.delete_binding(id.as_str()));
     let c = ctx.clone();
-    crate::SettingsBridge::get(window).on_rename_io_binding(move |id, n| c.rename_binding(id.as_str(), n.as_str()));
+    crate::SettingsBridge::get(window)
+        .on_rename_io_binding(move |id, n| c.rename_binding(id.as_str(), n.as_str()));
     let c = ctx.clone();
     crate::SettingsBridge::get(window).on_endpoint_device_changed(move |_id, is_input, dev| {
         c.device_changed(is_input, dev.as_str())
@@ -276,7 +279,8 @@ pub(super) fn install_window_callbacks(
         c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), false, en.as_str())
     });
     let c = ctx.clone();
-    crate::SettingsBridge::get(window).on_remove_endpoint(move |id, en, inp| c.remove_endpoint(id.as_str(), en.as_str(), inp));
+    crate::SettingsBridge::get(window)
+        .on_remove_endpoint(move |id, en, inp| c.remove_endpoint(id.as_str(), en.as_str(), inp));
     let c = ctx.clone();
     let weak = window.as_weak();
     crate::SettingsBridge::get(window).on_edit_endpoint(move |id, en, inp| {
@@ -299,17 +303,21 @@ pub(super) fn install_psw_callbacks(
     let ctx = make_ctx(ps, cfg, models, input_devices, output_devices);
 
     let c = ctx.clone();
-    crate::SettingsBridge::get(psw).on_create_io_binding(move |name| c.create_binding(name.as_str()));
+    crate::SettingsBridge::get(psw)
+        .on_create_io_binding(move |name| c.create_binding(name.as_str()));
     let c = ctx.clone();
     crate::SettingsBridge::get(psw).on_delete_io_binding(move |id| c.delete_binding(id.as_str()));
     let c = ctx.clone();
-    crate::SettingsBridge::get(psw).on_rename_io_binding(move |id, n| c.rename_binding(id.as_str(), n.as_str()));
+    crate::SettingsBridge::get(psw)
+        .on_rename_io_binding(move |id, n| c.rename_binding(id.as_str(), n.as_str()));
     let c = ctx.clone();
     crate::SettingsBridge::get(psw).on_endpoint_device_changed(move |_id, is_input, dev| {
         c.device_changed(is_input, dev.as_str())
     });
     let c = ctx.clone();
-    crate::SettingsBridge::get(psw).on_toggle_endpoint_channel(move |idx, sel, mode| c.toggle_channel(idx, sel, mode.as_str()));
+    crate::SettingsBridge::get(psw).on_toggle_endpoint_channel(move |idx, sel, mode| {
+        c.toggle_channel(idx, sel, mode.as_str())
+    });
     let c = ctx.clone();
     crate::SettingsBridge::get(psw).on_add_input_endpoint(move |id, dev, mode, en| {
         c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), true, en.as_str())
@@ -319,7 +327,8 @@ pub(super) fn install_psw_callbacks(
         c.add_endpoint(id.as_str(), dev.as_str(), mode.as_str(), false, en.as_str())
     });
     let c = ctx.clone();
-    crate::SettingsBridge::get(psw).on_remove_endpoint(move |id, en, inp| c.remove_endpoint(id.as_str(), en.as_str(), inp));
+    crate::SettingsBridge::get(psw)
+        .on_remove_endpoint(move |id, en, inp| c.remove_endpoint(id.as_str(), en.as_str(), inp));
     let c = ctx.clone();
     let weak = psw.as_weak();
     crate::SettingsBridge::get(psw).on_edit_endpoint(move |id, en, inp| {

@@ -16,7 +16,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, Timer, VecModel};
 
 use anyhow::Result;
 use application::command::{ChainCommand, Command};

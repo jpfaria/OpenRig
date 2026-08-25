@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, VecModel, Global};
+use slint::{ComponentHandle, Global, Model, VecModel};
 
 use crate::block_editor_window_setup::{create_and_wire, BlockEditorWindowSetupCtx};
 use crate::project_ops::create_new_project_session;

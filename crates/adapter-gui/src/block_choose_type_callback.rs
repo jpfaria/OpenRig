@@ -16,7 +16,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, VecModel};
 
 use application::command::{BlockCommand, Command};
 use application::live_source::LiveSource;
@@ -349,14 +349,16 @@ pub(crate) fn wire(
         crate::BlockEditorBridge::get(&window).set_eq_total_curve(eq_total.into());
         let drawer_state = block_drawer_state(None, &model.effect_type, Some(&model.model_id));
         crate::BlockEditorBridge::get(&window).set_block_drawer_title(drawer_state.title.into());
-        crate::BlockEditorBridge::get(&window).set_block_drawer_confirm_label(drawer_state.confirm_label.into());
+        crate::BlockEditorBridge::get(&window)
+            .set_block_drawer_confirm_label(drawer_state.confirm_label.into());
         crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(false);
         crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(index);
         crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(0);
         crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
         crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
         if use_inline_block_editor(&window) {
-            crate::BlockEditorBridge::get(&window).set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            crate::BlockEditorBridge::get(&window)
+                .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             // #819: knob count changed -> re-publish the #500 panel height.
             crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(true);

@@ -23,7 +23,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, Timer, VecModel};
 
 use application::live_source::LiveSource;
 use domain::AudioDeviceDescriptor;

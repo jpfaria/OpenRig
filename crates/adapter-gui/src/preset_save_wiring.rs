@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, Global};
+use slint::{ComponentHandle, Global, Timer};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
 use domain::ids::ChainId;
@@ -112,7 +112,8 @@ pub(crate) fn wire(
                     chain_clone,
                     default_name: default_name.clone(),
                 });
-                crate::OverlayBridge::get(&window).set_preset_save_default_name(default_name.clone().into());
+                crate::OverlayBridge::get(&window)
+                    .set_preset_save_default_name(default_name.clone().into());
                 crate::OverlayBridge::get(&window).set_preset_save_name_input(default_name.into());
                 crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(false);
                 crate::OverlayBridge::get(&window).set_show_preset_save(true);
@@ -154,7 +155,8 @@ pub(crate) fn wire(
                 name.trim().to_string()
             };
             if preset_overwrite_required(&session.presets_path, &chosen) {
-                crate::OverlayBridge::get(&window).set_preset_save_overwrite_name(chosen.clone().into());
+                crate::OverlayBridge::get(&window)
+                    .set_preset_save_overwrite_name(chosen.clone().into());
                 crate::OverlayBridge::get(&window).set_preset_save_name_input(chosen.into());
                 crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(true);
                 return;
@@ -187,7 +189,9 @@ pub(crate) fn wire(
             let Some(pending) = pending_save.borrow_mut().take() else {
                 return;
             };
-            let chosen = crate::OverlayBridge::get(&window).get_preset_save_overwrite_name().to_string();
+            let chosen = crate::OverlayBridge::get(&window)
+                .get_preset_save_overwrite_name()
+                .to_string();
             perform_preset_save(
                 &window,
                 session,

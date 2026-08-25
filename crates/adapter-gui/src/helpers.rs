@@ -1,5 +1,5 @@
 use crate::AppWindow;
-use slint::{ComponentHandle, Timer, TimerMode, Global};
+use slint::{ComponentHandle, Global, Timer, TimerMode};
 use std::fmt::Display;
 use std::time::Duration;
 

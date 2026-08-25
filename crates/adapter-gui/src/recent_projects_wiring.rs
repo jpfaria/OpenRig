@@ -17,7 +17,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, Timer, VecModel};
 
 use application::command::{Command, ProjectCommand};
 use domain::AudioDeviceDescriptor;
@@ -278,7 +278,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 entry.project_name.clone()
             };
             *pending.borrow_mut() = Some(idx);
-            crate::OverlayBridge::get(&window).set_confirm_delete_recent_project_name(display_name.into());
+            crate::OverlayBridge::get(&window)
+                .set_confirm_delete_recent_project_name(display_name.into());
             crate::OverlayBridge::get(&window).set_show_confirm_delete_recent_project(true);
         });
     }

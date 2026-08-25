@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak, Global};
+use slint::{ComponentHandle, Global, Model, ModelRc, Timer, VecModel, Weak};
 
 use application::audio_taps::AudioTaps;
 use application::live_source::LiveSource;
@@ -147,9 +147,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             compact_win.set_chain_title(title.into());
             compact_win.set_chain_index(chain_index);
             compact_win.set_chain_enabled(chain.enabled);
-            crate::BlockEditorBridge::get(&compact_win).set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
-                block_type_picker_items(&chain.instrument),
-            ))));
+            crate::BlockEditorBridge::get(&compact_win).set_block_type_options(ModelRc::from(
+                Rc::new(VecModel::from(block_type_picker_items(&chain.instrument))),
+            ));
         }
         let blocks =
             build_compact_blocks(&session.project.borrow(), ci, &session.io_bindings.borrow());

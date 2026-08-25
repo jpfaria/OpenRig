@@ -16,7 +16,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, Model, Timer, VecModel};
 
 use application::command::{ChainCommand, Command};
 use domain::AudioDeviceDescriptor;

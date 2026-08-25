@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, SelectedBlock};

@@ -11,7 +11,7 @@
 
 use adapter_gui::{ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, LogicalPosition, LogicalSize, ModelRc, VecModel, Global};
+use slint::{ComponentHandle, Global, LogicalPosition, LogicalSize, ModelRc, VecModel};
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -94,7 +94,8 @@ fn window_with_open_input_form_selecting(selected: &[i32]) -> ProjectSettingsWin
 fn sized_window_with_open_input_form(selected: &[i32], win_h: f32) -> ProjectSettingsWindow {
     let w = ProjectSettingsWindow::new().unwrap();
     w.window().set_size(LogicalSize::new(WIN_W, win_h));
-    adapter_gui::SettingsBridge::get(&w).set_io_bindings(ModelRc::new(VecModel::from(vec![binding()])));
+    adapter_gui::SettingsBridge::get(&w)
+        .set_io_bindings(ModelRc::new(VecModel::from(vec![binding()])));
     w.set_settings_selected_section(6);
     let chans: Vec<ChannelOptionItem> = (0..CHANNEL_COUNT)
         .map(|i| ChannelOptionItem {
@@ -104,7 +105,8 @@ fn sized_window_with_open_input_form(selected: &[i32], win_h: f32) -> ProjectSet
             available: true,
         })
         .collect();
-    adapter_gui::SettingsBridge::get(&w).set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
+    adapter_gui::SettingsBridge::get(&w)
+        .set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
     w.show().unwrap();
 
     assert!(
@@ -189,7 +191,8 @@ fn thirty_channels_stay_inside_the_window_and_the_last_one_is_reachable() {
     let w = sized_window_with_open_input_form(&[], 620.0);
     let fired: Rc<Cell<(i32, bool)>> = Rc::new(Cell::new((-1, false)));
     let f = fired.clone();
-    adapter_gui::SettingsBridge::get(&w).on_toggle_endpoint_channel(move |idx, sel, _mode| f.set((idx, sel)));
+    adapter_gui::SettingsBridge::get(&w)
+        .on_toggle_endpoint_channel(move |idx, sel, _mode| f.set((idx, sel)));
 
     let over_list = center_of(&channel_cells(&w)[0]);
     // Wheel to the bottom of the page. Cells below the window are culled, so

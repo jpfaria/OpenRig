@@ -219,7 +219,9 @@ pub(crate) fn select_inline_param_tab(
 /// for the detached window). Slint never re-derives the knob wrap math.
 pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     let tabs = crate::BlockParamTabs::get(window);
-    let overlay_count = crate::BlockEditorBridge::get(window).get_block_knob_overlays().row_count();
+    let overlay_count = crate::BlockEditorBridge::get(window)
+        .get_block_knob_overlays()
+        .row_count();
     let items = crate::BlockEditorBridge::get(window).get_block_parameter_items();
     let has_tabs = tabs.get_groups().row_count() > 1;
     // The grid renders only `tab_slot >= 0` rows once a tab bar exists.
@@ -242,8 +244,12 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
         param_count
     };
     let eq_widget = crate::block_panel_dimensions::eq_widget_for(
-        crate::BlockEditorBridge::get(window).get_curve_editor_points().row_count(),
-        crate::BlockEditorBridge::get(window).get_multi_slider_points().row_count(),
+        crate::BlockEditorBridge::get(window)
+            .get_curve_editor_points()
+            .row_count(),
+        crate::BlockEditorBridge::get(window)
+            .get_multi_slider_points()
+            .row_count(),
     );
     let type_idx = crate::BlockEditorBridge::get(window).get_block_drawer_selected_type_index();
     let types = crate::BlockEditorBridge::get(window).get_block_type_options();

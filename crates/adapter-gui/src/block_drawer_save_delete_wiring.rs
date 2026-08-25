@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak, Global};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, Timer, VecModel, Weak};
 
 use domain::AudioDeviceDescriptor;
 
@@ -93,7 +93,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
                 auto_save,
             ) {
                 log::error!("[adapter-gui] block-drawer.save: {error}");
-                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(error.to_string().into());
+                crate::BlockEditorBridge::get(&window)
+                    .set_block_drawer_status_message(error.to_string().into());
                 return;
             }
             *selected_block.borrow_mut() = None;

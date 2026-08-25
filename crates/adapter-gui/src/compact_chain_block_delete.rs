@@ -7,7 +7,7 @@ use crate::project_view::replace_project_chains;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::{AppWindow, CompactChainViewWindow};
 use application::command::{BlockCommand, Command};
-use slint::{ComponentHandle, Model, ModelRc, VecModel, Global};
+use slint::{ComponentHandle, Global, Model, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 

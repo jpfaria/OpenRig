@@ -45,161 +45,169 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        crate::BlockEditorBridge::get(window).on_select_block_parameter_option(move |path, index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            // Update UI item (sets selected_option_index and value_text).
-            set_block_parameter_option(&block_parameter_items, path.as_str(), index);
+        crate::BlockEditorBridge::get(window).on_select_block_parameter_option(
+            move |path, index| {
+                let Some(window) = weak_window.upgrade() else {
+                    return;
+                };
+                // Update UI item (sets selected_option_index and value_text).
+                set_block_parameter_option(&block_parameter_items, path.as_str(), index);
 
-            // Special handling for SelectBlock's own block-selector param
-            // (SELECT_SELECTED_BLOCK_ID): this re-renders the sub-block editor
-            // and is UI-only — no project mutation needed here.
-            if path.as_str() == SELECT_SELECTED_BLOCK_ID {
-                let selected_option_block_id = internal_block_parameter_value(
-                    &block_parameter_items,
-                    SELECT_SELECTED_BLOCK_ID,
-                );
-                if let (Some(draft), Some(selected_option_block_id)) = (
-                    block_editor_draft.borrow_mut().as_mut(),
-                    selected_option_block_id,
-                ) {
-                    if draft.is_select {
-                        if let Some(session) = project_session.borrow().as_ref() {
-                            if let Some(block_index) = draft.block_index {
-                                let proj = session.project.borrow();
-                                if let Some(block) = proj
-                                    .chains
-                                    .get(draft.chain_index)
-                                    .and_then(|chain| chain.blocks.get(block_index))
-                                {
-                                    if let Some(editor_data) = block_editor_data_with_selected(
-                                        block,
-                                        Some(&selected_option_block_id),
-                                    ) {
-                                        draft.effect_type = editor_data.effect_type.clone();
-                                        draft.model_id = editor_data.model_id.clone();
-                                        let items = block_model_picker_items(
-                                            &editor_data.effect_type,
-                                            &draft.instrument,
-                                        );
-                                        select_block_model_option_labels
-                                            .set_vec(block_model_picker_labels(&items));
-                                        select_block_model_options.set_vec(items);
-                                        block_parameter_items.set_vec(
-                                            block_parameter_items_for_editor(&editor_data),
-                                        );
-                                        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(
-                                            block_type_index(
+                // Special handling for SelectBlock's own block-selector param
+                // (SELECT_SELECTED_BLOCK_ID): this re-renders the sub-block editor
+                // and is UI-only — no project mutation needed here.
+                if path.as_str() == SELECT_SELECTED_BLOCK_ID {
+                    let selected_option_block_id = internal_block_parameter_value(
+                        &block_parameter_items,
+                        SELECT_SELECTED_BLOCK_ID,
+                    );
+                    if let (Some(draft), Some(selected_option_block_id)) = (
+                        block_editor_draft.borrow_mut().as_mut(),
+                        selected_option_block_id,
+                    ) {
+                        if draft.is_select {
+                            if let Some(session) = project_session.borrow().as_ref() {
+                                if let Some(block_index) = draft.block_index {
+                                    let proj = session.project.borrow();
+                                    if let Some(block) = proj
+                                        .chains
+                                        .get(draft.chain_index)
+                                        .and_then(|chain| chain.blocks.get(block_index))
+                                    {
+                                        if let Some(editor_data) = block_editor_data_with_selected(
+                                            block,
+                                            Some(&selected_option_block_id),
+                                        ) {
+                                            draft.effect_type = editor_data.effect_type.clone();
+                                            draft.model_id = editor_data.model_id.clone();
+                                            let items = block_model_picker_items(
                                                 &editor_data.effect_type,
                                                 &draft.instrument,
-                                            ),
-                                        );
-                                        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(
-                                            block_model_index(
-                                                &editor_data.effect_type,
-                                                &editor_data.model_id,
-                                                &draft.instrument,
-                                            ),
-                                        );
+                                            );
+                                            select_block_model_option_labels
+                                                .set_vec(block_model_picker_labels(&items));
+                                            select_block_model_options.set_vec(items);
+                                            block_parameter_items.set_vec(
+                                                block_parameter_items_for_editor(&editor_data),
+                                            );
+                                            crate::BlockEditorBridge::get(&window)
+                                                .set_block_drawer_selected_type_index(
+                                                    block_type_index(
+                                                        &editor_data.effect_type,
+                                                        &draft.instrument,
+                                                    ),
+                                                );
+                                            crate::BlockEditorBridge::get(&window)
+                                                .set_block_drawer_selected_model_index(
+                                                    block_model_index(
+                                                        &editor_data.effect_type,
+                                                        &editor_data.model_id,
+                                                        &draft.instrument,
+                                                    ),
+                                                );
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    crate::BlockEditorBridge::get(&window)
+                        .set_block_drawer_status_message("".into());
+                    return;
                 }
+
                 crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
-                return;
-            }
 
-            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
-
-            // Only dispatch if editing an existing block.
-            let (chain_index, block_index) = {
-                let draft_borrow = block_editor_draft.borrow();
-                let Some(draft) = draft_borrow.as_ref() else {
-                    return;
-                };
-                let Some(bi) = draft.block_index else {
-                    return;
-                };
-                (draft.chain_index, bi)
-            };
-
-            // Resolve chain_id / block_id and the option string value from project.
-            let (chain_id, block_id, option_value) = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(chain_index) else {
-                    return;
-                };
-                let Some(block) = chain.blocks.get(block_index) else {
-                    return;
-                };
-                // The option string was already written to value_text by
-                // set_block_parameter_option above — read it back from the model.
-                let opt_val = internal_block_parameter_value(&block_parameter_items, path.as_str())
-                    .unwrap_or_default();
-                (chain.id.clone(), block.id.clone(), opt_val)
-            };
-
-            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
-            let dispatch_ok = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                match session.dispatcher.dispatch(Command::Block(
-                    BlockCommand::SelectBlockParameterOption {
-                        chain: chain_id.clone(),
-                        block: block_id,
-                        path: path.to_string(),
-                        value: option_value,
-                        index: index as usize,
-                    },
-                )) {
-                    Ok(events) => events
-                        .into_iter()
-                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
-                    Err(e) => {
-                        log::error!("[adapter-gui] block-drawer.option dispatch: {e}");
-                        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
+                // Only dispatch if editing an existing block.
+                let (chain_index, block_index) = {
+                    let draft_borrow = block_editor_draft.borrow();
+                    let Some(draft) = draft_borrow.as_ref() else {
                         return;
-                    }
-                }
-            };
-            if !dispatch_ok {
-                return;
-            }
+                    };
+                    let Some(bi) = draft.block_index else {
+                        return;
+                    };
+                    (draft.chain_index, bi)
+                };
 
-            // Sync audio runtime + refresh UI + mark dirty.
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                return;
-            };
-            if let Err(e) = request_chain_sync(session, &chain_id) {
-                log::error!("[adapter-gui] block-drawer.option runtime sync: {e}");
-                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &session.project.borrow(),
-                &input_chain_devices.borrow(),
-                &output_chain_devices.borrow(),
-                &[],
-            );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
-        });
+                // Resolve chain_id / block_id and the option string value from project.
+                let (chain_id, block_id, option_value) = {
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else {
+                        return;
+                    };
+                    let proj = session.project.borrow();
+                    let Some(chain) = proj.chains.get(chain_index) else {
+                        return;
+                    };
+                    let Some(block) = chain.blocks.get(block_index) else {
+                        return;
+                    };
+                    // The option string was already written to value_text by
+                    // set_block_parameter_option above — read it back from the model.
+                    let opt_val =
+                        internal_block_parameter_value(&block_parameter_items, path.as_str())
+                            .unwrap_or_default();
+                    (chain.id.clone(), block.id.clone(), opt_val)
+                };
+
+                // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
+                let dispatch_ok = {
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else {
+                        return;
+                    };
+                    match session.dispatcher.dispatch(Command::Block(
+                        BlockCommand::SelectBlockParameterOption {
+                            chain: chain_id.clone(),
+                            block: block_id,
+                            path: path.to_string(),
+                            value: option_value,
+                            index: index as usize,
+                        },
+                    )) {
+                        Ok(events) => events
+                            .into_iter()
+                            .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
+                        Err(e) => {
+                            log::error!("[adapter-gui] block-drawer.option dispatch: {e}");
+                            crate::BlockEditorBridge::get(&window)
+                                .set_block_drawer_status_message(e.to_string().into());
+                            return;
+                        }
+                    }
+                };
+                if !dispatch_ok {
+                    return;
+                }
+
+                // Sync audio runtime + refresh UI + mark dirty.
+                let mut session_borrow = project_session.borrow_mut();
+                let Some(session) = session_borrow.as_mut() else {
+                    return;
+                };
+                if let Err(e) = request_chain_sync(session, &chain_id) {
+                    log::error!("[adapter-gui] block-drawer.option runtime sync: {e}");
+                    crate::BlockEditorBridge::get(&window)
+                        .set_block_drawer_status_message(e.to_string().into());
+                    return;
+                }
+                replace_project_chains(
+                    &project_chains,
+                    &session.project.borrow(),
+                    &input_chain_devices.borrow(),
+                    &output_chain_devices.borrow(),
+                    &[],
+                );
+                sync_project_dirty(
+                    &window,
+                    session,
+                    &saved_project_snapshot,
+                    &project_dirty,
+                    auto_save,
+                );
+            },
+        );
     }
 }
 
@@ -340,7 +348,8 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
                     Err(e) => {
                         log::error!("[adapter-gui] block-drawer.file dispatch: {e}");
-                        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&window)
+                            .set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -356,7 +365,8 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
             };
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.file runtime sync: {e}");
-                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&window)
+                    .set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             replace_project_chains(

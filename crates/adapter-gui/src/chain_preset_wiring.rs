@@ -17,7 +17,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, Timer, VecModel};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
 use domain::ids::ChainId;
@@ -459,7 +459,8 @@ fn apply_preset_filter(
         }
     }
     *visible.borrow_mut() = visible_paths;
-    crate::OverlayBridge::get(window).set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(visible_names))));
+    crate::OverlayBridge::get(window)
+        .set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(visible_names))));
 }
 
 #[cfg(test)]

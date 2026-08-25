@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ModelRc, Timer, VecModel, Global};
+use slint::{Global, ModelRc, Timer, VecModel};
 
 use crate::state::{AudioSettingsMode, ProjectSession};
 use crate::{AppWindow, ProjectSettingsWindow};
@@ -139,7 +139,8 @@ pub(crate) fn wire(
         midi_device_model.clone(),
     );
     crate::SettingsBridge::get(window).set_midi_devices(ModelRc::from(midi_device_model.clone()));
-    crate::SettingsBridge::get(project_settings_window).set_midi_devices(ModelRc::from(midi_device_model.clone()));
+    crate::SettingsBridge::get(project_settings_window)
+        .set_midi_devices(ModelRc::from(midi_device_model.clone()));
     // --- Project / Metadata section (#513) ---
     let last_dispatched_name: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
     crate::settings::project_meta::install(

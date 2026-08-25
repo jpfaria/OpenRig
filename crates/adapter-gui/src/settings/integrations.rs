@@ -129,7 +129,8 @@ fn install_midi(
     let for_app = handler.clone();
     crate::SettingsBridge::get(window).on_set_midi_enabled(move |on| for_app(on));
     let for_settings = handler;
-    crate::SettingsBridge::get(project_settings_window).on_set_midi_enabled(move |on| for_settings(on));
+    crate::SettingsBridge::get(project_settings_window)
+        .on_set_midi_enabled(move |on| for_settings(on));
 }
 
 fn install_mcp(
@@ -160,5 +161,6 @@ fn install_mcp(
     let for_app = handler.clone();
     crate::SettingsBridge::get(window).on_set_mcp_enabled(move |on| for_app(on));
     let for_settings = handler;
-    crate::SettingsBridge::get(project_settings_window).on_set_mcp_enabled(move |on| for_settings(on));
+    crate::SettingsBridge::get(project_settings_window)
+        .on_set_mcp_enabled(move |on| for_settings(on));
 }

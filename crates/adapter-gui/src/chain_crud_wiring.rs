@@ -12,7 +12,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
@@ -126,8 +126,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
             )));
             crate::ChainEditorBridge::get(&window).set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
-            editor_window.set_editor_title(crate::ChainEditorBridge::get(&window).get_chain_editor_title());
-            editor_window.set_editor_save_label(crate::ChainEditorBridge::get(&window).get_chain_editor_save_label());
+            editor_window
+                .set_editor_title(crate::ChainEditorBridge::get(&window).get_chain_editor_title());
+            editor_window.set_editor_save_label(
+                crate::ChainEditorBridge::get(&window).get_chain_editor_save_label(),
+            );
             editor_window.set_is_create_mode(true);
             editor_window
                 .set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
@@ -135,8 +138,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
             if fullscreen {
-                crate::ChainEditorBridge::get(&window).set_chain_editor_bindings(editor_window.get_bindings());
-                crate::ChainEditorBridge::get(&window).set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
+                crate::ChainEditorBridge::get(&window)
+                    .set_chain_editor_bindings(editor_window.get_bindings());
+                crate::ChainEditorBridge::get(&window)
+                    .set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
                 crate::ChainEditorBridge::get(&window).set_chain_editor_selected_instrument_index(
                     editor_window.get_selected_instrument_index(),
                 );
@@ -219,8 +224,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
                         &draft.io_binding_ids,
                     ),
                 )));
-                editor_window.set_editor_title(crate::ChainEditorBridge::get(&window).get_chain_editor_title());
-                editor_window.set_editor_save_label(crate::ChainEditorBridge::get(&window).get_chain_editor_save_label());
+                editor_window.set_editor_title(
+                    crate::ChainEditorBridge::get(&window).get_chain_editor_title(),
+                );
+                editor_window.set_editor_save_label(
+                    crate::ChainEditorBridge::get(&window).get_chain_editor_save_label(),
+                );
                 editor_window.set_is_create_mode(false);
                 editor_window
                     .set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
@@ -229,8 +238,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
             if fullscreen {
-                crate::ChainEditorBridge::get(&window).set_chain_editor_bindings(editor_window.get_bindings());
-                crate::ChainEditorBridge::get(&window).set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
+                crate::ChainEditorBridge::get(&window)
+                    .set_chain_editor_bindings(editor_window.get_bindings());
+                crate::ChainEditorBridge::get(&window)
+                    .set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
                 crate::ChainEditorBridge::get(&window).set_chain_editor_selected_instrument_index(
                     editor_window.get_selected_instrument_index(),
                 );

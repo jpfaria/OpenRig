@@ -14,7 +14,7 @@
 
 use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, LogicalPosition, LogicalSize, Model, ModelRc, VecModel, Global};
+use slint::{ComponentHandle, Global, LogicalPosition, LogicalSize, Model, ModelRc, VecModel};
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -119,7 +119,8 @@ fn io_bindings_ui_interactions() {
                 available: true,
             },
         ];
-        crate::SettingsBridge::get(&w).set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
+        crate::SettingsBridge::get(&w)
+            .set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
 
         // Expand the binding so its input editor materialises — a collapsed
         // binding only shows the In/Out count badges (the add-input button and
@@ -137,7 +138,8 @@ fn io_bindings_ui_interactions() {
 
         let fired = Rc::new(Cell::new(false));
         let f = fired.clone();
-        crate::SettingsBridge::get(&w).on_toggle_endpoint_channel(move |_idx, _sel, _mode| f.set(true));
+        crate::SettingsBridge::get(&w)
+            .on_toggle_endpoint_channel(move |_idx, _sel, _mode| f.set(true));
 
         // The cell lives in the shared ChannelPicker component since #880.
         assert!(
@@ -352,7 +354,11 @@ fn io_bindings_ui_interactions() {
 
         // Pick device A (populates channels) and select channel 0 — exactly what
         // the device dropdown + channel cell callbacks do.
-        crate::SettingsBridge::get(&psw).invoke_endpoint_device_changed("b1".into(), true, "A".into());
+        crate::SettingsBridge::get(&psw).invoke_endpoint_device_changed(
+            "b1".into(),
+            true,
+            "A".into(),
+        );
         crate::SettingsBridge::get(&psw).invoke_toggle_endpoint_channel(0, true, "mono".into());
 
         // Press Add: real handler appends the endpoint + reprojects.

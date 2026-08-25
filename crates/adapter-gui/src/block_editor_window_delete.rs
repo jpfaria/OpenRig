@@ -121,14 +121,16 @@ pub(crate) fn wire_block_delete(
             {
                 log::error!("[adapter-gui] block-window.delete dispatch: {e}");
                 if let Some(w) = weak_main.upgrade() {
-                    crate::BlockEditorBridge::get(&w).set_block_drawer_status_message(e.to_string().into());
+                    crate::BlockEditorBridge::get(&w)
+                        .set_block_drawer_status_message(e.to_string().into());
                 }
                 return;
             }
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-window.delete: {e}");
                 if let Some(w) = weak_main.upgrade() {
-                    crate::BlockEditorBridge::get(&w).set_block_drawer_status_message(e.to_string().into());
+                    crate::BlockEditorBridge::get(&w)
+                        .set_block_drawer_status_message(e.to_string().into());
                 }
                 return;
             }

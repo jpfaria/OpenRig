@@ -24,7 +24,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
 
@@ -54,7 +54,9 @@ use crate::{
 /// re-derives the wrap math. Issue #500.
 pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     use slint::Model;
-    let overlay_count = crate::BlockEditorBridge::get(win).get_block_knob_overlays().row_count();
+    let overlay_count = crate::BlockEditorBridge::get(win)
+        .get_block_knob_overlays()
+        .row_count();
     let param_count = crate::block_editor_param_tabs::visible_param_count(win);
     // Slint hides the param grid when overlays are present
     // (`block-knob-overlays.length == 0` gates `params-visible`), so
@@ -65,8 +67,12 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
         param_count
     };
     let eq_widget = crate::block_panel_dimensions::eq_widget_for(
-        crate::BlockEditorBridge::get(win).get_curve_editor_points().row_count(),
-        crate::BlockEditorBridge::get(win).get_multi_slider_points().row_count(),
+        crate::BlockEditorBridge::get(win)
+            .get_curve_editor_points()
+            .row_count(),
+        crate::BlockEditorBridge::get(win)
+            .get_multi_slider_points()
+            .row_count(),
     );
     let type_idx = crate::BlockEditorBridge::get(win).get_block_drawer_selected_type_index();
     let types = crate::BlockEditorBridge::get(win).get_block_type_options();
@@ -356,7 +362,8 @@ fn wire_drawer_toggle_save(
                     }),
                     Err(e) => {
                         log::error!("[adapter-gui] block-window.toggle-enabled dispatch: {e}");
-                        crate::BlockEditorBridge::get(&main).set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&main)
+                            .set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -437,7 +444,8 @@ fn wire_drawer_toggle_save(
                 auto_save,
             ) {
                 log::error!("[adapter-gui] block-window.save: {e}");
-                crate::BlockEditorBridge::get(&main).set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&main)
+                    .set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             *selected_block_save.borrow_mut() = None;

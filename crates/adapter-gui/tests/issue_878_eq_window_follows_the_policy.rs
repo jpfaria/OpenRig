@@ -7,16 +7,18 @@
 
 use adapter_gui::block_panel_dimensions::{compute, EqWidget, PanelInputs};
 use adapter_gui::{BlockEditorWindow, BlockTypePickerItem, CurveEditorPoint};
-use slint::{ComponentHandle, ModelRc, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, VecModel};
 
 fn eq_window(bands: usize) -> BlockEditorWindow {
     let w = BlockEditorWindow::new().unwrap();
     let mut kind = BlockTypePickerItem::default();
     kind.use_panel_editor = true;
-    adapter_gui::BlockEditorBridge::get(&w).set_block_type_options(ModelRc::new(VecModel::from(vec![kind])));
+    adapter_gui::BlockEditorBridge::get(&w)
+        .set_block_type_options(ModelRc::new(VecModel::from(vec![kind])));
     adapter_gui::BlockEditorBridge::get(&w).set_block_drawer_selected_type_index(0);
     let points = vec![CurveEditorPoint::default(); bands];
-    adapter_gui::BlockEditorBridge::get(&w).set_curve_editor_points(ModelRc::new(VecModel::from(points)));
+    adapter_gui::BlockEditorBridge::get(&w)
+        .set_curve_editor_points(ModelRc::new(VecModel::from(points)));
     w
 }
 

@@ -18,7 +18,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SelectionCommand};
-use slint::{ComponentHandle, ModelRc, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::runtime_analyzers::AnalyzerSessions;

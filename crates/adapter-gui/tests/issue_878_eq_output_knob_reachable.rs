@@ -6,7 +6,7 @@
 //! the panel strip above the widget.
 
 use adapter_gui::{BlockEditorWindow, BlockParameterItem, BlockTypePickerItem, CurveEditorPoint};
-use slint::{ComponentHandle, ModelRc, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, VecModel};
 
 /// Bottom of the block panel strip: the header (48px) plus the strip an EQ
 /// block gets. A knob below this line would sit on top of the EQ widget.
@@ -16,7 +16,8 @@ fn panel_editor_window() -> BlockEditorWindow {
     let w = BlockEditorWindow::new().unwrap();
     let mut kind = BlockTypePickerItem::default();
     kind.use_panel_editor = true;
-    adapter_gui::BlockEditorBridge::get(&w).set_block_type_options(ModelRc::new(VecModel::from(vec![kind])));
+    adapter_gui::BlockEditorBridge::get(&w)
+        .set_block_type_options(ModelRc::new(VecModel::from(vec![kind])));
     adapter_gui::BlockEditorBridge::get(&w).set_block_drawer_selected_type_index(0);
     w
 }
@@ -49,12 +50,15 @@ fn eq_block_keeps_the_knobs_its_widget_does_not_draw() {
 
     let w = panel_editor_window();
     let bands = vec![CurveEditorPoint::default(); 4];
-    adapter_gui::BlockEditorBridge::get(&w).set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
-    adapter_gui::BlockEditorBridge::get(&w).set_block_parameter_items(ModelRc::new(VecModel::from(vec![
-        widget_owned("band1_freq"),
-        widget_owned("band1_gain"),
-        knob("output_db", 0),
-    ])));
+    adapter_gui::BlockEditorBridge::get(&w)
+        .set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
+    adapter_gui::BlockEditorBridge::get(&w).set_block_parameter_items(ModelRc::new(
+        VecModel::from(vec![
+            widget_owned("band1_freq"),
+            widget_owned("band1_gain"),
+            knob("output_db", 0),
+        ]),
+    ));
     w.set_panel_grid_cols(1);
     w.show().unwrap();
 

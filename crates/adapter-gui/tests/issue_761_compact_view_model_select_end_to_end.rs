@@ -21,7 +21,7 @@
 use adapter_gui::{BlockModelPickerItem, CompactBlockItem, CompactChainViewWindow};
 use i_slint_backend_testing::ElementHandle;
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, LogicalPosition, ModelRc, SharedString, VecModel, Global};
+use slint::{ComponentHandle, Global, LogicalPosition, ModelRc, SharedString, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 

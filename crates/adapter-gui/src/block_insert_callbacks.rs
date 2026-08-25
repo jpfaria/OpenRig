@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
 use project::param::ParameterSet;
@@ -232,7 +232,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
             // overlays; the detached editor builds its own via create_and_wire
             // (#815/#819). The main-window model picker is inline-only now.
             if use_inline_block_editor(&window) {
-                crate::BlockEditorBridge::get(&window).set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                crate::BlockEditorBridge::get(&window)
+                    .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 // #819: knob count changed -> re-publish the #500 panel height.
                 crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             }

@@ -7,7 +7,7 @@
 //! keep that logic out of `lib.rs` (already a god file).
 
 use crate::{BlockEditorWindow, BlockModelPickerItem, CompactBlockItem};
-use slint::{ComponentHandle, Model, ModelRc, VecModel, Global};
+use slint::{ComponentHandle, Global, Model, ModelRc, VecModel};
 use std::rc::Rc;
 
 /// Drawer / window: re-filter `full` according to `text` and publish into

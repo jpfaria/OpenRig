@@ -222,7 +222,8 @@ pub fn install(
         };
         apply_presets_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            crate::SettingsBridge::get(&w).set_presets_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w)
+                .set_presets_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -247,7 +248,8 @@ pub fn install(
         };
         apply_plugins_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            crate::SettingsBridge::get(&w).set_plugins_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w)
+                .set_plugins_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -272,7 +274,8 @@ pub fn install(
         };
         apply_evaluations_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            crate::SettingsBridge::get(&w).set_evaluations_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w)
+                .set_evaluations_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -316,7 +319,8 @@ pub fn install_secondary(
         };
         apply_presets_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            crate::SettingsBridge::get(&w).set_presets_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w)
+                .set_presets_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -339,7 +343,8 @@ pub fn install_secondary(
         };
         apply_plugins_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            crate::SettingsBridge::get(&w).set_plugins_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w)
+                .set_plugins_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -363,7 +368,8 @@ pub fn install_secondary(
         };
         apply_evaluations_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            crate::SettingsBridge::get(&w).set_evaluations_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w)
+                .set_evaluations_path(path.to_string_lossy().into_owned().into());
         }
     });
 

@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel, Global};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use crate::state::BlockEditorDraft;
 use crate::{

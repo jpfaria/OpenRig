@@ -135,7 +135,8 @@ pub fn wire(
     let for_app = on_change.clone();
     crate::SettingsBridge::get(window).on_change_language(move |idx: i32| for_app(idx));
     let for_settings = on_change;
-    crate::SettingsBridge::get(project_settings_window).on_language_selected(move |idx: i32| for_settings(idx));
+    crate::SettingsBridge::get(project_settings_window)
+        .on_language_selected(move |idx: i32| for_settings(idx));
 }
 
 /// Re-apply Slint properties that Rust pushes via `set_*(t!(...))` and

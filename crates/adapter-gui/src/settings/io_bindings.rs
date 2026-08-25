@@ -27,7 +27,7 @@ use application::command::{Command, IoBindingCommand};
 use domain::io_binding::{IoBinding, IoEndpoint};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
-use slint::{Model, ModelRc, SharedString, VecModel, Global};
+use slint::{Global, Model, ModelRc, SharedString, VecModel};
 
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
@@ -256,9 +256,12 @@ pub fn wire(
     // Seed the binding + channel models on both windows.
     crate::SettingsBridge::get(window).set_io_bindings(ModelRc::from(models.bindings.clone()));
     crate::SettingsBridge::get(window).set_io_binding_names(ModelRc::from(models.names.clone()));
-    crate::SettingsBridge::get(window).set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
-    crate::SettingsBridge::get(project_settings_window).set_io_bindings(ModelRc::from(models.bindings.clone()));
-    crate::SettingsBridge::get(project_settings_window).set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
+    crate::SettingsBridge::get(window)
+        .set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
+    crate::SettingsBridge::get(project_settings_window)
+        .set_io_bindings(ModelRc::from(models.bindings.clone()));
+    crate::SettingsBridge::get(project_settings_window)
+        .set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
 
     // Seed the device-list models (id + name) on both windows. Devices are
     // enumerated lazily, so this is re-run by `reseed_device_models` from the

@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, Global};
+use slint::{ComponentHandle, Global, Timer};
 
 use domain::AudioDeviceDescriptor;
 
