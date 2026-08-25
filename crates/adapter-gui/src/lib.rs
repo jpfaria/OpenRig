@@ -194,6 +194,9 @@ mod issue_85_port_editor_tests;
 #[path = "issue_881_compact_insert_tests.rs"]
 mod issue_881_compact_insert_tests;
 #[cfg(test)]
+#[path = "issue_898_compact_insert_refresh_tests.rs"]
+mod issue_898_compact_insert_refresh_tests;
+#[cfg(test)]
 #[path = "issue_881_insert_editor_tests.rs"]
 mod issue_881_insert_editor_tests;
 pub mod mo_freshness;
