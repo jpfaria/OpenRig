@@ -173,16 +173,12 @@ component AudioDeviceRow inherits Rectangle {
     }
 }
 
+import { SettingsBridge } from "../../settings_globals.slint";
+
 export component SectionSystemAudio inherits Rectangle {
-    in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
-    callback refresh-devices();
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
     callback save-audio-settings();
 
     background: transparent;
@@ -216,7 +212,7 @@ export component SectionSystemAudio inherits Rectangle {
 
                 refresh-ta := TouchArea {
                     mouse-cursor: pointer;
-                    clicked => { root.refresh-devices(); }
+                    clicked => { SettingsBridge.refresh-devices(); }
                 }
             }
         }
@@ -224,10 +220,10 @@ export component SectionSystemAudio inherits Rectangle {
         // Device list — height tracks the row count.
         ScrollView {
             horizontal-stretch: 1;
-            height: root.project-devices.length * 48px;
-            viewport-height: root.project-devices.length * 48px;
+            height: SettingsBridge.project-devices.length * 48px;
+            viewport-height: SettingsBridge.project-devices.length * 48px;
 
-            for device[index] in root.project-devices : AudioDeviceRow {
+            for device[index] in SettingsBridge.project-devices : AudioDeviceRow {
                 x: 0px;
                 y: index * 48px;
                 width: parent.width - 8px;
@@ -235,10 +231,10 @@ export component SectionSystemAudio inherits Rectangle {
                 sample-rate-options: root.sample-rate-options;
                 buffer-size-options: root.buffer-size-options;
                 bit-depth-options: root.bit-depth-options;
-                toggled(selected) => { root.toggle-project-device(index, selected); }
-                sample-rate-selected(value) => { root.update-project-sample-rate(index, value); }
-                buffer-size-selected(value) => { root.update-project-buffer-size(index, value); }
-                bit-depth-selected(value) => { root.update-project-bit-depth(index, value); }
+                toggled(selected) => { SettingsBridge.toggle-project-device(index, selected); }
+                sample-rate-selected(value) => { SettingsBridge.update-project-sample-rate(index, value); }
+                buffer-size-selected(value) => { SettingsBridge.update-project-buffer-size(index, value); }
+                bit-depth-selected(value) => { SettingsBridge.update-project-bit-depth(index, value); }
             }
         }
 

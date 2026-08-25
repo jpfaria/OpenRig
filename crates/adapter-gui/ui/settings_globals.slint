@@ -9,7 +9,7 @@
 // instance (Rust installs on each), but the DECLARATION exists once and every
 // section reads it directly with no prop drilling.
 
-import { ChannelOptionItem, IoBindingModel, MidiDeviceRow } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, IoBindingModel, MidiBindingRow, MidiDeviceRow } from "models.slint";
 
 export global SettingsBridge {
     // ── System / Paths (#513, #582) ──────────────────────────────────────
@@ -74,4 +74,40 @@ export global SettingsBridge {
     callback remove-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
     // Fires before the form opens; Rust seeds the channel model + prefill props.
     callback edit-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
+
+    // ── System / Audio devices (#513) ────────────────────────────────────
+    // The project's device rows; the rate/buffer/bit-depth option lists stay
+    // on the window because the first-run audio wizard shares them.
+    in-out property <[DeviceSelectionItem]> project-devices;
+    callback refresh-devices();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
+    callback update-project-bit-depth(int, string);
+
+    // ── System / Language ────────────────────────────────────────────────
+    // Populated from Rust (`i18n::SUPPORTED_LANGUAGES`).
+    in-out property <[string]> language-options;
+    in-out property <[string]> language-codes;
+    in-out property <int> selected-language-index;
+    callback change-language(int);
+    callback language-selected(int);
+
+    // ── Project / Metadata (#513) ────────────────────────────────────────
+    // Name is editable (dispatches UpdateProjectName on each change); the
+    // path is read-only display.
+    in-out property <string> project-name;
+    in-out property <string> project-path-display;
+    callback edit-project-name(string);
+
+    // ── Project / MIDI mapping (#513, #493) ──────────────────────────────
+    // Bindings list plus the `Command` variant names the dropdown offers.
+    // Drafts and finalized bindings share one row list — `learning = true`
+    // marks a draft awaiting MIDI Learn capture.
+    in-out property <[MidiBindingRow]> midi-bindings;
+    in-out property <[string]> available-commands;
+    callback add-midi-binding();
+    callback delete-midi-binding(int);
+    callback pick-midi-binding-command(int, string);
+    callback cancel-midi-binding-draft(int);
 }

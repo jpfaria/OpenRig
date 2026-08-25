@@ -116,7 +116,6 @@ export component AppWindow inherits Window {
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
     in property <[string]> bit-depth-options: ["16", "24", "32"];
     // Fullscreen inline project settings
-    in property <[DeviceSelectionItem]> project-devices;
     // System / MIDI devices section rows (#513). Built by Rust by merging
     // `adapter_midi::list_input_ports()` with the persisted selection.
     // Project / Metadata section (#513). Name is editable (dispatches
@@ -124,14 +123,10 @@ export component AppWindow inherits Window {
     // Default expressions point at the existing draft/path so the
     // Settings → Metadata section sees the current project values
     // without a dedicated Rust setter.
-    in property <string> project-name: root.project-name-draft;
-    in property <string> project-path-display: root.project-path-label;
     // Project / MIDI mapping editor (#513, #493). Bindings list +
     // available `Command` variant names for the dropdown. Drafts and
     // finalized bindings share a single row list — `learning = true`
     // marks a draft awaiting MIDI Learn capture.
-    in property <[MidiBindingRow]> midi-bindings;
-    in property <[string]> available-commands;
     // Fullscreen inline chain editor
     in property <[ChainBindingChoice]> chain-editor-bindings;
     in property <bool> chain-editor-is-create-mode: true;
@@ -255,32 +250,18 @@ export component AppWindow inherits Window {
     callback save-chain();
     callback cancel-chain();
     // Fullscreen inline project settings callbacks
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
-    callback refresh-devices();
     // System / MIDI devices section callbacks (#513)
     // #712: System / Integrations master switches (per-machine config.yaml).
     // #716: System / I/O bindings section.
     // `io-binding-names` stays for the chain-level endpoint picker
     // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
     // Project / MIDI mapping editor callbacks (#513, #493)
-    callback add-midi-binding();
-    callback delete-midi-binding(int);
-    callback pick-midi-binding-command(int, string);
-    callback cancel-midi-binding-draft(int);
     // Project / Metadata section callbacks (#513)
-    callback edit-project-name(string);
     // Fullscreen inline chain editor callbacks
     callback toggle-binding(int, bool);
     callback select-chain-instrument(int);
     callback virtual-key-pressed(string);
     // Language selector — populated from Rust side (i18n::SUPPORTED_LANGUAGES).
-    in property <[string]> language-options;
-    in property <[string]> language-codes;
-    in property <int> selected-language-index;
-    callback change-language(int);
     in property <bool> show-preset-picker: false;
     in property <[string]> preset-picker-items;
     in-out property <int> preset-picker-chain-index: -1;
@@ -353,10 +334,6 @@ export component AppWindow inherits Window {
         rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
@@ -399,9 +376,6 @@ export component AppWindow inherits Window {
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        project-devices: root.project-devices;
-        midi-bindings: root.midi-bindings;
-        available-commands: root.available-commands;
         chain-editor-bindings: root.chain-editor-bindings;
         toggle-binding(i, on) => { root.toggle-binding(i, on); }
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
@@ -490,18 +464,6 @@ export component AppWindow inherits Window {
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        add-midi-binding => { root.add-midi-binding(); }
-        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
-        project-name: root.project-name;
-        project-path-display: root.project-path-display;
-        edit-project-name(t) => { root.edit-project-name(t); }
         select-chain-instrument(index) => { root.select-chain-instrument(index); }
         plugin-info-visible: root.plugin-info-visible;
         plugin-info-data: root.plugin-info-data;
@@ -535,10 +497,6 @@ export component AppWindow inherits Window {
         rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        change-language(idx) => { root.change-language(idx); }
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
@@ -579,9 +537,6 @@ export component AppWindow inherits Window {
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        project-devices: root.project-devices;
-        midi-bindings: root.midi-bindings;
-        available-commands: root.available-commands;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -666,18 +621,6 @@ export component AppWindow inherits Window {
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        add-midi-binding => { root.add-midi-binding(); }
-        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
-        project-name: root.project-name;
-        project-path-display: root.project-path-display;
-        edit-project-name(t) => { root.edit-project-name(t); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
         show-preset-picker: root.show-preset-picker;
         preset-picker-items: root.preset-picker-items;

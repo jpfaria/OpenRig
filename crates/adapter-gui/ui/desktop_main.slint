@@ -27,10 +27,6 @@ export component DesktopMain inherits Rectangle {
     in property <[ChainRigNav]> chain-rig-nav;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
-    in property <[string]> language-options;
-    in property <[string]> language-codes;
-    in property <int> selected-language-index;
-    callback change-language(int);
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
@@ -74,15 +70,9 @@ export component DesktopMain inherits Rectangle {
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
     // Fullscreen inline project settings
-    in property <[DeviceSelectionItem]> project-devices;
     // Project / MIDI mapping editor (#513, #493)
-    in property <[MidiBindingRow]> midi-bindings;
-    in property <[string]> available-commands;
     // Project / Metadata section (#513) — default-binds to the existing
     // draft/path properties so Rust doesn't need separate setters.
-    in property <string> project-name: root.project-name-draft;
-    in property <string> project-path-display: root.project-path-label;
-    callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
     // #561: plugin catalog reload row in the Paths section.
     // Fullscreen inline chain editor
@@ -178,21 +168,12 @@ export component DesktopMain inherits Rectangle {
     callback save-chain();
     callback cancel-chain();
     // Fullscreen inline project settings callbacks
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
-    callback refresh-devices();
     // System / MIDI devices section callbacks (#513)
     // #712: System / Integrations master switches.
     // #716: System / I/O bindings section.
     // `io-binding-names` stays for the chain-level endpoint picker
     // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
     // Project / MIDI mapping editor callbacks (#513, #493)
-    callback add-midi-binding();
-    callback delete-midi-binding(int);
-    callback pick-midi-binding-command(int, string);
-    callback cancel-midi-binding-draft(int);
     // Fullscreen inline chain editor callbacks
     callback select-chain-instrument(int);
     callback toggle-binding(int, bool);
@@ -214,15 +195,11 @@ export component DesktopMain inherits Rectangle {
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         status-message: root.status-message;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
-        change-language(i) => { root.change-language(i); }
     }
 
     if root.show-project-setup : ProjectSetupPage {
@@ -332,33 +309,14 @@ export component DesktopMain inherits Rectangle {
             width: parent.width;
             height: parent.height;
             project-name-draft <=> root.project-name-draft;
-            project-devices: root.project-devices;
-            midi-bindings: root.midi-bindings;
-            available-commands: root.available-commands;
             sample-rate-options: root.sample-rate-options;
             buffer-size-options: root.buffer-size-options;
             bit-depth-options: root.bit-depth-options;
-            language-options: root.language-options;
-            language-codes: root.language-codes;
-            selected-language-index: root.selected-language-index;
             status-message: root.status-message;
-            project-name: root.project-name;
-            project-path-display: root.project-path-display;
-            edit-project-name(t) => { root.edit-project-name(t); }
             update-project-name(value) => { root.update-project-name(value); }
             save-audio-settings => { root.save-audio-settings(); }
             save-project => { root.save-project(); }
             close-settings => { root.close-settings(); }
-            toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-            update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-            update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-            update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-            refresh-devices => { root.refresh-devices(); }
-            language-selected(i) => { root.change-language(i); }
-            add-midi-binding => { root.add-midi-binding(); }
-            delete-midi-binding(i) => { root.delete-midi-binding(i); }
-            pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-            cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
         }
 
         // Fullscreen inline tuner overlay (windowed mode uses TunerWindow instead)
@@ -461,31 +419,12 @@ export component DesktopMain inherits Rectangle {
         height: parent.height;
         project-name-draft <=> root.project-name-draft;
         status-message <=> root.status-message;
-        project-devices: root.project-devices;
-        midi-bindings: root.midi-bindings;
-        available-commands: root.available-commands;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        project-name: root.project-name;
-        project-path-display: root.project-path-display;
-        edit-project-name(t) => { root.edit-project-name(t); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-settings => { root.close-settings(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        language-selected(i) => { root.change-language(i); }
-        add-midi-binding => { root.add-midi-binding(); }
-        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
     }
 
     // Floating language selector — top-right of every screen EXCEPT the

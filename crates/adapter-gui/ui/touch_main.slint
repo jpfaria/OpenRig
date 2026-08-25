@@ -26,10 +26,6 @@ export component TouchMain inherits Rectangle {
     in property <[ChainRigNav]> chain-rig-nav;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
-    in property <[string]> language-options;
-    in property <[string]> language-codes;
-    in property <int> selected-language-index;
-    callback change-language(int);
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
@@ -70,14 +66,8 @@ export component TouchMain inherits Rectangle {
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
-    in property <[DeviceSelectionItem]> project-devices;
     // Project / MIDI mapping editor (#513, #493)
-    in property <[MidiBindingRow]> midi-bindings;
-    in property <[string]> available-commands;
     // Project / Metadata section (#513)
-    in property <string> project-name;
-    in property <string> project-path-display;
-    callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
     // #561: plugin catalog reload row in the Paths section.
     callback toggle-input-device(int, bool);
@@ -168,21 +158,12 @@ export component TouchMain inherits Rectangle {
     callback pick-block-parameter-file(string);
     callback save-chain();
     callback cancel-chain();
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
-    callback refresh-devices();
     // System / MIDI devices section callbacks (#513)
     // #712: System / Integrations master switches.
     // #716: System / I/O bindings section.
     // `io-binding-names` stays for the chain-level endpoint picker
     // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
     // Project / MIDI mapping editor callbacks (#513, #493)
-    callback add-midi-binding();
-    callback delete-midi-binding(int);
-    callback pick-midi-binding-command(int, string);
-    callback cancel-midi-binding-draft(int);
     callback virtual-key-pressed(string);
     // Fullscreen inline chain editor
     in property <[ChainBindingChoice]> chain-editor-bindings;
@@ -369,28 +350,13 @@ export component TouchMain inherits Rectangle {
         height: parent.height;
         project-name-draft <=> root.project-name-draft;
         status-message <=> root.status-message;
-        project-devices: root.project-devices;
-        midi-bindings: root.midi-bindings;
-        available-commands: root.available-commands;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        project-name: root.project-name;
-        project-path-display: root.project-path-display;
-        edit-project-name(t) => { root.edit-project-name(t); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         save-project => { root.save-project(); }
         close-settings => { root.close-settings(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        add-midi-binding => { root.add-midi-binding(); }
-        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
     }
 
     // Inline chain editor overlay (fullscreen mode)

@@ -8,7 +8,6 @@ export component ProjectSettingsWindow inherits Window {
     default-font-size: 13px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
-    in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
@@ -17,10 +16,6 @@ export component ProjectSettingsWindow inherits Window {
     // window. Without these the inner SettingsPage saw empty language
     // dropdowns, empty MIDI devices list, empty MIDI mapping commands
     // and empty project metadata.
-    in property <[string]> language-options;
-    in property <[string]> language-codes;
-    in property <int> selected-language-index;
-    in property <string> project-path-display;
     callback update-project-name(string);
     callback save-audio-settings();
     // Project / Metadata "Save project" button (#513). Mirror of the
@@ -28,18 +23,11 @@ export component ProjectSettingsWindow inherits Window {
     // dispatch Command::SaveProject through the same Rust handler.
     callback save-project();
     callback close-settings();
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
-    callback refresh-devices();
-    callback language-selected(int);
     // #712: System / Integrations master switches.
     // #716: System / I/O bindings section.
     // Exposed so navigation can be driven (e.g. interaction tests jumping
     // straight to the I/O bindings section).
     in-out property <int> settings-selected-section: 0;
-    callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
     // #561: plugin catalog reload row in the Paths section.
     title: @tr("title-window-project-settings");
@@ -53,27 +41,15 @@ export component ProjectSettingsWindow inherits Window {
         width: parent.width;
         height: parent.height;
         project-name-draft <=> root.project-name-draft;
-        project-devices: root.project-devices;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         status-message: root.status-message;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
         selected-section <=> root.settings-selected-section;
-        project-path-display: root.project-path-display;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         save-project => { root.save-project(); }
         close-settings => { root.close-settings(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        language-selected(i) => { root.language-selected(i); }
-        edit-project-name(t) => { root.edit-project-name(t); }
     }
 }
 

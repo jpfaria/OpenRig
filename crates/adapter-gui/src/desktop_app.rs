@@ -9,7 +9,7 @@
 use anyhow::{anyhow, Result};
 use infra_cpal::ProjectRuntimeController;
 use infra_filesystem::FilesystemStorage;
-use slint::{ComponentHandle, ModelRc, Timer, VecModel};
+use slint::{ComponentHandle, ModelRc, Timer, VecModel, Global};
 use std::cell::RefCell;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -258,8 +258,8 @@ pub fn run_desktop_app(
         project_session.clone(),
     );
 
-    project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
-    window.set_project_devices(ModelRc::from(project_devices.clone()));
+    crate::SettingsBridge::get(&project_settings_window).set_project_devices(ModelRc::from(project_devices.clone()));
+    crate::SettingsBridge::get(&window).set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
     project_settings_window.set_bit_depth_options(window.get_bit_depth_options());
@@ -338,13 +338,13 @@ pub fn run_desktop_app(
             .and_then(|s| s.project_path.as_ref().map(|p| p.display().to_string()))
             .unwrap_or_else(|| "(unsaved)".into())
             .into();
-        window.set_project_name(name.clone());
-        window.set_project_path_display(path.clone());
+        crate::SettingsBridge::get(&window).set_project_name(name.clone());
+        crate::SettingsBridge::get(&window).set_project_path_display(path.clone());
         // Mirror onto the standalone settings window (#513): SettingsPage
         // reads project-name from project-name-draft, but the path is a
         // separate property that must be pushed independently.
         project_settings_window.set_project_name_draft(name);
-        project_settings_window.set_project_path_display(path);
+        crate::SettingsBridge::get(&project_settings_window).set_project_path_display(path);
     }
     crate::desktop_app_project_wiring::wire(
         &window,
