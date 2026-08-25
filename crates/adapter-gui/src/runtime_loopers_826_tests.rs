@@ -304,3 +304,121 @@ fn a_waveform_edit_survives_closing_and_reopening_the_app() {
         "the loop must come back EDITED, not as the take before the edit"
     );
 }
+
+// ── the doors the editor's commands actually come through ───────────────
+
+/// The chain as the project holds it, with the looper the test recorded.
+fn recorded_chain(session: &ProjectSession) -> Chain {
+    session.project.borrow().chains[0].clone()
+}
+
+#[test]
+fn the_edit_door_reshapes_a_stopped_loop_and_refuses_a_running_one() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let session = rig_session(&dir.path().join("project.yaml"), rig());
+    let runtime = controller(&session);
+    let uid = add_and_record(&session, &runtime, 4);
+    let chain = recorded_chain(&session);
+
+    // A loop that is still running must never be reshaped under the player.
+    let refused = super::apply_edit(
+        &runtime,
+        &chain,
+        uid,
+        application::looper_edit::LoopEdit::Crop { start: 0, end: 256 },
+    );
+    assert!(
+        refused.is_err(),
+        "editing a loop that is not stopped has to be refused, not applied"
+    );
+
+    runtime
+        .borrow()
+        .as_ref()
+        .unwrap()
+        .looper_stop(&ChainId(CHAIN.into()), uid);
+    let edited = super::apply_edit(
+        &runtime,
+        &chain,
+        uid,
+        application::looper_edit::LoopEdit::Crop { start: 0, end: 256 },
+    )
+    .expect("a stopped loop takes the edit");
+    assert!(edited < 512, "the crop shortened the take; got {edited}");
+    assert_eq!(restored(&runtime, uid).1, edited);
+}
+
+#[test]
+fn undo_and_redo_walk_the_edit_back_and_forward() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let session = rig_session(&dir.path().join("project.yaml"), rig());
+    let runtime = controller(&session);
+    let uid = add_and_record(&session, &runtime, 4);
+    let chain = recorded_chain(&session);
+    runtime
+        .borrow()
+        .as_ref()
+        .unwrap()
+        .looper_stop(&ChainId(CHAIN.into()), uid);
+
+    let before = restored(&runtime, uid).1;
+    let edited = super::apply_edit(
+        &runtime,
+        &chain,
+        uid,
+        application::looper_edit::LoopEdit::Trim { start: 0, end: 256 },
+    )
+    .expect("edit");
+    assert_ne!(edited, before);
+
+    super::undo_edit(&runtime, &chain, uid);
+    assert_eq!(
+        restored(&runtime, uid).1,
+        before,
+        "undo puts the take back the length it was"
+    );
+
+    super::redo_edit(&runtime, &chain, uid);
+    assert_eq!(
+        restored(&runtime, uid).1,
+        edited,
+        "redo re-applies the edit that was undone"
+    );
+}
+
+#[test]
+fn the_editors_reading_describes_the_loop_the_store_holds() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let session = rig_session(&dir.path().join("project.yaml"), rig());
+    let runtime = controller(&session);
+    let uid = add_and_record(&session, &runtime, 4);
+    let chain = recorded_chain(&session);
+    runtime
+        .borrow()
+        .as_ref()
+        .unwrap()
+        .looper_stop(&ChainId(CHAIN.into()), uid);
+
+    // The very seam the editor reads through, built the way the app builds it.
+    let live = crate::gui_live_source::looper_live_source(&runtime);
+    let reading = live
+        .chain_loop_edit(&ChainId(CHAIN.into()), uid, 64)
+        .expect("a recorded loop has an envelope to draw");
+    assert_eq!(reading.peaks.len(), 64, "one peak per bar the view draws");
+    assert_eq!(reading.len_frames, 512);
+    assert!(!reading.playing);
+    assert!(!reading.can_undo, "nothing has been edited yet");
+
+    super::apply_edit(
+        &runtime,
+        &chain,
+        uid,
+        application::looper_edit::LoopEdit::Trim { start: 0, end: 256 },
+    )
+    .expect("edit");
+    let after = live
+        .chain_loop_edit(&ChainId(CHAIN.into()), uid, 64)
+        .expect("reading");
+    assert!(after.len_frames < 512, "the reading follows the edit");
+    assert!(after.can_undo, "the edit is on the history now");
+}

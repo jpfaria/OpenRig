@@ -312,3 +312,7 @@ pub(crate) fn wire_looper_editor_callbacks(
     step!(on_looper_edit_undo, UndoChainLooperEdit);
     step!(on_looper_edit_redo, RedoChainLooperEdit);
 }
+
+#[cfg(test)]
+#[path = "looper_editor_callbacks_tests.rs"]
+mod tests;
