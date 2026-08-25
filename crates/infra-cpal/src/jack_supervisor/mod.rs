@@ -30,6 +30,12 @@
 
 pub mod backend;
 pub mod supervisor;
+mod supervisor_config_delta;
+mod supervisor_ensure;
+mod supervisor_events;
+mod supervisor_health;
+mod supervisor_shutdown;
+mod supervisor_spawn;
 pub mod types;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
