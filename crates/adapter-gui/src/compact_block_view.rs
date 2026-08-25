@@ -70,6 +70,87 @@ fn compact_parameter_groups(params: &[BlockParameterItem]) -> Vec<String> {
     parameter_groups(&groupable)
 }
 
+/// A compact row for a routing block (#881): what it IS and where it sits, with
+/// no parameter strip — its whole state is the E/S it points at, edited in its
+/// own window.
+fn routing_compact_item(
+    chain_index: usize,
+    block_index: usize,
+    block: &project::block::AudioBlock,
+) -> CompactBlockItem {
+    let effect_type = block.kind.label().to_string();
+    let model_id = block
+        .model_ref()
+        .map(|m| m.model.to_string())
+        .unwrap_or_else(|| block_core::constants::IO_PORT_MODEL.to_string());
+    let entry = supported_block_type(&effect_type);
+    let icon_kind = entry
+        .as_ref()
+        .map(|t| t.icon_kind.to_string())
+        .unwrap_or_default();
+    let visual = project::catalog::supported_block_models(&effect_type)
+        .ok()
+        .and_then(|models| models.into_iter().next());
+    let empty_strings = || ModelRc::from(Rc::new(VecModel::<SharedString>::default()));
+    CompactBlockItem {
+        chain_index: chain_index as i32,
+        block_index: block_index as i32,
+        block_id: block.id.0.clone().into(),
+        effect_type: effect_type.clone().into(),
+        model_id: model_id.into(),
+        icon_kind: icon_kind.clone().into(),
+        brand: visual
+            .as_ref()
+            .map(|v| v.brand.clone())
+            .unwrap_or_default()
+            .into(),
+        display_name: visual
+            .as_ref()
+            .map(|v| v.display_name.clone())
+            .unwrap_or_default()
+            .into(),
+        type_label: visual
+            .as_ref()
+            .map(|v| v.type_label.clone())
+            .unwrap_or_default()
+            .into(),
+        display_label: entry
+            .as_ref()
+            .map(|e| e.display_label)
+            .unwrap_or("I/O")
+            .into(),
+        enabled: block.enabled,
+        panel_bg: {
+            let vc = project::catalog::resolve_color_scheme(&effect_type, "", "");
+            let [r, g, b] = vc.panel_bg;
+            slint::Color::from_argb_u8(0xff, r, g, b)
+        },
+        panel_text: {
+            let vc = project::catalog::resolve_color_scheme(&effect_type, "", "");
+            let [r, g, b] = vc.panel_text;
+            slint::Color::from_argb_u8(0xff, r, g, b)
+        },
+        accent_color: crate::ui_state::accent_color_for_icon_kind(&icon_kind),
+        icon_source: slint::Image::default(),
+        knob_overlays: ModelRc::from(Rc::new(VecModel::default())),
+        parameter_items: ModelRc::from(Rc::new(VecModel::default())),
+        multi_slider_points: ModelRc::from(Rc::new(VecModel::default())),
+        curve_editor_points: ModelRc::from(Rc::new(VecModel::default())),
+        model_labels: empty_strings(),
+        model_selected_index: -1,
+        models: ModelRc::from(Rc::new(VecModel::default())),
+        filtered_models: ModelRc::from(Rc::new(VecModel::default())),
+        stream_data: Default::default(),
+        has_external_gui: false,
+        parameter_groups: empty_strings(),
+        active_parameter_group: 0,
+        parameter_lines: ModelRc::from(Rc::new(VecModel::default())),
+        overlay_lines: ModelRc::from(Rc::new(VecModel::default())),
+        row_height: row_height_px(1, false),
+        row_y: 0.0,
+    }
+}
+
 pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec<CompactBlockItem> {
     let Some(chain) = project.chains.get(chain_index) else {
         return Vec::new();
@@ -79,6 +160,15 @@ pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec
         .iter()
         .enumerate()
         .filter_map(|(block_index, block)| {
+            // #881: routing blocks (`Insert`, mid `Input`/`Output`) carry no
+            // model and no parameters, so `block_editor_data` answers None and
+            // they used to vanish from this list — the loop the user placed
+            // between two pedals simply was not on screen, and the rows no
+            // longer matched the signal path. They are chain rows like any
+            // other; they just have nothing to tweak inline.
+            if block.kind.is_routing() {
+                return Some(routing_compact_item(chain_index, block_index, block));
+            }
             let editor_data = block_editor_data(block)?;
             let effect_type = editor_data.effect_type.clone();
             let model_id = editor_data.model_id.clone();
