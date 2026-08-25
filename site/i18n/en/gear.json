@@ -1,5 +1,5 @@
 {
-  "tone.h2": "Native amp or a capture<br>of a real one, same chain.",
+  "tone.h2": "Native amp or a NAM<br>capture. Same chain.",
   "tone.lede": "Pick the amp model built into the app or load a <code>.nam</code> captured from a real amp. Both run in the same chain, at the buffer size you set.",
   "stats.gear": "Pieces of gear",
   "stats.native": "Native models",

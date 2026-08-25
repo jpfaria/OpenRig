@@ -1,5 +1,5 @@
 {
-  "tone.h2": "Ampli nativo o captura<br>de uno real, misma cadena.",
+  "tone.h2": "Ampli nativo o captura<br>NAM. Misma cadena.",
   "tone.lede": "Eliges el ampli que ya trae la app o cargas un <code>.nam</code> capturado de un ampli real. Los dos corren en la misma cadena, con el buffer que definas.",
   "stats.gear": "Equipos",
   "stats.native": "Modelos nativos",
