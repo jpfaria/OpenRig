@@ -191,16 +191,14 @@ impl ProjectRuntimeController {
                 )
             })
             .collect();
-        let (bound_in, bound_out) =
-            engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings);
-        let bound_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_in
-            .into_iter()
-            .map(|e| (e.device_id, e.channels))
-            .collect();
-        let bound_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_out
-            .into_iter()
-            .map(|e| (e.device_id, e.channels))
-            .collect();
+        // #881: the signature includes the insert loops — a send is an output
+        // and a return is an input, so adding or binding an insert on a RUNNING
+        // chain IS a topology change. Comparing only the chain's own bindings
+        // reported "unchanged", the edit took the DSP-only rebuild, the streams
+        // stayed as they were, and the segment after the insert waited on a
+        // return stream nobody opened: the rig went silent until a restart.
+        let (bound_inputs, bound_outputs) =
+            crate::io_topology::bound_io_signature(chain, &self.io_bindings);
         Ok(crate::io_topology_changed(
             &live_inputs,
             &bound_inputs,
