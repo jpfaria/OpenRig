@@ -7,7 +7,7 @@ use crate::project_view::replace_project_chains;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::{AppWindow, CompactChainViewWindow};
 use application::command::{BlockCommand, Command};
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
+use slint::{ComponentHandle, Global, Model, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -65,8 +65,8 @@ pub(crate) fn wire_block_delete(
                 }
             };
             *pending.borrow_mut() = Some((chain_idx, block_idx));
-            cw.set_confirm_delete_block_name(model_id.into());
-            cw.set_show_confirm_delete_block(true);
+            crate::OverlayBridge::get(&cw).set_confirm_delete_block_name(model_id.into());
+            crate::OverlayBridge::get(&cw).set_show_confirm_delete_block(true);
         });
     }
     // Wire cancel-delete-block — just hide the overlay and forget the
@@ -74,10 +74,10 @@ pub(crate) fn wire_block_delete(
     {
         let weak_compact = compact_win.as_weak();
         let pending = pending_compact_delete_block.clone();
-        compact_win.on_cancel_delete_block(move || {
+        crate::OverlayBridge::get(compact_win).on_cancel_delete_block(move || {
             *pending.borrow_mut() = None;
             if let Some(cw) = weak_compact.upgrade() {
-                cw.set_show_confirm_delete_block(false);
+                crate::OverlayBridge::get(&cw).set_show_confirm_delete_block(false);
             }
         });
     }
@@ -92,11 +92,11 @@ pub(crate) fn wire_block_delete(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let pending = pending_compact_delete_block.clone();
-        compact_win.on_confirm_delete_block(move || {
+        crate::OverlayBridge::get(compact_win).on_confirm_delete_block(move || {
             let Some(cw) = weak_compact.upgrade() else {
                 return;
             };
-            cw.set_show_confirm_delete_block(false);
+            crate::OverlayBridge::get(&cw).set_show_confirm_delete_block(false);
             let Some((chain_idx, block_idx)) = pending.borrow_mut().take() else {
                 return;
             };

@@ -1,5 +1,10 @@
 import "fonts/CooperHewitt-Semibold.ttf";
+import { ChainEditorBridge } from "chain_editor_globals.slint";
+import { AnalyzerBridge } from "analyzer_globals.slint";
+import { OverlayBridge } from "overlay_globals.slint";
+import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Locale } from "locale_globals.slint";
+import { SettingsBridge } from "settings_globals.slint";
 import { PresetPicker } from "preset_picker_globals.slint";
 import { DiSourcePicker } from "components/di_source_picker_globals.slint";
 // #749: the DI loop panel (fone → janela with a select + play) is rendered as a
@@ -35,6 +40,7 @@ import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortW
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
 export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
+export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge, ChainEditorBridge }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
@@ -72,78 +78,29 @@ export component AppWindow inherits Window {
     in-out property <[ChainRigNav]> chain-rig-nav;
     in-out property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
-    in property <string> chain-editor-title;
-    in property <string> chain-editor-save-label;
-    in-out property <string> chain-draft-name;
-    in property <string> chain-input-summary;
-    in property <string> chain-output-summary;
-    in property <[string]> chain-input-device-options;
-    in property <[string]> chain-output-device-options;
-    in property <int> selected-chain-input-device-index;
-    in property <int> selected-chain-output-device-index;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
     in property <int> selected-chain-block-neighbor-index: -1;
     // #591: true while a MIDI command is recent (last 10s) — gates the
     // chain/block selection markers so they only show on footswitch activity.
     in property <bool> midi-selection-active: false;
-    in property <[BlockTypePickerItem]> block-type-options;
-    in property <[BlockModelPickerItem]> block-model-options;
-    in property <[BlockModelPickerItem]> filtered-block-model-options;
-    in property <[string]> block-model-option-labels;
-    in property <string> block-picker-title;
-    in property <bool> show-block-type-picker;
-    in property <bool> show-block-model-picker;
-    in property <bool> show-block-drawer;
-    in property <string> block-drawer-title;
-    in property <string> block-drawer-confirm-label;
-    in property <string> block-drawer-status-message;
-    in property <bool> block-drawer-edit-mode;
-    in property <int> block-drawer-selected-type-index;
-    in-out property <int> block-drawer-selected-model-index;
-    in-out property <string> block-model-search-text;
-    in property <bool> block-drawer-enabled;
-    in property <[BlockParameterItem]> block-parameter-items;
-    in property <[MultiSliderPoint]> multi-slider-points;
-    in property <[CurveEditorPoint]> curve-editor-points;
-    in property <string> eq-total-curve;
-    in property <[string]> eq-band-curves;
-    in property <BlockStreamData> block-stream-data;
-    in property <[BlockKnobOverlay]> block-knob-overlays;
-    in property <[ChannelOptionItem]> chain-input-channels;
-    in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
     in property <[string]> bit-depth-options: ["16", "24", "32"];
     // Fullscreen inline project settings
-    in property <[DeviceSelectionItem]> project-devices;
     // System / MIDI devices section rows (#513). Built by Rust by merging
     // `adapter_midi::list_input_ports()` with the persisted selection.
-    in property <[MidiDeviceRow]> midi-devices;
     // Project / Metadata section (#513). Name is editable (dispatches
     // UpdateProjectName on each change); path is read-only display.
     // Default expressions point at the existing draft/path so the
     // Settings → Metadata section sees the current project values
     // without a dedicated Rust setter.
-    in property <string> project-name: root.project-name-draft;
-    in property <string> project-path-display: root.project-path-label;
     // Project / MIDI mapping editor (#513, #493). Bindings list +
     // available `Command` variant names for the dropdown. Drafts and
     // finalized bindings share a single row list — `learning = true`
     // marks a draft awaiting MIDI Learn capture.
-    in property <[MidiBindingRow]> midi-bindings;
-    in property <[string]> available-commands;
-    // System / Paths section (#513 + #582). Empty string = use OS default.
-    in property <string> presets-path;
-    in property <string> plugins-path;
-    in property <string> evaluations-path;
-    // #561: status text for the plugin catalog reload row.
-    in property <string> plugin-catalog-status;
     // Fullscreen inline chain editor
-    in property <[ChainBindingChoice]> chain-editor-bindings;
-    in property <bool> chain-editor-is-create-mode: true;
-    in-out property <int> chain-editor-selected-instrument-index: 0;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -167,23 +124,8 @@ export component AppWindow inherits Window {
     callback add-chain();
     callback save-project();
     callback configure-project();
-    callback open-tuner-window();
-    in property <bool> show-tuner;
-    in property <[TunerRow]> tuner-rows;
-    in property <bool> tuner-mute-active;
-    in property <bool> tuner-enabled: false;
-    callback close-tuner();
-    callback toggle-tuner-mute(bool);
-    callback toggle-tuner-enabled(bool);
-    callback open-spectrum-window();
-    in property <bool> show-spectrum;
-    in property <[SpectrumRow]> spectrum-rows;
-    in property <bool> spectrum-enabled: false;
-    callback close-spectrum();
-    callback toggle-spectrum-enabled(bool);
     // #14: every metronome control lives on MetronomeWindow, so the top bar
     // only needs the door that opens it.
-    callback open-metronome-window();
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
@@ -237,138 +179,30 @@ export component AppWindow inherits Window {
     callback probe-chain-latency(int);
     callback configure-chain-preset(int);
     callback open-compact-chain-view(int);
-    callback update-chain-name(string);
-    callback open-chain-input-editor();
-    callback open-chain-output-editor();
-    callback select-chain-input-device(int);
-    callback select-chain-output-device(int);
-    callback toggle-chain-input-channel(int, bool);
-    callback toggle-chain-output-channel(int, bool);
     callback select-chain-block(int, int);
     callback select-chain(int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
-    callback choose-block-type(int);
-    callback choose-block-model(int);
-    callback choose-block-model-by-id(string);
-    callback search-block-model(string);
-    callback cancel-block-picker();
-    callback close-block-drawer();
-    callback save-block-drawer();
-    callback delete-block-drawer();
     callback show-plugin-info(string, string);  // effect_type, model_id
-    callback toggle-block-drawer-enabled();
-    callback update-block-parameter-text(string, string);
-    callback update-block-parameter-number(string, float);
-    callback update-block-parameter-number-text(string, string);
-    callback update-block-parameter-bool(string, bool);
-    callback select-block-parameter-option(string, int);
-    callback pick-block-parameter-file(string);
-    callback save-chain();
-    callback cancel-chain();
     // Fullscreen inline project settings callbacks
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
-    callback refresh-devices();
     // System / MIDI devices section callbacks (#513)
-    callback refresh-midi-devices();
-    callback toggle-midi-device(int, bool);
-    callback edit-midi-device-alias(int, string);
     // #712: System / Integrations master switches (per-machine config.yaml).
-    in property <bool> midi-enabled;
-    in property <bool> mcp-enabled;
-    callback set-midi-enabled(bool);
-    callback set-mcp-enabled(bool);
     // #716: System / I/O bindings section.
     // `io-binding-names` stays for the chain-level endpoint picker
     // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
-    in property <[string]> io-binding-names;
-    in property <[IoBindingModel]> io-bindings;
-    in property <[string]> input-device-ids;
-    in property <[string]> input-device-names;
-    in property <[string]> output-device-ids;
-    in property <[string]> output-device-names;
-    in property <[ChannelOptionItem]> io-binding-channel-options;
-    in-out property <string> io-binding-error: "";
-    in property <int> io-edit-prefill-device-index: -1;
-    in property <int> io-edit-prefill-mode-index: 0;
-    callback create-io-binding(string) -> string;
-    callback delete-io-binding(string) -> string;
-    callback rename-io-binding(string, string);
-    callback endpoint-device-changed(string, bool, string);
-    callback toggle-endpoint-channel(int, bool, string);
-    callback add-input-endpoint(string, string, string, string);
-    callback add-output-endpoint(string, string, string, string);
-    callback remove-endpoint(string, string, bool);
-    callback edit-endpoint(string, string, bool);
     // Project / MIDI mapping editor callbacks (#513, #493)
-    callback add-midi-binding();
-    callback delete-midi-binding(int);
-    callback pick-midi-binding-command(int, string);
-    callback cancel-midi-binding-draft(int);
     // Project / Metadata section callbacks (#513)
-    callback edit-project-name(string);
-    // System / Paths section callbacks (#513 + #582)
-    callback pick-presets-path();
-    callback reset-presets-path();
-    callback pick-plugins-path();
-    callback reset-plugins-path();
-    callback pick-evaluations-path();
-    callback reset-evaluations-path();
-    // #561: re-scan the plugin packages directories without restart.
-    callback reload-plugin-catalog();
     // Fullscreen inline chain editor callbacks
-    callback toggle-binding(int, bool);
-    callback select-chain-instrument(int);
     callback virtual-key-pressed(string);
     // Language selector — populated from Rust side (i18n::SUPPORTED_LANGUAGES).
-    in property <[string]> language-options;
-    in property <[string]> language-codes;
-    in property <int> selected-language-index;
-    callback change-language(int);
-    in property <bool> show-preset-picker: false;
-    in property <[string]> preset-picker-items;
-    in-out property <int> preset-picker-chain-index: -1;
-    callback preset-picker-confirm(int);
-    callback preset-picker-delete(int);
-    callback preset-picker-cancel();
-    in-out property <string> preset-picker-search-query;
-    callback preset-picker-query-changed(string);
-    in property <bool> show-preset-save: false;
-    in property <string> preset-save-default-name: "";
-    in-out property <string> preset-save-name-input: "";
-    in property <bool> show-preset-save-overwrite: false;
-    in property <string> preset-save-overwrite-name: "";
-    callback preset-save-request(string);
-    callback preset-save-cancel();
-    callback preset-save-overwrite-confirm();
-    callback preset-save-overwrite-cancel();
-    in property <bool> show-confirm-delete-block: false;
-    in property <string> confirm-delete-block-name: "";
-    callback confirm-delete-block();
-    callback cancel-delete-block();
     // Chain-delete confirmation (issue #511 — replaces the native
     // rfd::MessageDialog the previous chain_row_wiring used).
-    in property <bool> show-confirm-delete-chain: false;
-    in property <string> confirm-delete-chain-name: "";
-    callback confirm-delete-chain();
-    callback cancel-delete-chain();
     // Recent-project removal confirmation (issue #360 — the launcher
     // used to drop entries with no confirmation at all).
-    in property <bool> show-confirm-delete-recent-project: false;
-    in property <string> confirm-delete-recent-project-name: "";
-    callback confirm-delete-recent-project();
-    callback cancel-delete-recent-project();
     // Inline plugin info overlay — used in fullscreen / touch where the secondary
     // PluginInfoWindow does not surface (Orange Pi / kiosk). See issue #307.
-    in property <bool> plugin-info-visible: false;
-    in property <PluginInfoData> plugin-info-data;
-    callback close-plugin-info();
-    callback open-plugin-info-homepage();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -402,62 +236,14 @@ export component AppWindow inherits Window {
         rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        change-language(idx) => { root.change-language(idx); }
-        chain-editor-title: root.chain-editor-title;
-        chain-editor-save-label: root.chain-editor-save-label;
-        chain-draft-name: root.chain-draft-name;
-        chain-input-summary: root.chain-input-summary;
-        chain-output-summary: root.chain-output-summary;
-        chain-input-device-options: root.chain-input-device-options;
-        chain-output-device-options: root.chain-output-device-options;
-        selected-chain-input-device-index: root.selected-chain-input-device-index;
-        selected-chain-output-device-index: root.selected-chain-output-device-index;
         selected-chain-block-chain-index: root.selected-chain-block-chain-index;
         selected-chain-block-index: root.selected-chain-block-index;
         selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
         midi-selection-active: root.midi-selection-active;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-picker-title: root.block-picker-title;
-        show-block-type-picker: root.show-block-type-picker;
-        show-block-model-picker: root.show-block-model-picker;
-        show-block-drawer: root.show-block-drawer;
-        block-drawer-title: root.block-drawer-title;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-drawer-status-message: root.block-drawer-status-message;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-parameter-items: root.block-parameter-items;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        eq-total-curve: root.eq-total-curve;
-        eq-band-curves: root.eq-band-curves;
-        block-stream-data: root.block-stream-data;
-        block-knob-overlays: root.block-knob-overlays;
-        chain-input-channels: root.chain-input-channels;
-        chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        project-devices: root.project-devices;
-        midi-devices: root.midi-devices;
-        midi-enabled: root.midi-enabled;
-        mcp-enabled: root.mcp-enabled;
-        midi-bindings: root.midi-bindings;
-        available-commands: root.available-commands;
-        chain-editor-bindings: root.chain-editor-bindings;
-        toggle-binding(i, on) => { root.toggle-binding(i, on); }
-        chain-editor-is-create-mode: root.chain-editor-is-create-mode;
-        chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -480,21 +266,6 @@ export component AppWindow inherits Window {
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
-        open-tuner-window => { root.open-tuner-window(); }
-        show-tuner: root.show-tuner;
-        tuner-rows: root.tuner-rows;
-        tuner-mute-active: root.tuner-mute-active;
-        tuner-enabled: root.tuner-enabled;
-        close-tuner => { root.close-tuner(); }
-        toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
-        toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
-        open-spectrum-window => { root.open-spectrum-window(); }
-        show-spectrum: root.show-spectrum;
-        spectrum-rows: root.spectrum-rows;
-        spectrum-enabled: root.spectrum-enabled;
-        close-spectrum => { root.close-spectrum(); }
-        toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
-        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
@@ -511,88 +282,13 @@ export component AppWindow inherits Window {
         probe-chain-latency(index) => { root.probe-chain-latency(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
         open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
-        update-chain-name(value) => { root.update-chain-name(value); }
-        open-chain-input-editor => { root.open-chain-input-editor(); }
-        open-chain-output-editor => { root.open-chain-output-editor(); }
-        select-chain-input-device(index) => { root.select-chain-input-device(index); }
-        select-chain-output-device(index) => { root.select-chain-output-device(index); }
-        toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
-        toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
         select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
         select-chain(chain-index) => { root.select-chain(chain-index); }
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
-        choose-block-type(index) => { root.choose-block-type(index); }
-        choose-block-model(index) => { root.choose-block-model(index); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        cancel-block-picker => { root.cancel-block-picker(); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
         show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
-        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
-        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
-        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
-        save-chain => { root.save-chain(); }
-        cancel-chain => { root.cancel-chain(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        refresh-midi-devices => { root.refresh-midi-devices(); }
-        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
-        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
-        set-midi-enabled(on) => { root.set-midi-enabled(on); }
-        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
-        io-bindings: root.io-bindings;
-        input-device-ids: root.input-device-ids;
-        input-device-names: root.input-device-names;
-        output-device-ids: root.output-device-ids;
-        output-device-names: root.output-device-names;
-        io-binding-channel-options: root.io-binding-channel-options;
-        io-binding-error <=> root.io-binding-error;
-        io-edit-prefill-device-index: root.io-edit-prefill-device-index;
-        io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
-        create-io-binding(name) => { return root.create-io-binding(name); }
-        delete-io-binding(id) => { return root.delete-io-binding(id); }
-        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
-        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
-        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
-        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
-        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
-        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
-        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
-        add-midi-binding => { root.add-midi-binding(); }
-        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
-        project-name: root.project-name;
-        project-path-display: root.project-path-display;
-        edit-project-name(t) => { root.edit-project-name(t); }
-        presets-path: root.presets-path;
-        plugins-path: root.plugins-path;
-        evaluations-path: root.evaluations-path;
-        plugin-catalog-status: root.plugin-catalog-status;
-        pick-presets-path => { root.pick-presets-path(); }
-        reset-presets-path => { root.reset-presets-path(); }
-        pick-plugins-path => { root.pick-plugins-path(); }
-        reset-plugins-path => { root.reset-plugins-path(); }
-        pick-evaluations-path => { root.pick-evaluations-path(); }
-        reset-evaluations-path => { root.reset-evaluations-path(); }
-        reload-plugin-catalog => { root.reload-plugin-catalog(); }
-        select-chain-instrument(index) => { root.select-chain-instrument(index); }
-        plugin-info-visible: root.plugin-info-visible;
-        plugin-info-data: root.plugin-info-data;
-        close-plugin-info => { root.close-plugin-info(); }
-        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
     if touch-optimized : TouchMain {
@@ -621,56 +317,14 @@ export component AppWindow inherits Window {
         rename-chain-preset(i, n) => { root.rename-chain-preset(i, n); }
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
-        change-language(idx) => { root.change-language(idx); }
-        chain-editor-title: root.chain-editor-title;
-        chain-editor-save-label: root.chain-editor-save-label;
-        chain-draft-name: root.chain-draft-name;
-        chain-input-summary: root.chain-input-summary;
-        chain-output-summary: root.chain-output-summary;
-        chain-input-device-options: root.chain-input-device-options;
-        chain-output-device-options: root.chain-output-device-options;
-        selected-chain-input-device-index: root.selected-chain-input-device-index;
-        selected-chain-output-device-index: root.selected-chain-output-device-index;
         selected-chain-block-chain-index: root.selected-chain-block-chain-index;
         selected-chain-block-index: root.selected-chain-block-index;
         selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
         midi-selection-active: root.midi-selection-active;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-picker-title: root.block-picker-title;
-        show-block-type-picker: root.show-block-type-picker;
-        show-block-model-picker: root.show-block-model-picker;
-        show-block-drawer: root.show-block-drawer;
-        block-drawer-title: root.block-drawer-title;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-drawer-status-message: root.block-drawer-status-message;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-parameter-items: root.block-parameter-items;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        eq-total-curve: root.eq-total-curve;
-        eq-band-curves: root.eq-band-curves;
-        chain-input-channels: root.chain-input-channels;
-        chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        project-devices: root.project-devices;
-        midi-devices: root.midi-devices;
-        midi-enabled: root.midi-enabled;
-        mcp-enabled: root.mcp-enabled;
-        midi-bindings: root.midi-bindings;
-        available-commands: root.available-commands;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -693,21 +347,6 @@ export component AppWindow inherits Window {
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
-        open-tuner-window => { root.open-tuner-window(); }
-        show-tuner: root.show-tuner;
-        tuner-rows: root.tuner-rows;
-        tuner-mute-active: root.tuner-mute-active;
-        tuner-enabled: root.tuner-enabled;
-        close-tuner => { root.close-tuner(); }
-        toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
-        toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
-        open-spectrum-window => { root.open-spectrum-window(); }
-        show-spectrum: root.show-spectrum;
-        spectrum-rows: root.spectrum-rows;
-        spectrum-enabled: root.spectrum-enabled;
-        close-spectrum => { root.close-spectrum(); }
-        toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
-        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
@@ -724,133 +363,44 @@ export component AppWindow inherits Window {
         probe-chain-latency(index) => { root.probe-chain-latency(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
         open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
-        update-chain-name(value) => { root.update-chain-name(value); }
-        open-chain-input-editor => { root.open-chain-input-editor(); }
-        open-chain-output-editor => { root.open-chain-output-editor(); }
-        select-chain-input-device(index) => { root.select-chain-input-device(index); }
-        select-chain-output-device(index) => { root.select-chain-output-device(index); }
-        toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
-        toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
         select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
         select-chain(chain-index) => { root.select-chain(chain-index); }
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
-        choose-block-type(index) => { root.choose-block-type(index); }
-        choose-block-model(index) => { root.choose-block-model(index); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        cancel-block-picker => { root.cancel-block-picker(); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
         show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
-        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
-        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
-        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
-        save-chain => { root.save-chain(); }
-        cancel-chain => { root.cancel-chain(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        refresh-midi-devices => { root.refresh-midi-devices(); }
-        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
-        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
-        set-midi-enabled(on) => { root.set-midi-enabled(on); }
-        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
-        io-bindings: root.io-bindings;
-        input-device-ids: root.input-device-ids;
-        input-device-names: root.input-device-names;
-        output-device-ids: root.output-device-ids;
-        output-device-names: root.output-device-names;
-        io-binding-channel-options: root.io-binding-channel-options;
-        io-binding-error <=> root.io-binding-error;
-        io-edit-prefill-device-index: root.io-edit-prefill-device-index;
-        io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
-        create-io-binding(name) => { return root.create-io-binding(name); }
-        delete-io-binding(id) => { return root.delete-io-binding(id); }
-        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
-        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
-        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
-        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
-        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
-        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
-        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
-        add-midi-binding => { root.add-midi-binding(); }
-        delete-midi-binding(i) => { root.delete-midi-binding(i); }
-        pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
-        cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
-        project-name: root.project-name;
-        project-path-display: root.project-path-display;
-        edit-project-name(t) => { root.edit-project-name(t); }
-        presets-path: root.presets-path;
-        plugins-path: root.plugins-path;
-        evaluations-path: root.evaluations-path;
-        plugin-catalog-status: root.plugin-catalog-status;
-        pick-presets-path => { root.pick-presets-path(); }
-        reset-presets-path => { root.reset-presets-path(); }
-        pick-plugins-path => { root.pick-plugins-path(); }
-        reset-plugins-path => { root.reset-plugins-path(); }
-        pick-evaluations-path => { root.pick-evaluations-path(); }
-        reset-evaluations-path => { root.reset-evaluations-path(); }
-        reload-plugin-catalog => { root.reload-plugin-catalog(); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
-        show-preset-picker: root.show-preset-picker;
-        preset-picker-items: root.preset-picker-items;
-        preset-picker-chain-index <=> root.preset-picker-chain-index;
-        preset-picker-confirm(i) => { root.preset-picker-confirm(i); }
-        preset-picker-delete(i) => { root.preset-picker-delete(i); }
-        preset-picker-cancel => { root.preset-picker-cancel(); }
         // Inline chain editor
-        chain-editor-bindings: root.chain-editor-bindings;
-        toggle-binding(i, on) => { root.toggle-binding(i, on); }
-        chain-editor-is-create-mode: root.chain-editor-is-create-mode;
-        chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
-        select-chain-instrument(index) => { root.select-chain-instrument(index); }
-        plugin-info-visible: root.plugin-info-visible;
-        plugin-info-data: root.plugin-info-data;
-        close-plugin-info => { root.close-plugin-info(); }
-        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
-    if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
+    if OverlayBridge.show-confirm-delete-block : ConfirmDeleteBlockDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        block-name: root.confirm-delete-block-name;
-        cancel => { root.cancel-delete-block(); }
-        confirm => { root.confirm-delete-block(); }
+        block-name: OverlayBridge.confirm-delete-block-name;
+        cancel => { OverlayBridge.cancel-delete-block(); }
+        confirm => { OverlayBridge.confirm-delete-block(); }
     }
 
-    if root.show-confirm-delete-chain : ConfirmDeleteChainDialog {
+    if OverlayBridge.show-confirm-delete-chain : ConfirmDeleteChainDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        chain-name: root.confirm-delete-chain-name;
-        cancel => { root.cancel-delete-chain(); }
-        confirm => { root.confirm-delete-chain(); }
+        chain-name: OverlayBridge.confirm-delete-chain-name;
+        cancel => { OverlayBridge.cancel-delete-chain(); }
+        confirm => { OverlayBridge.confirm-delete-chain(); }
     }
 
-    if root.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
+    if OverlayBridge.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        project-name: root.confirm-delete-recent-project-name;
-        cancel => { root.cancel-delete-recent-project(); }
-        confirm => { root.confirm-delete-recent-project(); }
+        project-name: OverlayBridge.confirm-delete-recent-project-name;
+        cancel => { OverlayBridge.cancel-delete-recent-project(); }
+        confirm => { OverlayBridge.confirm-delete-recent-project(); }
     }
-
-    in-out property <string> toast-message;
-
-    in-out property <string> toast-level: "info";
 
     Toast {
-        message: root.toast-message;
-        level: root.toast-level;
+        message: OverlayBridge.toast-message;
+        level: OverlayBridge.toast-level;
         container-width: root.width;
         container-height: root.height;
     }
@@ -861,13 +411,13 @@ export component AppWindow inherits Window {
     PresetPickerOverlay {
         width: root.width;
         height: root.height;
-        visible-overlay: root.show-preset-picker;
-        items: root.preset-picker-items;
-        search-query <=> root.preset-picker-search-query;
-        confirm(i) => { root.preset-picker-confirm(i); }
-        cancel() => { root.preset-picker-cancel(); }
-        delete(i) => { root.preset-picker-delete(i); }
-        query-changed(t) => { root.preset-picker-query-changed(t); }
+        visible-overlay: OverlayBridge.show-preset-picker;
+        items: OverlayBridge.preset-picker-items;
+        search-query <=> OverlayBridge.preset-picker-search-query;
+        confirm(i) => { OverlayBridge.preset-picker-confirm(i); }
+        cancel() => { OverlayBridge.preset-picker-cancel(); }
+        delete(i) => { OverlayBridge.preset-picker-delete(i); }
+        query-changed(t) => { OverlayBridge.preset-picker-query-changed(t); }
     }
 
     // #749/#791: DI loop + Tone Doctor root overlays (extracted to components).
@@ -926,19 +476,19 @@ export component AppWindow inherits Window {
     PresetSaveOverlay {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        visible-overlay: root.show-preset-save;
-        default-name: root.preset-save-default-name;
-        name-input <=> root.preset-save-name-input;
-        request-save(n) => { root.preset-save-request(n); }
-        cancel() => { root.preset-save-cancel(); }
+        visible-overlay: OverlayBridge.show-preset-save;
+        default-name: OverlayBridge.preset-save-default-name;
+        name-input <=> OverlayBridge.preset-save-name-input;
+        request-save(n) => { OverlayBridge.preset-save-request(n); }
+        cancel() => { OverlayBridge.preset-save-cancel(); }
     }
 
     PresetOverwriteOverlay {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        visible-overlay: root.show-preset-save-overwrite;
-        preset-name: root.preset-save-overwrite-name;
-        confirm() => { root.preset-save-overwrite-confirm(); }
-        cancel() => { root.preset-save-overwrite-cancel(); }
+        visible-overlay: OverlayBridge.show-preset-save-overwrite;
+        preset-name: OverlayBridge.preset-save-overwrite-name;
+        confirm() => { OverlayBridge.preset-save-overwrite-confirm(); }
+        cancel() => { OverlayBridge.preset-save-overwrite-cancel(); }
     }
 }

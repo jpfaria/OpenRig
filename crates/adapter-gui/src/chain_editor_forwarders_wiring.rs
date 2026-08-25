@@ -8,6 +8,7 @@
 //! The per-endpoint I/O group forwarders were removed in #716 (the chain now
 //! selects I/O via the binding checklist).
 
+use slint::Global;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -19,7 +20,7 @@ pub(crate) fn wire(
 ) {
     {
         let chain_editor_window = chain_editor_window.clone();
-        window.on_select_chain_instrument(move |index| {
+        crate::ChainEditorBridge::get(window).on_select_chain_instrument(move |index| {
             if let Some(cew) = chain_editor_window.borrow().as_ref() {
                 cew.invoke_select_instrument(index);
             }

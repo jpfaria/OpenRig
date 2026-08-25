@@ -10,30 +10,9 @@
 // the action is bound to the plugins directory above it.
 
 import { Button } from "std-widgets.slint";
+import { SettingsBridge } from "../../settings_globals.slint";
 
 export component SectionSystemPaths inherits Rectangle {
-    in property <string> presets-path;
-    in property <string> plugins-path;
-    // #582: directory where tone analyzers / evaluation tools write
-    // their artifacts. Same Optional contract as the other two —
-    // empty string ⇒ OS default.
-    in property <string> evaluations-path;
-    // #561: status string filled by the wiring after the reload
-    // completes — "12 plugins loaded (8 native, 4 disk)" etc. Empty
-    // when no reload has run yet.
-    in property <string> plugin-catalog-status;
-
-    callback pick-presets-path();
-    callback reset-presets-path();
-    callback pick-plugins-path();
-    callback reset-plugins-path();
-    // #582: pick / reset the evaluations directory.
-    callback pick-evaluations-path();
-    callback reset-evaluations-path();
-    // #561: re-scan the plugin packages directories without
-    // restarting the process.
-    callback reload-plugin-catalog();
-
     background: transparent;
 
     VerticalLayout {
@@ -53,10 +32,10 @@ export component SectionSystemPaths inherits Rectangle {
                 vertical-alignment: center;
             }
             Text {
-                text: root.presets-path == ""
+                text: SettingsBridge.presets-path == ""
                     ? @tr("placeholder-default-path")
-                    : root.presets-path;
-                color: root.presets-path == "" ? #8a92a3 : #dde3ec;
+                    : SettingsBridge.presets-path;
+                color: SettingsBridge.presets-path == "" ? #8a92a3 : #dde3ec;
                 font-size: 14px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -64,11 +43,11 @@ export component SectionSystemPaths inherits Rectangle {
             }
             Button {
                 text: @tr("btn-choose-path");
-                clicked => { root.pick-presets-path(); }
+                clicked => { SettingsBridge.pick-presets-path(); }
             }
             Button {
                 text: @tr("btn-reset-path");
-                clicked => { root.reset-presets-path(); }
+                clicked => { SettingsBridge.reset-presets-path(); }
             }
         }
 
@@ -85,10 +64,10 @@ export component SectionSystemPaths inherits Rectangle {
                 vertical-alignment: center;
             }
             Text {
-                text: root.plugins-path == ""
+                text: SettingsBridge.plugins-path == ""
                     ? @tr("placeholder-default-path")
-                    : root.plugins-path;
-                color: root.plugins-path == "" ? #8a92a3 : #dde3ec;
+                    : SettingsBridge.plugins-path;
+                color: SettingsBridge.plugins-path == "" ? #8a92a3 : #dde3ec;
                 font-size: 14px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -96,11 +75,11 @@ export component SectionSystemPaths inherits Rectangle {
             }
             Button {
                 text: @tr("btn-choose-path");
-                clicked => { root.pick-plugins-path(); }
+                clicked => { SettingsBridge.pick-plugins-path(); }
             }
             Button {
                 text: @tr("btn-reset-path");
-                clicked => { root.reset-plugins-path(); }
+                clicked => { SettingsBridge.reset-plugins-path(); }
             }
         }
 
@@ -117,10 +96,10 @@ export component SectionSystemPaths inherits Rectangle {
                 vertical-alignment: center;
             }
             Text {
-                text: root.evaluations-path == ""
+                text: SettingsBridge.evaluations-path == ""
                     ? @tr("placeholder-default-path")
-                    : root.evaluations-path;
-                color: root.evaluations-path == "" ? #8a92a3 : #dde3ec;
+                    : SettingsBridge.evaluations-path;
+                color: SettingsBridge.evaluations-path == "" ? #8a92a3 : #dde3ec;
                 font-size: 14px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -128,11 +107,11 @@ export component SectionSystemPaths inherits Rectangle {
             }
             Button {
                 text: @tr("btn-choose-path");
-                clicked => { root.pick-evaluations-path(); }
+                clicked => { SettingsBridge.pick-evaluations-path(); }
             }
             Button {
                 text: @tr("btn-reset-path");
-                clicked => { root.reset-evaluations-path(); }
+                clicked => { SettingsBridge.reset-evaluations-path(); }
             }
         }
 
@@ -149,10 +128,10 @@ export component SectionSystemPaths inherits Rectangle {
                 vertical-alignment: center;
             }
             Text {
-                text: root.plugin-catalog-status == ""
+                text: SettingsBridge.plugin-catalog-status == ""
                     ? @tr("status-plugin-catalog-idle")
-                    : root.plugin-catalog-status;
-                color: root.plugin-catalog-status == "" ? #8a92a3 : #dde3ec;
+                    : SettingsBridge.plugin-catalog-status;
+                color: SettingsBridge.plugin-catalog-status == "" ? #8a92a3 : #dde3ec;
                 font-size: 14px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -160,7 +139,7 @@ export component SectionSystemPaths inherits Rectangle {
             }
             Button {
                 text: @tr("btn-reload-plugin-catalog");
-                clicked => { root.reload-plugin-catalog(); }
+                clicked => { SettingsBridge.reload-plugin-catalog(); }
             }
         }
     }

@@ -48,8 +48,8 @@ pub fn wire(
     Locale::get(window).set_font_family(boot_font.into());
 
     let initial_index = current_language_index();
-    window.set_selected_language_index(initial_index);
-    project_settings_window.set_selected_language_index(initial_index);
+    crate::SettingsBridge::get(window).set_selected_language_index(initial_index);
+    crate::SettingsBridge::get(project_settings_window).set_selected_language_index(initial_index);
 
     // Single source of truth shared between AppWindow.change-language
     // and ProjectSettingsWindow.language-selected (#513). Both surfaces
@@ -122,20 +122,21 @@ pub fn wire(
                 // Mirror onto the standalone settings window too — see #513.
                 if let Some(settings_window) = weak_settings.upgrade() {
                     set_language_options_secondary(&settings_window, &new_locale);
-                    settings_window.set_selected_language_index(idx);
+                    crate::SettingsBridge::get(&settings_window).set_selected_language_index(idx);
                 }
                 // Refresh strings that Rust injects into Slint (titles, save labels,
                 // etc.). Slint's bundled translations don't cover them — they go
                 // through rust_i18n::t!() at the moment Rust calls set_*. Without
                 // this, properties stay frozen in the previous locale.
                 refresh_rust_injected_strings(&window);
-                window.set_selected_language_index(idx);
+                crate::SettingsBridge::get(&window).set_selected_language_index(idx);
             }
         });
     let for_app = on_change.clone();
-    window.on_change_language(move |idx: i32| for_app(idx));
+    crate::SettingsBridge::get(window).on_change_language(move |idx: i32| for_app(idx));
     let for_settings = on_change;
-    project_settings_window.on_language_selected(move |idx: i32| for_settings(idx));
+    crate::SettingsBridge::get(project_settings_window)
+        .on_language_selected(move |idx: i32| for_settings(idx));
 }
 
 /// Re-apply Slint properties that Rust pushes via `set_*(t!(...))` and
@@ -151,10 +152,10 @@ fn refresh_rust_injected_strings(window: &AppWindow) {
     // they reopen the editor — acceptable UX cost for keeping the wiring
     // generic. apply_chain_editor_labels in chain_editor.rs covers the
     // edit-mode case when the editor opens.
-    window.set_chain_editor_title(SharedString::from(
+    crate::ChainEditorBridge::get(window).set_chain_editor_title(SharedString::from(
         rust_i18n::t!("title-new-chain").as_ref(),
     ));
-    window.set_chain_editor_save_label(SharedString::from(
+    crate::ChainEditorBridge::get(window).set_chain_editor_save_label(SharedString::from(
         rust_i18n::t!("btn-create-chain").as_ref(),
     ));
 }
@@ -166,13 +167,13 @@ fn refresh_rust_injected_strings(window: &AppWindow) {
 fn set_language_options(window: &AppWindow, ui_locale: &str) {
     let options = build_language_options(ui_locale);
     let shared: Vec<SharedString> = options.into_iter().map(SharedString::from).collect();
-    window.set_language_options(ModelRc::new(VecModel::from(shared)));
+    crate::SettingsBridge::get(window).set_language_options(ModelRc::new(VecModel::from(shared)));
 
     let codes: Vec<SharedString> = SUPPORTED_LANGUAGES
         .iter()
         .map(|l| SharedString::from(l.code))
         .collect();
-    window.set_language_codes(ModelRc::new(VecModel::from(codes)));
+    crate::SettingsBridge::get(window).set_language_codes(ModelRc::new(VecModel::from(codes)));
 }
 
 /// Mirror of `set_language_options` for the standalone settings window
@@ -183,13 +184,13 @@ fn set_language_options(window: &AppWindow, ui_locale: &str) {
 fn set_language_options_secondary(window: &ProjectSettingsWindow, ui_locale: &str) {
     let options = build_language_options(ui_locale);
     let shared: Vec<SharedString> = options.into_iter().map(SharedString::from).collect();
-    window.set_language_options(ModelRc::new(VecModel::from(shared)));
+    crate::SettingsBridge::get(window).set_language_options(ModelRc::new(VecModel::from(shared)));
 
     let codes: Vec<SharedString> = SUPPORTED_LANGUAGES
         .iter()
         .map(|l| SharedString::from(l.code))
         .collect();
-    window.set_language_codes(ModelRc::new(VecModel::from(codes)));
+    crate::SettingsBridge::get(window).set_language_codes(ModelRc::new(VecModel::from(codes)));
 }
 
 /// Pure helper used by tests AND by the runtime wiring. Returns the list

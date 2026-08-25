@@ -219,8 +219,10 @@ pub(crate) fn select_inline_param_tab(
 /// for the detached window). Slint never re-derives the knob wrap math.
 pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     let tabs = crate::BlockParamTabs::get(window);
-    let overlay_count = window.get_block_knob_overlays().row_count();
-    let items = window.get_block_parameter_items();
+    let overlay_count = crate::BlockEditorBridge::get(window)
+        .get_block_knob_overlays()
+        .row_count();
+    let items = crate::BlockEditorBridge::get(window).get_block_parameter_items();
     let has_tabs = tabs.get_groups().row_count() > 1;
     // The grid renders only `tab_slot >= 0` rows once a tab bar exists.
     let param_count = if has_tabs {
@@ -242,11 +244,15 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
         param_count
     };
     let eq_widget = crate::block_panel_dimensions::eq_widget_for(
-        window.get_curve_editor_points().row_count(),
-        window.get_multi_slider_points().row_count(),
+        crate::BlockEditorBridge::get(window)
+            .get_curve_editor_points()
+            .row_count(),
+        crate::BlockEditorBridge::get(window)
+            .get_multi_slider_points()
+            .row_count(),
     );
-    let type_idx = window.get_block_drawer_selected_type_index();
-    let types = window.get_block_type_options();
+    let type_idx = crate::BlockEditorBridge::get(window).get_block_drawer_selected_type_index();
+    let types = crate::BlockEditorBridge::get(window).get_block_type_options();
     let use_panel_editor = if type_idx >= 0 {
         types
             .row_data(type_idx as usize)
@@ -281,7 +287,7 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
 /// with `tab_slot >= 0`). For a block with no tab bar (<=1 group) every row
 /// shows, so this is just the row count. Drives the window sizing.
 pub fn visible_param_count(win: &BlockEditorWindow) -> usize {
-    let items = win.get_block_parameter_items();
+    let items = crate::BlockEditorBridge::get(win).get_block_parameter_items();
     if win.get_block_parameter_groups().row_count() <= 1 {
         return items.row_count();
     }

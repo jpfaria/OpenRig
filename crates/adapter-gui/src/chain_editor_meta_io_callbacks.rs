@@ -9,7 +9,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Global};
 
 use crate::chain_editor::instrument_index_to_string;
 use crate::state::ChainDraft;
@@ -25,7 +25,7 @@ pub(crate) fn wire(
         let weak_window = weak_window.clone();
         let weak_chain_window = editor_window.as_weak();
         let chain_draft = chain_draft.clone();
-        editor_window.on_update_chain_name(move |value| {
+        crate::ChainEditorBridge::get(editor_window).on_update_chain_name(move |value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -34,7 +34,7 @@ pub(crate) fn wire(
             };
             if let Some(draft) = chain_draft.borrow_mut().as_mut() {
                 draft.name = value.to_string();
-                window.set_chain_draft_name(value.clone());
+                crate::ChainEditorBridge::get(&window).set_chain_draft_name(value.clone());
                 chain_window.set_chain_name(value);
             }
         });

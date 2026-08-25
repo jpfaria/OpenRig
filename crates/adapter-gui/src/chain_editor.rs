@@ -3,6 +3,7 @@ use crate::AppWindow;
 use domain::AudioDeviceDescriptor;
 use project::chain::Chain;
 use project::project::Project;
+use slint::Global;
 
 const INSTRUMENT_KEYS: &[&str] = &[
     block_core::INST_ELECTRIC_GUITAR,
@@ -106,12 +107,16 @@ pub(crate) fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
 pub(crate) fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
     match chain_editor_mode(draft) {
         ChainEditorMode::Create => {
-            window.set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
-            window.set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
         }
         ChainEditorMode::Edit => {
-            window.set_chain_editor_title(rust_i18n::t!("title-configure-chain").as_ref().into());
-            window.set_chain_editor_save_label(rust_i18n::t!("btn-save-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_title(rust_i18n::t!("title-configure-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_save_label(rust_i18n::t!("btn-save-chain").as_ref().into());
         }
     }
 }

@@ -14,7 +14,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, VecModel};
+use slint::{ComponentHandle, Global, Timer, VecModel};
 
 use application::command::{BlockCommand, Command};
 use domain::AudioDeviceDescriptor;
@@ -100,11 +100,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
             multi_slider_points.set_vec(Vec::new());
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
-            window.set_eq_total_curve("".into());
+            crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
             set_selected_block(&window, None, None);
-            window.set_show_block_drawer(false);
-            window.set_show_block_type_picker(false);
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
         });
     }
     {
@@ -180,7 +180,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                 }
             }
             // Keep inline drawer UI in sync
-            window.set_block_drawer_enabled(new_enabled);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_enabled(new_enabled);
             // #127: the runtime already knows — `ToggleBlockEnabled` applied the
             // live toggle from the dispatcher (through `RuntimeControl`), so a
             // failure came back out of the dispatch above.
@@ -309,8 +309,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                     .borrow_mut()
                     .retain(|bw| bw.chain_index != ci);
             }
-            window.set_show_block_drawer(false);
-            window.set_show_block_type_picker(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
             set_selected_block(&window, None, None);
             sync_project_dirty(
                 &window,

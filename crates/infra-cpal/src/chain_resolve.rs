@@ -34,11 +34,14 @@ use domain::io_binding::IoBinding;
 use project::project::Project;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use engine::runtime_endpoints::{
-    resolve_chain_io, resolve_chain_io_by_binding, InputEntry, OutputEntry,
-};
+use engine::runtime_endpoints::{resolve_chain_io, resolve_chain_io_by_binding};
+// Insert resolution is pure registry lookup — no cpal, no host. It is needed on
+// every platform because `io_topology::bound_io_signature` compares insert
+// streams there too (#881).
+use engine::runtime_endpoints::{InputEntry, OutputEntry};
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use project::block::{AudioBlockKind, InsertBlock};
+use project::block::AudioBlockKind;
+use project::block::InsertBlock;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use project::chain::Chain;
 
@@ -343,7 +346,6 @@ pub(crate) fn resolve_chain_outputs(
 /// Resolve an InsertBlock's RETURN to an InputEntry — model A (#716): the return
 /// comes from the insert binding's INPUT endpoint in the registry. `None` when
 /// the binding is absent or has no input endpoint.
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn insert_return_as_input_entry(
     insert: &InsertBlock,
     registry: &[IoBinding],
@@ -360,7 +362,6 @@ pub(crate) fn insert_return_as_input_entry(
 /// Resolve an InsertBlock's SEND to an OutputEntry — model A (#716): the send
 /// goes to the insert binding's OUTPUT endpoint in the registry. `None` when the
 /// binding is absent or has no output endpoint.
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn insert_send_as_output_entry(
     insert: &InsertBlock,
     registry: &[IoBinding],

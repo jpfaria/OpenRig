@@ -18,7 +18,7 @@ use std::rc::Rc;
 use application::command::{Command, SettingsCommand};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
-use slint::{ComponentHandle, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use crate::device_refresh_apply::{refresh_now, register, DeviceRefreshHandles};
 use crate::state::ProjectSession;
@@ -70,12 +70,12 @@ pub(crate) fn wire(
 
     {
         let project_session = project_session.clone();
-        window.on_refresh_devices(move || {
+        crate::SettingsBridge::get(window).on_refresh_devices(move || {
             dispatch_refresh(&project_session);
             refresh_now(false);
         });
     }
-    project_settings_window.on_refresh_devices(move || {
+    crate::SettingsBridge::get(project_settings_window).on_refresh_devices(move || {
         dispatch_refresh(&project_session);
         refresh_now(true);
     });

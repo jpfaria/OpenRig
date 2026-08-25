@@ -9,7 +9,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::VecModel;
+use slint::{Global, VecModel};
 
 use application::command::{Command, MidiCommand};
 use infra_filesystem::{FilesystemStorage, MidiDeviceSelection, MidiPortKey};
@@ -97,7 +97,7 @@ pub fn install(
     let session_for_refresh = project_session.clone();
     let rows_for_refresh = rows.clone();
     let model_for_refresh = model.clone();
-    win.on_refresh_midi_devices(move || {
+    crate::SettingsBridge::get(win).on_refresh_midi_devices(move || {
         let infos = match adapter_midi::list_input_ports() {
             Ok(v) => v,
             Err(err) => {
@@ -121,7 +121,7 @@ pub fn install(
     let session_for_toggle = project_session.clone();
     let rows_for_toggle = rows.clone();
     let model_for_toggle = model.clone();
-    win.on_toggle_midi_device(move |row_index, enabled| {
+    crate::SettingsBridge::get(win).on_toggle_midi_device(move |row_index, enabled| {
         let mut current = rows_for_toggle.borrow().clone();
         let key = match current.get(row_index as usize) {
             Some(r) => r.port_key.clone(),
@@ -136,7 +136,7 @@ pub fn install(
     let session_for_alias = project_session;
     let rows_for_alias = rows;
     let model_for_alias = model;
-    win.on_edit_midi_device_alias(move |row_index, alias| {
+    crate::SettingsBridge::get(win).on_edit_midi_device_alias(move |row_index, alias| {
         let mut current = rows_for_alias.borrow().clone();
         let key = match current.get(row_index as usize) {
             Some(r) => r.port_key.clone(),
@@ -164,7 +164,7 @@ pub fn install_secondary(
     let session_for_refresh = project_session.clone();
     let rows_for_refresh = rows.clone();
     let model_for_refresh = model.clone();
-    win.on_refresh_midi_devices(move || {
+    crate::SettingsBridge::get(win).on_refresh_midi_devices(move || {
         let infos = match adapter_midi::list_input_ports() {
             Ok(v) => v,
             Err(err) => {
@@ -188,7 +188,7 @@ pub fn install_secondary(
     let session_for_toggle = project_session.clone();
     let rows_for_toggle = rows.clone();
     let model_for_toggle = model.clone();
-    win.on_toggle_midi_device(move |row_index, enabled| {
+    crate::SettingsBridge::get(win).on_toggle_midi_device(move |row_index, enabled| {
         let mut current = rows_for_toggle.borrow().clone();
         let key = match current.get(row_index as usize) {
             Some(r) => r.port_key.clone(),
@@ -203,7 +203,7 @@ pub fn install_secondary(
     let session_for_alias = project_session;
     let rows_for_alias = rows;
     let model_for_alias = model;
-    win.on_edit_midi_device_alias(move |row_index, alias| {
+    crate::SettingsBridge::get(win).on_edit_midi_device_alias(move |row_index, alias| {
         let mut current = rows_for_alias.borrow().clone();
         let key = match current.get(row_index as usize) {
             Some(r) => r.port_key.clone(),
