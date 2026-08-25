@@ -1,3 +1,4 @@
+//! Responsibility: maps a chain document onto the chain it describes.
 //! YAML <-> Chain conversion. Mirrors project::chain::Chain to/from the
 //! YAML schema. Lifted out of `lib.rs` so the production file stays under
 //! the size cap.

@@ -1,3 +1,4 @@
+//! Responsibility: maps a block document onto the audio block it describes.
 //! YAML <-> AudioBlock conversion. The AudioBlockYaml enum mirrors
 //! AudioBlockKind one-to-one and owns all the per-effect-type
 //! deserialization logic. Lifted out of `lib.rs` so the production file
