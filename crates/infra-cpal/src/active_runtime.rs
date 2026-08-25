@@ -1,3 +1,5 @@
+//! Responsibility: owns the live audio resources of a single chain.
+//!
 //! `ActiveChainRuntime` — the per-chain bundle of cpal `Stream`s plus, on
 //! Linux+JACK, the live JACK `AsyncClient` and DSP worker thread handle.
 //!
@@ -37,12 +39,20 @@ pub(crate) struct ActiveChainRuntime {
     /// block (`id|model identity`, plus the enabled flag for routing blocks,
     /// which decide how the chain splits). A structural edit must rebuild the
     /// streams from scratch; a param edit must not, so the two are told apart
-    /// by comparing this against the chain the caller now holds.
+    /// by comparing this against the chain the caller now holds. Read only off
+    /// linux+JACK: `chain_structure_changed` is cpal-only while the JACK
+    /// live-swap path stays unwired (#672).
+    #[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
     pub(crate) structure: Vec<String>,
     /// Bumped once per stream build. Nothing reads it in production — it is how
     /// a test proves a chain change really opened NEW streams instead of
     /// reusing the live ones (#881).
-    #[cfg_attr(not(test), allow(dead_code))]
+    /// The test that reads it is cpal-only, so on linux+JACK it is unread even
+    /// under `cfg(test)`.
+    #[cfg_attr(
+        any(not(test), all(target_os = "linux", feature = "jack")),
+        allow(dead_code)
+    )]
     pub(crate) generation: u64,
     pub(crate) _input_streams: Vec<Stream>,
     pub(crate) _output_streams: Vec<Stream>,
