@@ -1,3 +1,4 @@
+//! Responsibility: implements the phaser 8stage modulation model.
 //! 8-stage phaser variant — wider sweep range, more aggressive skew.
 //! The "Bi-Phase / Small Stone wide" voice. Same engine as
 //! `native_phaser.rs`; only the hidden tuning differs.

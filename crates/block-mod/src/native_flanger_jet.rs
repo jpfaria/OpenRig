@@ -1,3 +1,4 @@
+//! Responsibility: implements the flanger jet modulation model.
 //! "Jet" flanger variant — deeper sweep, bigger feedback ceiling, the
 //! classic A&M-Records-jet-engine wash. Same engine as
 //! `native_flanger.rs`; only the hidden tuning differs.

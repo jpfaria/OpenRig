@@ -1,6 +1,7 @@
-use anyhow::{Error, Result};
+//! Responsibility: implements the classic chorus modulation model.
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
@@ -107,10 +108,19 @@ fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn Mo
     let rate_hz = required_f32(params, "rate_hz").map_err(Error::msg)?;
     let depth = required_f32(params, "depth").map_err(Error::msg)? / 100.0;
     let mix = required_f32(params, "mix").map_err(Error::msg)? / 100.0;
-    Ok(Box::new(ClassicChorus::new(rate_hz, depth, mix, sample_rate)))
+    Ok(Box::new(ClassicChorus::new(
+        rate_hz,
+        depth,
+        mix,
+        sample_rate,
+    )))
 }
 
-fn build_processor_with_phase(params: &ParameterSet, sample_rate: f32, phase_offset: f32) -> Result<Box<dyn MonoProcessor>> {
+fn build_processor_with_phase(
+    params: &ParameterSet,
+    sample_rate: f32,
+    phase_offset: f32,
+) -> Result<Box<dyn MonoProcessor>> {
     let rate_hz = required_f32(params, "rate_hz").map_err(Error::msg)?;
     let depth = required_f32(params, "depth").map_err(Error::msg)? / 100.0;
     let mix = required_f32(params, "mix").map_err(Error::msg)? / 100.0;
@@ -129,9 +139,9 @@ fn build(
     layout: block_core::AudioChannelLayout,
 ) -> Result<block_core::BlockProcessor> {
     match layout {
-        block_core::AudioChannelLayout::Mono => {
-            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(
+            build_processor(params, sample_rate)?,
+        )),
         block_core::AudioChannelLayout::Stereo => {
             struct StereoChorus {
                 left: Box<dyn block_core::MonoProcessor>,

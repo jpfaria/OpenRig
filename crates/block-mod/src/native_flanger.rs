@@ -1,3 +1,4 @@
+//! Responsibility: implements the flanger modulation model.
 //! Flanger — short modulated delay line with feedback. Pro-tier.
 //!
 //! Reference: Dattorro, J. (1997). "Effect Design Part 2: Delay-Line

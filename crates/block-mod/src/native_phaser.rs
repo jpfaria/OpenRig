@@ -1,3 +1,4 @@
+//! Responsibility: implements the phaser modulation model.
 //! Phaser — 6-stage cascade of first-order all-pass filters with
 //! LFO-modulated cutoff, summed (with feedback) into the dry signal.
 //! Pro-tier.

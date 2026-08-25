@@ -1,3 +1,4 @@
+//! Responsibility: implements the rotary leslie vintage modulation model.
 //! Vintage-gentle rotary variant — lower crossover, lighter AM/
 //! Doppler, longer motor inertia. The "chorale jazz organ" voice
 //! that breathes rather than warbles. Same engine as
@@ -38,7 +39,10 @@ struct VintageParams {
 
 impl Default for VintageParams {
     fn default() -> Self {
-        Self { speed: 0.0, mix: 100.0 }
+        Self {
+            speed: 0.0,
+            mix: 100.0,
+        }
     }
 }
 
@@ -87,9 +91,11 @@ fn build(
 ) -> Result<block_core::BlockProcessor> {
     let p = parse(params)?;
     match layout {
-        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(Box::new(
-            LeslieMono::new(LeslieRotary::with_tuning(p.speed, p.mix, sample_rate, TUNING)),
-        ))),
+        block_core::AudioChannelLayout::Mono => {
+            Ok(block_core::BlockProcessor::Mono(Box::new(LeslieMono::new(
+                LeslieRotary::with_tuning(p.speed, p.mix, sample_rate, TUNING),
+            ))))
+        }
         block_core::AudioChannelLayout::Stereo => {
             struct LeslieStereoProc {
                 inner: LeslieRotary,

@@ -1,6 +1,7 @@
-use anyhow::{Error, Result};
+//! Responsibility: implements the tremolo sine modulation model.
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
@@ -99,7 +100,11 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
     )))
 }
 
-pub fn build_processor_with_phase(params: &ParameterSet, sample_rate: f32, phase_offset: f32) -> Result<Box<dyn MonoProcessor>> {
+pub fn build_processor_with_phase(
+    params: &ParameterSet,
+    sample_rate: f32,
+    phase_offset: f32,
+) -> Result<Box<dyn MonoProcessor>> {
     let params = params_from_set(params)?;
     let mut t = SineTremolo::new(params.rate_hz, params.depth, sample_rate);
     t.phase = phase_offset;
@@ -116,9 +121,9 @@ fn build(
     layout: block_core::AudioChannelLayout,
 ) -> Result<block_core::BlockProcessor> {
     match layout {
-        block_core::AudioChannelLayout::Mono => {
-            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(
+            build_processor(params, sample_rate)?,
+        )),
         block_core::AudioChannelLayout::Stereo => {
             struct StereoTremolo {
                 left: Box<dyn block_core::MonoProcessor>,
@@ -134,10 +139,12 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoTremolo {
-                left: build_processor(params, sample_rate)?,
-                right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
-            })))
+            Ok(block_core::BlockProcessor::Stereo(Box::new(
+                StereoTremolo {
+                    left: build_processor(params, sample_rate)?,
+                    right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
+                },
+            )))
         }
     }
 }

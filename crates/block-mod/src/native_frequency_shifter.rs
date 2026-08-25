@@ -1,3 +1,4 @@
+//! Responsibility: implements the frequency shifter modulation model.
 //! Frequency shifter — single-sideband (SSB) modulation via the
 //! Niemitalo IIR Hilbert pair. Pro-tier.
 //!
@@ -120,7 +121,11 @@ impl MonoProcessor for FrequencyShifter {
 
 pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
     let p = params_from_set(params)?;
-    Ok(Box::new(FrequencyShifter::new(p.shift_hz, p.mix, sample_rate)))
+    Ok(Box::new(FrequencyShifter::new(
+        p.shift_hz,
+        p.mix,
+        sample_rate,
+    )))
 }
 
 fn schema() -> Result<ModelParameterSchema> {

@@ -1,6 +1,7 @@
-use anyhow::{Error, Result};
+//! Responsibility: implements the stereo chorus modulation model.
 use crate::registry::ModModelDefinition;
 use crate::ModBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };

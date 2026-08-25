@@ -1,3 +1,4 @@
+//! Responsibility: implements the phaser 4stage modulation model.
 //! 4-stage phaser variant — narrower midrange sweep, less skew. The
 //! "Phase 45 / clean / pre-amp" voice. Same engine as
 //! `native_phaser.rs`; only the hidden tuning differs.

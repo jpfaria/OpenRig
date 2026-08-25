@@ -1,3 +1,4 @@
+//! Responsibility: implements the rotary leslie modulation model.
 //! Rotary speaker (Leslie 122) — dual-rotor model. Pro-tier.
 //!
 //! Reference: Smith, J. O. III. "Rotary Speaker (Leslie)" tutorial in
