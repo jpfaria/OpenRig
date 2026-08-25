@@ -35,7 +35,11 @@ fn refresh(
 ) {
     let session_borrow = session.borrow();
     if let Some(session) = session_borrow.as_ref() {
-        let blocks = build_compact_blocks(&session.project.borrow(), chain_index.max(0) as usize);
+        let blocks = build_compact_blocks(
+            &session.project.borrow(),
+            chain_index.max(0) as usize,
+            &session.io_bindings.borrow(),
+        );
         win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
     }
 }

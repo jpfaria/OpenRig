@@ -51,6 +51,9 @@ mod active_runtime;
 mod resolved;
 
 mod io_topology;
+#[cfg(test)]
+#[path = "issue_881_stream_lifecycle_tests.rs"]
+mod issue_881_stream_lifecycle_tests;
 pub use io_topology::io_topology_changed;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
