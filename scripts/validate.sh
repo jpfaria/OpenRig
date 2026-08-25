@@ -54,7 +54,6 @@ SLINT_CHANGED=false
 # Test files are NOT listed and are NOT measured: they are the only files in
 # the repo exempt from the size cap.
 DEBT_FILES="
-crates/adapter-gui/src/desktop_app.rs 964
 crates/adapter-gui/ui/app-window.slint 926
 crates/adapter-gui/ui/desktop_main.slint 612
 crates/adapter-gui/ui/pages/chain_row.slint 895

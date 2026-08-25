@@ -88,6 +88,7 @@ const GUARDED: &[Guarded] = &[
 const NAMES_THE_BACKEND_CRATE: &[&str] = &[
     "audio_devices.rs",
     "desktop_app.rs",
+    "desktop_app_mcp.rs",
     "gui_live_source.rs",
     "mcp_query_resolver.rs",
     "runtime_devices.rs",
@@ -108,6 +109,11 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// `crates/adapter-gui/src`.
 ///
 /// ── Owns the runtime ────────────────────────────────────────────────────────
+/// * `desktop_app_mcp.rs` — the MCP drain timer. It left `desktop_app.rs` in
+///   #873 because that file had reached its line cap; it is the SAME code, in
+///   the same position, serving `mcp_query_resolver`'s reads on the event
+///   loop. Same reason `runtime_pipelines.rs` / `runtime_teardown.rs` are
+///   here: an owner split off by the cap, not a wiring module.
 /// * `runtime_lifecycle.rs` — CREATES, syncs and drops the controller, and
 ///   hosts `GuiRuntimeControl`, the `RuntimeControl` impl every command handler
 ///   reaches the audio through. This is the module the invariant exists to
@@ -271,6 +277,7 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// a tick is nobody's request and a reconnect changes no project state.
 const OWNS_THE_RUNTIME: &[&str] = &[
     "desktop_app.rs",
+    "desktop_app_mcp.rs",
     "gui_live_source.rs",
     "mcp_query_resolver.rs",
     "runtime_health.rs",
