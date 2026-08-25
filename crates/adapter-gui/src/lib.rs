@@ -62,6 +62,7 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod compact_routing_pick;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;

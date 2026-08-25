@@ -7,9 +7,15 @@
 // `SaveChainOutputEndpoints`) — so those are the only two choices this page
 // offers. Device / mode / channels belong to the E/S itself and are edited in
 // the I/O bindings screen, not here.
+//
+// #881: the SHELL is the block editor's — 48px header with the block's icon and
+// its actions, the panel with the footswitch every block carries, then the 52px
+// footer. A port is a block like any other; it just has nothing to tweak.
 
 import { ComboBox } from "std-widgets.slint";
 import { PortEditorFooterButton } from "port_editor_widgets.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { FootSwitch } from "../components/foot_switch.slint";
 
 export component ChainPortEditorPage inherits Rectangle {
     in property <bool> is-input;
@@ -27,49 +33,44 @@ export component ChainPortEditorPage inherits Rectangle {
     callback save();
     callback cancel();
 
-    background: #171a1f;
+    private property <length> header-height: 48px;
+    private property <length> footer-height: 52px;
 
-    VerticalLayout {
-        padding: 32px;
-        spacing: 20px;
+    background: #0a0a0e;
+
+    // ── HEADER (48px) ───────────────────────────────────────────────────
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: root.header-height;
+        background: #101319;
 
         HorizontalLayout {
-            spacing: 12px;
+            padding-left: 16px;
+            padding-right: 12px;
+            spacing: 10px;
+
+            EffectTypeIcon {
+                width: 28px;
+                height: 28px;
+                icon-kind: root.is-input ? "input" : "output";
+                y: (parent.height - self.height) / 2;
+            }
 
             Text {
                 text: root.is-input ? @tr("title-section-configure-input") : @tr("title-section-configure-output");
                 color: #edf2f9;
-                font-size: 20px;
+                font-size: 15px;
                 font-weight: 800;
                 vertical-alignment: center;
                 horizontal-stretch: 1;
             }
 
-            // Enabled dot — same affordance as the insert editor.
             Rectangle {
-                width: 24px;
-                height: 24px;
-                border-radius: 4px;
-                background: toggle-hover.has-hover ? #1e2229 : transparent;
-                accessible-role: button;
-                accessible-label: @tr("action-toggle-block-enabled");
-
-                Rectangle {
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 4px;
-                    background: root.block-enabled ? #29df85 : #697382;
-                }
-
-                toggle-hover := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.toggle-enabled(); }
-                }
-            }
-
-            Rectangle {
-                width: 24px;
-                height: 24px;
+                width: 28px;
+                height: 28px;
+                y: (parent.height - self.height) / 2;
                 border-radius: 4px;
                 background: delete-hover.has-hover ? #2a1015 : transparent;
                 accessible-role: button;
@@ -89,46 +90,81 @@ export component ChainPortEditorPage inherits Rectangle {
                 }
             }
         }
+    }
 
-        Rectangle { height: 1px; background: #2a2f38; }
+    // ── PANEL — where the port points ───────────────────────────────────
+    Rectangle {
+        x: 16px;
+        y: root.header-height + 16px;
+        width: parent.width - 32px;
+        height: panel-body.preferred-height;
+        background: #16191f;
+        border-width: 1px;
+        border-color: #23272f;
+        border-radius: 8px;
 
-        Text {
-            text: @tr("label-io-binding");
-            color: #8c96a6;
-            font-size: 12px;
-            font-weight: 700;
+        panel-body := VerticalLayout {
+            padding: 16px;
+            padding-left: 80px;
+            spacing: 8px;
+
+            Text {
+                text: @tr("label-io-binding");
+                color: #8c96a6;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            ComboBox {
+                model: root.binding-options;
+                current-index <=> root.selected-binding-index;
+                selected(value) => { root.select-binding(self.current-index); }
+            }
+
+            Text {
+                text: @tr("label-io-endpoint");
+                color: #8c96a6;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            ComboBox {
+                model: root.endpoint-options;
+                current-index <=> root.selected-endpoint-index;
+                selected(value) => { root.select-endpoint(self.current-index); }
+            }
+
+            if root.show-endpoint-warning : Text {
+                text: @tr("msg-pick-io-endpoint");
+                color: #ff9f43;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
         }
+    }
 
-        ComboBox {
-            model: root.binding-options;
-            current-index <=> root.selected-binding-index;
-            selected(value) => { root.select-binding(self.current-index); }
-        }
+    // ── POWER — the same footswitch every block editor carries ──────────
+    FootSwitch {
+        x: 24px;
+        y: root.header-height + 16px + 12px;
+        width: 48px;
+        height: 66px;
+        enabled: root.block-enabled;
+        clicked => { root.toggle-enabled(); }
+    }
 
-        Text {
-            text: @tr("label-io-endpoint");
-            color: #8c96a6;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        ComboBox {
-            model: root.endpoint-options;
-            current-index <=> root.selected-endpoint-index;
-            selected(value) => { root.select-endpoint(self.current-index); }
-        }
-
-        if root.show-endpoint-warning : Text {
-            text: @tr("msg-pick-io-endpoint");
-            color: #ff9f43;
-            font-size: 12px;
-            wrap: word-wrap;
-        }
-
-        // Pushes the footer to the bottom.
-        Rectangle { vertical-stretch: 1; }
+    // ── FOOTER (52px) ───────────────────────────────────────────────────
+    Rectangle {
+        x: 0;
+        y: parent.height - root.footer-height;
+        width: parent.width;
+        height: root.footer-height;
+        background: #101319;
 
         HorizontalLayout {
+            padding-right: 16px;
+            padding-top: 8px;
+            padding-bottom: 8px;
             spacing: 12px;
             alignment: end;
 

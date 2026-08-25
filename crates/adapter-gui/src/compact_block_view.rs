@@ -24,8 +24,8 @@ use crate::compact_block_tabs::active_group_index;
 use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::project_view::block_model_picker_items;
 use crate::{
-    BlockKnobOverlay, BlockParameterItem, CompactBlockItem, CompactOverlayLine, CompactParamLine,
-    SELECT_SELECTED_BLOCK_ID,
+    BlockKnobOverlay, BlockModelPickerItem, BlockParameterItem, CompactBlockItem,
+    CompactOverlayLine, CompactParamLine, SELECT_SELECTED_BLOCK_ID,
 };
 
 /// Group the laid-out cells by their `strip_line` — Slint cannot filter inside a
@@ -68,6 +68,44 @@ fn compact_parameter_groups(params: &[BlockParameterItem]) -> Vec<String> {
         .cloned()
         .collect();
     parameter_groups(&groupable)
+}
+
+/// The name the user gave an E/S, falling back to its id.
+fn binding_label(binding: &infra_filesystem::IoBinding) -> String {
+    let name = binding.name.trim();
+    if name.is_empty() {
+        binding.id.clone()
+    } else {
+        name.to_string()
+    }
+}
+
+/// The registry as picker rows, so a routing block re-points through the same
+/// select every other block uses for its model (#881). `model_id` carries the
+/// binding id — that is what the pick dispatches.
+fn binding_picker_items(
+    effect_type: &str,
+    io_bindings: &[infra_filesystem::IoBinding],
+) -> Vec<BlockModelPickerItem> {
+    io_bindings
+        .iter()
+        .map(|b| BlockModelPickerItem {
+            effect_type: effect_type.into(),
+            model_id: b.id.clone().into(),
+            label: binding_label(b).into(),
+            display_name: binding_label(b).into(),
+            subtitle: SharedString::new(),
+            icon_kind: effect_type.into(),
+            brand: SharedString::new(),
+            type_label: "I/O".into(),
+            panel_bg: slint::Color::from_argb_u8(0, 0, 0, 0),
+            panel_text: slint::Color::from_argb_u8(0, 0, 0, 0),
+            brand_strip_bg: slint::Color::from_argb_u8(0, 0, 0, 0),
+            model_font: SharedString::new(),
+            available: true,
+            thumbnail_path: SharedString::new(),
+        })
+        .collect()
 }
 
 /// A compact row for a routing block (#881): what it IS and where it sits, with
@@ -115,7 +153,6 @@ fn routing_compact_item(
     let visual = project::catalog::supported_block_models(&effect_type)
         .ok()
         .and_then(|models| models.into_iter().next());
-    let empty_strings = || ModelRc::from(Rc::new(VecModel::<SharedString>::default()));
     CompactBlockItem {
         chain_index: chain_index as i32,
         block_index: block_index as i32,
@@ -152,13 +189,30 @@ fn routing_compact_item(
         parameter_items: ModelRc::from(Rc::new(VecModel::default())),
         multi_slider_points: ModelRc::from(Rc::new(VecModel::default())),
         curve_editor_points: ModelRc::from(Rc::new(VecModel::default())),
-        model_labels: empty_strings(),
-        model_selected_index: -1,
-        models: ModelRc::from(Rc::new(VecModel::default())),
-        filtered_models: ModelRc::from(Rc::new(VecModel::default())),
+        // #881: the slot where a pedal picks its MODEL is where a port picks its
+        // E/S — same widget, same place, so the loop can be re-pointed without
+        // leaving the compact view.
+        model_labels: ModelRc::from(Rc::new(VecModel::from(
+            io_bindings
+                .iter()
+                .map(|b| SharedString::from(binding_label(b)))
+                .collect::<Vec<_>>(),
+        ))),
+        model_selected_index: target
+            .and_then(|id| io_bindings.iter().position(|b| b.id == id))
+            .map(|i| i as i32)
+            .unwrap_or(-1),
+        models: ModelRc::from(Rc::new(VecModel::from(binding_picker_items(
+            &effect_type,
+            io_bindings,
+        )))),
+        filtered_models: ModelRc::from(Rc::new(VecModel::from(binding_picker_items(
+            &effect_type,
+            io_bindings,
+        )))),
         stream_data: Default::default(),
         has_external_gui: false,
-        parameter_groups: empty_strings(),
+        parameter_groups: ModelRc::from(Rc::new(VecModel::<SharedString>::default())),
         active_parameter_group: 0,
         parameter_lines: ModelRc::from(Rc::new(VecModel::default())),
         overlay_lines: ModelRc::from(Rc::new(VecModel::default())),

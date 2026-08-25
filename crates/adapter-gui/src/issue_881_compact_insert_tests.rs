@@ -51,6 +51,31 @@ fn mid_output(id: &str) -> AudioBlock {
     }
 }
 
+fn registry() -> Vec<infra_filesystem::IoBinding> {
+    use domain::ids::DeviceId;
+    use domain::io_binding::{ChannelMode, IoEndpoint};
+    let ep = |name: &str| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![0],
+    };
+    vec![
+        infra_filesystem::IoBinding {
+            id: "main".into(),
+            name: "MAIN".into(),
+            inputs: vec![ep("In 1")],
+            outputs: vec![ep("Out 1")],
+        },
+        infra_filesystem::IoBinding {
+            id: "fx".into(),
+            name: "SYNERGY".into(),
+            inputs: vec![ep("ret")],
+            outputs: vec![ep("snd")],
+        },
+    ]
+}
+
 fn project_with(blocks: Vec<AudioBlock>) -> Project {
     Project {
         name: None,
@@ -74,7 +99,7 @@ fn project_with(blocks: Vec<AudioBlock>) -> Project {
 fn the_compact_view_lists_the_insert_between_the_pedals() {
     let project = project_with(vec![drive("a"), insert("loop"), drive("b")]);
 
-    let items = build_compact_blocks(&project, 0, &[]);
+    let items = build_compact_blocks(&project, 0, &registry());
     let ids: Vec<String> = items.iter().map(|i| i.block_id.to_string()).collect();
 
     assert_eq!(
@@ -95,9 +120,21 @@ fn the_compact_view_lists_the_insert_between_the_pedals() {
         "INSERT",
         "the label says WHICH port it is"
     );
-    assert!(
-        loop_row.models.iter().count() == 0,
-        "a routing block has no model catalog — the row must not draw a picker"
+    // #881: the model slot carries the E/S bindings, so the loop can be
+    // re-pointed from the compact view.
+    let options: Vec<String> = loop_row
+        .models
+        .iter()
+        .map(|m| m.model_id.to_string())
+        .collect();
+    assert_eq!(
+        options,
+        vec!["main".to_string(), "fx".to_string()],
+        "the picker must offer the E/S bindings"
+    );
+    assert_eq!(
+        loop_row.model_selected_index, 1,
+        "and open on the one the insert points at"
     );
     assert_eq!(
         loop_row.block_index, 1,

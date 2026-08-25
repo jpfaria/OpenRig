@@ -87,9 +87,11 @@ export component CompactBlockRow inherits Rectangle {
 
     // ── 3. Block type label ──
     Text {
-        x: 96px;
+        // #881: 4px clear of the 32px icon box (66..98) — the I/O icons are
+        // full-bleed sprites, so a label starting at 96 ran into them.
+        x: 102px;
         y: (root.header-height - 18px) / 2;
-        width: 60px;
+        width: 50px;
         height: 18px;
         text: root.block-data.display-label;
         color: root.block-data.panel-text;
@@ -99,24 +101,8 @@ export component CompactBlockRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // ── 4a. Routing blocks (#881): a port/insert has no model catalog — what it
-    // carries is the E/S it points at, so that name takes the model slot
-    // instead of an empty picker.
-    if root.block-data.models.length == 0 : Text {
-        x: 158px;
-        y: (root.header-height - 40px) / 2;
-        width: 260px;
-        height: 40px;
-        text: root.block-data.display-name;
-        color: root.block-data.panel-text;
-        font-size: 16px;
-        font-weight: 700;
-        vertical-alignment: center;
-        overflow: elide;
-    }
-
     // ── 4. Model selector with embedded search (after type label) ──
-    if root.block-data.models.length > 0 : ModelSelectWithSearch {
+    ModelSelectWithSearch {
         x: 158px;
         y: (root.header-height - 40px) / 2;
         width: 260px;
@@ -147,8 +133,13 @@ export component CompactBlockRow inherits Rectangle {
         brand: root.block-data.brand;
         tint: root.block-data.panel-text;
     }
-    // Native models: show model illustration SVG
-    if root.block-data.brand == "" : Image {
+    // Native models: show model illustration SVG. #881: a routing block picks an
+    // E/S here, not a model — the generic gear fallback says nothing about it.
+    private property <bool> is-routing:
+        root.block-data.effect-type == "insert"
+        || root.block-data.effect-type == "input"
+        || root.block-data.effect-type == "output";
+    if root.block-data.brand == "" && !root.is-routing : Image {
         x: 432px; y: (root.header-height - 40px) / 2; width: 40px; height: 40px;
         source: root.block-data.model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
             : root.block-data.model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
