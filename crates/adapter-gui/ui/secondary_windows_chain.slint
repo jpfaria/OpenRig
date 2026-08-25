@@ -20,7 +20,6 @@ export component ProjectSettingsWindow inherits Window {
     in property <[string]> language-options;
     in property <[string]> language-codes;
     in property <int> selected-language-index;
-    in property <[MidiDeviceRow]> midi-devices;
     in property <string> project-path-display;
     callback update-project-name(string);
     callback save-audio-settings();
@@ -35,14 +34,7 @@ export component ProjectSettingsWindow inherits Window {
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
     callback language-selected(int);
-    callback refresh-midi-devices();
-    callback toggle-midi-device(int, bool);
-    callback edit-midi-device-alias(int, string);
     // #712: System / Integrations master switches.
-    in property <bool> midi-enabled;
-    in property <bool> mcp-enabled;
-    callback set-midi-enabled(bool);
-    callback set-mcp-enabled(bool);
     // #716: System / I/O bindings section.
     in property <[IoBindingModel]> io-bindings;
     // Exposed so navigation can be driven (e.g. interaction tests jumping
@@ -67,18 +59,7 @@ export component ProjectSettingsWindow inherits Window {
     callback edit-endpoint(string, string, bool);
     callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
-    in property <string> presets-path;
-    in property <string> plugins-path;
-    in property <string> evaluations-path;
     // #561: plugin catalog reload row in the Paths section.
-    in property <string> plugin-catalog-status;
-    callback pick-presets-path();
-    callback reset-presets-path();
-    callback pick-plugins-path();
-    callback reset-plugins-path();
-    callback pick-evaluations-path();
-    callback reset-evaluations-path();
-    callback reload-plugin-catalog();
     title: @tr("title-window-project-settings");
     min-width: 860px;
     min-height: 540px;
@@ -99,9 +80,6 @@ export component ProjectSettingsWindow inherits Window {
         language-codes: root.language-codes;
         selected-language-index: root.selected-language-index;
         selected-section <=> root.settings-selected-section;
-        midi-devices: root.midi-devices;
-        midi-enabled: root.midi-enabled;
-        mcp-enabled: root.mcp-enabled;
         project-path-display: root.project-path-display;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
@@ -113,11 +91,6 @@ export component ProjectSettingsWindow inherits Window {
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
         language-selected(i) => { root.language-selected(i); }
-        refresh-midi-devices => { root.refresh-midi-devices(); }
-        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
-        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
-        set-midi-enabled(on) => { root.set-midi-enabled(on); }
-        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
         io-bindings: root.io-bindings;
         input-device-ids: root.input-device-ids;
         input-device-names: root.input-device-names;
@@ -137,17 +110,6 @@ export component ProjectSettingsWindow inherits Window {
         remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
         edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
         edit-project-name(t) => { root.edit-project-name(t); }
-        presets-path: root.presets-path;
-        plugins-path: root.plugins-path;
-        evaluations-path: root.evaluations-path;
-        plugin-catalog-status: root.plugin-catalog-status;
-        pick-presets-path => { root.pick-presets-path(); }
-        reset-presets-path => { root.reset-presets-path(); }
-        pick-plugins-path => { root.pick-plugins-path(); }
-        reset-plugins-path => { root.reset-plugins-path(); }
-        pick-evaluations-path => { root.pick-evaluations-path(); }
-        reset-evaluations-path => { root.reset-evaluations-path(); }
-        reload-plugin-catalog => { root.reload-plugin-catalog(); }
     }
 }
 

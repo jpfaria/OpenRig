@@ -71,7 +71,6 @@ export component TouchMain inherits Rectangle {
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
     in property <[DeviceSelectionItem]> project-devices;
-    in property <[MidiDeviceRow]> midi-devices;
     // Project / MIDI mapping editor (#513, #493)
     in property <[MidiBindingRow]> midi-bindings;
     in property <[string]> available-commands;
@@ -80,18 +79,7 @@ export component TouchMain inherits Rectangle {
     in property <string> project-path-display;
     callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
-    in property <string> presets-path;
-    in property <string> plugins-path;
-    in property <string> evaluations-path;
     // #561: plugin catalog reload row in the Paths section.
-    in property <string> plugin-catalog-status;
-    callback pick-presets-path();
-    callback reset-presets-path();
-    callback pick-plugins-path();
-    callback reset-plugins-path();
-    callback pick-evaluations-path();
-    callback reset-evaluations-path();
-    callback reload-plugin-catalog();
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -186,14 +174,7 @@ export component TouchMain inherits Rectangle {
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
     // System / MIDI devices section callbacks (#513)
-    callback refresh-midi-devices();
-    callback toggle-midi-device(int, bool);
-    callback edit-midi-device-alias(int, string);
     // #712: System / Integrations master switches.
-    in property <bool> midi-enabled;
-    in property <bool> mcp-enabled;
-    callback set-midi-enabled(bool);
-    callback set-mcp-enabled(bool);
     // #716: System / I/O bindings section.
     // `io-binding-names` stays for the chain-level endpoint picker
     // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
@@ -408,9 +389,6 @@ export component TouchMain inherits Rectangle {
         project-name-draft <=> root.project-name-draft;
         status-message <=> root.status-message;
         project-devices: root.project-devices;
-        midi-devices: root.midi-devices;
-        midi-enabled: root.midi-enabled;
-        mcp-enabled: root.mcp-enabled;
         midi-bindings: root.midi-bindings;
         available-commands: root.available-commands;
         sample-rate-options: root.sample-rate-options;
@@ -428,11 +406,6 @@ export component TouchMain inherits Rectangle {
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         refresh-devices => { root.refresh-devices(); }
-        refresh-midi-devices => { root.refresh-midi-devices(); }
-        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
-        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
-        set-midi-enabled(on) => { root.set-midi-enabled(on); }
-        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
         io-bindings: root.io-bindings;
         input-device-ids: root.input-device-ids;
         input-device-names: root.input-device-names;
@@ -455,17 +428,6 @@ export component TouchMain inherits Rectangle {
         delete-midi-binding(i) => { root.delete-midi-binding(i); }
         pick-midi-binding-command(i, c) => { root.pick-midi-binding-command(i, c); }
         cancel-midi-binding-draft(i) => { root.cancel-midi-binding-draft(i); }
-        presets-path: root.presets-path;
-        plugins-path: root.plugins-path;
-        evaluations-path: root.evaluations-path;
-        plugin-catalog-status: root.plugin-catalog-status;
-        pick-presets-path => { root.pick-presets-path(); }
-        reset-presets-path => { root.reset-presets-path(); }
-        pick-plugins-path => { root.pick-plugins-path(); }
-        reset-plugins-path => { root.reset-plugins-path(); }
-        pick-evaluations-path => { root.pick-evaluations-path(); }
-        reset-evaluations-path => { root.reset-evaluations-path(); }
-        reload-plugin-catalog => { root.reload-plugin-catalog(); }
     }
 
     // Inline chain editor overlay (fullscreen mode)

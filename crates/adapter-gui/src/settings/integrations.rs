@@ -21,7 +21,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Global};
 
 use application::command::{Command, MidiCommand, SettingsCommand};
 use infra_filesystem::{AppConfig, FilesystemStorage};
@@ -39,10 +39,10 @@ pub fn wire(
     // config.yaml at boot) so the toggles render in their stored state.
     {
         let cfg = app_config.borrow();
-        window.set_midi_enabled(cfg.midi_enabled);
-        window.set_mcp_enabled(cfg.mcp_enabled);
-        project_settings_window.set_midi_enabled(cfg.midi_enabled);
-        project_settings_window.set_mcp_enabled(cfg.mcp_enabled);
+        crate::SettingsBridge::get(window).set_midi_enabled(cfg.midi_enabled);
+        crate::SettingsBridge::get(window).set_mcp_enabled(cfg.mcp_enabled);
+        crate::SettingsBridge::get(project_settings_window).set_midi_enabled(cfg.midi_enabled);
+        crate::SettingsBridge::get(project_settings_window).set_mcp_enabled(cfg.mcp_enabled);
     }
 
     install_midi(
@@ -113,8 +113,8 @@ fn install_midi(
         project_session,
         app_config,
         |w, s, on| {
-            w.set_midi_enabled(on);
-            s.set_midi_enabled(on);
+            crate::SettingsBridge::get(w).set_midi_enabled(on);
+            crate::SettingsBridge::get(s).set_midi_enabled(on);
         },
         |cfg, on| cfg.midi_enabled = on,
         |enabled| Command::Midi(MidiCommand::SetMidiEnabled { enabled }),
@@ -127,9 +127,9 @@ fn install_midi(
         },
     ));
     let for_app = handler.clone();
-    window.on_set_midi_enabled(move |on| for_app(on));
+    crate::SettingsBridge::get(window).on_set_midi_enabled(move |on| for_app(on));
     let for_settings = handler;
-    project_settings_window.on_set_midi_enabled(move |on| for_settings(on));
+    crate::SettingsBridge::get(project_settings_window).on_set_midi_enabled(move |on| for_settings(on));
 }
 
 fn install_mcp(
@@ -144,8 +144,8 @@ fn install_mcp(
         project_session,
         app_config,
         |w, s, on| {
-            w.set_mcp_enabled(on);
-            s.set_mcp_enabled(on);
+            crate::SettingsBridge::get(w).set_mcp_enabled(on);
+            crate::SettingsBridge::get(s).set_mcp_enabled(on);
         },
         |cfg, on| cfg.mcp_enabled = on,
         |enabled| Command::Settings(SettingsCommand::SetMcpEnabled { enabled }),
@@ -158,7 +158,7 @@ fn install_mcp(
         },
     ));
     let for_app = handler.clone();
-    window.on_set_mcp_enabled(move |on| for_app(on));
+    crate::SettingsBridge::get(window).on_set_mcp_enabled(move |on| for_app(on));
     let for_settings = handler;
-    project_settings_window.on_set_mcp_enabled(move |on| for_settings(on));
+    crate::SettingsBridge::get(project_settings_window).on_set_mcp_enabled(move |on| for_settings(on));
 }

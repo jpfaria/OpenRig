@@ -1,0 +1,48 @@
+// Responsibility: carries the Settings screen's state between Rust and the sections that draw it.
+//
+// #873. The same settings are reachable from two roots — the fullscreen
+// inline page on `AppWindow` and the standalone `ProjectSettingsWindow` — and
+// each used to declare every property and callback again, then forward them
+// down through `DesktopMain`/`TouchMain` into `SettingsPage` and its sections.
+// Four copies of the same list, and the god interface they made is what #873
+// is about. A global is per-root, so both windows still get their own
+// instance (Rust installs on each), but the DECLARATION exists once and every
+// section reads it directly with no prop drilling.
+
+import { MidiDeviceRow } from "models.slint";
+
+export global SettingsBridge {
+    // ── System / Paths (#513, #582) ──────────────────────────────────────
+    // Empty string = use the OS default (the resolver handles it).
+    in-out property <string> presets-path;
+    in-out property <string> plugins-path;
+    in-out property <string> evaluations-path;
+    // #561: status text filled after a catalog reload — "12 plugins loaded
+    // (8 native, 4 disk)". Empty until a reload has run.
+    in-out property <string> plugin-catalog-status;
+
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
+    callback pick-evaluations-path();
+    callback reset-evaluations-path();
+    // #561: re-scan the plugin packages directories without a restart.
+    callback reload-plugin-catalog();
+
+    // ── System / MIDI devices (#513) ─────────────────────────────────────
+    // Rows built by Rust: `adapter_midi::list_input_ports()` merged with the
+    // persisted selection.
+    in-out property <[MidiDeviceRow]> midi-devices;
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
+
+    // ── System / Integrations (#712) ─────────────────────────────────────
+    // Master switches for the MIDI adapter and the MCP server. Per-machine
+    // config (config.yaml), applied at the next launch.
+    in-out property <bool> midi-enabled;
+    in-out property <bool> mcp-enabled;
+    callback set-midi-enabled(bool);
+    callback set-mcp-enabled(bool);
+}

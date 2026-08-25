@@ -89,16 +89,10 @@ export component SettingsPage inherits Rectangle {
     in property <[string]> language-options;
     in property <[string]> language-codes;
     in property <int> selected-language-index;
-    in property <[MidiDeviceRow]> midi-devices;
     in property <[MidiBindingRow]> midi-bindings;
     in property <[string]> available-commands;
-    // System / Paths section (#513 + #582). Empty string = use OS default.
-    in property <string> presets-path;
-    in property <string> plugins-path;
-    in property <string> evaluations-path;
     // #561: status text for the plugin catalog reload row in the
     // Paths section. Empty until the user runs the action.
-    in property <string> plugin-catalog-status;
     // Default-bind to project-name-draft so SettingsPage shows the
     // current project name inside the secondary ProjectSettingsWindow
     // (which only forwards project-name-draft).
@@ -119,14 +113,7 @@ export component SettingsPage inherits Rectangle {
     callback update-project-bit-depth(int, string);
     callback refresh-devices();
     callback language-selected(int);
-    callback refresh-midi-devices();
-    callback toggle-midi-device(int, bool);
-    callback edit-midi-device-alias(int, string);
     // #712: System / Integrations master switches (per-machine config.yaml).
-    in property <bool> midi-enabled;
-    in property <bool> mcp-enabled;
-    callback set-midi-enabled(bool);
-    callback set-mcp-enabled(bool);
     // #716: System / I/O bindings section.
     in property <[IoBindingModel]> io-bindings;
     in property <[string]> input-device-ids;
@@ -151,15 +138,8 @@ export component SettingsPage inherits Rectangle {
     callback pick-midi-binding-command(int, string);
     callback cancel-midi-binding-draft(int);
     // System / Paths section callbacks (#513)
-    callback pick-presets-path();
-    callback reset-presets-path();
-    callback pick-plugins-path();
-    callback reset-plugins-path();
     // #582: evaluations directory pick/reset (Settings → Paths).
-    callback pick-evaluations-path();
-    callback reset-evaluations-path();
     // #561: hot-reload the plugin catalog (no payload).
-    callback reload-plugin-catalog();
 
     // Active section index (sidebar selection). 0 = Audio, default.
     in-out property <int> selected-section: 0;
@@ -330,29 +310,10 @@ export component SettingsPage inherits Rectangle {
                         language-selected(i) => { root.language-selected(i); }
                     }
                     if root.selected-section == 2 : SectionSystemMidiDevices {
-                        devices: root.midi-devices;
-                        refresh-midi-devices => { root.refresh-midi-devices(); }
-                        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
-                        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
                     }
                     if root.selected-section == 3 : SectionSystemPaths {
-                        presets-path: root.presets-path;
-                        plugins-path: root.plugins-path;
-                        evaluations-path: root.evaluations-path;
-                        plugin-catalog-status: root.plugin-catalog-status;
-                        pick-presets-path => { root.pick-presets-path(); }
-                        reset-presets-path => { root.reset-presets-path(); }
-                        pick-plugins-path => { root.pick-plugins-path(); }
-                        reset-plugins-path => { root.reset-plugins-path(); }
-                        pick-evaluations-path => { root.pick-evaluations-path(); }
-                        reset-evaluations-path => { root.reset-evaluations-path(); }
-                        reload-plugin-catalog => { root.reload-plugin-catalog(); }
                     }
                     if root.selected-section == 5 : SectionSystemIntegrations {
-                        midi-enabled: root.midi-enabled;
-                        mcp-enabled: root.mcp-enabled;
-                        set-midi-enabled(on) => { root.set-midi-enabled(on); }
-                        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
                     }
                     if root.selected-section == 6 : SectionSystemIoBindings {
                         io-bindings: root.io-bindings;

@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use rfd::FileDialog;
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Global};
 
 use application::command::{Command, PluginCommand, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
@@ -216,13 +216,13 @@ pub fn install(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_pick_presets_path(move || {
+    crate::SettingsBridge::get(win).on_pick_presets_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
         apply_presets_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            w.set_presets_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w).set_presets_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -230,10 +230,10 @@ pub fn install(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_reset_presets_path(move || {
+    crate::SettingsBridge::get(win).on_reset_presets_path(move || {
         apply_presets_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
-            w.set_presets_path(slint::SharedString::default());
+            crate::SettingsBridge::get(&w).set_presets_path(slint::SharedString::default());
         }
     });
 
@@ -241,13 +241,13 @@ pub fn install(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_pick_plugins_path(move || {
+    crate::SettingsBridge::get(win).on_pick_plugins_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
         apply_plugins_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            w.set_plugins_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w).set_plugins_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -255,10 +255,10 @@ pub fn install(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_reset_plugins_path(move || {
+    crate::SettingsBridge::get(win).on_reset_plugins_path(move || {
         apply_plugins_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
-            w.set_plugins_path(slint::SharedString::default());
+            crate::SettingsBridge::get(&w).set_plugins_path(slint::SharedString::default());
         }
     });
 
@@ -266,13 +266,13 @@ pub fn install(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_pick_evaluations_path(move || {
+    crate::SettingsBridge::get(win).on_pick_evaluations_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
         apply_evaluations_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            w.set_evaluations_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w).set_evaluations_path(path.to_string_lossy().into_owned().into());
         }
     });
 
@@ -280,20 +280,20 @@ pub fn install(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_reset_evaluations_path(move || {
+    crate::SettingsBridge::get(win).on_reset_evaluations_path(move || {
         apply_evaluations_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
-            w.set_evaluations_path(slint::SharedString::default());
+            crate::SettingsBridge::get(&w).set_evaluations_path(slint::SharedString::default());
         }
     });
 
     // ── #561 reload plugin catalog ──────────────────────────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
-    win.on_reload_plugin_catalog(move || {
+    crate::SettingsBridge::get(win).on_reload_plugin_catalog(move || {
         let status = run_reload_plugin_catalog(&session);
         if let Some(w) = win_weak.upgrade() {
-            w.set_plugin_catalog_status(status.into());
+            crate::SettingsBridge::get(&w).set_plugin_catalog_status(status.into());
         }
     });
 }
@@ -310,46 +310,46 @@ pub fn install_secondary(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_pick_presets_path(move || {
+    crate::SettingsBridge::get(win).on_pick_presets_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
         apply_presets_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            w.set_presets_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w).set_presets_path(path.to_string_lossy().into_owned().into());
         }
     });
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_reset_presets_path(move || {
+    crate::SettingsBridge::get(win).on_reset_presets_path(move || {
         apply_presets_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
-            w.set_presets_path(slint::SharedString::default());
+            crate::SettingsBridge::get(&w).set_presets_path(slint::SharedString::default());
         }
     });
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_pick_plugins_path(move || {
+    crate::SettingsBridge::get(win).on_pick_plugins_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
         apply_plugins_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            w.set_plugins_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w).set_plugins_path(path.to_string_lossy().into_owned().into());
         }
     });
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_reset_plugins_path(move || {
+    crate::SettingsBridge::get(win).on_reset_plugins_path(move || {
         apply_plugins_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
-            w.set_plugins_path(slint::SharedString::default());
+            crate::SettingsBridge::get(&w).set_plugins_path(slint::SharedString::default());
         }
     });
 
@@ -357,33 +357,33 @@ pub fn install_secondary(
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_pick_evaluations_path(move || {
+    crate::SettingsBridge::get(win).on_pick_evaluations_path(move || {
         let Some(path) = pick_folder_dialog() else {
             return;
         };
         apply_evaluations_path(&session, &config, Some(path.clone()));
         if let Some(w) = win_weak.upgrade() {
-            w.set_evaluations_path(path.to_string_lossy().into_owned().into());
+            crate::SettingsBridge::get(&w).set_evaluations_path(path.to_string_lossy().into_owned().into());
         }
     });
 
     let win_weak = win.as_weak();
     let session = project_session.clone();
     let config = app_config.clone();
-    win.on_reset_evaluations_path(move || {
+    crate::SettingsBridge::get(win).on_reset_evaluations_path(move || {
         apply_evaluations_path(&session, &config, None);
         if let Some(w) = win_weak.upgrade() {
-            w.set_evaluations_path(slint::SharedString::default());
+            crate::SettingsBridge::get(&w).set_evaluations_path(slint::SharedString::default());
         }
     });
 
     // ── #561 reload plugin catalog (secondary window) ───────────────
     let win_weak = win.as_weak();
     let session = project_session.clone();
-    win.on_reload_plugin_catalog(move || {
+    crate::SettingsBridge::get(win).on_reload_plugin_catalog(move || {
         let status = run_reload_plugin_catalog(&session);
         if let Some(w) = win_weak.upgrade() {
-            w.set_plugin_catalog_status(status.into());
+            crate::SettingsBridge::get(&w).set_plugin_catalog_status(status.into());
         }
     });
 }
@@ -410,9 +410,9 @@ pub fn seed_initial(win: &AppWindow) {
         .evaluations_path
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_default();
-    win.set_presets_path(presets.into());
-    win.set_plugins_path(plugins.into());
-    win.set_evaluations_path(evaluations.into());
+    crate::SettingsBridge::get(win).set_presets_path(presets.into());
+    crate::SettingsBridge::get(win).set_plugins_path(plugins.into());
+    crate::SettingsBridge::get(win).set_evaluations_path(evaluations.into());
 }
 
 /// Mirror of [`seed_initial`] for the secondary `ProjectSettingsWindow`.
@@ -433,7 +433,7 @@ pub fn seed_initial_secondary(win: &ProjectSettingsWindow) {
         .evaluations_path
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_default();
-    win.set_presets_path(presets.into());
-    win.set_plugins_path(plugins.into());
-    win.set_evaluations_path(evaluations.into());
+    crate::SettingsBridge::get(win).set_presets_path(presets.into());
+    crate::SettingsBridge::get(win).set_plugins_path(plugins.into());
+    crate::SettingsBridge::get(win).set_evaluations_path(evaluations.into());
 }
