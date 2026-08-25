@@ -970,3 +970,11 @@ msgstr ""
 
 msgid "label-channels-total"
 msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr ""

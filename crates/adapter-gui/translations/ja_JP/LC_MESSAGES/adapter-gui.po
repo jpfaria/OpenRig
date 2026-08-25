@@ -214,9 +214,7 @@ msgstr "ルーパーはまだありません"
 
 #: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
-msgstr ""
-"ルーパーを追加すると、このチェーンの入力を録音し、チェーン全体を通して再生で"
-"きます。"
+msgstr "ルーパーを追加すると、このチェーンの入力を録音し、チェーン全体を通して再生できます。"
 
 #: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
@@ -750,9 +748,7 @@ msgstr "チャンネル"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディング"
-"を使用します。"
+msgstr "同じインターフェースの入力と出力をまとめます。各チェーンは1つのバインディングを使用します。"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -764,8 +760,7 @@ msgstr "バインディングがまだありません"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
 msgid "empty-no-bindings-hint"
-msgstr ""
-"インターフェースの入力と出力をまとめるバインディングを作成してください。"
+msgstr "インターフェースの入力と出力をまとめるバインディングを作成してください。"
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
@@ -977,3 +972,11 @@ msgstr "デバイスを選ぶとチャンネルが表示されます"
 
 msgid "label-channels-total"
 msgstr "{} チャンネル"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "センドはこの I/O の出力から出て、リターンはその入力から戻ります。"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "ループが通る I/O を選択"

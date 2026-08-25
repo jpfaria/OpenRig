@@ -748,8 +748,7 @@ msgstr "चैनल"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
+msgstr "एक ही इंटरफ़ेस के इनपुट और आउटपुट को समूहित करें। हर चेन एक बाइंडिंग का उपयोग करती है।"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -973,3 +972,11 @@ msgstr "चैनल देखने के लिए डिवाइस चु�
 
 msgid "label-channels-total"
 msgstr "{} चैनल"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "सेंड इस I/O के आउटपुट से जाता है; रिटर्न उसके इनपुट पर वापस आता है।"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "वह I/O चुनें जिससे यह लूप गुज़रता है"

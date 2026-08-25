@@ -223,9 +223,7 @@ msgstr "Nenhum looper ainda"
 
 #: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
-msgstr ""
-"Adicione um looper para gravar uma frase da entrada desta chain e tocá-la de "
-"volta por toda a cadeia."
+msgstr "Adicione um looper para gravar uma frase da entrada desta chain e tocá-la de volta por toda a cadeia."
 
 #: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
@@ -759,8 +757,7 @@ msgstr "Canais"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."
+msgstr "Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -984,3 +981,11 @@ msgstr "Escolha um dispositivo para listar os canais"
 
 msgid "label-channels-total"
 msgstr "{} canais"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "O send sai pela saída dessa E/S; o return volta pela entrada dela."
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "Escolha a E/S por onde o loop passa"

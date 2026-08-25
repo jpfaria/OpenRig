@@ -263,15 +263,12 @@ pub(crate) fn wire_port_window(
                 log::error!("port toggle error: {e}");
                 return;
             }
-            // #85/#127: a PORT is not a processor — `runtime_block_builders`
+            // #85/#127/#881: a PORT is not a processor — `runtime_block_builders`
             // skips Input/Output as routing metadata and `runtime_segments`
-            // splits the chain on the enabled ones. So the #522 in-place toggle
-            // the handler applies finds no node and changes nothing audible;
-            // only a rebuild re-splits the chain into its pipelines. Asked for
-            // on the bus, scoped to this chain by identity.
-            if let Err(e) = request_chain_sync(session, &chain_id) {
-                log::error!("port toggle runtime sync error: {e}");
-            }
+            // splits the chain on the enabled ones. The rebuild that re-splits
+            // the chain is asked for by the DISPATCHER (a routing toggle takes
+            // `sync_chain`, not the in-place fade), so every transport gets it
+            // and this callback must not ask for a second one.
             replace_project_chains(
                 &ctx_toggle.project_chains,
                 &session.project.borrow(),

@@ -1,7 +1,7 @@
 use crate::state::{ChainDraft, ChainEditorMode};
 use crate::AppWindow;
 use domain::AudioDeviceDescriptor;
-use project::chain::{Chain, ChainInputMode};
+use project::chain::Chain;
 use project::project::Project;
 
 const INSTRUMENT_KEYS: &[&str] = &[
@@ -85,21 +85,6 @@ pub(crate) fn instrument_index_to_string(index: i32) -> &'static str {
         .get(index as usize)
         .copied()
         .unwrap_or(block_core::DEFAULT_INSTRUMENT)
-}
-
-pub(crate) fn insert_mode_to_index(mode: ChainInputMode) -> i32 {
-    match mode {
-        ChainInputMode::Mono => 0,
-        ChainInputMode::Stereo => 1,
-        ChainInputMode::DualMono => 0,
-    }
-}
-
-pub(crate) fn insert_mode_from_index(index: i32) -> ChainInputMode {
-    match index {
-        1 => ChainInputMode::Stereo,
-        _ => ChainInputMode::Mono,
-    }
 }
 
 pub(crate) fn instrument_string_to_index(instrument: &str) -> i32 {

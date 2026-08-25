@@ -972,3 +972,11 @@ msgstr "选择设备以列出其通道"
 
 msgid "label-channels-total"
 msgstr "{} 个通道"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "发送从该 I/O 的输出送出，返回从其输入回来。"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "选择该环路经过的 I/O"

@@ -217,9 +217,7 @@ msgstr "No loopers yet"
 
 #: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
-msgstr ""
-"Add a looper to record a phrase from this chain's input and play it back "
-"through the whole chain."
+msgstr "Add a looper to record a phrase from this chain's input and play it back through the whole chain."
 
 #: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
@@ -753,8 +751,7 @@ msgstr "Channels"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"Group the input and output of the same interface. Each chain uses a binding."
+msgstr "Group the input and output of the same interface. Each chain uses a binding."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -978,3 +975,11 @@ msgstr "Pick a device to list its channels"
 
 msgid "label-channels-total"
 msgstr "{} channels"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "The send goes out this I/O's output; the return comes back on its input."
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "Pick the I/O this loop runs through"

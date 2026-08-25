@@ -214,9 +214,7 @@ msgstr "Aún no hay loopers"
 
 #: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
-msgstr ""
-"Añade un looper para grabar una frase de la entrada de esta cadena y "
-"reproducirla por toda la cadena."
+msgstr "Añade un looper para grabar una frase de la entrada de esta cadena y reproducirla por toda la cadena."
 
 #: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
@@ -750,8 +748,7 @@ msgstr "Canales"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"Agrupa la entrada y la salida de la misma interfaz. Cada chain usa un enlace."
+msgstr "Agrupa la entrada y la salida de la misma interfaz. Cada chain usa un enlace."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -825,8 +822,7 @@ msgstr "Control MIDI"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:45
 msgid "desc-midi-enabled"
-msgstr ""
-"Activa el adaptador MIDI/BLE-MIDI para que los pedales controlen OpenRig"
+msgstr "Activa el adaptador MIDI/BLE-MIDI para que los pedales controlen OpenRig"
 
 #: crates/adapter-gui/ui/pages/settings/section_system_integrations.slint:93
 msgid "label-mcp-enabled"
@@ -976,3 +972,11 @@ msgstr "Elige un dispositivo para ver sus canales"
 
 msgid "label-channels-total"
 msgstr "{} canales"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "El send sale por la salida de esa E/S; el return vuelve por su entrada."
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "Elige la E/S por la que pasa el bucle"

@@ -214,9 +214,7 @@ msgstr "Noch keine Looper"
 
 #: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
-msgstr ""
-"Füge einen Looper hinzu, um eine Phrase vom Eingang dieser Kette aufzunehmen "
-"und über die ganze Kette abzuspielen."
+msgstr "Füge einen Looper hinzu, um eine Phrase vom Eingang dieser Kette aufzunehmen und über die ganze Kette abzuspielen."
 
 #: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
@@ -750,9 +748,7 @@ msgstr "Kanäle"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"Gruppiere Eingang und Ausgang derselben Schnittstelle. Jede Chain nutzt eine "
-"Verknüpfung."
+msgstr "Gruppiere Eingang und Ausgang derselben Schnittstelle. Jede Chain nutzt eine Verknüpfung."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -764,8 +760,7 @@ msgstr "Noch keine Verknüpfungen"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
 msgid "empty-no-bindings-hint"
-msgstr ""
-"Erstelle eine, um Eingang und Ausgang einer Schnittstelle zu gruppieren."
+msgstr "Erstelle eine, um Eingang und Ausgang einer Schnittstelle zu gruppieren."
 
 #. ── Entradas ──
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
@@ -915,8 +910,7 @@ msgstr "NO ACTIVE OUTPUTS"
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:251
 msgid "status-spectrum-empty-help"
-msgstr ""
-"Schalte das Spektrum ein und aktiviere eine Chain mit konfiguriertem Ausgang."
+msgstr "Schalte das Spektrum ein und aktiviere eine Chain mit konfiguriertem Ausgang."
 
 #: crates/adapter-gui/ui/pages/spectrum_window.slint:279
 msgid "title-window-spectrum"
@@ -936,9 +930,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr ""
-"Aktiviere eine Chain mit konfiguriertem Eingang, um hier die Stimmgeräte zu "
-"sehen."
+msgstr "Aktiviere eine Chain mit konfiguriertem Eingang, um hier die Stimmgeräte zu sehen."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:406
 msgid "title-window-tuner"
@@ -980,3 +972,11 @@ msgstr "Gerät wählen, um dessen Kanäle zu sehen"
 
 msgid "label-channels-total"
 msgstr "{} Kanäle"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "Der Send geht über den Ausgang dieser E/A hinaus; der Return kommt über deren Eingang zurück."
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "E/A wählen, über die die Schleife läuft"

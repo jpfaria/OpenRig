@@ -1,27 +1,26 @@
-//! Wiring for the chain Insert block editor window callbacks.
+//! Wiring for the chain Insert block editor window (`ChainInsertWindow`).
 //!
-//! Owns the 12 callbacks registered on `ChainInsertWindow` (send/return device
-//! and channel pickers, mode selectors, enable toggle, delete, save, cancel).
-//! Lives outside `lib.rs` so Insert-specific edits don't collide with other
-//! features in parallel branches.
+//! An insert is an external send/return loop, and since #716 (model A) all it
+//! carries is the E/S binding that loop runs through: the SEND goes out that
+//! binding's output, the RETURN comes back on its input. So this window offers
+//! that single pick — device / mode / channels belong to the E/S itself and are
+//! edited in the I/O bindings screen.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, VecModel};
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use application::command::{BlockCommand, Command};
 use domain::AudioDeviceDescriptor;
+use infra_filesystem::IoBinding;
 
-use crate::audio_devices::{
-    build_insert_return_channel_items, build_insert_send_channel_items, replace_channel_options,
-};
-use crate::chain_editor::insert_mode_from_index;
+use crate::port_wiring::{binding_options, session_registry};
 use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{InsertDraft, ProjectSession};
-use crate::{AppWindow, ChainInsertWindow, ChannelOptionItem, ProjectChainItem};
+use crate::{AppWindow, ChainInsertWindow, ProjectChainItem};
 
 /// State borrowed by the Insert window callbacks. Each `Rc` is cloned per
 /// callback closure that needs it.
@@ -29,13 +28,35 @@ pub(crate) struct InsertWiringCtx {
     pub insert_draft: Rc<RefCell<Option<InsertDraft>>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
-    pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub auto_save: bool,
+}
+
+/// Fill the window's E/S select for `draft` and show it.
+pub(crate) fn open_insert_window(
+    insert_window: &ChainInsertWindow,
+    insert_draft: &Rc<RefCell<Option<InsertDraft>>>,
+    draft: InsertDraft,
+    registry: &[IoBinding],
+    enabled: bool,
+) {
+    let selected = registry.iter().position(|b| b.id == draft.io);
+    insert_window.set_binding_options(fresh_options(binding_options(registry)));
+    insert_window.set_selected_binding_index(selected.map_or(-1, |i| i as i32));
+    insert_window.set_block_enabled(enabled);
+    insert_window.set_show_binding_warning(false);
+    *insert_draft.borrow_mut() = Some(draft);
+    let _ = insert_window.show();
+}
+
+/// Hand the select a BRAND-NEW model instead of rewriting the rows of the one
+/// it already holds — a `ComboBox` only recomputes its text when `model` or
+/// `current-index` changes (same reason as the port editor, #85).
+fn fresh_options(items: Vec<SharedString>) -> ModelRc<SharedString> {
+    ModelRc::from(Rc::new(VecModel::from(items)))
 }
 
 pub(crate) fn wire(
@@ -47,8 +68,6 @@ pub(crate) fn wire(
         insert_draft,
         input_chain_devices,
         output_chain_devices,
-        insert_send_channels,
-        insert_return_channels,
         project_session,
         project_chains,
         saved_project_snapshot,
@@ -56,118 +75,29 @@ pub(crate) fn wire(
         auto_save,
     } = ctx;
 
+    // --- pick the E/S the loop runs through ---
     {
         let insert_draft = insert_draft.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let insert_send_channels = insert_send_channels.clone();
-        chain_insert_window.on_select_send_device(move |index| {
-            let devs_out = output_chain_devices.borrow();
-            let Some(device) = devs_out.get(index as usize) else {
+        let project_session = project_session.clone();
+        let weak_insert_window = chain_insert_window.as_weak();
+        chain_insert_window.on_select_binding(move |index: i32| {
+            let Some(iw) = weak_insert_window.upgrade() else {
+                return;
+            };
+            let registry = session_registry(&project_session.borrow());
+            let Some(binding) = registry.get(index.max(0) as usize) else {
                 return;
             };
             let mut draft_borrow = insert_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            draft.send_device_id = Some(device.id.clone());
-            draft.send_channels.clear();
-            let items = build_insert_send_channel_items(draft, &devs_out);
-            replace_channel_options(&insert_send_channels, items);
+            draft.io = binding.id.clone();
+            iw.set_show_binding_warning(false);
         });
     }
-    {
-        let insert_draft = insert_draft.clone();
-        let insert_send_channels = insert_send_channels.clone();
-        chain_insert_window.on_toggle_send_channel(move |index, selected| {
-            let mut draft_borrow = insert_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let ch = index as usize;
-            if selected {
-                if !draft.send_channels.contains(&ch) {
-                    draft.send_channels.push(ch);
-                }
-            } else {
-                draft.send_channels.retain(|&c| c != ch);
-            }
-            if let Some(mut row) = insert_send_channels.row_data(index as usize) {
-                row.selected = selected;
-                insert_send_channels.set_row_data(index as usize, row);
-            }
-        });
-    }
-    {
-        let insert_draft = insert_draft.clone();
-        chain_insert_window.on_select_send_mode(move |index| {
-            let mut draft_borrow = insert_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            draft.send_mode = insert_mode_from_index(index);
-            log::debug!(
-                "[select_send_mode] index={}, mode={:?}",
-                index,
-                draft.send_mode
-            );
-        });
-    }
-    {
-        let insert_draft = insert_draft.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let insert_return_channels = insert_return_channels.clone();
-        chain_insert_window.on_select_return_device(move |index| {
-            let devs_in = input_chain_devices.borrow();
-            let Some(device) = devs_in.get(index as usize) else {
-                return;
-            };
-            let mut draft_borrow = insert_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            draft.return_device_id = Some(device.id.clone());
-            draft.return_channels.clear();
-            let items = build_insert_return_channel_items(draft, &devs_in);
-            replace_channel_options(&insert_return_channels, items);
-        });
-    }
-    {
-        let insert_draft = insert_draft.clone();
-        let insert_return_channels = insert_return_channels.clone();
-        chain_insert_window.on_toggle_return_channel(move |index, selected| {
-            let mut draft_borrow = insert_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let ch = index as usize;
-            if selected {
-                if !draft.return_channels.contains(&ch) {
-                    draft.return_channels.push(ch);
-                }
-            } else {
-                draft.return_channels.retain(|&c| c != ch);
-            }
-            if let Some(mut row) = insert_return_channels.row_data(index as usize) {
-                row.selected = selected;
-                insert_return_channels.set_row_data(index as usize, row);
-            }
-        });
-    }
-    {
-        let insert_draft = insert_draft.clone();
-        chain_insert_window.on_select_return_mode(move |index| {
-            let mut draft_borrow = insert_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            draft.return_mode = insert_mode_from_index(index);
-            log::debug!(
-                "[select_return_mode] index={}, mode={:?}",
-                index,
-                draft.return_mode
-            );
-        });
-    }
+
+    // --- enable / disable the insert ---
     {
         let insert_draft = insert_draft.clone();
         let project_session = project_session.clone();
@@ -207,17 +137,16 @@ pub(crate) fn wire(
                 };
                 (chain.id.clone(), block.id.clone())
             };
-            match session
-                .dispatcher
-                .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
-                    chain: chain_id.clone(),
-                    block: block_id.clone(),
-                })) {
-                Ok(_) => {}
-                Err(e) => {
-                    log::error!("toggle insert block enabled: {e}");
-                    return;
-                }
+            if let Err(e) =
+                session
+                    .dispatcher
+                    .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
+                        chain: chain_id.clone(),
+                        block: block_id,
+                    }))
+            {
+                log::error!("toggle insert block enabled: {e}");
+                return;
             }
             let block_enabled = session
                 .project
@@ -248,6 +177,8 @@ pub(crate) fn wire(
             );
         });
     }
+
+    // --- delete the insert ---
     {
         let insert_draft = insert_draft.clone();
         let project_session = project_session.clone();
@@ -318,6 +249,8 @@ pub(crate) fn wire(
             let _ = iw.hide();
         });
     }
+
+    // --- OK: bind the insert to the picked E/S ---
     {
         let insert_draft = insert_draft.clone();
         let project_session = project_session.clone();
@@ -339,16 +272,17 @@ pub(crate) fn wire(
             let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            // TODO(#716): the insert editor Slint UI still exposes send/return
-            // device + channel pickers, but model A persists a single I/O binding
-            // id (`io`) — the send resolves to the binding's output and the
-            // return to its input via the per-machine registry. The picker
-            // widgets are placeholder no-ops; this saves the draft's `io`. The
-            // Slint window should be reworked to pick a binding directly.
             let chain_idx = draft.chain_index;
             let block_idx = draft.block_index;
             let io = draft.io.clone();
             drop(draft_borrow);
+            // An insert with no E/S has nowhere to send and nothing to return:
+            // saving it that way is what left the chain silent (#881). Say so
+            // and keep the window open instead of writing an unbound loop.
+            if io.is_empty() {
+                iw.set_show_binding_warning(true);
+                return;
+            }
             *insert_draft.borrow_mut() = None;
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
@@ -398,17 +332,17 @@ pub(crate) fn wire(
                 &project_dirty,
                 auto_save,
             );
-            iw.set_status_message("".into());
             let _ = iw.hide();
         });
     }
+
+    // --- cancel ---
     {
         let insert_draft = insert_draft.clone();
         let weak_insert_window = chain_insert_window.as_weak();
         chain_insert_window.on_cancel(move || {
             *insert_draft.borrow_mut() = None;
             if let Some(iw) = weak_insert_window.upgrade() {
-                iw.set_status_message("".into());
                 let _ = iw.hide();
             }
         });

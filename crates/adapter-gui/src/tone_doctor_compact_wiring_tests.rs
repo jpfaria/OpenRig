@@ -38,7 +38,7 @@ const SR: f32 = 48_000.0;
 fn init() {
     use std::sync::Once;
     static I: Once = Once::new();
-    I.call_once(|| engine::native_registry::register_all_natives());
+    I.call_once(engine::native_registry::register_all_natives);
 }
 
 fn params(model: &str, values: &[(&str, f32)]) -> ParameterSet {

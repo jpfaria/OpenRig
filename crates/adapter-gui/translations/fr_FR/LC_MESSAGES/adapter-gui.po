@@ -214,9 +214,7 @@ msgstr "Aucun looper"
 
 #: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
-msgstr ""
-"Ajoutez un looper pour enregistrer une phrase depuis l'entrée de cette "
-"chaîne et la rejouer dans toute la chaîne."
+msgstr "Ajoutez un looper pour enregistrer une phrase depuis l'entrée de cette chaîne et la rejouer dans toute la chaîne."
 
 #: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
@@ -750,9 +748,7 @@ msgstr "Canaux"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise "
-"une liaison."
+msgstr "Regroupez l'entrée et la sortie de la même interface. Chaque chain utilise une liaison."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -934,8 +930,7 @@ msgstr "NO ACTIVE INPUTS"
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:378
 msgid "status-tuner-empty-help"
-msgstr ""
-"Activez une chain avec une entrée configurée pour voir ses accordeurs ici."
+msgstr "Activez une chain avec une entrée configurée pour voir ses accordeurs ici."
 
 #: crates/adapter-gui/ui/pages/tuner_window.slint:406
 msgid "title-window-tuner"
@@ -977,3 +972,11 @@ msgstr "Choisissez un périphérique pour voir ses canaux"
 
 msgid "label-channels-total"
 msgstr "{} canaux"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "Le send sort par la sortie de cette E/S ; le return revient par son entrée."
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "Choisissez l'E/S par laquelle passe la boucle"

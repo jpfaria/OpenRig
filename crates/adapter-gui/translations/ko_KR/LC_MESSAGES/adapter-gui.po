@@ -214,8 +214,7 @@ msgstr "루퍼가 없습니다"
 
 #: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
-msgstr ""
-"루퍼를 추가하면 이 체인 입력을 녹음하고 체인 전체를 통해 재생할 수 있습니다."
+msgstr "루퍼를 추가하면 이 체인 입력을 녹음하고 체인 전체를 통해 재생할 수 있습니다."
 
 #: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
@@ -749,9 +748,7 @@ msgstr "채널"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"같은 인터페이스의 입력과 출력을 묶습니다. 각 체인은 하나의 바인딩을 사용합니"
-"다."
+msgstr "같은 인터페이스의 입력과 출력을 묶습니다. 각 체인은 하나의 바인딩을 사용합니다."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -975,3 +972,11 @@ msgstr "장치를 선택하면 채널이 표시됩니다"
 
 msgid "label-channels-total"
 msgstr "채널 {}개"
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "센드는 이 I/O의 출력으로 나가고, 리턴은 그 입력으로 돌아옵니다."
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "루프가 지나갈 I/O를 선택하세요"
