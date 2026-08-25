@@ -585,4 +585,3 @@ fn normalized_against_keeps_unknown_parameters() {
     let result = ps.normalized_against(&schema).unwrap();
     assert_eq!(result.get_f32("unknown_param"), Some(99.0));
 }
-

@@ -1,3 +1,4 @@
+//! Responsibility: names the colour scheme a brand renders with.
 //! Brand-level visual catalog. Phase 4b of issue #194.
 //!
 //! ## Why this lives in `block-core`

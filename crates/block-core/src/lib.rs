@@ -1,3 +1,4 @@
+//! Responsibility: routes the block-core crate's public surface.
 //! Core building blocks shared by OpenRig block families.
 //!
 //! Phase 6 of issue #194: this crate's surface is split across topical
@@ -7,10 +8,17 @@
 
 pub mod audio_types;
 pub mod brand_visual;
+pub mod channel_layout;
 pub mod constants;
+pub mod dispatch;
 pub mod dsp;
 pub mod effect_type_caps;
+pub mod output_gain;
 pub mod param;
+pub mod plugin_editor;
+pub mod processor;
+pub mod stream_handle;
+pub mod text;
 pub mod traits;
 pub mod visual;
 

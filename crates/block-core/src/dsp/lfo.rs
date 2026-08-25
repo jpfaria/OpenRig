@@ -1,3 +1,4 @@
+//! Responsibility: oscillates at low frequency without aliasing.
 //! Low-frequency oscillator (LFO) with band-limited waveforms.
 //!
 //! Sine LFO is naturally band-limited. Triangular and saw waveforms
