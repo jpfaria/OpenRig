@@ -54,7 +54,6 @@ SLINT_CHANGED=false
 # Test files are NOT listed and are NOT measured: they are the only files in
 # the repo exempt from the size cap.
 DEBT_FILES="
-crates/adapter-gui/ui/pages/chain_row.slint 895
 crates/infra-cpal/src/jack_supervisor/live_backend.rs 627
 "
 
