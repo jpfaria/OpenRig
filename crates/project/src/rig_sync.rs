@@ -1,3 +1,4 @@
+//! Responsibility: captures the projected chains back into the rig.
 //! #436 architectural fix: capturing the projected synthetic chains
 //! back into the `RigProject` is pure model logic — it must live in the
 //! `project` crate so the dispatcher (and any non-GUI adapter) can run

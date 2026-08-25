@@ -1,3 +1,4 @@
+//! Responsibility: fronts the VST3 catalog lifecycle for the rest of the app.
 //! Facade for VST3 catalog initialisation (and #778 teardown marshalling).
 //!
 //! `adapter-gui` must not depend on `vst3-host` directly. The VST3 operations

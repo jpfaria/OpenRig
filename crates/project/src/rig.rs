@@ -1,3 +1,4 @@
+//! Responsibility: describes a rig with its per-input preset banks.
 //! `project.openrig` — project-level I/O + per-input preset banks (#436).
 //!
 //! References the per-machine I/O binding registry (model A, #716) instead

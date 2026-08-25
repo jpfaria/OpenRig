@@ -1,3 +1,4 @@
+//! Responsibility: turns a neural amp manifest into a parameter schema.
 //! NAM (`backend: nam`) manifest → parameter schema.
 //!
 //! A NAM block has two layers of controls with distinct, always-known

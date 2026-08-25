@@ -1,3 +1,4 @@
+//! Responsibility: disables the blocks this machine cannot resolve.
 //! Load-time helper that disables blocks whose model cannot be resolved
 //! on this machine right now.
 //!

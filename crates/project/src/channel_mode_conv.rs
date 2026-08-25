@@ -1,3 +1,4 @@
+//! Responsibility: converts a binding's channel mode into the chain's own.
 //! Compiler-enforced bridge between `domain::io_binding::ChannelMode` and the
 //! chain-layout enums (`ChainInputMode`, `ChainOutputMode`).
 //!

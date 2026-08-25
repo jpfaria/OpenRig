@@ -1,3 +1,4 @@
+//! Responsibility: turns a capture grid axis into a parameter spec.
 //! Capture-grid axis → `ParameterSpec`. Shared by the NAM and IR
 //! backends: both describe their captures as a grid of axes
 //! (`manifest.parameters`) and both turn one axis into one control.

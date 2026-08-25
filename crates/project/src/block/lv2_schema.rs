@@ -1,3 +1,4 @@
+//! Responsibility: turns an LV2 bundle's ports into a parameter schema.
 //! LV2 (`backend: lv2`) bundle TTL → parameter schema.
 
 pub(crate) fn lv2_parameters(

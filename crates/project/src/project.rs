@@ -1,3 +1,4 @@
+//! Responsibility: describes the legacy chain-based project.
 use domain::ids::{BlockId, ParameterId};
 use serde::{Deserialize, Serialize};
 

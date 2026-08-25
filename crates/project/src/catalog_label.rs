@@ -1,3 +1,4 @@
+//! Responsibility: derives the label a disk-backed package is listed under.
 //! Catalog `type_label` derivation for disk-backed plugin packages.
 //!
 //! Lifted out of `catalog.rs` so that file stays under its size cap (#276).

@@ -1,3 +1,4 @@
+//! Responsibility: names the rig navigation actions an input accepts.
 //! `RigCommand` — the per-input rig nav actions (preset/scene
 //! switch/add/remove) as an explicit, pure command. The GUI maps a
 //! Slint click to a `RigCommand` and applies it; tests dispatch the
