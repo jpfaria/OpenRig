@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, SharedString, Timer, VecModel, Global};
 
 use application::command::{BlockCommand, Command};
 use domain::AudioDeviceDescriptor;
@@ -142,10 +142,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
             multi_slider_points.set_vec(Vec::new());
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
-            window.set_eq_total_curve("".into());
+            crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
             set_selected_block(&window, None, None);
-            window.set_show_block_drawer(false);
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
             clear_status(&window, &toast_timer);
         });
     }

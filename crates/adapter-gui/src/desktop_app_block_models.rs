@@ -16,7 +16,7 @@
 //!
 use std::rc::Rc;
 
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{ModelRc, SharedString, VecModel, Global};
 
 use crate::project_view::block_type_picker_items;
 use crate::{
@@ -47,14 +47,14 @@ pub(crate) fn init(window: &AppWindow) -> BlockEditorModels {
     let curve_editor_points = Rc::new(VecModel::from(Vec::<CurveEditorPoint>::new()));
     let eq_band_curves = Rc::new(VecModel::from(Vec::<SharedString>::new()));
 
-    window.set_block_type_options(ModelRc::from(block_type_options.clone()));
-    window.set_block_model_options(ModelRc::from(block_model_options.clone()));
-    window.set_filtered_block_model_options(ModelRc::from(filtered_block_model_options.clone()));
-    window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
-    window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
-    window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
-    window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
-    window.set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
+    crate::BlockEditorBridge::get(window).set_block_type_options(ModelRc::from(block_type_options.clone()));
+    crate::BlockEditorBridge::get(window).set_block_model_options(ModelRc::from(block_model_options.clone()));
+    crate::BlockEditorBridge::get(window).set_filtered_block_model_options(ModelRc::from(filtered_block_model_options.clone()));
+    crate::BlockEditorBridge::get(window).set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
+    crate::BlockEditorBridge::get(window).set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
+    crate::BlockEditorBridge::get(window).set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
+    crate::BlockEditorBridge::get(window).set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
+    crate::BlockEditorBridge::get(window).set_eq_band_curves(ModelRc::from(eq_band_curves.clone()));
 
     BlockEditorModels {
         block_type_options,

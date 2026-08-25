@@ -1,4 +1,5 @@
 import "fonts/CooperHewitt-Semibold.ttf";
+import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Locale } from "locale_globals.slint";
 import { SettingsBridge } from "settings_globals.slint";
 import { PresetPicker } from "preset_picker_globals.slint";
@@ -33,7 +34,7 @@ import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortW
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
 export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
-export { SettingsBridge }
+export { SettingsBridge, BlockEditorBridge }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
@@ -86,29 +87,6 @@ export component AppWindow inherits Window {
     // #591: true while a MIDI command is recent (last 10s) — gates the
     // chain/block selection markers so they only show on footswitch activity.
     in property <bool> midi-selection-active: false;
-    in property <[BlockTypePickerItem]> block-type-options;
-    in property <[BlockModelPickerItem]> block-model-options;
-    in property <[BlockModelPickerItem]> filtered-block-model-options;
-    in property <[string]> block-model-option-labels;
-    in property <string> block-picker-title;
-    in property <bool> show-block-type-picker;
-    in property <bool> show-block-model-picker;
-    in property <bool> show-block-drawer;
-    in property <string> block-drawer-title;
-    in property <string> block-drawer-confirm-label;
-    in property <string> block-drawer-status-message;
-    in property <bool> block-drawer-edit-mode;
-    in property <int> block-drawer-selected-type-index;
-    in-out property <int> block-drawer-selected-model-index;
-    in-out property <string> block-model-search-text;
-    in property <bool> block-drawer-enabled;
-    in property <[BlockParameterItem]> block-parameter-items;
-    in property <[MultiSliderPoint]> multi-slider-points;
-    in property <[CurveEditorPoint]> curve-editor-points;
-    in property <string> eq-total-curve;
-    in property <[string]> eq-band-curves;
-    in property <BlockStreamData> block-stream-data;
-    in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -231,22 +209,7 @@ export component AppWindow inherits Window {
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
-    callback choose-block-type(int);
-    callback choose-block-model(int);
-    callback choose-block-model-by-id(string);
-    callback search-block-model(string);
-    callback cancel-block-picker();
-    callback close-block-drawer();
-    callback save-block-drawer();
-    callback delete-block-drawer();
     callback show-plugin-info(string, string);  // effect_type, model_id
-    callback toggle-block-drawer-enabled();
-    callback update-block-parameter-text(string, string);
-    callback update-block-parameter-number(string, float);
-    callback update-block-parameter-number-text(string, string);
-    callback update-block-parameter-bool(string, bool);
-    callback select-block-parameter-option(string, int);
-    callback pick-block-parameter-file(string);
     callback save-chain();
     callback cancel-chain();
     // Fullscreen inline project settings callbacks
@@ -347,29 +310,6 @@ export component AppWindow inherits Window {
         selected-chain-block-index: root.selected-chain-block-index;
         selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
         midi-selection-active: root.midi-selection-active;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-picker-title: root.block-picker-title;
-        show-block-type-picker: root.show-block-type-picker;
-        show-block-model-picker: root.show-block-model-picker;
-        show-block-drawer: root.show-block-drawer;
-        block-drawer-title: root.block-drawer-title;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-drawer-status-message: root.block-drawer-status-message;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-parameter-items: root.block-parameter-items;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        eq-total-curve: root.eq-total-curve;
-        eq-band-curves: root.eq-band-curves;
-        block-stream-data: root.block-stream-data;
-        block-knob-overlays: root.block-knob-overlays;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -445,22 +385,7 @@ export component AppWindow inherits Window {
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
-        choose-block-type(index) => { root.choose-block-type(index); }
-        choose-block-model(index) => { root.choose-block-model(index); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        cancel-block-picker => { root.cancel-block-picker(); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
         show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
-        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
-        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
-        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
@@ -510,27 +435,6 @@ export component AppWindow inherits Window {
         selected-chain-block-index: root.selected-chain-block-index;
         selected-chain-block-neighbor-index: root.selected-chain-block-neighbor-index;
         midi-selection-active: root.midi-selection-active;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-picker-title: root.block-picker-title;
-        show-block-type-picker: root.show-block-type-picker;
-        show-block-model-picker: root.show-block-model-picker;
-        show-block-drawer: root.show-block-drawer;
-        block-drawer-title: root.block-drawer-title;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-drawer-status-message: root.block-drawer-status-message;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-parameter-items: root.block-parameter-items;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        eq-total-curve: root.eq-total-curve;
-        eq-band-curves: root.eq-band-curves;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -602,22 +506,7 @@ export component AppWindow inherits Window {
         clear-chain-block => { root.clear-chain-block(); }
         toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
         start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
-        choose-block-type(index) => { root.choose-block-type(index); }
-        choose-block-model(index) => { root.choose-block-model(index); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        cancel-block-picker => { root.cancel-block-picker(); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
         show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
-        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
-        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
-        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }

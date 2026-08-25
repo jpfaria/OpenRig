@@ -22,7 +22,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use rfd::FileDialog;
-use slint::{ComponentHandle, Model, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, Model, SharedString, Timer, VecModel, Global};
 
 use domain::AudioDeviceDescriptor;
 
@@ -91,7 +91,7 @@ pub(crate) fn wire(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_update_block_parameter_number(move |path, value| {
+        crate::BlockEditorBridge::get(win).on_update_block_parameter_number(move |path, value| {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
@@ -123,7 +123,7 @@ pub(crate) fn wire(
                         .map(SharedString::from)
                         .collect::<Vec<_>>(),
                 );
-                win.set_eq_total_curve(eq_total.into());
+                crate::BlockEditorBridge::get(&win).set_eq_total_curve(eq_total.into());
                 // Update matching curve editor point in-place by path
                 let path_str = path.as_str();
                 for idx in 0..win_curve_editor_pts.row_count() {
@@ -192,7 +192,7 @@ pub(crate) fn wire(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_update_block_parameter_number_text(move |path, value_text| {
+        crate::BlockEditorBridge::get(win).on_update_block_parameter_number_text(move |path, value_text| {
             let Some(_win) = weak_win.upgrade() else {
                 return;
             };
@@ -239,7 +239,7 @@ pub(crate) fn wire(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_update_block_parameter_bool(move |path, value| {
+        crate::BlockEditorBridge::get(win).on_update_block_parameter_bool(move |path, value| {
             let Some(_win) = weak_win.upgrade() else {
                 return;
             };
@@ -282,7 +282,7 @@ pub(crate) fn wire(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_update_block_parameter_text(move |path, value| {
+        crate::BlockEditorBridge::get(win).on_update_block_parameter_text(move |path, value| {
             let Some(_win) = weak_win.upgrade() else {
                 return;
             };
@@ -325,7 +325,7 @@ pub(crate) fn wire(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_select_block_parameter_option(move |path, index| {
+        crate::BlockEditorBridge::get(win).on_select_block_parameter_option(move |path, index| {
             let Some(_win) = weak_win.upgrade() else {
                 return;
             };
@@ -368,7 +368,7 @@ pub(crate) fn wire(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_pick_block_parameter_file(move |path| {
+        crate::BlockEditorBridge::get(win).on_pick_block_parameter_file(move |path| {
             let Some(_win) = weak_win.upgrade() else {
                 return;
             };

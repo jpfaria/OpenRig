@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, VecModel};
+use slint::{ComponentHandle, Model, VecModel, Global};
 
 use crate::block_editor_window_setup::{create_and_wire, BlockEditorWindowSetupCtx};
 use crate::project_ops::create_new_project_session;
@@ -77,7 +77,7 @@ fn adding_a_block_opens_the_tabbed_editor_in_add_mode() {
     );
     // New block => add mode, not edit mode (no delete, confirm = add).
     assert!(
-        !win.get_block_drawer_edit_mode(),
+        !crate::BlockEditorBridge::get(&win).get_block_drawer_edit_mode(),
         "adding a block must NOT be in edit mode"
     );
 }

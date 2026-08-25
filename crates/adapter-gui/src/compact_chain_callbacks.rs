@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
+use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak, Global};
 
 use application::audio_taps::AudioTaps;
 use application::live_source::LiveSource;
@@ -147,7 +147,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             compact_win.set_chain_title(title.into());
             compact_win.set_chain_index(chain_index);
             compact_win.set_chain_enabled(chain.enabled);
-            compact_win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
+            crate::BlockEditorBridge::get(&compact_win).set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
                 block_type_picker_items(&chain.instrument),
             ))));
         }
@@ -315,7 +315,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 // Trigger the full insert flow on the main window (sets up draft + opens editor)
                 main_win.invoke_start_block_insert(ci, before);
                 // Select the type that was chosen
-                main_win.invoke_choose_block_type(type_index);
+                crate::BlockEditorBridge::get(&main_win).invoke_choose_block_type(type_index);
             });
         }
 

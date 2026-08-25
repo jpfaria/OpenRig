@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Global};
 
 use domain::AudioDeviceDescriptor;
 use project::param::ParameterSet;
@@ -138,14 +138,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
             multi_slider_points.set_vec(Vec::new());
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
-            window.set_eq_total_curve("".into());
+            crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
             set_selected_block(&window, None, None);
-            window.set_block_drawer_edit_mode(false);
-            window.set_block_drawer_selected_type_index(-1);
-            window.set_block_drawer_selected_model_index(-1);
-            window.set_block_drawer_status_message("".into());
-            window.set_show_block_drawer(false);
-            window.set_show_block_type_picker(true);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(false);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(-1);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(-1);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(true);
         });
     }
 
@@ -164,7 +164,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_choose_block_model(move |index| {
+        crate::BlockEditorBridge::get(window).on_choose_block_model(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -225,14 +225,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                     .map(SharedString::from)
                     .collect::<Vec<_>>(),
             );
-            window.set_eq_total_curve(eq_total.into());
-            window.set_block_drawer_selected_model_index(index);
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_eq_total_curve(eq_total.into());
+            crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(index);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
             // Only the inline (fullscreen/touch) editor reads the main window's
             // overlays; the detached editor builds its own via create_and_wire
             // (#815/#819). The main-window model picker is inline-only now.
             if use_inline_block_editor(&window) {
-                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                crate::BlockEditorBridge::get(&window).set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 // #819: knob count changed -> re-publish the #500 panel height.
                 crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             }

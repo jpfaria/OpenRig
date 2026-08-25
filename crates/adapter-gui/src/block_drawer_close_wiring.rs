@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, SharedString, Timer, VecModel, Global};
 
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, SelectedBlock};
@@ -44,7 +44,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerCloseCtx) {
         inline_stream_timer,
     } = ctx;
     let weak_window = window.as_weak();
-    window.on_close_block_drawer(move || {
+    crate::BlockEditorBridge::get(window).on_close_block_drawer(move || {
         let Some(window) = weak_window.upgrade() else {
             return;
         };
@@ -59,12 +59,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerCloseCtx) {
         multi_slider_points.set_vec(Vec::new());
         curve_editor_points.set_vec(Vec::new());
         eq_band_curves.set_vec(Vec::new());
-        window.set_eq_total_curve("".into());
-        window.set_block_drawer_selected_model_index(-1);
-        window.set_block_drawer_selected_type_index(-1);
+        crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
+        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(-1);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(-1);
         set_selected_block(&window, None, None);
-        window.set_show_block_type_picker(false);
-        window.set_show_block_drawer(false);
-        window.set_block_drawer_status_message("".into());
+        crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
+        crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
     });
 }

@@ -23,7 +23,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Global};
 
 use application::live_source::LiveSource;
 use domain::AudioDeviceDescriptor;
@@ -146,19 +146,19 @@ pub(crate) fn create_and_wire(
     // Populate window — ALL data set independently (no sync from AppWindow)
     let type_index = block_type_index(&effect_type, &instrument);
     let model_index = block_model_index_from_items(&win_model_options, &model_id);
-    win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
+    crate::BlockEditorBridge::get(&win).set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
         block_type_picker_items(&instrument),
     ))));
-    win.set_block_model_options(ModelRc::from(win_model_options.clone()));
-    win.set_filtered_block_model_options(ModelRc::from(win_filtered_model_options.clone()));
-    win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
+    crate::BlockEditorBridge::get(&win).set_block_model_options(ModelRc::from(win_model_options.clone()));
+    crate::BlockEditorBridge::get(&win).set_filtered_block_model_options(ModelRc::from(win_filtered_model_options.clone()));
+    crate::BlockEditorBridge::get(&win).set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
     crate::model_search_wiring::wire_standalone_block_editor_window(
         &win,
         win_model_options.clone(),
         win_filtered_model_options.clone(),
     );
-    win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
-    win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
+    crate::BlockEditorBridge::get(&win).set_block_parameter_items(ModelRc::from(win_param_items.clone()));
+    crate::BlockEditorBridge::get(&win).set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
     // #780 parameter tabs: build the tab bar + first tab from the full params.
     crate::block_editor_param_tabs::apply_param_tabs(
         &win,
@@ -204,17 +204,17 @@ pub(crate) fn create_and_wire(
             .map(SharedString::from)
             .collect::<Vec<_>>(),
     ));
-    win.set_multi_slider_points(ModelRc::from(win_multi_slider_pts.clone()));
-    win.set_curve_editor_points(ModelRc::from(win_curve_editor_pts.clone()));
-    win.set_eq_total_curve(win_eq_total.into());
-    win.set_eq_band_curves(ModelRc::from(win_eq_band_curves.clone()));
-    win.set_block_drawer_selected_type_index(type_index);
-    win.set_block_drawer_selected_model_index(model_index);
+    crate::BlockEditorBridge::get(&win).set_multi_slider_points(ModelRc::from(win_multi_slider_pts.clone()));
+    crate::BlockEditorBridge::get(&win).set_curve_editor_points(ModelRc::from(win_curve_editor_pts.clone()));
+    crate::BlockEditorBridge::get(&win).set_eq_total_curve(win_eq_total.into());
+    crate::BlockEditorBridge::get(&win).set_eq_band_curves(ModelRc::from(win_eq_band_curves.clone()));
+    crate::BlockEditorBridge::get(&win).set_block_drawer_selected_type_index(type_index);
+    crate::BlockEditorBridge::get(&win).set_block_drawer_selected_model_index(model_index);
     // Add-mode (no block yet, #815) shows the "add" confirm label and hides the
     // delete affordance; editing an existing block shows "save".
     let is_edit = block_index.is_some();
-    win.set_block_drawer_edit_mode(is_edit);
-    win.set_block_drawer_confirm_label(
+    crate::BlockEditorBridge::get(&win).set_block_drawer_edit_mode(is_edit);
+    crate::BlockEditorBridge::get(&win).set_block_drawer_confirm_label(
         if is_edit {
             rust_i18n::t!("btn-save")
         } else {
@@ -223,8 +223,8 @@ pub(crate) fn create_and_wire(
         .as_ref()
         .into(),
     );
-    win.set_block_drawer_enabled(enabled);
-    win.set_block_drawer_status_message("".into());
+    crate::BlockEditorBridge::get(&win).set_block_drawer_enabled(enabled);
+    crate::BlockEditorBridge::get(&win).set_block_drawer_status_message("".into());
     // Set window title
     let title_label = {
         use slint::Model;
@@ -292,7 +292,7 @@ pub(crate) fn create_and_wire(
                     if poll_count % 40 == 1 {
                         log::debug!("[block-editor-stream] poll #{}: {} entries, first={:?}", poll_count, slint_entries.len(), entries.first().map(|e| &e.key));
                     }
-                    win.set_block_stream_data(BlockStreamData {
+                    crate::BlockEditorBridge::get(&win).set_block_stream_data(BlockStreamData {
                         active: true,
                         stream_kind: kind,
                         entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
@@ -302,7 +302,7 @@ pub(crate) fn create_and_wire(
                     if poll_count.is_multiple_of(40) {
                         log::debug!("[block-editor-stream] poll #{}: no entries (silence or no runtime handle)", poll_count);
                     }
-                    win.set_block_stream_data(BlockStreamData {
+                    crate::BlockEditorBridge::get(&win).set_block_stream_data(BlockStreamData {
                         active: false,
                         stream_kind: kind.clone(),
                         entries: ModelRc::default(),

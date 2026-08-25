@@ -19,7 +19,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, SharedString, Timer, VecModel, Global};
 
 use application::command::{BlockCommand, Command};
 use application::event::Event;
@@ -83,7 +83,7 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_number_text(move |path, value_text| {
+        crate::BlockEditorBridge::get(window).on_update_block_parameter_number_text(move |path, value_text| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -95,7 +95,7 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             };
             // Update the UI row immediately for visual feedback.
             set_block_parameter_number(&block_parameter_items, path.as_str(), value as f32);
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
             // Only dispatch if editing an existing block (draft.block_index.is_some()).
             let (chain_index, block_index) = {
@@ -144,7 +144,7 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
                     Err(e) => {
                         log::error!("[adapter-gui] block-drawer.number-text dispatch: {e}");
-                        window.set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -160,7 +160,7 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             };
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.number-text runtime sync: {e}");
-                window.set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             replace_project_chains(
@@ -192,12 +192,12 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_number(move |path, value| {
+        crate::BlockEditorBridge::get(window).on_update_block_parameter_number(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             set_block_parameter_number(&block_parameter_items, path.as_str(), value);
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 let params = build_params_from_items(&block_parameter_items);
                 let (eq_total, eq_bands) = compute_eq_curves(
@@ -212,7 +212,7 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                         .map(SharedString::from)
                         .collect::<Vec<_>>(),
                 );
-                window.set_eq_total_curve(eq_total.into());
+                crate::BlockEditorBridge::get(&window).set_eq_total_curve(eq_total.into());
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
                         &block_editor_persist_timer,
@@ -255,13 +255,13 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_text(move |path, value| {
+        crate::BlockEditorBridge::get(window).on_update_block_parameter_text(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             // Update UI immediately for visual feedback.
             set_block_parameter_text(&block_parameter_items, path.as_str(), value.as_str());
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
             // Only dispatch if editing an existing block.
             let (chain_index, block_index) = {
@@ -310,7 +310,7 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
                     Err(e) => {
                         log::error!("[adapter-gui] block-drawer.text dispatch: {e}");
-                        window.set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -326,7 +326,7 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             };
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.text runtime sync: {e}");
-                window.set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             replace_project_chains(
@@ -356,13 +356,13 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_bool(move |path, value| {
+        crate::BlockEditorBridge::get(window).on_update_block_parameter_bool(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             // Update UI immediately for visual feedback.
             set_block_parameter_bool(&block_parameter_items, path.as_str(), value);
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
             // Only dispatch if editing an existing block.
             let (chain_index, block_index) = {
@@ -411,7 +411,7 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
                     Err(e) => {
                         log::error!("[adapter-gui] block-drawer.bool dispatch: {e}");
-                        window.set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -427,7 +427,7 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             };
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.bool runtime sync: {e}");
-                window.set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             replace_project_chains(

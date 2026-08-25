@@ -7,7 +7,7 @@
 //! every other grouped block keeps its tabs.
 
 use adapter_gui::{BlockEditorWindow, BlockTypePickerItem, CurveEditorPoint, MultiSliderPoint};
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel, Global};
 
 /// An editor window showing the visual panel editor — the surface that owns the
 /// tab bar. Without a selected block type the window falls back to the form
@@ -17,8 +17,8 @@ fn panel_editor_window() -> BlockEditorWindow {
     let mut kind = BlockTypePickerItem::default();
     kind.use_panel_editor = true;
     kind.label = SharedString::from("FILTER");
-    w.set_block_type_options(ModelRc::new(VecModel::from(vec![kind])));
-    w.set_block_drawer_selected_type_index(0);
+    adapter_gui::BlockEditorBridge::get(&w).set_block_type_options(ModelRc::new(VecModel::from(vec![kind])));
+    adapter_gui::BlockEditorBridge::get(&w).set_block_drawer_selected_type_index(0);
     w
 }
 
@@ -42,7 +42,7 @@ fn curve_editor_block_renders_no_parameter_tabs() {
     let w = panel_editor_window();
     w.set_block_parameter_groups(groups(&["Band 1", "Band 2", "Band 3", "Output"]));
     let bands = vec![CurveEditorPoint::default(); 4];
-    w.set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
+    adapter_gui::BlockEditorBridge::get(&w).set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
     w.show().unwrap();
 
     assert_eq!(
@@ -59,7 +59,7 @@ fn multi_slider_block_renders_no_parameter_tabs() {
     let w = panel_editor_window();
     w.set_block_parameter_groups(groups(&["Low", "Mid", "High"]));
     let bands = vec![MultiSliderPoint::default(); 3];
-    w.set_multi_slider_points(ModelRc::new(VecModel::from(bands)));
+    adapter_gui::BlockEditorBridge::get(&w).set_multi_slider_points(ModelRc::new(VecModel::from(bands)));
     w.show().unwrap();
 
     assert_eq!(
@@ -92,7 +92,7 @@ fn every_band_slider_fits_inside_the_editor_window() {
         "Band 1", "Band 2", "Band 3", "Band 4", "Band 5", "Band 6", "Band 7", "Band 8", "Output",
     ]));
     let bands = vec![CurveEditorPoint::default(); 8];
-    w.set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
+    adapter_gui::BlockEditorBridge::get(&w).set_curve_editor_points(ModelRc::new(VecModel::from(bands)));
     w.set_panel_knob_inner_height(dims.inner_panel_height_px);
     w.window()
         .set_size(slint::LogicalSize::new(dims.window_width_px, window_h));

@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak};
+use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak, Global};
 
 use domain::AudioDeviceDescriptor;
 
@@ -71,7 +71,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
         let project_session_save = project_session.clone();
         let project_session_compact = project_session.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
-        window.on_save_block_drawer(move || {
+        crate::BlockEditorBridge::get(window).on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -93,7 +93,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
                 auto_save,
             ) {
                 log::error!("[adapter-gui] block-drawer.save: {error}");
-                window.set_block_drawer_status_message(error.to_string().into());
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(error.to_string().into());
                 return;
             }
             *selected_block.borrow_mut() = None;
@@ -106,7 +106,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
             multi_slider_points.set_vec(Vec::new());
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
-            window.set_eq_total_curve("".into());
+            crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
             // Refresh compact chain view if open
             if let Some((ci, weak_cw)) = open_compact_window.borrow().as_ref() {
                 if let Some(cw) = weak_cw.upgrade() {
@@ -121,7 +121,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
     }
     {
         let weak_window = window.as_weak();
-        window.on_delete_block_drawer(move || {
+        crate::BlockEditorBridge::get(window).on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };

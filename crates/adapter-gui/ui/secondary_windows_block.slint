@@ -1,4 +1,5 @@
 import { ChannelOptionItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem, BlockModelPickerItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint, CompactBlockItem, ChainRigNav, StreamMeter, ChainBlockItem } from "models.slint";
+import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Locale } from "locale_globals.slint";
 import { BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
@@ -13,33 +14,9 @@ export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     default-font-family: Locale.font-family;
     default-font-size: 13px;
-    in property <[BlockTypePickerItem]> block-type-options;
-    in property <[BlockModelPickerItem]> block-model-options;
-    in property <[BlockModelPickerItem]> filtered-block-model-options;
-    in property <[string]> block-model-option-labels;
-    in property <string> block-drawer-title;
-    in property <string> block-drawer-confirm-label;
-    in property <string> block-drawer-status-message;
-    in property <bool> block-drawer-edit-mode;
-    in property <int> block-drawer-selected-type-index;
-    in-out property <int> block-drawer-selected-model-index;
-    in-out property <string> block-model-search-text;
-    in property <bool> block-drawer-enabled;
-    in property <[BlockParameterItem]> block-parameter-items;
     in property <[string]> block-parameter-groups;
     in property <int> active-parameter-group: 0;
-    in property <[MultiSliderPoint]> multi-slider-points;
-    in property <[CurveEditorPoint]> curve-editor-points;
-    in property <string> eq-total-curve;
-    in property <[string]> eq-band-curves;
-    in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <string> block-window-title: @tr("title-window-block-editor");
-    callback choose-block-model(int);
-    callback choose-block-model-by-id(string);
-    callback search-block-model(string);
-    callback close-block-drawer();
-    callback save-block-drawer();
-    callback delete-block-drawer();
     // Issue #360: in-window delete confirmation (no `rfd::MessageDialog`).
     // The Rust side flips `show-confirm-delete-block` from
     // `delete-block-drawer` and dispatches the actual removal only on
@@ -49,23 +26,15 @@ export component BlockEditorWindow inherits Window {
     callback confirm-delete-block();
     callback cancel-delete-block();
     callback show-plugin-info(string, string);
-    callback toggle-block-drawer-enabled();
-    callback update-block-parameter-text(string, string);
-    callback update-block-parameter-number(string, float);
-    callback update-block-parameter-number-text(string, string);
-    callback update-block-parameter-bool(string, bool);
-    callback select-block-parameter-option(string, int);
     callback select-parameter-group(int);
-    callback pick-block-parameter-file(string);
 
     // Realtime data stream from engine (tuner, meter, analyzer, etc.)
-    in property <BlockStreamData> block-stream-data;
 
     // Computed: should this block type use the visual panel editor?
     private property <bool> use-panel-editor:
-        root.block-drawer-selected-type-index >= 0
-        && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
+        BlockEditorBridge.block-drawer-selected-type-index >= 0
+        && BlockEditorBridge.block-drawer-selected-type-index < BlockEditorBridge.block-type-options.length
+        && BlockEditorBridge.block-type-options[BlockEditorBridge.block-drawer-selected-type-index].use_panel_editor;
 
     // Knob-grid dimensions come from Rust (`block_panel_dimensions::compute`).
     // The wrap policy is universal: NAM, native, IR, LV2 — every block
@@ -110,40 +79,12 @@ export component BlockEditorWindow inherits Window {
     if root.use-panel-editor : BlockPanelEditor {
         width: parent.width;
         height: parent.height;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-knob-overlays: root.block-knob-overlays;
-        block-parameter-items: root.block-parameter-items;
         block-parameter-groups: root.block-parameter-groups;
         active-parameter-group: root.active-parameter-group;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        eq-total-curve: root.eq-total-curve;
-        eq-band-curves: root.eq-band-curves;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-stream-data: root.block-stream-data;
         panel-knob-inner-height: root.panel-knob-inner-height;
         panel-grid-cols: root.panel-grid-cols;
         panel-grid-rows: root.panel-grid-rows;
-        choose-block-model(i) => { root.choose-block-model(i); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
         show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
         select-parameter-group(i) => { root.select-parameter-group(i); }
     }
 
@@ -151,36 +92,7 @@ export component BlockEditorWindow inherits Window {
     if !root.use-panel-editor : BlockEditorPanel {
         width: parent.width;
         height: parent.height;
-        block-type-options: root.block-type-options;
-        block-model-options: root.block-model-options;
-        filtered-block-model-options: root.filtered-block-model-options;
-        block-model-option-labels: root.block-model-option-labels;
-        block-model-search-text <=> root.block-model-search-text;
-        block-drawer-title: root.block-drawer-title;
-        block-drawer-confirm-label: root.block-drawer-confirm-label;
-        block-drawer-status-message: root.block-drawer-status-message;
-        block-drawer-edit-mode: root.block-drawer-edit-mode;
-        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
-        block-drawer-enabled: root.block-drawer-enabled;
-        block-parameter-items: root.block-parameter-items;
-        multi-slider-points: root.multi-slider-points;
-        curve-editor-points: root.curve-editor-points;
-        block-stream-data: root.block-stream-data;
-        choose-block-model(index) => { root.choose-block-model(index); }
-        choose-block-model-by-id(mid) => { root.choose-block-model-by-id(mid); }
-        search-block-model(text) => { root.search-block-model(text); }
-        close-block-drawer => { root.close-block-drawer(); }
-        save-block-drawer => { root.save-block-drawer(); }
-        delete-block-drawer => { root.delete-block-drawer(); }
         show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
-        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
-        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
-        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
-        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
-        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
-        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
-        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
     }
 
     in-out property <string> toast-message;
@@ -225,7 +137,6 @@ export component CompactChainViewWindow inherits Window {
     in property <float> latency-ms: 0.0;
     in property <bool> chain-enabled;
     in property <[CompactBlockItem]> compact-blocks;
-    in property <[BlockTypePickerItem]> block-type-options;
     // Preset/scene model + meters + volume — parity with the main row.
     in property <ChainRigNav> rig-nav;
     in property <float> meter-in-dbfs: -120.0;
@@ -313,7 +224,7 @@ export component CompactChainViewWindow inherits Window {
         latency-ms: root.latency-ms;
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
-        block-type-options: root.block-type-options;
+        block-type-options: BlockEditorBridge.block-type-options;
         rig-nav: root.rig-nav;
         meter-in-dbfs: root.meter-in-dbfs;
         meter-out-dbfs: root.meter-out-dbfs;

@@ -16,7 +16,7 @@ use crate::{AppWindow, SELECT_SELECTED_BLOCK_ID};
 use application::command::{BlockCommand, Command};
 use application::event::Event;
 use rfd::FileDialog;
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Global};
 
 use crate::block_parameter_wiring::BlockParameterCtx;
 
@@ -45,7 +45,7 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_select_block_parameter_option(move |path, index| {
+        crate::BlockEditorBridge::get(window).on_select_block_parameter_option(move |path, index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -89,13 +89,13 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
                                         block_parameter_items.set_vec(
                                             block_parameter_items_for_editor(&editor_data),
                                         );
-                                        window.set_block_drawer_selected_type_index(
+                                        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(
                                             block_type_index(
                                                 &editor_data.effect_type,
                                                 &draft.instrument,
                                             ),
                                         );
-                                        window.set_block_drawer_selected_model_index(
+                                        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(
                                             block_model_index(
                                                 &editor_data.effect_type,
                                                 &editor_data.model_id,
@@ -108,11 +108,11 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
                         }
                     }
                 }
-                window.set_block_drawer_status_message("".into());
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
                 return;
             }
 
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
             // Only dispatch if editing an existing block.
             let (chain_index, block_index) = {
@@ -166,7 +166,7 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
                     Err(e) => {
                         log::error!("[adapter-gui] block-drawer.option dispatch: {e}");
-                        window.set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -182,7 +182,7 @@ pub(crate) fn wire_select_param(window: &AppWindow, ctx: &BlockParameterCtx) {
             };
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.option runtime sync: {e}");
-                window.set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             replace_project_chains(
@@ -226,7 +226,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_toggle_block_drawer_enabled(move || {
+        crate::BlockEditorBridge::get(window).on_toggle_block_drawer_enabled(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -237,7 +237,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
             draft.enabled = !draft.enabled;
             log::info!("[toggle_block_drawer_enabled] chain_index={}, block_index={:?}, enabled={}, effect_type='{}', model_id='{}'",
                 draft.chain_index, draft.block_index, draft.enabled, draft.effect_type, draft.model_id);
-            window.set_block_drawer_enabled(draft.enabled);
+            crate::BlockEditorBridge::get(&window).set_block_drawer_enabled(draft.enabled);
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
@@ -267,7 +267,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        window.on_pick_block_parameter_file(move |path| {
+        crate::BlockEditorBridge::get(window).on_pick_block_parameter_file(move |path| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -291,7 +291,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
                 path.as_str(),
                 file.to_string_lossy().as_ref(),
             );
-            window.set_block_drawer_status_message("".into());
+            crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
             // Only dispatch if editing an existing block.
             let (chain_index, block_index) = {
@@ -340,7 +340,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
                         .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
                     Err(e) => {
                         log::error!("[adapter-gui] block-drawer.file dispatch: {e}");
-                        window.set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -356,7 +356,7 @@ pub(crate) fn wire_toggle_and_file(window: &AppWindow, ctx: &BlockParameterCtx) 
             };
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-drawer.file runtime sync: {e}");
-                window.set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&window).set_block_drawer_status_message(e.to_string().into());
                 return;
             }
             replace_project_chains(
