@@ -19,12 +19,20 @@ stays true, the sentence says nothing.
 
 Every block on the page is two pieces, in this order:
 
-1. **Headline** — one line, 3–7 words, one single thought. States what the thing
-   *does* or what the player *gets*. Not a mood.
-2. **Lede** — ONE sentence, ≤ 22 words, anchored to something concrete: a number,
-   a real gear name, a file format, a platform, or an action the player performs.
+1. **Headline** — states what the thing *does* or what the player *gets*. Not a
+   mood. **There is no word limit.** A headline that has to explain the product
+   is allowed to be a full sentence; a four-word slogan that explains nothing
+   reads as empty and gets rejected. Length follows the content, never the other
+   way around.
+2. **Lede** — ONE sentence, anchored to something concrete: a number, a real gear
+   name, a file format, a platform, or an action the player performs.
 
-Nothing else. No third supporting sentence, no wind-up clause before the point.
+No third supporting sentence, no wind-up clause before the point.
+
+**Owner's correction (recorded):** short does not mean good. Asked for a
+headline, the failure mode here was compressing the product down to a slogan —
+"Um rig pra cada instrumento" — which passes every check and still says nothing
+a reader can act on. Say the whole thing.
 
 ## The four checks — run every one before proposing a line
 
@@ -116,6 +124,7 @@ the block has to say, in one short question, before writing another round.
 ## Common mistakes
 
 - Rewording a rejected line instead of changing its angle.
+- Trimming a line to hit a length target. Empty and short is worse than long and clear.
 - Writing the English first and translating — the other two languages end up stiff.
 - Editing the HTML and forgetting the three JSONs (or vice-versa), leaving the
   page mixing old and new copy per language.
