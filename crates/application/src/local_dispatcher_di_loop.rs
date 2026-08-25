@@ -1,3 +1,4 @@
+//! Responsibility: handles the di loop commands.
 //! #614 — `Command::SetChainDiLoopSource` / `SetChainDiLoopEnabled`:
 //! per-chain virtual DI loop (file-per-feature; #436 dispatcher split).
 //!

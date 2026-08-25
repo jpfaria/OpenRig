@@ -1,3 +1,4 @@
+//! Responsibility: preloads a DI loop off the audio thread.
 //! Off-thread DI loop preload: decode + resample + loop-crossfade into
 //! an `Arc<DiLoop>` ready for lock-free audio-thread reads.
 //!

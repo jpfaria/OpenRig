@@ -1,3 +1,4 @@
+//! Responsibility: reports one chain's objective audio quality.
 //! #791: objective audio-quality report query for one chain.
 //!
 //! Read-side parity for the Tone Doctor's Layer 3 measurement: runs the

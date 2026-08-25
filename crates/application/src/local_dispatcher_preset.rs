@@ -1,3 +1,4 @@
+//! Responsibility: handles the preset commands.
 //! `Command::SaveChainPreset` / `Command::DeleteChainPreset` — the
 //! dispatcher owns the preset-file I/O so MCP / gRPC / MIDI clients
 //! produce the same effect as the GUI dispatching the Command (the

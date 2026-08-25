@@ -1,3 +1,4 @@
+//! Responsibility: builds the default block a command asked to add.
 //! Default-block construction for `Command::AddBlock` and `Command::ReplaceBlockModel`.
 //!
 //! This is business logic: given an (effect_type, model_id) pair, build a

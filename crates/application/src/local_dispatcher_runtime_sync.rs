@@ -1,3 +1,4 @@
+//! Responsibility: handles the runtime sync commands.
 //! #127: the chain-runtime sync handler.
 //!
 //! `ChainCommand::SyncChainRuntime` is the door a caller knocks on to make one

@@ -1,3 +1,4 @@
+//! Responsibility: handles the metronome commands.
 //! #14 — the metronome commands, and (#127) the state they act on.
 //!
 //! The dispatcher owns the metronome: it validates the payload, remembers the

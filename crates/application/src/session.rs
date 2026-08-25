@@ -1,3 +1,4 @@
+//! Responsibility: holds the session state a dispatcher works on.
 //! Minimal session state held by the `LocalDispatcher`.
 //!
 //! `ApplicationSession` is intentionally narrow: it carries only what the

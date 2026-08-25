@@ -1,3 +1,4 @@
+//! Responsibility: names the binding registry commands.
 //! I/O binding registry commands (#716): CRUD over the per-machine bindings
 //! stored in `config.yaml`, plus their endpoints.
 

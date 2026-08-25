@@ -1,3 +1,4 @@
+//! Responsibility: names the system settings commands.
 //! System-level settings commands: audio device selection, UI language, the
 //! configurable directories, and the MCP server master switch.
 

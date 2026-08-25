@@ -1,3 +1,4 @@
+//! Responsibility: routes an incoming command to the handler that owns it.
 //! The single `impl CommandDispatcher for LocalDispatcher` block (#127).
 //!
 //! Rust allows exactly one trait impl per (trait, type) pair in a crate

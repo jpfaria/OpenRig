@@ -1,3 +1,4 @@
+//! Responsibility: publishes a snapshot of the state for API-style reads.
 //! Issue #693 — published state snapshot for API-style reads.
 //!
 //! Transports (MCP/gRPC) must serve reads like an HTTP API serves a

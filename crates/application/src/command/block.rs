@@ -1,3 +1,4 @@
+//! Responsibility: names the block-scoped commands.
 //! Block-scoped commands: parameter writes, enable/model changes, block CRUD
 //! inside a chain, and the Insert block's I/O binding.
 

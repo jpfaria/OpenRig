@@ -1,3 +1,4 @@
+//! Responsibility: reports the DI loop state of a chain.
 //! #829: the per-chain DI loop state as a query.
 //!
 //! The DI has commands (arm, pick a source, route its output) but its

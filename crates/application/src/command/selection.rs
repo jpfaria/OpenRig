@@ -1,3 +1,4 @@
+//! Responsibility: names the selection commands.
 //! Selection and view-state commands: rig navigation, the active chain/block
 //! cursor MIDI and MCP can move, and the analyzer/output view toggles.
 

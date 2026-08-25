@@ -1,3 +1,4 @@
+//! Responsibility: persists to disk off the dispatching thread.
 //! Issue #693 — disk persistence off the dispatching thread.
 //!
 //! `Command` side-effects used to write files inline, so a slow disk

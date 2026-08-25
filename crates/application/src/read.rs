@@ -1,3 +1,4 @@
+//! Responsibility: resolves one query kind into its answer.
 //! #831: the single [`QueryKind`] resolver.
 //!
 //! Before this module every frontend carried its own copy of the match —

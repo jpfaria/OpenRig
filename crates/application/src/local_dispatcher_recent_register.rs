@@ -1,3 +1,4 @@
+//! Responsibility: handles the recent register commands.
 //! #436 (sweep): registrar/invalidar projeto recente é negócio (config
 //! persistida = estado). `RemoveRecentProject` já existia; faltava o
 //! lado adicionar/marcar-inválido — feito por mutação direta de

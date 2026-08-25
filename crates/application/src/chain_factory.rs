@@ -1,3 +1,4 @@
+//! Responsibility: builds the default chain a command asked to add.
 //! Default-chain construction — pure business logic.
 //!
 //! Provides a canonical starting-point `Chain` for the `AddChain` command.

@@ -1,3 +1,4 @@
+//! Responsibility: reads the dispatcher state without changing it.
 //! `LocalDispatcher` read accessors (issue #792 split).
 //!
 //! Single responsibility: exposing dispatcher-owned state for reads

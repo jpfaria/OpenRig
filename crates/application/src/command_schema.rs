@@ -1,3 +1,4 @@
+//! Responsibility: derives the tool schema a transport advertises from the command enum.
 //! Bridges the `schemars`-derived schema of [`crate::command::Command`] into
 //! a per-variant tool surface. Single source of truth = the `Command` enum;
 //! no hand-written JSON Schema. Consumed by `adapter-mcp` to expose one MCP

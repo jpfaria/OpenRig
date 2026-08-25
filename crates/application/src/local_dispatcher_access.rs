@@ -1,3 +1,4 @@
+//! Responsibility: borrows a chain out of the dispatcher state.
 //! `LocalDispatcher` chain/block borrow helpers (issue #792 split).
 //!
 //! Single responsibility: the shared chain-not-found / block-not-found lookup

@@ -1,3 +1,4 @@
+//! Responsibility: handles the diagnostic commands.
 //! #436 H / #127 — `SelectionCommand::SetTunerEnabled` / `SetSpectrumEnabled`:
 //! powering the tuner and the spectrum analyzers.
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: routes the application crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -19,9 +20,11 @@ pub mod di_loader;
 pub mod dispatcher;
 pub mod event;
 mod event_scope;
+pub mod event_sink;
 #[cfg(test)]
 #[path = "issue_85_port_position_tests.rs"]
 mod issue_85_port_position_tests;
+pub mod json_fmt;
 pub mod live_source;
 pub mod local_dispatcher;
 mod local_dispatcher_access;
@@ -70,10 +73,16 @@ pub mod project_save;
 pub mod publishing_dispatcher;
 pub mod query;
 pub mod query_analyzers;
+pub mod query_block_params;
 pub mod query_chain_quality;
 pub mod query_di;
+pub mod query_ids;
+pub mod query_kind;
 pub mod query_latency;
 pub mod query_loopers;
+pub mod query_paths;
+pub mod query_plugins;
+pub mod query_presets;
 /// #831: the single `QueryKind` resolver every transport answers through —
 /// one match, one payload shape, one error string.
 pub mod read;

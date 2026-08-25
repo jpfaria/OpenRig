@@ -1,3 +1,4 @@
+//! Responsibility: handles the looper commands.
 //! #323 — the per-chain looper commands (file-per-feature; #436 split).
 //!
 //! The dispatcher owns the PROJECT side of a looper: which loopers a chain

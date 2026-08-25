@@ -1,3 +1,4 @@
+//! Responsibility: reports the analyzer readings as transport-neutral data.
 //! #829: analyzer readings as transport-neutral JSON.
 //!
 //! The tuner and the spectrum are observation windows the GUI has always

@@ -1,3 +1,4 @@
+//! Responsibility: names every observable change a dispatch can emit.
 //! Typed `Event` enum — every observable change emitted by the dispatcher.
 //!
 //! Variants mirror the spec's "Shared Architecture / Types" section.

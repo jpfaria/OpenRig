@@ -1,3 +1,4 @@
+//! Responsibility: handles the subsystems commands.
 //! #712 — `Command::SetMidiEnabled` / `SetMcpEnabled`: per-machine master
 //! switches for the MIDI/BLE-MIDI adapter and the MCP server.
 //!

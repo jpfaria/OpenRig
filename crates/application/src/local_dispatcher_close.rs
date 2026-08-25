@@ -1,3 +1,4 @@
+//! Responsibility: handles the close commands.
 //! #436 E — `ProjectCommand::CloseProject`: voltar ao launcher (fechar o
 //! projeto, parar runtime, soltar a sessão) é negócio. Precedente
 //! `SaveProject`: o adapter faz o teardown de runtime/sessão; o

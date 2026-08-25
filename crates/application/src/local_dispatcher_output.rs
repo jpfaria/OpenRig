@@ -1,3 +1,4 @@
+//! Responsibility: handles the output commands.
 //! #436 G — `SelectionCommand::SetOutputMuted`: silencing/un-silencing the
 //! output (tuner mute) is business, not UI. The dispatcher records the state
 //! and signals `Event::OutputMutedChanged`, so MCP/MIDI/GUI all ask through

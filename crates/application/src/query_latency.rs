@@ -1,3 +1,4 @@
+//! Responsibility: reports the measured latency of a chain.
 //! #829: the per-chain latency probe as a query.
 //!
 //! Clicking the sonar badge ran `engine::probe` on the GUI thread and wrote

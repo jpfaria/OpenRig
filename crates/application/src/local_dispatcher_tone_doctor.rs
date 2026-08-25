@@ -1,3 +1,4 @@
+//! Responsibility: handles the tone doctor commands.
 //! #791 — `ToneDoctorCommand::DiagnoseChainTone` / `ApplyToneDoctorFix`.
 //!
 //! The doctor's signal is the chain's own: the DI loop when one is loaded,

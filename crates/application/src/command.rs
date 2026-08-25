@@ -1,3 +1,4 @@
+//! Responsibility: names every state change any controller can ask for.
 //! Typed `Command` enum — every state-change that any controller can request.
 //!
 //! One variant per current Slint `on_*` callback that mutates `session.project`.

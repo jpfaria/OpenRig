@@ -1,3 +1,4 @@
+//! Responsibility: hands a subscriber the audio a chain is producing.
 //! #127: the SUBSCRIPTION seam — the third door, alongside
 //! [`crate::runtime_control::RuntimeControl`] (writes) and
 //! [`crate::live_source::LiveSource`] (reads).

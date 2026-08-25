@@ -1,3 +1,4 @@
+//! Responsibility: handles the ir reseed commands.
 //! Issue #655: re-seed the IR `output_db` knob when the user changes a
 //! capture axis.
 //!

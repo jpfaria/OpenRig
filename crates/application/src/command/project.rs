@@ -1,3 +1,4 @@
+//! Responsibility: names the project lifecycle commands.
 //! Project-scoped commands: session lifecycle (save/load/create/close), the
 //! project's display name, the recent-projects list, and rig edit capture.
 

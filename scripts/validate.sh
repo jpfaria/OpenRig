@@ -257,10 +257,14 @@ if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$RS_FILES" ]; then
   echo -e "${BOLD}── 3. Rust Formatting ──${NC}"
   for file in $RS_FILES; do
     [ -f "$file" ] || continue
-    if rustfmt --check "$file" > /dev/null 2>&1; then
+    # --edition matters: without it rustfmt parses as 2015, where a leading
+    # `::` in a use path is redundant and gets stripped — which in 2018+ can
+    # change what the path resolves to (`::project` vs a sibling `project`
+    # module) and break the build. The workspace is 2021.
+    if rustfmt --edition 2021 --check "$file" > /dev/null 2>&1; then
       ok "$(basename "$file"): formatting OK"
     else
-      fail "$(basename "$file"): formatting violations — run: rustfmt $file"
+      fail "$(basename "$file"): formatting violations — run: rustfmt --edition 2021 $file"
     fi
   done
 fi

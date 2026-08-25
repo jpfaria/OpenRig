@@ -1,3 +1,4 @@
+//! Responsibility: handles the paths commands.
 //! `LocalDispatcher` system paths command handler (issue #792 split).
 //!
 //! Single responsibility: the system-level path overrides (presets, plugins,

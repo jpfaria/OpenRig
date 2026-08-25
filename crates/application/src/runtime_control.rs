@@ -1,3 +1,4 @@
+//! Responsibility: declares the write side of a live rig.
 //! #127: the write-side counterpart to [`crate::live_source::LiveSource`].
 //!
 //! `LiveSource` lets the core READ what only a frontend's audio runtime

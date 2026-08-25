@@ -1,3 +1,4 @@
+//! Responsibility: says whether a project is internally consistent.
 use anyhow::{anyhow, bail, Result};
 use block_core::AudioChannelLayout;
 use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind};

@@ -1,3 +1,4 @@
+//! Responsibility: declares the read side of a live rig.
 //! #127: the read-side counterpart to `dyn CommandDispatcher`.
 //!
 //! Some state only ever lives inside a frontend's own audio runtime —

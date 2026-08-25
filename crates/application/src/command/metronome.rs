@@ -1,3 +1,4 @@
+//! Responsibility: names the metronome commands.
 //! Issue #14 — the built-in metronome.
 //!
 //! The metronome is a global utility, not part of any chain, and it plays
