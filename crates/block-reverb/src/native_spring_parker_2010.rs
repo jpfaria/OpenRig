@@ -1,3 +1,4 @@
+//! Responsibility: implements the spring parker 2010 reverb model.
 //! Spring reverb — physical model after:
 //! - Parker, J. (2010). "Spring Reverberation: A Physical Perspective".
 //!   Proc. of the 13th Int. Conference on Digital Audio Effects (DAFx-10).
@@ -16,7 +17,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -35,7 +38,7 @@ const ALLPASS_COEF: f32 = 0.72;
 struct Params {
     decay_pct: f32,
     damping: f32,
-    boing: f32,         // 0..1 — feedback amount of the "spring" loop
+    boing: f32, // 0..1 — feedback amount of the "spring" loop
     mix: f32,
 }
 
@@ -58,10 +61,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
-            float_parameter("decay", "Decay", None, Some(d.decay_pct), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(d.damping), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("boing", "Boing", None, Some(d.boing), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "decay",
+                "Decay",
+                None,
+                Some(d.decay_pct),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(d.damping),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "boing",
+                "Boing",
+                None,
+                Some(d.boing),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -84,7 +123,13 @@ struct AllpassDispersion {
     y_prev: f32,
 }
 impl AllpassDispersion {
-    fn new(g: f32) -> Self { Self { g, x_prev: 0.0, y_prev: 0.0 } }
+    fn new(g: f32) -> Self {
+        Self {
+            g,
+            x_prev: 0.0,
+            y_prev: 0.0,
+        }
+    }
     fn process(&mut self, x: f32) -> f32 {
         let y = -self.g * x + self.x_prev + self.g * self.y_prev;
         self.x_prev = x;
@@ -99,9 +144,14 @@ struct DelayLine {
 }
 impl DelayLine {
     fn new(samples: usize) -> Self {
-        Self { buf: vec![0.0; samples.max(1)], write_idx: 0 }
+        Self {
+            buf: vec![0.0; samples.max(1)],
+            write_idx: 0,
+        }
     }
-    fn read(&self) -> f32 { self.buf[self.write_idx] }
+    fn read(&self) -> f32 {
+        self.buf[self.write_idx]
+    }
     fn write(&mut self, v: f32) {
         self.buf[self.write_idx] = v;
         self.write_idx = (self.write_idx + 1) % self.buf.len();
@@ -111,15 +161,20 @@ impl DelayLine {
 /// Two-pole bandpass: simple SVF-ish bandpass, peak at f_c with
 /// resonance Q. Implementation uses Chamberlin biquad.
 struct Bandpass {
-    f: f32,         // pre-warped frequency
-    q: f32,         // 1/Q
+    f: f32, // pre-warped frequency
+    q: f32, // 1/Q
     low: f32,
     band: f32,
 }
 impl Bandpass {
     fn new(cutoff_hz: f32, q: f32, sample_rate: f32) -> Self {
         let f = 2.0 * (std::f32::consts::PI * cutoff_hz / sample_rate).sin();
-        Self { f, q: 1.0 / q.max(0.1), low: 0.0, band: 0.0 }
+        Self {
+            f,
+            q: 1.0 / q.max(0.1),
+            low: 0.0,
+            band: 0.0,
+        }
     }
     fn process(&mut self, x: f32) -> f32 {
         // Chamberlin SVF (one iteration; for stability at moderate freqs).
@@ -131,10 +186,20 @@ impl Bandpass {
     }
 }
 
-struct OnePoleLpf { state: f32, coeff: f32 }
+struct OnePoleLpf {
+    state: f32,
+    coeff: f32,
+}
 impl OnePoleLpf {
-    fn new() -> Self { Self { state: 0.0, coeff: 0.0 } }
-    fn set_damping(&mut self, d: f32) { self.coeff = d.clamp(0.0, 1.0).sqrt(); }
+    fn new() -> Self {
+        Self {
+            state: 0.0,
+            coeff: 0.0,
+        }
+    }
+    fn set_damping(&mut self, d: f32) {
+        self.coeff = d.clamp(0.0, 1.0).sqrt();
+    }
     fn process(&mut self, x: f32) -> f32 {
         self.state = (1.0 - self.coeff).mul_add(x, self.coeff * self.state);
         self.state
@@ -232,8 +297,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(SpringReverb::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(SpringAsMono(SpringReverb::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(SpringReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(SpringAsMono(
+            SpringReverb::new(p, sample_rate),
+        )))),
     }
 }
 

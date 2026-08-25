@@ -1,3 +1,4 @@
+//! Responsibility: implements the wavefolder gain model.
 //! Wavefolder — Buchla 259 / west-coast modular waveshaper. When the
 //! input exceeds a threshold the signal is "folded" back mirror-style,
 //! generating dense harmonic content that grows non-linearly with drive.
@@ -63,7 +64,9 @@ impl WavefolderProcessor {
         }
     }
 
-    fn pct(v: f32) -> f32 { (v / 100.0).clamp(0.0, 1.0) }
+    fn pct(v: f32) -> f32 {
+        (v / 100.0).clamp(0.0, 1.0)
+    }
 
     /// Trigonometric wavefolder. drive ≤ 1 produces a single fold at the
     /// peaks; higher drive cascades folds. Bias shifts the fold centre to
@@ -103,11 +106,17 @@ impl MonoProcessor for WavefolderProcessor {
     }
 }
 
-struct DualMonoProcessor { left: WavefolderProcessor, right: WavefolderProcessor }
+struct DualMonoProcessor {
+    left: WavefolderProcessor,
+    right: WavefolderProcessor,
+}
 
 impl StereoProcessor for DualMonoProcessor {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
+        [
+            self.left.process_sample(input[0]),
+            self.right.process_sample(input[1]),
+        ]
     }
 }
 
@@ -118,10 +127,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("drive", "Drive", Some("Gain"), Some(40.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("bias", "Bias", Some("Character"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("tone", "Tone", Some("EQ"), Some(60.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("level", "Level", Some("Output"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "drive",
+                "Drive",
+                Some("Gain"),
+                Some(40.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "bias",
+                "Bias",
+                Some("Character"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "tone",
+                "Tone",
+                Some("EQ"),
+                Some(60.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "level",
+                "Level",
+                Some("Output"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -135,16 +180,26 @@ fn read_settings(p: &ParameterSet) -> Result<Settings> {
     })
 }
 
-pub fn validate_params(p: &ParameterSet) -> Result<()> { let _ = read_settings(p)?; Ok(()) }
-pub fn asset_summary(_: &ParameterSet) -> Result<String> {
-    Ok("native='wavefolder' algorithm='trig wavefolder sin(π/2·drive·x) 2x oversampled'".to_string())
+pub fn validate_params(p: &ParameterSet) -> Result<()> {
+    let _ = read_settings(p)?;
+    Ok(())
 }
-fn schema() -> Result<ModelParameterSchema> { Ok(model_schema()) }
+pub fn asset_summary(_: &ParameterSet) -> Result<String> {
+    Ok(
+        "native='wavefolder' algorithm='trig wavefolder sin(π/2·drive·x) 2x oversampled'"
+            .to_string(),
+    )
+}
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
 
 fn build(p: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let s = read_settings(p)?;
     Ok(match layout {
-        AudioChannelLayout::Mono => BlockProcessor::Mono(Box::new(WavefolderProcessor::new(s, sample_rate))),
+        AudioChannelLayout::Mono => {
+            BlockProcessor::Mono(Box::new(WavefolderProcessor::new(s, sample_rate)))
+        }
         AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(DualMonoProcessor {
             left: WavefolderProcessor::new(s, sample_rate),
             right: WavefolderProcessor::new(s, sample_rate),
@@ -157,7 +212,10 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     display_name: DISPLAY_NAME,
     brand: BRAND,
     backend_kind: GainBackendKind::Native,
-    schema, validate: validate_params, asset_summary, build,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
     knob_layout: &[],
 };

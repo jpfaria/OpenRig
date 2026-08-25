@@ -1,3 +1,4 @@
+//! Responsibility: implements the gated reverb model.
 //! Gated reverb — dense Hall-style tail multiplied by a hard envelope
 //! (hold + fast release) so the reverb cuts off abruptly while the dry
 //! transient is still ringing. The signature 1980s "Phil Collins snare"
@@ -17,7 +18,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -31,8 +34,8 @@ const STEREO_SPREAD: usize = 23;
 const FIXED_GAIN: f32 = 0.015;
 
 struct Params {
-    decay_pct: f32,    // 0..1 → comb feedback
-    damping: f32,      // 0..1
+    decay_pct: f32, // 0..1 → comb feedback
+    damping: f32,   // 0..1
     hold_ms: f32,
     release_ms: f32,
     threshold_lin: f32, // input envelope level above which gate opens
@@ -59,12 +62,66 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
-            float_parameter("decay", "Decay", None, Some(85.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(30.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("hold_ms", "Hold", None, Some(200.0), 30.0, 800.0, 5.0, ParameterUnit::Milliseconds),
-            float_parameter("release_ms", "Release", None, Some(30.0), 5.0, 200.0, 1.0, ParameterUnit::Milliseconds),
-            float_parameter("threshold", "Threshold", None, Some(5.0), 0.5, 50.0, 0.5, ParameterUnit::Percent),
-            float_parameter("mix", "Mix", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "decay",
+                "Decay",
+                None,
+                Some(85.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(30.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "hold_ms",
+                "Hold",
+                None,
+                Some(200.0),
+                30.0,
+                800.0,
+                5.0,
+                ParameterUnit::Milliseconds,
+            ),
+            float_parameter(
+                "release_ms",
+                "Release",
+                None,
+                Some(30.0),
+                5.0,
+                200.0,
+                1.0,
+                ParameterUnit::Milliseconds,
+            ),
+            float_parameter(
+                "threshold",
+                "Threshold",
+                None,
+                Some(5.0),
+                0.5,
+                50.0,
+                0.5,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -93,10 +150,10 @@ struct Gate {
     hold_samples: u32,
     release_samples: u32,
     threshold: f32,
-    env: f32,           // smoothed input envelope follower
+    env: f32, // smoothed input envelope follower
     env_attack: f32,
     env_release: f32,
-    gain: f32,          // current gate gain 0..1
+    gain: f32, // current gate gain 0..1
 }
 
 impl Gate {
@@ -110,7 +167,7 @@ impl Gate {
             release_samples,
             threshold: threshold.max(1e-6),
             env: 0.0,
-            env_attack: 0.99,  // fast attack on follower
+            env_attack: 0.99,   // fast attack on follower
             env_release: 0.999, // slower release
             gain: 0.0,
         }
@@ -205,7 +262,12 @@ impl GatedReverb {
             .map(|&s| AllpassFilter::new(((s + STEREO_SPREAD) as f32 * scale) as usize))
             .collect();
 
-        let gate = Gate::new(sample_rate, params.hold_ms, params.release_ms, params.threshold_lin);
+        let gate = Gate::new(
+            sample_rate,
+            params.hold_ms,
+            params.release_ms,
+            params.threshold_lin,
+        );
 
         Self {
             params,
@@ -266,8 +328,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(GatedReverb::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(GatedAsMono(GatedReverb::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(GatedReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(GatedAsMono(
+            GatedReverb::new(p, sample_rate),
+        )))),
     }
 }
 
@@ -302,8 +369,12 @@ impl CombFilter {
             damping: 0.2,
         }
     }
-    fn set_feedback(&mut self, fb: f32) { self.feedback = fb; }
-    fn set_damping(&mut self, d: f32) { self.damping = d.clamp(0.0, 1.0); }
+    fn set_feedback(&mut self, fb: f32) {
+        self.feedback = fb;
+    }
+    fn set_damping(&mut self, d: f32) {
+        self.damping = d.clamp(0.0, 1.0);
+    }
     fn process(&mut self, input: f32) -> f32 {
         let output = self.buffer[self.index];
         self.filter_store = output * (1.0 - self.damping) + self.filter_store * self.damping;
@@ -320,7 +391,10 @@ struct AllpassFilter {
 
 impl AllpassFilter {
     fn new(size: usize) -> Self {
-        Self { buffer: vec![0.0; size.max(1)], index: 0 }
+        Self {
+            buffer: vec![0.0; size.max(1)],
+            index: 0,
+        }
     }
     fn process(&mut self, input: f32) -> f32 {
         let buffered = self.buffer[self.index];

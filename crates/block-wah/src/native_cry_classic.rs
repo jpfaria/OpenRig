@@ -1,3 +1,4 @@
+//! Responsibility: implements the cry classic wah model.
 use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
@@ -205,4 +206,3 @@ pub const MODEL_DEFINITION: WahModelDefinition = WahModelDefinition {
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[],
 };
-

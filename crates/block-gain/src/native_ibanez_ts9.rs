@@ -1,3 +1,4 @@
+//! Responsibility: implements the ibanez ts9 gain model.
 use crate::registry::GainModelDefinition;
 use crate::GainBackendKind;
 use anyhow::Result;
@@ -5,8 +6,8 @@ use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{
-    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor,
-    OnePoleHighPass, OnePoleLowPass, StereoProcessor,
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, OnePoleHighPass,
+    OnePoleLowPass, StereoProcessor,
 };
 
 pub const MODEL_ID: &str = "ibanez_ts9";
@@ -203,4 +204,3 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
 #[cfg(test)]
 #[path = "native_ibanez_ts9_tests.rs"]
 mod tests;
-

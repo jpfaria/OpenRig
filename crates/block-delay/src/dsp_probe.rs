@@ -1,3 +1,4 @@
+//! Responsibility: measures what a delay model actually does so a test can assert it.
 //! Deterministic measurement probes for proving each native delay model
 //! fulfils its proposal. Test-only: never linked into the audio path.
 //!

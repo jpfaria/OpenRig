@@ -1,3 +1,4 @@
+//! Responsibility: implements the tube saturation gain model.
 //! Tube saturation — asymmetric soft-clip emulating a triode tube
 //! amplifier stage. tanh-based shaper with a small DC bias to break the
 //! symmetry and introduce the 2nd-harmonic content that gives tubes
@@ -134,10 +135,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("drive", "Drive", Some("Gain"), Some(40.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("bias", "Bias", Some("Character"), Some(30.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("tone", "Tone", Some("EQ"), Some(60.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("level", "Level", Some("Output"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "drive",
+                "Drive",
+                Some("Gain"),
+                Some(40.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "bias",
+                "Bias",
+                Some("Character"),
+                Some(30.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "tone",
+                "Tone",
+                Some("EQ"),
+                Some(60.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "level",
+                "Level",
+                Some("Output"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -164,11 +201,7 @@ fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
 
-fn build(
-    p: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
+fn build(p: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let s = read_settings(p)?;
     Ok(match layout {
         AudioChannelLayout::Mono => {

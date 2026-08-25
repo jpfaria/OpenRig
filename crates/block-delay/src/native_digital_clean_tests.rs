@@ -73,7 +73,10 @@ fn digital_clean_repeats_keep_their_brightness() {
     let c1 = dsp_probe::spectral_centroid(echo1, SR);
     let c2 = dsp_probe::spectral_centroid(echo2, SR);
 
-    assert!(c1 > 1_000.0, "noise echo should be broadband, centroid {c1:.0} Hz");
+    assert!(
+        c1 > 1_000.0,
+        "noise echo should be broadband, centroid {c1:.0} Hz"
+    );
     assert!(
         (c2 - c1).abs() / c1 < 0.05,
         "clean repeats must not darken: c1={c1:.0} Hz, c2={c2:.0} Hz"

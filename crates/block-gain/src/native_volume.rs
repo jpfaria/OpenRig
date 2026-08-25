@@ -1,3 +1,4 @@
+//! Responsibility: implements the volume gain model.
 use crate::registry::GainModelDefinition;
 use crate::GainBackendKind;
 use anyhow::Result;
@@ -17,7 +18,11 @@ struct VolumeProcessor {
 
 impl MonoProcessor for VolumeProcessor {
     fn process_sample(&mut self, input: f32) -> f32 {
-        if self.mute { 0.0 } else { input * self.gain }
+        if self.mute {
+            0.0
+        } else {
+            input * self.gain
+        }
     }
 }
 
@@ -98,17 +103,15 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     asset_summary,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
-    knob_layout: &[
-        block_core::KnobLayoutEntry {
-            param_key: "volume",
-            svg_cx: 0.0,
-            svg_cy: 0.0,
-            svg_r: 0.0,
-            min: 0.0,
-            max: 100.0,
-            step: 1.0,
-        },
-    ],
+    knob_layout: &[block_core::KnobLayoutEntry {
+        param_key: "volume",
+        svg_cx: 0.0,
+        svg_cy: 0.0,
+        svg_r: 0.0,
+        min: 0.0,
+        max: 100.0,
+        step: 1.0,
+    }],
 };
 
 #[cfg(test)]

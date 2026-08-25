@@ -1,3 +1,4 @@
+//! Responsibility: turns a wet impulse response into a reverb backend.
 //! IR (convolution) reverb backend.
 //!
 //! Wraps a wet impulse-response convolution (from `crates/ir`) with a

@@ -1,3 +1,4 @@
+//! Responsibility: computes the gain reduction a peak calls for.
 //! Gain-reduction computer: peak (linear) → linear gain.
 //!
 //! Implements a soft-knee brick wall characteristic with instant attack and

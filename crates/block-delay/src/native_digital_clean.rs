@@ -1,3 +1,4 @@
+//! Responsibility: implements the digital clean delay model.
 use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
@@ -5,11 +6,11 @@ use block_core::param::{
 use block_core::{ModelAudioMode, MonoProcessor};
 
 use crate::registry::{build_dual_mono_delay_processor, DelayModelDefinition};
-use crate::DelayBackendKind;
 use crate::shared::{
     clamp_feedback, clamp_mix, clamp_time_ms, process_simple_delay, DelayLine, MAX_DELAY_MS,
     MAX_FEEDBACK, MIN_DELAY_MS,
 };
+use crate::DelayBackendKind;
 
 pub const MODEL_ID: &str = "digital_clean";
 pub const DISPLAY_NAME: &str = "Digital Clean Delay";

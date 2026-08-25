@@ -1,3 +1,4 @@
+//! Responsibility: implements the gate basic dynamics model.
 use crate::registry::DynModelDefinition;
 use crate::DynBackendKind;
 use anyhow::{Error, Result};

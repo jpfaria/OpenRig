@@ -1,3 +1,4 @@
+//! Responsibility: routes the wah crate's public surface.
 pub mod model_visual;
 mod registry;
 pub use registry::register_natives;

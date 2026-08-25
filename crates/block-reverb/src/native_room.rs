@@ -1,8 +1,11 @@
+//! Responsibility: implements the room reverb model.
 use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -39,9 +42,36 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
-            float_parameter("room_size", "Room Size", None, Some(d.room_size), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(d.damping), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "room_size",
+                "Room Size",
+                None,
+                Some(d.room_size),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(d.damping),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -96,7 +126,13 @@ impl RoomReverb {
             .map(|&s| AllpassFilter::new(((s + STEREO_SPREAD) as f32 * scale) as usize))
             .collect();
 
-        Self { params, combs_l, combs_r, allpasses_l, allpasses_r }
+        Self {
+            params,
+            combs_l,
+            combs_r,
+            allpasses_l,
+            allpasses_r,
+        }
     }
 }
 
@@ -144,12 +180,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => {
-            Ok(BlockProcessor::Stereo(Box::new(RoomReverb::new(p, sample_rate))))
-        }
-        AudioChannelLayout::Mono => {
-            Ok(BlockProcessor::Mono(Box::new(RoomAsMono(RoomReverb::new(p, sample_rate)))))
-        }
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(RoomReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(RoomAsMono(
+            RoomReverb::new(p, sample_rate),
+        )))),
     }
 }
 
@@ -197,8 +234,7 @@ impl CombFilter {
 
     fn process(&mut self, input: f32) -> f32 {
         let output = self.buffer[self.index];
-        self.filter_store =
-            output * (1.0 - self.damping) + self.filter_store * self.damping;
+        self.filter_store = output * (1.0 - self.damping) + self.filter_store * self.damping;
         self.buffer[self.index] = input + self.filter_store * self.feedback;
         self.index = (self.index + 1) % self.buffer.len();
         output

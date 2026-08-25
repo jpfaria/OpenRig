@@ -1,3 +1,4 @@
+//! Responsibility: implements the fdn jot reverb model.
 //! Feedback Delay Network reverb (Jot 1991 / Jot & Chaigne 1991) — 8-channel
 //! variant with a Walsh-Hadamard mixing matrix and per-line lowpass damping.
 //!

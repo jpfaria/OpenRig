@@ -1,3 +1,4 @@
+//! Responsibility: implements the bitcrusher gain model.
 //! Bitcrusher — combined bit-depth quantisation and sample-rate reduction
 //! (sample-and-hold). Aliasing IS the desired character so no anti-alias
 //! filtering is applied around the SRR stage.
@@ -105,9 +106,36 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("bits", "Bits", Some("Resolution"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("rate_pct", "Rate", Some("SRR"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("mix", "Mix", Some("Output"), Some(100.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "bits",
+                "Bits",
+                Some("Resolution"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "rate_pct",
+                "Rate",
+                Some("SRR"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                Some("Output"),
+                Some(100.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -133,11 +161,7 @@ fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
 
-fn build(
-    p: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
+fn build(p: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let s = read_settings(p)?;
     Ok(match layout {
         AudioChannelLayout::Mono => {

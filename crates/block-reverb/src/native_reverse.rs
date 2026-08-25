@@ -1,3 +1,4 @@
+//! Responsibility: implements the reverse reverb model.
 //! Reverse reverb — buffer the input and play it back time-reversed with
 //! a swell envelope (0→1 ramp) so each segment "rises" into the dry hit.
 //!
@@ -11,7 +12,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -44,8 +47,26 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
-            float_parameter("length_ms", "Length", None, Some(d.length_ms), MIN_LENGTH_MS, MAX_LENGTH_MS, 10.0, ParameterUnit::Milliseconds),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "length_ms",
+                "Length",
+                None,
+                Some(d.length_ms),
+                MIN_LENGTH_MS,
+                MAX_LENGTH_MS,
+                10.0,
+                ParameterUnit::Milliseconds,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -114,8 +135,8 @@ struct ReverseReverb {
 
 impl ReverseReverb {
     fn new(params: Params, sample_rate: f32) -> Self {
-        let half_len =
-            ((params.length_ms.clamp(MIN_LENGTH_MS, MAX_LENGTH_MS) / 1000.0) * sample_rate) as usize;
+        let half_len = ((params.length_ms.clamp(MIN_LENGTH_MS, MAX_LENGTH_MS) / 1000.0)
+            * sample_rate) as usize;
         Self {
             left: ReverseBuffer::new(half_len),
             right: ReverseBuffer::new(half_len),
@@ -156,8 +177,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(ReverseReverb::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(ReverseAsMono(ReverseReverb::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(ReverseReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(ReverseAsMono(
+            ReverseReverb::new(p, sample_rate),
+        )))),
     }
 }
 

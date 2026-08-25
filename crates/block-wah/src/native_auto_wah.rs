@@ -1,3 +1,4 @@
+//! Responsibility: implements the auto wah wah model.
 //! Auto-wah — envelope-driven band-pass filter. Pro-tier.
 //!
 //! Reference: Mu-Tron III (Musitronics, 1972) and Q-Tron envelope
@@ -206,10 +207,9 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(AutoWah::new(
-            p,
-            sample_rate,
-        )))),
+        AudioChannelLayout::Mono => {
+            Ok(BlockProcessor::Mono(Box::new(AutoWah::new(p, sample_rate))))
+        }
         AudioChannelLayout::Stereo => {
             struct DualMono {
                 left: Box<dyn MonoProcessor>,

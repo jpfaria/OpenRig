@@ -1,3 +1,4 @@
+//! Responsibility: implements the modulated lush reverb model.
 //! Modulated/Lush reverb — Jot 8-channel FDN with each delay line's
 //! read tap modulated by an independent LFO. The micro pitch-shifts on
 //! every line break up resonant modes and produce a shimmery, lush

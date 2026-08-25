@@ -1,3 +1,4 @@
+//! Responsibility: implements the half wave rectifier gain model.
 //! Half-wave rectifier — Tycobrahe Octavia / Roger Mayer Octavia–style
 //! octave-up effect. Rectifying the signal (taking |x|) frequency-doubles
 //! the input, producing the octave-up fundamental, then a soft clipper
@@ -33,7 +34,7 @@ const BRAND: &str = block_core::BRAND_NATIVE;
 struct Settings {
     drive: f32,
     tone: f32,
-    octave_mix: f32,  // 0..1: 0 = dry only, 1 = octave only
+    octave_mix: f32, // 0..1: 0 = dry only, 1 = octave only
     level: f32,
 }
 
@@ -120,10 +121,46 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("drive", "Drive", Some("Gain"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("tone", "Tone", Some("EQ"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("octave_mix", "Octave", Some("Mix"), Some(70.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("level", "Level", Some("Output"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "drive",
+                "Drive",
+                Some("Gain"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "tone",
+                "Tone",
+                Some("EQ"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "octave_mix",
+                "Octave",
+                Some("Mix"),
+                Some(70.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "level",
+                "Level",
+                Some("Output"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -150,11 +187,7 @@ fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
 
-fn build(
-    p: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
+fn build(p: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let s = read_settings(p)?;
     Ok(match layout {
         AudioChannelLayout::Mono => {

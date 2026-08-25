@@ -1,3 +1,4 @@
+//! Responsibility: routes the dynamics crate's public surface.
 //! Dynamics implementations.
 pub mod model_visual;
 mod registry;

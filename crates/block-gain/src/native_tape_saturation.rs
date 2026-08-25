@@ -1,3 +1,4 @@
+//! Responsibility: implements the tape saturation gain model.
 //! Tape saturation — magnetic recording / playback chain emulation.
 //! Captures the four perceptual signatures of analogue tape: soft
 //! compression at the saturation knee, slight rate-dependent hysteresis
@@ -92,7 +93,9 @@ impl TapeProcessor {
         }
     }
 
-    fn pct(v: f32) -> f32 { (v / 100.0).clamp(0.0, 1.0) }
+    fn pct(v: f32) -> f32 {
+        (v / 100.0).clamp(0.0, 1.0)
+    }
 
     /// Hysteretic saturator: tanh of (input + memory * hysteresis).
     /// The memory is a low-passed version of the recent output, so the
@@ -142,7 +145,9 @@ impl MonoProcessor for TapeProcessor {
 
         let wow_offset_samples = wow * 60.0 * (1.0 + 0.5 * self.wow_phase.sin());
         self.wow_phase += self.wow_phase_inc;
-        if self.wow_phase > TAU { self.wow_phase -= TAU; }
+        if self.wow_phase > TAU {
+            self.wow_phase -= TAU;
+        }
 
         let read_pos = (self.wow_write as f32 - wow_offset_samples - 1.0).rem_euclid(len as f32);
         let i0 = read_pos as usize;
@@ -154,11 +159,17 @@ impl MonoProcessor for TapeProcessor {
     }
 }
 
-struct DualMonoProcessor { left: TapeProcessor, right: TapeProcessor }
+struct DualMonoProcessor {
+    left: TapeProcessor,
+    right: TapeProcessor,
+}
 
 impl StereoProcessor for DualMonoProcessor {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
+        [
+            self.left.process_sample(input[0]),
+            self.right.process_sample(input[1]),
+        ]
     }
 }
 
@@ -169,11 +180,56 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("drive", "Drive", Some("Gain"), Some(40.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("hysteresis", "Hysteresis", Some("Character"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("wow", "Wow", Some("Modulation"), Some(20.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("warmth", "Warmth", Some("EQ"), Some(60.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("level", "Level", Some("Output"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "drive",
+                "Drive",
+                Some("Gain"),
+                Some(40.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "hysteresis",
+                "Hysteresis",
+                Some("Character"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "wow",
+                "Wow",
+                Some("Modulation"),
+                Some(20.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "warmth",
+                "Warmth",
+                Some("EQ"),
+                Some(60.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "level",
+                "Level",
+                Some("Output"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -188,16 +244,23 @@ fn read_settings(p: &ParameterSet) -> Result<Settings> {
     })
 }
 
-pub fn validate_params(p: &ParameterSet) -> Result<()> { let _ = read_settings(p)?; Ok(()) }
+pub fn validate_params(p: &ParameterSet) -> Result<()> {
+    let _ = read_settings(p)?;
+    Ok(())
+}
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
     Ok("native='tape_saturation' algorithm='hysteretic tanh + wow + 2x oversampled'".to_string())
 }
-fn schema() -> Result<ModelParameterSchema> { Ok(model_schema()) }
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
 
 fn build(p: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let s = read_settings(p)?;
     Ok(match layout {
-        AudioChannelLayout::Mono => BlockProcessor::Mono(Box::new(TapeProcessor::new(s, sample_rate))),
+        AudioChannelLayout::Mono => {
+            BlockProcessor::Mono(Box::new(TapeProcessor::new(s, sample_rate)))
+        }
         AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(DualMonoProcessor {
             left: TapeProcessor::new(s, sample_rate),
             right: TapeProcessor::new(s, sample_rate),
@@ -210,7 +273,10 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     display_name: DISPLAY_NAME,
     brand: BRAND,
     backend_kind: GainBackendKind::Native,
-    schema, validate: validate_params, asset_summary, build,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
     knob_layout: &[],
 };

@@ -1,3 +1,4 @@
+//! Responsibility: limits a single channel.
 //! Single-channel brick wall limiter. Used when the chain layout is Mono.
 
 use block_core::MonoProcessor;

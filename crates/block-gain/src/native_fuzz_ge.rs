@@ -1,3 +1,4 @@
+//! Responsibility: implements the fuzz ge gain model.
 //! Germanium Fuzz Face — original Dallas Arbiter Fuzz Face with NKT275
 //! Ge transistors. Ge fuzz character: smoother clip, slightly compressed
 //! response, warmer upper-mids, distinct "round" feel — the canonical
@@ -60,7 +61,9 @@ impl FuzzGeProcessor {
         }
     }
 
-    fn pct(v: f32) -> f32 { (v / 100.0).clamp(0.0, 1.0) }
+    fn pct(v: f32) -> f32 {
+        (v / 100.0).clamp(0.0, 1.0)
+    }
 
     /// Ge transistor saturation — smoother than Si. tanh shaper with a
     /// small DC bias (Ge leaks ~5% even at idle, giving the Ge fuzz its
@@ -101,11 +104,17 @@ impl MonoProcessor for FuzzGeProcessor {
     }
 }
 
-struct DualMonoProcessor { left: FuzzGeProcessor, right: FuzzGeProcessor }
+struct DualMonoProcessor {
+    left: FuzzGeProcessor,
+    right: FuzzGeProcessor,
+}
 
 impl StereoProcessor for DualMonoProcessor {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
+        [
+            self.left.process_sample(input[0]),
+            self.right.process_sample(input[1]),
+        ]
     }
 }
 
@@ -116,9 +125,36 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("fuzz", "Fuzz", Some("Gain"), Some(60.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("tone", "Tone", Some("EQ"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("level", "Level", Some("Output"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "fuzz",
+                "Fuzz",
+                Some("Gain"),
+                Some(60.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "tone",
+                "Tone",
+                Some("EQ"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "level",
+                "Level",
+                Some("Output"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -131,16 +167,26 @@ fn read_settings(p: &ParameterSet) -> Result<Settings> {
     })
 }
 
-pub fn validate_params(p: &ParameterSet) -> Result<()> { let _ = read_settings(p)?; Ok(()) }
-pub fn asset_summary(_: &ParameterSet) -> Result<String> {
-    Ok("native='fuzz_ge' algorithm='Ge Fuzz Face — biased tanh 2-stage 2x oversampled'".to_string())
+pub fn validate_params(p: &ParameterSet) -> Result<()> {
+    let _ = read_settings(p)?;
+    Ok(())
 }
-fn schema() -> Result<ModelParameterSchema> { Ok(model_schema()) }
+pub fn asset_summary(_: &ParameterSet) -> Result<String> {
+    Ok(
+        "native='fuzz_ge' algorithm='Ge Fuzz Face — biased tanh 2-stage 2x oversampled'"
+            .to_string(),
+    )
+}
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
 
 fn build(p: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let s = read_settings(p)?;
     Ok(match layout {
-        AudioChannelLayout::Mono => BlockProcessor::Mono(Box::new(FuzzGeProcessor::new(s, sample_rate))),
+        AudioChannelLayout::Mono => {
+            BlockProcessor::Mono(Box::new(FuzzGeProcessor::new(s, sample_rate)))
+        }
         AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(DualMonoProcessor {
             left: FuzzGeProcessor::new(s, sample_rate),
             right: FuzzGeProcessor::new(s, sample_rate),
@@ -153,7 +199,10 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     display_name: DISPLAY_NAME,
     brand: BRAND,
     backend_kind: GainBackendKind::Native,
-    schema, validate: validate_params, asset_summary, build,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[],
 };
