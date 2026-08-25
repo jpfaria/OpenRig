@@ -1,4 +1,5 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { AnalyzerBridge } from "analyzer_globals.slint";
 import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Theme } from "theme.slint";
@@ -80,21 +81,6 @@ export component DesktopMain inherits Rectangle {
     callback add-chain();
     callback save-project();
     callback configure-project();
-    callback open-tuner-window();
-    in property <bool> show-tuner;
-    in property <[TunerRow]> tuner-rows;
-    in property <bool> tuner-mute-active;
-    in property <bool> tuner-enabled: false;
-    callback close-tuner();
-    callback toggle-tuner-mute(bool);
-    callback toggle-tuner-enabled(bool);
-    callback open-spectrum-window();
-    callback open-metronome-window();
-    in property <bool> show-spectrum;
-    in property <[SpectrumRow]> spectrum-rows;
-    in property <bool> spectrum-enabled: false;
-    callback close-spectrum();
-    callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
@@ -200,9 +186,9 @@ export component DesktopMain inherits Rectangle {
             add-chain => { root.add-chain(); }
             save-project => { root.save-project(); }
             configure-project => { root.configure-project(); }
-            open-tuner-window => { root.open-tuner-window(); }
-            open-spectrum-window => { root.open-spectrum-window(); }
-            open-metronome-window => { root.open-metronome-window(); }
+            open-tuner-window => { AnalyzerBridge.open-tuner-window(); }
+            open-spectrum-window => { AnalyzerBridge.open-spectrum-window(); }
+            open-metronome-window => { AnalyzerBridge.open-metronome-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
@@ -244,27 +230,27 @@ export component DesktopMain inherits Rectangle {
         }
 
         // Fullscreen inline tuner overlay (windowed mode uses TunerWindow instead)
-        if root.fullscreen && root.show-tuner : TunerPanel {
+        if root.fullscreen && AnalyzerBridge.show-tuner : TunerPanel {
             width: parent.width;
             height: parent.height;
-            tuner-rows: root.tuner-rows;
-            mute-active: root.tuner-mute-active;
-            tuner-enabled: root.tuner-enabled;
+            tuner-rows: AnalyzerBridge.tuner-rows;
+            mute-active: AnalyzerBridge.tuner-mute-active;
+            tuner-enabled: AnalyzerBridge.tuner-enabled;
             show-close-button: true;
-            close-tuner => { root.close-tuner(); }
-            toggle-mute(m) => { root.toggle-tuner-mute(m); }
-            toggle-enabled(e) => { root.toggle-tuner-enabled(e); }
+            close-tuner => { AnalyzerBridge.close-tuner(); }
+            toggle-mute(m) => { AnalyzerBridge.toggle-tuner-mute(m); }
+            toggle-enabled(e) => { AnalyzerBridge.toggle-tuner-enabled(e); }
         }
 
         // Fullscreen inline spectrum overlay (windowed mode uses SpectrumWindow instead)
-        if root.fullscreen && root.show-spectrum : SpectrumPanel {
+        if root.fullscreen && AnalyzerBridge.show-spectrum : SpectrumPanel {
             width: parent.width;
             height: parent.height;
-            spectrum-rows: root.spectrum-rows;
-            spectrum-enabled: root.spectrum-enabled;
+            spectrum-rows: AnalyzerBridge.spectrum-rows;
+            spectrum-enabled: AnalyzerBridge.spectrum-enabled;
             show-close-button: true;
-            close-spectrum => { root.close-spectrum(); }
-            toggle-enabled(e) => { root.toggle-spectrum-enabled(e); }
+            close-spectrum => { AnalyzerBridge.close-spectrum(); }
+            toggle-enabled(e) => { AnalyzerBridge.toggle-spectrum-enabled(e); }
         }
 
         // Fullscreen inline metronome overlay (windowed mode uses MetronomeWindow

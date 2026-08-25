@@ -1,4 +1,5 @@
 import "fonts/CooperHewitt-Semibold.ttf";
+import { AnalyzerBridge } from "analyzer_globals.slint";
 import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Locale } from "locale_globals.slint";
@@ -35,7 +36,7 @@ import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortW
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
 export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
-export { SettingsBridge, BlockEditorBridge, OverlayBridge }
+export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
@@ -133,23 +134,8 @@ export component AppWindow inherits Window {
     callback add-chain();
     callback save-project();
     callback configure-project();
-    callback open-tuner-window();
-    in property <bool> show-tuner;
-    in property <[TunerRow]> tuner-rows;
-    in property <bool> tuner-mute-active;
-    in property <bool> tuner-enabled: false;
-    callback close-tuner();
-    callback toggle-tuner-mute(bool);
-    callback toggle-tuner-enabled(bool);
-    callback open-spectrum-window();
-    in property <bool> show-spectrum;
-    in property <[SpectrumRow]> spectrum-rows;
-    in property <bool> spectrum-enabled: false;
-    callback close-spectrum();
-    callback toggle-spectrum-enabled(bool);
     // #14: every metronome control lives on MetronomeWindow, so the top bar
     // only needs the door that opens it.
-    callback open-metronome-window();
     callback remove-chain(int);
     callback switch-chain-preset(int, int);
     callback switch-chain-scene(int, int);
@@ -310,21 +296,6 @@ export component AppWindow inherits Window {
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
-        open-tuner-window => { root.open-tuner-window(); }
-        show-tuner: root.show-tuner;
-        tuner-rows: root.tuner-rows;
-        tuner-mute-active: root.tuner-mute-active;
-        tuner-enabled: root.tuner-enabled;
-        close-tuner => { root.close-tuner(); }
-        toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
-        toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
-        open-spectrum-window => { root.open-spectrum-window(); }
-        show-spectrum: root.show-spectrum;
-        spectrum-rows: root.spectrum-rows;
-        spectrum-enabled: root.spectrum-enabled;
-        close-spectrum => { root.close-spectrum(); }
-        toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
-        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }
@@ -427,21 +398,6 @@ export component AppWindow inherits Window {
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
-        open-tuner-window => { root.open-tuner-window(); }
-        show-tuner: root.show-tuner;
-        tuner-rows: root.tuner-rows;
-        tuner-mute-active: root.tuner-mute-active;
-        tuner-enabled: root.tuner-enabled;
-        close-tuner => { root.close-tuner(); }
-        toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
-        toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
-        open-spectrum-window => { root.open-spectrum-window(); }
-        show-spectrum: root.show-spectrum;
-        spectrum-rows: root.spectrum-rows;
-        spectrum-enabled: root.spectrum-enabled;
-        close-spectrum => { root.close-spectrum(); }
-        toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
-        open-metronome-window => { root.open-metronome-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         chain-volume-changed(index, v) => { root.chain-volume-changed(index, v); }

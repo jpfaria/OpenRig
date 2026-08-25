@@ -18,7 +18,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SelectionCommand};
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, ModelRc, VecModel, Global};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::runtime_analyzers::AnalyzerSessions;
@@ -54,10 +54,10 @@ fn install_row_sink(window: &AppWindow, tuner_window: &TunerWindow, analyzers: &
     analyzers.on_tuner_rows(move |rows| {
         let rows = rows.unwrap_or_else(empty_rows_model);
         if let Some(tw) = tuner_window_weak.upgrade() {
-            tw.set_tuner_rows(rows.clone());
+            crate::AnalyzerBridge::get(&tw).set_tuner_rows(rows.clone());
         }
         if let Some(mw) = main_window_weak.upgrade() {
-            mw.set_tuner_rows(rows);
+            crate::AnalyzerBridge::get(&mw).set_tuner_rows(rows);
         }
     });
 }
@@ -65,7 +65,7 @@ fn install_row_sink(window: &AppWindow, tuner_window: &TunerWindow, analyzers: &
 fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
     let tuner_window_weak = tuner_window.as_weak();
     let main_window_weak = window.as_weak();
-    window.on_open_tuner_window(move || {
+    crate::AnalyzerBridge::get(window).on_open_tuner_window(move || {
         let Some(tw) = tuner_window_weak.upgrade() else {
             return;
         };
@@ -80,14 +80,14 @@ fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
         // built and the timer armed (see `wire_power`).
         let empty = empty_rows_model();
         if inline {
-            main_w.set_tuner_rows(empty);
-            main_w.set_tuner_mute_active(false);
-            main_w.set_tuner_enabled(false);
-            main_w.set_show_tuner(true);
+            crate::AnalyzerBridge::get(&main_w).set_tuner_rows(empty);
+            crate::AnalyzerBridge::get(&main_w).set_tuner_mute_active(false);
+            crate::AnalyzerBridge::get(&main_w).set_tuner_enabled(false);
+            crate::AnalyzerBridge::get(&main_w).set_show_tuner(true);
         } else {
-            tw.set_tuner_rows(empty);
+            crate::AnalyzerBridge::get(&tw).set_tuner_rows(empty);
             tw.set_mute_active(false);
-            tw.set_tuner_enabled(false);
+            crate::AnalyzerBridge::get(&tw).set_tuner_enabled(false);
             // Same window-opening pattern as the Block Editor: position
             // the child window relative to the main window.
             show_child_window(main_w.window(), tw.window());
@@ -98,16 +98,16 @@ fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
 fn wire_close_inline(window: &AppWindow, project_session: &Rc<RefCell<Option<ProjectSession>>>) {
     let project_session = project_session.clone();
     let main_window_weak = window.as_weak();
-    window.on_close_tuner(move || {
+    crate::AnalyzerBridge::get(window).on_close_tuner(move || {
         dispatch_close_commands(&project_session);
         if let Some(mw) = main_window_weak.upgrade() {
-            mw.set_show_tuner(false);
-            mw.set_tuner_mute_active(false);
+            crate::AnalyzerBridge::get(&mw).set_show_tuner(false);
+            crate::AnalyzerBridge::get(&mw).set_tuner_mute_active(false);
             // #544: keep the power footswitch sprite in sync with the
             // backend going off. Without this, the next render of the
             // inline panel could keep the lit-on look until wire_open's
             // reset runs.
-            mw.set_tuner_enabled(false);
+            crate::AnalyzerBridge::get(&mw).set_tuner_enabled(false);
         }
     });
 }
@@ -150,7 +150,7 @@ fn close_tuner_windowed_impl(
     dispatch_close_commands(project_session);
     if let Some(tw) = tuner_window_weak.upgrade() {
         tw.set_mute_active(false);
-        tw.set_tuner_enabled(false);
+        crate::AnalyzerBridge::get(&tw).set_tuner_enabled(false);
     }
 }
 
@@ -168,21 +168,21 @@ fn dispatch_close_commands(project_session: &Rc<RefCell<Option<ProjectSession>>>
 fn wire_mute_inline(window: &AppWindow, project_session: &Rc<RefCell<Option<ProjectSession>>>) {
     let project_session = project_session.clone();
     let main_window_weak = window.as_weak();
-    window.on_toggle_tuner_mute(move |muted| {
+    crate::AnalyzerBridge::get(window).on_toggle_tuner_mute(move |muted| {
         // Defense in depth: mute is only meaningful while the tuner is
         // powered on. If the click somehow reaches the handler with the
         // tuner off, ignore it instead of silencing the output.
         let Some(mw) = main_window_weak.upgrade() else {
             return;
         };
-        if !mw.get_tuner_enabled() {
+        if !crate::AnalyzerBridge::get(&mw).get_tuner_enabled() {
             return;
         }
         // #436 G / #127: mute is business → SelectionCommand::SetOutputMuted on
         // the shared dispatcher, which now applies the audio effect too (via
         // its RuntimeControl). The UI only renders the sprite/LED.
         dispatch_mute(&project_session, muted);
-        mw.set_tuner_mute_active(muted);
+        crate::AnalyzerBridge::get(&mw).set_tuner_mute_active(muted);
     });
 }
 
@@ -199,7 +199,7 @@ fn wire_mute_windowed(
         let Some(tw) = tuner_window_weak.upgrade() else {
             return;
         };
-        if !tw.get_tuner_enabled() {
+        if !crate::AnalyzerBridge::get(&tw).get_tuner_enabled() {
             return;
         }
         // #436 G / #127: mute via SelectionCommand::SetOutputMuted (see
@@ -240,15 +240,15 @@ fn wire_power(
         // to power the tuner back on.
         if let Some(tw) = tuner_window_weak.upgrade() {
             tw.set_mute_active(enabled);
-            tw.set_tuner_enabled(enabled);
+            crate::AnalyzerBridge::get(&tw).set_tuner_enabled(enabled);
         }
         if let Some(mw) = main_window_weak.upgrade() {
-            mw.set_tuner_mute_active(enabled);
-            mw.set_tuner_enabled(enabled);
+            crate::AnalyzerBridge::get(&mw).set_tuner_mute_active(enabled);
+            crate::AnalyzerBridge::get(&mw).set_tuner_enabled(enabled);
         }
     };
     let cloned = on_toggle_enabled.clone();
-    window.on_toggle_tuner_enabled(cloned);
+    crate::AnalyzerBridge::get(window).on_toggle_tuner_enabled(cloned);
     tuner_window.on_toggle_enabled(on_toggle_enabled);
 }
 
