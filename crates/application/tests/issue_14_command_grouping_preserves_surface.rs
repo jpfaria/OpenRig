@@ -52,6 +52,11 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "SetChainLooperOutput",
     "SetChainLooperParam",
     "SetChainLooperPreset",
+    // #826 — reshaping a recorded loop, the same three edits the waveform
+    // editor offers.
+    "EditChainLooperAudio",
+    "UndoChainLooperEdit",
+    "RedoChainLooperEdit",
     "SetChainLooperTransport",
     // ── The surface that existed before the split ─────────────────────────
     "AddBlock",

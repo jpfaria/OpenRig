@@ -32,6 +32,7 @@ export component LooperHarness inherits Window {
     callback input-picked(int, int);
     callback output-picked(int, int);
     callback preset-open(int, int);
+    callback edit(int);
 
     LooperPanelView {
         x: 20px;
@@ -57,5 +58,6 @@ export component LooperHarness inherits Window {
         input-picked(uid, v) => { root.input-picked(uid, v); }
         output-picked(uid, v) => { root.output-picked(uid, v); }
         preset-open(uid, sel) => { root.preset-open(uid, sel); }
+        edit(uid) => { root.edit(uid); }
     }
 }

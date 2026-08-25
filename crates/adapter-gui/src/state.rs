@@ -6,7 +6,6 @@ use application::dispatcher::CommandDispatcher;
 use application::local_dispatcher::LocalDispatcher;
 use application::metronome_state::MetronomeControlState;
 use infra_filesystem::FilesystemStorage;
-use project::chain::ChainInputMode;
 use project::param::ParameterSet;
 use project::project::Project;
 use project::rig::RigProject;
@@ -216,14 +215,10 @@ pub(crate) struct BlockEditorDraft {
 pub(crate) struct InsertDraft {
     pub(crate) chain_index: usize,
     pub(crate) block_index: usize,
-    /// Registry binding id for the insert's external send/return loop (model A).
+    /// Registry binding id for the insert's external send/return loop (model A):
+    /// the SEND goes out that binding's output, the RETURN comes back on its
+    /// input. It is the whole editable state of an insert (#881).
     pub(crate) io: String,
-    pub(crate) send_device_id: Option<String>,
-    pub(crate) send_channels: Vec<usize>,
-    pub(crate) send_mode: ChainInputMode,
-    pub(crate) return_device_id: Option<String>,
-    pub(crate) return_channels: Vec<usize>,
-    pub(crate) return_mode: ChainInputMode,
 }
 
 /// #85 — the mid-chain I/O port being edited: which block it is and where it

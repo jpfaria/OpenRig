@@ -174,6 +174,7 @@ mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
+mod looper_editor_callbacks;
 pub mod looper_view;
 mod meter_wiring;
 mod meter_wiring_poll;
@@ -188,6 +189,9 @@ mod issue_85_click_port_opens_editor_tests;
 #[cfg(test)]
 #[path = "issue_85_port_editor_tests.rs"]
 mod issue_85_port_editor_tests;
+#[cfg(test)]
+#[path = "issue_881_insert_editor_tests.rs"]
+mod issue_881_insert_editor_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;

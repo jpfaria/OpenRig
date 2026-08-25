@@ -22,6 +22,17 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
 1. **Issue primeiro.** `gh issue list --search` antes de criar (evita duplicata). NUNCA criar issue sem pedido explícito do usuário.
 2. **Nome de branch: `feature/issue-{N}` ou `bugfix/issue-{N}`** — sem sufixo descritivo. Antes de criar: `git fetch && git branch -a | grep issue-{N}`.
 3. **A partir da `release/vX.Y.Z` ativa atualizada**: `git fetch && git checkout release/vX.Y.Z && git pull`. Não existe release ativa ainda? Corta da `develop`: `git checkout develop && git pull && git checkout -b release/vX.Y.Z && git push -u origin release/vX.Y.Z`.
+
+   **Ativa = a release que AINDA NÃO foi finalizada.** Uma release finalizada tem a tag `vX.Y.Z` criada e já foi mergeada na `main` — trabalhar nela (ou abrir PR pra ela) entrega código que nunca sai, porque aquela versão já foi publicada. Existir a branch `release/vX.Y.Z` não significa nada: as antigas ficam no remote. A `develop` estar na versão X.Y.Z também não — o bump acontece quando a release é cortada. **Checagem obrigatória antes de cortar branch e antes de `gh pr create`:**
+
+   ```bash
+   git fetch --tags
+   git branch -r | grep release/          # candidatas
+   git tag -l 'v0.4.0'                    # vazio = não finalizada
+   git log --oneline -1 origin/main       # "Merge release/vX.Y.Z into main" = essa acabou
+   ```
+
+   A ativa é a MAIOR versão sem tag. Errei isso na #881: cortei e ia abrir PR pra `release/v0.3.0` com `v0.3.0` já taggeada e mergeada na `main`, enquanto a ativa era a `release/v0.4.0`.
 4. **Mergear a release ativa antes de qualquer trabalho**: `git merge -X theirs origin/release/vX.Y.Z`.
 5. Commits em inglês, sem `Co-Authored-By`, foco no "why".
 6. **NUNCA `Closes #N` ou `Fixes #N`** em commits — GitHub auto-fecha.

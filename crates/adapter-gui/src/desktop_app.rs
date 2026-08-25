@@ -22,7 +22,7 @@ use crate::state::{
     AudioSettingsMode, BlockEditorDraft, BlockWindow, ChainDraft, InsertDraft, ProjectSession,
     SelectedBlock,
 };
-use crate::{latency_probe, ChannelOptionItem, CompactChainViewWindow};
+use crate::{latency_probe, CompactChainViewWindow};
 
 pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
@@ -121,8 +121,6 @@ pub fn run_desktop_app(
         plugin_info_window,
     } = crate::desktop_app_windows::create()?;
     let port_draft: Rc<RefCell<Option<crate::state::PortDraft>>> = Rc::new(RefCell::new(None));
-    let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     // The analyzer owns each session; these are the same cells, for the reads
     // (`GuiLiveSource::tuner`, `openrig://tuner`) that answer from them.
     let tuner_session = analyzers.tuner_cell().clone();
@@ -263,14 +261,7 @@ pub fn run_desktop_app(
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
     project_settings_window.set_bit_depth_options(window.get_bit_depth_options());
-    chain_insert_window.set_send_device_options(ModelRc::from(chain_output_device_options.clone()));
-    chain_insert_window
-        .set_return_device_options(ModelRc::from(chain_input_device_options.clone()));
-    chain_insert_window.set_send_channels(ModelRc::from(insert_send_channels.clone()));
-    chain_insert_window.set_return_channels(ModelRc::from(insert_return_channels.clone()));
-    chain_insert_window.set_selected_send_device_index(-1);
-    chain_insert_window.set_selected_return_device_index(-1);
-    chain_insert_window.set_status_message("".into());
+    chain_insert_window.set_selected_binding_index(-1);
     // --- ChainInsertWindow callbacks (extracted to insert_wiring) ---
     // #85 — the mid-chain I/O port editor's own callbacks.
     crate::port_wiring::wire_port_window(
@@ -294,8 +285,6 @@ pub fn run_desktop_app(
             insert_draft: insert_draft.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
-            insert_send_channels: insert_send_channels.clone(),
-            insert_return_channels: insert_return_channels.clone(),
             project_session: project_session.clone(),
             project_chains: project_chains.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
@@ -449,8 +438,6 @@ pub fn run_desktop_app(
         output_chain_devices: output_chain_devices.clone(),
         chain_input_device_options: chain_input_device_options.clone(),
         chain_output_device_options: chain_output_device_options.clone(),
-        insert_send_channels: insert_send_channels.clone(),
-        insert_return_channels: insert_return_channels.clone(),
         open_block_windows: open_block_windows.clone(),
         inline_stream_timer: inline_stream_timer.clone(),
         open_compact_window: open_compact_window.clone(),

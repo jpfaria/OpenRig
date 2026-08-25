@@ -281,12 +281,16 @@ pub(crate) fn resolve_chain_inputs(
     let resolved_inputs = resolve_chain_io(chain, registry).0;
     let mut input_entries: Vec<&InputEntry> = resolved_inputs.iter().collect();
     // Include Insert block return endpoints as input streams
+    // #881: the SAME rule the engine's segmentation uses — an insert counts
+    // only when BOTH sides of its binding resolve. Disagreeing here would open
+    // a stream the engine has no segment for (or skew every index after it).
     let insert_return_entries: Vec<InputEntry> = chain
         .blocks
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
+            AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry)
+                .filter(|_| insert_send_as_output_entry(ib, registry).is_some()),
             _ => None,
         })
         .collect();
@@ -314,12 +318,14 @@ pub(crate) fn resolve_chain_outputs(
     let resolved_outputs = resolve_chain_io(chain, registry).1;
     let mut output_entries: Vec<&OutputEntry> = resolved_outputs.iter().collect();
     // Include Insert block send endpoints as output streams
+    // #881: both sides or nothing — see `resolve_chain_inputs`.
     let insert_send_entries: Vec<OutputEntry> = chain
         .blocks
         .iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
+            AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry)
+                .filter(|_| insert_return_as_input_entry(ib, registry).is_some()),
             _ => None,
         })
         .collect();

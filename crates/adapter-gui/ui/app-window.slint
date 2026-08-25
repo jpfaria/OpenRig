@@ -11,7 +11,9 @@ import { DiSourcePicker } from "components/di_source_picker_globals.slint";
 // single root overlay so it is never clipped by the chain list.
 import { DiPanel } from "components/di_panel_globals.slint";
 import { LooperOverlay } from "components/looper_overlay.slint";
-import { LooperPanel } from "components/looper_panel_globals.slint";
+import { LooperEditorOverlay, LoopEditKind } from "components/looper_editor_overlay.slint";
+import { LooperPanel, LooperEditor } from "components/looper_panel_globals.slint";
+export { LooperEditor }
 import { MetronomeBridge } from "components/metronome_globals.slint";
 import { ToneDoctorState } from "components/tone_doctor_globals.slint"; import { DiLoopOverlay } from "components/di_loop_overlay.slint"; import { ToneDoctorOverlay } from "components/tone_doctor_overlay.slint"; import { BlockParamTabs } from "components/block_param_tabs_globals.slint";
 export { DiPanel }
@@ -20,8 +22,9 @@ import { ChainRigNav } from "models.slint";
 import { DiLoopHarness } from "components/di_loop_test_harness.slint";
 import { LooperHarness } from "components/looper_panel_test_harness.slint";
 import { LooperOverlayHarness } from "components/looper_overlay_test_harness.slint";
+import { LooperEditorHarness } from "components/looper_editor_test_harness.slint";
 import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness }
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -157,6 +160,12 @@ export component AppWindow inherits Window {
     /// #323 phase 2: a preset was picked for a loop. Args: chain-index, uid,
     /// index into the chain's `looper_preset_options` (0 = follow the chain).
     callback looper-preset-picked(int, int, int);
+    // #826 — the waveform editor: open it for a loop, and the three edits.
+    callback looper-edit(int, int);
+    callback looper-edit-apply(int, int, LoopEditKind, float, float);
+    callback looper-edit-play-stop(int, int);
+    callback looper-edit-undo(int, int);
+    callback looper-edit-redo(int, int);
 
     /// #771: an output endpoint was picked in the DI panel.
     /// Args: chain-index, index into the chain's di_loop_outputs.
@@ -448,6 +457,15 @@ export component AppWindow inherits Window {
         input-picked(ci, uid, v) => { root.looper-input-picked(ci, uid, v); }
         output-picked(ci, uid, v) => { root.looper-output-picked(ci, uid, v); }
         preset-picked(ci, uid, v) => { root.looper-preset-picked(ci, uid, v); }
+        edit(ci, uid) => { root.looper-edit(ci, uid); }
+    }
+    // #826 — the waveform editor, opened from a looper row's edit button.
+    LooperEditorOverlay {
+        width: root.width; height: root.height;
+        apply(ci, uid, kind, from, to) => { root.looper-edit-apply(ci, uid, kind, from, to); }
+        play-stop(ci, uid) => { root.looper-edit-play-stop(ci, uid); }
+        undo(ci, uid) => { root.looper-edit-undo(ci, uid); }
+        redo(ci, uid) => { root.looper-edit-redo(ci, uid); }
     }
     ToneDoctorOverlay {
         width: root.width; height: root.height;

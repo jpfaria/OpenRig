@@ -43,6 +43,7 @@ use project::chain::{Chain, EndpointRef};
 use project::device::DeviceSettings;
 
 use crate::command::{LooperAction, LooperParam};
+use crate::looper_edit::LoopEdit;
 
 /// Runtime state changes a command handler can apply to the frontend's audio
 /// runtime.
@@ -355,6 +356,28 @@ pub trait RuntimeControl {
     /// Play to the chosen output endpoint. Never starts anything.
     fn set_looper_output(&self, chain: &Chain, looper: u64, output: Option<EndpointRef>) {
         let _ = (chain, looper, output);
+    }
+
+    /// #826: reshape a STOPPED loop — trim / crop / cut — and install the
+    /// result, returning its new length in frames.
+    ///
+    /// Never wakes audio: an edit is not a request to hear something (#808).
+    /// The store refuses the edit while the looper is recording or playing, so
+    /// a live take is never reshaped under the player's feet.
+    fn apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize> {
+        let _ = (chain, looper, edit);
+        Ok(0)
+    }
+
+    /// #826: step back one waveform edit. Independent of the transport's undo,
+    /// which is a no-op for the single-take looper.
+    fn undo_looper_edit(&self, chain: &Chain, looper: u64) {
+        let _ = (chain, looper);
+    }
+
+    /// #826: step forward one undone waveform edit.
+    fn redo_looper_edit(&self, chain: &Chain, looper: u64) {
+        let _ = (chain, looper);
     }
 
     /// Hand over every recorded loop this chain holds, so the project save can

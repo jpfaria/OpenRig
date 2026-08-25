@@ -171,6 +171,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         &ctx.project_dirty,
         ctx.auto_save,
     );
+    // #826: the waveform editor — its own overlay, its own read (the loop's
+    // envelope rather than its transport state).
+    crate::looper_editor_callbacks::wire_looper_editor_callbacks(
+        window,
+        &ctx.project_session,
+        &ctx.looper_live,
+        &crate::looper_editor_callbacks::EditorDirtyCtx {
+            window: window.as_weak(),
+            saved_project_snapshot: ctx.saved_project_snapshot.clone(),
+            project_dirty: ctx.project_dirty.clone(),
+            auto_save: ctx.auto_save,
+        },
+    );
 }
 
 fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {

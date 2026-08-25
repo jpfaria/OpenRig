@@ -86,7 +86,21 @@ every layer instead of "it plays, ship it":
 | `adapter-gui/tests/issue_323_looper_panel_interaction.rs` | real pointer events on the panel: every transport button fires, disabled ones do not, each row reports its own uid |
 | `adapter-gui/src/runtime_loopers_tests.rs` | save → reopen round-trip of the wav sidecar (the save dispatched, not called), and that a missing sidecar never blocks opening a project |
 | `application/src/local_dispatcher_looper_save_tests.rs` | `SaveProject` exports the loops itself, forgets a cleared loop's stale pointer, and touches nothing when the rig is stopped |
+| `adapter-gui/src/runtime_loopers_826_tests.rs` | the same round-trip on a RIG project, reopened FROM DISK — record → close → reopen, plus the same after a chain rename and after a waveform edit (#826) |
 | `infra-cpal/tests/issue_323_looper_hw.rs` (`OPENRIG_HW_TESTS=1`) | the REAL stack: record + 7 overdubs + undo/redo/clear on live CoreAudio streams at buffer 64 cost **zero** xruns / underruns |
+
+A persistence round-trip has to reopen the way the app reopens: read the file
+back with `project_ops::load_rig_and_project` and restore into a FRESH
+controller. `runtime_loopers_tests` does not — its session carries `rig: None`
+and it reuses the in-memory project — and two bugs that emptied the user's
+looper walked straight past it (#826). The app's project is a rig: what hits
+disk is built from `RigProject`, not from `Project`, so anything stamped onto a
+chain AFTER the rig capture never reaches the file. `runtime_loopers_826_tests`
+is the version that reopens for real; prefer it as the template.
+
+Neither needs an audio device: `ProjectRuntimeController::for_testing_with_sample_rate`
+builds a controller with a real `LooperStore` and opens nothing, so record →
+edit → save → reopen → restore runs headless in a unit test.
 
 The hardware test builds its rig **in the test** instead of loading a fixture
 preset: the shipped presets reference the owner's NAM/LV2 capture library, so

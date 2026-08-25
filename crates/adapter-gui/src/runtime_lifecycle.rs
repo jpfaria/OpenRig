@@ -29,6 +29,7 @@ use anyhow::Result;
 
 use application::command::{LooperAction, LooperParam};
 use application::dispatcher::CommandDispatcher;
+use application::looper_edit::LoopEdit;
 use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
@@ -232,6 +233,21 @@ impl RuntimeControl for GuiRuntimeControl {
 
     fn set_looper_output(&self, chain: &Chain, looper: u64, output: Option<EndpointRef>) {
         runtime_loopers::set_output(&self.runtime, chain, looper, output);
+    }
+
+    /// #826/#808: reshaping a recorded loop never wakes audio — an edit is not
+    /// a request to hear something. With nothing running there is no store to
+    /// edit and the call no-ops.
+    fn apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize> {
+        runtime_loopers::apply_edit(&self.runtime, chain, looper, edit)
+    }
+
+    fn undo_looper_edit(&self, chain: &Chain, looper: u64) {
+        runtime_loopers::undo_edit(&self.runtime, chain, looper);
+    }
+
+    fn redo_looper_edit(&self, chain: &Chain, looper: u64) {
+        runtime_loopers::redo_edit(&self.runtime, chain, looper);
     }
 
     fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<LoopPcm>)>> {

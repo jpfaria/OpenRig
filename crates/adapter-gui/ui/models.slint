@@ -100,6 +100,9 @@ export struct LooperItem {
     /// runtime, which exists only when the chain is on; the transport's REC
     /// button is disabled otherwise so it is not a dead press.
     can_record: bool,
+    /// #826: whether the waveform editor may open — the loop is stopped and
+    /// holds material. Resolved in Rust; the row only reads it.
+    can_edit: bool,
     /// Index into the chain's input endpoints of the input this looper records
     /// from (0 = first input). The option labels live on the LooperPanel global.
     input_index: int,
