@@ -1,3 +1,4 @@
+//! Responsibility: describes the metronome settings a machine keeps for itself.
 //! Per-machine metronome settings (#14).
 //!
 //! ADR 0003 puts these in the SYSTEM `config.yaml`: a practice tempo belongs

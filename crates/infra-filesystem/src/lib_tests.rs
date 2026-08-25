@@ -282,4 +282,3 @@ fn app_config_save_and_load_filesystem_roundtrip() {
 
     let _ = fs::remove_dir_all(&dir);
 }
-
