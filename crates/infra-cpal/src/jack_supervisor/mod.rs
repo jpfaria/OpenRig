@@ -42,6 +42,16 @@ pub mod types;
 pub mod alsa_mixer;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub mod live_backend;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod live_probe;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod live_process;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod live_shm;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod live_socket;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod live_stderr;
 
 // Re-exports used by `crate::ProjectRuntimeController`. Internal types
 // (`JackBackend`, `MockBackend`, `PostReadyStatus`, `RestartReason`,
