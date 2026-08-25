@@ -151,7 +151,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 block_type_picker_items(&chain.instrument),
             ))));
         }
-        let blocks = build_compact_blocks(&session.project.borrow(), ci);
+        let blocks =
+            build_compact_blocks(&session.project.borrow(), ci, &session.io_bindings.borrow());
         let compact_blocks = Rc::new(VecModel::from(blocks));
         compact_win.set_compact_blocks(ModelRc::from(compact_blocks.clone()));
         drop(session_borrow);

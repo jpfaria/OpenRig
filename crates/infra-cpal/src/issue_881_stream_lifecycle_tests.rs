@@ -375,3 +375,57 @@ fn a_structural_edit_opens_new_streams_and_a_param_edit_does_not() {
         "#881: no stale slot may outlive the rebuild"
     );
 }
+
+/// The owner's rule, second half (#881): "só que você pode matar depois que a
+/// outra levantar". Toggling a routing block changes the topology, so the
+/// streams are rebuilt — but the ones that are playing must keep playing until
+/// the new set is up. Dropping them at the REQUEST is a hole of silence: "quando
+/// eu ativo e desativo o bloco o som morre e depois volta".
+#[test]
+fn the_live_streams_keep_playing_while_the_new_ones_are_built() {
+    if !hw_enabled("the_live_streams_keep_playing_while_the_new_ones_are_built") {
+        return;
+    }
+    let Some(device) = loopback_device() else {
+        eprintln!("skipped — needs the BlackHole loopback");
+        return;
+    };
+    let chain_id = ChainId("issue-881-lifecycle".into());
+    let with_insert = chain_with(vec![insert_block()]);
+    let mut project = Project {
+        name: Some("issue-881".into()),
+        device_settings: vec![settings(&device)],
+        chains: vec![with_insert.clone()],
+        midi: None,
+    };
+    let mut controller = start(&project, &device, &chain_id);
+    assert_eq!(open_streams(&controller, &chain_id), (1, 2));
+
+    // The user bypasses the insert: a topology change.
+    let mut bypassed = with_insert.clone();
+    bypassed.blocks[0].enabled = false;
+    project.chains[0] = bypassed.clone();
+
+    let scheduled = controller
+        .schedule_chain_activation(&project, &bypassed)
+        .expect("schedule");
+    assert!(scheduled, "a topology change must schedule a fresh build");
+
+    assert_ne!(
+        open_streams(&controller, &chain_id),
+        (0, 0),
+        "#881: the live streams must still be playing while the new ones are \
+         built — killing them at the request is the gap of silence the owner \
+         hears on every toggle"
+    );
+
+    for _ in 0..80 {
+        controller.poll_pending_rebuilds();
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert_eq!(
+        open_streams(&controller, &chain_id),
+        (1, 1),
+        "and once the new set lands, the bypassed insert's send is gone"
+    );
+}

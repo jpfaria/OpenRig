@@ -14,6 +14,7 @@ use project::param::ParameterSet;
 use project::project::Project;
 
 use crate::compact_block_view::build_compact_blocks;
+use slint::Model;
 
 fn drive(id: &str) -> AudioBlock {
     AudioBlock {
@@ -73,7 +74,7 @@ fn project_with(blocks: Vec<AudioBlock>) -> Project {
 fn the_compact_view_lists_the_insert_between_the_pedals() {
     let project = project_with(vec![drive("a"), insert("loop"), drive("b")]);
 
-    let items = build_compact_blocks(&project, 0);
+    let items = build_compact_blocks(&project, 0, &[]);
     let ids: Vec<String> = items.iter().map(|i| i.block_id.to_string()).collect();
 
     assert_eq!(
@@ -85,6 +86,20 @@ fn the_compact_view_lists_the_insert_between_the_pedals() {
     let loop_row = &items[1];
     assert_eq!(loop_row.effect_type.to_string(), "insert");
     assert_eq!(
+        loop_row.icon_kind.to_string(),
+        "insert",
+        "the row must draw the insert icon, not the generic gear"
+    );
+    assert_eq!(
+        loop_row.display_label.to_string(),
+        "INSERT",
+        "the label says WHICH port it is"
+    );
+    assert!(
+        loop_row.models.iter().count() == 0,
+        "a routing block has no model catalog — the row must not draw a picker"
+    );
+    assert_eq!(
         loop_row.block_index, 1,
         "the row must carry the REAL chain index, or select/reorder/delete hit \
          the wrong block"
@@ -95,7 +110,7 @@ fn the_compact_view_lists_the_insert_between_the_pedals() {
 fn the_compact_view_lists_a_mid_port_too() {
     let project = project_with(vec![drive("a"), mid_output("aux"), drive("b")]);
 
-    let items = build_compact_blocks(&project, 0);
+    let items = build_compact_blocks(&project, 0, &[]);
     let ids: Vec<String> = items.iter().map(|i| i.block_id.to_string()).collect();
 
     assert_eq!(

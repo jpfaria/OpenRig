@@ -14,6 +14,7 @@
 import { ComboBox } from "std-widgets.slint";
 import { PortEditorFooterButton } from "port_editor_widgets.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { FootSwitch } from "../components/foot_switch.slint";
 
 export component ChainInsertEditorPage inherits Rectangle {
     in property <[string]> binding-options;
@@ -61,29 +62,6 @@ export component ChainInsertEditorPage inherits Rectangle {
                 horizontal-stretch: 1;
             }
 
-            // Enabled dot — the block's power, same affordance as the port editor.
-            Rectangle {
-                width: 28px;
-                height: 28px;
-                y: (parent.height - self.height) / 2;
-                border-radius: 4px;
-                background: toggle-hover.has-hover ? #1e2229 : transparent;
-                accessible-role: button;
-                accessible-label: @tr("action-toggle-block-enabled");
-
-                Rectangle {
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 4px;
-                    background: root.block-enabled ? #29df85 : #697382;
-                }
-
-                toggle-hover := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.toggle-enabled(); }
-                }
-            }
-
             Rectangle {
                 width: 28px;
                 height: 28px;
@@ -122,6 +100,7 @@ export component ChainInsertEditorPage inherits Rectangle {
 
         panel-body := VerticalLayout {
             padding: 16px;
+            padding-left: 80px;
             spacing: 8px;
 
             Text {
@@ -151,6 +130,16 @@ export component ChainInsertEditorPage inherits Rectangle {
                 wrap: word-wrap;
             }
         }
+    }
+
+    // ── POWER — the same footswitch every block editor carries (#881) ───
+    FootSwitch {
+        x: 24px;
+        y: root.header-height + 16px + 12px;
+        width: 48px;
+        height: 66px;
+        enabled: root.block-enabled;
+        clicked => { root.toggle-enabled(); }
     }
 
     // ── FOOTER (52px) ───────────────────────────────────────────────────

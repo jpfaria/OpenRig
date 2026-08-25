@@ -77,16 +77,40 @@ fn routing_compact_item(
     chain_index: usize,
     block_index: usize,
     block: &project::block::AudioBlock,
+    io_bindings: &[infra_filesystem::IoBinding],
 ) -> CompactBlockItem {
     let effect_type = block.kind.label().to_string();
     let model_id = block
         .model_ref()
         .map(|m| m.model.to_string())
         .unwrap_or_else(|| block_core::constants::IO_PORT_MODEL.to_string());
-    let entry = supported_block_type(&effect_type);
-    let icon_kind = entry
-        .as_ref()
-        .map(|t| t.icon_kind.to_string())
+    // The icon set draws `input` / `output` / `insert` by name (#85), and the
+    // row's label is the block kind — an "I/O" label on every port tells the
+    // user nothing about which one it is.
+    let icon_kind = effect_type.clone();
+    // What the port POINTS AT is its content, so it takes the slot where a
+    // processing block shows its model: the E/S by the name the user gave it.
+    let target = match &block.kind {
+        project::block::AudioBlockKind::Insert(b) => Some(b.io.as_str()),
+        project::block::AudioBlockKind::Input(b) => Some(b.io.as_str()),
+        project::block::AudioBlockKind::Output(b) => Some(b.io.as_str()),
+        _ => None,
+    };
+    let target_label = target
+        .map(|id| {
+            io_bindings
+                .iter()
+                .find(|b| b.id == id)
+                .map(|b| {
+                    let name = b.name.trim();
+                    if name.is_empty() {
+                        b.id.clone()
+                    } else {
+                        name.to_string()
+                    }
+                })
+                .unwrap_or_else(|| id.to_string())
+        })
         .unwrap_or_default();
     let visual = project::catalog::supported_block_models(&effect_type)
         .ok()
@@ -104,21 +128,13 @@ fn routing_compact_item(
             .map(|v| v.brand.clone())
             .unwrap_or_default()
             .into(),
-        display_name: visual
-            .as_ref()
-            .map(|v| v.display_name.clone())
-            .unwrap_or_default()
-            .into(),
+        display_name: target_label.clone().into(),
         type_label: visual
             .as_ref()
             .map(|v| v.type_label.clone())
             .unwrap_or_default()
             .into(),
-        display_label: entry
-            .as_ref()
-            .map(|e| e.display_label)
-            .unwrap_or("I/O")
-            .into(),
+        display_label: effect_type.to_uppercase().into(),
         enabled: block.enabled,
         panel_bg: {
             let vc = project::catalog::resolve_color_scheme(&effect_type, "", "");
@@ -151,7 +167,11 @@ fn routing_compact_item(
     }
 }
 
-pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec<CompactBlockItem> {
+pub(crate) fn build_compact_blocks(
+    project: &Project,
+    chain_index: usize,
+    io_bindings: &[infra_filesystem::IoBinding],
+) -> Vec<CompactBlockItem> {
     let Some(chain) = project.chains.get(chain_index) else {
         return Vec::new();
     };
@@ -167,7 +187,12 @@ pub(crate) fn build_compact_blocks(project: &Project, chain_index: usize) -> Vec
             // longer matched the signal path. They are chain rows like any
             // other; they just have nothing to tweak inline.
             if block.kind.is_routing() {
-                return Some(routing_compact_item(chain_index, block_index, block));
+                return Some(routing_compact_item(
+                    chain_index,
+                    block_index,
+                    block,
+                    io_bindings,
+                ));
             }
             let editor_data = block_editor_data(block)?;
             let effect_type = editor_data.effect_type.clone();

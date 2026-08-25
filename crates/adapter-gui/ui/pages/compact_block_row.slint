@@ -99,8 +99,24 @@ export component CompactBlockRow inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // ── 4a. Routing blocks (#881): a port/insert has no model catalog — what it
+    // carries is the E/S it points at, so that name takes the model slot
+    // instead of an empty picker.
+    if root.block-data.models.length == 0 : Text {
+        x: 158px;
+        y: (root.header-height - 40px) / 2;
+        width: 260px;
+        height: 40px;
+        text: root.block-data.display-name;
+        color: root.block-data.panel-text;
+        font-size: 16px;
+        font-weight: 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
     // ── 4. Model selector with embedded search (after type label) ──
-    ModelSelectWithSearch {
+    if root.block-data.models.length > 0 : ModelSelectWithSearch {
         x: 158px;
         y: (root.header-height - 40px) / 2;
         width: 260px;
