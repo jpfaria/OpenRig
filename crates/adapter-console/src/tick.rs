@@ -1,3 +1,4 @@
+//! Responsibility: advances the console's event loop by one turn.
 //! One turn of the console's event loop.
 //!
 //! The console's only heartbeat is this tick, so it owns the same duty the

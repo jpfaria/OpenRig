@@ -1,3 +1,4 @@
+//! Responsibility: parses raw MIDI bytes into a channel message.
 //! Parse raw MIDI bytes into the small set of channel-voice messages a
 //! controller binding can target. Pure and fully testable — no device, no
 //! `midir`. System/real-time/unsupported messages parse to `None`.

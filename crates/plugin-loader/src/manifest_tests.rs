@@ -335,4 +335,3 @@ captures:
         other => panic!("expected NAM backend, got {other:?}"),
     }
 }
-

@@ -1,3 +1,4 @@
+//! Responsibility: runs an LV2 plugin over a mono signal.
 use crate::host::Lv2Plugin;
 use block_core::MonoProcessor;
 use std::ffi::c_void;

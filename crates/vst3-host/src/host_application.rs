@@ -1,3 +1,4 @@
+//! Responsibility: answers the host callbacks a VST3 plugin makes.
 //! Host-side `IHostApplication` implementation.
 //!
 //! The VST3 spec says the host must pass an `IHostApplication` as the context

@@ -1,3 +1,4 @@
+//! Responsibility: routes the LV2 crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.

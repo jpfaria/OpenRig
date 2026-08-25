@@ -30,13 +30,19 @@ fn thd_n_rises_with_added_harmonics() {
         })
         .collect();
     let d = thd_n(&sig, 1_000.0, SR);
-    assert!((d - 0.2).abs() < 0.02, "third harmonic at 20 % → THD+N ≈ 0.2, got {d}");
+    assert!(
+        (d - 0.2).abs() < 0.02,
+        "third harmonic at 20 % → THD+N ≈ 0.2, got {d}"
+    );
 }
 
 #[test]
 fn noise_floor_of_silence_is_very_low() {
     let nf = rms_dbfs(&BatterySignal::Silence.generate(1.0, SR));
-    assert!(nf <= -120.0, "silence should read a very low floor, got {nf} dBFS");
+    assert!(
+        nf <= -120.0,
+        "silence should read a very low floor, got {nf} dBFS"
+    );
 }
 
 #[test]
@@ -59,7 +65,10 @@ fn clean_sine_does_not_clip() {
 
 #[test]
 fn clipped_signal_reports_clipping() {
-    let clipped: Vec<f32> = sine(1_000.0, 2.0, 0.1).iter().map(|s| s.clamp(-1.0, 1.0)).collect();
+    let clipped: Vec<f32> = sine(1_000.0, 2.0, 0.1)
+        .iter()
+        .map(|s| s.clamp(-1.0, 1.0))
+        .collect();
     assert!(clip_fraction(&clipped) > 0.001, "hard-clipped sine clips");
 }
 
@@ -76,7 +85,10 @@ fn assemble_reports_clean_chain_metrics() {
     let silence_out = BatterySignal::Silence.generate(1.0, SR);
     let m = assemble(&sine_out, &silence_out, SR);
     assert!(m.thd_n < 0.01, "clean: low THD+N: {m:?}");
-    assert!(m.noise_floor_dbfs <= -120.0, "clean: low noise floor: {m:?}");
+    assert!(
+        m.noise_floor_dbfs <= -120.0,
+        "clean: low noise floor: {m:?}"
+    );
     assert!((m.peak_dbfs - (-6.02)).abs() < 0.3, "{m:?}");
     assert!(m.dynamic_range_db > 0.0, "{m:?}");
     assert_eq!(m.clip_fraction, 0.0, "{m:?}");

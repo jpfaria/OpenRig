@@ -8,7 +8,7 @@
 
 pub use crate::query_block_params::get_block_params;
 pub use crate::query_ids::list_ids;
-pub use crate::query_paths::resolved_paths_json;
+pub use crate::query_paths::{resolved_paths_json, ResolvedPaths};
 pub use crate::query_plugins::{find_plugins, get_plugin, get_plugin_params, list_plugin_catalog};
 pub use crate::query_presets::{list_chain_presets, list_project_presets};
 

@@ -1,3 +1,4 @@
+//! Responsibility: extracts the bundled plugins on first launch.
 //! First-launch extraction of the bundled plugins zip.
 //!
 //! The OpenRig installer ships a single `openrig-plugins.zip` produced

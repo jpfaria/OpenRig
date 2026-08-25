@@ -1,3 +1,4 @@
+//! Responsibility: dispatches a matched binding to its slot.
 //! Slot dispatch (issue #548 Phase 3c).
 //!
 //! Pure function that maps `(slot_name, MIDI message, SelectionState) →

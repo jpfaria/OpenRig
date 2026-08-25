@@ -1,3 +1,4 @@
+//! Responsibility: runs a NAM model over a signal.
 use crate::GENERIC_NAM_MODEL_ID;
 use anyhow::{bail, Result};
 use block_core::param::{optional_string, required_string, ParameterSet};

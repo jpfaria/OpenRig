@@ -1,3 +1,4 @@
+//! Responsibility: instantiates a NAM model out of a loaded package.
 //! Generic NAM instantiation from a `plugin_loader::LoadedPackage`.
 //!
 //! Picks the capture file that matches the user's `ParameterSet` (axes

@@ -1,3 +1,4 @@
+//! Responsibility: routes the NAM crate's public surface.
 pub mod baked_loudness;
 pub mod from_package;
 pub mod gain_offsets;

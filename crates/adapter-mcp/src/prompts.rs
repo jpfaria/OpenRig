@@ -1,3 +1,4 @@
+//! Responsibility: holds the prompts that orient an agent to the rig.
 //! Static MCP prompts that orient the agent to drive OpenRig via the tools
 //! and resources. No business logic lives here.
 

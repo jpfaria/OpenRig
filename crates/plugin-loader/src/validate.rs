@@ -1,3 +1,4 @@
+//! Responsibility: validates a plugin manifest against its schema.
 //! Schema-level validation for [`PluginManifest`].
 //!
 //! Catches problems that `serde` parsing alone won't reject: empty fields,

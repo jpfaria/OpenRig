@@ -1,3 +1,4 @@
+//! Responsibility: enumerates the MIDI input ports of this machine.
 //! Enumerate the system's MIDI input ports for the GUI's Settings screen.
 //! Pure with respect to midir state: returns a snapshot. The daemon uses
 //! the same function so the GUI and the runtime never disagree on which

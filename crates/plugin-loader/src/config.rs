@@ -1,3 +1,4 @@
+//! Responsibility: resolves where the plugin packages live.
 //! Resolves where the plugin packages directory lives at runtime.
 //!
 //! Order of precedence:

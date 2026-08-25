@@ -1,3 +1,4 @@
+//! Responsibility: runs an LV2 plugin over a stereo signal.
 use crate::host::Lv2Plugin;
 use block_core::StereoProcessor;
 use std::ffi::c_void;

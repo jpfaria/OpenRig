@@ -1,3 +1,4 @@
+//! Responsibility: describes the plugin manifest schema.
 //! Plugin manifest schema (YAML).
 //!
 //! A plugin package is a folder containing `manifest.yaml` plus the assets it

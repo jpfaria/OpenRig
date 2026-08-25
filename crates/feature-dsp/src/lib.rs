@@ -1,3 +1,4 @@
+//! Responsibility: routes the feature DSP crate's public surface.
 //! DSP utilities for OpenRig top-level features (Tuner, Spectrum Analyzer, ...).
 //!
 //! These are not audio blocks — they run on UI/worker threads and read sample

@@ -1,3 +1,4 @@
+//! Responsibility: carries a plugin's parameter updates back to the app.
 //! Shared channel for VST3 parameter updates from the plugin GUI to the audio thread.
 //!
 //! When the user moves a knob in the plugin's native editor window, the plugin

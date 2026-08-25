@@ -1,3 +1,4 @@
+//! Responsibility: routes the MCP adapter's public surface.
 //! Frontend-agnostic MCP server. Owns no state; drives the live OpenRig
 //! instance through `application::bridge::CommandBridge`. Streamable HTTP
 //! transport — connects to the already-running frontend (GUI or console),

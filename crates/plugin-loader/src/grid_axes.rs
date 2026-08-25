@@ -1,3 +1,4 @@
+//! Responsibility: filters the capture axes a disk package offers.
 //! Capture-selection axis filtering for disk-backed NAM/IR plugins.
 //!
 //! Manifests declare each selectable axis as `parameters[].values`, but two

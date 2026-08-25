@@ -1,3 +1,4 @@
+//! Responsibility: infers the canonical URI of an LV2 bundle.
 //! Infer the canonical plugin URI from a bundle's TTL files.
 //!
 //! Used by the `fix_lv2_manifest_uris` tool to repair `plugin_uri:`

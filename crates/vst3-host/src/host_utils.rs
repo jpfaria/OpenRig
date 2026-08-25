@@ -1,3 +1,4 @@
+//! Responsibility: converts between the VST3 string representations.
 //! Internal helpers for the VST3 host. Lifted out of `host.rs` so the
 //! main module stays under the size cap.
 //!

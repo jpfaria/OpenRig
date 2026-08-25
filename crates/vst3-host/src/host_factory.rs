@@ -1,3 +1,4 @@
+//! Responsibility: enumerates what a VST3 factory offers.
 //! Factory-level VST3 introspection: enumerate plugin classes and read
 //! vendor metadata without instantiating the plugin. Lifted out of
 //! `host.rs` so the main module stays under the size cap.

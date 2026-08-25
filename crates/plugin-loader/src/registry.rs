@@ -1,3 +1,4 @@
+//! Responsibility: holds every plugin known at runtime.
 //! Process-wide registry of every plugin known at runtime.
 //!
 //! Two ways a plugin enters the registry:

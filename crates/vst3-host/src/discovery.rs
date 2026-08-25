@@ -1,3 +1,4 @@
+//! Responsibility: scans the system for VST3 bundles.
 //! VST3 plugin discovery: scans system paths and individual bundles.
 
 use anyhow::Result;

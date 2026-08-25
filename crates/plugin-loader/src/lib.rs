@@ -1,3 +1,4 @@
+//! Responsibility: routes the plugin loader's public surface.
 //! Runtime loader for OpenRig plugin packages.
 //!
 //! Reads `.openrig-plugin` packages (NAM / IR / LV2) from a directory and

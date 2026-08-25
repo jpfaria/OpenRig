@@ -1,3 +1,4 @@
+//! Responsibility: calibrates the tone profiles offline.
 //! Offline calibration glue (#809, Piece 1 — I/O shell).
 //!
 //! Walks a corpus of genre-labeled isolated-guitar stems, measures each with
@@ -50,10 +51,7 @@ pub struct StemMeasurement {
 
 /// Measure every labeled stem under `evaluations_root`, one record per stem.
 /// Missing stems are skipped with a warning (a partial corpus still measures).
-pub fn measure_stems(
-    evaluations_root: &Path,
-    manifest: &Manifest,
-) -> Result<Vec<StemMeasurement>> {
+pub fn measure_stems(evaluations_root: &Path, manifest: &Manifest) -> Result<Vec<StemMeasurement>> {
     let mut out = Vec::new();
     for (song, genre) in manifest {
         for stem in REF_STEMS {

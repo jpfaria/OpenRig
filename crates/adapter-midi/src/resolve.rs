@@ -1,3 +1,4 @@
+//! Responsibility: resolves which MIDI map applies.
 //! ADR 0003 / #499 MIDI map resolver — combines the project's MIDI bindings,
 //! the system device profile, the system bindings fallback file, and the
 //! shipped default into the single [`MidiMap`] the daemon consumes.

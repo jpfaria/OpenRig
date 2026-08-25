@@ -1,3 +1,4 @@
+//! Responsibility: loads a VST3 bundle into an instantiated plugin.
 //! `Vst3Plugin::load` — bundle load + COM instantiation. Split out of `host.rs`
 //! (issue #778) to keep that file under the per-file line cap. Child module of
 //! `host`, so it can construct the private `Vst3Inner`.

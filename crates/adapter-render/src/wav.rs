@@ -1,3 +1,4 @@
+//! Responsibility: reads a WAV file the render driver needs.
 //! WAV I/O helpers for the offline render driver.
 //!
 //! All samples are normalized `f32` in `[-1.0, 1.0]` inside the engine path.

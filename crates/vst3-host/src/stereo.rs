@@ -1,3 +1,4 @@
+//! Responsibility: runs a VST3 plugin over a stereo signal.
 //! Stereo VST3 processor: wraps `Vst3Plugin` and implements `StereoProcessor`.
 
 use crate::host::Vst3Plugin;

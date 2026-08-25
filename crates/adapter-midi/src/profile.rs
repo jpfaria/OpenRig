@@ -1,3 +1,4 @@
+//! Responsibility: describes the MIDI profile schema.
 //! MIDI profile schema (issue #548).
 //!
 //! A profile is a declarative YAML file shipped per controller model:

@@ -1,3 +1,4 @@
+//! Responsibility: describes the UI types shared across the frontends.
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

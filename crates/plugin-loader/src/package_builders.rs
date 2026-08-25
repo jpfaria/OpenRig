@@ -1,3 +1,4 @@
+//! Responsibility: maps a backend onto the builder that instantiates it.
 //! Lookup table mapping `Backend` variants to disk-package builders.
 //!
 //! Each backend crate (`nam`, `ir`, `lv2`, `vst3-host`) registers its

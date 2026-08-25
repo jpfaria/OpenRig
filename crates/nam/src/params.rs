@@ -1,3 +1,4 @@
+//! Responsibility: describes the NAM block's parameters.
 //! The NAM block's parameter schema — the engine controls every NAM has
 //! (input / output makeup, noise gate, EQ, and the A2-only slim lever) plus
 //! the generic `neural_amp_modeler` loader's file pickers.

@@ -1,3 +1,4 @@
+//! Responsibility: renders a chain offline.
 //! Offline render adapter for OpenRig.
 //!
 //! Drives the engine through a chain/preset YAML headlessly, reading an

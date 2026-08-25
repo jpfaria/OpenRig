@@ -1,3 +1,4 @@
+//! Responsibility: measures the objective quality metrics of a signal.
 //! Objective audio-quality metrics for the Tone Doctor report (#791, Layer 3;
 //! was #609).
 //!
@@ -36,7 +37,9 @@ impl BatterySignal {
         let n = (secs * sample_rate) as usize;
         match self {
             BatterySignal::Sine1k => (0..n)
-                .map(|i| 0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / sample_rate).sin())
+                .map(|i| {
+                    0.5 * (2.0 * std::f32::consts::PI * 1_000.0 * i as f32 / sample_rate).sin()
+                })
                 .collect(),
             BatterySignal::Silence => vec![0.0; n],
         }
@@ -131,11 +134,7 @@ fn lin_to_dbfs(x: f32) -> f32 {
 }
 
 /// Assemble the full report from the two rendered probe outputs.
-pub fn assemble(
-    sine_output: &[f32],
-    silence_output: &[f32],
-    sample_rate: f32,
-) -> QualityMetrics {
+pub fn assemble(sine_output: &[f32], silence_output: &[f32], sample_rate: f32) -> QualityMetrics {
     let peak = peak_dbfs(sine_output);
     let rms = rms_dbfs(sine_output);
     QualityMetrics {

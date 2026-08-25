@@ -1,3 +1,4 @@
+//! Responsibility: holds the VST3 plugins discovery found.
 //! Runtime catalog of dynamically discovered VST3 plugins.
 //!
 //! Call `init_vst3_catalog()` once at application startup (after the audio

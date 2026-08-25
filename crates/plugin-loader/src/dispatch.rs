@@ -1,3 +1,4 @@
+//! Responsibility: answers metadata questions about a package without loading it.
 //! Pure-metadata helpers used by `block-*` crates when instantiating
 //! disk-backed plugins.
 //!

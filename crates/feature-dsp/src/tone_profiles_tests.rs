@@ -121,8 +121,14 @@ fn deficit_floors_read_the_low_percentile() {
         .map(|i| ("rock".to_string(), desc(i as f32 / 10.0, 0.0, 0.0)))
         .collect();
     let p = &calibrate(&samples, 0.90)[0];
-    assert!((p.thin_limit - 0.19).abs() < 1e-4, "thin floor is p10 of mud: {p:?}");
-    assert!((p.squash_limit - 14.0).abs() < 1e-4, "squash floor is p10 of crest: {p:?}");
+    assert!(
+        (p.thin_limit - 0.19).abs() < 1e-4,
+        "thin floor is p10 of mud: {p:?}"
+    );
+    assert!(
+        (p.squash_limit - 14.0).abs() < 1e-4,
+        "squash floor is p10 of crest: {p:?}"
+    );
 }
 
 #[test]
