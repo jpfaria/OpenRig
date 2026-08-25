@@ -136,6 +136,8 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
+    /// #898: the compact view this editor was opened from.
+    pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
     pub chain_index: usize,
     pub block_index: usize,
     pub auto_save: bool,
@@ -417,6 +419,7 @@ fn wire_drawer_toggle_save(
         let output_chain_devices = output_chain_devices.clone();
         let selected_block_save = selected_block.clone();
         let open_block_windows_save = open_block_windows.clone();
+        let open_compact_window = ctx.open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
         crate::BlockEditorBridge::get(win).on_save_block_drawer(move || {
@@ -448,6 +451,13 @@ fn wire_drawer_toggle_save(
                     .set_block_drawer_status_message(e.to_string().into());
                 return;
             }
+            // #898: this editor is also the ADD flow (#815). The block only
+            // exists after this save, so the compact view the insert came from
+            // has to re-project its own block list here.
+            crate::compact_view_refresh::refresh_open_compact_view(
+                &open_compact_window,
+                &project_session,
+            );
             *selected_block_save.borrow_mut() = None;
             set_selected_block(&main, None, None);
             open_block_windows_save.borrow_mut().retain(|bw| {

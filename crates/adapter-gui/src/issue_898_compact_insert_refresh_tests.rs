@@ -62,8 +62,7 @@ fn session_with_one_block() -> Rc<RefCell<Option<ProjectSession>>> {
 struct Harness {
     _app: AppWindow,
     session: Rc<RefCell<Option<ProjectSession>>>,
-    open_compact_window:
-        Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>>,
+    open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>>,
     open_block_windows: Rc<RefCell<Vec<crate::state::BlockWindow>>>,
     block_editor_draft: Rc<RefCell<Option<crate::state::BlockEditorDraft>>>,
 }
@@ -168,6 +167,7 @@ impl Harness {
                 open_block_windows: open_block_windows.clone(),
                 plugin_info_window: Rc::new(RefCell::new(None)),
                 port_draft: Rc::new(RefCell::new(None)),
+                open_compact_window: open_compact_window.clone(),
                 auto_save: false,
             },
         );
