@@ -127,12 +127,9 @@ pub fn resolve_chain_io_by_binding(chain: &Chain, registry: &[IoBinding]) -> Vec
 /// outputs are never checked (many inputs may feed one output).
 pub fn input_port_conflict(inputs: &[InputEntry]) -> Option<(String, usize)> {
     let mut claimed: std::collections::HashSet<(String, usize)> = std::collections::HashSet::new();
-    for tap in input_taps(inputs) {
-        if !claimed.insert(tap.clone()) {
-            return Some(tap);
-        }
-    }
-    None
+    input_taps(inputs)
+        .into_iter()
+        .find(|tap| !claimed.insert(tap.clone()))
 }
 
 /// Every physical capture point `(device_id, channel)` these input endpoints
@@ -304,15 +301,30 @@ pub(crate) fn effective_inputs(
     let insert_returns: Vec<InputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
+        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
             _ => None,
         })
         .collect();
     for (i, ret) in insert_returns.into_iter().enumerate() {
-        cpal_indices.push(insert_return_base + i);
+        // The cpal index is the DEVICE's, from the same first-seen map the
+        // regular inputs use (#881). infra-cpal opens one input stream per
+        // device and binds every runtime fed by it (#703), so a return that
+        // comes back on the interface the guitar already uses rides that
+        // stream and picks its own channel. Giving it a private index named a
+        // stream nobody opens — the post-insert segment was never fed and the
+        // rig went silent.
+        let device_key = ret.device_id.0.clone();
+        let cpal_idx = *device_to_cpal.entry(device_key).or_insert_with(|| {
+            let idx = next_cpal_idx;
+            next_cpal_idx += 1;
+            idx
+        });
+        cpal_indices.push(cpal_idx);
         split_positions.push(None);
+        // Its own runtime, always: a return is never summed with the entry it
+        // shares the device with (invariant #4).
         entry_groups.push(insert_return_base + i);
         entries.push(ret);
     }
@@ -347,7 +359,7 @@ pub(crate) fn effective_outputs(
     let insert_sends: Vec<OutputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
+        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
             _ => None,
@@ -364,6 +376,20 @@ pub(crate) fn effective_outputs(
         mode: ChainOutputMode::Mono,
         channels: vec![0],
     }]
+}
+
+/// Whether an Insert block is a real send/return boundary: BOTH sides of its
+/// binding have to resolve (#881). A half- or un-resolved insert appends no
+/// shim on either side, so the segment walker never points at an endpoint that
+/// was not created — the chain simply flows through it.
+pub(crate) fn insert_is_bound(kind: &AudioBlockKind, registry: &[IoBinding]) -> bool {
+    match kind {
+        AudioBlockKind::Insert(ib) => {
+            insert_send_as_output_entry(ib, registry).is_some()
+                && insert_return_as_input_entry(ib, registry).is_some()
+        }
+        _ => false,
+    }
 }
 
 /// Resolve an `InsertBlock`'s RETURN (the signal coming back from the external

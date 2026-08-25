@@ -144,10 +144,7 @@ impl LooperStore {
             .filter(|((c, u), e)| {
                 c == chain
                     && *u != uid
-                    && matches!(
-                        e.slot.state(),
-                        LooperState::Playing | LooperState::Stopped
-                    )
+                    && matches!(e.slot.state(), LooperState::Playing | LooperState::Stopped)
                     && e.slot.len_frames() > 0
             })
             .map(|(_, e)| e.slot.len_frames())
@@ -226,15 +223,12 @@ impl LooperStore {
                     interleaved.push(s);
                 }
             }
-            [l, r, ..] => loop {
-                match (l.pop(), r.pop()) {
-                    (Some(a), Some(b)) => {
-                        interleaved.push(a);
-                        interleaved.push(b);
-                    }
-                    _ => break,
+            [l, r, ..] => {
+                while let (Some(a), Some(b)) = (l.pop(), r.pop()) {
+                    interleaved.push(a);
+                    interleaved.push(b);
                 }
-            },
+            }
         }
         for f in interleaved.chunks_exact(2) {
             let _ = entry.slot.tick([f[0], f[1]]);

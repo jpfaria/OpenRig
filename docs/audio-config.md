@@ -436,6 +436,9 @@ there are no separate I/O lists.
   activation (head inputs at offset 0, tail outputs at the end) — not stored.
 - Mid `Input`/`Output` blocks are `{ model, io, endpoint }` ports referencing a
   binding endpoint; they carry **no** device data (legacy `entries` removed).
+- An `Insert` block is `{ model, io }`: one binding, send on its output and
+  return on its input. Unbound (or bound to a binding this machine does not
+  have) it is bypassed, never a segment boundary (#881).
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
 
@@ -489,14 +492,27 @@ chains:
     blocks:
       - { type: input,  io: main, endpoint: In1, enabled: true }
       - { type: preamp, model: marshall_jcm_800_2203, enabled: true, params: { volume: 70, gain: 40 } }
-      - { type: insert, model: external_loop, enabled: true, send: {...}, return_: {...} }
+      - { type: insert, model: external_loop, enabled: true, io: fx_loop }
       - { type: delay,  model: digital_clean, enabled: true, params: { time_ms: 350, feedback: 40, mix: 30 } }
       - { type: output, io: main, endpoint: Out1, enabled: true }
 ```
 
-Insert blocks are **not** migrated to the registry — they keep raw send/return
-endpoints because an insert is a single-runtime send/return pipeline, not a
-binding-paired stream. See ADR 0004.
+An **insert references one E/S binding** (`io`), like every other chain
+reference: the SEND goes out that binding's OUTPUT and the RETURN comes back on
+its INPUT, so a single pick wires the whole loop and the `.openrig` stays
+portable. An insert whose binding does not resolve on this machine is
+**bypassed** — the chain flows straight through it (#881) — instead of splitting
+at an endpoint that was never opened. See ADR 0004.
+
+**The loop usually shares the guitar's interface, and that is the normal case**
+(a Synergy on OUT 5 / IN 4 of the same box). cpal opens ONE input stream per
+DEVICE and binds every runtime fed by it (#703), so the insert return takes the
+cpal index of its DEVICE — from the same first-seen map the regular inputs use —
+and reads its own channel off that shared stream. A return with a stream index
+of its own names a stream nobody opens: the post-insert segment is never fed and
+the rig goes silent with the send still working (#881). The return keeps its own
+entry group either way: it is never summed with the input it shares the device
+with (invariant #4).
 
 ### Legacy projects open UNBOUND (clean break, #716)
 

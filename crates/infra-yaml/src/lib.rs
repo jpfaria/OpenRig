@@ -536,5 +536,9 @@ mod tests;
 mod roundtrip_tests;
 
 #[cfg(test)]
+#[path = "issue_881_insert_binding_tests.rs"]
+mod issue_881_insert_binding_tests;
+
+#[cfg(test)]
 #[path = "lib_misc_tests.rs"]
 mod misc_tests;

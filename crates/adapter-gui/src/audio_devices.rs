@@ -1,7 +1,6 @@
-use crate::state::InsertDraft;
 use crate::{
-    ChannelOptionItem, DeviceSelectionItem, DEFAULT_BIT_DEPTH, DEFAULT_BUFFER_SIZE_FRAMES,
-    DEFAULT_SAMPLE_RATE, SUPPORTED_BIT_DEPTHS, SUPPORTED_BUFFER_SIZES, SUPPORTED_SAMPLE_RATES,
+    DeviceSelectionItem, DEFAULT_BIT_DEPTH, DEFAULT_BUFFER_SIZE_FRAMES, DEFAULT_SAMPLE_RATE,
+    SUPPORTED_BIT_DEPTHS, SUPPORTED_BUFFER_SIZES, SUPPORTED_SAMPLE_RATES,
 };
 use anyhow::{anyhow, Result};
 use domain::io_binding::IoBinding;
@@ -103,25 +102,6 @@ pub(crate) fn ensure_devices_loaded(
     }
 }
 
-pub(crate) fn selected_device_index(
-    devices: &[AudioDeviceDescriptor],
-    selected_id: Option<&str>,
-) -> i32 {
-    let exact = selected_id
-        .and_then(|sid| devices.iter().position(|device| device.id == sid))
-        .map(|index| index as i32);
-    if let Some(idx) = exact {
-        return idx;
-    }
-    // Fallback: when the saved device_id doesn't match any listed device
-    // (e.g., JACK id "jack:system" vs ALSA ids when JACK is not running),
-    // auto-select the only device if there is exactly one.
-    if selected_id.is_some() && devices.len() == 1 {
-        return 0;
-    }
-    -1
-}
-
 pub(crate) fn build_project_device_rows(
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
@@ -164,57 +144,6 @@ pub(crate) fn build_project_device_rows(
         });
     }
     rows
-}
-
-pub(crate) fn replace_channel_options(
-    model: &Rc<VecModel<ChannelOptionItem>>,
-    items: Vec<ChannelOptionItem>,
-) {
-    model.set_vec(items);
-}
-
-pub(crate) fn build_insert_send_channel_items(
-    draft: &InsertDraft,
-    output_devices: &[AudioDeviceDescriptor],
-) -> Vec<ChannelOptionItem> {
-    let Some(device_id) = draft.send_device_id.as_ref() else {
-        return Vec::new();
-    };
-    let Some(device) = output_devices.iter().find(|d| &d.id == device_id) else {
-        return Vec::new();
-    };
-    (0..device.channels)
-        .map(|channel| ChannelOptionItem {
-            index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
-                .to_string()
-                .into(),
-            selected: draft.send_channels.contains(&channel),
-            available: true,
-        })
-        .collect()
-}
-
-pub(crate) fn build_insert_return_channel_items(
-    draft: &InsertDraft,
-    input_devices: &[AudioDeviceDescriptor],
-) -> Vec<ChannelOptionItem> {
-    let Some(device_id) = draft.return_device_id.as_ref() else {
-        return Vec::new();
-    };
-    let Some(device) = input_devices.iter().find(|d| &d.id == device_id) else {
-        return Vec::new();
-    };
-    (0..device.channels)
-        .map(|channel| ChannelOptionItem {
-            index: channel as i32,
-            label: rust_i18n::t!("label-channel-numbered", n = channel + 1)
-                .to_string()
-                .into(),
-            selected: draft.return_channels.contains(&channel),
-            available: true,
-        })
-        .collect()
 }
 
 pub(crate) fn toggle_device_row(
