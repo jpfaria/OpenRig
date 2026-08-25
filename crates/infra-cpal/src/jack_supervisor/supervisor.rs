@@ -37,9 +37,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 
 use super::backend::JackBackend;
-use super::types::{
-    HealthStatus, JackMeta, JackServerState, ServerName, SupervisorEvent,
-};
+use super::types::{HealthStatus, JackMeta, JackServerState, ServerName, SupervisorEvent};
 
 /// Per-server state kept inside the supervisor. The backend owns the
 /// process-level resources (Child, reaper thread, cached connections); this

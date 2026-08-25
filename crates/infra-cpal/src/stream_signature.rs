@@ -21,7 +21,6 @@ use crate::stream_config::{
     resolved_output_buffer_size_frames, resolved_output_sample_rate,
 };
 
-
 /// The chain's endpoints in STREAM order: its own bindings first, then one
 /// entry per enabled, both-sides-bound insert (send/return) — the same order
 /// `resolve_chain_inputs` / `resolve_chain_outputs` build their device vectors
