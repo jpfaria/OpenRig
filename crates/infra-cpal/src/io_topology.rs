@@ -71,3 +71,22 @@ pub(crate) fn bound_io_signature(
 #[cfg(test)]
 #[path = "io_topology_tests.rs"]
 mod io_topology_tests;
+
+/// The chain's STRUCTURE as the streams see it (#881): one entry per block —
+/// its id and model identity, plus the enabled flag for routing blocks, whose
+/// on/off state decides where the chain splits and therefore how many streams
+/// it owns. Parameter values are deliberately absent: a knob turn is a DSP
+/// edit, not a new topology.
+pub(crate) fn chain_structure_signature(chain: &project::chain::Chain) -> Vec<String> {
+    chain
+        .blocks
+        .iter()
+        .map(|b| {
+            if b.kind.is_routing() {
+                format!("{}|{}|{}", b.id.0, b.kind.model_identity(), b.enabled)
+            } else {
+                format!("{}|{}", b.id.0, b.kind.model_identity())
+            }
+        })
+        .collect()
+}

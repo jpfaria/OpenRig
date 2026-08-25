@@ -152,6 +152,24 @@ impl ProjectRuntimeController {
         Ok(false)
     }
 
+    /// #881: `true` when the chain is streaming and its STRUCTURE (which blocks,
+    /// in which order, with which models — and whether a routing block is on)
+    /// differs from what the live streams were built for. Parameter values are
+    /// not part of it: a knob turn must never reopen the device.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn chain_structure_changed(&self, chain: &Chain) -> bool {
+        let Some(active) = self.active_chains.get(&chain.id) else {
+            return false; // not streaming — nothing to compare
+        };
+        active.structure != crate::io_topology::chain_structure_signature(chain)
+    }
+
+    /// JACK build: the live-swap path is cpal-only for now (#672).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn chain_structure_changed(&self, _chain: &Chain) -> bool {
+        false
+    }
+
     /// #716: `true` when `chain` is already streaming AND its resolved I/O
     /// topology (the devices/channels its bindings point at) differs from what
     /// is live — i.e. the user re-bound its E/S. A param/block `upsert` keeps the

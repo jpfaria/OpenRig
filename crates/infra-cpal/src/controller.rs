@@ -62,6 +62,9 @@ pub struct ProjectRuntimeController {
     /// publishes a rebuilt runtime here; once the stream callbacks read through
     /// these slots the swap is observed live, with no stream rebuild.
     pub(crate) chain_slots: HashMap<(ChainId, usize), LiveRuntimeSlot>,
+    /// #881: incremented on every stream build so a test can prove a chain
+    /// change opened NEW streams instead of reusing the live ones.
+    pub(crate) stream_generation: u64,
     /// Issue #672 — dedicated thread that builds chain runtimes off the
     /// frontend thread so heavy commands never block the UI.
     pub(crate) worker: ControlWorker,
@@ -176,6 +179,7 @@ impl ProjectRuntimeController {
             runtime_graph: graph,
             active_chains: HashMap::new(),
             chain_slots,
+            stream_generation: 0,
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
@@ -218,6 +222,7 @@ impl ProjectRuntimeController {
             },
             active_chains: HashMap::new(),
             chain_slots: HashMap::new(),
+            stream_generation: 0,
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
@@ -378,6 +383,16 @@ impl ProjectRuntimeController {
                             .insert((chain_id.clone(), *group), Arc::clone(runtime));
                     }
                     let slots = crate::build_chain_slots(&runtimes);
+                    // #881: this build OWNS the chain's slots now. A previous
+                    // topology may have had more groups; leaving those behind
+                    // keeps an old runtime alive for anything still holding a
+                    // handle — garbage that plays.
+                    let live_groups: Vec<usize> = slots.iter().map(|(g, _)| *g).collect();
+                    self.chain_slots
+                        .retain(|(id, g), _| id != &chain_id || live_groups.contains(g));
+                    self.runtime_graph
+                        .chains
+                        .retain(|(id, g), _| id != &chain_id || live_groups.contains(g));
                     for (group, slot) in &slots {
                         self.chain_slots
                             .insert((chain_id.clone(), *group), slot.handle());
@@ -391,6 +406,7 @@ impl ProjectRuntimeController {
                     let di_cells: Vec<_> = (0..resolved.outputs.len())
                         .map(|j| self.di_playback_cell(&chain_id, j))
                         .collect();
+                    self.stream_generation += 1;
                     match crate::build_active_chain_runtime(
                         &chain_id,
                         &chain,
@@ -398,6 +414,7 @@ impl ProjectRuntimeController {
                         slots,
                         &self.io_bindings,
                         &di_cells,
+                        self.stream_generation,
                     ) {
                         Ok(active) => {
                             self.active_chains.insert(chain_id, active);
@@ -1011,6 +1028,7 @@ impl ProjectRuntimeController {
             let di_cells: Vec<_> = (0..resolved.outputs.len())
                 .map(|j| self.di_playback_cell(&chain.id, j))
                 .collect();
+            self.stream_generation += 1;
             let active = crate::build_active_chain_runtime(
                 &chain.id,
                 chain,
@@ -1018,6 +1036,7 @@ impl ProjectRuntimeController {
                 slots,
                 &self.io_bindings,
                 &di_cells,
+                self.stream_generation,
             )?;
             self.active_chains.insert(chain.id.clone(), active);
             // #771: an armed DI re-renders against the fresh streams.

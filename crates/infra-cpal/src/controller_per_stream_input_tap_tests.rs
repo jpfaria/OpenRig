@@ -153,6 +153,7 @@ fn controller_with_single_runtime(
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: registry.to_vec(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),

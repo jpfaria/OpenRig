@@ -280,3 +280,98 @@ fn a_rebuild_in_flight_does_not_revive_a_removed_chain() {
         "#881: no runtime may survive in the graph for a removed chain"
     );
 }
+
+/// The owner's rule (#881): "sempre que a gente alterar a chain tem que matar a
+/// antiga e criar uma nova stream do zero — só que você pode matar depois que a
+/// outra levantar".
+///
+/// A STRUCTURAL edit (a block added, removed, reordered, its model swapped)
+/// must therefore open new streams, and the old ones must survive until the new
+/// ones are up. A parameter edit must not: reopening the device on every knob
+/// turn would reload the models and drop audio.
+#[test]
+fn a_structural_edit_opens_new_streams_and_a_param_edit_does_not() {
+    if !hw_enabled("a_structural_edit_opens_new_streams_and_a_param_edit_does_not") {
+        return;
+    }
+    let Some(device) = loopback_device() else {
+        eprintln!("skipped — needs the BlackHole loopback");
+        return;
+    };
+    let chain_id = ChainId("issue-881-lifecycle".into());
+    let volume = |id: &str, level: f32| {
+        let mut ps = project::param::ParameterSet::default();
+        ps.insert(
+            "volume",
+            domain::value_objects::ParameterValue::Float(level),
+        );
+        AudioBlock {
+            id: BlockId(id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(project::block::CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params: ps,
+            }),
+        }
+    };
+    let one_block = chain_with(vec![volume("a", 100.0)]);
+    let mut project = Project {
+        name: Some("issue-881".into()),
+        device_settings: vec![settings(&device)],
+        chains: vec![one_block.clone()],
+        midi: None,
+    };
+    block_gain::register_natives();
+    let mut controller = start(&project, &device, &chain_id);
+    let generation_at_start = controller
+        .active_chains
+        .get(&chain_id)
+        .expect("streaming")
+        .generation;
+
+    // 1. A PARAM edit — same blocks, one knob moved.
+    let param_edit = chain_with(vec![volume("a", 40.0)]);
+    project.chains[0] = param_edit.clone();
+    live_edit(&mut controller, &project, &param_edit);
+    let after_param = controller
+        .active_chains
+        .get(&chain_id)
+        .expect("still streaming")
+        .generation;
+    assert_eq!(
+        after_param, generation_at_start,
+        "a knob turn must NOT reopen the streams — that reloads every model and \
+         drops the audio"
+    );
+
+    // 2. A STRUCTURAL edit — a block appears.
+    let structural = chain_with(vec![volume("a", 40.0), volume("b", 80.0)]);
+    project.chains[0] = structural.clone();
+    live_edit(&mut controller, &project, &structural);
+    let after_structural = controller
+        .active_chains
+        .get(&chain_id)
+        .expect("still streaming")
+        .generation;
+
+    assert!(
+        after_structural > after_param,
+        "#881: a structural change must build the streams from scratch — \
+         generation stayed at {after_param}"
+    );
+    assert_eq!(
+        open_streams(&controller, &chain_id),
+        (1, 1),
+        "and exactly one set of them survives"
+    );
+    assert_eq!(
+        controller
+            .chain_slots
+            .keys()
+            .filter(|(id, _)| id == &chain_id)
+            .count(),
+        1,
+        "#881: no stale slot may outlive the rebuild"
+    );
+}
