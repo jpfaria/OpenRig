@@ -5,6 +5,7 @@
 // hierarchy by WEIGHT. No nested panels.
 // App font: preview uses Bebas Neue (project asset, pt-BR). Real screen
 // inherits Locale.font-family (no hardcode) — system fallback for CJK.
+import { ScrollView } from "std-widgets.slint";
 import "../../fonts/BebasNeue.ttf";
 
 component Hairline inherits Rectangle { height: 1px; background: #27272a; }
@@ -81,35 +82,61 @@ component Segmented inherits Rectangle {
     }
 }
 
-component ChannelCheck inherits HorizontalLayout {
+// #880 — the channel picker: one channel per ROW, in a capped scrolling
+// column. A 30-channel interface is the normal case, not the edge case.
+component MockChannelRow inherits Rectangle {
     in property <string> n;
     in property <bool> on: false;
-    in property <bool> disabled: false;
-    spacing: 8px;
-    opacity: root.disabled ? 0.35 : 1.0;
-    Rectangle {
-        width: 18px; height: 18px; y: (parent.height - self.height) / 2; border-radius: 4px;
-        background: root.on ? #2f80ff : #18181b;
-        border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
-        if root.on : Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
-            width: 10px; height: 10px; source: @image-url("../../assets/check.svg"); colorize: #ffffff; }
+    in property <bool> radio: true;
+    height: 34px;
+    border-radius: 6px;
+    HorizontalLayout {
+        padding-left: 10px; padding-right: 10px; spacing: 10px;
+        VerticalLayout { alignment: center;
+            Rectangle {
+                width: 18px; height: 18px; border-radius: root.radio ? 9px : 4px;
+                background: root.on && !root.radio ? #2f80ff : #18181b;
+                border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
+                if root.on && root.radio : Rectangle { width: 8px; height: 8px;
+                    x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                    border-radius: 4px; background: #2f80ff; }
+                if root.on && !root.radio : Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                    width: 10px; height: 10px; source: @image-url("../../assets/check.svg"); colorize: #ffffff; }
+            }
+        }
+        Text { horizontal-stretch: 1; text: root.n; color: root.on ? #fafafa : #a1a1aa;
+            font-size: 14px; vertical-alignment: center; }
     }
-    Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
 }
 
-// Channel RADIO (single-select) — used when mode = Mono (1 channel).
-component ChannelRadio inherits HorizontalLayout {
-    in property <string> n;
-    in property <bool> on: false;
-    spacing: 8px;
-    Rectangle {
-        width: 18px; height: 18px; y: (parent.height - self.height) / 2; border-radius: 9px;
-        background: #18181b;
-        border-width: 1px; border-color: root.on ? #2f80ff : #3f3f46;
-        if root.on : Rectangle { width: 8px; height: 8px; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
-            border-radius: 4px; background: #2f80ff; }
+component MockChannelPicker inherits Rectangle {
+    in property <string> selected;
+    // The owner's interface: 30 in / 30 out.
+    private property <[string]> labels: ["1","2","3","4","5","6","7","8","9","10",
+        "11","12","13","14","15","16","17","18","19","20",
+        "21","22","23","24","25","26","27","28","29","30"];
+    background: #111114; border-radius: 8px; border-width: 1px; border-color: #27272a;
+    min-height: 246px; max-height: 246px;
+    VerticalLayout {
+        padding: 8px; spacing: 4px;
+        HorizontalLayout {
+            height: 22px; padding-left: 4px; spacing: 6px;
+            Text { text: "Selecionados:"; color: #71717a; font-size: 12px; vertical-alignment: center; }
+            Rectangle { background: #112540; border-radius: 4px;
+                HorizontalLayout { padding-left: 6px; padding-right: 6px;
+                    Text { text: root.selected; color: #60a5fa; font-size: 12px; font-weight: 600; vertical-alignment: center; } } }
+            Rectangle { horizontal-stretch: 1; }
+            Text { text: "30 canais"; color: #52525b; font-size: 12px; vertical-alignment: center; }
+        }
+        ScrollView {
+            height: 204px;
+            viewport-width: self.width;
+            viewport-height: 30 * 34px;
+            for n[i] in root.labels : MockChannelRow {
+                x: 0px; y: i * 34px; width: parent.width; n: n; on: n == root.selected;
+            }
+        }
     }
-    Text { text: root.n; color: root.on ? #fafafa : #a1a1aa; font-size: 14px; vertical-alignment: center; }
 }
 
 component PrimaryButton inherits Rectangle {
@@ -165,8 +192,16 @@ component SectionHeader inherits HorizontalLayout {
 
 component FieldRow inherits HorizontalLayout {
     in property <string> label;
+    in property <bool> label-top: false;
     spacing: 16px;
-    Text { text: root.label; color: #a1a1aa; font-size: 14px; vertical-alignment: center; width: 92px; }
+    Rectangle {
+        width: 92px;
+        VerticalLayout {
+            alignment: root.label-top ? start : center;
+            padding-top: root.label-top ? 9px : 0px;
+            Text { text: root.label; color: #a1a1aa; font-size: 14px; }
+        }
+    }
     @children
 }
 
@@ -217,12 +252,8 @@ export component Mockup inherits Window {
                 FieldRow { label: "Dispositivo"; DropDown { text: "Scarlett 2i2 USB"; } }
                 FieldRow { label: "Modo"; Segmented { options: ["Mono", "Estéreo", "Dual mono"]; current: 0; } }
                 FieldRow {
-                    label: "Canais";
-                    HorizontalLayout {
-                        alignment: start; spacing: 22px;
-                        ChannelRadio { n: "1"; on: true; }
-                        ChannelRadio { n: "2"; }
-                    }
+                    label: "Canais"; label-top: true;
+                    MockChannelPicker { selected: "1"; }
                 }
                 HorizontalLayout {
                     spacing: 8px;

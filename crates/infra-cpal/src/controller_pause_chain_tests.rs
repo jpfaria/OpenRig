@@ -70,6 +70,8 @@ fn controller_with_active_chain(
     active_chains.insert(
         chain_id.clone(),
         ActiveChainRuntime {
+            structure: Vec::new(),
+            generation: 0,
             stream_signature: ChainStreamSignature {
                 inputs: vec![],
                 outputs: vec![],
@@ -90,6 +92,7 @@ fn controller_with_active_chain(
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: Vec::new(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),

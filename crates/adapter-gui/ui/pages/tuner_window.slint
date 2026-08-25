@@ -7,6 +7,9 @@
 // in front. LCD goes amber (#ccaa66) when active, vivid green (#ccff66)
 // when in tune, dim ochre (#776633) when no signal.
 import { ScrollView } from "std-widgets.slint";
+import { AnalyzerBridge } from "../analyzer_globals.slint";
+import { TunerRow } from "../analyzer_rows.slint";
+export { TunerRow }
 
 // Power footswitch — same sprite + size used by block FootSwitch
 // (see components/foot_switch.slint). No label, no LED.
@@ -100,14 +103,6 @@ component MuteSwitch inherits Rectangle {
     }
 }
 
-export struct TunerRow {
-    label: string,
-    note: string,
-    octave: int,
-    cents: float,
-    frequency: float,
-    active: bool,
-}
 
 // ── Single-row tuner card — stompbox + LCD ───────────────────────────────
 component TunerCard inherits Rectangle {
@@ -410,9 +405,12 @@ export component TunerWindow inherits Window {
     preferred-height: 380px;
     background: #050608;
 
-    in property <[TunerRow]> tuner-rows;
+    // Rows and power come from the bridge — that is the channel
+    // `tuner_wiring` publishes on, the same way MetronomeWindow reads
+    // MetronomeBridge (#873). Mute stays a plain property: the wiring pushes
+    // it back through `set_mute_active` on this window.
+    out property <bool> tuner-enabled: AnalyzerBridge.tuner-enabled;
     in property <bool> mute-active;
-    in property <bool> tuner-enabled: false;
     callback close-tuner-window();
     callback toggle-mute(bool);
     callback toggle-enabled(bool);
@@ -420,9 +418,9 @@ export component TunerWindow inherits Window {
     TunerPanel {
         width: 100%;
         height: 100%;
-        tuner-rows: root.tuner-rows;
+        tuner-rows: AnalyzerBridge.tuner-rows;
         mute-active: root.mute-active;
-        tuner-enabled: root.tuner-enabled;
+        tuner-enabled: AnalyzerBridge.tuner-enabled;
         show-close-button: false;
         close-tuner => { root.close-tuner-window(); }
         toggle-mute(m) => { root.toggle-mute(m); }

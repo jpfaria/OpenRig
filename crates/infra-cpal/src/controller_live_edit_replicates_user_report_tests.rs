@@ -136,6 +136,8 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
     active_chains.insert(
         chain_id.clone(),
         ActiveChainRuntime {
+            structure: Vec::new(),
+            generation: 0,
             // A signature that MATCHES the binding registry, so the live edit
             // path sees "I/O unchanged" and takes the off-thread rebuild (what
             // happens in the running app for a plain param/block edit).
@@ -171,6 +173,7 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: registry(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
@@ -399,6 +402,7 @@ fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: registry(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),

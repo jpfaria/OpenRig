@@ -17,7 +17,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, Timer, VecModel};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
 use domain::ids::ChainId;
@@ -120,10 +120,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             // Issue #510: reset the search field every time the picker
             // opens so a stale query from a previous open doesn't hide
             // half the presets.
-            window.set_preset_picker_search_query(SharedString::new());
+            crate::OverlayBridge::get(&window).set_preset_picker_search_query(SharedString::new());
             apply_preset_filter(&window, &preset_full_list, &preset_file_list, "");
-            window.set_preset_picker_chain_index(index);
-            window.set_show_preset_picker(true);
+            crate::OverlayBridge::get(&window).set_preset_picker_chain_index(index);
+            crate::OverlayBridge::get(&window).set_show_preset_picker(true);
         });
     }
     {
@@ -133,7 +133,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         let weak_window = window.as_weak();
         let preset_full_list = preset_full_list.clone();
         let preset_file_list = preset_file_list.clone();
-        window.on_preset_picker_query_changed(move |query| {
+        crate::OverlayBridge::get(window).on_preset_picker_query_changed(move |query| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -155,11 +155,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
         let preset_file_list = preset_file_list.clone();
-        window.on_preset_picker_confirm(move |preset_index| {
+        crate::OverlayBridge::get(window).on_preset_picker_confirm(move |preset_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_show_preset_picker(false);
+            crate::OverlayBridge::get(&window).set_show_preset_picker(false);
             let files = preset_file_list.borrow();
             let Some(path) = files.get(preset_index as usize) else {
                 return;
@@ -170,7 +170,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_index = window.get_preset_picker_chain_index();
+            let chain_index = crate::OverlayBridge::get(&window).get_preset_picker_chain_index();
             match load_preset_file(&path) {
                 Ok(preset) => {
                     // Hand the dispatcher I/O-stripped blocks (issue #518):
@@ -259,9 +259,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
     }
     {
         let weak_window = window.as_weak();
-        window.on_preset_picker_cancel(move || {
+        crate::OverlayBridge::get(window).on_preset_picker_cancel(move || {
             if let Some(window) = weak_window.upgrade() {
-                window.set_show_preset_picker(false);
+                crate::OverlayBridge::get(&window).set_show_preset_picker(false);
             }
         });
     }
@@ -271,7 +271,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         let preset_full_list = preset_full_list.clone();
         let toast_timer = toast_timer.clone();
         let project_session = project_session.clone();
-        window.on_preset_picker_delete(move |preset_index| {
+        crate::OverlayBridge::get(window).on_preset_picker_delete(move |preset_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -304,7 +304,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
                     // in sync with disk; then re-apply the active
                     // query so the visible model stays consistent.
                     preset_full_list.borrow_mut().retain(|(_, p)| p != &path);
-                    let query = window.get_preset_picker_search_query();
+                    let query = crate::OverlayBridge::get(&window).get_preset_picker_search_query();
                     apply_preset_filter(
                         &window,
                         &preset_full_list,
@@ -459,7 +459,8 @@ fn apply_preset_filter(
         }
     }
     *visible.borrow_mut() = visible_paths;
-    window.set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(visible_names))));
+    crate::OverlayBridge::get(window)
+        .set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(visible_names))));
 }
 
 #[cfg(test)]

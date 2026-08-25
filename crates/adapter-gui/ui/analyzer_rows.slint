@@ -1,0 +1,24 @@
+// Responsibility: declares the row shapes the analyzers publish
+//
+// #873. These live apart from the windows that render them because
+// `analyzer_globals.slint` carries the rows and the windows read that global
+// back — importing the types from the pages made the graph circular.
+
+export struct TunerRow {
+    label: string,
+    note: string,
+    octave: int,
+    cents: float,
+    frequency: float,
+    active: bool,
+}
+
+export struct SpectrumRow {
+    label: string,
+    // 63-band level array (0.0..1.0). When the row is inactive (chain
+    // off / spectrum powered off) the array stays at zeros.
+    levels: [float],
+    // 63-band peak holds (0.0..1.0). Same length as `levels`.
+    peaks: [float],
+    active: bool,
+}

@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Global};
 
 use project::catalog::{model_brand, model_display_name, model_type_label};
 
@@ -48,7 +48,7 @@ pub(crate) fn wire(window: &AppWindow) {
 
             *homepage_store.borrow_mut() = meta.homepage.clone();
 
-            window.set_plugin_info_data(PluginInfoData {
+            crate::OverlayBridge::get(&window).set_plugin_info_data(PluginInfoData {
                 screenshot: screenshot_img,
                 has_screenshot,
                 plugin_name: display_name.into(),
@@ -59,22 +59,22 @@ pub(crate) fn wire(window: &AppWindow) {
                 homepage: meta.homepage.clone().into(),
                 has_homepage: !meta.homepage.is_empty(),
             });
-            window.set_plugin_info_visible(true);
+            crate::OverlayBridge::get(&window).set_plugin_info_visible(true);
         });
     }
 
     {
         let weak = window.as_weak();
-        window.on_close_plugin_info(move || {
+        crate::OverlayBridge::get(window).on_close_plugin_info(move || {
             if let Some(window) = weak.upgrade() {
-                window.set_plugin_info_visible(false);
+                crate::OverlayBridge::get(&window).set_plugin_info_visible(false);
             }
         });
     }
 
     {
         let homepage_store = homepage_store.clone();
-        window.on_open_plugin_info_homepage(move || {
+        crate::OverlayBridge::get(window).on_open_plugin_info_homepage(move || {
             let homepage = homepage_store.borrow().clone();
             if !homepage.is_empty() {
                 plugin_info::open_homepage(&homepage);

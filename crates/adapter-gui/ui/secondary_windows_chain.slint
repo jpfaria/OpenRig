@@ -1,4 +1,5 @@
 import { ChannelOptionItem, DeviceSelectionItem, ChainBindingChoice, IoBindingModel, MidiDeviceRow, MidiBindingRow } from "models.slint";
+import { ChainEditorBridge } from "chain_editor_globals.slint";
 import { Locale } from "locale_globals.slint";
 import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, ChainPortEditorPage } from "pages/pages.slint";
 
@@ -8,7 +9,6 @@ export component ProjectSettingsWindow inherits Window {
     default-font-size: 13px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
-    in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
@@ -17,11 +17,6 @@ export component ProjectSettingsWindow inherits Window {
     // window. Without these the inner SettingsPage saw empty language
     // dropdowns, empty MIDI devices list, empty MIDI mapping commands
     // and empty project metadata.
-    in property <[string]> language-options;
-    in property <[string]> language-codes;
-    in property <int> selected-language-index;
-    in property <[MidiDeviceRow]> midi-devices;
-    in property <string> project-path-display;
     callback update-project-name(string);
     callback save-audio-settings();
     // Project / Metadata "Save project" button (#513). Mirror of the
@@ -29,56 +24,13 @@ export component ProjectSettingsWindow inherits Window {
     // dispatch Command::SaveProject through the same Rust handler.
     callback save-project();
     callback close-settings();
-    callback toggle-project-device(int, bool);
-    callback update-project-sample-rate(int, string);
-    callback update-project-buffer-size(int, string);
-    callback update-project-bit-depth(int, string);
-    callback refresh-devices();
-    callback language-selected(int);
-    callback refresh-midi-devices();
-    callback toggle-midi-device(int, bool);
-    callback edit-midi-device-alias(int, string);
     // #712: System / Integrations master switches.
-    in property <bool> midi-enabled;
-    in property <bool> mcp-enabled;
-    callback set-midi-enabled(bool);
-    callback set-mcp-enabled(bool);
     // #716: System / I/O bindings section.
-    in property <[IoBindingModel]> io-bindings;
     // Exposed so navigation can be driven (e.g. interaction tests jumping
     // straight to the I/O bindings section).
     in-out property <int> settings-selected-section: 0;
-    in property <[string]> input-device-ids;
-    in property <[string]> input-device-names;
-    in property <[string]> output-device-ids;
-    in property <[string]> output-device-names;
-    in property <[ChannelOptionItem]> io-binding-channel-options;
-    in-out property <string> io-binding-error: "";
-    in property <int> io-edit-prefill-device-index: -1;
-    in property <int> io-edit-prefill-mode-index: 0;
-    callback create-io-binding(string) -> string;
-    callback delete-io-binding(string) -> string;
-    callback rename-io-binding(string, string);
-    callback endpoint-device-changed(string, bool, string);
-    callback toggle-endpoint-channel(int, bool, string);
-    callback add-input-endpoint(string, string, string, string);
-    callback add-output-endpoint(string, string, string, string);
-    callback remove-endpoint(string, string, bool);
-    callback edit-endpoint(string, string, bool);
-    callback edit-project-name(string);
     // System / Paths section (#513 + #582). Empty = OS default.
-    in property <string> presets-path;
-    in property <string> plugins-path;
-    in property <string> evaluations-path;
     // #561: plugin catalog reload row in the Paths section.
-    in property <string> plugin-catalog-status;
-    callback pick-presets-path();
-    callback reset-presets-path();
-    callback pick-plugins-path();
-    callback reset-plugins-path();
-    callback pick-evaluations-path();
-    callback reset-evaluations-path();
-    callback reload-plugin-catalog();
     title: @tr("title-window-project-settings");
     min-width: 860px;
     min-height: 540px;
@@ -90,64 +42,15 @@ export component ProjectSettingsWindow inherits Window {
         width: parent.width;
         height: parent.height;
         project-name-draft <=> root.project-name-draft;
-        project-devices: root.project-devices;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         status-message: root.status-message;
-        language-options: root.language-options;
-        language-codes: root.language-codes;
-        selected-language-index: root.selected-language-index;
         selected-section <=> root.settings-selected-section;
-        midi-devices: root.midi-devices;
-        midi-enabled: root.midi-enabled;
-        mcp-enabled: root.mcp-enabled;
-        project-path-display: root.project-path-display;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         save-project => { root.save-project(); }
         close-settings => { root.close-settings(); }
-        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
-        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
-        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
-        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        refresh-devices => { root.refresh-devices(); }
-        language-selected(i) => { root.language-selected(i); }
-        refresh-midi-devices => { root.refresh-midi-devices(); }
-        toggle-midi-device(i, on) => { root.toggle-midi-device(i, on); }
-        edit-midi-device-alias(i, s) => { root.edit-midi-device-alias(i, s); }
-        set-midi-enabled(on) => { root.set-midi-enabled(on); }
-        set-mcp-enabled(on) => { root.set-mcp-enabled(on); }
-        io-bindings: root.io-bindings;
-        input-device-ids: root.input-device-ids;
-        input-device-names: root.input-device-names;
-        output-device-ids: root.output-device-ids;
-        output-device-names: root.output-device-names;
-        io-binding-channel-options: root.io-binding-channel-options;
-        io-binding-error <=> root.io-binding-error;
-        io-edit-prefill-device-index: root.io-edit-prefill-device-index;
-        io-edit-prefill-mode-index: root.io-edit-prefill-mode-index;
-        create-io-binding(name) => { return root.create-io-binding(name); }
-        delete-io-binding(id) => { return root.delete-io-binding(id); }
-        rename-io-binding(id, n) => { root.rename-io-binding(id, n); }
-        endpoint-device-changed(id, inp, dev) => { root.endpoint-device-changed(id, inp, dev); }
-        toggle-endpoint-channel(idx, sel, mode) => { root.toggle-endpoint-channel(idx, sel, mode); }
-        add-input-endpoint(id, dev, mode, en) => { root.add-input-endpoint(id, dev, mode, en); }
-        add-output-endpoint(id, dev, mode, en) => { root.add-output-endpoint(id, dev, mode, en); }
-        remove-endpoint(id, en, inp) => { root.remove-endpoint(id, en, inp); }
-        edit-endpoint(id, en, inp) => { root.edit-endpoint(id, en, inp); }
-        edit-project-name(t) => { root.edit-project-name(t); }
-        presets-path: root.presets-path;
-        plugins-path: root.plugins-path;
-        evaluations-path: root.evaluations-path;
-        plugin-catalog-status: root.plugin-catalog-status;
-        pick-presets-path => { root.pick-presets-path(); }
-        reset-presets-path => { root.reset-presets-path(); }
-        pick-plugins-path => { root.pick-plugins-path(); }
-        reset-plugins-path => { root.reset-plugins-path(); }
-        pick-evaluations-path => { root.pick-evaluations-path(); }
-        reset-evaluations-path => { root.reset-evaluations-path(); }
-        reload-plugin-catalog => { root.reload-plugin-catalog(); }
     }
 }
 
@@ -163,10 +66,6 @@ export component ChainEditorWindow inherits Window {
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
-    callback update-chain-name(string);
-    callback toggle-binding(int, bool);
-    callback save-chain();
-    callback cancel-chain();
     callback select-instrument(int);
     title: @tr("title-window-chain-editor");
     min-width: 860px;
@@ -185,72 +84,48 @@ export component ChainEditorWindow inherits Window {
         status-message: root.status-message;
         is-create-mode: root.is-create-mode;
         selected-instrument-index: root.selected-instrument-index;
-        update-chain-name(value) => { root.update-chain-name(value); }
-        toggle-binding(index, on) => { root.toggle-binding(index, on); }
-        save-chain => { root.save-chain(); }
-        cancel-chain => { root.cancel-chain(); }
+        update-chain-name(value) => { ChainEditorBridge.update-chain-name(value); }
+        toggle-binding(index, on) => { ChainEditorBridge.toggle-binding(index, on); }
+        save-chain => { ChainEditorBridge.save-chain(); }
+        cancel-chain => { ChainEditorBridge.cancel-chain(); }
         select-instrument(index) => { root.select-instrument(index); }
     }
 }
 
+// #881 — the editor of an INSERT block. Model A (#716): an insert points at ONE
+// E/S binding — send on its output, return on its input — so that single pick is
+// the whole window.
 export component ChainInsertWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     default-font-family: Locale.font-family;
     default-font-size: 13px;
-    // Send (output devices)
-    in property <[string]> send-device-options;
-    in-out property <int> selected-send-device-index;
-    in property <[ChannelOptionItem]> send-channels;
-    in-out property <int> selected-send-mode-index: 0;
-    // Return (input devices)
-    in property <[string]> return-device-options;
-    in-out property <int> selected-return-device-index;
-    in property <[ChannelOptionItem]> return-channels;
-    in-out property <int> selected-return-mode-index: 0;
-    // Block controls
-    in property <bool> show-block-controls: false;
+
+    in property <[string]> binding-options;
+    in-out property <int> selected-binding-index;
     in property <bool> block-enabled: true;
-    in-out property <string> status-message;
-    // Callbacks
-    callback select-send-device(int);
-    callback toggle-send-channel(int, bool);
-    callback select-send-mode(int);
-    callback select-return-device(int);
-    callback toggle-return-channel(int, bool);
-    callback select-return-mode(int);
+    in property <bool> show-binding-warning;
+
+    callback select-binding(int);
     callback toggle-enabled();
     callback delete-block();
     callback save();
     callback cancel();
 
     title: @tr("title-window-chain-insert");
-    min-width: 680px;
-    min-height: 580px;
-    preferred-width: 820px;
-    preferred-height: 720px;
+    min-width: 460px;
+    min-height: 380px;
+    preferred-width: 520px;
+    preferred-height: 420px;
     background: #040708;
 
     ChainInsertEditorPage {
         width: parent.width;
         height: parent.height;
-        title: @tr("title-section-configure-insert");
-        send-device-options: root.send-device-options;
-        selected-send-device-index <=> root.selected-send-device-index;
-        send-channels: root.send-channels;
-        selected-send-mode-index <=> root.selected-send-mode-index;
-        return-device-options: root.return-device-options;
-        selected-return-device-index <=> root.selected-return-device-index;
-        return-channels: root.return-channels;
-        selected-return-mode-index <=> root.selected-return-mode-index;
-        show-block-controls: root.show-block-controls;
+        binding-options: root.binding-options;
+        selected-binding-index <=> root.selected-binding-index;
         block-enabled: root.block-enabled;
-        status-message: root.status-message;
-        select-send-device(index) => { root.select-send-device(index); }
-        toggle-send-channel(index, selected) => { root.toggle-send-channel(index, selected); }
-        select-send-mode(index) => { root.select-send-mode(index); }
-        select-return-device(index) => { root.select-return-device(index); }
-        toggle-return-channel(index, selected) => { root.toggle-return-channel(index, selected); }
-        select-return-mode(index) => { root.select-return-mode(index); }
+        show-binding-warning: root.show-binding-warning;
+        select-binding(index) => { root.select-binding(index); }
         toggle-enabled => { root.toggle-enabled(); }
         delete-block => { root.delete-block(); }
         save => { root.save(); }

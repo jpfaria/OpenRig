@@ -33,6 +33,17 @@ pub(crate) struct ActiveChainRuntime {
     // needed.
     #[allow(dead_code)]
     pub(crate) stream_signature: ChainStreamSignature,
+    /// #881: the chain STRUCTURE these streams were built for — one entry per
+    /// block (`id|model identity`, plus the enabled flag for routing blocks,
+    /// which decide how the chain splits). A structural edit must rebuild the
+    /// streams from scratch; a param edit must not, so the two are told apart
+    /// by comparing this against the chain the caller now holds.
+    pub(crate) structure: Vec<String>,
+    /// Bumped once per stream build. Nothing reads it in production — it is how
+    /// a test proves a chain change really opened NEW streams instead of
+    /// reusing the live ones (#881).
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) generation: u64,
     pub(crate) _input_streams: Vec<Stream>,
     pub(crate) _output_streams: Vec<Stream>,
     #[cfg(all(target_os = "linux", feature = "jack"))]

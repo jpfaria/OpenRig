@@ -15,7 +15,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use application::command::{Command, SelectionCommand};
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, Global, ModelRc, VecModel};
 
 use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::runtime_analyzers::AnalyzerSessions;
@@ -51,10 +51,10 @@ fn install_row_sink(
     analyzers.on_spectrum_rows(move |rows| {
         let rows = rows.unwrap_or_else(empty_rows_model);
         if let Some(sw) = spectrum_window_weak.upgrade() {
-            sw.set_spectrum_rows(rows.clone());
+            crate::AnalyzerBridge::get(&sw).set_spectrum_rows(rows.clone());
         }
         if let Some(mw) = main_window_weak.upgrade() {
-            mw.set_spectrum_rows(rows);
+            crate::AnalyzerBridge::get(&mw).set_spectrum_rows(rows);
         }
     });
 }
@@ -62,7 +62,7 @@ fn install_row_sink(
 fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
     let spectrum_window_weak = spectrum_window.as_weak();
     let main_window_weak = window.as_weak();
-    window.on_open_spectrum_window(move || {
+    crate::AnalyzerBridge::get(window).on_open_spectrum_window(move || {
         let Some(sw) = spectrum_window_weak.upgrade() else {
             return;
         };
@@ -76,12 +76,12 @@ fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
         // the analyzer (see `wire_power`).
         let empty = empty_rows_model();
         if inline {
-            main_w.set_spectrum_rows(empty);
-            main_w.set_spectrum_enabled(false);
-            main_w.set_show_spectrum(true);
+            crate::AnalyzerBridge::get(&main_w).set_spectrum_rows(empty);
+            crate::AnalyzerBridge::get(&main_w).set_spectrum_enabled(false);
+            crate::AnalyzerBridge::get(&main_w).set_show_spectrum(true);
         } else {
-            sw.set_spectrum_rows(empty);
-            sw.set_spectrum_enabled(false);
+            crate::AnalyzerBridge::get(&sw).set_spectrum_rows(empty);
+            crate::AnalyzerBridge::get(&sw).set_spectrum_enabled(false);
             // Same window-opening pattern as the Block Editor: position
             // the child window relative to the main window so the user
             // sees it appear next to where they clicked instead of at
@@ -94,14 +94,14 @@ fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
 fn wire_close_inline(window: &AppWindow, project_session: &Rc<RefCell<Option<ProjectSession>>>) {
     let project_session = project_session.clone();
     let main_window_weak = window.as_weak();
-    window.on_close_spectrum(move || {
+    crate::AnalyzerBridge::get(window).on_close_spectrum(move || {
         dispatch_close_commands(&project_session);
         if let Some(mw) = main_window_weak.upgrade() {
-            mw.set_show_spectrum(false);
+            crate::AnalyzerBridge::get(&mw).set_show_spectrum(false);
             // #546: keep the Slint power state in sync with the backend
             // going off. Without this, the toggle could stay lit on the
             // next inline render until wire_open's reset runs.
-            mw.set_spectrum_enabled(false);
+            crate::AnalyzerBridge::get(&mw).set_spectrum_enabled(false);
         }
     });
 }
@@ -142,7 +142,7 @@ fn close_spectrum_windowed_impl(
 ) {
     dispatch_close_commands(project_session);
     if let Some(sw) = spectrum_window_weak.upgrade() {
-        sw.set_spectrum_enabled(false);
+        crate::AnalyzerBridge::get(&sw).set_spectrum_enabled(false);
     }
 }
 
@@ -178,14 +178,14 @@ fn wire_power(
         // Always reflect the new enabled state on the UI even if no session
         // could be built, so the toggle never traps OFF.
         if let Some(sw) = spectrum_window_weak.upgrade() {
-            sw.set_spectrum_enabled(enabled);
+            crate::AnalyzerBridge::get(&sw).set_spectrum_enabled(enabled);
         }
         if let Some(mw) = main_window_weak.upgrade() {
-            mw.set_spectrum_enabled(enabled);
+            crate::AnalyzerBridge::get(&mw).set_spectrum_enabled(enabled);
         }
     };
     let cloned = on_toggle_enabled.clone();
-    window.on_toggle_spectrum_enabled(cloned);
+    crate::AnalyzerBridge::get(window).on_toggle_spectrum_enabled(cloned);
     spectrum_window.on_toggle_enabled(on_toggle_enabled);
 }
 

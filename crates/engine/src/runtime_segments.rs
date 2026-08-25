@@ -25,7 +25,9 @@ use project::chain::Chain;
 
 use domain::io_binding::IoBinding;
 
-use crate::runtime_endpoints::{resolve_chain_io_by_binding, BindingIo, InputEntry, OutputEntry};
+use crate::runtime_endpoints::{
+    insert_is_bound, resolve_chain_io_by_binding, BindingIo, InputEntry, OutputEntry,
+};
 
 /// An `Output` block sitting BETWEEN effect blocks (issue #85): it emits the
 /// signal as processed UP TO ITS POSITION while the chain keeps flowing to the
@@ -91,21 +93,16 @@ pub(crate) fn split_chain_into_segments(
     _effective_outs: &[OutputEntry],
     registry: &[IoBinding],
 ) -> Vec<ChainSegment> {
-    // Model A: each Input/Output block is ONE binding endpoint (no `entries`).
-    // Count the in-chain (mid) I/O blocks — head/tail endpoints come from the
-    // bindings (`effective_ins`/`effective_outs`), not from chain blocks.
-    let regular_input_count: usize = chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Input(_)))
-        .count();
-
-    // Find positions of enabled Insert blocks in chain.blocks.
+    // Find positions of enabled Insert blocks in chain.blocks. Only an insert
+    // whose binding resolves on BOTH sides is a boundary (#881): the send and
+    // return shims are what `effective_outputs` / `effective_inputs` append, so
+    // an unbound insert has no endpoints to split at — it is bypassed and the
+    // chain flows straight through it.
     let insert_positions: Vec<usize> = chain
         .blocks
         .iter()
         .enumerate()
-        .filter(|(_, b)| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
+        .filter(|(_, b)| b.enabled && insert_is_bound(&b.kind, registry))
         .map(|(i, _)| i)
         .collect();
 
@@ -126,9 +123,16 @@ pub(crate) fn split_chain_into_segments(
         );
     }
 
+    // The insert returns are the LAST entries of `effective_ins` — one per bound
+    // insert — so everything before them is a regular input. Counting Input
+    // BLOCKS instead broke split-mono (#881): one mono endpoint over N channels
+    // is N entries, and the walker landed on a sibling instead of the return.
+    let regular_input_count = effective_ins.len().saturating_sub(insert_positions.len());
+
     segments_with_inserts(
         chain,
         effective_ins,
+        cpal_indices,
         split_positions,
         entry_groups,
         &insert_positions,
@@ -350,6 +354,7 @@ fn segments_without_inserts(
 fn segments_with_inserts(
     chain: &Chain,
     effective_ins: &[InputEntry],
+    cpal_indices: &[usize],
     split_positions: &[Option<usize>],
     entry_groups: &[usize],
     insert_positions: &[usize],
@@ -397,7 +402,9 @@ fn segments_with_inserts(
             for (i, input) in effective_ins.iter().take(input_count).enumerate() {
                 segments.push(ChainSegment {
                     input: input.clone(),
-                    cpal_input_index: i,
+                    // The DEVICE's stream index, never the entry's position
+                    // (#881) — infra-cpal dedupes its input streams by device.
+                    cpal_input_index: cpal_indices.get(i).copied().unwrap_or(i),
                     block_indices: block_indices.clone(),
                     output_route_indices: output_indices.clone(),
                     // One segment per input here, so every input taps the
@@ -413,7 +420,10 @@ fn segments_with_inserts(
             let prev_return_idx = insert_return_idx - 1;
             segments.push(ChainSegment {
                 input: effective_ins[prev_return_idx].clone(),
-                cpal_input_index: prev_return_idx,
+                cpal_input_index: cpal_indices
+                    .get(prev_return_idx)
+                    .copied()
+                    .unwrap_or(prev_return_idx),
                 block_indices,
                 output_route_indices: output_indices,
                 mid_output_taps: taps,
@@ -453,7 +463,10 @@ fn segments_with_inserts(
     let last_return_idx = insert_return_idx - 1;
     segments.push(ChainSegment {
         input: effective_ins[last_return_idx].clone(),
-        cpal_input_index: last_return_idx,
+        cpal_input_index: cpal_indices
+            .get(last_return_idx)
+            .copied()
+            .unwrap_or(last_return_idx),
         block_indices,
         output_route_indices: tail_routes.to_vec(),
         mid_output_taps: taps,

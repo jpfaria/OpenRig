@@ -31,6 +31,11 @@ fn speed_index(speed: LooperSpeed) -> i32 {
 
 /// "m:ss" of a frame count at the stream's LIVE rate — never a hardcoded
 /// 48000 (#669/#723: a 44.1 kHz stream would read 9 % fast).
+/// #826: the same clock the panel shows, for the waveform editor's header.
+pub(crate) fn clock_label(frames: usize, sample_rate: u32) -> String {
+    clock(frames, sample_rate)
+}
+
 fn clock(frames: usize, sample_rate: u32) -> String {
     let seconds = frames as f64 / f64::from(sample_rate.max(1));
     let total = seconds.floor() as u64;
@@ -115,6 +120,11 @@ pub fn looper_items_with_recorded(
                     LooperState::Recording => true,
                     _ => false,
                 },
+                // #826: the waveform editor opens on a STOPPED loop that holds
+                // material — the two conditions the store itself gates on, so
+                // an enabled button is never a lie. The rule is resolved here,
+                // not in Slint: the view reads a flag, it does not decide.
+                can_edit: state == LooperState::Stopped && len > 0,
                 input_index: resolve_input_segment(chain, registry, cfg.input.as_ref()) as i32,
                 output_index: resolve_output_segment(chain, registry, cfg.output.as_ref()) as i32,
                 preset_index: preset_option_index(cfg.preset.as_deref(), preset_ids),

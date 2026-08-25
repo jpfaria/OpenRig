@@ -21,7 +21,7 @@ use std::rc::Rc;
 
 use application::command::{Command, IoBindingCommand};
 use domain::io_binding::IoBinding;
-use slint::VecModel;
+use slint::{Global, VecModel};
 
 use crate::audio_devices::{
     toggle_device_row, update_device_bit_depth, update_device_buffer_size,
@@ -114,52 +114,60 @@ pub(crate) fn wire(
     // Project device toggles & value updates — standalone ProjectSettingsWindow.
     {
         let project_devices = project_devices.clone();
-        project_settings_window.on_toggle_project_device(move |index, selected| {
-            toggle_device_row(&project_devices, index as usize, selected);
-        });
+        crate::SettingsBridge::get(project_settings_window).on_toggle_project_device(
+            move |index, selected| {
+                toggle_device_row(&project_devices, index as usize, selected);
+            },
+        );
     }
     {
         let project_devices = project_devices.clone();
-        project_settings_window.on_update_project_sample_rate(move |index, value| {
-            update_device_sample_rate(&project_devices, index as usize, value);
-        });
+        crate::SettingsBridge::get(project_settings_window).on_update_project_sample_rate(
+            move |index, value| {
+                update_device_sample_rate(&project_devices, index as usize, value);
+            },
+        );
     }
     {
         let project_devices = project_devices.clone();
-        project_settings_window.on_update_project_buffer_size(move |index, value| {
-            update_device_buffer_size(&project_devices, index as usize, value);
-        });
+        crate::SettingsBridge::get(project_settings_window).on_update_project_buffer_size(
+            move |index, value| {
+                update_device_buffer_size(&project_devices, index as usize, value);
+            },
+        );
     }
     {
         let project_devices = project_devices.clone();
-        project_settings_window.on_update_project_bit_depth(move |index, value| {
-            update_device_bit_depth(&project_devices, index as usize, value);
-        });
+        crate::SettingsBridge::get(project_settings_window).on_update_project_bit_depth(
+            move |index, value| {
+                update_device_bit_depth(&project_devices, index as usize, value);
+            },
+        );
     }
 
     // Project device toggles & value updates — fullscreen inline project
     // settings on the main window (mirrors the standalone settings window).
     {
         let project_devices = project_devices.clone();
-        window.on_toggle_project_device(move |index, selected| {
+        crate::SettingsBridge::get(window).on_toggle_project_device(move |index, selected| {
             toggle_device_row(&project_devices, index as usize, selected);
         });
     }
     {
         let project_devices = project_devices.clone();
-        window.on_update_project_sample_rate(move |index, value| {
+        crate::SettingsBridge::get(window).on_update_project_sample_rate(move |index, value| {
             update_device_sample_rate(&project_devices, index as usize, value);
         });
     }
     {
         let project_devices = project_devices.clone();
-        window.on_update_project_buffer_size(move |index, value| {
+        crate::SettingsBridge::get(window).on_update_project_buffer_size(move |index, value| {
             update_device_buffer_size(&project_devices, index as usize, value);
         });
     }
     {
         let project_devices = project_devices.clone();
-        window.on_update_project_bit_depth(move |index, value| {
+        crate::SettingsBridge::get(window).on_update_project_bit_depth(move |index, value| {
             update_device_bit_depth(&project_devices, index as usize, value);
         });
     }

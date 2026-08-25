@@ -17,6 +17,8 @@ use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
 use project::chain::{Chain, EndpointRef, LooperSpeed};
 
 use crate::controller::ProjectRuntimeController;
+use crate::looper_store::LooperEditRefused;
+use engine::loop_edit::LoopEditOp;
 
 /// Record-tap ring capacity per channel — ~1 s at 48 kHz, so a delayed meter
 /// tick never drops recorded samples before the drain runs.
@@ -119,7 +121,9 @@ impl ProjectRuntimeController {
 
     pub fn looper_remove(&self, chain_id: &ChainId, uid: u64) {
         self.looper_store.borrow_mut().remove(chain_id, uid);
-        self.looper_armed.borrow_mut().remove(&(chain_id.clone(), uid));
+        self.looper_armed
+            .borrow_mut()
+            .remove(&(chain_id.clone(), uid));
         self.disarm_looper_stream(chain_id, uid);
     }
 
@@ -148,10 +152,48 @@ impl ProjectRuntimeController {
         self.looper_store.borrow_mut().redo(chain_id, uid);
     }
 
+    /// #826: the loop's raw material — no `mix`/`decay`/`reverse` baked in —
+    /// for the waveform editor to draw and reshape.
+    pub fn export_chain_looper_raw(&self, chain_id: &ChainId, uid: u64) -> Option<Vec<f32>> {
+        self.looper_store.borrow().export_raw(chain_id, uid)
+    }
+
+    /// #826: reshape a stopped loop; the new length in frames on success.
+    pub fn looper_apply_edit(
+        &self,
+        chain_id: &ChainId,
+        uid: u64,
+        op: LoopEditOp,
+        start: usize,
+        end: usize,
+    ) -> Result<usize, LooperEditRefused> {
+        self.looper_store
+            .borrow_mut()
+            .apply_edit(chain_id, uid, op, start, end)
+    }
+
+    /// #826: step back one waveform edit; `false` when there is nothing to undo.
+    pub fn looper_undo_edit(&self, chain_id: &ChainId, uid: u64) -> bool {
+        self.looper_store.borrow_mut().undo_edit(chain_id, uid)
+    }
+
+    /// #826: step forward one undone waveform edit.
+    pub fn looper_redo_edit(&self, chain_id: &ChainId, uid: u64) -> bool {
+        self.looper_store.borrow_mut().redo_edit(chain_id, uid)
+    }
+
+    /// #826: (undo depth, redo depth) — what the editor's buttons enable on.
+    pub fn looper_edit_history_depth(&self, chain_id: &ChainId, uid: u64) -> (usize, usize) {
+        self.looper_store.borrow().edit_history_depth(chain_id, uid)
+    }
+
     /// Whether the loop is currently sounding — the `PlayStop` toggle reads this.
     pub fn looper_is_playing(&self, chain_id: &ChainId, uid: u64) -> bool {
         matches!(
-            self.looper_store.borrow().status(chain_id, uid).map(|s| s.state),
+            self.looper_store
+                .borrow()
+                .status(chain_id, uid)
+                .map(|s| s.state),
             Some(LooperState::Playing | LooperState::Overdubbing)
         )
     }
@@ -176,7 +218,9 @@ impl ProjectRuntimeController {
         store.set_recording_rings(chain_id, uid, Vec::new());
     }
     pub fn looper_set_output(&self, chain_id: &ChainId, uid: u64, output: Option<EndpointRef>) {
-        self.looper_store.borrow_mut().set_output(chain_id, uid, output);
+        self.looper_store
+            .borrow_mut()
+            .set_output(chain_id, uid, output);
     }
     /// #323 phase 2: install the effect blocks the loop plays through — its
     /// LINKED preset's blocks, resolved by the adapter (which owns the rig).
@@ -269,7 +313,9 @@ impl ProjectRuntimeController {
             .map(|(_, uid)| *uid)
             .collect();
         for uid in stale {
-            self.looper_armed.borrow_mut().remove(&(chain.id.clone(), uid));
+            self.looper_armed
+                .borrow_mut()
+                .remove(&(chain.id.clone(), uid));
             self.disarm_looper_stream(&chain.id, uid);
         }
 
@@ -305,7 +351,8 @@ impl ProjectRuntimeController {
                 Some(s) => s,
                 None => continue,
             };
-            let output_index = resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
+            let output_index =
+                resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
             let pcm = Arc::new(DiPcm::new(samples, self.sample_rate, 2));
             // #323 phase 2: play through the loop's LINKED preset when the
             // adapter has resolved its blocks — a routed copy of the chain with

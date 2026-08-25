@@ -38,6 +38,12 @@ msgstr "+"
 msgid "di-loop-button-label"
 msgstr "DI Loop"
 
+# I/O Bindings UI strings (added #716)
+# Looper UI strings (added #323)
+#: crates/adapter-gui/ui/components/chain_looper_button.slint:52
+msgid "looper-button-label"
+msgstr "Looper"
+
 #: crates/adapter-gui/ui/components/chain_title_preset.slint:77
 msgid "Scene {}"
 msgstr ""
@@ -141,6 +147,156 @@ msgstr "DI output"
 msgid "accessible-language-selector"
 msgstr "Language selector"
 
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:92
+msgid "looper-editor-title"
+msgstr "Edit loop"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:122
+msgid "looper-editor-fit"
+msgstr "Fit"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:131
+msgid "looper-editor-trim"
+msgstr "Trim"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:140
+msgid "looper-editor-crop"
+msgstr "Crop"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:149
+msgid "looper-editor-cut"
+msgstr "Cut"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:161
+msgid "looper-editor-stop"
+msgstr "Stop"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:162
+msgid "looper-editor-play"
+msgstr "Play"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:171
+msgid "looper-editor-undo"
+msgstr "Undo"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:177
+msgid "looper-editor-redo"
+msgstr "Redo"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:183
+msgid "looper-editor-close"
+msgstr "Close"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr "Nothing to trim — the take is already tight"
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr "That edit would leave too little audio"
+
+#: crates/adapter-gui/ui/components/looper_overlay.slint:104
+msgid "looper-preset-picker-title"
+msgstr "Play through preset"
+
+#: crates/adapter-gui/ui/components/looper_overlay.slint:131
+msgid "looper-preset-follow"
+msgstr "Follow the chain"
+
+#: crates/adapter-gui/ui/components/looper_panel.slint:72
+msgid "looper-panel-title"
+msgstr "Loopers"
+
+#: crates/adapter-gui/ui/components/looper_panel.slint:104
+msgid "looper-add"
+msgstr "Add looper"
+
+#: crates/adapter-gui/ui/components/looper_panel.slint:130
+msgid "looper-empty-title"
+msgstr "No loopers yet"
+
+#: crates/adapter-gui/ui/components/looper_panel.slint:138
+msgid "looper-empty-hint"
+msgstr "Add a looper to record a phrase from this chain's input and play it back through the whole chain."
+
+#: crates/adapter-gui/ui/components/looper_row.slint:64
+msgid "looper-record"
+msgstr "Record / overdub"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:79
+msgid "looper-stop"
+msgstr "Stop"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:79
+msgid "looper-play"
+msgstr "Play"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:91
+msgid "looper-clear"
+msgstr "Clear loop"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:102
+msgid "looper-edit"
+msgstr "Edit loop"
+
+#. Slint catalog — the Rust side ships a code, not a sentence.
+#: crates/adapter-gui/ui/components/looper_row.slint:133
+msgid "looper-state-recording"
+msgstr "Recording"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:134
+msgid "looper-state-playing"
+msgstr "Playing"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:135
+msgid "looper-state-overdubbing"
+msgstr "Overdubbing"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:136
+msgid "looper-state-stopped"
+msgstr "Stopped"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:137
+msgid "looper-state-empty"
+msgstr "Empty"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:178
+msgid "looper-parameters"
+msgstr "Parameters"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:187
+msgid "looper-remove"
+msgstr "Remove looper"
+
+# Looper input/output selectors (#323)
+#: crates/adapter-gui/ui/components/looper_row.slint:206
+msgid "looper-input"
+msgstr "Record from"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:213
+msgid "looper-output"
+msgstr "Play to"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:229
+msgid "looper-preset"
+msgstr "Preset"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:285
+msgid "looper-level"
+msgstr "Level"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:291
+msgid "looper-decay"
+msgstr "Decay"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:301
+msgid "looper-speed"
+msgstr "Speed"
+
+#: crates/adapter-gui/ui/components/looper_row.slint:315
+msgid "looper-reverse"
+msgstr "Reverse"
+
 #: crates/adapter-gui/ui/components/model_select_with_search.slint:110
 msgid "▼"
 msgstr "▼"
@@ -228,6 +384,18 @@ msgstr "Suggested fix"
 #: crates/adapter-gui/ui/components/tone_doctor_panel.slint:235
 msgid "tone-doctor-apply"
 msgstr "Apply"
+
+#: crates/adapter-gui/ui/components/waveform_view.slint:25
+msgid "looper-editor-waveform"
+msgstr "Loop waveform"
+
+#: crates/adapter-gui/ui/components/waveform_view.slint:70
+msgid "looper-editor-selection-start"
+msgstr "Selection start"
+
+#: crates/adapter-gui/ui/components/waveform_view.slint:93
+msgid "looper-editor-selection-end"
+msgstr "Selection end"
 
 #: crates/adapter-gui/ui/pages/block_editor_panel.slint:121
 msgid "tooltip-delete"
@@ -329,75 +497,103 @@ msgstr "Return"
 msgid "btn-ok"
 msgstr "OK"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:240
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:40
+msgid "title-section-configure-input"
+msgstr "Configure input"
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:40
+msgid "title-section-configure-output"
+msgstr "Configure output"
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:55
+msgid "action-toggle-block-enabled"
+msgstr "Enable / disable"
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:76
+msgid "action-delete-block"
+msgstr "Delete block"
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:96
+msgid "label-io-binding"
+msgstr "I/O"
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:109
+msgid "label-io-endpoint"
+msgstr "Endpoint"
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:122
+msgid "msg-pick-io-endpoint"
+msgstr "Pick an I/O and an endpoint"
+
+#: crates/adapter-gui/ui/pages/chain_row.slint:251
 msgid "tooltip-expand-blocks"
 msgstr "Expand blocks"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:248
+#: crates/adapter-gui/ui/pages/chain_row.slint:259
 msgid "tooltip-measure-latency"
 msgstr "Measure latency (emits a beep)"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:277
+#: crates/adapter-gui/ui/pages/chain_row.slint:288
 msgid "tooltip-configure"
 msgstr "Configure"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:561
+#: crates/adapter-gui/ui/pages/chain_row.slint:572
 msgid "label-lat"
 msgstr "LAT"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:610
+#: crates/adapter-gui/ui/pages/chain_row.slint:621
 msgid "label-input"
 msgstr "Input"
 
-#: crates/adapter-gui/ui/pages/chain_row.slint:656
+#: crates/adapter-gui/ui/pages/chain_row.slint:667
 msgid "label-output"
 msgstr "Output"
 
-#: crates/adapter-gui/ui/pages/metronome_window.slint:81
-msgid "label-metronome"
-msgstr "METRONOME"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:165
-msgid "label-bpm"
-msgstr "BPM"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:188
-msgid "label-count-in"
-msgstr "COUNT-IN"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:211
-msgid "action-tap-tempo"
-msgstr "TAP"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:231
-msgid "label-time-signature"
-msgstr "TIME"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:243
-msgid "label-subdivision"
-msgstr "SUBDIV"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:255
-msgid "label-timbre"
-msgstr "TIMBRE"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:267
-msgid "label-click-volume"
-msgstr "VOLUME"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint:303
+#: crates/adapter-gui/ui/pages/metronome_window.slint:43
 msgid "placeholder-metronome-output"
 msgstr "Select output"
 
-#: crates/adapter-gui/ui/pages/metronome_window.slint:304
-msgid "placeholder-search-device"
-msgstr "Search device…"
+#: crates/adapter-gui/ui/pages/metronome_window.slint:131
+msgid "label-metronome"
+msgstr "METRONOME"
 
-#: crates/adapter-gui/ui/pages/metronome_window.slint:305
-msgid "status-no-devices"
-msgstr "No devices found"
+#: crates/adapter-gui/ui/pages/metronome_window.slint:215
+msgid "label-bpm"
+msgstr "BPM"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:238
+msgid "label-count-in"
+msgstr "COUNT-IN"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:263
+msgid "action-tap-tempo"
+msgstr "TAP"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:284
+msgid "label-time-signature"
+msgstr "TIME"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:296
+msgid "label-subdivision"
+msgstr "SUBDIV"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:308
+msgid "label-timbre"
+msgstr "TIMBRE"
 
 #: crates/adapter-gui/ui/pages/metronome_window.slint:320
+msgid "label-click-volume"
+msgstr "VOLUME"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:385
+msgid "label-metronome-output"
+msgstr "OUTPUT"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:394
+msgid "status-no-outputs"
+msgstr "No project outputs configured"
+
+#: crates/adapter-gui/ui/pages/metronome_window.slint:425
 msgid "title-window-metronome"
 msgstr "Metronome"
 
@@ -421,31 +617,31 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:145
+#: crates/adapter-gui/ui/pages/project_chains.slint:147
 msgid "tooltip-back"
 msgstr "Back"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:153
+#: crates/adapter-gui/ui/pages/project_chains.slint:155
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:161
+#: crates/adapter-gui/ui/pages/project_chains.slint:163
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:169
+#: crates/adapter-gui/ui/pages/project_chains.slint:174
 msgid "tooltip-metronome"
 msgstr "Metronome"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:177
+#: crates/adapter-gui/ui/pages/project_chains.slint:182
 msgid "tooltip-project-settings"
 msgstr "Project"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:186
+#: crates/adapter-gui/ui/pages/project_chains.slint:191
 msgid "tooltip-save"
 msgstr "Save"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:194
+#: crates/adapter-gui/ui/pages/project_chains.slint:199
 msgid "tooltip-new-chain"
 msgstr "New chain"
 
@@ -555,8 +751,7 @@ msgstr "Channels"
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
-msgstr ""
-"Group the input and output of the same interface. Each chain uses a binding."
+msgstr "Group the input and output of the same interface. Each chain uses a binding."
 
 #: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
@@ -764,158 +959,27 @@ msgstr "OpenRig · Configure chain"
 msgid "title-window-chain-insert"
 msgstr "OpenRig · Configure Insert"
 
-#: crates/adapter-gui/ui/touch_main.slint:623
-msgid "⌨"
-msgstr "⌨"
-
-# I/O Bindings UI strings (added #716)
-
-# Looper UI strings (added #323)
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-button-label"
-msgstr "Looper"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-panel-title"
-msgstr "Loopers"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-add"
-msgstr "Add looper"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-empty-title"
-msgstr "No loopers yet"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-empty-hint"
-msgstr "Add a looper to record a phrase from this chain's input and play it back through the whole chain."
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-record"
-msgstr "Record / overdub"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-play"
-msgstr "Play"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-stop"
-msgstr "Stop"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-undo"
-msgstr "Undo layer"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-redo"
-msgstr "Redo layer"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-clear"
-msgstr "Clear loop"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-remove"
-msgstr "Remove looper"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-parameters"
-msgstr "Parameters"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-level"
-msgstr "Level"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-decay"
-msgstr "Decay"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-speed"
-msgstr "Speed"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-reverse"
-msgstr "Reverse"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-layers-one"
-msgstr "1 layer"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-layers-many"
-msgstr "{} layers"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-state-empty"
-msgstr "Empty"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-state-recording"
-msgstr "Recording"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-state-playing"
-msgstr "Playing"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-state-overdubbing"
-msgstr "Overdubbing"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-state-stopped"
-msgstr "Stopped"
-# Looper input/output selectors (#323)
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-input"
-msgstr "Record from"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-output"
-msgstr "Play to"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-preset"
-msgstr "Preset"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-preset-follow"
-msgstr "Follow the chain"
-
-#: crates/adapter-gui/ui/components/looper_row.slint:1
-msgid "looper-preset-picker-title"
-msgstr "Play through preset"
-#: crates/adapter-gui/ui/pages/metronome_window.slint
-msgid "label-metronome-output"
-msgstr "OUTPUT"
-
-#: crates/adapter-gui/ui/pages/metronome_window.slint
-msgid "status-no-outputs"
-msgstr "No project outputs configured"
-
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:285
 msgid "title-window-chain-port"
 msgstr "Port"
 
-msgid "title-section-configure-input"
-msgstr "Configure input"
+#: crates/adapter-gui/ui/touch_main.slint:631
+msgid "⌨"
+msgstr "⌨"
 
-msgid "title-section-configure-output"
-msgstr "Configure output"
+msgid "label-channels-selected"
+msgstr "Selected:"
 
-msgid "label-io-endpoint"
-msgstr "Endpoint"
+msgid "hint-channels-pick-device"
+msgstr "Pick a device to list its channels"
 
-msgid "action-toggle-block-enabled"
-msgstr "Enable / disable"
+msgid "label-channels-total"
+msgstr "{} channels"
 
-msgid "action-delete-block"
-msgstr "Delete block"
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr "The send goes out this I/O's output; the return comes back on its input."
 
-msgid "msg-pick-io-endpoint"
-msgstr "Pick an I/O and an endpoint"
-
-msgid "label-io-binding"
-msgstr "I/O"
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
+msgstr "Pick the I/O this loop runs through"

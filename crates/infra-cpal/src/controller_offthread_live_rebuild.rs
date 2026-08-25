@@ -152,6 +152,24 @@ impl ProjectRuntimeController {
         Ok(false)
     }
 
+    /// #881: `true` when the chain is streaming and its STRUCTURE (which blocks,
+    /// in which order, with which models — and whether a routing block is on)
+    /// differs from what the live streams were built for. Parameter values are
+    /// not part of it: a knob turn must never reopen the device.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    pub fn chain_structure_changed(&self, chain: &Chain) -> bool {
+        let Some(active) = self.active_chains.get(&chain.id) else {
+            return false; // not streaming — nothing to compare
+        };
+        active.structure != crate::io_topology::chain_structure_signature(chain)
+    }
+
+    /// JACK build: the live-swap path is cpal-only for now (#672).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    pub fn chain_structure_changed(&self, _chain: &Chain) -> bool {
+        false
+    }
+
     /// #716: `true` when `chain` is already streaming AND its resolved I/O
     /// topology (the devices/channels its bindings point at) differs from what
     /// is live — i.e. the user re-bound its E/S. A param/block `upsert` keeps the
@@ -191,16 +209,14 @@ impl ProjectRuntimeController {
                 )
             })
             .collect();
-        let (bound_in, bound_out) =
-            engine::runtime_endpoints::resolve_chain_io(chain, &self.io_bindings);
-        let bound_inputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_in
-            .into_iter()
-            .map(|e| (e.device_id, e.channels))
-            .collect();
-        let bound_outputs: Vec<(domain::ids::DeviceId, Vec<usize>)> = bound_out
-            .into_iter()
-            .map(|e| (e.device_id, e.channels))
-            .collect();
+        // #881: the signature includes the insert loops — a send is an output
+        // and a return is an input, so adding or binding an insert on a RUNNING
+        // chain IS a topology change. Comparing only the chain's own bindings
+        // reported "unchanged", the edit took the DSP-only rebuild, the streams
+        // stayed as they were, and the segment after the insert waited on a
+        // return stream nobody opened: the rig went silent until a restart.
+        let (bound_inputs, bound_outputs) =
+            crate::io_topology::bound_io_signature(chain, &self.io_bindings);
         Ok(crate::io_topology_changed(
             &live_inputs,
             &bound_inputs,

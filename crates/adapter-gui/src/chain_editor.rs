@@ -1,8 +1,9 @@
 use crate::state::{ChainDraft, ChainEditorMode};
 use crate::AppWindow;
 use domain::AudioDeviceDescriptor;
-use project::chain::{Chain, ChainInputMode};
+use project::chain::Chain;
 use project::project::Project;
+use slint::Global;
 
 const INSTRUMENT_KEYS: &[&str] = &[
     block_core::INST_ELECTRIC_GUITAR,
@@ -54,8 +55,12 @@ pub(crate) fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain
             volume: existing.volume,
             io_binding_ids: draft.io_binding_ids.clone(),
             blocks: existing.blocks.clone(),
-            di_output: None,
-            loopers: vec![],
+            // #826: the editor edits name / instrument / bindings. Everything
+            // it does NOT edit comes back untouched — dropping these deleted
+            // the chain's recorded loops (wavs left orphaned beside the
+            // project) and its chosen DI output on every rename.
+            di_output: existing.di_output.clone(),
+            loopers: existing.loopers.clone(),
         }
     } else {
         // Create mode: a new chain has no blocks. Its input/output is
@@ -83,21 +88,6 @@ pub(crate) fn instrument_index_to_string(index: i32) -> &'static str {
         .unwrap_or(block_core::DEFAULT_INSTRUMENT)
 }
 
-pub(crate) fn insert_mode_to_index(mode: ChainInputMode) -> i32 {
-    match mode {
-        ChainInputMode::Mono => 0,
-        ChainInputMode::Stereo => 1,
-        ChainInputMode::DualMono => 0,
-    }
-}
-
-pub(crate) fn insert_mode_from_index(index: i32) -> ChainInputMode {
-    match index {
-        1 => ChainInputMode::Stereo,
-        _ => ChainInputMode::Mono,
-    }
-}
-
 pub(crate) fn instrument_string_to_index(instrument: &str) -> i32 {
     INSTRUMENT_KEYS
         .iter()
@@ -117,12 +107,16 @@ pub(crate) fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
 pub(crate) fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
     match chain_editor_mode(draft) {
         ChainEditorMode::Create => {
-            window.set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
-            window.set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
         }
         ChainEditorMode::Edit => {
-            window.set_chain_editor_title(rust_i18n::t!("title-configure-chain").as_ref().into());
-            window.set_chain_editor_save_label(rust_i18n::t!("btn-save-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_title(rust_i18n::t!("title-configure-chain").as_ref().into());
+            crate::ChainEditorBridge::get(window)
+                .set_chain_editor_save_label(rust_i18n::t!("btn-save-chain").as_ref().into());
         }
     }
 }
@@ -135,3 +129,7 @@ pub(crate) fn normalized_chain_description(name: &str) -> Option<String> {
         Some(trimmed.to_string())
     }
 }
+
+#[cfg(test)]
+#[path = "chain_editor_tests.rs"]
+mod tests;

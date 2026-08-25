@@ -83,8 +83,16 @@ impl LocalDispatcher {
                 let mut proj = self.project.borrow_mut();
                 if let Some(existing) = proj.chains.iter_mut().find(|c| c.id == chain_id) {
                     let keep_enabled = existing.enabled;
+                    // #826: a looper is created and recorded through its own
+                    // commands — this one carries the editor's fields and has no
+                    // business speaking about loops. Without this the chain
+                    // editor's Save (which builds the chain with no loopers)
+                    // deleted every recorded loop from the project, leaving its
+                    // wavs orphaned beside it.
+                    let keep_loopers = std::mem::take(&mut existing.loopers);
                     *existing = chain;
                     existing.enabled = keep_enabled;
+                    existing.loopers = keep_loopers;
                 } else {
                     proj.chains.push(chain);
                 }

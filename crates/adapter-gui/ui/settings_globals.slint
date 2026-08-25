@@ -1,0 +1,113 @@
+// Responsibility: holds every Settings section's state in one place.
+//
+// #873. The same settings are reachable from two roots — the fullscreen
+// inline page on `AppWindow` and the standalone `ProjectSettingsWindow` — and
+// each used to declare every property and callback again, then forward them
+// down through `DesktopMain`/`TouchMain` into `SettingsPage` and its sections.
+// Four copies of the same list, and the god interface they made is what #873
+// is about. A global is per-root, so both windows still get their own
+// instance (Rust installs on each), but the DECLARATION exists once and every
+// section reads it directly with no prop drilling.
+
+import { ChannelOptionItem, DeviceSelectionItem, IoBindingModel, MidiBindingRow, MidiDeviceRow } from "models.slint";
+
+export global SettingsBridge {
+    // ── System / Paths (#513, #582) ──────────────────────────────────────
+    // Empty string = use the OS default (the resolver handles it).
+    in-out property <string> presets-path;
+    in-out property <string> plugins-path;
+    in-out property <string> evaluations-path;
+    // #561: status text filled after a catalog reload — "12 plugins loaded
+    // (8 native, 4 disk)". Empty until a reload has run.
+    in-out property <string> plugin-catalog-status;
+
+    callback pick-presets-path();
+    callback reset-presets-path();
+    callback pick-plugins-path();
+    callback reset-plugins-path();
+    callback pick-evaluations-path();
+    callback reset-evaluations-path();
+    // #561: re-scan the plugin packages directories without a restart.
+    callback reload-plugin-catalog();
+
+    // ── System / MIDI devices (#513) ─────────────────────────────────────
+    // Rows built by Rust: `adapter_midi::list_input_ports()` merged with the
+    // persisted selection.
+    in-out property <[MidiDeviceRow]> midi-devices;
+    callback refresh-midi-devices();
+    callback toggle-midi-device(int, bool);
+    callback edit-midi-device-alias(int, string);
+
+    // ── System / Integrations (#712) ─────────────────────────────────────
+    // Master switches for the MIDI adapter and the MCP server. Per-machine
+    // config (config.yaml), applied at the next launch.
+    in-out property <bool> midi-enabled;
+    in-out property <bool> mcp-enabled;
+    callback set-midi-enabled(bool);
+    callback set-mcp-enabled(bool);
+
+    // ── System / I/O bindings (#716) ─────────────────────────────────────
+    // `io-binding-names` feeds the chain-level endpoint picker; the registry
+    // editor consumes `io-bindings`.
+    in-out property <[string]> io-binding-names;
+    in-out property <[IoBindingModel]> io-bindings;
+    in-out property <[string]> input-device-ids;
+    in-out property <[string]> input-device-names;
+    in-out property <[string]> output-device-ids;
+    in-out property <[string]> output-device-names;
+    in-out property <[ChannelOptionItem]> io-binding-channel-options;
+    in-out property <string> io-binding-error: "";
+    // Prefill read-backs (#716 Bug 3): Rust sets these synchronously inside
+    // the `edit-endpoint` callback so the edit handler can seed the open
+    // add-form with the endpoint's device + mode.
+    in-out property <int> io-edit-prefill-device-index: -1;
+    in-out property <int> io-edit-prefill-mode-index: 0;
+
+    callback create-io-binding(string /* name */) -> string;
+    callback delete-io-binding(string /* id */) -> string;
+    callback rename-io-binding(string /* id */, string /* new_name */);
+    callback endpoint-device-changed(string /* binding */, bool /* is_input */, string /* device_id */);
+    callback toggle-endpoint-channel(int /* index */, bool /* selected */, string /* mode */);
+    // `edit_name` empty ⇒ append a new endpoint; non-empty ⇒ replace that one.
+    callback add-input-endpoint(string /* binding */, string /* device_id */, string /* mode */, string /* edit_name */);
+    callback add-output-endpoint(string /* binding */, string /* device_id */, string /* mode */, string /* edit_name */);
+    callback remove-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
+    // Fires before the form opens; Rust seeds the channel model + prefill props.
+    callback edit-endpoint(string /* binding */, string /* ep_name */, bool /* is_input */);
+
+    // ── System / Audio devices (#513) ────────────────────────────────────
+    // The project's device rows; the rate/buffer/bit-depth option lists stay
+    // on the window because the first-run audio wizard shares them.
+    in-out property <[DeviceSelectionItem]> project-devices;
+    callback refresh-devices();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
+    callback update-project-bit-depth(int, string);
+
+    // ── System / Language ────────────────────────────────────────────────
+    // Populated from Rust (`i18n::SUPPORTED_LANGUAGES`).
+    in-out property <[string]> language-options;
+    in-out property <[string]> language-codes;
+    in-out property <int> selected-language-index;
+    callback change-language(int);
+    callback language-selected(int);
+
+    // ── Project / Metadata (#513) ────────────────────────────────────────
+    // Name is editable (dispatches UpdateProjectName on each change); the
+    // path is read-only display.
+    in-out property <string> project-name;
+    in-out property <string> project-path-display;
+    callback edit-project-name(string);
+
+    // ── Project / MIDI mapping (#513, #493) ──────────────────────────────
+    // Bindings list plus the `Command` variant names the dropdown offers.
+    // Drafts and finalized bindings share one row list — `learning = true`
+    // marks a draft awaiting MIDI Learn capture.
+    in-out property <[MidiBindingRow]> midi-bindings;
+    in-out property <[string]> available-commands;
+    callback add-midi-binding();
+    callback delete-midi-binding(int);
+    callback pick-midi-binding-command(int, string);
+    callback cancel-midi-binding-draft(int);
+}

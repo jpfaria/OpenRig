@@ -20,7 +20,7 @@ use project::param::ParameterSet;
 
 use crate::project_ops::create_new_project_session;
 use crate::select_chain_block_callback::{wire, SelectChainBlockCallbackCtx};
-use crate::state::{PortDraft, ProjectSession};
+use crate::state::{InsertDraft, PortDraft, ProjectSession};
 use crate::{AppWindow, ChainInsertWindow, ChainPortWindow};
 
 fn core(id: &str) -> AudioBlock {
@@ -74,6 +74,37 @@ fn registry() -> Vec<IoBinding> {
     ]
 }
 
+/// A session whose chain is `[gain, Insert(aux), gain]` — the loop is at 1.
+fn session_with_insert() -> ProjectSession {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let session = create_new_project_session(&tmp.path().join("config.yaml"));
+    std::mem::forget(tmp);
+    session.project.borrow_mut().chains = vec![Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["main".into()],
+        blocks: vec![
+            core("A"),
+            AudioBlock {
+                id: BlockId("rig:input-1:insert:1".into()),
+                enabled: true,
+                kind: AudioBlockKind::Insert(project::block::InsertBlock {
+                    model: "external_loop".into(),
+                    io: "aux".into(),
+                }),
+            },
+            core("B"),
+        ],
+        di_output: None,
+        loopers: vec![],
+    }];
+    *session.io_bindings.borrow_mut() = registry();
+    session
+}
+
 /// A session whose chain is `[gain, Output(aux), gain]` — the port is at 1.
 fn session() -> ProjectSession {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -98,6 +129,7 @@ fn session() -> ProjectSession {
 struct Opened {
     draft: Option<PortDraft>,
     window: ChainPortWindow,
+    insert_window: ChainInsertWindow,
 }
 
 /// Clicks the block at `ui_index` through the real callback and returns the
@@ -109,6 +141,23 @@ fn click(ui_index: i32) -> Option<PortDraft> {
 /// Clicks the block at `ui_index` with the port window's option models wired
 /// the way `run_desktop_app` wires them, so the selects are inspectable.
 fn open(ui_index: i32) -> Opened {
+    open_with(ui_index, session(), Rc::new(RefCell::new(None)))
+}
+
+/// #881 — same click path, but the chain carries an INSERT: returns the insert
+/// window so the E/S select can be inspected.
+fn open_insert(ui_index: i32) -> (Option<InsertDraft>, ChainInsertWindow) {
+    let insert_draft: Rc<RefCell<Option<InsertDraft>>> = Rc::new(RefCell::new(None));
+    let opened = open_with(ui_index, session_with_insert(), insert_draft.clone());
+    let draft = insert_draft.borrow().clone();
+    (draft, opened.insert_window)
+}
+
+fn open_with(
+    ui_index: i32,
+    session: ProjectSession,
+    insert_draft: Rc<RefCell<Option<InsertDraft>>>,
+) -> Opened {
     i_slint_backend_testing::init_no_event_loop();
     infra_filesystem::init_asset_paths(infra_filesystem::AssetPaths::default());
     let window = AppWindow::new().unwrap();
@@ -128,7 +177,7 @@ fn open(ui_index: i32) -> Opened {
             inline_tab_state: Rc::new(RefCell::new(Default::default())),
             selected_block: Rc::new(RefCell::new(None)),
             block_editor_draft: Rc::new(RefCell::new(None)),
-            insert_draft: Rc::new(RefCell::new(None)),
+            insert_draft: insert_draft.clone(),
             block_type_options: Rc::new(VecModel::default()),
             block_model_options: Rc::new(VecModel::default()),
             filtered_block_model_options: Rc::new(VecModel::default()),
@@ -137,16 +186,12 @@ fn open(ui_index: i32) -> Opened {
             multi_slider_points: Rc::new(VecModel::default()),
             curve_editor_points: Rc::new(VecModel::default()),
             eq_band_curves: Rc::new(VecModel::default()),
-            project_session: Rc::new(RefCell::new(Some(session()))),
+            project_session: Rc::new(RefCell::new(Some(session))),
             project_chains: Rc::new(VecModel::default()),
             saved_project_snapshot: Rc::new(RefCell::new(None)),
             project_dirty: Rc::new(RefCell::new(false)),
             input_chain_devices: Rc::new(RefCell::new(Vec::new())),
             output_chain_devices: Rc::new(RefCell::new(Vec::new())),
-            chain_input_device_options: Rc::new(VecModel::default()),
-            chain_output_device_options: Rc::new(VecModel::default()),
-            insert_send_channels: Rc::new(VecModel::default()),
-            insert_return_channels: Rc::new(VecModel::default()),
             open_block_windows: Rc::new(RefCell::new(Vec::new())),
             inline_stream_timer: Rc::new(RefCell::new(None)),
             toast_timer: Rc::new(Timer::default()),
@@ -162,6 +207,7 @@ fn open(ui_index: i32) -> Opened {
     Opened {
         draft,
         window: port_window,
+        insert_window,
     }
 }
 
@@ -233,5 +279,34 @@ fn clicking_a_processing_block_does_not_open_the_port_editor() {
     assert!(
         click(0).is_none(),
         "a gain block has nothing to do with the port editor"
+    );
+}
+
+// ── #881: the same click path for an INSERT ─────────────────────────────────
+
+/// Clicking an insert already in the chain must open ITS editor, seeded with
+/// the E/S the loop runs through — otherwise the loop can never be re-pointed
+/// after it is added.
+#[test]
+fn clicking_an_insert_opens_its_editor_on_its_binding() {
+    let (draft, window) = open_insert(1);
+    let draft = draft.expect("#881: clicking the insert must open the insert editor");
+
+    assert_eq!(
+        draft.block_index, 1,
+        "the editor targets the clicked insert"
+    );
+    assert_eq!(draft.io, "aux", "seeded with the E/S the insert points at");
+
+    let options: Vec<String> = window
+        .get_binding_options()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(options, vec!["MAIN".to_string(), "AUX".to_string()]);
+    assert_eq!(
+        window.get_selected_binding_index(),
+        1,
+        "the select opens on the insert's own E/S"
     );
 }

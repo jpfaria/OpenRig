@@ -16,7 +16,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, VecModel};
+use slint::{ComponentHandle, Global, Timer, VecModel};
 
 use anyhow::Result;
 use application::command::{ChainCommand, Command};
@@ -171,6 +171,19 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         &ctx.project_dirty,
         ctx.auto_save,
     );
+    // #826: the waveform editor — its own overlay, its own read (the loop's
+    // envelope rather than its transport state).
+    crate::looper_editor_callbacks::wire_looper_editor_callbacks(
+        window,
+        &ctx.project_session,
+        &ctx.looper_live,
+        &crate::looper_editor_callbacks::EditorDirtyCtx {
+            window: window.as_weak(),
+            saved_project_snapshot: ctx.saved_project_snapshot.clone(),
+            project_dirty: ctx.project_dirty.clone(),
+            auto_save: ctx.auto_save,
+        },
+    );
 }
 
 fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
@@ -217,8 +230,8 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
                 (chain.id.clone(), name)
             };
             *pending_delete_chain_id.borrow_mut() = Some(chain_id);
-            window.set_confirm_delete_chain_name(chain_name.into());
-            window.set_show_confirm_delete_chain(true);
+            crate::OverlayBridge::get(&window).set_confirm_delete_chain_name(chain_name.into());
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_chain(true);
         });
     }
 
@@ -233,11 +246,11 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
         let pending_delete_chain_id = pending_delete_chain_id.clone();
-        window.on_confirm_delete_chain(move || {
+        crate::OverlayBridge::get(window).on_confirm_delete_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_show_confirm_delete_chain(false);
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_chain(false);
             let Some(chain_id) = pending_delete_chain_id.borrow_mut().take() else {
                 return;
             };
@@ -285,10 +298,10 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
     {
         let weak_window = window.as_weak();
         let pending_delete_chain_id = pending_delete_chain_id.clone();
-        window.on_cancel_delete_chain(move || {
+        crate::OverlayBridge::get(window).on_cancel_delete_chain(move || {
             *pending_delete_chain_id.borrow_mut() = None;
             if let Some(window) = weak_window.upgrade() {
-                window.set_show_confirm_delete_chain(false);
+                crate::OverlayBridge::get(&window).set_show_confirm_delete_chain(false);
             }
         });
     }

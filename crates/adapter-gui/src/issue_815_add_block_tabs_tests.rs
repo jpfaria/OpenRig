@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, VecModel};
+use slint::{ComponentHandle, Global, Model, VecModel};
 
 use crate::block_editor_window_setup::{create_and_wire, BlockEditorWindowSetupCtx};
 use crate::project_ops::create_new_project_session;
@@ -23,22 +23,23 @@ fn empty_session() -> Rc<RefCell<Option<ProjectSession>>> {
 }
 
 fn new_block_ctx() -> BlockEditorWindowSetupCtx {
-    // The 8-band parametric EQ exposes 8 parameter groups ("Band 1".."Band 8"),
-    // so a correctly built editor must render more than one tab.
-    let seeded =
-        application::block_factory::default_params_for_model("filter", "eq_eight_band_parametric")
-            .unwrap_or_default();
+    // Tube saturation exposes three parameter groups ("Gain", "Character",
+    // "Output"), so a correctly built editor must render more than one tab.
+    // It has to be a block the grid draws itself: a block whose EQ widget draws
+    // its bands publishes no groups at all (#878).
+    let seeded = application::block_factory::default_params_for_model("gain", "tube_saturation")
+        .unwrap_or_default();
     BlockEditorWindowSetupCtx {
         chain_index: 0,
         block_index: None,
         before_index: 0,
         instrument: "electric_guitar".to_string(),
-        effect_type: "filter".to_string(),
-        model_id: "eq_eight_band_parametric".to_string(),
+        effect_type: "gain".to_string(),
+        model_id: "tube_saturation".to_string(),
         enabled: true,
         editor_data: BlockEditorData {
-            effect_type: "filter".to_string(),
-            model_id: "eq_eight_band_parametric".to_string(),
+            effect_type: "gain".to_string(),
+            model_id: "tube_saturation".to_string(),
             params: seeded,
             enabled: true,
             is_select: false,
@@ -72,11 +73,11 @@ fn adding_a_block_opens_the_tabbed_editor_in_add_mode() {
     // The #780 parameter tabs must be built for a NEW block, just like edit.
     assert!(
         win.get_block_parameter_groups().row_count() > 1,
-        "a newly added 8-band EQ must show its parameter tabs"
+        "a newly added grouped block must show its parameter tabs"
     );
     // New block => add mode, not edit mode (no delete, confirm = add).
     assert!(
-        !win.get_block_drawer_edit_mode(),
+        !crate::BlockEditorBridge::get(&win).get_block_drawer_edit_mode(),
         "adding a block must NOT be in edit mode"
     );
 }

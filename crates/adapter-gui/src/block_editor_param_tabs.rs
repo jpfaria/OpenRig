@@ -46,13 +46,41 @@ fn is_pinned(it: &BlockParameterItem) -> bool {
 /// pinned rows and the rows of the `active` group get a running 0-based slot;
 /// every other row gets -1 (hidden). Values are preserved — only `tab_slot`
 /// changes — so switching tabs never loses an edit.
+///
+/// A row with no widget of its own is drawn by the block's EQ widget, never by
+/// the grid (#878) — it is hidden so it does not eat a slot and push the rows
+/// that DO render (an EQ's output trim) out of the panel.
 pub fn retag_for_group(items: &[BlockParameterItem], active: &str) -> Vec<BlockParameterItem> {
+    retag(items, |it| is_pinned(it) || group_label(it) == active)
+}
+
+/// Tag the rows of the groups the EQ widget does NOT draw, with no tab filter —
+/// what a block whose widget draws the rest needs: there is no tab bar to pick
+/// a group with, and the handful of remaining knobs form a single dense strip.
+///
+/// A group the widget draws is drawn WHOLE: a band's on/off toggle and filter
+/// type belong to that band, so the widget owns them along with its curve. An
+/// equalizer shows sliders — a loose row of ENABLED toggles and TYPE dropdowns
+/// above them is not something an equalizer has (#878).
+pub fn retag_all(items: &[BlockParameterItem]) -> Vec<BlockParameterItem> {
+    let widget_groups: Vec<&str> = items
+        .iter()
+        .filter(|it| it.widget_kind.is_empty())
+        .map(group_label)
+        .collect();
+    retag(items, |it| !widget_groups.contains(&group_label(it)))
+}
+
+fn retag(
+    items: &[BlockParameterItem],
+    in_tab: impl Fn(&BlockParameterItem) -> bool,
+) -> Vec<BlockParameterItem> {
     let mut slot = 0i32;
     items
         .iter()
         .map(|it| {
             let mut out = it.clone();
-            let visible = is_pinned(it) || group_label(it) == active;
+            let visible = !it.widget_kind.is_empty() && in_tab(it);
             out.tab_slot = if visible {
                 let s = slot;
                 slot += 1;
@@ -65,16 +93,20 @@ pub fn retag_for_group(items: &[BlockParameterItem], active: &str) -> Vec<BlockP
         .collect()
 }
 
-/// Rebuild the tab bar + grid for `full_items`: derive the groups, publish the
-/// labels, reset to the first tab, and tag every row's `tab_slot` for that tab
-/// while keeping the model FULL. Idempotent — calling it again for a different
-/// plugin fully replaces the previous state.
-pub fn apply_param_tabs(
-    win: &BlockEditorWindow,
-    items_model: &Rc<VecModel<BlockParameterItem>>,
-    state: &Rc<RefCell<TabState>>,
-    full_items: Vec<BlockParameterItem>,
-) {
+/// Whether an EQ widget (CurveEditor / MultiSlider) draws part of this block's
+/// parameters: those rows carry no widget of their own. Such a block gets no
+/// tab bar — the widget already shows every band at once (#878).
+fn drawn_by_eq_widget(items: &[BlockParameterItem]) -> bool {
+    items.iter().any(|it| it.widget_kind.is_empty())
+}
+
+/// The tab labels to publish for a fresh parameter list, plus the same list
+/// tagged for its first tab. An EQ-widget block gets no labels at all and shows
+/// every grid-owned row at once.
+fn groups_and_rows(full_items: &[BlockParameterItem]) -> (Vec<String>, Vec<BlockParameterItem>) {
+    if drawn_by_eq_widget(full_items) {
+        return (Vec::new(), retag_all(full_items));
+    }
     let groupable: Vec<BlockParameterItem> = full_items
         .iter()
         .filter(|it| !is_pinned(it))
@@ -85,7 +117,22 @@ pub fn apply_param_tabs(
         .first()
         .map(String::as_str)
         .unwrap_or(DEFAULT_PARAM_GROUP);
-    items_model.set_vec(retag_for_group(&full_items, active));
+    let rows = retag_for_group(full_items, active);
+    (groups, rows)
+}
+
+/// Rebuild the tab bar + grid for `full_items`: derive the groups, publish the
+/// labels, reset to the first tab, and tag every row's `tab_slot` for that tab
+/// while keeping the model FULL. Idempotent — calling it again for a different
+/// plugin fully replaces the previous state.
+pub fn apply_param_tabs(
+    win: &BlockEditorWindow,
+    items_model: &Rc<VecModel<BlockParameterItem>>,
+    state: &Rc<RefCell<TabState>>,
+    full_items: Vec<BlockParameterItem>,
+) {
+    let (groups, rows) = groups_and_rows(&full_items);
+    items_model.set_vec(rows);
     win.set_block_parameter_groups(ModelRc::from(Rc::new(VecModel::from(
         groups
             .iter()
@@ -130,17 +177,8 @@ pub(crate) fn apply_inline_param_tabs(
     state: &Rc<RefCell<TabState>>,
     full_items: Vec<BlockParameterItem>,
 ) {
-    let groupable: Vec<BlockParameterItem> = full_items
-        .iter()
-        .filter(|it| !is_pinned(it))
-        .cloned()
-        .collect();
-    let groups = parameter_groups(&groupable);
-    let active = groups
-        .first()
-        .map(String::as_str)
-        .unwrap_or(DEFAULT_PARAM_GROUP);
-    items_model.set_vec(retag_for_group(&full_items, active));
+    let (groups, rows) = groups_and_rows(&full_items);
+    items_model.set_vec(rows);
     let tabs = crate::BlockParamTabs::get(window);
     tabs.set_groups(ModelRc::from(Rc::new(VecModel::from(
         groups
@@ -181,8 +219,10 @@ pub(crate) fn select_inline_param_tab(
 /// for the detached window). Slint never re-derives the knob wrap math.
 pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     let tabs = crate::BlockParamTabs::get(window);
-    let overlay_count = window.get_block_knob_overlays().row_count();
-    let items = window.get_block_parameter_items();
+    let overlay_count = crate::BlockEditorBridge::get(window)
+        .get_block_knob_overlays()
+        .row_count();
+    let items = crate::BlockEditorBridge::get(window).get_block_parameter_items();
     let has_tabs = tabs.get_groups().row_count() > 1;
     // The grid renders only `tab_slot >= 0` rows once a tab bar exists.
     let param_count = if has_tabs {
@@ -203,10 +243,16 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     } else {
         param_count
     };
-    let has_eq_widget = window.get_multi_slider_points().row_count() > 0
-        || window.get_curve_editor_points().row_count() > 0;
-    let type_idx = window.get_block_drawer_selected_type_index();
-    let types = window.get_block_type_options();
+    let eq_widget = crate::block_panel_dimensions::eq_widget_for(
+        crate::BlockEditorBridge::get(window)
+            .get_curve_editor_points()
+            .row_count(),
+        crate::BlockEditorBridge::get(window)
+            .get_multi_slider_points()
+            .row_count(),
+    );
+    let type_idx = crate::BlockEditorBridge::get(window).get_block_drawer_selected_type_index();
+    let types = crate::BlockEditorBridge::get(window).get_block_type_options();
     let use_panel_editor = if type_idx >= 0 {
         types
             .row_data(type_idx as usize)
@@ -218,9 +264,17 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
     let dims = crate::block_panel_dimensions::compute(crate::block_panel_dimensions::PanelInputs {
         knob_count,
         use_panel_editor,
-        has_eq_widget,
+        eq_widget,
     });
-    tabs.set_panel_height(dims.window_height_px + if has_tabs { 40.0 } else { 0.0 });
+    // EQ-widget blocks render no tab bar (#878) — no 40px to reserve for it.
+    tabs.set_panel_height(
+        dims.window_height_px
+            + if has_tabs && !eq_widget.is_some() {
+                40.0
+            } else {
+                0.0
+            },
+    );
     // #500 inner knob-grid dimensions: BlockPanelEditor lays out the grid from
     // these, so the inline editor must get them exactly like the detached one.
     tabs.set_inner_height(dims.inner_panel_height_px);
@@ -233,7 +287,7 @@ pub(crate) fn publish_inline_panel_height(window: &AppWindow) {
 /// with `tab_slot >= 0`). For a block with no tab bar (<=1 group) every row
 /// shows, so this is just the row count. Drives the window sizing.
 pub fn visible_param_count(win: &BlockEditorWindow) -> usize {
-    let items = win.get_block_parameter_items();
+    let items = crate::BlockEditorBridge::get(win).get_block_parameter_items();
     if win.get_block_parameter_groups().row_count() <= 1 {
         return items.row_count();
     }

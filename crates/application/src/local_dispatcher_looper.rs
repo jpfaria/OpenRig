@@ -137,6 +137,38 @@ impl LocalDispatcher {
                 }])
             }
 
+            // #826 — the waveform edits. The whole change is runtime state (the
+            // recorded audio), so these carry no project half at all: the door
+            // reshapes the loop and the sidecar wav is rewritten on the next
+            // project save, the one path that owns the project's files.
+            LooperCommand::EditChainLooperAudio {
+                chain,
+                looper,
+                edit,
+            } => {
+                let looper = self.resolve_looper(&chain, looper)?;
+                if let Some((control, chain_def)) = self.looper_control(&chain) {
+                    control.apply_looper_edit(&chain_def, looper, edit)?;
+                }
+                Ok(vec![])
+            }
+
+            LooperCommand::UndoChainLooperEdit { chain, looper } => {
+                let looper = self.resolve_looper(&chain, looper)?;
+                if let Some((control, chain_def)) = self.looper_control(&chain) {
+                    control.undo_looper_edit(&chain_def, looper);
+                }
+                Ok(vec![])
+            }
+
+            LooperCommand::RedoChainLooperEdit { chain, looper } => {
+                let looper = self.resolve_looper(&chain, looper)?;
+                if let Some((control, chain_def)) = self.looper_control(&chain) {
+                    control.redo_looper_edit(&chain_def, looper);
+                }
+                Ok(vec![])
+            }
+
             LooperCommand::SetChainLooperAudioFile {
                 chain,
                 looper,

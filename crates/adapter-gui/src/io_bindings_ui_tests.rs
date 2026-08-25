@@ -14,7 +14,7 @@
 
 use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
 use slint::platform::{PointerEventButton, WindowEvent};
-use slint::{ComponentHandle, LogicalPosition, LogicalSize, Model, ModelRc, VecModel};
+use slint::{ComponentHandle, Global, LogicalPosition, LogicalSize, Model, ModelRc, VecModel};
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -51,7 +51,7 @@ fn new_window(bindings: Vec<IoBindingModel>) -> ProjectSettingsWindow {
 fn new_window_sized(bindings: Vec<IoBindingModel>, w_px: f32, h_px: f32) -> ProjectSettingsWindow {
     let w = ProjectSettingsWindow::new().unwrap();
     w.window().set_size(LogicalSize::new(w_px, h_px));
-    w.set_io_bindings(ModelRc::new(VecModel::from(bindings)));
+    crate::SettingsBridge::get(&w).set_io_bindings(ModelRc::new(VecModel::from(bindings)));
     // Navigate to the I/O bindings section (index 6) so SectionSystemIoBindings
     // is materialised; otherwise the window shows the default (audio) section.
     w.set_settings_selected_section(6);
@@ -88,7 +88,7 @@ fn io_bindings_ui_interactions() {
         let w = new_window(vec![]);
         let fired = Rc::new(Cell::new(false));
         let f = fired.clone();
-        w.on_create_io_binding(move |_name| {
+        crate::SettingsBridge::get(&w).on_create_io_binding(move |_name| {
             f.set(true);
             slint::SharedString::new()
         });
@@ -119,7 +119,8 @@ fn io_bindings_ui_interactions() {
                 available: true,
             },
         ];
-        w.set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
+        crate::SettingsBridge::get(&w)
+            .set_io_binding_channel_options(ModelRc::new(VecModel::from(chans)));
 
         // Expand the binding so its input editor materialises — a collapsed
         // binding only shows the In/Out count badges (the add-input button and
@@ -137,10 +138,12 @@ fn io_bindings_ui_interactions() {
 
         let fired = Rc::new(Cell::new(false));
         let f = fired.clone();
-        w.on_toggle_endpoint_channel(move |_idx, _sel, _mode| f.set(true));
+        crate::SettingsBridge::get(&w)
+            .on_toggle_endpoint_channel(move |_idx, _sel, _mode| f.set(true));
 
+        // The cell lives in the shared ChannelPicker component since #880.
         assert!(
-            click_element(&w, "SectionSystemIoBindings::chan-cell"),
+            click_element(&w, "ChannelPicker::chan-cell"),
             "channel cell not found — add-endpoint form did not open"
         );
         assert!(
@@ -167,7 +170,7 @@ fn io_bindings_ui_interactions() {
 
         let fired = Rc::new(Cell::new(false));
         let f = fired.clone();
-        w.on_rename_io_binding(move |_id, _name| f.set(true));
+        crate::SettingsBridge::get(&w).on_rename_io_binding(move |_id, _name| f.set(true));
 
         assert!(
             click_element(&w, "SectionSystemIoBindings::rename-btn"),
@@ -283,9 +286,9 @@ fn io_bindings_ui_interactions() {
 
         // The confirm-rename button calls rename-io-binding(id, draft); simulate
         // that exact call, then assert the RESULT propagated to the UI model.
-        psw.invoke_rename_io_binding("b1".into(), "Renamed".into());
+        crate::SettingsBridge::get(&psw).invoke_rename_io_binding("b1".into(), "Renamed".into());
 
-        let shown = psw.get_io_bindings();
+        let shown = crate::SettingsBridge::get(&psw).get_io_bindings();
         let row: IoBindingModel = Model::row_data(&shown, 0).unwrap();
         assert_eq!(
             row.name.as_str(),
@@ -351,8 +354,12 @@ fn io_bindings_ui_interactions() {
 
         // Pick device A (populates channels) and select channel 0 — exactly what
         // the device dropdown + channel cell callbacks do.
-        psw.invoke_endpoint_device_changed("b1".into(), true, "A".into());
-        psw.invoke_toggle_endpoint_channel(0, true, "mono".into());
+        crate::SettingsBridge::get(&psw).invoke_endpoint_device_changed(
+            "b1".into(),
+            true,
+            "A".into(),
+        );
+        crate::SettingsBridge::get(&psw).invoke_toggle_endpoint_channel(0, true, "mono".into());
 
         // Press Add: real handler appends the endpoint + reprojects.
         assert!(
@@ -444,7 +451,7 @@ fn io_bindings_ui_interactions() {
 
         let fired = Rc::new(Cell::new((-1_i32, false)));
         let f = fired.clone();
-        w.on_toggle_binding(move |i, on| f.set((i, on)));
+        crate::ChainEditorBridge::get(&w).on_toggle_binding(move |i, on| f.set((i, on)));
 
         assert!(
             click_element(&w, "ChainEditorPage::chain-binding-cell"),

@@ -23,7 +23,7 @@ mod block_editor_window_params;
 mod block_editor_window_setup;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
-mod block_panel_dimensions;
+pub mod block_panel_dimensions;
 mod block_parameter_extras;
 mod block_parameter_wiring;
 mod block_picker_wiring;
@@ -62,6 +62,7 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod compact_routing_pick;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
@@ -132,6 +133,7 @@ pub mod tuner_close;
 mod tuner_session;
 mod tuner_wiring;
 pub mod ui_stall;
+mod ui_watchdog;
 mod virtual_keyboard_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
@@ -173,6 +175,7 @@ mod latency_probe;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
+mod looper_editor_callbacks;
 pub mod looper_view;
 mod meter_wiring;
 mod meter_wiring_poll;
@@ -187,6 +190,12 @@ mod issue_85_click_port_opens_editor_tests;
 #[cfg(test)]
 #[path = "issue_85_port_editor_tests.rs"]
 mod issue_85_port_editor_tests;
+#[cfg(test)]
+#[path = "issue_881_compact_insert_tests.rs"]
+mod issue_881_compact_insert_tests;
+#[cfg(test)]
+#[path = "issue_881_insert_editor_tests.rs"]
+mod issue_881_insert_editor_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
@@ -216,10 +225,17 @@ use state::UNTITLED_PROJECT_NAME;
 mod desktop_app;
 mod desktop_app_block_models;
 mod desktop_app_block_wiring;
+mod desktop_app_catalog;
 mod desktop_app_chain_wiring;
 mod desktop_app_cli_open;
 mod desktop_app_init;
+mod desktop_app_language;
+mod desktop_app_mcp;
 mod desktop_app_polling;
+mod desktop_app_project_wiring;
+mod desktop_app_settings_wiring;
+mod desktop_app_topbar_wiring;
+mod desktop_app_windows;
 mod i18n;
 
 pub use desktop_app::run_desktop_app;

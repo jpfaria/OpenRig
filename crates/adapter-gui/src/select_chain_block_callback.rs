@@ -23,22 +23,17 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, Timer, VecModel};
 
 use application::live_source::LiveSource;
 use domain::AudioDeviceDescriptor;
 use project::block::AudioBlockKind;
 
-use crate::audio_devices::{
-    build_insert_return_channel_items, build_insert_send_channel_items, refresh_input_devices,
-    refresh_output_devices, replace_channel_options, selected_device_index,
-};
 use crate::block_editor::{
     block_editor_data, block_parameter_items_for_editor, build_knob_overlays,
 };
 use crate::block_editor_window_setup;
 use crate::chain_block_helpers::ui_index_to_real_block_index;
-use crate::chain_editor::insert_mode_to_index;
 use crate::eq::{
     build_curve_editor_points, build_multi_slider_points, compute_eq_curves, eq_viz_sample_rate,
 };
@@ -51,8 +46,8 @@ use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, S
 use crate::ui_state::block_drawer_state;
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, BlockStreamData, BlockStreamEntry,
-    BlockTypePickerItem, ChainInsertWindow, ChannelOptionItem, CurveEditorPoint, MultiSliderPoint,
-    PluginInfoWindow, ProjectChainItem,
+    BlockTypePickerItem, ChainInsertWindow, CurveEditorPoint, MultiSliderPoint, PluginInfoWindow,
+    ProjectChainItem,
 };
 
 pub(crate) struct SelectChainBlockCallbackCtx {
@@ -76,10 +71,6 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub chain_input_device_options: Rc<VecModel<SharedString>>,
-    pub chain_output_device_options: Rc<VecModel<SharedString>>,
-    pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
-    pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
     pub toast_timer: Rc<Timer>,
@@ -116,10 +107,6 @@ pub(crate) fn wire(
         project_dirty,
         input_chain_devices,
         output_chain_devices,
-        chain_input_device_options,
-        chain_output_device_options,
-        insert_send_channels,
-        insert_return_channels,
         open_block_windows,
         inline_stream_timer,
         toast_timer,
@@ -218,44 +205,25 @@ pub(crate) fn wire(
         }
         // Handle Insert blocks — open the insert configuration window.
         if let AudioBlockKind::Insert(ib) = &block.kind {
-            let fresh_input = refresh_input_devices(&chain_input_device_options);
-            let fresh_output = refresh_output_devices(&chain_output_device_options);
             log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
-            // TODO(#716): insert editor UI should pick a binding (`io`)
-            // instead of raw send/return device endpoints. The device-picker
-            // fields below are placeholder no-ops until the Slint window is
-            // reworked; the persisted value is the binding id (`ib.io`).
+            // #716 (model A): an insert points at ONE E/S binding — send on its
+            // output, return on its input — so that is the only pick the editor
+            // offers.
             let draft = InsertDraft {
                 chain_index: chain_index as usize,
                 block_index: block_index as usize,
                 io: ib.io.clone(),
-                send_device_id: None,
-                send_channels: Vec::new(),
-                send_mode: project::chain::ChainInputMode::Mono,
-                return_device_id: None,
-                return_channels: Vec::new(),
-                return_mode: project::chain::ChainInputMode::Mono,
             };
-            let is_middle = block_index > 0 && (block_index as usize) < chain.blocks.len() - 1;
+            let enabled = block.enabled;
+            let registry = session.io_bindings.borrow().clone();
             if let Some(iw) = weak_insert_window.upgrade() {
-                let send_items = build_insert_send_channel_items(&draft, &fresh_output);
-                let return_items = build_insert_return_channel_items(&draft, &fresh_input);
-                replace_channel_options(&insert_send_channels, send_items);
-                replace_channel_options(&insert_return_channels, return_items);
-                iw.set_selected_send_device_index(selected_device_index(
-                    &fresh_output,
-                    draft.send_device_id.as_deref(),
-                ));
-                iw.set_selected_return_device_index(selected_device_index(
-                    &fresh_input,
-                    draft.return_device_id.as_deref(),
-                ));
-                iw.set_selected_send_mode_index(insert_mode_to_index(draft.send_mode));
-                iw.set_selected_return_mode_index(insert_mode_to_index(draft.return_mode));
-                iw.set_show_block_controls(is_middle);
-                iw.set_block_enabled(block.enabled);
-                iw.set_status_message("".into());
-                *insert_draft.borrow_mut() = Some(draft);
+                crate::insert_wiring::open_insert_window(
+                    &iw,
+                    &insert_draft,
+                    draft,
+                    &registry,
+                    enabled,
+                );
                 drop(session_borrow);
                 show_child_window(window.window(), iw.window());
             }
@@ -307,20 +275,21 @@ pub(crate) fn wire(
         curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
         let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_session));
         eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
-        window.set_eq_total_curve(eq_total.into());
+        crate::BlockEditorBridge::get(&window).set_eq_total_curve(eq_total.into());
         set_selected_block(&window, selected_block.borrow().as_ref(), Some(&chain));
         let drawer_state =
             block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
-        window.set_block_drawer_title(drawer_state.title.into());
-        window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
-        window.set_block_drawer_edit_mode(true);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_title(drawer_state.title.into());
+        crate::BlockEditorBridge::get(&window).set_block_drawer_confirm_label(drawer_state.confirm_label.into());
+        crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(true);
         block_type_options.set_vec(block_type_picker_items(&instrument));
-        window.set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
-        window
-            .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id, &instrument));
-        window.set_block_drawer_enabled(enabled);
-        window.set_block_drawer_status_message("".into());
-        window.set_show_block_type_picker(false);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
+        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(
+            block_model_index(&effect_type, &model_id, &instrument),
+        );
+        crate::BlockEditorBridge::get(&window).set_block_drawer_enabled(enabled);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
+        crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
         // Clone block_id before dropping session_borrow (needed by the window
         // editor stream timer below).
         let block_id_for_editor = block.id.clone();
@@ -331,7 +300,7 @@ pub(crate) fn wire(
         if use_inline_block_editor(&window) {
             let param_items_vec = block_parameter_items_for_editor(&editor_data);
             let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
-            window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            crate::BlockEditorBridge::get(&window).set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             // #819: knob count changed -> re-publish the #500 panel height.
             crate::block_editor_param_tabs::publish_inline_panel_height(&window);
             // Start inline stream timer for utility blocks (tuner, spectrum analyzer)
@@ -362,13 +331,13 @@ pub(crate) fn wire(
                                     text: e.text.clone().into(),
                                     peak: e.peak,
                                 }).collect();
-                                win.set_block_stream_data(BlockStreamData {
+                                crate::BlockEditorBridge::get(&win).set_block_stream_data(BlockStreamData {
                                     active: true,
                                     stream_kind: kind,
                                     entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                 });
                             } else {
-                                win.set_block_stream_data(BlockStreamData {
+                                crate::BlockEditorBridge::get(&win).set_block_stream_data(BlockStreamData {
                                     active: false,
                                     stream_kind: kind,
                                     entries: ModelRc::default(),
@@ -379,9 +348,9 @@ pub(crate) fn wire(
                     *timer_ref = Some(timer);
                 }
             }
-            window.set_show_block_drawer(true);
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(true);
         } else {
-            window.set_show_block_drawer(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
             let ci = chain_index as usize;
             let bi = block_index as usize;
             // If this block already has an open editor, bring it to front.

@@ -6,11 +6,9 @@
 // AppWindow.save-project (Command::SaveProject).
 
 import { Button, LineEdit } from "std-widgets.slint";
+import { SettingsBridge } from "../../settings_globals.slint";
 
 export component SectionProjectMeta inherits Rectangle {
-    in property <string> project-name;
-    in property <string> project-path-display;
-    callback edit-project-name(string);
     callback save-project();
 
     background: transparent;
@@ -41,11 +39,11 @@ export component SectionProjectMeta inherits Rectangle {
                 animate border-color, border-width { duration: 150ms; }
 
                 name-edit := LineEdit {
-                    text: root.project-name;
+                    text: SettingsBridge.project-name;
                     height: parent.height;
                     width: parent.width;
                     font-size: 16px;
-                    edited(t) => { root.edit-project-name(t); }
+                    edited(t) => { SettingsBridge.edit-project-name(t); }
                 }
             }
         }
@@ -62,9 +60,9 @@ export component SectionProjectMeta inherits Rectangle {
                 vertical-alignment: center;
             }
             Text {
-                text: root.project-path-display == ""
+                text: SettingsBridge.project-path-display == ""
                     ? @tr("placeholder-project-unsaved")
-                    : root.project-path-display;
+                    : SettingsBridge.project-path-display;
                 color: #8a92a3;
                 font-size: 14px;
                 horizontal-stretch: 1;

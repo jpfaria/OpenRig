@@ -29,6 +29,7 @@ use anyhow::Result;
 
 use application::command::{LooperAction, LooperParam};
 use application::dispatcher::CommandDispatcher;
+use application::looper_edit::LoopEdit;
 use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
@@ -234,6 +235,21 @@ impl RuntimeControl for GuiRuntimeControl {
         runtime_loopers::set_output(&self.runtime, chain, looper, output);
     }
 
+    /// #826/#808: reshaping a recorded loop never wakes audio — an edit is not
+    /// a request to hear something. With nothing running there is no store to
+    /// edit and the call no-ops.
+    fn apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize> {
+        runtime_loopers::apply_edit(&self.runtime, chain, looper, edit)
+    }
+
+    fn undo_looper_edit(&self, chain: &Chain, looper: u64) {
+        runtime_loopers::undo_edit(&self.runtime, chain, looper);
+    }
+
+    fn redo_looper_edit(&self, chain: &Chain, looper: u64) {
+        runtime_loopers::redo_edit(&self.runtime, chain, looper);
+    }
+
     fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<LoopPcm>)>> {
         runtime_loopers::export_chain_loops(&self.runtime, chain)
     }
@@ -396,9 +412,13 @@ pub(crate) fn sync_live_chain_runtime(
                     // With unchanged I/O it reuses the live stream config and
                     // rebuilds the DSP off-thread; the GUI returns immediately.
                     let chain = chain.expect("Enable implies the chain is present");
-                    if io_changed {
-                        runtime.remove_chain(&chain.id);
-                    }
+                    // #881 (owner's rule): the old streams die only AFTER the
+                    // new ones are up. `schedule_chain_activation` builds
+                    // off-thread, starts the new streams and the install swaps
+                    // them in, dropping the previous set at that moment.
+                    // Tearing them down here — as this path used to on every
+                    // re-bind — is a hole of silence on each topology edit.
+                    let _ = io_changed;
                     if !runtime.schedule_chain_activation(&proj, chain)?
                         && !runtime.request_offthread_rebuild_if_live(&proj, chain)?
                     {

@@ -37,6 +37,8 @@ export component LooperPanelView inherits Rectangle {
     callback input-picked(int, int);
     callback output-picked(int, int);
     callback preset-open(int, int);
+    // #826: open the waveform editor for this loop.
+    callback edit(int);
 
     private property <length> row-height: 60px;
     private property <length> drawer-extra: 222px;
@@ -168,6 +170,7 @@ export component LooperPanelView inherits Rectangle {
             input-picked(v) => { root.input-picked(item.uid, v); }
             output-picked(v) => { root.output-picked(item.uid, v); }
             preset-open => { root.preset-open(item.uid, item.preset_index); }
+            edit => { root.edit(item.uid); }
         }
     }
 }

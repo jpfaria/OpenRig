@@ -3,6 +3,7 @@
 //! via `#[cfg(test)] #[path = "supervisor_tests.rs"] mod tests;`.
 
 use super::super::backend::{MockBackend, MockCall, PostReadyStatus};
+use super::super::supervisor_spawn::MAX_SPAWN_ATTEMPTS;
 use super::super::types::{
     HealthStatus, JackConfig, JackMeta, JackServerState, RestartReason, ServerName, SupervisorEvent,
 };

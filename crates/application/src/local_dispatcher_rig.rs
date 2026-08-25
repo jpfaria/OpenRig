@@ -7,7 +7,7 @@
 
 use anyhow::{anyhow, Result};
 
-use project::block::{AudioBlock, AudioBlockKind};
+use project::block::AudioBlock;
 use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
 use project::rig_sync::sync_synthetic_into_rig;
 
@@ -153,8 +153,11 @@ pub(crate) fn merge_preserved_ports(
     current: &[AudioBlock],
     rebuilt: Vec<AudioBlock>,
 ) -> Vec<AudioBlock> {
-    let is_port =
-        |b: &AudioBlock| matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_));
+    // #881: an `Insert` is routing too — it splits the chain at its own
+    // position — so it keeps its slot exactly like a port. Consuming that slot
+    // for the next rebuilt effect dropped the loop and shifted every block
+    // after it up by one.
+    let is_port = |b: &AudioBlock| b.kind.is_routing();
     let mut effects = rebuilt.into_iter().filter(|b| !is_port(b));
     let mut merged = Vec::with_capacity(current.len());
     for block in current {

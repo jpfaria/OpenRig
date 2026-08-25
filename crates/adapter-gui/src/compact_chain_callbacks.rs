@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, ModelRc, Timer, VecModel, Weak};
+use slint::{ComponentHandle, Global, Model, ModelRc, Timer, VecModel, Weak};
 
 use application::audio_taps::AudioTaps;
 use application::live_source::LiveSource;
@@ -147,11 +147,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
             compact_win.set_chain_title(title.into());
             compact_win.set_chain_index(chain_index);
             compact_win.set_chain_enabled(chain.enabled);
-            compact_win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
-                block_type_picker_items(&chain.instrument),
-            ))));
+            crate::BlockEditorBridge::get(&compact_win).set_block_type_options(ModelRc::from(
+                Rc::new(VecModel::from(block_type_picker_items(&chain.instrument))),
+            ));
         }
-        let blocks = build_compact_blocks(&session.project.borrow(), ci);
+        let blocks =
+            build_compact_blocks(&session.project.borrow(), ci, &session.io_bindings.borrow());
         let compact_blocks = Rc::new(VecModel::from(blocks));
         compact_win.set_compact_blocks(ModelRc::from(compact_blocks.clone()));
         drop(session_borrow);
@@ -200,10 +201,29 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // resolution after the first model change (#538).
         {
             let weak_compact = compact_win.as_weak();
+            let session_for_pick = project_session.clone();
             compact_win.on_choose_block_model_by_id(move |ci, bi, model_id| {
                 let Some(cw) = weak_compact.upgrade() else {
                     return;
                 };
+                // #881: on a routing block this select carries E/S bindings, not
+                // models — the pick is a re-point, not a model swap.
+                if crate::compact_routing_pick::dispatch_binding_pick(
+                    &session_for_pick,
+                    ci.max(0) as usize,
+                    bi.max(0) as usize,
+                    model_id.as_str(),
+                ) {
+                    if let Some(session) = session_for_pick.borrow().as_ref() {
+                        let blocks = crate::compact_block_view::build_compact_blocks(
+                            &session.project.borrow(),
+                            ci.max(0) as usize,
+                            &session.io_bindings.borrow(),
+                        );
+                        cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    }
+                    return;
+                }
                 let live = cw.get_compact_blocks();
                 let Some(vm) = live
                     .as_any()
@@ -315,7 +335,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 // Trigger the full insert flow on the main window (sets up draft + opens editor)
                 main_win.invoke_start_block_insert(ci, before);
                 // Select the type that was chosen
-                main_win.invoke_choose_block_type(type_index);
+                crate::BlockEditorBridge::get(&main_win).invoke_choose_block_type(type_index);
             });
         }
 

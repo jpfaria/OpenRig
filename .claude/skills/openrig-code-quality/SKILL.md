@@ -279,36 +279,57 @@ Não inverter:
 
 ---
 
-## File Organization — known god files OpenRig
+## LEI — UM ARQUIVO, UMA RESPONSABILIDADE (o problema NÃO é número de linha)
 
-> Regra geral "one responsibility per file / lib.rs = re-exports / split match-chains" está em `dev-rules` (STOP checklist). Aqui ficam só os caps de tamanho e o **inventário concreto** de god files do OpenRig.
+**Arquivo de produção faz UMA coisa.** Linha é sintoma; responsabilidade é a regra. Um arquivo de 300 linhas fazendo 4 coisas viola esta lei mesmo passando folgado no cap — e é assim que todo god file do OpenRig começou.
 
-Caps concretos por linguagem:
-- `rust-best-practices` — 600 linhas por `.rs`
-- `slint-best-practices` — 500 linhas por `.slint`
+**Só arquivo de TESTE pode ser grande.** É a única isenção de tamanho do repo. Nada mais tem exceção.
 
-**Known god files — never expand further (tracked em issue #276). Check current size before touching:**
-- `crates/adapter-gui/src/lib.rs` — split in progress
-- `crates/project/src/block.rs` — split in progress
-- `crates/block-core/src/lib.rs` — split in progress
-- `crates/block-core/src/param.rs` — split in progress
+**Teste da frase (aplique ANTES de escrever a primeira linha):** descreva o arquivo em uma frase começando com um verbo. Precisou de "e"/"+"/vírgula pra listar o que ele faz → são N arquivos, não 1. Essa frase não é exercício mental: ela vai **no cabeçalho do arquivo**, e o gate lê.
 
+```rust
+//! Responsibility: rebuilds a chain runtime in place
 ```
-❌ Adding a new function to adapter-gui/src/lib.rs
-   // WRONG: already a god file. Create a new module instead.
-
-❌ A match arm in block.rs growing from 13 to 14 branches
-   // WRONG: the dispatch belongs in each block's own crate via trait
-
-✅ crates/adapter-gui/src/device.rs — only device management
-✅ crates/adapter-gui/src/project.rs — only project persistence
-✅ crates/adapter-gui/src/chain.rs — only chain editing
+```slint
+// Responsibility: renders one block tile inside a chain row
 ```
 
-**CI gate mechanics (#793) — o gate PRECISA poder reprovar:**
-- `.github/workflows/test.yml` roda `cargo test --workspace` em PR/push pra develop **sem `|| true`** — teste vermelho reprova o job. (Antes: `workflow_dispatch` + `|| true` = decorativo, nada reprovava.) Cobertura (llvm-cov/codecov) continua non-blocking de propósito — é relatório, não gate.
-- `scripts/validate.sh` roda no **repo inteiro** no CI (`VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates` — só os checks estáticos: tamanho + inline-test; fmt/clippy/slint são do gate compartilhado). O `DEBT_FILES` é a lista **congelada** dos oversize atuais e **só encolhe**: um arquivo sai quando cai abaixo do cap; um arquivo novo acima do cap **reprova**, nunca é adicionado à lista. Vendored (`*/modules/*`) é excluído.
-- A lista de débito não pode apodrecer: entrada apontando pra arquivo inexistente é sujeira (removida em #793). Se você dividir um god file abaixo do cap, **remova-o** do `DEBT_FILES`.
+`scripts/validate.sh` check 1 reprova quando (a) o arquivo que você tocou não declara, ou (b) a declaração tem conjunção/lista — o arquivo confessando que faz duas coisas. Legado que você não tocou só avisa, então a regra entra sem rewrite do repo inteiro; mas todo arquivo que você editar paga a dele.
+
+**Vai adicionar responsabilidade nova num arquivo existente? PARA.** O destino é arquivo novo. `lib.rs`/`mod.rs` é roteador fino (< 100 LOC, só re-export e delegação).
+
+**Why:** pedido em #194, #276 e #793 — voltou as três vezes. A única checagem era contagem de linha contra um allowlist congelado, então "só mais um handler aqui" crescia pra sempre: `controller.rs` chegou a 1051 com 5 responsabilidades, `desktop_app.rs` a 964 numa única `fn` — e cresceu 947→964 **depois** do congelamento de #793, com o gate verde. Contagem de linha nunca proibiu a segunda responsabilidade; só reclamou tarde.
+
+### Rationalizations — todas significam PARA e divide
+
+| Desculpa | Realidade |
+|---|---|
+| "É só mais uma fn, o arquivo tá no cap" | O cap não é a regra. Responsabilidade nova = arquivo novo, mesmo com 50 linhas. |
+| "É wiring, wiring é junto por natureza" | Wiring de UMA feature por arquivo (`*_wiring.rs`). `desktop_app.rs` é exatamente essa desculpa acumulada. |
+| "Divido depois, num PR de refactor" | Foi o que #194, #276 e #793 disseram. Divida ANTES de crescer — o split é barato agora e impossível depois. |
+| "São coisas relacionadas" | Relacionadas ≠ mesma responsabilidade. Rebuild e health check se relacionam; mudam por motivos diferentes. |
+| "O gate deixou passar" | Warning de legado não é permissão. Tocou o arquivo, declara a responsabilidade dele. |
+| "Declarar no header é burocracia" | É o único jeito da máquina checar intenção. Não consegue escrever a frase = você não sabe o que o arquivo faz. |
+
+### Ratchet do débito (#873) — `DEBT_FILES` em `scripts/validate.sh`
+
+Cada entrada é `<path> <LOC de referência>`. A lista **só encolhe**:
+
+| Situação | Gate |
+|---|---|
+| Arquivo novo acima do cap | FAIL — divide antes de commitar |
+| Arquivo em débito que CRESCEU | FAIL — proibido crescer |
+| Encolheu, ainda acima do cap | WARN — baixe o LOC de referência no mesmo commit |
+| Caiu abaixo do cap | FAIL até você apagar a linha (débito quitado) |
+
+Nunca acrescente arquivo à lista. Vendored (`*/modules/*`) é excluído; teste nem é medido.
+
+**Guard em tempo de edição:** o `line-cap-guard` do plugin dev-rules NEGA Edit/Write que cresça arquivo acima do cap (edit que encolhe passa — o split nunca se auto-bloqueia). Caps vêm do `.dev-rules.json` do repo (`line_caps`), mesma fonte do `validate.sh`.
+
+**CI (#793) — o gate PRECISA poder reprovar:**
+- `.github/workflows/test.yml` roda `cargo test --workspace` em PR/push pra develop **sem `|| true`** — teste vermelho reprova o job. Cobertura (llvm-cov/codecov) continua non-blocking de propósito — é relatório, não gate.
+- `scripts/validate.sh` roda no **repo inteiro** no CI (`VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates` — só os checks estáticos: responsabilidade + tamanho + inline-test; fmt/clippy/slint são do gate compartilhado).
+- Inventário atual dos god files e o plano de split: issue **#873**.
 
 ---
 

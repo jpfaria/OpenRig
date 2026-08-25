@@ -10,11 +10,9 @@
 // section_system_midi_devices.slint (blue check-square) for cross-screen
 // consistency.
 
+import { SettingsBridge } from "../../settings_globals.slint";
+
 export component SectionSystemIntegrations inherits Rectangle {
-    in property <bool> midi-enabled;
-    in property <bool> mcp-enabled;
-    callback set-midi-enabled(bool);
-    callback set-mcp-enabled(bool);
 
     background: transparent;
 
@@ -27,7 +25,7 @@ export component SectionSystemIntegrations inherits Rectangle {
             background: #1d2025;
             border-radius: 8px;
             border-width: 1px;
-            border-color: root.midi-enabled ? #2f4a6a : #2a2f38;
+            border-color: SettingsBridge.midi-enabled ? #2f4a6a : #2a2f38;
             animate border-color { duration: 200ms; }
 
             VerticalLayout {
@@ -54,12 +52,12 @@ export component SectionSystemIntegrations inherits Rectangle {
                 y: (parent.height - 20px) / 2;
                 width: 20px;
                 height: 20px;
-                background: root.midi-enabled ? #188cff : #1e2229;
+                background: SettingsBridge.midi-enabled ? #188cff : #1e2229;
                 border-width: 1px;
-                border-color: root.midi-enabled ? #45a7ff : #3d4450;
+                border-color: SettingsBridge.midi-enabled ? #45a7ff : #3d4450;
                 border-radius: 8px;
 
-                if root.midi-enabled : Image {
+                if SettingsBridge.midi-enabled : Image {
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                     width: 12px;
@@ -70,7 +68,7 @@ export component SectionSystemIntegrations inherits Rectangle {
 
                 TouchArea {
                     mouse-cursor: pointer;
-                    clicked => { root.set-midi-enabled(!root.midi-enabled); }
+                    clicked => { SettingsBridge.set-midi-enabled(!SettingsBridge.midi-enabled); }
                 }
             }
         }
@@ -81,7 +79,7 @@ export component SectionSystemIntegrations inherits Rectangle {
             background: #1d2025;
             border-radius: 8px;
             border-width: 1px;
-            border-color: root.mcp-enabled ? #2f4a6a : #2a2f38;
+            border-color: SettingsBridge.mcp-enabled ? #2f4a6a : #2a2f38;
             animate border-color { duration: 200ms; }
 
             VerticalLayout {
@@ -108,12 +106,12 @@ export component SectionSystemIntegrations inherits Rectangle {
                 y: (parent.height - 20px) / 2;
                 width: 20px;
                 height: 20px;
-                background: root.mcp-enabled ? #188cff : #1e2229;
+                background: SettingsBridge.mcp-enabled ? #188cff : #1e2229;
                 border-width: 1px;
-                border-color: root.mcp-enabled ? #45a7ff : #3d4450;
+                border-color: SettingsBridge.mcp-enabled ? #45a7ff : #3d4450;
                 border-radius: 8px;
 
-                if root.mcp-enabled : Image {
+                if SettingsBridge.mcp-enabled : Image {
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                     width: 12px;
@@ -124,7 +122,7 @@ export component SectionSystemIntegrations inherits Rectangle {
 
                 TouchArea {
                     mouse-cursor: pointer;
-                    clicked => { root.set-mcp-enabled(!root.mcp-enabled); }
+                    clicked => { SettingsBridge.set-mcp-enabled(!SettingsBridge.mcp-enabled); }
                 }
             }
         }

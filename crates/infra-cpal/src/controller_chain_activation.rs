@@ -55,8 +55,18 @@ impl ProjectRuntimeController {
     /// harmlessly (the #785 hand-off leaves exactly one render alive).
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     pub fn schedule_chain_activation(&mut self, project: &Project, chain: &Chain) -> Result<bool> {
-        if self.active_chains.contains_key(&chain.id) {
-            return Ok(false); // already streaming — not a cold activation
+        // #881 (owner's rule): every STRUCTURAL change to a chain gets brand-new
+        // streams — "tem que matar a antiga e criar uma nova stream do zero" —
+        // and the old ones die only when the new ones are already playing:
+        // `build_active_chain_runtime` starts the streams and the install swaps
+        // them in, dropping the previous set at that moment. A live chain whose
+        // structure and I/O are unchanged (a knob turn) keeps its streams: the
+        // param edit rides the off-thread DSP rebuild instead.
+        if self.active_chains.contains_key(&chain.id)
+            && !self.chain_structure_changed(chain)
+            && !self.chain_io_changed(project, chain)?
+        {
+            return Ok(false);
         }
 
         // #693: validation + device resolution are CoreAudio property
