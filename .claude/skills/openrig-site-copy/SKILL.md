@@ -129,3 +129,21 @@ the block has to say, in one short question, before writing another round.
 - Editing the HTML and forgetting the three JSONs (or vice-versa), leaving the
   page mixing old and new copy per language.
 - Adding a third sentence to "explain" the lede. Cut it; the lede is the explanation.
+
+## Checking the page before proposing it
+
+Serve the working copy and read the rendered line, don't eyeball the HTML:
+
+```bash
+cd .solvers/issue-N/site && python3 -m http.server 8898
+```
+
+Then drive it with the Playwright MCP. **Screenshots land in the session's
+working directory — which is the user's main folder, and LEI ZERO forbids
+writing there.** Pass an absolute `filename` under the scratchpad, and if one
+still lands in the repo root, move it out immediately.
+
+What the render has to show: the headline still fits the three `<br>` lines at
+desktop width, `document.documentElement.scrollWidth === window.innerWidth`
+(no horizontal overflow), and the same in each of the three languages — a line
+that fits in English can wrap to a fourth line in Portuguese or Spanish.

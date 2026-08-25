@@ -1,6 +1,6 @@
 {
-  "tone.h2": "The amp responds<br>like the real one.",
-  "tone.lede": "Pick attack, sustain, the way a note compresses when you dig in. OpenRig has native amp models written in Rust and it also loads neural captures of real amps — you pick which. Either way there's no latency you can feel between your hand and the speaker.",
+  "tone.h2": "Native amp or a capture<br>of a real one, same chain.",
+  "tone.lede": "Pick the amp model built into the app or load a <code>.nam</code> captured from a real amp. Both run in the same chain, at the buffer size you set.",
   "stats.gear": "Pieces of gear",
   "stats.native": "Native models",
   "stats.namCapturesHeadline": "NAM captures",

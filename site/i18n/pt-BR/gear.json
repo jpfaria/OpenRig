@@ -1,6 +1,6 @@
 {
-  "tone.h2": "O amp responde<br>como o de verdade.",
-  "tone.lede": "Ataque de palheta, sustain, o jeito que a nota comprime quando você força. O OpenRig tem amp nativo escrito em Rust e também carrega captura neural de amp real — você escolhe. Nos dois casos, sem latência que você sinta entre a mão e o alto-falante.",
+  "tone.h2": "Amp nativo ou captura<br>de um real, na mesma cadeia.",
+  "tone.lede": "Você escolhe o amp que já vem no app ou carrega um <code>.nam</code> capturado de um amp real. Os dois rodam na mesma cadeia, no buffer que você definir.",
   "stats.gear": "Equipamentos",
   "stats.native": "Modelos nativos",
   "stats.namCapturesHeadline": "Capturas NAM",
