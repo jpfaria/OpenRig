@@ -445,7 +445,7 @@ fn io_bindings_ui_interactions() {
 
         let fired = Rc::new(Cell::new((-1_i32, false)));
         let f = fired.clone();
-        w.on_toggle_binding(move |i, on| f.set((i, on)));
+        crate::ChainEditorBridge::get(&w).on_toggle_binding(move |i, on| f.set((i, on)));
 
         assert!(
             click_element(&w, "ChainEditorPage::chain-binding-cell"),

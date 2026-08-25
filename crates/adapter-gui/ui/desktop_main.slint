@@ -1,4 +1,5 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { ChainEditorBridge } from "chain_editor_globals.slint";
 import { AnalyzerBridge } from "analyzer_globals.slint";
 import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
@@ -30,21 +31,10 @@ export component DesktopMain inherits Rectangle {
     in property <[ChainRigNav]> chain-rig-nav;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
-    in property <string> chain-editor-title;
-    in property <string> chain-editor-save-label;
-    in-out property <string> chain-draft-name;
-    in property <string> chain-input-summary;
-    in property <string> chain-output-summary;
-    in property <[string]> chain-input-device-options;
-    in property <[string]> chain-output-device-options;
-    in property <int> selected-chain-input-device-index;
-    in property <int> selected-chain-output-device-index;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
     in property <int> selected-chain-block-neighbor-index: -1;
     in property <bool> midi-selection-active: false;
-    in property <[ChannelOptionItem]> chain-input-channels;
-    in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
@@ -56,9 +46,6 @@ export component DesktopMain inherits Rectangle {
     // System / Paths section (#513 + #582). Empty = OS default.
     // #561: plugin catalog reload row in the Paths section.
     // Fullscreen inline chain editor
-    in property <[ChainBindingChoice]> chain-editor-bindings;
-    in property <bool> chain-editor-is-create-mode: true;
-    in-out property <int> chain-editor-selected-instrument-index: 0;
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -101,13 +88,6 @@ export component DesktopMain inherits Rectangle {
     callback probe-chain-latency(int);
     callback configure-chain-preset(int);
     callback open-compact-chain-view(int);
-    callback update-chain-name(string);
-    callback open-chain-input-editor();
-    callback open-chain-output-editor();
-    callback select-chain-input-device(int);
-    callback select-chain-output-device(int);
-    callback toggle-chain-input-channel(int, bool);
-    callback toggle-chain-output-channel(int, bool);
     callback select-chain-block(int, int);
     callback select-chain(int);
     callback clear-chain-block();
@@ -115,8 +95,6 @@ export component DesktopMain inherits Rectangle {
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
     callback show-plugin-info(string, string);  // effect_type, model_id
-    callback save-chain();
-    callback cancel-chain();
     // Fullscreen inline project settings callbacks
     // System / MIDI devices section callbacks (#513)
     // #712: System / Integrations master switches.
@@ -125,8 +103,6 @@ export component DesktopMain inherits Rectangle {
     // (ChainEndpointEditorPage); the registry editor consumes `io-bindings`.
     // Project / MIDI mapping editor callbacks (#513, #493)
     // Fullscreen inline chain editor callbacks
-    callback select-chain-instrument(int);
-    callback toggle-binding(int, bool);
     // Fullscreen inline plugin info overlay (windowed mode opens PluginInfoWindow instead).
     // Wired in fullscreen because secondary windows do not surface reliably on Orange Pi.
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
@@ -266,18 +242,18 @@ export component DesktopMain inherits Rectangle {
         if root.fullscreen && root.show-chain-editor : ChainEditorPage {
             width: parent.width;
             height: parent.height;
-            title: root.chain-editor-title;
-            save-label: root.chain-editor-save-label;
-            chain-name: root.chain-draft-name;
-            bindings: root.chain-editor-bindings;
+            title: ChainEditorBridge.chain-editor-title;
+            save-label: ChainEditorBridge.chain-editor-save-label;
+            chain-name: ChainEditorBridge.chain-draft-name;
+            bindings: ChainEditorBridge.chain-editor-bindings;
             status-message: root.status-message;
-            is-create-mode: root.chain-editor-is-create-mode;
-            selected-instrument-index <=> root.chain-editor-selected-instrument-index;
-            update-chain-name(value) => { root.update-chain-name(value); }
-            toggle-binding(index, on) => { root.toggle-binding(index, on); }
-            save-chain => { root.save-chain(); }
-            cancel-chain => { root.cancel-chain(); }
-            select-instrument(index) => { root.select-chain-instrument(index); }
+            is-create-mode: ChainEditorBridge.chain-editor-is-create-mode;
+            selected-instrument-index <=> ChainEditorBridge.chain-editor-selected-instrument-index;
+            update-chain-name(value) => { ChainEditorBridge.update-chain-name(value); }
+            toggle-binding(index, on) => { ChainEditorBridge.toggle-binding(index, on); }
+            save-chain => { ChainEditorBridge.save-chain(); }
+            cancel-chain => { ChainEditorBridge.cancel-chain(); }
+            select-instrument(index) => { ChainEditorBridge.select-chain-instrument(index); }
         }
 
         if !root.show-project-chains : Rectangle {

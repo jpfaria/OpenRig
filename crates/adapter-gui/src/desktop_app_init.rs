@@ -62,8 +62,8 @@ pub(crate) fn populate_initial_window_state(
     window.set_project_title(rust_i18n::t!("default-project-title").as_ref().into());
     window.set_project_name_draft("".into());
     window.set_recent_project_search("".into());
-    window.set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
-    window.set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
+    crate::ChainEditorBridge::get(window).set_chain_editor_title(rust_i18n::t!("title-new-chain").as_ref().into());
+    crate::ChainEditorBridge::get(window).set_chain_editor_save_label(rust_i18n::t!("btn-create-chain").as_ref().into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -115,12 +115,12 @@ pub(crate) fn populate_initial_window_state(
     ));
     let chain_input_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let chain_output_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    window.set_chain_input_device_options(ModelRc::from(chain_input_device_options.clone()));
-    window.set_chain_output_device_options(ModelRc::from(chain_output_device_options.clone()));
-    window.set_chain_input_channels(ModelRc::from(chain_input_channels.clone()));
-    window.set_chain_output_channels(ModelRc::from(chain_output_channels.clone()));
-    window.set_selected_chain_input_device_index(-1);
-    window.set_selected_chain_output_device_index(-1);
+    crate::ChainEditorBridge::get(window).set_chain_input_device_options(ModelRc::from(chain_input_device_options.clone()));
+    crate::ChainEditorBridge::get(window).set_chain_output_device_options(ModelRc::from(chain_output_device_options.clone()));
+    crate::ChainEditorBridge::get(window).set_chain_input_channels(ModelRc::from(chain_input_channels.clone()));
+    crate::ChainEditorBridge::get(window).set_chain_output_channels(ModelRc::from(chain_output_channels.clone()));
+    crate::ChainEditorBridge::get(window).set_selected_chain_input_device_index(-1);
+    crate::ChainEditorBridge::get(window).set_selected_chain_output_device_index(-1);
     window.set_selected_chain_block_chain_index(-1);
     window.set_selected_chain_block_index(-1);
     crate::BlockEditorBridge::get(window).set_show_block_type_picker(false);
@@ -134,7 +134,7 @@ pub(crate) fn populate_initial_window_state(
     crate::BlockEditorBridge::get(window).set_block_drawer_selected_type_index(-1);
     crate::BlockEditorBridge::get(window).set_block_drawer_selected_model_index(-1);
     crate::BlockEditorBridge::get(window).set_block_drawer_enabled(true);
-    window.set_chain_draft_name("".into());
+    crate::ChainEditorBridge::get(window).set_chain_draft_name("".into());
     project_settings_window.set_status_message("".into());
     project_settings_window.set_project_name_draft("".into());
 

@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Model, Timer, VecModel};
+use slint::{ComponentHandle, Model, Timer, VecModel, Global};
 
 use application::command::{ChainCommand, Command};
 use domain::AudioDeviceDescriptor;
@@ -64,7 +64,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
-        window.on_save_chain(move || {
+        crate::ChainEditorBridge::get(window).on_save_chain(move || {
             log::info!("on_save_chain triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -158,7 +158,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
         let toast_timer = toast_timer.clone();
-        window.on_cancel_chain(move || {
+        crate::ChainEditorBridge::get(window).on_cancel_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -174,11 +174,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
     {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
-        window.on_toggle_binding(move |index, on| {
+        crate::ChainEditorBridge::get(window).on_toggle_binding(move |index, on| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let model = window.get_chain_editor_bindings();
+            let model = crate::ChainEditorBridge::get(&window).get_chain_editor_bindings();
             if let Some(mut choice) = model.row_data(index as usize) {
                 choice.selected = on;
                 model.set_row_data(index as usize, choice);

@@ -151,10 +151,10 @@ fn refresh_rust_injected_strings(window: &AppWindow) {
     // they reopen the editor — acceptable UX cost for keeping the wiring
     // generic. apply_chain_editor_labels in chain_editor.rs covers the
     // edit-mode case when the editor opens.
-    window.set_chain_editor_title(SharedString::from(
+    crate::ChainEditorBridge::get(window).set_chain_editor_title(SharedString::from(
         rust_i18n::t!("title-new-chain").as_ref(),
     ));
-    window.set_chain_editor_save_label(SharedString::from(
+    crate::ChainEditorBridge::get(window).set_chain_editor_save_label(SharedString::from(
         rust_i18n::t!("btn-create-chain").as_ref(),
     ));
 }

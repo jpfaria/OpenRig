@@ -154,7 +154,8 @@ pub(crate) fn wire(
             clear_status(&window, &toast_timer);
             if fullscreen {
                 // In fullscreen mode, render inline — set project-devices on main window
-                crate::SettingsBridge::get(&window).set_project_devices(crate::SettingsBridge::get(&settings_window).get_project_devices());
+                crate::SettingsBridge::get(&window)
+                    .set_project_devices(crate::SettingsBridge::get(&settings_window).get_project_devices());
                 window.set_show_settings(true);
             } else {
                 // The settings window is a startup-created singleton reshown on
