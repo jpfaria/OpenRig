@@ -122,6 +122,22 @@ impl Harness {
         }
     }
 
+    /// Whether the insert block is enabled in the project.
+    fn insert_enabled(&self) -> bool {
+        let borrow = self.session.borrow();
+        let session = borrow.as_ref().unwrap();
+        let project = session.project.borrow();
+        project.chains[0].blocks[0].enabled
+    }
+
+    /// How many blocks the chain still has.
+    fn block_count(&self) -> usize {
+        let borrow = self.session.borrow();
+        let session = borrow.as_ref().unwrap();
+        let project = session.project.borrow();
+        project.chains[0].blocks.len()
+    }
+
     /// The binding the insert block currently points at.
     fn insert_io(&self) -> String {
         let borrow = self.session.borrow();
@@ -200,5 +216,48 @@ fn ok_without_a_pick_warns_instead_of_writing() {
     assert!(
         h.insert_io().is_empty(),
         "nothing may be written before a pick"
+    );
+}
+
+/// The enabled dot acts on the BLOCK, not on a draft: it flips the insert in
+/// the project (and the dispatcher takes it down the rebuild path, #881).
+#[test]
+fn the_enabled_dot_toggles_the_insert_in_the_project() {
+    let h = Harness::new();
+    assert!(h.insert_enabled(), "the fixture insert starts enabled");
+
+    h.window.invoke_toggle_enabled();
+    assert!(!h.insert_enabled(), "the dot must disable the insert");
+
+    h.window.invoke_toggle_enabled();
+    assert!(h.insert_enabled(), "and enable it again");
+}
+
+/// The trash removes the insert from the chain — an editor that cannot delete
+/// leaves an unbindable loop stuck in the middle of the chain.
+#[test]
+fn the_trash_removes_the_insert_from_the_chain() {
+    let h = Harness::new();
+    assert_eq!(h.block_count(), 1);
+
+    h.window.invoke_delete_block();
+
+    assert_eq!(
+        h.block_count(),
+        0,
+        "#881: the trash must remove the insert block"
+    );
+}
+
+/// Cancel closes without writing: the pick is discarded, not persisted.
+#[test]
+fn cancel_leaves_the_insert_untouched() {
+    let h = Harness::new();
+    h.window.invoke_select_binding(1);
+    h.window.invoke_cancel();
+
+    assert!(
+        h.insert_io().is_empty(),
+        "cancel must not write the picked E/S"
     );
 }
