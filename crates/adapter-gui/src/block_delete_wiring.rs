@@ -65,11 +65,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
     } = ctx;
     {
         let weak_window = window.as_weak();
-        window.on_confirm_delete_block(move || {
+        crate::OverlayBridge::get(window).on_confirm_delete_block(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_show_confirm_delete_block(false);
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_block(false);
             let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
@@ -151,9 +151,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
     }
     {
         let weak_window = window.as_weak();
-        window.on_cancel_delete_block(move || {
+        crate::OverlayBridge::get(window).on_cancel_delete_block(move || {
             if let Some(window) = weak_window.upgrade() {
-                window.set_show_confirm_delete_block(false);
+                crate::OverlayBridge::get(&window).set_show_confirm_delete_block(false);
             }
         });
     }

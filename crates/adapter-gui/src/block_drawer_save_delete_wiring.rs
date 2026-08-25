@@ -132,8 +132,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
             if draft.block_index.is_none() {
                 return;
             }
-            window.set_confirm_delete_block_name(draft.model_id.into());
-            window.set_show_confirm_delete_block(true);
+            crate::OverlayBridge::get(&window).set_confirm_delete_block_name(draft.model_id.into());
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_block(true);
         });
     }
 }

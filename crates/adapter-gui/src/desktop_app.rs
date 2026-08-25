@@ -232,8 +232,8 @@ pub fn run_desktop_app(
     } = crate::desktop_app_block_models::init(&window);
     let block_editor_persist_timer = Rc::new(Timer::default());
     let toast_timer = Rc::new(Timer::default());
-    window.set_toast_message("".into());
-    window.set_toast_level("info".into());
+    crate::OverlayBridge::get(&window).set_toast_message("".into());
+    crate::OverlayBridge::get(&window).set_toast_level("info".into());
 
     // Background polling timers (extracted to desktop_app_polling)
     // #127: the tick gets the two seams, never the runtime handle.

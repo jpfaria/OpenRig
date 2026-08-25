@@ -1,4 +1,5 @@
 import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
+import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
@@ -137,16 +138,6 @@ export component TouchMain inherits Rectangle {
     in-out property <int> chain-editor-selected-instrument-index: 0;
     callback select-chain-instrument(int);
     // Fullscreen inline plugin info overlay (touch is always inline — no secondary window).
-    in property <bool> plugin-info-visible: false;
-    in property <PluginInfoData> plugin-info-data;
-    callback close-plugin-info();
-    callback open-plugin-info-homepage();
-    in property <bool> show-preset-picker: false;
-    in property <[string]> preset-picker-items;
-    in-out property <int> preset-picker-chain-index: -1;
-    callback preset-picker-confirm(int);
-    callback preset-picker-delete(int);
-    callback preset-picker-cancel();
 
     private property <bool> keyboard-visible: false;
     private property <bool> kb-shift: false;
@@ -463,7 +454,7 @@ export component TouchMain inherits Rectangle {
     // touch) — see components/preset_picker_overlay.slint (issue #479).
 
     // Plugin info overlay (touch is always inline — no secondary window).
-    if root.plugin-info-visible : Rectangle {
+    if OverlayBridge.plugin-info-visible : Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -475,7 +466,7 @@ export component TouchMain inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            clicked => { root.close-plugin-info(); }
+            clicked => { OverlayBridge.close-plugin-info(); }
         }
 
         PluginInfoPanel {
@@ -483,18 +474,18 @@ export component TouchMain inherits Rectangle {
             y: (parent.height - self.height) / 2;
             width: Math.min(480px, parent.width - 32px);
             height: Math.min(560px, parent.height - 32px);
-            screenshot: root.plugin-info-data.screenshot;
-            has-screenshot: root.plugin-info-data.has-screenshot;
-            plugin-name: root.plugin-info-data.plugin-name;
-            brand: root.plugin-info-data.brand;
-            type-label: root.plugin-info-data.type-label;
-            description: root.plugin-info-data.description;
-            license: root.plugin-info-data.license;
-            homepage: root.plugin-info-data.homepage;
-            has-homepage: root.plugin-info-data.has-homepage;
+            screenshot: OverlayBridge.plugin-info-data.screenshot;
+            has-screenshot: OverlayBridge.plugin-info-data.has-screenshot;
+            plugin-name: OverlayBridge.plugin-info-data.plugin-name;
+            brand: OverlayBridge.plugin-info-data.brand;
+            type-label: OverlayBridge.plugin-info-data.type-label;
+            description: OverlayBridge.plugin-info-data.description;
+            license: OverlayBridge.plugin-info-data.license;
+            homepage: OverlayBridge.plugin-info-data.homepage;
+            has-homepage: OverlayBridge.plugin-info-data.has-homepage;
             show-close-button: true;
-            open-homepage => { root.open-plugin-info-homepage(); }
-            close-window => { root.close-plugin-info(); }
+            open-homepage => { OverlayBridge.open-plugin-info-homepage(); }
+            close-window => { OverlayBridge.close-plugin-info(); }
         }
     }
 

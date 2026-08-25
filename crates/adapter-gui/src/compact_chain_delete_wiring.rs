@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer};
+use slint::{ComponentHandle, Timer, Global};
 
 use domain::AudioDeviceDescriptor;
 
@@ -60,28 +60,28 @@ pub(crate) fn wire(
                 )
             };
             *pending.borrow_mut() = Some(chain_id);
-            cw.set_confirm_delete_chain_name(chain_name.into());
-            cw.set_show_confirm_delete_chain(true);
+            crate::OverlayBridge::get(&cw).set_confirm_delete_chain_name(chain_name.into());
+            crate::OverlayBridge::get(&cw).set_show_confirm_delete_chain(true);
         });
     }
     {
         let weak_compact = compact_win.as_weak();
         let pending = pending.clone();
-        compact_win.on_cancel_delete_chain(move || {
+        crate::OverlayBridge::get(compact_win).on_cancel_delete_chain(move || {
             *pending.borrow_mut() = None;
             if let Some(cw) = weak_compact.upgrade() {
-                cw.set_show_confirm_delete_chain(false);
+                crate::OverlayBridge::get(&cw).set_show_confirm_delete_chain(false);
             }
         });
     }
     {
         let weak_main = window.as_weak();
         let weak_compact = compact_win.as_weak();
-        compact_win.on_confirm_delete_chain(move || {
+        crate::OverlayBridge::get(compact_win).on_confirm_delete_chain(move || {
             let Some(cw) = weak_compact.upgrade() else {
                 return;
             };
-            cw.set_show_confirm_delete_chain(false);
+            crate::OverlayBridge::get(&cw).set_show_confirm_delete_chain(false);
             let Some(chain_id) = pending.borrow_mut().take() else {
                 return;
             };

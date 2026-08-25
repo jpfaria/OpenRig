@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer};
+use slint::{ComponentHandle, Timer, Global};
 
 use application::command::{ChainCommand, Command, SelectionCommand};
 use domain::ids::ChainId;
@@ -112,10 +112,10 @@ pub(crate) fn wire(
                     chain_clone,
                     default_name: default_name.clone(),
                 });
-                window.set_preset_save_default_name(default_name.clone().into());
-                window.set_preset_save_name_input(default_name.into());
-                window.set_show_preset_save_overwrite(false);
-                window.set_show_preset_save(true);
+                crate::OverlayBridge::get(&window).set_preset_save_default_name(default_name.clone().into());
+                crate::OverlayBridge::get(&window).set_preset_save_name_input(default_name.into());
+                crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(false);
+                crate::OverlayBridge::get(&window).set_show_preset_save(true);
             }
         });
     }
@@ -124,7 +124,7 @@ pub(crate) fn wire(
         let project_session = project_session.clone();
         let toast_timer = toast_timer.clone();
         let pending_save = pending_save.clone();
-        window.on_preset_save_request(move |name| {
+        crate::OverlayBridge::get(window).on_preset_save_request(move |name| {
             log::info!("[preset-save] request received name={name:?}");
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -154,9 +154,9 @@ pub(crate) fn wire(
                 name.trim().to_string()
             };
             if preset_overwrite_required(&session.presets_path, &chosen) {
-                window.set_preset_save_overwrite_name(chosen.clone().into());
-                window.set_preset_save_name_input(chosen.into());
-                window.set_show_preset_save_overwrite(true);
+                crate::OverlayBridge::get(&window).set_preset_save_overwrite_name(chosen.clone().into());
+                crate::OverlayBridge::get(&window).set_preset_save_name_input(chosen.into());
+                crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(true);
                 return;
             }
             perform_preset_save(
@@ -168,7 +168,7 @@ pub(crate) fn wire(
                 &toast_timer,
             );
             *pending_save.borrow_mut() = None;
-            window.set_show_preset_save(false);
+            crate::OverlayBridge::get(&window).set_show_preset_save(false);
         });
     }
     {
@@ -176,7 +176,7 @@ pub(crate) fn wire(
         let project_session = project_session.clone();
         let toast_timer = toast_timer.clone();
         let pending_save = pending_save.clone();
-        window.on_preset_save_overwrite_confirm(move || {
+        crate::OverlayBridge::get(window).on_preset_save_overwrite_confirm(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -187,7 +187,7 @@ pub(crate) fn wire(
             let Some(pending) = pending_save.borrow_mut().take() else {
                 return;
             };
-            let chosen = window.get_preset_save_overwrite_name().to_string();
+            let chosen = crate::OverlayBridge::get(&window).get_preset_save_overwrite_name().to_string();
             perform_preset_save(
                 &window,
                 session,
@@ -196,25 +196,25 @@ pub(crate) fn wire(
                 &chosen,
                 &toast_timer,
             );
-            window.set_show_preset_save_overwrite(false);
-            window.set_show_preset_save(false);
+            crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(false);
+            crate::OverlayBridge::get(&window).set_show_preset_save(false);
         });
     }
     {
         let weak_window = window.as_weak();
-        window.on_preset_save_overwrite_cancel(move || {
+        crate::OverlayBridge::get(window).on_preset_save_overwrite_cancel(move || {
             if let Some(window) = weak_window.upgrade() {
-                window.set_show_preset_save_overwrite(false);
+                crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(false);
             }
         });
     }
     {
         let weak_window = window.as_weak();
         let pending_save = pending_save.clone();
-        window.on_preset_save_cancel(move || {
+        crate::OverlayBridge::get(window).on_preset_save_cancel(move || {
             if let Some(window) = weak_window.upgrade() {
-                window.set_show_preset_save(false);
-                window.set_show_preset_save_overwrite(false);
+                crate::OverlayBridge::get(&window).set_show_preset_save(false);
+                crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(false);
             }
             *pending_save.borrow_mut() = None;
         });

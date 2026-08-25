@@ -1,0 +1,61 @@
+// Responsibility: carries the root overlays' state between Rust and the windows that host them.
+//
+// #873. Preset picker, preset save, the three confirm-delete dialogs, the
+// inline plugin-info panel and the toast are all rendered at the root of
+// whichever window is on screen (#749: a PopupWindow's content never receives
+// clicks, so overlays live at root level). Each of those roots used to
+// re-declare the same flags and callbacks and drill them down through
+// `DesktopMain`/`TouchMain`. The declaration lives here now; the overlay
+// components keep their own small interfaces and are fed from this global.
+
+import { PluginInfoData } from "models.slint";
+
+export global OverlayBridge {
+    // ── Preset picker (#749) ─────────────────────────────────────────────
+    in-out property <bool> show-preset-picker: false;
+    in-out property <[string]> preset-picker-items;
+    in-out property <int> preset-picker-chain-index: -1;
+    in-out property <string> preset-picker-search-query;
+    callback preset-picker-confirm(int);
+    callback preset-picker-delete(int);
+    callback preset-picker-cancel();
+    callback preset-picker-query-changed(string);
+
+    // ── Preset save / overwrite ──────────────────────────────────────────
+    in-out property <bool> show-preset-save: false;
+    in-out property <string> preset-save-default-name: "";
+    in-out property <string> preset-save-name-input: "";
+    in-out property <bool> show-preset-save-overwrite: false;
+    in-out property <string> preset-save-overwrite-name: "";
+    callback preset-save-request(string);
+    callback preset-save-cancel();
+    callback preset-save-overwrite-confirm();
+    callback preset-save-overwrite-cancel();
+
+    // ── Confirm-delete dialogs (#511, #360) ──────────────────────────────
+    // They replace the native rfd::MessageDialog the wiring used to open.
+    in-out property <bool> show-confirm-delete-block: false;
+    in-out property <string> confirm-delete-block-name: "";
+    callback confirm-delete-block();
+    callback cancel-delete-block();
+    in-out property <bool> show-confirm-delete-chain: false;
+    in-out property <string> confirm-delete-chain-name: "";
+    callback confirm-delete-chain();
+    callback cancel-delete-chain();
+    in-out property <bool> show-confirm-delete-recent-project: false;
+    in-out property <string> confirm-delete-recent-project-name: "";
+    callback confirm-delete-recent-project();
+    callback cancel-delete-recent-project();
+
+    // ── Inline plugin info (#307) ────────────────────────────────────────
+    // Used in fullscreen / touch, where the secondary PluginInfoWindow does
+    // not surface (Orange Pi / kiosk).
+    in-out property <bool> plugin-info-visible: false;
+    in-out property <PluginInfoData> plugin-info-data;
+    callback close-plugin-info();
+    callback open-plugin-info-homepage();
+
+    // ── Toast ────────────────────────────────────────────────────────────
+    in-out property <string> toast-message;
+    in-out property <string> toast-level: "info";
+}

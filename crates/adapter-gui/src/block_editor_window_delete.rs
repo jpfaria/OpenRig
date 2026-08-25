@@ -52,17 +52,17 @@ pub(crate) fn wire_block_delete(
             if draft.block_index.is_none() {
                 return;
             }
-            win.set_confirm_delete_block_name(draft.model_id.into());
-            win.set_show_confirm_delete_block(true);
+            crate::OverlayBridge::get(&win).set_confirm_delete_block_name(draft.model_id.into());
+            crate::OverlayBridge::get(&win).set_show_confirm_delete_block(true);
         });
     }
 
     // on_cancel_delete_block — just hide the overlay.
     {
         let weak_win = win.as_weak();
-        win.on_cancel_delete_block(move || {
+        crate::OverlayBridge::get(win).on_cancel_delete_block(move || {
             if let Some(win) = weak_win.upgrade() {
-                win.set_show_confirm_delete_block(false);
+                crate::OverlayBridge::get(&win).set_show_confirm_delete_block(false);
             }
         });
     }
@@ -80,13 +80,13 @@ pub(crate) fn wire_block_delete(
         let open_block_windows_delete = open_block_windows.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_confirm_delete_block(move || {
+        crate::OverlayBridge::get(win).on_confirm_delete_block(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
             // Hide overlay first so any error toast renders on the
             // window, not behind the modal backdrop.
-            win.set_show_confirm_delete_block(false);
+            crate::OverlayBridge::get(&win).set_show_confirm_delete_block(false);
             let Some(main) = weak_main.upgrade() else {
                 return;
             };

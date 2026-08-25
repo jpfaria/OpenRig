@@ -1,4 +1,5 @@
 import "fonts/CooperHewitt-Semibold.ttf";
+import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Locale } from "locale_globals.slint";
 import { SettingsBridge } from "settings_globals.slint";
@@ -34,7 +35,7 @@ import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortW
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 
 export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
-export { SettingsBridge, BlockEditorBridge }
+export { SettingsBridge, BlockEditorBridge, OverlayBridge }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
@@ -225,45 +226,12 @@ export component AppWindow inherits Window {
     callback select-chain-instrument(int);
     callback virtual-key-pressed(string);
     // Language selector — populated from Rust side (i18n::SUPPORTED_LANGUAGES).
-    in property <bool> show-preset-picker: false;
-    in property <[string]> preset-picker-items;
-    in-out property <int> preset-picker-chain-index: -1;
-    callback preset-picker-confirm(int);
-    callback preset-picker-delete(int);
-    callback preset-picker-cancel();
-    in-out property <string> preset-picker-search-query;
-    callback preset-picker-query-changed(string);
-    in property <bool> show-preset-save: false;
-    in property <string> preset-save-default-name: "";
-    in-out property <string> preset-save-name-input: "";
-    in property <bool> show-preset-save-overwrite: false;
-    in property <string> preset-save-overwrite-name: "";
-    callback preset-save-request(string);
-    callback preset-save-cancel();
-    callback preset-save-overwrite-confirm();
-    callback preset-save-overwrite-cancel();
-    in property <bool> show-confirm-delete-block: false;
-    in property <string> confirm-delete-block-name: "";
-    callback confirm-delete-block();
-    callback cancel-delete-block();
     // Chain-delete confirmation (issue #511 — replaces the native
     // rfd::MessageDialog the previous chain_row_wiring used).
-    in property <bool> show-confirm-delete-chain: false;
-    in property <string> confirm-delete-chain-name: "";
-    callback confirm-delete-chain();
-    callback cancel-delete-chain();
     // Recent-project removal confirmation (issue #360 — the launcher
     // used to drop entries with no confirmation at all).
-    in property <bool> show-confirm-delete-recent-project: false;
-    in property <string> confirm-delete-recent-project-name: "";
-    callback confirm-delete-recent-project();
-    callback cancel-delete-recent-project();
     // Inline plugin info overlay — used in fullscreen / touch where the secondary
     // PluginInfoWindow does not surface (Orange Pi / kiosk). See issue #307.
-    in property <bool> plugin-info-visible: false;
-    in property <PluginInfoData> plugin-info-data;
-    callback close-plugin-info();
-    callback open-plugin-info-homepage();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -390,10 +358,6 @@ export component AppWindow inherits Window {
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
         select-chain-instrument(index) => { root.select-chain-instrument(index); }
-        plugin-info-visible: root.plugin-info-visible;
-        plugin-info-data: root.plugin-info-data;
-        close-plugin-info => { root.close-plugin-info(); }
-        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
     if touch-optimized : TouchMain {
@@ -511,55 +475,41 @@ export component AppWindow inherits Window {
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
-        show-preset-picker: root.show-preset-picker;
-        preset-picker-items: root.preset-picker-items;
-        preset-picker-chain-index <=> root.preset-picker-chain-index;
-        preset-picker-confirm(i) => { root.preset-picker-confirm(i); }
-        preset-picker-delete(i) => { root.preset-picker-delete(i); }
-        preset-picker-cancel => { root.preset-picker-cancel(); }
         // Inline chain editor
         chain-editor-bindings: root.chain-editor-bindings;
         toggle-binding(i, on) => { root.toggle-binding(i, on); }
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
         chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
         select-chain-instrument(index) => { root.select-chain-instrument(index); }
-        plugin-info-visible: root.plugin-info-visible;
-        plugin-info-data: root.plugin-info-data;
-        close-plugin-info => { root.close-plugin-info(); }
-        open-plugin-info-homepage => { root.open-plugin-info-homepage(); }
     }
 
-    if root.show-confirm-delete-block : ConfirmDeleteBlockDialog {
+    if OverlayBridge.show-confirm-delete-block : ConfirmDeleteBlockDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        block-name: root.confirm-delete-block-name;
-        cancel => { root.cancel-delete-block(); }
-        confirm => { root.confirm-delete-block(); }
+        block-name: OverlayBridge.confirm-delete-block-name;
+        cancel => { OverlayBridge.cancel-delete-block(); }
+        confirm => { OverlayBridge.confirm-delete-block(); }
     }
 
-    if root.show-confirm-delete-chain : ConfirmDeleteChainDialog {
+    if OverlayBridge.show-confirm-delete-chain : ConfirmDeleteChainDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        chain-name: root.confirm-delete-chain-name;
-        cancel => { root.cancel-delete-chain(); }
-        confirm => { root.confirm-delete-chain(); }
+        chain-name: OverlayBridge.confirm-delete-chain-name;
+        cancel => { OverlayBridge.cancel-delete-chain(); }
+        confirm => { OverlayBridge.confirm-delete-chain(); }
     }
 
-    if root.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
+    if OverlayBridge.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        project-name: root.confirm-delete-recent-project-name;
-        cancel => { root.cancel-delete-recent-project(); }
-        confirm => { root.confirm-delete-recent-project(); }
+        project-name: OverlayBridge.confirm-delete-recent-project-name;
+        cancel => { OverlayBridge.cancel-delete-recent-project(); }
+        confirm => { OverlayBridge.confirm-delete-recent-project(); }
     }
-
-    in-out property <string> toast-message;
-
-    in-out property <string> toast-level: "info";
 
     Toast {
-        message: root.toast-message;
-        level: root.toast-level;
+        message: OverlayBridge.toast-message;
+        level: OverlayBridge.toast-level;
         container-width: root.width;
         container-height: root.height;
     }
@@ -570,13 +520,13 @@ export component AppWindow inherits Window {
     PresetPickerOverlay {
         width: root.width;
         height: root.height;
-        visible-overlay: root.show-preset-picker;
-        items: root.preset-picker-items;
-        search-query <=> root.preset-picker-search-query;
-        confirm(i) => { root.preset-picker-confirm(i); }
-        cancel() => { root.preset-picker-cancel(); }
-        delete(i) => { root.preset-picker-delete(i); }
-        query-changed(t) => { root.preset-picker-query-changed(t); }
+        visible-overlay: OverlayBridge.show-preset-picker;
+        items: OverlayBridge.preset-picker-items;
+        search-query <=> OverlayBridge.preset-picker-search-query;
+        confirm(i) => { OverlayBridge.preset-picker-confirm(i); }
+        cancel() => { OverlayBridge.preset-picker-cancel(); }
+        delete(i) => { OverlayBridge.preset-picker-delete(i); }
+        query-changed(t) => { OverlayBridge.preset-picker-query-changed(t); }
     }
 
     // #749/#791: DI loop + Tone Doctor root overlays (extracted to components).
@@ -626,19 +576,19 @@ export component AppWindow inherits Window {
     PresetSaveOverlay {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        visible-overlay: root.show-preset-save;
-        default-name: root.preset-save-default-name;
-        name-input <=> root.preset-save-name-input;
-        request-save(n) => { root.preset-save-request(n); }
-        cancel() => { root.preset-save-cancel(); }
+        visible-overlay: OverlayBridge.show-preset-save;
+        default-name: OverlayBridge.preset-save-default-name;
+        name-input <=> OverlayBridge.preset-save-name-input;
+        request-save(n) => { OverlayBridge.preset-save-request(n); }
+        cancel() => { OverlayBridge.preset-save-cancel(); }
     }
 
     PresetOverwriteOverlay {
         x: 0; y: 0;
         width: root.width; height: root.height;
-        visible-overlay: root.show-preset-save-overwrite;
-        preset-name: root.preset-save-overwrite-name;
-        confirm() => { root.preset-save-overwrite-confirm(); }
-        cancel() => { root.preset-save-overwrite-cancel(); }
+        visible-overlay: OverlayBridge.show-preset-save-overwrite;
+        preset-name: OverlayBridge.preset-save-overwrite-name;
+        confirm() => { OverlayBridge.preset-save-overwrite-confirm(); }
+        cancel() => { OverlayBridge.preset-save-overwrite-cancel(); }
     }
 }

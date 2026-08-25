@@ -1,4 +1,5 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
 import { Theme } from "theme.slint";
 import { ChainRigNav } from "models.slint";
@@ -142,10 +143,6 @@ export component DesktopMain inherits Rectangle {
     callback toggle-binding(int, bool);
     // Fullscreen inline plugin info overlay (windowed mode opens PluginInfoWindow instead).
     // Wired in fullscreen because secondary windows do not surface reliably on Orange Pi.
-    in property <bool> plugin-info-visible: false;
-    in property <PluginInfoData> plugin-info-data;
-    callback close-plugin-info();
-    callback open-plugin-info-homepage();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -305,7 +302,7 @@ export component DesktopMain inherits Rectangle {
 
         // Fullscreen inline plugin info overlay — replaces secondary PluginInfoWindow
         // when in fullscreen, where child windows do not surface (Orange Pi / kiosk).
-        if root.fullscreen && root.plugin-info-visible : Rectangle {
+        if root.fullscreen && OverlayBridge.plugin-info-visible : Rectangle {
             x: 0px;
             y: 0px;
             width: parent.width;
@@ -317,7 +314,7 @@ export component DesktopMain inherits Rectangle {
                 y: 0px;
                 width: parent.width;
                 height: parent.height;
-                clicked => { root.close-plugin-info(); }
+                clicked => { OverlayBridge.close-plugin-info(); }
             }
 
             PluginInfoPanel {
@@ -325,18 +322,18 @@ export component DesktopMain inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 width: Math.min(480px, parent.width - 32px);
                 height: Math.min(560px, parent.height - 32px);
-                screenshot: root.plugin-info-data.screenshot;
-                has-screenshot: root.plugin-info-data.has-screenshot;
-                plugin-name: root.plugin-info-data.plugin-name;
-                brand: root.plugin-info-data.brand;
-                type-label: root.plugin-info-data.type-label;
-                description: root.plugin-info-data.description;
-                license: root.plugin-info-data.license;
-                homepage: root.plugin-info-data.homepage;
-                has-homepage: root.plugin-info-data.has-homepage;
+                screenshot: OverlayBridge.plugin-info-data.screenshot;
+                has-screenshot: OverlayBridge.plugin-info-data.has-screenshot;
+                plugin-name: OverlayBridge.plugin-info-data.plugin-name;
+                brand: OverlayBridge.plugin-info-data.brand;
+                type-label: OverlayBridge.plugin-info-data.type-label;
+                description: OverlayBridge.plugin-info-data.description;
+                license: OverlayBridge.plugin-info-data.license;
+                homepage: OverlayBridge.plugin-info-data.homepage;
+                has-homepage: OverlayBridge.plugin-info-data.has-homepage;
                 show-close-button: true;
-                open-homepage => { root.open-plugin-info-homepage(); }
-                close-window => { root.close-plugin-info(); }
+                open-homepage => { OverlayBridge.open-plugin-info-homepage(); }
+                close-window => { OverlayBridge.close-plugin-info(); }
             }
         }
     }
