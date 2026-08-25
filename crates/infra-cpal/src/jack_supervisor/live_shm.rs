@@ -3,25 +3,51 @@
 //! Split out of `live_backend.rs` (#873). Both entry points are best-effort:
 //! a file we fail to remove is logged by its absence from the log line, never
 //! escalated — the caller is about to spawn either way.
-
-#![cfg(all(target_os = "linux", feature = "jack"))]
+//!
+//! Deciding WHICH name is garbage is pure string work, so it lives in
+//! `is_stale_entry` / `is_process_wide_entry` and is tested on every platform.
+//! Only the `/dev/shm` walk itself is Linux-only.
 
 use super::types::ServerName;
 
-/// Best-effort cleanup of stale sockets + semaphores from a prior run of
-/// `jackd -n <name>`. Stale semaphores specifically cause "Broken pipe"
-/// on the next startup attempt — this mirrors the behaviour of the
-/// previous `launch_jackd` prelude.
-pub(super) fn cleanup_stale_dev_shm(name: &ServerName) {
+/// `true` when this `/dev/shm` entry belongs to a previous run of
+/// `jackd -n <name>` — its socket, or one of its semaphores. Stale semaphores
+/// are what make the next startup fail with "Broken pipe".
+#[cfg_attr(
+    not(all(target_os = "linux", feature = "jack")),
+    allow(dead_code) // only the Linux walk calls this; the tests cover it everywhere
+)]
+pub(super) fn is_stale_entry(name: &ServerName, entry: &str) -> bool {
     let socket_prefix = format!("jack_{}_", name);
     let sem_infix = format!("_{}_", name);
+    entry.starts_with(&socket_prefix)
+        || (entry.starts_with("jack_sem.") && entry.contains(&sem_infix))
+}
+
+/// `true` when this `/dev/shm` entry is one of libjack's process-wide files —
+/// the registry, the data segments, the jack_db directory. Global across
+/// servers, so removing one is only safe when no jackd is running at all.
+#[cfg_attr(
+    not(all(target_os = "linux", feature = "jack")),
+    allow(dead_code) // only the Linux walk calls this; the tests cover it everywhere
+)]
+pub(super) fn is_process_wide_entry(entry: &str) -> bool {
+    entry == "jack-shm-registry"
+        || entry.starts_with("jack-")
+        || entry.starts_with("jackdb_")
+        || entry.starts_with("jack_db")
+}
+
+/// Best-effort cleanup of stale sockets + semaphores from a prior run of
+/// `jackd -n <name>`. This mirrors the behaviour of the previous
+/// `launch_jackd` prelude.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub(super) fn cleanup_stale_dev_shm(name: &ServerName) {
     if let Ok(entries) = std::fs::read_dir("/dev/shm") {
         for entry in entries.filter_map(|e| e.ok()) {
             let fname = entry.file_name();
             let s = fname.to_string_lossy();
-            let stale = s.starts_with(&socket_prefix)
-                || (s.starts_with("jack_sem.") && s.contains(&*sem_infix));
-            if stale {
+            if is_stale_entry(name, &s) {
                 let _ = std::fs::remove_file(entry.path());
                 log::info!("LiveJackBackend: removed stale /dev/shm entry {}", s);
             }
@@ -39,6 +65,7 @@ pub(super) fn cleanup_stale_dev_shm(name: &ServerName) {
 ///
 /// Only safe to call when NO jackd server of any name is running — the
 /// files are global across servers.
+#[cfg(all(target_os = "linux", feature = "jack"))]
 pub(super) fn nuke_process_wide_jack_shm() {
     let Ok(entries) = std::fs::read_dir("/dev/shm") else {
         return;
@@ -46,15 +73,7 @@ pub(super) fn nuke_process_wide_jack_shm() {
     for entry in entries.filter_map(|e| e.ok()) {
         let fname = entry.file_name();
         let s = fname.to_string_lossy();
-        // Match every jack-* / jackdb* / jack_db* variant libjack
-        // and jackd create. "jack_<name>_*_0" sockets are already
-        // handled by cleanup_stale_dev_shm; here we widen to the
-        // global files.
-        let is_jack = s == "jack-shm-registry"
-            || s.starts_with("jack-")
-            || s.starts_with("jackdb_")
-            || s.starts_with("jack_db");
-        if !is_jack {
+        if !is_process_wide_entry(&s) {
             continue;
         }
         let path = entry.path();
@@ -68,3 +87,7 @@ pub(super) fn nuke_process_wide_jack_shm() {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "live_shm_tests.rs"]
+mod tests;

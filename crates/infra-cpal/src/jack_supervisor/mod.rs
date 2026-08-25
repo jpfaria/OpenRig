@@ -44,13 +44,12 @@ pub mod alsa_mixer;
 pub mod live_backend;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod live_probe;
-#[cfg(all(target_os = "linux", feature = "jack"))]
+// The four below keep their filesystem/process work behind the same gate, but
+// the naming and parsing rules they encode are pure — compiled everywhere so
+// their tests run on every platform, not only on the CI Linux box (#873).
 mod live_process;
-#[cfg(all(target_os = "linux", feature = "jack"))]
 mod live_shm;
-#[cfg(all(target_os = "linux", feature = "jack"))]
 mod live_socket;
-#[cfg(all(target_os = "linux", feature = "jack"))]
 mod live_stderr;
 
 // Re-exports used by `crate::ProjectRuntimeController`. Internal types
