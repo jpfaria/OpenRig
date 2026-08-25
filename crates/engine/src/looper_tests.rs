@@ -419,3 +419,47 @@ fn setting_level_bumps_the_revision_so_the_stream_re_arms() {
         "reverse change must be observable"
     );
 }
+
+#[test]
+fn export_raw_ignores_level_and_reverse() {
+    // #826: the waveform editor re-installs what it exports. If the export
+    // applied mix/reverse, an edit would bake them into the audio and playback
+    // would apply them a second time.
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0], [2.0, 2.0], [4.0, 4.0]]);
+    s.tap_record(None); // freeze
+    s.set_mix(0.5);
+    s.set_reverse(true);
+
+    assert_eq!(
+        s.export_raw().expect("there is material"),
+        vec![1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
+        "the raw export is the captured material, in order, at unity"
+    );
+    assert_eq!(
+        s.export_mixdown().unwrap(),
+        vec![2.0, 2.0, 1.0, 1.0, 0.5, 0.5],
+        "the mixdown path is unchanged"
+    );
+}
+
+#[test]
+fn export_raw_sums_the_audible_layers_and_is_none_when_empty() {
+    let mut s = slot();
+    assert!(s.export_raw().is_none(), "nothing recorded yet");
+
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0], [2.0, 2.0]]);
+    s.tap_record(None);
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[0.5, 0.5], [0.25, 0.25]]);
+    s.tap_record(None);
+    s.undo();
+
+    assert_eq!(
+        s.export_raw().unwrap(),
+        vec![1.0, 1.0, 2.0, 2.0],
+        "an undone layer is not audible, so it is not exported"
+    );
+}

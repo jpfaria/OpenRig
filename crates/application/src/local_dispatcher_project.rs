@@ -211,6 +211,18 @@ impl LocalDispatcher {
             parent_dir.clone(),
         ));
 
+        // #323/#127: a recorded loop is audio — write it as a sidecar and let
+        // the chain remember the file, BEFORE the project is serialized. The
+        // GUI used to do this inline in its Save callback, so a save issued
+        // over MCP/gRPC lost every loop.
+        //
+        // #826: this runs BEFORE the rig capture, not after. What hits disk is
+        // built from the RIG, and the capture is what carries a chain's
+        // loopers into it — exporting afterwards stamped `audio_file` onto a
+        // project the serializer never reads, so the wav was written and the
+        // saved project pointed at nothing.
+        self.export_project_loops(project_path);
+
         // #555: flush any pending GUI-side rig edits back into the rig
         // before serializing. The GUI used to do this implicitly inside
         // `build_rig_for_save`; now the dispatcher owns it so every
@@ -219,12 +231,6 @@ impl LocalDispatcher {
         // case is "saved without the very latest edit", same as the
         // pre-#555 GUI behaviour on dispatch failure.
         let _ = self.dispatch(Command::Project(ProjectCommand::CaptureRigEdits));
-
-        // #323/#127: a recorded loop is audio — write it as a sidecar and let
-        // the chain remember the file, BEFORE the project is serialized. The
-        // GUI used to do this inline in its Save callback, so a save issued
-        // over MCP/gRPC lost every loop.
-        self.export_project_loops(project_path);
 
         // Build the rig that will hit disk.
         let project_snapshot = self.project.borrow().clone();

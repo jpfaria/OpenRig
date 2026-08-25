@@ -23,3 +23,35 @@ export global LooperPanel {
     // The open loop's current preset option index, so the modal marks it.
     in-out property <int> preset-picker-selected;
 }
+
+// #826 — the waveform editor's own state. Separate from `LooperPanel` because
+// the editor is its own root-level overlay: the panel may be closed while a
+// loop is being reshaped.
+export global LooperEditor {
+    in-out property <bool> open;
+    // Which loop is being edited (the chain's index in the rig, and the uid).
+    in-out property <int> chain-index;
+    in-out property <int> uid;
+    // The loop's peak envelope, 0..=1 per bar, computed in Rust.
+    in-out property <[float]> peaks;
+    // The selection, as ratios of the loop. Rust turns them into frames.
+    in-out property <float> sel-start: 0.0;
+    in-out property <float> sel-end: 1.0;
+    // The loop's length, formatted in Rust ("0:08") — the editor says how much
+    // audio it is reshaping instead of leaving the drawing to be guessed at.
+    in-out property <string> length-label;
+    // Whether the loop is sounding right now. An edit is judged by ear, so the
+    // editor runs the loop itself — and while it runs, the edits are dead (the
+    // store refuses to reshape a live take).
+    in-out property <bool> playing;
+    // Where the loop is while it plays, as a ratio of its length. Refreshed by
+    // the same poll tick that drives the panel's meters.
+    in-out property <float> playhead;
+    // What the last edit did: 0 quiet, 1 it changed nothing, 2 it was refused.
+    // A silent button is indistinguishable from a broken one, so the editor
+    // says which of the three happened.
+    in-out property <int> status-code;
+    // Whether the edit history has anything to step through.
+    in-out property <bool> can-undo;
+    in-out property <bool> can-redo;
+}

@@ -3,6 +3,7 @@
 //! could not hold (stop/clear only landed inside a running audio callback).
 
 use super::*;
+use engine::loop_edit::{LoopEditOp, SEAM_FRAMES};
 use engine::LooperState;
 
 fn cid() -> ChainId {
@@ -56,13 +57,19 @@ fn record_close_play_stop_clear_are_deterministic_without_any_runtime() {
 
     // Record: start, feed 3 stereo frames of dry audio, close.
     store.tap_record(&cid(), 1);
-    assert_eq!(store.status(&cid(), 1).unwrap().state, LooperState::Recording);
+    assert_eq!(
+        store.status(&cid(), 1).unwrap().state,
+        LooperState::Recording
+    );
     store.record_frames(&cid(), 1, &[0.2, 0.2, 0.3, 0.3, 0.4, 0.4]);
     store.tap_record(&cid(), 1); // close → Playing
     let s = store.status(&cid(), 1).unwrap();
     assert_eq!(s.state, LooperState::Playing);
     assert_eq!(s.len_frames, 3);
-    assert!(store.export(&cid(), 1).is_some(), "a closed loop exports audio");
+    assert!(
+        store.export(&cid(), 1).is_some(),
+        "a closed loop exports audio"
+    );
 
     // Stop / clear act with NO runtime — the whole point of the redesign.
     store.stop(&cid(), 1);
@@ -166,4 +173,199 @@ fn each_loop_is_isolated_and_carries_its_routing() {
     store.create(&cid(), 8);
     assert!(store.output(&cid(), 8).is_none());
     assert_eq!(store.statuses(&cid()).len(), 2);
+}
+
+/// #826 — a stopped loop of `frames` frames, ready to be edited.
+fn store_with_recorded_loop(frames: usize) -> (LooperStore, ChainId, u64) {
+    let mut store = LooperStore::default();
+    store.set_sample_rate(48_000);
+    store.create(&cid(), 1);
+    store.tap_record(&cid(), 1);
+    // A ramp, so an edit is visible sample by sample.
+    let pcm: Vec<f32> = (0..frames)
+        .flat_map(|i| {
+            let v = i as f32 / frames as f32;
+            [v, -v]
+        })
+        .collect();
+    store.record_frames(&cid(), 1, &pcm);
+    store.tap_record(&cid(), 1); // close → Playing
+    (store, cid(), 1)
+}
+
+#[test]
+fn an_edit_is_refused_while_the_loop_is_not_stopped() {
+    // #826: editing is a stopped-only operation — a live loop must never be
+    // reshaped under the player's feet, and never silently stopped either.
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.play(&chain, uid);
+
+    assert_eq!(
+        store.apply_edit(&chain, uid, LoopEditOp::Keep, 64, 448),
+        Err(LooperEditRefused::NotStopped)
+    );
+    assert_eq!(
+        store.status(&chain, uid).unwrap().len_frames,
+        512,
+        "the refused edit changed nothing"
+    );
+}
+
+#[test]
+fn a_trim_on_a_stopped_loop_installs_the_shorter_loop() {
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+
+    let new_len = store
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 64, 448)
+        .expect("a stopped loop can be trimmed");
+
+    assert_eq!(new_len, 384 - SEAM_FRAMES);
+    assert_eq!(store.status(&chain, uid).unwrap().len_frames, new_len);
+    assert_eq!(
+        store.export_raw(&chain, uid).unwrap().len() / 2,
+        new_len,
+        "the installed buffer is the edited one"
+    );
+}
+
+#[test]
+fn undo_restores_the_pre_edit_audio_sample_for_sample() {
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+    let before = store.export_raw(&chain, uid).unwrap();
+
+    store
+        .apply_edit(&chain, uid, LoopEditOp::Cut, 100, 200)
+        .unwrap();
+    assert_ne!(store.export_raw(&chain, uid).unwrap(), before);
+
+    assert!(store.undo_edit(&chain, uid));
+    assert_eq!(store.export_raw(&chain, uid).unwrap(), before);
+
+    assert!(store.redo_edit(&chain, uid), "redo puts the edit back");
+    assert_ne!(store.export_raw(&chain, uid).unwrap(), before);
+}
+
+#[test]
+fn undo_on_an_untouched_loop_does_nothing() {
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+    assert!(!store.undo_edit(&chain, uid));
+    assert!(!store.redo_edit(&chain, uid));
+    assert_eq!(store.edit_history_depth(&chain, uid), (0, 0));
+}
+
+#[test]
+fn the_history_is_capped_and_drops_the_oldest() {
+    let (mut store, chain, uid) = store_with_recorded_loop(8192);
+    store.stop(&chain, uid);
+    for _ in 0..LOOPER_EDIT_HISTORY_MAX + 3 {
+        store
+            .apply_edit(&chain, uid, LoopEditOp::Cut, 100, 200)
+            .unwrap();
+    }
+    assert_eq!(
+        store.edit_history_depth(&chain, uid).0,
+        LOOPER_EDIT_HISTORY_MAX
+    );
+}
+
+#[test]
+fn clearing_the_loop_clears_the_edit_history() {
+    // The old buffers belong to audio that no longer exists; undoing into them
+    // would resurrect a take the player replaced.
+    let (mut store, chain, uid) = store_with_recorded_loop(512);
+    store.stop(&chain, uid);
+    store
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 64, 448)
+        .unwrap();
+    assert_eq!(store.edit_history_depth(&chain, uid).0, 1);
+
+    store.clear(&chain, uid);
+    assert_eq!(store.edit_history_depth(&chain, uid), (0, 0));
+}
+
+#[test]
+fn fitting_a_stopped_loop_through_the_store_shortens_it() {
+    // The user pressed FIT and nothing happened. The intended behaviour: a
+    // stopped take with silence at both ends comes back shorter, through the
+    // very path the command takes — store, not just the pure transform.
+    let mut store = LooperStore::default();
+    store.set_sample_rate(48_000);
+    store.create(&cid(), 1);
+    store.tap_record(&cid(), 1);
+    // 4000 frames: silence, then music from 800 to 3000, then silence.
+    let mut pcm = vec![0.0f32; 4000 * 2];
+    for f in 800..3000 {
+        pcm[f * 2] = 0.5;
+        pcm[f * 2 + 1] = -0.5;
+    }
+    store.record_frames(&cid(), 1, &pcm);
+    store.tap_record(&cid(), 1); // close
+    store.stop(&cid(), 1);
+    let before = store.status(&cid(), 1).unwrap().len_frames;
+
+    let fitted = store
+        .apply_edit(&cid(), 1, LoopEditOp::Fit, 0, 0)
+        .expect("a stopped take with silence at both ends can be fitted");
+
+    assert!(
+        fitted < before,
+        "FIT must shorten the take ({before} → {fitted})"
+    );
+    assert_eq!(store.status(&cid(), 1).unwrap().len_frames, fitted);
+}
+
+#[test]
+fn what_the_project_save_exports_is_the_EDITED_loop() {
+    // The user edited a loop and it came back unedited. The save path reads
+    // `export` (the mixdown), NOT `export_raw` — if an edit only reached the
+    // raw side, the wav on disk would still be the take before the edit.
+    let (mut store, chain, uid) = store_with_recorded_loop(4096);
+    store.stop(&chain, uid);
+    let before = store.export(&chain, uid).expect("there is material").len() / 2;
+
+    let fitted = store
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 512, 3584)
+        .expect("a stopped loop can be trimmed");
+
+    let exported = store.export(&chain, uid).expect("still material").len() / 2;
+    assert_eq!(
+        exported, fitted,
+        "the save path must export the edited loop ({before} → {exported})"
+    );
+}
+
+#[test]
+fn an_edited_loop_survives_a_save_and_reopen() {
+    // The user's report: edit a loop, reopen the app, the looper is EMPTY.
+    // The round trip the project takes: export what the save writes, then load
+    // it into a fresh store the way project-open does. It must come back with
+    // the edited audio — never empty.
+    let (mut store, chain, uid) = store_with_recorded_loop(4096);
+    store.stop(&chain, uid);
+    store
+        .apply_edit(&chain, uid, LoopEditOp::Keep, 512, 3584)
+        .expect("a stopped loop can be trimmed");
+    let saved = store.export(&chain, uid).expect("the save writes this");
+
+    // Reopen: a fresh store, the slot claimed, the wav loaded back.
+    let mut reopened = LooperStore::default();
+    reopened.set_sample_rate(48_000);
+    reopened.create(&chain, uid);
+    reopened.load(&chain, uid, &saved);
+
+    let status = reopened.status(&chain, uid).expect("the slot exists");
+    assert_ne!(
+        status.state,
+        LooperState::Empty,
+        "the reopened looper must hold the edited take, not nothing"
+    );
+    assert_eq!(status.len_frames, saved.len() / 2);
+    assert_eq!(
+        reopened.export(&chain, uid).map(|p| p.len()),
+        Some(saved.len()),
+        "what comes back is what was written"
+    );
 }

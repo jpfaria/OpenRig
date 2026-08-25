@@ -58,6 +58,7 @@ mod local_dispatcher_subsystems;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
 pub mod looper_audio;
+pub mod looper_edit;
 /// #127: the metronome's control-plane state — settings, chosen output and
 /// tap history — owned by the dispatcher so every transport shares one truth.
 pub mod metronome_state;

@@ -18,10 +18,12 @@ use application::live_source::{
     AudioHealthReading, BlockErrorReading, ChainMeterReading, ChainRuntimeReading, LiveSource,
     MetronomeReading,
 };
+use application::looper_edit::LoopEditReading;
 use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
 use domain::ids::{BlockId, ChainId};
 use domain::io_binding::IoBinding;
+use engine::loop_edit;
 use engine::LooperStatus;
 use infra_cpal::ProjectRuntimeController;
 use project::project::Project;
@@ -213,6 +215,30 @@ impl LiveSource for LooperLiveSource {
             controller.chain_looper_statuses(chain),
             controller.sample_rate(),
         )))
+    }
+
+    /// #826: the loop's envelope for the waveform editor. The peaks are
+    /// reduced HERE, on the side that owns the samples — the buffer itself
+    /// never crosses the seam (the module's PCM rule).
+    fn chain_loop_edit(
+        &self,
+        chain: &ChainId,
+        looper: u64,
+        buckets: usize,
+    ) -> Option<LoopEditReading> {
+        let borrow = self.runtime.borrow();
+        let controller = borrow.as_ref()?;
+        let pcm = controller.export_chain_looper_raw(chain, looper)?;
+        let (can_undo, can_redo) = controller.looper_edit_history_depth(chain, looper);
+        let len_frames = pcm.len() / 2;
+        Some(LoopEditReading {
+            peaks: loop_edit::peaks(&pcm, buckets),
+            len_frames,
+            length_label: crate::looper_view::clock_label(len_frames, controller.sample_rate()),
+            playing: controller.looper_is_playing(chain, looper),
+            can_undo: can_undo > 0,
+            can_redo: can_redo > 0,
+        })
     }
 }
 

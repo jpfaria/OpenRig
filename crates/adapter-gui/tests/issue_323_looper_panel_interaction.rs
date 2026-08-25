@@ -53,6 +53,7 @@ fn item(uid: i32, state_code: i32) -> LooperItem {
         can_undo: true,
         can_redo: true,
         can_record: true,
+        can_edit: false,
         input_index: 0,
         output_index: 0,
         preset_index: 0,
@@ -118,13 +119,7 @@ fn every_transport_button_fires_for_its_row() {
 
     assert_eq!(
         *fired.borrow(),
-        vec![
-            "record:7",
-            "play-stop:7",
-            "clear:7",
-            "drawer:7",
-            "remove:7",
-        ]
+        vec!["record:7", "play-stop:7", "clear:7", "drawer:7", "remove:7",]
     );
 }
 

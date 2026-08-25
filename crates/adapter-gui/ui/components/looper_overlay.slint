@@ -35,6 +35,8 @@ export component LooperOverlay inherits Rectangle {
     // #323 phase 2: (chain-index, uid, option-index) — the picked preset. Index
     // 0 means "follow the chain" (clear the link).
     callback preset-picked(int, int, int);
+    // #826: (chain-index, uid) — open the waveform editor for this loop.
+    callback edit(int, int);
 
     x: 0; y: 0;
     visible: LooperPanel.open;
@@ -64,6 +66,7 @@ export component LooperOverlay inherits Rectangle {
         reverse-toggled(uid, v) => { root.reverse-toggled(LooperPanel.chain-index, uid, v); }
         input-picked(uid, v) => { root.input-picked(LooperPanel.chain-index, uid, v); }
         output-picked(uid, v) => { root.output-picked(LooperPanel.chain-index, uid, v); }
+        edit(uid) => { root.edit(LooperPanel.chain-index, uid); }
         preset-open(uid, sel) => {
             LooperPanel.preset-picker-uid = uid;
             LooperPanel.preset-picker-selected = sel;

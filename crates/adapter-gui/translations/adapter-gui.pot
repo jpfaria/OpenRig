@@ -88,14 +88,6 @@ msgstr ""
 msgid "Volume"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/channel_picker.slint:125
-msgid "label-channels-selected"
-msgstr ""
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:159
-msgid "label-channels-total"
-msgstr ""
-
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:72
 msgid "placeholder-search-models"
 msgstr ""
@@ -151,100 +143,152 @@ msgstr ""
 msgid "accessible-language-selector"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_overlay.slint:101
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:92
+msgid "looper-editor-title"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:122
+msgid "looper-editor-fit"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:131
+msgid "looper-editor-trim"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:140
+msgid "looper-editor-crop"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:149
+msgid "looper-editor-cut"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:161
+msgid "looper-editor-stop"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:162
+msgid "looper-editor-play"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:171
+msgid "looper-editor-undo"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:177
+msgid "looper-editor-redo"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:183
+msgid "looper-editor-close"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:192
+msgid "looper-editor-no-change"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_editor_overlay.slint:193
+msgid "looper-editor-refused"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/looper_overlay.slint:104
 msgid "looper-preset-picker-title"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_overlay.slint:128
+#: crates/adapter-gui/ui/components/looper_overlay.slint:131
 msgid "looper-preset-follow"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_panel.slint:70
+#: crates/adapter-gui/ui/components/looper_panel.slint:72
 msgid "looper-panel-title"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_panel.slint:102
+#: crates/adapter-gui/ui/components/looper_panel.slint:104
 msgid "looper-add"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_panel.slint:128
+#: crates/adapter-gui/ui/components/looper_panel.slint:130
 msgid "looper-empty-title"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_panel.slint:136
+#: crates/adapter-gui/ui/components/looper_panel.slint:138
 msgid "looper-empty-hint"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:62
+#: crates/adapter-gui/ui/components/looper_row.slint:64
 msgid "looper-record"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:77
+#: crates/adapter-gui/ui/components/looper_row.slint:79
 msgid "looper-stop"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:77
+#: crates/adapter-gui/ui/components/looper_row.slint:79
 msgid "looper-play"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:89
+#: crates/adapter-gui/ui/components/looper_row.slint:91
 msgid "looper-clear"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/looper_row.slint:102
+msgid "looper-edit"
+msgstr ""
+
 #. Slint catalog — the Rust side ships a code, not a sentence.
-#: crates/adapter-gui/ui/components/looper_row.slint:120
+#: crates/adapter-gui/ui/components/looper_row.slint:133
 msgid "looper-state-recording"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:121
+#: crates/adapter-gui/ui/components/looper_row.slint:134
 msgid "looper-state-playing"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:122
+#: crates/adapter-gui/ui/components/looper_row.slint:135
 msgid "looper-state-overdubbing"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:123
+#: crates/adapter-gui/ui/components/looper_row.slint:136
 msgid "looper-state-stopped"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:124
+#: crates/adapter-gui/ui/components/looper_row.slint:137
 msgid "looper-state-empty"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:165
+#: crates/adapter-gui/ui/components/looper_row.slint:178
 msgid "looper-parameters"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:174
+#: crates/adapter-gui/ui/components/looper_row.slint:187
 msgid "looper-remove"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:193
+#: crates/adapter-gui/ui/components/looper_row.slint:206
 msgid "looper-input"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:200
+#: crates/adapter-gui/ui/components/looper_row.slint:213
 msgid "looper-output"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:216
+#: crates/adapter-gui/ui/components/looper_row.slint:229
 msgid "looper-preset"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:272
+#: crates/adapter-gui/ui/components/looper_row.slint:285
 msgid "looper-level"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:278
+#: crates/adapter-gui/ui/components/looper_row.slint:291
 msgid "looper-decay"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:288
+#: crates/adapter-gui/ui/components/looper_row.slint:301
 msgid "looper-speed"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/looper_row.slint:302
+#: crates/adapter-gui/ui/components/looper_row.slint:315
 msgid "looper-reverse"
 msgstr ""
 
@@ -336,6 +380,18 @@ msgstr ""
 msgid "tone-doctor-apply"
 msgstr ""
 
+#: crates/adapter-gui/ui/components/waveform_view.slint:25
+msgid "looper-editor-waveform"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/waveform_view.slint:70
+msgid "looper-editor-selection-start"
+msgstr ""
+
+#: crates/adapter-gui/ui/components/waveform_view.slint:93
+msgid "looper-editor-selection-end"
+msgstr ""
+
 #: crates/adapter-gui/ui/pages/block_editor_panel.slint:121
 msgid "tooltip-delete"
 msgstr ""
@@ -404,31 +460,35 @@ msgstr ""
 msgid "btn-save-chain"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:51
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:65
+msgid "✓"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:99
 msgid "title-section-configure-insert"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:66
-msgid "action-toggle-block-enabled"
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:214
+msgid "label-send"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:87
-msgid "action-delete-block"
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:225
+msgid "label-device"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:110
-msgid "label-io-binding"
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:247
+msgid "label-mode"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
-msgid "msg-insert-loop-uses-binding"
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:299
+msgid "label-channels"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
-msgid "msg-pick-io-binding"
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:344
+msgid "label-return"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:147
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:476
 msgid "btn-ok"
 msgstr ""
 
@@ -438,6 +498,18 @@ msgstr ""
 
 #: crates/adapter-gui/ui/pages/chain_port_editor.slint:40
 msgid "title-section-configure-output"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:55
+msgid "action-toggle-block-enabled"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:76
+msgid "action-delete-block"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_port_editor.slint:96
+msgid "label-io-binding"
 msgstr ""
 
 #: crates/adapter-gui/ui/pages/chain_port_editor.slint:109
@@ -672,53 +744,49 @@ msgstr ""
 msgid "label-channels-prefix"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:229
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:242
 msgid "help-io-bindings"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:233
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
 msgid "btn-new-binding"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:246
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:259
 msgid "empty-no-bindings"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:247
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:260
 msgid "empty-no-bindings-hint"
 msgstr ""
 
 #. ── Entradas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:345
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:358
 msgid "label-group-inputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:346
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
 msgid "empty-no-input-endpoints"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:359
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:372
 msgid "btn-add-input"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:366
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:379
 msgid "placeholder-pick-device"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:374
-msgid "hint-channels-pick-device"
-msgstr ""
-
 #. ── Saídas ──
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:399
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:411
 msgid "label-group-outputs"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:400
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:412
 msgid "empty-no-output-endpoints"
 msgstr ""
 
-#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:413
+#: crates/adapter-gui/ui/pages/settings/section_io_bindings.slint:425
 msgid "btn-add-output"
 msgstr ""
 
@@ -870,7 +938,7 @@ msgstr ""
 msgid "title-window-block-editor"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_block.slint:211
+#: crates/adapter-gui/ui/secondary_windows_block.slint:239
 msgid "title-window-chain-view"
 msgstr ""
 
@@ -882,14 +950,31 @@ msgstr ""
 msgid "title-window-chain-editor"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:215
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:226
 msgid "title-window-chain-insert"
 msgstr ""
 
-#: crates/adapter-gui/ui/secondary_windows_chain.slint:261
+#: crates/adapter-gui/ui/secondary_windows_chain.slint:285
 msgid "title-window-chain-port"
 msgstr ""
 
 #: crates/adapter-gui/ui/touch_main.slint:631
 msgid "⌨"
+msgstr ""
+
+msgid "label-channels-selected"
+msgstr ""
+
+msgid "hint-channels-pick-device"
+msgstr ""
+
+msgid "label-channels-total"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:123
+msgid "msg-insert-loop-uses-binding"
+msgstr ""
+
+#: crates/adapter-gui/ui/pages/chain_insert_editor.slint:131
+msgid "msg-pick-io-binding"
 msgstr ""

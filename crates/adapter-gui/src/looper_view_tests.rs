@@ -194,3 +194,38 @@ fn a_chain_is_active_while_any_looper_records_or_plays() {
         "a stopped looper is not making sound"
     );
 }
+
+#[test]
+fn can_edit_only_on_a_stopped_loop_that_holds_material() {
+    // #826: the editor's button must be dead while recording or playing, and
+    // on an empty loop — the store refuses those, so an enabled button would
+    // be a lie.
+    let chain = chain_with(vec![LooperConfig::new(1)]);
+    let rows = |state, len| {
+        looper_items(
+            &chain,
+            &[status(1, state, 0, len, 0)],
+            48_000,
+            &[],
+            true,
+            &[],
+        )
+    };
+
+    assert!(
+        rows(LooperState::Stopped, 48_000)[0].can_edit,
+        "a stopped loop with material is editable"
+    );
+    assert!(
+        !rows(LooperState::Playing, 48_000)[0].can_edit,
+        "a playing loop must not be reshaped under the player's feet"
+    );
+    assert!(
+        !rows(LooperState::Recording, 12_000)[0].can_edit,
+        "a take still being recorded is not editable"
+    );
+    assert!(
+        !rows(LooperState::Empty, 0)[0].can_edit,
+        "there is nothing to edit yet"
+    );
+}

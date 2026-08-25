@@ -52,6 +52,10 @@ fn no_linked_preset_plays_through_the_chains_own_blocks() {
     let c = chain();
     let unchanged = looper_playback_chain(&c, None);
     let ids: Vec<_> = unchanged.blocks.iter().map(|b| b.id.0.clone()).collect();
-    assert_eq!(ids, vec!["live-amp"], "no link ⇒ the chain's current preset");
+    assert_eq!(
+        ids,
+        vec!["live-amp"],
+        "no link ⇒ the chain's current preset"
+    );
     assert_eq!(unchanged.id, c.id);
 }

@@ -1,0 +1,51 @@
+// #826 TEST-ONLY harness: hosts the waveform editor in a real Window so the
+// headless render and the interaction test (i-slint-backend-testing) can see
+// and actuate it. Imported by app-window.slint purely so slint-build emits the
+// Rust type; never shown in the running app.
+
+import { LooperEditorOverlay, LoopEditKind } from "looper_editor_overlay.slint";
+import { LooperEditor } from "looper_panel_globals.slint";
+
+export component LooperEditorHarness inherits Window {
+    width: 820px;
+    height: 420px;
+    background: #0a0d12;
+
+    // A synthetic envelope, so a headless render shows a real waveform without
+    // any Rust behind it. The app fills this from `engine::loop_edit::peaks`.
+    in property <[float]> peaks: [
+        0.12, 0.31, 0.55, 0.78, 0.92, 0.71, 0.44, 0.28, 0.19, 0.35,
+        0.62, 0.85, 0.97, 0.80, 0.58, 0.33, 0.21, 0.14, 0.26, 0.48,
+        0.69, 0.88, 0.74, 0.51, 0.37, 0.22, 0.16, 0.29, 0.46, 0.64,
+        0.81, 0.95, 0.77, 0.53, 0.34, 0.20, 0.13, 0.24, 0.42, 0.61,
+    ];
+    callback apply(int, int, LoopEditKind, float, float);
+    callback play-stop(int, int);
+    callback undo(int, int);
+    callback redo(int, int);
+
+    // The harness seeds the global the real app fills in from Rust.
+    init => {
+        LooperEditor.open = true;
+        LooperEditor.chain-index = 0;
+        LooperEditor.uid = 1;
+        LooperEditor.peaks = root.peaks;
+        LooperEditor.sel-start = 0.15;
+        LooperEditor.sel-end = 0.8;
+        LooperEditor.length-label = "0:08";
+        // NOT playing: the editor's default state is a stopped loop, which is
+        // the only state its edits are offered in. A test that wants the
+        // playing case sets it itself.
+        LooperEditor.playhead = 0.42;
+        LooperEditor.can-undo = true;
+    }
+
+    LooperEditorOverlay {
+        width: root.width;
+        height: root.height;
+        apply(chain, uid, kind, from, to) => { root.apply(chain, uid, kind, from, to); }
+        play-stop(chain, uid) => { root.play-stop(chain, uid); }
+        undo(chain, uid) => { root.undo(chain, uid); }
+        redo(chain, uid) => { root.redo(chain, uid); }
+    }
+}
