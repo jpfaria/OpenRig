@@ -1,3 +1,4 @@
+//! Responsibility: records a loop then plays it back.
 //! Issue #323 — the per-chain looper core (Boss RC-style, multi-layer).
 //!
 //! One [`LooperSlot`] is one looper: a stack of interleaved-stereo layers, a

@@ -1,3 +1,4 @@
+//! Responsibility: exposes what a built runtime graph knows.
 //! `RuntimeGraph` methods (issue #792 split from `runtime_graph.rs`).
 //!
 //! The container's add / swap / remove operations. `upsert_chain` takes the

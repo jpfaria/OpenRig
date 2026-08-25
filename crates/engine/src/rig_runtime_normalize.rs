@@ -1,3 +1,4 @@
+//! Responsibility: decides which I O blocks survive when a rig is projected.
 //! Which I/O blocks survive when a rig is projected into chains (#716 + #85).
 //!
 //! Split out of `rig_runtime.rs` (file cap). Two callers share this rule: the

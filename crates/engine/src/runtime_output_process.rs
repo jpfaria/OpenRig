@@ -1,3 +1,4 @@
+//! Responsibility: fills one physical output device callback.
 //! Output-side audio callback: what one physical output device is handed on
 //! every callback (issue #127 split from `runtime.rs`, which keeps the input
 //! side).

@@ -1,3 +1,4 @@
+//! Responsibility: measures how long a chain takes to process.
 //! Latency probe — measures chain DSP time on a temporary, isolated
 //! runtime instance.
 //!

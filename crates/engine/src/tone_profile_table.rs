@@ -1,3 +1,4 @@
+//! Responsibility: reads the genre-calibrated limits the tone doctor judges against.
 //! Runtime access to the genre-calibrated Tone Doctor limits (#809, Piece 2).
 //!
 //! The offline calibrator writes `assets/tone-profiles/profiles.yaml`; that file

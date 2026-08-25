@@ -1,3 +1,4 @@
+//! Responsibility: writes the processed frames out to the stream.
 //! Audio thread output I/O — writing the per-stream `AudioFrame` into
 //! the interleaved `f32` buffer the audio backend hands us.
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: processes one audio callback worth of samples.
 //! Audio thread DSP + per-callback utilities.
 //!
 //! Hot-path math + setup that runs every audio callback. Lifted out of

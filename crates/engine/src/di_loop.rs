@@ -1,3 +1,4 @@
+//! Responsibility: plays a chain a DI loop instead of its live input.
 //! Ephemeral per-chain virtual DI loop source (issue #614).
 //!
 //! An immutable, preallocated, read-only buffer of mono-or-stereo frames at

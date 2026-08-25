@@ -1,3 +1,4 @@
+//! Responsibility: resolves which output a chain's DI loop goes to.
 //! #771: resolve a chain's persisted DI output choice (`Chain.di_output`,
 //! a `DiOutputRef { binding_id, endpoint }`) to the FLAT index of that output
 //! among the chain's resolved outputs — the same deterministic order

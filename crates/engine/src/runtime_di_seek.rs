@@ -1,3 +1,4 @@
+//! Responsibility: seeks the DI loop of an isolated runtime.
 //! #785 — seeking the DI loop of an isolated DI runtime.
 //!
 //! A gapless DI re-arm builds a NEW routed runtime while the current render

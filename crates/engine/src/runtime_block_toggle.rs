@@ -1,3 +1,4 @@
+//! Responsibility: flips a block's enabled flag without rebuilding the chain.
 //! Issue #522: fast path for toggling a block's `enabled` flag without
 //! rebuilding the chain runtime.
 //!

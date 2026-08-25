@@ -1,3 +1,4 @@
+//! Responsibility: accounts for the load one chain puts on the audio thread.
 //! Issue #670 — audio-thread load / xrun accounting for one
 //! [`ChainRuntimeState`].
 //!

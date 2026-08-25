@@ -1,3 +1,4 @@
+//! Responsibility: rebuilds a chain runtime in place.
 //! In-place (lock-free) chain-runtime rebuild (issue #792 split from
 //! `runtime_graph.rs`).
 //!

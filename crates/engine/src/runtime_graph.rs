@@ -1,3 +1,4 @@
+//! Responsibility: constructs the audio runtime graph.
 //! Audio runtime graph construction (slice 3 of Phase 2 issue #194).
 //!
 //! Setup-time only — every function in this module runs when a chain is

@@ -1,3 +1,4 @@
+//! Responsibility: registers every native block model at boot.
 //! Boot-time hook that registers every `block-*` crate's native models
 //! into the unified [`plugin_loader`] registry.
 //!

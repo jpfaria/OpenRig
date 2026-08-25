@@ -1,3 +1,4 @@
+//! Responsibility: taps the samples arriving on one input channel.
 //! Lock-free per-channel sample taps on chain inputs.
 //!
 //! Top-level OpenRig features (Tuner window, Spectrum window) need read-only

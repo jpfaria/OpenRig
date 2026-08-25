@@ -1,3 +1,4 @@
+//! Responsibility: processes one segment of a chain.
 //! Per-segment audio processing (issue #792 split from `runtime.rs`).
 //!
 //! Audio-thread hot path. Called from `process_input_f32` once per segment

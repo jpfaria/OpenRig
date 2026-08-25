@@ -1,3 +1,4 @@
+//! Responsibility: resolves which endpoints a chain actually uses.
 //! Effective endpoint resolution for a chain.
 //!
 //! Model A (#716): a chain no longer embeds device endpoints. The device /

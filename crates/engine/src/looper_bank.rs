@@ -1,3 +1,4 @@
+//! Responsibility: holds every looper attached to one chain.
 //! Issue #323 — the per-chain looper bank: the audio-thread slots plus the
 //! lock-free channel the control thread uses to drive them.
 //!

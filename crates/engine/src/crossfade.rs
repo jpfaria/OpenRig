@@ -1,3 +1,4 @@
+//! Responsibility: defines the curve a seam crossfades with.
 //! The seam crossfade curve, defined once (#614's shape, shared since #826).
 //!
 //! Equal-GAIN, not equal-power: the two weights sum to 1, so an overlap-add

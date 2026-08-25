@@ -1,3 +1,4 @@
+//! Responsibility: computes the correction the tone doctor should apply.
 //! Measured (closed-loop) correction for the Tone Doctor (#791).
 //!
 //! The static `tone_doctor_suggestion::suggest` guesses a knob + a fixed 25 %

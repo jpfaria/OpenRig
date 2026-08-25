@@ -1,3 +1,4 @@
+//! Responsibility: cuts a chain into segments at its insert points.
 //! Chain segmentation at Insert block boundaries.
 //!
 //! Lifted out of `runtime_graph.rs` (slice 7 of the Phase 2 split) so the

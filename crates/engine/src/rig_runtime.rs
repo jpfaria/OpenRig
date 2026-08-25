@@ -1,3 +1,4 @@
+//! Responsibility: turns a rig into the chains the engine runs.
 //! `RigProject` → engine bridge (#451).
 //!
 //! The engine only understands the legacy [`Chain`]. Rather than teach the

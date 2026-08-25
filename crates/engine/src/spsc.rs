@@ -1,3 +1,4 @@
+//! Responsibility: passes samples between two threads without locking.
 //! Single-producer / single-consumer lock-free ring buffer for audio frames.
 //!
 //! Used by the elastic buffer between the input DSP thread (producer) and the

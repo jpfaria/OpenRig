@@ -1,3 +1,4 @@
+//! Responsibility: primes the output cushion before audio starts flowing.
 //! Issue #592 — output elastic-buffer cushion for convolution (IR) chains.
 //!
 //! An IR cab runs a full FFT inline once per `ir::PARTITION_SIZE` samples,
