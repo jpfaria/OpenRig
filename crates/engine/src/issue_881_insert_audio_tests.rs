@@ -263,3 +263,42 @@ fn a_block_before_the_insert_shapes_the_send() {
          volume 10 gave {quiet}, volume 100 gave {loud}"
     );
 }
+
+/// #881 — "sometimes the pedal changes the tone, sometimes it doesn't". A block
+/// built while DISABLED has no processor, only a `Bypass` node: the #522
+/// in-place toggle cannot bring it back, so the engine must DECLINE (the caller
+/// then rebuilds). Silently accepting it is what leaves a pedal that lights up
+/// on screen and does nothing to the sound — and with an insert the block may
+/// sit in either segment, so the decision must see every pipeline.
+#[test]
+fn enabling_a_block_built_disabled_is_declined_in_both_segments() {
+    use domain::ids::BlockId;
+
+    for (pos, name) in [(1usize, "before the insert"), (3usize, "after the insert")] {
+        let mut chain = insert_chain();
+        chain.blocks[pos].enabled = false;
+        let block_id = chain.blocks[pos].id.clone();
+
+        let runtime = build_chain_runtime_state(
+            &chain,
+            48_000.0,
+            &[DEFAULT_ELASTIC_TARGET],
+            &insert_registry(),
+        )
+        .expect("runtime builds");
+
+        let declined =
+            crate::runtime::set_block_enabled(&runtime, &BlockId(block_id.0.clone()), true);
+
+        assert!(
+            declined.is_err(),
+            "a block built disabled {name} has no live processor — enabling it \
+             must be declined so the caller rebuilds, got {declined:?}"
+        );
+        // Disabling never needs a processor: it always takes the fast path.
+        assert!(
+            crate::runtime::set_block_enabled(&runtime, &BlockId(block_id.0), false).is_ok(),
+            "disabling {name} must always be accepted"
+        );
+    }
+}
