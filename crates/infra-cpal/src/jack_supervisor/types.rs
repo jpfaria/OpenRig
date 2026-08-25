@@ -1,3 +1,4 @@
+//! Responsibility: describes the data the JACK supervisor keeps.
 //! Core data types for the JACK supervisor: server identity, desired config,
 //! observed metadata, server state machine, restart causes, health codes and
 //! the observable event stream.

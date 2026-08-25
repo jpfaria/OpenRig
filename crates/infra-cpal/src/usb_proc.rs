@@ -1,3 +1,4 @@
+//! Responsibility: detects the USB audio cards Linux reports.
 //! USB audio card detection on Linux+JACK via /proc/asound.
 //!
 //! On Linux+JACK, OpenRig never opens an ALSA PCM directly — every channel

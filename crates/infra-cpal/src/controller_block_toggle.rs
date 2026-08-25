@@ -1,3 +1,4 @@
+//! Responsibility: toggles a block without rebuilding the chain.
 //! Issue #522: per-block AND per-chain enable/disable fast paths on the
 //! controller.
 //!

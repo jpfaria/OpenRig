@@ -1,3 +1,4 @@
+//! Responsibility: schedules the cold activation of a chain.
 //! Cold-activation scheduling (issue #672), split out of `controller.rs` to keep
 //! it under the line cap — a cohesive unit like `controller_offthread_live_rebuild`
 //! and `controller_block_toggle`.

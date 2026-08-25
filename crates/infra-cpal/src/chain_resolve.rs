@@ -1,3 +1,4 @@
+//! Responsibility: translates a chain into the audio configuration that runs it.
 //! Translate a `project::Chain` + `DeviceSettings` into a fully-resolved
 //! audio config (`ResolvedChainAudioConfig`).
 //!

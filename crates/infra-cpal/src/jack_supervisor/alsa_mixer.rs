@@ -1,3 +1,4 @@
+//! Responsibility: initialises the ALSA playback mixer.
 //! ALSA playback-mixer initialization (Linux).
 //!
 //! Without PipeWire/PulseAudio nothing sets a USB interface's ALSA

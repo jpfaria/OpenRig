@@ -1,3 +1,4 @@
+//! Responsibility: detects when a chain needs re-binding.
 //! Issue #743 — cheap re-bind detection for the chain toggle path.
 
 use domain::ids::DeviceId;

@@ -1,3 +1,4 @@
+//! Responsibility: sizes the elastic cushion of one output.
 //! Per-output elastic-buffer target sizing for a chain.
 //!
 //! The engine's elastic buffer absorbs jitter between the input callback

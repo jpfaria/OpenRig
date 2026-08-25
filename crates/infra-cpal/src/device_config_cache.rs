@@ -1,3 +1,4 @@
+//! Responsibility: caches the config query one device answers.
 //! Issue #762 — cache the per-device CoreAudio config queries.
 //!
 //! `supported_input_configs()` / `default_input_config()` (and the output

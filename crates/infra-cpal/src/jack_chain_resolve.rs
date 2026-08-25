@@ -1,3 +1,4 @@
+//! Responsibility: translates a chain into the JACK configuration that runs it.
 //! Linux+JACK counterpart to `chain_resolve.rs`: build a synthetic
 //! `ResolvedChainAudioConfig` from libjack's metadata for a chain.
 //!

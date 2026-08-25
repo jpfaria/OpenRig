@@ -1,3 +1,4 @@
+//! Responsibility: routes the JACK supervisor surface.
 //! `jack_supervisor` — single owner of every `jackd` process openrig
 //! launches on Linux. Replaces the previous set of free functions
 //! (`launch_jackd`, `ensure_jack_running`, `stop_jackd_for`, `jack_meta_for`)

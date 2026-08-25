@@ -1,3 +1,4 @@
+//! Responsibility: plays the rendered DI clocked by the output callback.
 //! #771: RT-safe, output-clocked playback of the DI worker's stream.
 //!
 //! One [`DiPlaybackCell`] exists per chain output stream. Arming parks a

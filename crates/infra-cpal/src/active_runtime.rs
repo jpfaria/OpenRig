@@ -1,3 +1,4 @@
+//! Responsibility: bundles the cpal streams one chain is running on.
 //! `ActiveChainRuntime` — the per-chain bundle of cpal `Stream`s plus, on
 //! Linux+JACK, the live JACK `AsyncClient` and DSP worker thread handle.
 //!

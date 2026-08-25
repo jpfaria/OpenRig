@@ -1,3 +1,4 @@
+//! Responsibility: runs the metronome's own output stream.
 //! Issue #14 — the metronome's OWN cpal output stream.
 //!
 //! The metronome never joins a chain, a segment or another stream's callback:

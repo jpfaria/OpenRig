@@ -1,3 +1,4 @@
+//! Responsibility: picks the stream configuration a device is opened with.
 //! Helpers for picking the cpal `StreamConfig` and reading values out of
 //! `ResolvedInputDevice` / `ResolvedOutputDevice`.
 //!

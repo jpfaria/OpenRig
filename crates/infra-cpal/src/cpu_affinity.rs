@@ -1,3 +1,4 @@
+//! Responsibility: pins a realtime thread to its CPU on Linux.
 //! Linux CPU pinning helpers for the JACK RT callback and the DSP worker
 //! threads.
 //!

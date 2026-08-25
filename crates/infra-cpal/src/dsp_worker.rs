@@ -1,3 +1,4 @@
+//! Responsibility: runs one input chain DSP off the audio callback.
 //! Issue #670 — per-input DSP worker: move the chain DSP OFF the CoreAudio
 //! I/O thread.
 //!

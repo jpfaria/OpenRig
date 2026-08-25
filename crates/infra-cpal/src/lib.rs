@@ -1,3 +1,4 @@
+//! Responsibility: routes the cpal backend crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -85,17 +86,19 @@ mod controller_rebuild_queue;
 mod controller_sync;
 mod controller_taps;
 mod controller_upsert;
+mod device_cache;
 mod device_enum;
 mod di_playback;
 mod di_stream;
 mod di_stream_worker;
 pub mod looper_store;
-#[cfg(all(target_os = "linux", feature = "jack"))]
-pub use device_enum::jack_is_running;
-pub use device_enum::{
-    has_new_devices, invalidate_device_cache, list_devices, list_input_device_descriptors,
+pub use device_cache::{
+    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
     list_output_device_descriptors,
 };
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub use device_enum::jack_is_running;
+pub use device_enum::list_devices;
 
 mod device_settings;
 pub use device_settings::apply_device_settings;

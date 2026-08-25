@@ -1,3 +1,4 @@
+//! Responsibility: describes a resolved device with its stream signature.
 //! Resolved-device + stream-signature value types.
 //!
 //! These types are the wire between "what the YAML asks for" and "what the

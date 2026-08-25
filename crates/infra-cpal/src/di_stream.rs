@@ -1,3 +1,4 @@
+//! Responsibility: runs an armed DI loop on its own isolated stream.
 //! Issue #771 — an armed DI loop plays on its own isolated, STREAMED
 //! runtime, output-clocked via ring backpressure, never injected into the
 //! guitar's runtime.

@@ -1,3 +1,4 @@
+//! Responsibility: renders the DI loop on its own thread.
 //! The `di-stream` render thread (#771) and its gapless hand-off (#785).
 //!
 //! One worker renders one armed DI: it builds the routed isolated runtime, then

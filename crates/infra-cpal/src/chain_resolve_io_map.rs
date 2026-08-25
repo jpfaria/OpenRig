@@ -1,3 +1,4 @@
+//! Responsibility: maps each of a chain's inputs onto the outputs it feeds.
 //! #85 / #716 — which output devices each of a chain's input streams feeds.
 //!
 //! Split out of `chain_resolve.rs` (line cap). The rule it encodes is the

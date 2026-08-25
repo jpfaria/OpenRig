@@ -1,3 +1,4 @@
+//! Responsibility: assembles the live JACK client of a chain.
 //! `build_jack_direct_chain` — assemble the live JACK `AsyncClient` plus
 //! its DSP worker thread for one chain on Linux+JACK.
 //!
