@@ -12,11 +12,12 @@
 //!
 //! Source-presence test: the y formula must subtract by
 //! `(stream_meters.length - 1 - i)` (stacks upward), not add by `i`.
+//! The meter rows live in `chain_row_meters.slint` since the #873 split.
 
 use std::path::PathBuf;
 
 fn slint() -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/pages/chain_row.slint");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui/pages/chain_row_meters.slint");
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 

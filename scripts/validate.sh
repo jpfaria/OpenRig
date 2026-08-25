@@ -14,11 +14,14 @@
 #                            (the shared quality gate already builds for lint).
 #
 # Checks:
-#   1. File size (lines)
-#   2. Rust formatting (cargo fmt --check)
-#   3. Rust linting   (cargo clippy -D warnings)
-#   4. Slint compilation (cargo check -p adapter-gui)
-#   5. Inline test modules — production .rs files must not contain
+#   1. Single responsibility — every production file DECLARES its one
+#      responsibility in a header line, and declaring two fails the gate.
+#      THIS is the rule (#873); file size below is only the smoke alarm.
+#   2. File size (lines)
+#   3. Rust formatting (cargo fmt --check)
+#   4. Rust linting   (cargo clippy -D warnings)
+#   5. Slint compilation (cargo check -p adapter-gui)
+#   6. Inline test modules — production .rs files must not contain
 #      `#[cfg(test)] mod tests {`. Tests live in <module>_tests.rs.
 #
 # Exit: 0 = pass, 1 = violations found
@@ -39,38 +42,66 @@ WARNINGS=0
 SEEN_CRATES=""   # space-separated list of unique package names
 SLINT_CHANGED=false
 
-# ─── Known debt files — warn instead of fail ────────────────────────────────
-# These files already exceed the limit. Do NOT add new ones here.
-# Instead: refactor the file before extending it.
-# Frozen 2026-07-15 (#793) to the ACTUAL files over the cap, whole-repo scan.
-# Regenerate ONLY by shrinking: a file leaves this list when it drops under the
-# cap. A NEW file over the cap must fail the gate, never be appended here.
+# ─── Debt ratchet — every entry is "<path> <baseline LOC>" ──────────────────
+# One file = one responsibility (#873). These production files were already
+# over the cap when the rule landed; the list is a RATCHET, never an amnesty:
+#
+#   grew past its baseline  -> FAIL (a debt file may never grow)
+#   shrank, still over cap  -> WARN + lower the baseline in the same commit
+#   dropped under the cap   -> FAIL until the line is deleted (debt is paid)
+#   new file over the cap   -> FAIL (never append it here)
+#
+# Test files are NOT listed and are NOT measured: they are the only files in
+# the repo exempt from the size cap.
 DEBT_FILES="
-crates/adapter-gui/src/desktop_app.rs
-crates/application/src/command.rs
-crates/engine/src/runtime_tests.rs
-crates/engine/tests/issue_670_beat_it_real_rig.rs
-crates/infra-cpal/src/controller_live_edit_replicates_user_report_tests.rs
-crates/infra-cpal/src/controller.rs
-crates/infra-cpal/src/jack_supervisor/live_backend.rs
-crates/infra-cpal/src/jack_supervisor/supervisor_tests.rs
-crates/infra-cpal/src/jack_supervisor/supervisor.rs
-crates/infra-cpal/src/stream_builder.rs
-crates/infra-cpal/src/tests_regression.rs
-crates/infra-cpal/src/tests.rs
-crates/infra-cpal/tests/issue_670_cab_swap.rs
-crates/lv2/src/host.rs
-crates/adapter-gui/ui/app-window.slint
-crates/adapter-gui/ui/desktop_main.slint
-crates/adapter-gui/ui/pages/block_panel_editor.slint
-crates/adapter-gui/ui/pages/chain_row.slint
-crates/adapter-gui/ui/touch_main.slint
 "
 
-is_debt() {
-  local norm
+# Echoes the baseline LOC for a debt file; empty (exit 1) when not listed.
+debt_baseline() {
+  local norm baseline
   norm=$(echo "$1" | sed "s|$(pwd)/||")
-  echo "$DEBT_FILES" | grep -qF "$norm"
+  baseline=$(echo "$DEBT_FILES" | awk -v f="$norm" '$1 == f { print $2; exit }')
+  [ -n "$baseline" ] || return 1
+  printf '%s' "$baseline"
+}
+
+# Test files are exempt from the size cap — the ONLY size exemption we grant.
+# Matches the repo's own .dev-rules.json test_globs: a `tests/` directory, or
+# a basename that starts with `test` / carries a `_test`/`_tests` segment.
+is_test_file() {
+  case "$1" in
+    */tests/*|*/test/*) return 0 ;;
+  esac
+  case "$(basename "$1")" in
+    test*.rs|*_test.rs|*_tests.rs|*_test_*.rs|*_tests_*.rs) return 0 ;;
+  esac
+  return 1
+}
+
+# ─── Single responsibility (#873) ───────────────────────────────────────────
+# A file does ONE thing. We cannot read intent, so the author STATES it:
+#
+#   .rs     //! Responsibility: rebuilds a chain runtime in place
+#   .slint  // Responsibility: renders one block tile inside a chain row
+#
+# The gate then enforces what it can mechanically: the line exists, and it
+# names ONE thing. A declaration that needs "and" / "+" / "," to be written
+# is the file confessing it does two jobs — that fails here, at authoring
+# time, instead of six months later at 1055 lines.
+RESPONSIBILITY_RE='^[[:space:]]*(//!|//)[[:space:]]*[Rr]esponsibility:[[:space:]]*[^[:space:]]'
+
+# Prints the declared responsibility text, or nothing when absent.
+declared_responsibility() {
+  head -20 "$1" \
+    | grep -E "$RESPONSIBILITY_RE" \
+    | head -1 \
+    | sed -E 's|^[[:space:]]*(//!\|//)[[:space:]]*[Rr]esponsibility:[[:space:]]*||'
+}
+
+# A single responsibility reads as one sentence. Conjunctions and list
+# punctuation mean the author is declaring several — reject them.
+declares_more_than_one() {
+  echo " $1 " | grep -qiE ' (and|e|plus|also|as well as) |[,;]|(^| )\+( |$)|&|/'
 }
 
 add_crate() {
@@ -99,11 +130,14 @@ find_package_name() {
 # ─── Resolve files to check ─────────────────────────────────────────────────
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
+SWEEP=false   # true when a directory was passed: whole-repo sweep, not a diff
+
 if [ $# -gt 0 ]; then
   # Expand directories recursively; keep plain files as-is
   FILES=""
   for arg in "$@"; do
     if [ -d "$arg" ]; then
+      SWEEP=true
       # Skip vendored third-party UI modules (e.g. surrealism-ui) — not ours to cap.
       found=$(find "$arg" \( -name "*.rs" -o -name "*.slint" \) -not -path '*/modules/*' | sort)
       FILES="$FILES $found"
@@ -131,16 +165,54 @@ echo ""
 echo -e "${BOLD}═══ OpenRig Validate ═══${NC}  ($FILE_COUNT file(s))"
 echo ""
 
-# ─── 1. FILE SIZE ───────────────────────────────────────────────────────────
-echo -e "${BOLD}── 1. File Size ──${NC}"
+# ─── 1. SINGLE RESPONSIBILITY ───────────────────────────────────────────────
+# The rule itself. A file you TOUCH must declare its one responsibility;
+# legacy files you did not touch only warn, so the rule lands without a
+# repo-wide rewrite — but every file you edit pays it forward.
+echo -e "${BOLD}── 1. Single Responsibility ──${NC}"
+for file in $FILES; do
+  [ -f "$file" ] || continue
+
+  ext="${file##*.}"
+  [[ "$ext" == "rs" || "$ext" == "slint" ]] || continue
+  is_test_file "$file" && continue   # tests describe themselves by name
+
+  name=$(basename "$file")
+  responsibility=$(declared_responsibility "$file")
+
+  if [ -z "$responsibility" ]; then
+    if $SWEEP; then
+      warn "$name: no '// Responsibility:' header — declare it next time you touch this file (#873)"
+    else
+      fail "$name: no '// Responsibility:' header — state the ONE thing this file does, in one sentence (#873)"
+    fi
+  elif declares_more_than_one "$responsibility"; then
+    fail "$name declares more than one responsibility — \"$responsibility\". One file, ONE job: split it (#873)"
+  else
+    ok "$name: $responsibility"
+  fi
+done
+
+# ─── 2. FILE SIZE ───────────────────────────────────────────────────────────
+# Smoke alarm only — the rule is check 1. A file can be under the cap and
+# still be wrong; it can never be over the cap and be right.
+echo ""
+echo -e "${BOLD}── 2. File Size ──${NC}"
 for file in $FILES; do
   [ -f "$file" ] || continue
 
   ext="${file##*.}"
   [[ "$ext" == "rs" || "$ext" == "slint" ]] || continue
 
-  lines=$(wc -l < "$file" | tr -d ' ')
   name=$(basename "$file")
+
+  # Only test files may be big (#873) — skip them before measuring anything.
+  if is_test_file "$file"; then
+    ok "$name (test file — exempt from the size cap)"
+    continue
+  fi
+
+  lines=$(wc -l < "$file" | tr -d ' ')
 
   case "$ext" in
     rs)
@@ -157,22 +229,32 @@ for file in $FILES; do
     *) continue ;;
   esac
 
+  baseline=$(debt_baseline "$file") || baseline=""
+
   if [ "$lines" -gt "$limit" ]; then
-    if is_debt "$file"; then
-      warn "$name ($lines lines > $limit $label limit) — known debt, do not grow"
+    if [ -n "$baseline" ]; then
+      if [ "$lines" -gt "$baseline" ]; then
+        fail "$name ($lines lines, was $baseline) — debt file GREW. Split it; a debt file may never grow (#873)"
+      elif [ "$lines" -lt "$baseline" ]; then
+        warn "$name ($lines lines > $limit $label limit, was $baseline) — shrinking; lower its baseline in DEBT_FILES"
+      else
+        warn "$name ($lines lines > $limit $label limit) — known debt, do not grow (#873)"
+      fi
     else
-      fail "$name ($lines lines > $limit $label limit) — split into smaller modules"
+      fail "$name ($lines lines > $limit $label limit) — one file, one responsibility: split into smaller modules (#873)"
     fi
+  elif [ -n "$baseline" ]; then
+    fail "$name ($lines lines, under the $limit $label limit) — debt paid: delete its line from DEBT_FILES in scripts/validate.sh"
   else
     ok "$name ($lines lines)"
   fi
 done
 
-# ─── 2. RUST FORMATTING (per-file, not per-crate) ───────────────────────────
+# ─── 3. RUST FORMATTING (per-file, not per-crate) ───────────────────────────
 RS_FILES=$(echo "$FILES" | tr ' ' '\n' | grep '\.rs$' | grep -v '^$' || true)
 if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$RS_FILES" ]; then
   echo ""
-  echo -e "${BOLD}── 2. Rust Formatting ──${NC}"
+  echo -e "${BOLD}── 3. Rust Formatting ──${NC}"
   for file in $RS_FILES; do
     [ -f "$file" ] || continue
     if rustfmt --check "$file" > /dev/null 2>&1; then
@@ -183,10 +265,10 @@ if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$RS_FILES" ]; then
   done
 fi
 
-# ─── 3. RUST CLIPPY ─────────────────────────────────────────────────────────
+# ─── 4. RUST CLIPPY ─────────────────────────────────────────────────────────
 if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$(echo "$SEEN_CRATES" | tr -d ' ')" ]; then
   echo ""
-  echo -e "${BOLD}── 3. Rust Clippy ──${NC}"
+  echo -e "${BOLD}── 4. Rust Clippy ──${NC}"
   for pkg in $SEEN_CRATES; do
     if cargo clippy -p "$pkg" -- -D warnings 2>/dev/null; then
       ok "$pkg: clippy OK"
@@ -196,10 +278,10 @@ if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$(echo "$SEEN_CRATES" | tr -d ' '
   done
 fi
 
-# ─── 4. SLINT COMPILATION ───────────────────────────────────────────────────
+# ─── 5. SLINT COMPILATION ───────────────────────────────────────────────────
 if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && $SLINT_CHANGED; then
   echo ""
-  echo -e "${BOLD}── 4. Slint Compilation ──${NC}"
+  echo -e "${BOLD}── 5. Slint Compilation ──${NC}"
   if cargo check -p adapter-gui 2>/dev/null; then
     ok "adapter-gui: Slint OK"
   else
@@ -207,13 +289,13 @@ if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && $SLINT_CHANGED; then
   fi
 fi
 
-# ─── 5. INLINE TEST MODULES ─────────────────────────────────────────────────
+# ─── 6. INLINE TEST MODULES ─────────────────────────────────────────────────
 # Production .rs files must not contain `#[cfg(test)] mod tests {`. Tests
 # live in <module>_tests.rs and are wired via `#[cfg(test)] #[path = "..."]
 # mod tests;`. See issue #394.
 if [ -n "$RS_FILES" ]; then
   echo ""
-  echo -e "${BOLD}── 5. Inline Test Modules ──${NC}"
+  echo -e "${BOLD}── 6. Inline Test Modules ──${NC}"
   for file in $RS_FILES; do
     [ -f "$file" ] || continue
     case "$file" in

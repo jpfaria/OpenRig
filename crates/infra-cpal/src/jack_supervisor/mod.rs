@@ -30,12 +30,27 @@
 
 pub mod backend;
 pub mod supervisor;
+mod supervisor_config_delta;
+mod supervisor_ensure;
+mod supervisor_events;
+mod supervisor_health;
+mod supervisor_shutdown;
+mod supervisor_spawn;
 pub mod types;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub mod alsa_mixer;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub mod live_backend;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod live_probe;
+// The four below keep their filesystem/process work behind the same gate, but
+// the naming and parsing rules they encode are pure — compiled everywhere so
+// their tests run on every platform, not only on the CI Linux box (#873).
+mod live_process;
+mod live_shm;
+mod live_socket;
+mod live_stderr;
 
 // Re-exports used by `crate::ProjectRuntimeController`. Internal types
 // (`JackBackend`, `MockBackend`, `PostReadyStatus`, `RestartReason`,

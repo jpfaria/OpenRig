@@ -7,12 +7,9 @@
 // correctly inside the secondary window.
 
 import { ComboBox } from "std-widgets.slint";
+import { SettingsBridge } from "../../settings_globals.slint";
 
 export component SectionSystemLanguage inherits Rectangle {
-    in property <[string]> language-options;
-    in property <[string]> language-codes;
-    in property <int> selected-language-index;
-    callback language-selected(int);
 
     background: transparent;
 
@@ -30,11 +27,11 @@ export component SectionSystemLanguage inherits Rectangle {
         }
 
         combo := ComboBox {
-            model: root.language-options;
-            current-index: root.selected-language-index;
+            model: SettingsBridge.language-options;
+            current-index: SettingsBridge.selected-language-index;
             height: 28px;
             width: 280px;
-            selected(_) => { root.language-selected(combo.current-index); }
+            selected(_) => { SettingsBridge.language-selected(combo.current-index); }
         }
     }
 }

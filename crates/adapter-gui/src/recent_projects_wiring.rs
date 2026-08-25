@@ -17,7 +17,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, VecModel};
+use slint::{ComponentHandle, Global, Timer, VecModel};
 
 use application::command::{Command, ProjectCommand};
 use domain::AudioDeviceDescriptor;
@@ -278,17 +278,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 entry.project_name.clone()
             };
             *pending.borrow_mut() = Some(idx);
-            window.set_confirm_delete_recent_project_name(display_name.into());
-            window.set_show_confirm_delete_recent_project(true);
+            crate::OverlayBridge::get(&window)
+                .set_confirm_delete_recent_project_name(display_name.into());
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_recent_project(true);
         });
     }
     {
         let weak_window = window.as_weak();
         let pending = pending_remove_recent.clone();
-        window.on_cancel_delete_recent_project(move || {
+        crate::OverlayBridge::get(window).on_cancel_delete_recent_project(move || {
             *pending.borrow_mut() = None;
             if let Some(window) = weak_window.upgrade() {
-                window.set_show_confirm_delete_recent_project(false);
+                crate::OverlayBridge::get(&window).set_show_confirm_delete_recent_project(false);
             }
         });
     }
@@ -298,11 +299,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
         let recent_projects = recent_projects.clone();
         let project_session = project_session.clone();
         let pending = pending_remove_recent.clone();
-        window.on_confirm_delete_recent_project(move || {
+        crate::OverlayBridge::get(window).on_confirm_delete_recent_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_show_confirm_delete_recent_project(false);
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_recent_project(false);
             let Some(index) = pending.borrow_mut().take() else {
                 return;
             };

@@ -1,5 +1,5 @@
 use crate::AppWindow;
-use slint::{ComponentHandle, Timer, TimerMode};
+use slint::{ComponentHandle, Global, Timer, TimerMode};
 use std::fmt::Display;
 use std::time::Duration;
 
@@ -43,8 +43,8 @@ pub(crate) fn set_status_with_toast(
     level: &str,
 ) {
     window.set_status_message(message.into());
-    window.set_toast_message(message.into());
-    window.set_toast_level(level.into());
+    crate::OverlayBridge::get(window).set_toast_message(message.into());
+    crate::OverlayBridge::get(window).set_toast_level(level.into());
     if !message.is_empty() {
         match level {
             "error" => {
@@ -63,8 +63,8 @@ pub(crate) fn set_status_with_toast(
         let weak = window.as_weak();
         toast_timer.start(TimerMode::SingleShot, Duration::from_secs(3), move || {
             if let Some(window) = weak.upgrade() {
-                window.set_toast_message("".into());
-                window.set_toast_level("info".into());
+                crate::OverlayBridge::get(&window).set_toast_message("".into());
+                crate::OverlayBridge::get(&window).set_toast_level("info".into());
                 window.set_status_message("".into());
             }
         });
@@ -86,8 +86,8 @@ pub(crate) fn set_status_warning(window: &AppWindow, toast_timer: &Timer, messag
 pub(crate) fn clear_status(window: &AppWindow, toast_timer: &Timer) {
     toast_timer.stop();
     window.set_status_message("".into());
-    window.set_toast_message("".into());
-    window.set_toast_level("info".into());
+    crate::OverlayBridge::get(window).set_toast_message("".into());
+    crate::OverlayBridge::get(window).set_toast_level("info".into());
 }
 
 /// Best-effort BCP-47-ish locale tag from `LANG` (`pt_BR.UTF-8` → `pt-BR`),

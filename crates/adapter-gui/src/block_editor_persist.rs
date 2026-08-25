@@ -18,7 +18,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use slint::{Timer, TimerMode, VecModel};
+use slint::{Global, Timer, TimerMode, VecModel};
 
 use application::command::{BlockCommand, Command};
 use domain::ids::BlockId;
@@ -79,7 +79,8 @@ pub(crate) fn schedule_block_editor_persist(
                 auto_save,
             ) {
                 log::error!("[adapter-gui] {context}: {error}");
-                window.set_block_drawer_status_message(error.to_string().into());
+                crate::BlockEditorBridge::get(&window)
+                    .set_block_drawer_status_message(error.to_string().into());
             }
         },
     );
@@ -135,7 +136,8 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
                 auto_save,
             ) {
                 log::error!("[adapter-gui] {context}: {error}");
-                main_window.set_block_drawer_status_message(error.to_string().into());
+                crate::BlockEditorBridge::get(&main_window)
+                    .set_block_drawer_status_message(error.to_string().into());
             }
         },
     );
@@ -340,12 +342,12 @@ pub(crate) fn persist_block_editor_draft(
         auto_save,
     );
     if close_after_save {
-        window.set_show_block_drawer(false);
-        window.set_show_block_type_picker(false);
-        window.set_block_drawer_selected_model_index(-1);
-        window.set_block_drawer_selected_type_index(-1);
+        crate::BlockEditorBridge::get(window).set_show_block_drawer(false);
+        crate::BlockEditorBridge::get(window).set_show_block_type_picker(false);
+        crate::BlockEditorBridge::get(window).set_block_drawer_selected_model_index(-1);
+        crate::BlockEditorBridge::get(window).set_block_drawer_selected_type_index(-1);
     }
-    window.set_block_drawer_status_message("".into());
+    crate::BlockEditorBridge::get(window).set_block_drawer_status_message("".into());
     window.set_status_message("".into());
     Ok(())
 }

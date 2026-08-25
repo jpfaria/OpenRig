@@ -4,6 +4,9 @@
 // Visual: dark card per row, 63 vertical bars per analyzer (1/6-octave),
 // labelled at decade markers. Peak hold drawn as a 1-px line above each bar.
 import { ScrollView } from "std-widgets.slint";
+import { AnalyzerBridge } from "../analyzer_globals.slint";
+import { SpectrumRow } from "../analyzer_rows.slint";
+export { SpectrumRow }
 
 // Power footswitch — same sprite + size used by block FootSwitch
 // (see components/foot_switch.slint). No LED, no label.
@@ -30,15 +33,6 @@ component PowerFootSwitch inherits Rectangle {
     }
 }
 
-export struct SpectrumRow {
-    label: string,
-    // 63-band level array (0.0..1.0). When the row is inactive (chain
-    // off / spectrum powered off) the array stays at zeros.
-    levels: [float],
-    // 63-band peak holds (0.0..1.0). Same length as `levels`.
-    peaks: [float],
-    active: bool,
-}
 
 // ── Single-row spectrum card — vertical bars on a dark canvas ──────────
 component SpectrumCard inherits Rectangle {
@@ -283,16 +277,17 @@ export component SpectrumWindow inherits Window {
     preferred-height: 480px;
     background: #050608;
 
-    in property <[SpectrumRow]> spectrum-rows;
-    in property <bool> spectrum-enabled: false;
+    // Rows and power come from the bridge — the channel `spectrum_wiring`
+    // publishes on (#873), same pattern as MetronomeWindow.
+    out property <bool> spectrum-enabled: AnalyzerBridge.spectrum-enabled;
     callback close-spectrum-window();
     callback toggle-enabled(bool);
 
     SpectrumPanel {
         width: 100%;
         height: 100%;
-        spectrum-rows: root.spectrum-rows;
-        spectrum-enabled: root.spectrum-enabled;
+        spectrum-rows: AnalyzerBridge.spectrum-rows;
+        spectrum-enabled: AnalyzerBridge.spectrum-enabled;
         show-close-button: false;
         close-spectrum => { root.close-spectrum-window(); }
         toggle-enabled(e) => { root.toggle-enabled(e); }

@@ -27,7 +27,7 @@ use application::command::{Command, IoBindingCommand};
 use domain::io_binding::{IoBinding, IoEndpoint};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
-use slint::{Model, ModelRc, SharedString, VecModel};
+use slint::{Global, Model, ModelRc, SharedString, VecModel};
 
 use crate::state::ProjectSession;
 use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
@@ -254,11 +254,14 @@ pub fn wire(
     });
 
     // Seed the binding + channel models on both windows.
-    window.set_io_bindings(ModelRc::from(models.bindings.clone()));
-    window.set_io_binding_names(ModelRc::from(models.names.clone()));
-    window.set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
-    project_settings_window.set_io_bindings(ModelRc::from(models.bindings.clone()));
-    project_settings_window.set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
+    crate::SettingsBridge::get(window).set_io_bindings(ModelRc::from(models.bindings.clone()));
+    crate::SettingsBridge::get(window).set_io_binding_names(ModelRc::from(models.names.clone()));
+    crate::SettingsBridge::get(window)
+        .set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
+    crate::SettingsBridge::get(project_settings_window)
+        .set_io_bindings(ModelRc::from(models.bindings.clone()));
+    crate::SettingsBridge::get(project_settings_window)
+        .set_io_binding_channel_options(ModelRc::from(models.channels.clone()));
 
     // Seed the device-list models (id + name) on both windows. Devices are
     // enumerated lazily, so this is re-run by `reseed_device_models` from the
@@ -314,12 +317,12 @@ pub fn reseed_device_models(
 ) {
     let (in_ids, in_names) = device_list_models(input_devices);
     let (out_ids, out_names) = device_list_models(output_devices);
-    window.set_input_device_ids(ModelRc::from(in_ids.clone()));
-    window.set_input_device_names(ModelRc::from(in_names.clone()));
-    window.set_output_device_ids(ModelRc::from(out_ids.clone()));
-    window.set_output_device_names(ModelRc::from(out_names.clone()));
-    psw.set_input_device_ids(ModelRc::from(in_ids));
-    psw.set_input_device_names(ModelRc::from(in_names));
-    psw.set_output_device_ids(ModelRc::from(out_ids));
-    psw.set_output_device_names(ModelRc::from(out_names));
+    crate::SettingsBridge::get(window).set_input_device_ids(ModelRc::from(in_ids.clone()));
+    crate::SettingsBridge::get(window).set_input_device_names(ModelRc::from(in_names.clone()));
+    crate::SettingsBridge::get(window).set_output_device_ids(ModelRc::from(out_ids.clone()));
+    crate::SettingsBridge::get(window).set_output_device_names(ModelRc::from(out_names.clone()));
+    crate::SettingsBridge::get(psw).set_input_device_ids(ModelRc::from(in_ids));
+    crate::SettingsBridge::get(psw).set_input_device_names(ModelRc::from(in_names));
+    crate::SettingsBridge::get(psw).set_output_device_ids(ModelRc::from(out_ids));
+    crate::SettingsBridge::get(psw).set_output_device_names(ModelRc::from(out_names));
 }

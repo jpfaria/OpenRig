@@ -1,6 +1,7 @@
 // TEMP render harness for the REAL SectionSystemIoBindings with mock data.
 // Confirms the model-driven port lays out like the approved mockup.
 import { SectionSystemIoBindings } from "section_io_bindings.slint";
+import { SettingsBridge } from "../../settings_globals.slint";
 import "../../fonts/BebasNeue.ttf";
 
 export component Harness inherits Window {
@@ -13,26 +14,28 @@ export component Harness inherits Window {
     VerticalLayout {
         padding: 28px;
         SectionSystemIoBindings {
-            input-device-names: ["Scarlett 2i2 USB", "MacBook Pro Microphone"];
-            input-device-ids: ["a", "b"];
-            output-device-names: ["Scarlett 2i2 USB"];
-            output-device-ids: ["a"];
-            channel-options: [
-                { index: 0, label: "1", selected: true, available: true },
-                { index: 1, label: "2", selected: false, available: true },
-            ];
-            io-bindings: [
-                {
-                    id: "main", name: "Guitarra",
-                    inputs: [ { name: "In 1", device_label: "Scarlett 2i2 USB", mode: "mono", channels_label: "Canal 1" } ],
-                    outputs: [ { name: "Out 1", device_label: "Scarlett 2i2 USB", mode: "stereo", channels_label: "Canais 1, 2" } ],
-                },
-                {
-                    id: "voz", name: "Voz",
-                    inputs: [ { name: "In 1", device_label: "MacBook Pro Microphone", mode: "mono", channels_label: "Canal 1" } ],
-                    outputs: [ { name: "Out 1", device_label: "Scarlett 2i2 USB", mode: "stereo", channels_label: "Canais 1, 2" } ],
-                },
-            ];
+            init => {
+                SettingsBridge.input-device-names = ["Scarlett 2i2 USB", "MacBook Pro Microphone"];
+                SettingsBridge.input-device-ids = ["a", "b"];
+                SettingsBridge.output-device-names = ["Scarlett 2i2 USB"];
+                SettingsBridge.output-device-ids = ["a"];
+                SettingsBridge.io-binding-channel-options = [
+                    { index: 0, label: "1", selected: true, available: true },
+                    { index: 1, label: "2", selected: false, available: true },
+                ];
+                SettingsBridge.io-bindings = [
+                    {
+                        id: "main", name: "Guitarra",
+                        inputs: [ { name: "In 1", device_label: "Scarlett 2i2 USB", mode: "mono", channels_label: "Canal 1" } ],
+                        outputs: [ { name: "Out 1", device_label: "Scarlett 2i2 USB", mode: "stereo", channels_label: "Canais 1, 2" } ],
+                    },
+                    {
+                        id: "voz", name: "Voz",
+                        inputs: [ { name: "In 1", device_label: "MacBook Pro Microphone", mode: "mono", channels_label: "Canal 1" } ],
+                        outputs: [ { name: "Out 1", device_label: "Scarlett 2i2 USB", mode: "stereo", channels_label: "Canais 1, 2" } ],
+                    },
+                ];
+            }
         }
     }
 }

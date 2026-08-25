@@ -1,7 +1,7 @@
 //! Block-editor drawer delete + plugin-info/close callback wiring
 //! (issue #792 split from block_editor_window_lifecycle.rs).
 
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Global};
 
 use application::command::{BlockCommand, Command};
 use project::catalog::{model_brand, model_display_name, model_type_label};
@@ -41,7 +41,7 @@ pub(crate) fn wire_block_delete(
         let win_draft = win_draft.clone();
         let win_timer = win_timer.clone();
         let weak_win = win.as_weak();
-        win.on_delete_block_drawer(move || {
+        crate::BlockEditorBridge::get(win).on_delete_block_drawer(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
@@ -52,17 +52,17 @@ pub(crate) fn wire_block_delete(
             if draft.block_index.is_none() {
                 return;
             }
-            win.set_confirm_delete_block_name(draft.model_id.into());
-            win.set_show_confirm_delete_block(true);
+            crate::OverlayBridge::get(&win).set_confirm_delete_block_name(draft.model_id.into());
+            crate::OverlayBridge::get(&win).set_show_confirm_delete_block(true);
         });
     }
 
     // on_cancel_delete_block — just hide the overlay.
     {
         let weak_win = win.as_weak();
-        win.on_cancel_delete_block(move || {
+        crate::OverlayBridge::get(win).on_cancel_delete_block(move || {
             if let Some(win) = weak_win.upgrade() {
-                win.set_show_confirm_delete_block(false);
+                crate::OverlayBridge::get(&win).set_show_confirm_delete_block(false);
             }
         });
     }
@@ -80,13 +80,13 @@ pub(crate) fn wire_block_delete(
         let open_block_windows_delete = open_block_windows.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_confirm_delete_block(move || {
+        crate::OverlayBridge::get(win).on_confirm_delete_block(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
             // Hide overlay first so any error toast renders on the
             // window, not behind the modal backdrop.
-            win.set_show_confirm_delete_block(false);
+            crate::OverlayBridge::get(&win).set_show_confirm_delete_block(false);
             let Some(main) = weak_main.upgrade() else {
                 return;
             };
@@ -121,14 +121,16 @@ pub(crate) fn wire_block_delete(
             {
                 log::error!("[adapter-gui] block-window.delete dispatch: {e}");
                 if let Some(w) = weak_main.upgrade() {
-                    w.set_block_drawer_status_message(e.to_string().into());
+                    crate::BlockEditorBridge::get(&w)
+                        .set_block_drawer_status_message(e.to_string().into());
                 }
                 return;
             }
             if let Err(e) = request_chain_sync(session, &chain_id) {
                 log::error!("[adapter-gui] block-window.delete: {e}");
                 if let Some(w) = weak_main.upgrade() {
-                    w.set_block_drawer_status_message(e.to_string().into());
+                    crate::BlockEditorBridge::get(&w)
+                        .set_block_drawer_status_message(e.to_string().into());
                 }
                 return;
             }
@@ -197,7 +199,6 @@ pub(crate) fn wire_plugin_info_close(
                 }
             };
             {
-                use slint::Global;
                 crate::Locale::get(&info_win)
                     .set_font_family(crate::i18n::font_for_persisted_runtime().into());
             }
@@ -242,7 +243,7 @@ pub(crate) fn wire_plugin_info_close(
         let selected_block_close = selected_block.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_close_block_drawer(move || {
+        crate::BlockEditorBridge::get(win).on_close_block_drawer(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };

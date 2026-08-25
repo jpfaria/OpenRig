@@ -4,6 +4,7 @@
 // VecModels.
 
 import { ListView, ScrollView } from "std-widgets.slint";
+import { BlockEditorBridge } from "../block_editor_globals.slint";
 import { BlockTypePickerItem, BlockModelPickerItem, BlockParameterItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "./block_panel_editor.slint";
@@ -14,59 +15,28 @@ import { BlockTypeCard, ToolbarButton } from "../components/block_value_widgets.
 import { ChainActionIcon, ChainPowerToggle } from "../components/chain_chips.slint";
 
 export component BlockEditorPanel inherits Rectangle {
-    in property <[BlockTypePickerItem]> block-type-options;
-    in property <[BlockModelPickerItem]> block-model-options;
-    in property <[BlockModelPickerItem]> filtered-block-model-options;
-    in property <[string]> block-model-option-labels;
-    in property <string> block-drawer-title;
-    in property <string> block-drawer-confirm-label;
-    in property <string> block-drawer-status-message;
-    in property <bool> block-drawer-edit-mode;
-    in property <int> block-drawer-selected-type-index;
-    in-out property <int> block-drawer-selected-model-index;
-    in-out property <string> block-model-search-text;
-    in property <bool> block-drawer-enabled;
-    in property <[BlockParameterItem]> block-parameter-items;
-    in property <[MultiSliderPoint]> multi-slider-points;
-    in property <[CurveEditorPoint]> curve-editor-points;
-    in property <string> eq-total-curve;
-    in property <[string]> eq-band-curves;
-    callback choose-block-model(int);
-    callback choose-block-model-by-id(string);
-    callback search-block-model(string);
-    callback close-block-drawer();
-    callback save-block-drawer();
-    callback delete-block-drawer();
     callback show-plugin-info(string, string);  // effect_type, model_id
-    callback toggle-block-drawer-enabled();
-    callback update-block-parameter-text(string, string);
-    callback update-block-parameter-number(string, float);
-    callback update-block-parameter-number-text(string, string);
-    callback update-block-parameter-bool(string, bool);
-    callback select-block-parameter-option(string, int);
-    callback pick-block-parameter-file(string);
 
     // Realtime data stream from engine (tuner, spectrum analyzer, etc.)
-    in property <BlockStreamData> block-stream-data;
 
     // Computed helpers
     property <bool> is-preamp:
-        root.block-drawer-selected-type-index >= 0
-        && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp";
+        BlockEditorBridge.block-drawer-selected-type-index >= 0
+        && BlockEditorBridge.block-drawer-selected-type-index < BlockEditorBridge.block-type-options.length
+        && BlockEditorBridge.block-type-options[BlockEditorBridge.block-drawer-selected-type-index].icon_kind == "preamp";
 
     // True when a tuner (or other non-spectrum stream) is the active block — show stream area even while silent
-    property <bool> has-tuner-stream: root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum";
+    property <bool> has-tuner-stream: BlockEditorBridge.block-stream-data.stream-kind != "" && BlockEditorBridge.block-stream-data.stream-kind != "spectrum";
 
     property <bool> is-vst3:
-        root.block-drawer-selected-type-index >= 0
-        && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "vst3";
+        BlockEditorBridge.block-drawer-selected-type-index >= 0
+        && BlockEditorBridge.block-drawer-selected-type-index < BlockEditorBridge.block-type-options.length
+        && BlockEditorBridge.block-type-options[BlockEditorBridge.block-drawer-selected-type-index].icon_kind == "vst3";
 
     property <string> selected-model-id:
-        root.block-drawer-selected-model-index >= 0
-        && root.block-drawer-selected-model-index < root.block-model-options.length
-        ? root.block-model-options[root.block-drawer-selected-model-index].model_id
+        BlockEditorBridge.block-drawer-selected-model-index >= 0
+        && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
+        ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].model_id
         : "";
 
     background: transparent;
@@ -86,8 +56,8 @@ export component BlockEditorPanel inherits Rectangle {
             y: 18px;
             width: 28px;
             height: 28px;
-            icon-kind: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
-                ? root.block-type-options[root.block-drawer-selected-type-index].icon_kind
+            icon-kind: BlockEditorBridge.block-drawer-selected-type-index >= 0 && BlockEditorBridge.block-drawer-selected-type-index < BlockEditorBridge.block-type-options.length
+                ? BlockEditorBridge.block-type-options[BlockEditorBridge.block-drawer-selected-type-index].icon_kind
                 : "";
             tint: #f3f6fb;
         }
@@ -97,8 +67,8 @@ export component BlockEditorPanel inherits Rectangle {
             y: 20px;
             width: parent.width - 160px;
             height: 24px;
-            text: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
-                ? root.block-type-options[root.block-drawer-selected-type-index].label
+            text: BlockEditorBridge.block-drawer-selected-type-index >= 0 && BlockEditorBridge.block-drawer-selected-type-index < BlockEditorBridge.block-type-options.length
+                ? BlockEditorBridge.block-type-options[BlockEditorBridge.block-drawer-selected-type-index].label
                 : "";
             color: #f3f6fb;
             font-size: 18px;
@@ -106,20 +76,20 @@ export component BlockEditorPanel inherits Rectangle {
             vertical-alignment: center;
         }
 
-        if root.block-drawer-edit-mode : ChainPowerToggle {
+        if BlockEditorBridge.block-drawer-edit-mode : ChainPowerToggle {
             x: parent.width - 72px;
             y: 20px;
-            enabled: root.block-drawer-enabled;
-            tooltip: root.block-drawer-enabled ? "Desativar" : "Ativar";
-            clicked => { root.toggle-block-drawer-enabled(); }
+            enabled: BlockEditorBridge.block-drawer-enabled;
+            tooltip: BlockEditorBridge.block-drawer-enabled ? "Desativar" : "Ativar";
+            clicked => { BlockEditorBridge.toggle-block-drawer-enabled(); }
         }
 
-        if root.block-drawer-edit-mode : ChainActionIcon {
+        if BlockEditorBridge.block-drawer-edit-mode : ChainActionIcon {
             x: parent.width - 40px;
             y: 20px;
             icon: @image-url("../assets/trash.svg");
             tooltip: @tr("tooltip-delete");
-            clicked => { root.delete-block-drawer(); }
+            clicked => { BlockEditorBridge.delete-block-drawer(); }
         }
 
         Rectangle {
@@ -136,22 +106,22 @@ export component BlockEditorPanel inherits Rectangle {
             y: 74px;
             width: parent.width - 40px;
             popup-height: 480px;
-            filtered-models: root.filtered-block-model-options;
-            selected-model: root.block-drawer-selected-model-index >= 0
-                && root.block-drawer-selected-model-index < root.block-model-options.length
-                ? root.block-model-options[root.block-drawer-selected-model-index]
+            filtered-models: BlockEditorBridge.filtered-block-model-options;
+            selected-model: BlockEditorBridge.block-drawer-selected-model-index >= 0
+                && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
+                ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index]
                 : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
-            search-text <=> root.block-model-search-text;
-            select(model-id) => { root.choose-block-model-by-id(model-id); }
-            search-text-changed(text) => { root.search-block-model(text); }
+            search-text <=> BlockEditorBridge.block-model-search-text;
+            select(model-id) => { BlockEditorBridge.choose-block-model-by-id(model-id); }
+            search-text-changed(text) => { BlockEditorBridge.search-block-model(text); }
         }
 
-        if root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+        if root.is-preamp && BlockEditorBridge.block-drawer-selected-model-index >= 0 && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length : Text {
             x: 20px;
             y: 120px;
             width: parent.width - 40px;
             height: 16px;
-            text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
+            text: BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].subtitle;
             color: #94a0b0;
             font-size: 11px;
         }
@@ -163,21 +133,21 @@ export component BlockEditorPanel inherits Rectangle {
             x: 20px;
             y: 140px + (parent.width - 16px) / 4 + 12px;
             width: parent.width - 40px;
-            height: parent.height - (140px + (parent.width - 16px) / 4 + 12px) - (root.block-drawer-edit-mode ? 20px : 74px);
+            height: parent.height - (140px + (parent.width - 16px) / 4 + 12px) - (BlockEditorBridge.block-drawer-edit-mode ? 20px : 74px);
             viewport-width: self.width;
-            viewport-height: root.block-parameter-items.length * 96px;
+            viewport-height: BlockEditorBridge.block-parameter-items.length * 96px;
 
-            for param-item[index] in root.block-parameter-items : BlockParameterRow {
+            for param-item[index] in BlockEditorBridge.block-parameter-items : BlockParameterRow {
                 x: 0px;
                 y: index * 96px;
                 width: parent.width - 24px;
                 item: param-item;
-                text-changed(path, value) => { root.update-block-parameter-text(path, value); }
-                number-changed(path, value) => { root.update-block-parameter-number(path, value); }
-                number-text-changed(path, value) => { root.update-block-parameter-number-text(path, value); }
-                bool-changed(path, value) => { root.update-block-parameter-bool(path, value); }
-                option-changed(path, value) => { root.select-block-parameter-option(path, value); }
-                file-picked(path) => { root.pick-block-parameter-file(path); }
+                text-changed(path, value) => { BlockEditorBridge.update-block-parameter-text(path, value); }
+                number-changed(path, value) => { BlockEditorBridge.update-block-parameter-number(path, value); }
+                number-text-changed(path, value) => { BlockEditorBridge.update-block-parameter-number-text(path, value); }
+                bool-changed(path, value) => { BlockEditorBridge.update-block-parameter-bool(path, value); }
+                option-changed(path, value) => { BlockEditorBridge.select-block-parameter-option(path, value); }
+                file-picked(path) => { BlockEditorBridge.pick-block-parameter-file(path); }
             }
         }
 
@@ -187,42 +157,42 @@ export component BlockEditorPanel inherits Rectangle {
             y: 78px;
             width: parent.width - 40px;
             popup-height: 480px;
-            filtered-models: root.filtered-block-model-options;
-            selected-model: root.block-drawer-selected-model-index >= 0
-                && root.block-drawer-selected-model-index < root.block-model-options.length
-                ? root.block-model-options[root.block-drawer-selected-model-index]
+            filtered-models: BlockEditorBridge.filtered-block-model-options;
+            selected-model: BlockEditorBridge.block-drawer-selected-model-index >= 0
+                && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length
+                ? BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index]
                 : { effect_type: "", model_id: "", label: "", display_name: "", subtitle: "", icon_kind: "", brand: "", type_label: "", panel_bg: #00000000, panel_text: #00000000, brand_strip_bg: #00000000, model_font: "" };
-            search-text <=> root.block-model-search-text;
-            select(model-id) => { root.choose-block-model-by-id(model-id); }
-            search-text-changed(text) => { root.search-block-model(text); }
+            search-text <=> BlockEditorBridge.block-model-search-text;
+            select(model-id) => { BlockEditorBridge.choose-block-model-by-id(model-id); }
+            search-text-changed(text) => { BlockEditorBridge.search-block-model(text); }
         }
 
-        if !root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+        if !root.is-preamp && BlockEditorBridge.block-drawer-selected-model-index >= 0 && BlockEditorBridge.block-drawer-selected-model-index < BlockEditorBridge.block-model-options.length : Text {
             x: 20px;
             y: 124px;
             width: parent.width - 40px;
             height: 16px;
-            text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
+            text: BlockEditorBridge.block-model-options[BlockEditorBridge.block-drawer-selected-model-index].subtitle;
             color: #94a0b0;
             font-size: 11px;
         }
 
-        if !root.is-preamp && root.curve-editor-points.length > 0 : CurveEditorControl {
+        if !root.is-preamp && BlockEditorBridge.curve-editor-points.length > 0 : CurveEditorControl {
             x: 8px;
             y: 148px;
             width: parent.width - 16px;
-            points: root.curve-editor-points;
-            total-curve: root.eq-total-curve;
-            band-curves: root.eq-band-curves;
-            update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
+            points: BlockEditorBridge.curve-editor-points;
+            total-curve: BlockEditorBridge.eq-total-curve;
+            band-curves: BlockEditorBridge.eq-band-curves;
+            update-parameter(path, val) => { BlockEditorBridge.update-block-parameter-number(path, val); }
         }
 
-        if !root.is-preamp && root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
+        if !root.is-preamp && BlockEditorBridge.multi-slider-points.length > 0 && BlockEditorBridge.curve-editor-points.length == 0 : MultiSliderControl {
             x: 8px;
             y: 148px;
             width: parent.width - 16px;
-            points: root.multi-slider-points;
-            update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
+            points: BlockEditorBridge.multi-slider-points;
+            update-parameter(path, val) => { BlockEditorBridge.update-block-parameter-number(path, val); }
         }
 
         // ── Stream display (tuner, spectrum) — for non-preamp utility blocks ──
@@ -237,7 +207,7 @@ export component BlockEditorPanel inherits Rectangle {
             border-color: #2d3340;
 
             // Waiting for signal — shown until pitch is detected
-            if !root.block-stream-data.active : Text {
+            if !BlockEditorBridge.block-stream-data.active : Text {
                 x: 0; y: 0; width: parent.width; height: parent.height;
                 text: @tr("–");
                 color: #3a4050;
@@ -246,8 +216,8 @@ export component BlockEditorPanel inherits Rectangle {
                 vertical-alignment: center;
             }
 
-            for entry[ei] in root.block-stream-data.entries : Rectangle {
-                property <length> slot-w: parent.width / root.block-stream-data.entries.length;
+            for entry[ei] in BlockEditorBridge.block-stream-data.entries : Rectangle {
+                property <length> slot-w: parent.width / BlockEditorBridge.block-stream-data.entries.length;
                 x: ei * slot-w;
                 y: 0;
                 width: slot-w;
@@ -295,7 +265,7 @@ export component BlockEditorPanel inherits Rectangle {
             }
         }
 
-        if !root.is-preamp && root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
+        if !root.is-preamp && BlockEditorBridge.block-stream-data.active && BlockEditorBridge.block-stream-data.stream-kind == "spectrum" : Rectangle {
             x: 20px;
             y: 148px;
             width: parent.width - 40px;
@@ -304,8 +274,8 @@ export component BlockEditorPanel inherits Rectangle {
             border-radius: 8px;
             clip: true;
 
-            for entry[ei] in root.block-stream-data.entries : Rectangle {
-                property <length> bar-slot-w: parent.width / root.block-stream-data.entries.length;
+            for entry[ei] in BlockEditorBridge.block-stream-data.entries : Rectangle {
+                property <length> bar-slot-w: parent.width / BlockEditorBridge.block-stream-data.entries.length;
                 x: ei * self.bar-slot-w;
                 y: 0;
                 width: self.bar-slot-w;
@@ -324,35 +294,35 @@ export component BlockEditorPanel inherits Rectangle {
             }
         }
 
-        if !root.is-preamp && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
+        if !root.is-preamp && BlockEditorBridge.curve-editor-points.length == 0 && BlockEditorBridge.multi-slider-points.length == 0 : ScrollView {
             x: 20px;
-            y: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? 360px : 144px;
+            y: root.has-tuner-stream || (BlockEditorBridge.block-stream-data.active && BlockEditorBridge.block-stream-data.stream-kind == "spectrum") ? 360px : 144px;
             width: parent.width - 40px;
-            height: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? (parent.height - 380px) : (parent.height - 164px);
+            height: root.has-tuner-stream || (BlockEditorBridge.block-stream-data.active && BlockEditorBridge.block-stream-data.stream-kind == "spectrum") ? (parent.height - 380px) : (parent.height - 164px);
             viewport-width: self.width;
-            viewport-height: root.block-parameter-items.length * 96px;
+            viewport-height: BlockEditorBridge.block-parameter-items.length * 96px;
 
-            for param-item[index] in root.block-parameter-items : BlockParameterRow {
+            for param-item[index] in BlockEditorBridge.block-parameter-items : BlockParameterRow {
                 x: 0px;
                 y: index * 96px;
                 width: parent.width - 24px;
                 item: param-item;
-                text-changed(path, value) => { root.update-block-parameter-text(path, value); }
-                number-changed(path, value) => { root.update-block-parameter-number(path, value); }
-                number-text-changed(path, value) => { root.update-block-parameter-number-text(path, value); }
-                bool-changed(path, value) => { root.update-block-parameter-bool(path, value); }
-                option-changed(path, value) => { root.select-block-parameter-option(path, value); }
-                file-picked(path) => { root.pick-block-parameter-file(path); }
+                text-changed(path, value) => { BlockEditorBridge.update-block-parameter-text(path, value); }
+                number-changed(path, value) => { BlockEditorBridge.update-block-parameter-number(path, value); }
+                number-text-changed(path, value) => { BlockEditorBridge.update-block-parameter-number-text(path, value); }
+                bool-changed(path, value) => { BlockEditorBridge.update-block-parameter-bool(path, value); }
+                option-changed(path, value) => { BlockEditorBridge.select-block-parameter-option(path, value); }
+                file-picked(path) => { BlockEditorBridge.pick-block-parameter-file(path); }
             }
         }
 
-        if !root.block-drawer-edit-mode : ToolbarButton {
+        if !BlockEditorBridge.block-drawer-edit-mode : ToolbarButton {
             x: parent.width - 116px;
             y: parent.height - 54px;
             width: 96px;
-            label: root.block-drawer-confirm-label;
+            label: BlockEditorBridge.block-drawer-confirm-label;
             primary: true;
-            clicked => { root.save-block-drawer(); }
+            clicked => { BlockEditorBridge.save-block-drawer(); }
         }
     }
 }

@@ -16,7 +16,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, Global, ModelRc, SharedString, VecModel};
 
 use application::command::{BlockCommand, Command};
 use application::live_source::LiveSource;
@@ -118,7 +118,7 @@ pub(crate) fn wire(
         auto_save,
     };
 
-    window.on_choose_block_type(move |index| {
+    crate::BlockEditorBridge::get(window).on_choose_block_type(move |index| {
         let Some(window) = weak_window.upgrade() else {
             return;
         };
@@ -197,7 +197,7 @@ pub(crate) fn wire(
                 &project_dirty,
                 auto_save,
             );
-            window.set_show_block_type_picker(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
             let registry = session.io_bindings.borrow().clone();
             drop(session_borrow);
             if let Some(pw) = weak_port_window.upgrade() {
@@ -268,7 +268,7 @@ pub(crate) fn wire(
                 &project_dirty,
                 auto_save,
             );
-            window.set_show_block_type_picker(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
             // Open the insert window to configure the newly created block
             drop(session_borrow);
             let draft = InsertDraft {
@@ -346,26 +346,28 @@ pub(crate) fn wire(
                 .map(SharedString::from)
                 .collect::<Vec<_>>(),
         );
-        window.set_eq_total_curve(eq_total.into());
+        crate::BlockEditorBridge::get(&window).set_eq_total_curve(eq_total.into());
         let drawer_state = block_drawer_state(None, &model.effect_type, Some(&model.model_id));
-        window.set_block_drawer_title(drawer_state.title.into());
-        window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
-        window.set_block_drawer_edit_mode(false);
-        window.set_block_drawer_selected_type_index(index);
-        window.set_block_drawer_selected_model_index(0);
-        window.set_block_drawer_status_message("".into());
-        window.set_show_block_type_picker(false);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_title(drawer_state.title.into());
+        crate::BlockEditorBridge::get(&window)
+            .set_block_drawer_confirm_label(drawer_state.confirm_label.into());
+        crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(false);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(index);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(0);
+        crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
+        crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
         if use_inline_block_editor(&window) {
-            window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            crate::BlockEditorBridge::get(&window)
+                .set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             // #819: knob count changed -> re-publish the #500 panel height.
             crate::block_editor_param_tabs::publish_inline_panel_height(&window);
-            window.set_show_block_drawer(true);
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(true);
         } else {
             // #815: build the SAME per-block tabbed editor the edit path uses,
             // in add-mode (block_index None). The window builds its own params,
             // knob overlays and #780 parameter tabs from `editor_data`; the
             // block is created only on save (persist inserts when index is None).
-            window.set_show_block_drawer(false);
+            crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
             let (chain_index, before_index) = block_editor_draft
                 .borrow()
                 .as_ref()

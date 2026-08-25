@@ -7,7 +7,7 @@
 //! keep that logic out of `lib.rs` (already a god file).
 
 use crate::{BlockEditorWindow, BlockModelPickerItem, CompactBlockItem};
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
+use slint::{ComponentHandle, Global, Model, ModelRc, VecModel};
 use std::rc::Rc;
 
 /// Drawer / window: re-filter `full` according to `text` and publish into
@@ -47,12 +47,12 @@ pub(crate) fn wire_standalone_block_editor_window(
     {
         let win_full = win_full.clone();
         let win_filtered = win_filtered.clone();
-        win.on_search_block_model(move |text| {
+        crate::BlockEditorBridge::get(win).on_search_block_model(move |text| {
             refilter_block_model_options(&win_full, &win_filtered, text.as_str());
         });
     }
     let weak_win = win.as_weak();
-    win.on_choose_block_model_by_id(move |model_id| {
+    crate::BlockEditorBridge::get(win).on_choose_block_model_by_id(move |model_id| {
         let Some(idx) = resolve_model_id_in_block_options(&win_full, model_id.as_str()) else {
             log::warn!(
                 "[search] model_id '{}' not found in standalone window list",
@@ -66,8 +66,8 @@ pub(crate) fn wire_standalone_block_editor_window(
             idx
         );
         if let Some(w) = weak_win.upgrade() {
-            w.set_block_drawer_selected_model_index(idx);
-            w.invoke_choose_block_model(idx);
+            crate::BlockEditorBridge::get(&w).set_block_drawer_selected_model_index(idx);
+            crate::BlockEditorBridge::get(&w).invoke_choose_block_model(idx);
         }
     });
 }

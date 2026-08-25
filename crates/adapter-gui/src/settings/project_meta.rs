@@ -5,6 +5,7 @@
 //! Pattern mirrors `midi_devices::install` — takes the project session
 //! Rc so it can no-op when no session is loaded.
 
+use slint::Global;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -40,7 +41,7 @@ pub fn install(
 ) {
     let last_dispatched_for_edit = last_dispatched.clone();
     let project_session_for_edit = project_session.clone();
-    win.on_edit_project_name(move |raw| {
+    crate::SettingsBridge::get(win).on_edit_project_name(move |raw| {
         let new = sanitize_name(raw.as_str());
         let mut tracker = last_dispatched_for_edit.borrow_mut();
         if !should_dispatch_rename(tracker.as_deref(), new.as_deref()) {
@@ -74,7 +75,7 @@ pub fn install_secondary(
 ) {
     let last_dispatched_for_edit = last_dispatched.clone();
     let project_session_for_edit = project_session.clone();
-    win.on_edit_project_name(move |raw| {
+    crate::SettingsBridge::get(win).on_edit_project_name(move |raw| {
         let new = sanitize_name(raw.as_str());
         let mut tracker = last_dispatched_for_edit.borrow_mut();
         if !should_dispatch_rename(tracker.as_deref(), new.as_deref()) {
