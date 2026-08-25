@@ -147,3 +147,9 @@ What the render has to show: the headline still fits the three `<br>` lines at
 desktop width, `document.documentElement.scrollWidth === window.innerWidth`
 (no horizontal overflow), and the same in each of the three languages — a line
 that fits in English can wrap to a fourth line in Portuguese or Spanish.
+
+## Portuguese wording the owner corrects
+
+- **"em um", never "num"** (and "em uma", not "numa"). The contraction reads as
+  sloppy speech in a headline. Same for "pra" in a headline — fine in body copy,
+  wrong in an H1.
