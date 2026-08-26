@@ -16,9 +16,13 @@ pub mod crossfade;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
+mod effective_endpoints;
 mod elastic_buffer;
 pub mod elastic_prime;
+mod endpoint_entry;
+mod input_conflicts;
 pub mod input_tap;
+mod insert_endpoints;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
 mod issue_85_stream_per_pair_tests;
