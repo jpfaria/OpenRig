@@ -8,11 +8,17 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::HostTrait;
 use domain::AudioDeviceDescriptor;
 
 use crate::device_enum::{enumerate_input_devices_uncached, enumerate_output_devices_uncached};
+#[cfg(all(target_os = "linux", feature = "jack"))]
+use crate::host::jack_server_is_running;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::select_host_for_enumeration;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+use crate::usb_proc::{detect_all_usb_audio_cards, invalidate_proc_cache};
 
 const DEVICE_CACHE_TTL: Duration = Duration::from_secs(10);
 

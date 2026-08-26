@@ -10,7 +10,7 @@
 //! These results are stable for a given device between device-topology
 //! changes, so cache them keyed by `(device_id, is_input)` and invalidate the
 //! whole cache whenever the device list is invalidated (`invalidate()`, called
-//! from `device_enum::invalidate_device_cache`). A cache hit skips both the
+//! from `device_cache::invalidate_device_cache`). A cache hit skips both the
 //! latency and the USB disturbance.
 
 use std::collections::HashMap;

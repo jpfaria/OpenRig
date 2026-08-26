@@ -1,23 +1,13 @@
 //! Responsibility: enumerates the audio devices the host reports.
-//! Device-level enumeration + a TTL-cached snapshot the UI hits on every
-//! refresh tick.
 //!
 //! Public surface (re-exported by lib.rs):
 //! - `list_devices` — flat human-readable strings, used by the CLI.
-//! - `list_input_device_descriptors` / `list_output_device_descriptors` —
-//!   structured `AudioDeviceDescriptor`s, cached for 10s.
-//! - `invalidate_device_cache` — force-stale on hot-plug.
-//! - `has_new_devices` — UI-timer probe (cheap, no PCM open).
+//! - `list_input_device_descriptors` / `list_output_device_descriptors` live in
+//!   [`crate::device_cache`] now: they answer from a TTL snapshot and call the
+//!   `enumerate_*_uncached` functions here when it goes stale (#873).
 //!
-//! Internal helpers — all `pub(crate)`:
-//! - `is_hardware_device` (filters cpal's plughw / dmix noise on Linux/ALSA),
-//! - `count_devices_cheap` (called by `has_new_devices`),
-//! - `enumerate_input_devices_uncached` / `enumerate_output_devices_uncached`
-//!   (the slow path behind the cache),
-//! - `jack_is_running` (Linux+JACK only — public via lib.rs).
-//!
-//! On Linux+JACK the whole enumeration goes through libjack +
-//! /proc/asound (see `usb_proc.rs`); the CPAL host is never created.
+//! On Linux with the `jack` feature the enumeration reads
+//! `/proc/asound/cards`; everywhere else it asks cpal.
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use anyhow::bail;
@@ -35,8 +25,7 @@ use crate::host::{get_host, select_host_for_enumeration};
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use crate::usb_proc::{
-    detect_all_usb_audio_cards, invalidate_proc_cache, jack_enumerate_input_devices,
-    jack_enumerate_output_devices,
+    detect_all_usb_audio_cards, jack_enumerate_input_devices, jack_enumerate_output_devices,
 };
 
 pub fn list_devices() -> Result<Vec<String>> {

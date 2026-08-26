@@ -92,12 +92,12 @@ mod di_playback;
 mod di_stream;
 mod di_stream_worker;
 pub mod looper_store;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub use device_cache::jack_is_running;
 pub use device_cache::{
     has_new_devices, invalidate_device_cache, list_input_device_descriptors,
     list_output_device_descriptors,
 };
-#[cfg(all(target_os = "linux", feature = "jack"))]
-pub use device_enum::jack_is_running;
 pub use device_enum::list_devices;
 
 mod device_settings;
