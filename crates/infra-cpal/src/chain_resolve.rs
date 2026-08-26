@@ -1,3 +1,5 @@
+//! Responsibility: resolves a chain's endpoints into concrete audio devices.
+//!
 //! Translate a `project::Chain` + `DeviceSettings` into a fully-resolved
 //! audio config (`ResolvedChainAudioConfig`).
 //!
@@ -346,6 +348,7 @@ pub(crate) fn resolve_chain_outputs(
 /// Resolve an InsertBlock's RETURN to an InputEntry — model A (#716): the return
 /// comes from the insert binding's INPUT endpoint in the registry. `None` when
 /// the binding is absent or has no input endpoint.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 pub(crate) fn insert_return_as_input_entry(
     insert: &InsertBlock,
     registry: &[IoBinding],
@@ -362,6 +365,7 @@ pub(crate) fn insert_return_as_input_entry(
 /// Resolve an InsertBlock's SEND to an OutputEntry — model A (#716): the send
 /// goes to the insert binding's OUTPUT endpoint in the registry. `None` when the
 /// binding is absent or has no output endpoint.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 pub(crate) fn insert_send_as_output_entry(
     insert: &InsertBlock,
     registry: &[IoBinding],
