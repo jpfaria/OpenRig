@@ -26,6 +26,13 @@ use engine::loop_edit::LoopEditOp;
 /// tick never drops recorded samples before the drain runs.
 const RECORD_RING_CAP: usize = 48_000;
 
+/// #903: how many times a looper's isolated render has been armed, this
+/// process. A steady, playing loop must not move this — every arm rebuilds the
+/// chain (NAM + IR off disk), copies the take and spawns a render thread, so a
+/// tick that re-arms is the "empilhando" the owner sees.
+pub(crate) static LOOPER_ARMS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
 /// #323 phase 2: the chain the loop's isolated stream plays through. With a
 /// linked preset the adapter has resolved (`Some(blocks)`), it is the chain
 /// with its processing blocks swapped for the preset's — same id and
@@ -390,11 +397,30 @@ impl ProjectRuntimeController {
             // (invariant #4). No linked preset ⇒ the chain's current blocks.
             let linked = self.looper_store.borrow().playback_blocks(&chain.id, uid);
             let playback_chain = looper_playback_chain(chain, linked);
-            if self
-                .arm_looper_stream(&playback_chain, uid, output_index, pcm)
-                .is_ok()
-            {
-                self.looper_armed.borrow_mut().insert(key, content);
+            match self.arm_looper_stream(&playback_chain, uid, output_index, pcm) {
+                Ok(()) => {
+                    LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    self.looper_armed.borrow_mut().insert(key, content);
+                    log::info!(
+                        "looper {uid} on '{}' armed (renders alive: {})",
+                        chain.id.0,
+                        crate::di_stream_worker::DI_WORKERS_ALIVE
+                            .load(std::sync::atomic::Ordering::Relaxed)
+                    );
+                }
+                // #903: a failed arm leaves the key unrecorded, so the meter
+                // tick tries again — ten times a second, each attempt copying
+                // the take and spawning a render. Log it loudly; a storm here
+                // is the "empilhando" the owner sees.
+                Err(e) => {
+                    LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    log::warn!(
+                    "looper {uid} on '{}' FAILED to arm ({e:#}) — the next tick will retry                      (renders alive: {})",
+                    chain.id.0,
+                    crate::di_stream_worker::DI_WORKERS_ALIVE
+                        .load(std::sync::atomic::Ordering::Relaxed)
+                    )
+                }
             }
         }
     }

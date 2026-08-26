@@ -189,6 +189,14 @@ mod looper_transport_all;
 #[cfg(test)]
 #[path = "looper_enabled_tests.rs"]
 mod looper_enabled;
+
+#[cfg(test)]
+#[path = "looper_rearm_storm_tests.rs"]
+mod looper_rearm_storm;
+
+#[cfg(test)]
+#[path = "looper_rearm_churn_tests.rs"]
+mod looper_rearm_churn;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

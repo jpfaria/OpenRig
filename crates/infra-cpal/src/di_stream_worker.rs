@@ -105,42 +105,18 @@ impl Drop for AliveGuard {
     }
 }
 
-/// Put THIS thread below every audio thread (#903).
+/// Keep THIS thread out of the audio threads' scheduling class (#903).
 ///
-/// Mach precedence, not a time-constraint declaration: the render asks for less
-/// than the callbacks, so the scheduler never has to choose between a loop's
-/// render and a live stream's deadline. A no-op off macOS, where the render
-/// already runs at default priority.
-#[cfg(target_os = "macos")]
-fn yield_to_live_streams() {
-    #[repr(C)]
-    struct Precedence {
-        importance: i32,
-    }
-    extern "C" {
-        fn mach_thread_self() -> u32;
-        fn thread_policy_set(thread: u32, flavor: i32, policy: *const u32, count: u32) -> i32;
-    }
-    const THREAD_PRECEDENCE_POLICY: i32 = 3;
-    // One step below the default (0). Leaving the time-constraint class is what
-    // isolates the live streams — a precedence value never outranks an audio
-    // thread — so the step down only settles ties against the GUI. Deeper than
-    // this starves the render itself under load without buying the callbacks
-    // anything.
-    let policy = Precedence { importance: -1 };
-    let rc = unsafe {
-        thread_policy_set(
-            mach_thread_self(),
-            THREAD_PRECEDENCE_POLICY,
-            &policy as *const _ as *const u32,
-            1,
-        )
-    };
-    log::info!("di-stream render placed below the audio threads rc={rc}");
+/// Leaving the Mach time-constraint class is the whole isolation point: a
+/// default-priority thread can never outrank an audio thread's deadline, so the
+/// live streams stop competing with the render. Stepping BELOW the default was
+/// tried and reverted — under load the render then lost to the GUI as well,
+/// never filled its pre-buffer, and the loop simply did not start (the owner's
+/// "nem com latência dá play"). Isolation is about not competing, not about
+/// starving.
+fn stay_out_of_the_audio_class() {
+    log::info!("di-stream render runs outside the audio threads' class");
 }
-
-#[cfg(not(target_os = "macos"))]
-fn yield_to_live_streams() {}
 
 fn run(spec: DiWorkerSpec) {
     let DiWorkerSpec {
@@ -220,7 +196,7 @@ fn run(spec: DiWorkerSpec) {
     // about spending less CPU — the render costs what it costs; it just never
     // takes a slot a live stream needs.
     let period_ns = (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
-    yield_to_live_streams();
+    stay_out_of_the_audio_class();
     LAST_RENDER_SCHEDULING.store(RenderScheduling::BelowAudioThread as u8, Ordering::Relaxed);
     let silence = vec![0.0f32; BLOCK];
     let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
