@@ -1,9 +1,10 @@
 nav{position:fixed;inset:0 0 auto 0;z-index:60;padding:18px 0;transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
 nav.solid{background:rgba(5,7,11,.86);backdrop-filter:blur(20px) saturate(1.4);border-bottom-color:var(--line)}
 nav .wrap{display:flex;align-items:center;gap:34px}
-.brand{display:flex;align-items:center;gap:11px;margin-right:auto}
-.brand img{width:30px;height:30px}
-.brand span{font-family:var(--display);font-size:27px;letter-spacing:.05em}
+/* One lockup file, cropped tight and drawn to the proportions the app's launcher uses,
+   so the mark and the wordmark can never drift apart at any size. */
+.brand{display:block;margin-right:auto}
+.brand img{display:block;height:36px;width:auto}
 .nav-links{display:flex;gap:clamp(16px,1.7vw,28px);font-size:13.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
 .nav-links a{transition:color .2s}
 .nav-links a:hover{color:var(--white)}
