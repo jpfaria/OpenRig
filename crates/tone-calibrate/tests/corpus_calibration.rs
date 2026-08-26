@@ -97,7 +97,11 @@ fn measure_stems_returns_one_record_per_stem_labelled() {
     assert_eq!(ms[0].stem, "lead");
     assert_eq!(ms[1].stem, "rhythm");
     assert!(ms.iter().all(|m| m.song == "song-a" && m.genre == "rock"));
-    assert!(ms[0].descriptors.fizz_ratio > 0.0, "measured, not empty: {:?}", ms[0]);
+    assert!(
+        ms[0].descriptors.fizz_ratio > 0.0,
+        "measured, not empty: {:?}",
+        ms[0]
+    );
 }
 
 #[test]

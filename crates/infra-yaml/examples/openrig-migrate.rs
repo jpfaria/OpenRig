@@ -1,3 +1,4 @@
+//! Responsibility: shows by hand what the loader does with a legacy project file.
 //! Manual backward-compat check (#450). Feed it a legacy/new project file
 //! or a standalone legacy preset file and see what the transparent loader
 //! does — no UI needed.

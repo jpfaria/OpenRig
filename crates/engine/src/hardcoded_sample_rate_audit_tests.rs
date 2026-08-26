@@ -1,5 +1,5 @@
 //! Audit test: detect hardcoded sample rate assumptions (issue #723)
-//! 
+//!
 //! This test ensures that production code doesn't hardcode 48000/44100
 //! where the live device sample_rate should be used instead.
 

@@ -1,3 +1,4 @@
+//! Responsibility: rewrites the plugin URI of every LV2 manifest to match its bundle.
 //! One-shot tool that walks every LV2 bundle under
 //! `OpenRig-plugins/plugins/source/lv2/` and rewrites the
 //! `plugin_uri:` line of each `manifest.yaml` to match the URI
