@@ -86,7 +86,7 @@ const GUARDED: &[Guarded] = &[
 ///   are driver reconfiguration on the host, not a rig operation, and both are
 ///   in the "NOT on the bus" table for that reason.
 const NAMES_THE_BACKEND_CRATE: &[&str] = &[
-    "audio_devices.rs",
+    "device_refresh_list.rs",
     "desktop_app.rs",
     "desktop_app_mcp.rs",
     "live_source_block_stream.rs",

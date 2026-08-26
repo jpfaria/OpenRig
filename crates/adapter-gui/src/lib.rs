@@ -153,6 +153,7 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
+mod binding_status;
 mod block_editor;
 mod block_editor_param_items;
 mod block_editor_persist;
@@ -160,6 +161,10 @@ mod block_editor_setters;
 mod block_editor_values;
 mod chain_editor;
 mod default_io_binding;
+mod device_refresh_list;
+mod device_rows;
+mod device_selection_items;
+mod device_settings_resolve;
 mod eq;
 pub mod graph_view_model;
 mod gui_live_source;
