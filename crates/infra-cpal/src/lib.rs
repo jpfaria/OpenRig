@@ -50,6 +50,8 @@ mod active_runtime;
 // so a frontend that never opens a stream never mentions the backend.
 
 mod resolved;
+mod resolved_device;
+mod stream_signature_types;
 
 mod io_topology;
 #[cfg(test)]
