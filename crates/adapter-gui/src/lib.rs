@@ -86,6 +86,8 @@ mod di_output_select_wiring;
 pub mod di_source_picker_wiring;
 mod insert_wiring;
 mod live_sync_plan;
+mod looper_commands;
+mod looper_restore;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod preset_save_wiring;
