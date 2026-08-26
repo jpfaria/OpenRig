@@ -1,3 +1,5 @@
+//! Responsibility: applies every looper command to the controller's loop store.
+//!
 //! Issue #323 — the controller's looper facade (redesigned).
 //!
 //! Looper state lives in the controller-owned [`crate::looper_store::LooperStore`],
@@ -39,6 +41,26 @@ pub(crate) fn looper_playback_chain(
         c.blocks = blocks;
     }
     c
+}
+
+/// The PCM an armed loop plays, at the rate its isolated stream should read it.
+///
+/// #903: `speed` is not a resample — the read cursor steps by the factor and the
+/// pitch follows it, the classic looper behaviour. Declaring the take's source
+/// rate scaled by that factor gives exactly that when the stream resamples to
+/// its output rate: half reads it as if recorded at half the rate (twice as
+/// long, an octave down), double as if at twice (half as long, an octave up).
+pub(crate) fn looper_playback_pcm(
+    samples: Vec<f32>,
+    sample_rate: u32,
+    speed: LooperSpeed,
+) -> DiPcm {
+    let read_rate = match speed {
+        LooperSpeed::Half => sample_rate / 2,
+        LooperSpeed::Normal => sample_rate,
+        LooperSpeed::Double => sample_rate.saturating_mul(2),
+    };
+    DiPcm::new(samples, read_rate.max(1), 2)
 }
 
 #[cfg(test)]
@@ -343,7 +365,15 @@ impl ProjectRuntimeController {
             // generation is folded in so editing/reassigning the linked preset
             // (#323 phase 2) also re-renders the loop through the new tone.
             let playback_rev = self.looper_store.borrow().playback_rev(&chain.id, uid);
-            let content = (status.len_frames as u64, status.content_rev, playback_rev);
+            // #903: speed changes what the stream reads, so it belongs in the
+            // key that decides a re-arm — without it, switching speed on a
+            // playing loop changed the project and nothing else.
+            let content = (
+                status.len_frames as u64,
+                status.content_rev,
+                playback_rev,
+                cfg.speed,
+            );
             if self.looper_armed.borrow().get(&key) == Some(&content) {
                 continue;
             }
@@ -353,7 +383,7 @@ impl ProjectRuntimeController {
             };
             let output_index =
                 resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
-            let pcm = Arc::new(DiPcm::new(samples, self.sample_rate, 2));
+            let pcm = Arc::new(looper_playback_pcm(samples, self.sample_rate, cfg.speed));
             // #323 phase 2: play through the loop's LINKED preset when the
             // adapter has resolved its blocks — a routed copy of the chain with
             // its processing swapped, same id/I/O so isolation is unchanged

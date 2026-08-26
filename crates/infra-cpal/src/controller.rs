@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use domain::ids::ChainId;
 use engine::runtime::{ChainRuntimeState, RuntimeGraph};
-use project::chain::Chain;
+use project::chain::{Chain, LooperSpeed};
 use project::project::Project;
 
 use crate::active_runtime::ActiveChainRuntime;
@@ -115,7 +115,7 @@ pub struct ProjectRuntimeController {
     /// looper's isolated stream was last armed with, so `sync_looper_streams`
     /// re-arms only when the recording OR the linked-preset blocks actually
     /// changed — not every meter tick.
-    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (u64, u64, u64)>>,
+    pub(crate) looper_armed: RefCell<HashMap<(ChainId, u64), (u64, u64, u64, LooperSpeed)>>,
     /// #323: controller-owned looper state — the recorded material and transport
     /// of every loop live HERE (reusing `LooperSlot`), off the volatile chain
     /// runtime. Recording drains an input tap into it off the audio thread;

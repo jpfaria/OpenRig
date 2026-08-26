@@ -177,6 +177,10 @@ mod controller_live_edit_replicates_user_report_tests;
 #[cfg(test)]
 #[path = "render_scheduling_903_tests.rs"]
 mod render_scheduling_903;
+
+#[cfg(test)]
+#[path = "looper_speed_tests.rs"]
+mod looper_speed;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
