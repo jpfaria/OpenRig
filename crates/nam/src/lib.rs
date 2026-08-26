@@ -1,9 +1,15 @@
 //! Responsibility: routes the NAM crate's public surface.
 pub mod baked_loudness;
+pub mod ffi;
 pub mod from_package;
 pub mod gain_offsets;
 pub mod loudness_probe;
+pub mod model_diag;
+pub mod model_stats;
 pub mod params;
+pub mod peak_safety;
+pub mod plugin_config;
+pub mod plugin_params;
 pub mod processor;
 
 pub use from_package::{build_from_package, register_builder};
@@ -22,7 +28,7 @@ pub fn model_schema_for(
     display_name: &str,
     include_file_params: bool,
 ) -> ModelParameterSchema {
-    let mut schema = processor::model_schema(include_file_params);
+    let mut schema = params::model_schema(include_file_params);
     schema.effect_type = effect_type.to_string();
     schema.model = model.to_string();
     schema.display_name = display_name.to_string();

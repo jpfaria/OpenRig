@@ -1,382 +1,38 @@
 //! Responsibility: runs a NAM model over a signal.
-use crate::GENERIC_NAM_MODEL_ID;
+
+use crate::ffi::{nam_create, nam_destroy, nam_process_ffi};
+use crate::model_stats::{note_model_created, note_model_dropped};
+use crate::peak_safety::PeakSafety;
+use crate::plugin_config::NamPluginConfig;
 use anyhow::{bail, Result};
-use block_core::param::{optional_string, required_string, ParameterSet};
 use block_core::MonoProcessor;
 use std::ffi::CString;
-use std::os::raw::{c_char, c_int, c_void};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::os::raw::{c_int, c_void};
 
-/// Cumulative count of NAM models loaded via `nam_create` over the
-/// process lifetime (never decremented). Memory-observability counter
-/// (issue #588): a chain edit that reuses a block must NOT grow this — a
-/// reload of an unchanged model is wasted work and a transient 2× footprint.
-static MODELS_CREATED: AtomicUsize = AtomicUsize::new(0);
-
-/// Number of NAM models currently resident in memory (incremented on load,
-/// decremented on `Drop`). Memory-observability counter (issue #588): after
-/// any chain edit this must equal the number of NAM blocks actually in the
-/// live chain — a higher value is an orphaned model that was not freed.
-static MODELS_LIVE: AtomicUsize = AtomicUsize::new(0);
-
-/// Total NAM models loaded since process start (monotonic). See
-/// [`MODELS_CREATED`].
-pub fn models_created() -> usize {
-    MODELS_CREATED.load(Ordering::Relaxed)
-}
-
-/// NAM models currently held in memory. See [`MODELS_LIVE`].
-pub fn live_models() -> usize {
-    MODELS_LIVE.load(Ordering::Relaxed)
-}
-
-pub fn supports_model(model: &str) -> bool {
-    model == GENERIC_NAM_MODEL_ID
-}
-
+// The importers reach these through `processor::` — that is where they were
+// defined before the split (#873).
+pub use crate::model_stats::{live_models, models_created, supports_model};
+// The test modules mounted on the crate root reach these through
+// `processor::`, where they lived before the split (#873).
+#[cfg(test)]
 pub use crate::params::{
     model_schema, plugin_parameter_specs, plugin_parameter_specs_with_defaults,
-    slim_parameter_spec, AMP_GROUP, EQ_GROUP, NOISE_GATE_GROUP,
 };
-
-#[derive(Debug, Clone, Copy)]
-pub struct NamPluginParams {
-    pub input_level_db: f32,
-    pub output_level_db: f32,
-    pub noise_gate_threshold_db: f32,
-    pub noise_gate_enabled: bool,
-    pub eq_enabled: bool,
-    pub bass: f32,
-    pub middle: f32,
-    pub treble: f32,
-    /// A2 SlimmableContainer size, 0.0 (smallest submodel) .. 1.0 (full),
-    /// forwarded to `SetSlimmableSize` through the FFI (issue #657). The
-    /// user-facing `slim` knob is a 0..100 % percentage; this is its 0..1
-    /// ratio. Inert for A1 models (not slimmable). 1.0 = historical
-    /// full-size behavior.
-    pub slim_size: f32,
-    /// True quando o `output_gain_db` do manifest (audit-populated)
-    /// já está empilhado no `input_level_db`. Sinal pro NamProcessor
-    /// SKIPPAR o `recommended_output_db` baked pelo trainer — senão
-    /// a atenuação típica do trainer (-7 a -8 dB) come o boost do
-    /// audit e o app sai muito quieto (issue #413: "tudo baixo").
-    pub audit_overrides_baked_output: bool,
-}
-
-pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
-    input_level_db: 0.0,
-    output_level_db: 0.0,
-    // Issue #496: was -80 dB while the gate was unwired (a no-op). Now
-    // that the expander is applied, -50 dBFS sits above the amplified
-    // model noise floor (worst hot case ≈ -53 dBFS) yet ~45 dB below
-    // normal playing — it collapses the decay hiss without touching
-    // played notes. Overridable per-model via `noise_gate.threshold_db`.
-    noise_gate_threshold_db: -50.0,
-    // Issue #612: the gate defaults OFF. The old `neural-amp-modeler-lv2`
-    // engine had NO gate; a default-on downward expander ate the
-    // decay/sustain and made the tone "sem vida" (lifeless). The gate
-    // still works when the user enables it via `noise_gate.enabled`.
-    noise_gate_enabled: false,
-    eq_enabled: true,
-    audit_overrides_baked_output: false,
-    bass: 5.0,
-    middle: 5.0,
-    treble: 5.0,
-    // Issue #657: full size by default — A2 models keep their historical
-    // full-fidelity behavior and A1 models ignore it. `SLIM_PERCENT_FULL`
-    // / 100.
-    slim_size: 1.0,
+#[cfg(test)]
+pub(crate) use crate::peak_safety::soft_clip;
+#[cfg(test)]
+pub use crate::plugin_params::{bool_or_default, float_or_default};
+pub use crate::plugin_params::{
+    params_from_set, plugin_params_from_set, plugin_params_from_set_with_defaults, NamPluginParams,
+    DEFAULT_PLUGIN_PARAMS, SLIM_PERCENT_FULL,
 };
-
-/// Full-size value of the user-facing `slim` knob, as a percentage. The
-/// knob is 0..100 % (0 = smallest submodel, 100 = full); the FFI /
-/// `SetSlimmableSize` want a 0.0..1.0 ratio, so the param value is divided
-/// by this. Single source of truth for the percent ⇄ ratio mapping
-/// (issue #657).
-pub const SLIM_PERCENT_FULL: f32 = 100.0;
-
-pub fn params_from_set(params: &ParameterSet) -> Result<(String, Option<String>, NamPluginParams)> {
-    Ok((
-        required_string(params, "model_path").map_err(anyhow::Error::msg)?,
-        optional_string(params, "ir_path"),
-        plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?,
-    ))
-}
-
-pub fn plugin_params_from_set(params: &ParameterSet) -> Result<NamPluginParams> {
-    plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)
-}
-
-pub fn plugin_params_from_set_with_defaults(
-    params: &ParameterSet,
-    defaults: NamPluginParams,
-) -> Result<NamPluginParams> {
-    Ok(NamPluginParams {
-        input_level_db: float_or_default(params, "input_db", defaults.input_level_db)?,
-        output_level_db: float_or_default(params, "output_db", defaults.output_level_db)?,
-        noise_gate_threshold_db: float_or_default(
-            params,
-            "noise_gate.threshold_db",
-            defaults.noise_gate_threshold_db,
-        )?,
-        noise_gate_enabled: bool_or_default(
-            params,
-            "noise_gate.enabled",
-            defaults.noise_gate_enabled,
-        )?,
-        eq_enabled: bool_or_default(params, "eq.enabled", defaults.eq_enabled)?,
-        bass: float_or_default(params, "eq.bass", defaults.bass)?,
-        middle: float_or_default(params, "eq.middle", defaults.middle)?,
-        treble: float_or_default(params, "eq.treble", defaults.treble)?,
-        // Issue #657: the `slim` knob is a 0..100 % percentage; the FFI
-        // wants a 0..1 ratio. Read it as percent and convert, clamping to
-        // the valid range. Absent → the caller's ratio default (already
-        // 0..1), so this never double-divides.
-        slim_size: match params.get("slim") {
-            Some(value) => {
-                let percent = value
-                    .as_f32()
-                    .ok_or_else(|| anyhow::anyhow!("invalid float parameter 'slim'"))?;
-                (percent / SLIM_PERCENT_FULL).clamp(0.0, 1.0)
-            }
-            None => defaults.slim_size,
-        },
-        // Não vem de `params` — é setado pelo `from_package` quando
-        // o manifest tem `output_gain_db`. Defaults inherit do caller.
-        audit_overrides_baked_output: defaults.audit_overrides_baked_output,
-    })
-}
-
-// --- Official NeuralAmpModelerCore C wrapper FFI (cpp/nam_wrapper.h) ---
-//
-// The C++ wrapper owns the whole signal chain: input gain → noise gate
-// → model → gate → tone stack (EQ) → IR → output gain. Issue #612: the
-// EQ (`bass/middle/treble`) is now applied by the official tone stack
-// inside the wrapper instead of being parsed and dropped on the Rust
-// side. ALL params cross the FFI here; Rust no longer re-applies input
-// or output gain (the wrapper does), and only adds the memoryless
-// `soft_clip` peak safety (issue #496) on the wrapper output — the
-// wrapper does NOT clip.
-
-/// Mirror of `NamPluginConfig` in `cpp/nam_wrapper.h`. Field order and
-/// types MUST match the C struct exactly.
-#[repr(C)]
-struct NamPluginConfig {
-    model_path_utf8: *const c_char,
-    ir_path_utf8: *const c_char,
-    input_db: f32,
-    output_db: f32,
-    noise_gate_threshold_db: f32,
-    bass: f32,
-    middle: f32,
-    treble: f32,
-    slim_size: f32,
-    noise_gate_enabled: u8,
-    eq_enabled: u8,
-    ir_enabled: u8,
-    audit_overrides_baked_output: u8,
-}
+#[cfg(test)]
+pub use block_core::param::ParameterSet;
 
 // Loudness alignment lives in `manifest.output_gain_db`, populated
 // offline by `tools/nam_loudness_audit` (issue #413). The per-NAM
 // `loudness_probe` module is kept around as the measurement engine
 // the tool uses; it does not drive gain at runtime.
-
-/// Memoryless output saturator (issue #496).
-///
-/// A loud loudness calibration must not be allowed to clip on the
-/// converter (harsh digital distortion) or amplify the model noise
-/// floor into a hard wall on the decay. This rounds only the peaks
-/// that would exceed full-scale: transparent below `THRESHOLD` (a
-/// normally-played, well-calibrated model never reaches it, so tone
-/// and loudness are untouched), then smoothly asymptotic to ±1.0 —
-/// musical saturation instead of a ±1.0 brickwall. Memoryless: zero
-/// latency, zero state, deterministic, safe on the audio thread.
-/// Knee above which the peak safety starts to saturate. Single source of
-/// truth shared by [`soft_clip`] and its antiderivative [`soft_clip_int`].
-const SOFT_CLIP_THRESHOLD: f32 = 0.8;
-
-#[inline]
-fn soft_clip(x: f32) -> f32 {
-    const T: f32 = SOFT_CLIP_THRESHOLD;
-    let a = x.abs();
-    if a <= T {
-        x
-    } else {
-        let over = a - T;
-        x.signum() * (T + (1.0 - T) * (over / ((1.0 - T) + over)))
-    }
-}
-
-/// Antiderivative `F` of [`soft_clip`] (`F'(x) == soft_clip(x)`), used for
-/// first-order ADAA. `soft_clip` is odd, so `F` is even and continuous at
-/// the knee (both branches meet at `T²/2`). Below the knee `soft_clip` is
-/// the identity, so `F(x) = x²/2`; above it the closed form integrates
-/// `1 - b²/(|x| - 2T + 1)` with `b = 1 - T`, offset by `K` for continuity.
-#[inline]
-fn soft_clip_int(x: f32) -> f32 {
-    const T: f32 = SOFT_CLIP_THRESHOLD;
-    let a = x.abs();
-    if a <= T {
-        0.5 * x * x
-    } else {
-        let b = 1.0 - T;
-        let k = T - b * b * b.ln() - 0.5 * T * T;
-        a - b * b * (a - 2.0 * T + 1.0).ln() - k
-    }
-}
-
-/// Peak-safety saturation stage (issue #496/#675).
-///
-/// `soft_clip` is a memoryless nonlinearity. Applied per-sample at the base
-/// sample rate it generates harmonics above Nyquist that fold back into the
-/// audible band as inharmonic aliasing — heard as harsh hiss ("xiado"),
-/// continuous whenever a loud-calibrated capture parks its output past the
-/// knee. Invariant #2 (no added aliasing) forbids that.
-///
-/// This stage carries one sample of state so it can anti-alias the
-/// saturation with first-order antiderivative anti-aliasing (ADAA, Parker
-/// et al. 2016) — zero added latency, no oversampling, deterministic, safe
-/// on the audio thread (invariants #1/#7/#8 all untouched).
-pub(crate) struct PeakSafety {
-    prev_in: f32,
-}
-
-impl PeakSafety {
-    pub(crate) fn new() -> Self {
-        Self { prev_in: 0.0 }
-    }
-
-    /// Saturate one sample with first-order ADAA, carrying state forward.
-    ///
-    /// `y = (F(x) - F(x₋₁)) / (x - x₋₁)` is the average of `soft_clip` over
-    /// `[x₋₁, x]` — it band-limits the saturation, collapsing the aliasing
-    /// the per-sample form folds into the audible band. When successive
-    /// inputs are nearly equal the divided difference is ill-conditioned
-    /// (0/0), so fall back to direct evaluation at the midpoint. The half-
-    /// sample group delay (~10 µs at 48 kHz) is far below the latency
-    /// budget (invariant #1).
-    #[inline]
-    pub(crate) fn process_one(&mut self, x: f32) -> f32 {
-        const T: f32 = SOFT_CLIP_THRESHOLD;
-        const ILL_CONDITIONED: f32 = 1.0e-5;
-        let x0 = self.prev_in;
-        self.prev_in = x;
-        // Both samples below the knee: soft_clip is the identity over the
-        // whole span, so there is nothing nonlinear to anti-alias. Stay
-        // byte-exact transparent — averaging here would low-pass clean
-        // signal and dull the tone (#413/#496). Only the saturating span
-        // pays the ADAA divided difference.
-        if x.abs() <= T && x0.abs() <= T {
-            return x;
-        }
-        if (x - x0).abs() < ILL_CONDITIONED {
-            return soft_clip(0.5 * (x + x0));
-        }
-        (soft_clip_int(x) - soft_clip_int(x0)) / (x - x0)
-    }
-
-    /// Saturate a whole buffer in place.
-    pub(crate) fn process_block(&mut self, buffer: &mut [f32]) {
-        for sample in buffer.iter_mut() {
-            *sample = self.process_one(*sample);
-        }
-    }
-}
-
-// The build script (`crates/nam/build.rs`) links the cmake-built
-// `libnam_wrapper` on every platform, so a plain `extern "C"` is enough
-// — no per-OS `raw-dylib`/import-library handling is required.
-unsafe extern "C" {
-    fn nam_create(config: *const NamPluginConfig) -> *mut c_void;
-    fn nam_destroy(handle: *mut c_void);
-    // The C symbol is `nam_process`; the Rust ident is renamed so the
-    // public, slice-based `nam_process` diagnostics wrapper below can keep
-    // the historical name (issue #623 req #2). Same FFI, no ABI change.
-    #[link_name = "nam_process"]
-    fn nam_process_ffi(handle: *mut c_void, input: *const f32, output: *mut f32, nframes: c_int);
-}
-
-// -----------------------------------------------------------------------
-// Offline diagnostics API (issue #623 req #2).
-//
-// `open_model_diag` / `nam_process` / `close_model_diag` are the stable,
-// public, slice-based entry points used by offline tooling (the
-// OpenRig-plugins catalog audit / LUFS measurement gate) to push audio
-// through a NAM model OUTSIDE the realtime `NamProcessor`. They wrap the
-// same `cpp/nam_wrapper` FFI the runtime uses, so they exercise the
-// identical signal chain. NEVER call these on the audio thread — they
-// allocate (model load) and are offline-only.
-//
-// The #612 FFI rewrite (commit a9874a18) dropped these helpers and left
-// only the private `nam_process` extern, which broke the OpenRig-plugins
-// gate (E0603/E0432). They are restored here over the current wrapper FFI.
-// -----------------------------------------------------------------------
-
-/// Open a NAM model file for offline diagnostics. The returned handle
-/// must be released with [`close_model_diag`]. Uses the model's own
-/// baked calibration (same as the runtime defaults), gate/EQ/IR off so
-/// the raw model response is measured.
-///
-/// Returns an opaque wrapper handle (`*mut c_void`), the same type the
-/// runtime FFI uses.
-pub fn open_model_diag(model_path: &str) -> Result<*mut c_void> {
-    let model_path_c = CString::new(model_path)?;
-    let config = NamPluginConfig {
-        model_path_utf8: model_path_c.as_ptr(),
-        ir_path_utf8: std::ptr::null(),
-        input_db: 0.0,
-        output_db: 0.0,
-        noise_gate_threshold_db: DEFAULT_PLUGIN_PARAMS.noise_gate_threshold_db,
-        bass: DEFAULT_PLUGIN_PARAMS.bass,
-        middle: DEFAULT_PLUGIN_PARAMS.middle,
-        treble: DEFAULT_PLUGIN_PARAMS.treble,
-        // Diagnostics measure the raw model at full size (issue #657).
-        slim_size: 1.0,
-        noise_gate_enabled: 0,
-        eq_enabled: 0,
-        ir_enabled: 0,
-        audit_overrides_baked_output: 0,
-    };
-    let handle = unsafe { nam_create(&config) };
-    drop(model_path_c);
-    if handle.is_null() {
-        bail!("failed to load NAM model '{}'", model_path);
-    }
-    Ok(handle)
-}
-
-/// Push a buffer through a model opened with [`open_model_diag`]. Offline
-/// only. `input` and `output` must have the same length.
-///
-/// # Safety
-///
-/// `handle` must be a live pointer returned by [`open_model_diag`] and
-/// not yet freed.
-pub unsafe fn nam_process(handle: *mut c_void, input: &[f32], output: &mut [f32]) {
-    debug_assert_eq!(input.len(), output.len());
-    if handle.is_null() || input.is_empty() {
-        return;
-    }
-    nam_process_ffi(
-        handle,
-        input.as_ptr(),
-        output.as_mut_ptr(),
-        input.len() as c_int,
-    );
-}
-
-/// Release a handle returned by [`open_model_diag`].
-///
-/// # Safety
-///
-/// `handle` must be a valid pointer returned by [`open_model_diag`] and
-/// not yet freed; the caller must not use it after this call returns.
-pub unsafe fn close_model_diag(handle: *mut c_void) {
-    if !handle.is_null() {
-        nam_destroy(handle);
-    }
-}
 
 pub struct NamProcessor {
     handle: *mut c_void,
@@ -394,7 +50,7 @@ impl Drop for NamProcessor {
             self.handle = std::ptr::null_mut();
             // Memory-observability (issue #588): mirror the increment in
             // `new`. Only decrement for a model that was actually loaded.
-            MODELS_LIVE.fetch_sub(1, Ordering::Relaxed);
+            note_model_dropped();
         }
     }
 }
@@ -459,8 +115,7 @@ impl NamProcessor {
 
         // Memory-observability (issue #588): a model was just loaded into
         // memory. Mirror this decrement in `Drop`.
-        MODELS_CREATED.fetch_add(1, Ordering::Relaxed);
-        MODELS_LIVE.fetch_add(1, Ordering::Relaxed);
+        note_model_created();
 
         log::info!(
             "NAM model loaded: '{}', input_adj={:+.2}dB, output_adj={:+.2}dB \
@@ -547,24 +202,6 @@ impl MonoProcessor for NamProcessor {
                 );
             }
         }
-    }
-}
-
-fn float_or_default(params: &ParameterSet, path: &str, default: f32) -> Result<f32> {
-    match params.get(path) {
-        Some(value) => value
-            .as_f32()
-            .ok_or_else(|| anyhow::anyhow!("invalid float parameter '{}'", path)),
-        None => Ok(default),
-    }
-}
-
-fn bool_or_default(params: &ParameterSet, path: &str, default: bool) -> Result<bool> {
-    match params.get(path) {
-        Some(value) => value
-            .as_bool()
-            .ok_or_else(|| anyhow::anyhow!("invalid bool parameter '{}'", path)),
-        None => Ok(default),
     }
 }
 
