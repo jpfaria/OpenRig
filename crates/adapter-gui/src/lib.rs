@@ -279,6 +279,10 @@ mod desktop_app_settings_wiring;
 mod desktop_app_topbar_wiring;
 mod desktop_app_windows;
 mod i18n;
+mod language_names;
+mod locale_font;
+mod locale_resolve;
+mod translations_dir;
 
 pub use desktop_app::run_desktop_app;
 pub use i18n::{apply_bundled_translation, init_translations, resolve_locale, SUPPORTED_LANGUAGES};
