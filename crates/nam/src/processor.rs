@@ -12,12 +12,13 @@ use std::os::raw::{c_int, c_void};
 // The importers reach these through `processor::` — that is where they were
 // defined before the split (#873).
 pub use crate::model_stats::{live_models, models_created, supports_model};
+// The offline diagnostics API stays reachable through this path (#623).
+pub use crate::model_diag::{close_model_diag, nam_process, open_model_diag};
 // The test modules mounted on the crate root reach these through
 // `processor::`, where they lived before the split (#873).
 #[cfg(test)]
-pub use crate::params::{
-    model_schema, plugin_parameter_specs, plugin_parameter_specs_with_defaults,
-};
+pub use crate::params::{model_schema, plugin_parameter_specs_with_defaults};
+pub use crate::params::{plugin_parameter_specs, slim_parameter_spec};
 #[cfg(test)]
 pub(crate) use crate::peak_safety::soft_clip;
 #[cfg(test)]
