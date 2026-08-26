@@ -64,6 +64,7 @@ pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
 mod compact_routing_pick;
+mod compact_view_refresh;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
@@ -197,6 +198,9 @@ mod issue_881_compact_insert_tests;
 #[cfg(test)]
 #[path = "issue_881_insert_editor_tests.rs"]
 mod issue_881_insert_editor_tests;
+#[cfg(test)]
+#[path = "issue_898_compact_insert_refresh_tests.rs"]
+mod issue_898_compact_insert_refresh_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;

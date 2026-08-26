@@ -71,6 +71,8 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
     /// #85 — the mid-chain I/O port editor's state and option models.
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
+    /// #898: the compact view a block may have been inserted from.
+    pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
     pub auto_save: bool,
 }
 
@@ -102,6 +104,7 @@ pub(crate) fn wire(
         open_block_windows,
         plugin_info_window,
         port_draft,
+        open_compact_window,
         auto_save,
     } = ctx;
 
@@ -413,6 +416,7 @@ pub(crate) fn wire(
                 selected_block: selected_block.clone(),
                 open_block_windows: open_block_windows.clone(),
                 plugin_info_window: plugin_info_window.clone(),
+                open_compact_window: open_compact_window.clone(),
                 auto_save,
             };
             match block_editor_window_setup::create_and_wire(window.as_weak(), setup_ctx) {

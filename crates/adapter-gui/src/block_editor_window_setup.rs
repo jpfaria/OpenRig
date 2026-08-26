@@ -74,6 +74,9 @@ pub(crate) struct BlockEditorWindowSetupCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
+    /// #898: the compact view this editor was opened from, so saving
+    /// re-projects its block list.
+    pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
     pub auto_save: bool,
 }
 
@@ -101,6 +104,7 @@ pub(crate) fn create_and_wire(
         selected_block,
         open_block_windows,
         plugin_info_window,
+        open_compact_window,
         auto_save,
     } = ctx;
 
@@ -365,6 +369,7 @@ pub(crate) fn create_and_wire(
             selected_block,
             open_block_windows,
             plugin_info_window,
+            open_compact_window,
             chain_index,
             block_index: block_index.unwrap_or(before_index),
             auto_save,

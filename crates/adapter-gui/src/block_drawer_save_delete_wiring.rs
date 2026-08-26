@@ -9,12 +9,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Global, ModelRc, SharedString, Timer, VecModel, Weak};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel, Weak};
 
 use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::persist_block_editor_draft;
-use crate::compact_block_view::build_compact_blocks;
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::{
@@ -109,20 +108,10 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
             crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
-            // Refresh compact chain view if open
-            if let Some((ci, weak_cw)) = open_compact_window.borrow().as_ref() {
-                if let Some(cw) = weak_cw.upgrade() {
-                    let session_borrow = project_session_compact.borrow();
-                    if let Some(session) = session_borrow.as_ref() {
-                        let blocks = build_compact_blocks(
-                            &session.project.borrow(),
-                            *ci,
-                            &session.io_bindings.borrow(),
-                        );
-                        cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-                    }
-                }
-            }
+            crate::compact_view_refresh::refresh_open_compact_view(
+                &open_compact_window,
+                &project_session_compact,
+            );
         });
     }
     {

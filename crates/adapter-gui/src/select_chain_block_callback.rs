@@ -76,6 +76,8 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
+    /// #898: the compact view the editor may have been opened from.
+    pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
     /// #85 — the mid-chain I/O port editor's state and option models, so a
     /// click on a port block reopens the same editor the add flow shows.
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
@@ -112,6 +114,7 @@ pub(crate) fn wire(
         inline_stream_timer,
         toast_timer,
         plugin_info_window,
+        open_compact_window,
         port_draft,
         auto_save,
     } = ctx;
@@ -394,6 +397,7 @@ pub(crate) fn wire(
                 selected_block: selected_block.clone(),
                 open_block_windows: open_block_windows.clone(),
                 plugin_info_window: plugin_info_window.clone(),
+                open_compact_window: open_compact_window.clone(),
                 auto_save,
             };
             let (win, block_stream_timer) = match block_editor_window_setup::create_and_wire(
