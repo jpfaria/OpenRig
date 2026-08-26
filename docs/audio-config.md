@@ -166,6 +166,8 @@ Each `ChainRuntimeState` owns a `LooperBank` — up to 8 loopers, each up to 60 
 
 **Speed reaches playback through the source rate (#903).** A loop plays on the isolated stream, which sources the store's mixdown; nothing between the two ever read `LooperConfig.speed`, so half and double changed the project file and nothing else. The armed `DiPcm` is now built with the take's rate scaled by the factor (`looper_playback_pcm`), which is exactly the classic behaviour — the read cursor steps by the factor and the pitch follows it, no time-stretch — and the speed is part of the re-arm key, so changing it on a playing loop re-renders instead of being ignored.
 
+**Play and stop move the whole chain (#903).** The loops of one chain are already quantized to the master's bar and restart together when a new one closes, so the transport matches: a play (or stop) tap names a looper, and the store applies it to every looper on THAT chain — skipping the ones with no take and the ones still recording or overdubbing, whose take would be cut short. Another chain's loops are never touched.
+
 **Isolation.** A bank belongs to exactly ONE runtime. A chain served by several parallel runtimes (#703) gets one bank per runtime, each recording its own input with its own buffers — two audio threads never touch the same memory, and a chain-level status reads whichever runtime actually holds material. An off-thread rebuild carries the banks over (`adopt_taps_from`), so a live edit does not wipe a recorded loop; a rebuild that CHANGED the sample rate drops them instead of replaying frames at the wrong speed (the #669 failure mode).
 
 **How a looper command gets there (#127).** Every `LooperCommand` has a project

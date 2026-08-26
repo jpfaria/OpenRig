@@ -1,3 +1,5 @@
+//! Responsibility: owns the recorded state of every looper this controller holds.
+//!
 //! #323 — controller-owned looper state.
 //!
 //! The redesign's core: the recorded material and transport state of every
@@ -284,14 +286,42 @@ impl LooperStore {
         }
     }
 
-    pub fn stop(&mut self, chain: &ChainId, uid: u64) {
-        if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
-            e.slot.stop();
-            e.rings.clear();
+    /// Stop the chain's loops — every one of them (#903). The tap that asked
+    /// names a looper, but the loops of a chain are one performance: they are
+    /// already quantized to the master's bar, so stopping one and leaving the
+    /// rest running breaks the take the owner is playing. A loop still being
+    /// recorded keeps recording; an empty one has nothing to stop.
+    pub fn stop(&mut self, chain: &ChainId, _uid: u64) {
+        for uid in self.transportable(chain) {
+            if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
+                e.slot.stop();
+                e.rings.clear();
+            }
         }
     }
-    pub fn play(&mut self, chain: &ChainId, uid: u64) {
-        self.with_slot(chain, uid, |s| s.play());
+
+    /// Start the chain's loops — every one of them, for the same reason
+    /// [`Self::stop`] stops them all.
+    pub fn play(&mut self, chain: &ChainId, _uid: u64) {
+        for uid in self.transportable(chain) {
+            self.with_slot(chain, uid, |s| s.play());
+        }
+    }
+
+    /// The chain's loopers the transport may move: they hold a take, and they
+    /// are not in the middle of making one.
+    fn transportable(&self, chain: &ChainId) -> Vec<u64> {
+        self.slots
+            .iter()
+            .filter(|((cid, _), e)| {
+                cid == chain
+                    && !matches!(
+                        status_of(0, &e.slot).state,
+                        LooperState::Empty | LooperState::Recording | LooperState::Overdubbing
+                    )
+            })
+            .map(|((_, uid), _)| *uid)
+            .collect()
     }
     pub fn clear(&mut self, chain: &ChainId, uid: u64) {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
