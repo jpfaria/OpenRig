@@ -174,6 +174,13 @@ mod issue_819_retire_persistent_window_tests;
 #[path = "issue_85_stream_rows_tests.rs"]
 mod issue_85_stream_rows_tests;
 mod latency_probe;
+mod live_source_block_stream;
+mod live_source_chain_rate;
+mod live_source_chain_row;
+mod live_source_gui;
+mod live_source_health;
+mod live_source_looper;
+mod live_source_metronome;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
