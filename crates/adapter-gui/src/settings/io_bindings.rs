@@ -24,17 +24,15 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::{Command, IoBindingCommand};
-use domain::io_binding::{IoBinding, IoEndpoint};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
-use slint::{Global, Model, ModelRc, SharedString, VecModel};
+use slint::{Global, ModelRc, VecModel};
 
 use crate::state::ProjectSession;
-use crate::{AppWindow, ChannelOptionItem, IoBindingModel, IoEndpointModel, ProjectSettingsWindow};
+use crate::{AppWindow, ProjectSettingsWindow};
 
 #[path = "io_bindings_endpoint.rs"]
-mod io_bindings_endpoint;
+pub(crate) mod io_bindings_endpoint;
 pub(crate) use io_bindings_endpoint::{
     apply_channel_toggle, build_input_endpoint, build_output_endpoint, build_update_command,
     build_update_removing_endpoint, build_update_replacing_endpoint,
@@ -52,186 +50,18 @@ use io_bindings_callbacks::WireCtx;
 #[cfg(test)]
 #[path = "io_bindings_tests.rs"]
 mod io_bindings_tests;
-
-// ── Pure helpers (testable without AppWindow) ─────────────────────────────────
-
-/// Build an `IoBindingCommand::CreateIoBinding` for a new binding.
-pub(crate) fn build_create_command(binding: IoBinding) -> Command {
-    Command::IoBinding(IoBindingCommand::CreateIoBinding { binding })
-}
-
-/// Convert a dispatcher reject `Err` into a display string for the UI.
-/// Leaves `list` unchanged — the delete was rejected, so no mutation.
-pub(crate) fn surface_delete_error(err: &anyhow::Error, _list: &mut Vec<IoBinding>) -> String {
-    err.to_string()
-}
-
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
-fn dispatch_if_session(ps: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
-    if let Some(session) = ps.borrow().as_ref() {
-        let _ = session.dispatcher.dispatch(cmd);
-    }
-}
-
-/// Name for a new binding: the typed name, or a sequential default ("I/O N").
-fn binding_display_name(name: &str, bindings: &[IoBinding]) -> String {
-    let trimmed = name.trim();
-    if !trimmed.is_empty() {
-        return trimmed.to_string();
-    }
-    format!("I/O {}", bindings.len() + 1)
-}
-
-/// Refresh the GUI's `AppConfig` snapshot FROM the registry the dispatcher owns
-/// (#127).
-///
-/// The mirror used to run the other way — snapshot INTO the registry — so a
-/// binding created from MCP/gRPC landed in the registry and was then wiped by
-/// the next click on this screen: the command reported success and a GUI code
-/// path silently undid it. Inverting it makes the dispatcher's registry the
-/// single source of truth, and the other GUI readers of `AppConfig.io_bindings`
-/// (chain CRUD, device refresh, the audio section) see those edits too.
-fn sync_snapshot_from_registry(
-    ps: &Rc<RefCell<Option<ProjectSession>>>,
-    cfg: &Rc<RefCell<AppConfig>>,
-) {
-    let registry = ps
-        .borrow()
-        .as_ref()
-        .map(|session| session.io_bindings.borrow().clone());
-    if let Some(bindings) = registry {
-        cfg.borrow_mut().io_bindings = bindings;
-    }
-}
-
-/// #716 (AUDIO-CRITICAL), as a Command since #127: install the edited registry
-/// into the live runtime so an ALREADY-RUNNING chain re-resolves its device
-/// endpoints against the latest edit instead of waiting for the next cold
-/// start. The GUI used to call the controller directly, which left MCP/gRPC
-/// with no way to reach the live registry at all.
-fn push_bindings_to_runtime(ps: &Rc<RefCell<Option<ProjectSession>>>) {
-    dispatch_if_session(ps, Command::IoBinding(IoBindingCommand::SetIoBindings));
-}
-
-fn delete_reject_message(ps: &Rc<RefCell<Option<ProjectSession>>>, id: &str) -> String {
-    let cmd = Command::IoBinding(IoBindingCommand::DeleteIoBinding { id: id.to_string() });
-    if let Some(session) = ps.borrow().as_ref() {
-        match session.dispatcher.dispatch(cmd) {
-            Ok(_) => String::new(),
-            Err(e) => {
-                let mut dummy: Vec<IoBinding> = Vec::new();
-                surface_delete_error(&e, &mut dummy)
-            }
-        }
-    } else {
-        String::new()
-    }
-}
-
-/// Generate a slug-style id from the binding name + a small hash.
-fn make_id(name: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    use std::time::SystemTime;
-
-    let mut h = DefaultHasher::new();
-    name.hash(&mut h);
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .subsec_nanos()
-        .hash(&mut h);
-
-    let slug: String = name
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-')
-        .map(|c| {
-            if c == ' ' {
-                '-'
-            } else {
-                c.to_ascii_lowercase()
-            }
-        })
-        .take(24)
-        .collect();
-
-    format!("{slug}-{:x}", h.finish() & 0xffff)
-}
-
-// ── Slint model projection ────────────────────────────────────────────────────
-
-/// Shared Slint models the section renders, set on both window surfaces.
-struct BindingModels {
-    bindings: Rc<VecModel<IoBindingModel>>,
-    /// Chain-level endpoint picker still consumes flat names on the main window.
-    names: Rc<VecModel<SharedString>>,
-    /// Channel checkboxes for the active add-row (rebuilt on device change).
-    channels: Rc<VecModel<ChannelOptionItem>>,
-}
-
-fn endpoint_model(ep: &IoEndpoint) -> IoEndpointModel {
-    use crate::ui_state::channels_label;
-    IoEndpointModel {
-        name: ep.name.as_str().into(),
-        device_label: ep.device_id.0.as_str().into(),
-        mode: io_bindings_endpoint::mode_label(ep.mode).into(),
-        channels_label: channels_label(&ep.channels).into(),
-    }
-}
-
-fn binding_model(b: &IoBinding) -> IoBindingModel {
-    let inputs: Vec<IoEndpointModel> = b.inputs.iter().map(endpoint_model).collect();
-    let outputs: Vec<IoEndpointModel> = b.outputs.iter().map(endpoint_model).collect();
-    IoBindingModel {
-        id: b.id.as_str().into(),
-        name: b.name.as_str().into(),
-        inputs: ModelRc::from(Rc::new(VecModel::from(inputs))),
-        outputs: ModelRc::from(Rc::new(VecModel::from(outputs))),
-    }
-}
-
-fn project_bindings(bindings: &[IoBinding]) -> Vec<IoBindingModel> {
-    bindings.iter().map(binding_model).collect()
-}
-
-fn binding_names(bindings: &[IoBinding]) -> Vec<SharedString> {
-    bindings
-        .iter()
-        .map(|b| SharedString::from(b.name.as_str()))
-        .collect()
-}
-
-/// Re-project the binding list into the shared Slint models after any mutation.
-fn reproject(models: &BindingModels, bindings: &[IoBinding]) {
-    models.bindings.set_vec(project_bindings(bindings));
-    models.names.set_vec(binding_names(bindings));
-}
-
-/// Build the (id, name) device-list models for one side from the live
-/// descriptors. Empty when devices haven't been enumerated yet.
-fn device_list_models(
-    devices: &[AudioDeviceDescriptor],
-) -> (Rc<VecModel<SharedString>>, Rc<VecModel<SharedString>>) {
-    let ids = devices
-        .iter()
-        .map(|d| SharedString::from(d.id.as_str()))
-        .collect::<Vec<_>>();
-    let names = devices
-        .iter()
-        .map(|d| SharedString::from(d.name.as_str()))
-        .collect::<Vec<_>>();
-    (Rc::new(VecModel::from(ids)), Rc::new(VecModel::from(names)))
-}
-
-/// Currently-selected 0-based channel indices in the shared channel model.
-fn selected_channels(channels: &Rc<VecModel<ChannelOptionItem>>) -> Vec<usize> {
-    channels
-        .iter()
-        .filter(|c| c.selected)
-        .map(|c| c.index as usize)
-        .collect()
-}
+pub(crate) use super::io_bindings_helpers::build_create_command;
+// `io_bindings_tests.rs` hangs off this module and reaches it through `super::`.
+#[cfg(test)]
+pub(crate) use super::io_bindings_helpers::surface_delete_error;
+pub(crate) use super::io_bindings_helpers::{
+    binding_display_name, delete_reject_message, dispatch_if_session, make_id,
+    push_bindings_to_runtime, sync_snapshot_from_registry,
+};
+pub(crate) use super::io_bindings_models::{
+    binding_names, device_list_models, project_bindings, reproject, selected_channels,
+    BindingModels,
+};
 
 // ── Installer ─────────────────────────────────────────────────────────────────
 

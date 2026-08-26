@@ -50,7 +50,10 @@ fn compact_view_surfaces_the_rejected_toggle_instead_of_only_logging_it() {
 
 #[test]
 fn gui_load_path_runs_the_normalization() {
-    let src = read_src("project_ops.rs");
+    // `load_project_session` moved to `project_session_load.rs` when
+    // `project_ops.rs` was split by responsibility (#873); the contract is
+    // unchanged — the loader still has to run the normalization.
+    let src = read_src("project_session_load.rs");
     assert!(
         src.contains("normalize_loaded_project"),
         "issue #833: `load_project_session` must run \

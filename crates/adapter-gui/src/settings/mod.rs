@@ -11,6 +11,8 @@
 pub mod audio;
 pub mod integrations;
 pub mod io_bindings;
+pub(crate) mod io_bindings_helpers;
+pub(crate) mod io_bindings_models;
 pub mod language;
 pub mod midi_devices;
 pub mod paths;
