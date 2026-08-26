@@ -76,6 +76,40 @@ Nunca se acrescenta arquivo à lista. Ela só encolhe.
 
 **Hoje a lista está VAZIA** — o último débito (`jack_supervisor/live_backend.rs`, 627 LOC) foi quitado em #873, dividido nos módulos `live_shm` (limpeza de shm), `live_socket` (espera do socket), `live_stderr` (falha de driver), `live_process` (jackd não-spawnado) e `live_probe` (metadata do servidor). Lista vazia é o estado normal: se alguém precisar reabri-la, é porque um arquivo nasceu grande — e isso é o FAIL de "arquivo novo acima do cap", não uma entrada de débito.
 
+### Declaração de responsabilidade (#873)
+
+Todo arquivo de produção — `.rs`, `.slint`, `build.rs`, exemplos — abre com uma
+linha declarando a ÚNICA coisa que ele faz:
+
+```rust
+//! Responsibility: rebuilds a chain runtime in place
+```
+```slint
+// Responsibility: renders one block tile inside a chain row
+```
+
+O gate (check 1 do `validate.sh`) reprova duas coisas:
+
+| Situação | Resultado |
+|---|---|
+| Arquivo de produção sem a linha | ❌ FAIL |
+| Declaração com conjunção ou lista (`and`, `+`, `,`, `/`) | ❌ FAIL — o arquivo está confessando que faz duas coisas |
+
+Arquivo de teste é isento: o nome dele já diz o que ele cobre.
+
+**O sweep terminou.** Todos os arquivos de produção do repositório declaram —
+os crates puros, os 17 `block-*`, `project`, `application`, `engine`,
+`infra-cpal`, `adapter-gui` (148 `.rs` + 109 `.slint`), os `build.rs` e os
+`examples/`. Por isso o modo sweep (`validate.sh crates`) **não avisa mais, ele
+reprova**: antes ele só avisava porque a maior parte do repo ainda não tinha
+header e um FAIL travaria qualquer commit. Esse período acabou.
+
+Escrever a frase É a análise. Quando ela não sai sem um "e", o arquivo tem dois
+donos e o destino do código novo é um arquivo novo — foi assim que
+`catalog.rs` (482 LOC, seis perguntas diferentes), `query.rs` (447, cinco),
+`dsp/legacy.rs` (426, quatro primitivas) e `runtime_audio_frame.rs` (365,
+frame + buffer elástico + processador) se dividiram.
+
 ### Guard em tempo de edição
 
 O `line-cap-guard` do plugin dev-rules (PreToolUse) **nega Edit/Write que cresça** um arquivo já acima do cap; edit que encolhe passa, então o split nunca fica bloqueado por si mesmo. Os caps que ele usa vêm do `.dev-rules.json` do repo (`line_caps`) — mesma fonte de números do `validate.sh`.
