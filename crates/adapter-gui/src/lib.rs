@@ -197,6 +197,8 @@ mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 pub mod midi_profile_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
+mod app_config_load;
+mod gui_device_settings;
 #[cfg(test)]
 #[path = "issue_85_click_port_opens_editor_tests.rs"]
 mod issue_85_click_port_opens_editor_tests;
@@ -220,11 +222,15 @@ mod model_search_wiring;
 mod no_infra_cpal_in_wiring_tests;
 mod port_wiring;
 mod preset_search;
+mod project_dirty;
 mod project_display_name;
 mod project_load_normalize;
 mod project_ops;
 mod project_ops_recents;
 mod project_path;
+mod project_paths_resolve;
+mod project_session_load;
+mod project_title;
 mod recent_projects;
 // #679: `pub` so the issue_599 integration test can reach
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
