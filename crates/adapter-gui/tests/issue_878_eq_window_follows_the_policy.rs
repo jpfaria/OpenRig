@@ -7,7 +7,7 @@
 
 use adapter_gui::block_panel_dimensions::{compute, EqWidget, PanelInputs};
 use adapter_gui::{BlockEditorWindow, BlockTypePickerItem, CurveEditorPoint};
-use slint::{ComponentHandle, Global, ModelRc, VecModel};
+use slint::{Global, ModelRc, VecModel};
 
 fn eq_window(bands: usize) -> BlockEditorWindow {
     let w = BlockEditorWindow::new().unwrap();

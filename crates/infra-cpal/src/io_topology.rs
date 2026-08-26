@@ -1,4 +1,5 @@
-//! Responsibility: detects when a chain needs re-binding.
+//! Responsibility: computes the topology signatures a rebuild decision compares.
+//!
 //! Issue #743 — cheap re-bind detection for the chain toggle path.
 
 use domain::ids::DeviceId;
@@ -37,6 +38,9 @@ pub fn io_topology_changed(
 /// bound an insert on a RUNNING chain, so the live-edit path swapped only the
 /// DSP and kept the old streams: the post-insert segment then waited on a
 /// return stream nobody had opened and the rig went silent until a restart.
+/// Its only caller, `chain_io_changed`, is cpal-only — the JACK twin returns
+/// `Ok(false)` while the stream-topology live-swap stays unwired (#672).
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 pub(crate) fn bound_io_signature(
     chain: &project::chain::Chain,
     registry: &[domain::io_binding::IoBinding],
