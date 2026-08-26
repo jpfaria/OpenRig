@@ -147,7 +147,9 @@ mod stream_builder_input;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod stream_builder_output;
 mod stream_builder_project;
+mod stream_channels;
 mod stream_config;
+mod stream_rates;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod stream_signature;
 pub use stream_builder_project::build_streams_for_project;
