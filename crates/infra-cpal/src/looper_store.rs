@@ -42,6 +42,10 @@ struct LoopEntry {
     /// stream re-arms when the linked preset is edited or reassigned even
     /// though the recorded loop content is unchanged.
     playback_rev: u64,
+    /// #903: whether the chain's transport reaches this looper. A disabled
+    /// looper keeps its take and its routing — it just sits out play and stop
+    /// until it is switched back on.
+    enabled: bool,
     /// #826: pre-edit buffers, newest last, and the redo tail. Control thread
     /// only — the audio thread never sees these.
     edit_undo: Vec<Vec<f32>>,
@@ -57,6 +61,7 @@ impl LoopEntry {
             rings: Vec::new(),
             playback_blocks: None,
             playback_rev: 0,
+            enabled: true,
             edit_undo: Vec::new(),
             edit_redo: Vec::new(),
         }
@@ -308,13 +313,14 @@ impl LooperStore {
         }
     }
 
-    /// The chain's loopers the transport may move: they hold a take, and they
-    /// are not in the middle of making one.
+    /// The chain's loopers the transport may move: switched on, holding a take,
+    /// and not in the middle of making one.
     fn transportable(&self, chain: &ChainId) -> Vec<u64> {
         self.slots
             .iter()
             .filter(|((cid, _), e)| {
                 cid == chain
+                    && e.enabled
                     && !matches!(
                         status_of(0, &e.slot).state,
                         LooperState::Empty | LooperState::Recording | LooperState::Overdubbing
@@ -322,6 +328,22 @@ impl LooperStore {
             })
             .map(|((_, uid), _)| *uid)
             .collect()
+    }
+
+    /// #903: switch one looper in or out of the chain's transport. Keeps the
+    /// take: this is not a stop and not a clear.
+    pub fn set_enabled(&mut self, chain: &ChainId, uid: u64, enabled: bool) {
+        if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
+            e.enabled = enabled;
+        }
+    }
+
+    /// Whether the chain's transport reaches this looper.
+    pub fn is_enabled(&self, chain: &ChainId, uid: u64) -> bool {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| e.enabled)
+            .unwrap_or(true)
     }
     pub fn clear(&mut self, chain: &ChainId, uid: u64) {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
