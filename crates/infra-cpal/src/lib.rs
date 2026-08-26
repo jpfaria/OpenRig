@@ -1,3 +1,5 @@
+//! Responsibility: hosts this machine's audio devices for the project runtime.
+//!
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -171,6 +173,10 @@ pub(crate) use validation::{
 
 #[cfg(test)]
 mod controller_live_edit_replicates_user_report_tests;
+
+#[cfg(test)]
+#[path = "render_scheduling_903_tests.rs"]
+mod render_scheduling_903;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

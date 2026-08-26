@@ -56,6 +56,8 @@ Escopo, modelo de dados, comportamento esperado, camada certa, qual arquivo, A v
 
 **Why:** o usuário roda vários streams em paralelo (ex.: 4 streams em 2 interfaces) e cada um TEM que ser 100% independente — mexer, quebrar, atrasar ou reconstruir um NÃO pode afetar outro. "Selecionar por taxa" é um proxy furado de isolamento: mesma taxa em dois devices cross-mistura, e rate mal-resolvido agrupa errado → underrun/cross-talk. A isolação é por STREAM/DEVICE, JAMAIS por rate nem por "todos que casam". Já foi repetido incontáveis vezes; virou LEI.
 
+**Isolamento inclui o TEMPO DE CPU, não só buffer e rota.** Um stream que está tocando NÃO pode aumentar a latência de outro. Se o pipeline de um loop/DI disputa a mesma classe de escalonamento (RT time-constraint) do callback de áudio da chain ao vivo, os dois se enxergam pelo relógio — e isso É violação desta lei, mesmo com buffers separados. A correção é garantir que os pipelines não disputem (prioridade/classe), NUNCA "fazer o outro gastar menos CPU": economizar custo disfarça o acoplamento e ele volta com N streams. 10 guitarras = 10 pipelines que não sabem que os outros existem.
+
 **How to apply:** qualquer seleção/agrupamento de runtimes no caminho de I/O (`slots_for_*`, output mixing, taps, DI, meters) tem que ser por identidade de STREAM/DEVICE — nunca por rate, nunca por "todos os que batem". Um output só toca o runtime do seu stream; um tap só lê o seu; um rebuild só reconstrói o seu. Achou código que junta/seleciona runtimes de streams diferentes por qualquer critério que não seja a identidade do próprio stream/device → é violação, PARA, reporta e corrige. Ver invariante #4 e o red flag correspondente abaixo.
 
 ## LEI ZERO — UM ARQUIVO, UMA RESPONSABILIDADE (só teste pode ser grande)

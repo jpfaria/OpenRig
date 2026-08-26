@@ -1,3 +1,5 @@
+//! Responsibility: renders one armed isolated playback into its output ring.
+//!
 //! The `di-stream` render thread (#771) and its gapless hand-off (#785).
 //!
 //! One worker renders one armed DI: it builds the routed isolated runtime, then
@@ -13,7 +15,7 @@
 //! builds, so more than one may be in flight) and retires the outgoing playback
 //! off the audio thread.
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -24,6 +26,23 @@ use engine::DiPcm;
 use project::chain::Chain;
 
 use crate::di_playback::{DiPlayback, DiPlaybackCell, DiRetired};
+
+/// Scheduling class an isolated playback render declared for itself.
+///
+/// Recorded so a test can assert the render never shares the live callback's
+/// class — `CLAUDE.md`'s isolation LAW covers CPU time, not just buffers.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // `AudioRealtime` is the value the #903 test refuses to see.
+pub(crate) enum RenderScheduling {
+    Unset = 0,
+    /// The chain callback's Mach time-constraint class.
+    AudioRealtime = 1,
+    /// Below the callback: the render yields to every live stream.
+    BelowAudioThread = 2,
+}
+
+/// What the most recent render thread declared. Pinned by the #903 test.
+pub(crate) static LAST_RENDER_SCHEDULING: AtomicU8 = AtomicU8::new(RenderScheduling::Unset as u8);
 
 /// Live `di-stream` render threads. A hand-off leaves the outgoing worker
 /// running until the incoming one stops it; a worker left behind would burn a
@@ -85,6 +104,43 @@ impl Drop for AliveGuard {
         DI_WORKERS_ALIVE.fetch_sub(1, Ordering::Relaxed);
     }
 }
+
+/// Put THIS thread below every audio thread (#903).
+///
+/// Mach precedence, not a time-constraint declaration: the render asks for less
+/// than the callbacks, so the scheduler never has to choose between a loop's
+/// render and a live stream's deadline. A no-op off macOS, where the render
+/// already runs at default priority.
+#[cfg(target_os = "macos")]
+fn yield_to_live_streams() {
+    #[repr(C)]
+    struct Precedence {
+        importance: i32,
+    }
+    extern "C" {
+        fn mach_thread_self() -> u32;
+        fn thread_policy_set(thread: u32, flavor: i32, policy: *const u32, count: u32) -> i32;
+    }
+    const THREAD_PRECEDENCE_POLICY: i32 = 3;
+    // One step below the default (0). Leaving the time-constraint class is what
+    // isolates the live streams — a precedence value never outranks an audio
+    // thread — so the step down only settles ties against the GUI. Deeper than
+    // this starves the render itself under load without buying the callbacks
+    // anything.
+    let policy = Precedence { importance: -1 };
+    let rc = unsafe {
+        thread_policy_set(
+            mach_thread_self(),
+            THREAD_PRECEDENCE_POLICY,
+            &policy as *const _ as *const u32,
+            1,
+        )
+    };
+    log::info!("di-stream render placed below the audio threads rc={rc}");
+}
+
+#[cfg(not(target_os = "macos"))]
+fn yield_to_live_streams() {}
 
 fn run(spec: DiWorkerSpec) {
     let DiWorkerSpec {
@@ -154,20 +210,18 @@ fn run(spec: DiWorkerSpec) {
     // by construction; the sleep-paced worker tried in #717 drifted and was
     // reverted, f1131725e).
     //
-    // Scheduling shape matters more than raw priority (#698 lesson, re-measured
-    // live on the owner's rig): normal priority + continuous burn → 71-88% fill
-    // (preempted by the GUI + the guitar's RT worker); RT class + continuous
-    // burn → 38% (the kernel demotes a time-constraint thread that blows
-    // through its declared budget for seconds). The guitar's dsp_worker sustains
-    // the SAME chain cost in debug because it works in SHORT BURSTS. Mirror it:
-    // one block per iteration, a breath every few blocks, and an honest RT
-    // declaration sized to that cadence.
+    // #903 (isolation LAW, CPU time): this render must NEVER share the live
+    // callback's time-constraint class. It used to promote itself exactly like
+    // the guitar's `dsp_worker`, so the two competed for the same slots: one
+    // loop playing raised the live latency, and every loop stacked on raised it
+    // again — ten pipelines that knew the others existed. It runs BELOW the
+    // audio threads instead: the ring's backpressure already paces it, and the
+    // pre-buffer absorbs the preemption a lower class costs. Nothing here is
+    // about spending less CPU — the render costs what it costs; it just never
+    // takes a slot a live stream needs.
     let period_ns = (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
-    // `dsp_worker` is cfg'd out under Linux+JACK (#755); mirror that gate so the
-    // crate still compiles there. `promote_to_audio_rt` is a no-op off macOS
-    // regardless, so skipping it under Linux+JACK changes no behavior.
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns * 3 / 5);
+    yield_to_live_streams();
+    LAST_RENDER_SCHEDULING.store(RenderScheduling::BelowAudioThread as u8, Ordering::Relaxed);
     let silence = vec![0.0f32; BLOCK];
     let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
     let mut pos: usize = start_pos;
