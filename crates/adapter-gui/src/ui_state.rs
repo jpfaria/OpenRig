@@ -1,3 +1,4 @@
+//! Responsibility: holds the state the settings screen edits.
 use infra_filesystem::{AppConfig, ChannelMode, IoBinding, IoEndpoint};
 use project::chain::Chain;
 

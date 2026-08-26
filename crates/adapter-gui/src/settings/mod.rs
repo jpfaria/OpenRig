@@ -1,3 +1,4 @@
+//! Responsibility: routes the settings screen wirings.
 //! Per-section wirings for the Settings screen (#513).
 //!
 //! Each submodule binds one section's Slint callbacks to `Command`

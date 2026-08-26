@@ -1,3 +1,4 @@
+//! Responsibility: decides which parameter tab a compact block shows.
 //! #787 — which parameter tab each compact block shows.
 //!
 //! View state, not project state: it is not a `Command` and never reaches the

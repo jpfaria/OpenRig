@@ -1,3 +1,4 @@
+//! Responsibility: wires the block removal of the compact chain view.
 //! Compact-chain block delete + reorder callback wiring (issue #792 split
 //! from compact_chain_block_handlers.rs).
 

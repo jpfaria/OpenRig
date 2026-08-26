@@ -1,3 +1,4 @@
+//! Responsibility: owns the live spectrum session.
 //! SpectrumWindow live session — owns the per-stream stereo sample taps
 //! and FFT analyzers that drive the row model.
 //!

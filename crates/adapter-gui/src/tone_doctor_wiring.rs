@@ -1,3 +1,4 @@
+//! Responsibility: wires the tone doctor entry point.
 //! #791 — Tone Doctor GUI wiring: turn the dispatcher's verdict into the
 //! panel's view fields.
 //!

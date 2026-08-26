@@ -1,3 +1,4 @@
+//! Responsibility: wires the inline plugin info overlay.
 //! Inline plugin info overlay wiring on the main `AppWindow`.
 //!
 //! In fullscreen / touch modes the secondary `PluginInfoWindow` does not

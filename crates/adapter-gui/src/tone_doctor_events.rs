@@ -1,3 +1,4 @@
+//! Responsibility: delivers a tone diagnosis to whoever asked for it.
 //! #791 — deliver `Event::ChainToneDiagnosed` to whichever window is showing
 //! the Tone Doctor panel.
 //!

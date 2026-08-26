@@ -1,3 +1,4 @@
+//! Responsibility: implements the tap subscription doors of the runtime seam.
 //! #127: the GUI's implementation of the subscription seam
 //! (`application::audio_taps`) — the ONE place that turns a `TapPoint` into a
 //! `ProjectRuntimeController` subscription.

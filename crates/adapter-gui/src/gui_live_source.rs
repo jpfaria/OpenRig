@@ -1,3 +1,4 @@
+//! Responsibility: reads the GUI's live rig state.
 //! #831: the GUI's live readings, as [`LiveSource`].
 //!
 //! Everything here is state that only exists inside the running window —

@@ -1,3 +1,4 @@
+//! Responsibility: filters a block model list by what was typed.
 //! Search and filter logic for block model lists.
 //!
 //! Substring match ignoring case, hyphens, and spaces. Searches in

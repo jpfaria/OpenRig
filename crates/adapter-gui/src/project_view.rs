@@ -1,3 +1,4 @@
+//! Responsibility: builds what the chains screen shows.
 use crate::block_editor::block_parameter_items_for_model;
 use crate::state::SelectedBlock;
 use crate::ui_state::{chain_io_chip_label_from_bindings, chain_routing_summary};

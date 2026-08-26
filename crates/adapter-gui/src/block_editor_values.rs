@@ -1,3 +1,4 @@
+//! Responsibility: reads the value a parameter row should show.
 //! Read-side helpers for `BlockParameterItem` rows.
 //!
 //! These functions traverse the parameter model to:

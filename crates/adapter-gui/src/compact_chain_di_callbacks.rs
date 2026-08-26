@@ -1,3 +1,4 @@
+//! Responsibility: handles the DI loop actions of the compact chain view.
 //! #614/#771 — DI loop callbacks for the compact chain window.
 //!
 //! Extracted verbatim from `compact_chain_callbacks::wire` (which had grown

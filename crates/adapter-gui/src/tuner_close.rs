@@ -1,3 +1,4 @@
+//! Responsibility: resolves what closing the tuner means.
 //! Issue #544 — close-tuner intent as a pure helper.
 //!
 //! Closing the tuner window is the inverse of "power on" (commit

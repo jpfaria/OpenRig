@@ -1,3 +1,4 @@
+//! Responsibility: builds the endpoint rows of the bindings section.
 //! Pure endpoint helpers for the System / I/O bindings editor (#716).
 //!
 //! These functions translate the structured picker inputs (device id +

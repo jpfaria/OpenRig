@@ -1,3 +1,4 @@
+//! Responsibility: handles the user tapping a block.
 //! `on_select_chain_block` — dispatch entry for clicking a block in a chain.
 //!
 //! Branches based on the kind of block at the resolved real-index:

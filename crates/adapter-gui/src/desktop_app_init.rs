@@ -1,3 +1,4 @@
+//! Responsibility: sets the main window up before it is shown.
 //! Initial main-window state setup for `run_desktop_app`.
 //!
 //! Builds the Slint VecModels that the rest of the UI binds against

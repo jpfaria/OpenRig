@@ -1,3 +1,4 @@
+//! Responsibility: holds the small window helpers the wirings share.
 use crate::AppWindow;
 use slint::{ComponentHandle, Global, Timer, TimerMode};
 use std::fmt::Display;

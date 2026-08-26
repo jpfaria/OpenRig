@@ -1,3 +1,4 @@
+//! Responsibility: wires the parameter widgets that are not knobs.
 //! Block-parameter select + toggle/file callback wiring (issue #792 split
 //! from block_parameter_wiring.rs).
 

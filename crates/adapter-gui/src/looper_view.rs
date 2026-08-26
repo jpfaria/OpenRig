@@ -1,3 +1,4 @@
+//! Responsibility: builds the view model of the looper panel.
 //! #323 — the pure view model of the looper panel: persisted parameters
 //! (project) merged with the live transport state the audio thread publishes,
 //! turned into the rows the panel renders.

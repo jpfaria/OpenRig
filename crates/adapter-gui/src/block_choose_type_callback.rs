@@ -1,3 +1,4 @@
+//! Responsibility: handles the user choosing a block type.
 //! `on_choose_block_type` — branches on the type chosen from the block-type
 //! picker.
 //!

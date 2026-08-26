@@ -1,3 +1,4 @@
+//! Responsibility: wires the compact chain view's header.
 //! Compact chain view: the header's chain-admin forwarders and (#787) the
 //! per-block parameter tabs + drag geometry.
 //!

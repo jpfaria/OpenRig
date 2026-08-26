@@ -1,3 +1,4 @@
+//! Responsibility: wires the bindings section.
 //! System / I/O bindings section wiring (#716).
 //!
 //! Pure wiring functions that translate Slint callback events into

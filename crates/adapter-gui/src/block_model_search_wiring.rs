@@ -1,3 +1,4 @@
+//! Responsibility: wires the block model search.
 //! Wiring for the block-model search/choose-by-id callbacks on the main
 //! (inline-editor) window.
 //!

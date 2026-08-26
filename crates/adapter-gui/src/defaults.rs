@@ -1,3 +1,4 @@
+//! Responsibility: holds the audio settings the app falls back to.
 //! Crate-wide default and supported audio settings, plus the magic
 //! prefixes used by the Select-block parameter pathing.
 

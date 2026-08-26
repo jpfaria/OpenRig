@@ -1,3 +1,4 @@
+//! Responsibility: handles the block CRUD of the compact chain view.
 //! Compact chain view — block CRUD callbacks.
 //!
 //! Handles per-block manipulation from the compact chain view: enable toggle,

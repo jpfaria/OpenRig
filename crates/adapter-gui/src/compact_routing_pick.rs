@@ -1,3 +1,4 @@
+//! Responsibility: re-points a routing block from the compact view.
 //! #881 — re-pointing a routing block (insert / mid port) from the compact view.
 //!
 //! In the row, a processing block picks its MODEL where a routing block picks

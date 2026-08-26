@@ -1,3 +1,4 @@
+//! Responsibility: resolves what the chains screen highlights.
 //! #591: resolve which chain row + block chip the Chains screen highlights,
 //! straight from the dispatcher-owned `SelectionState` (the single source of
 //! truth the MIDI footswitch also reads).

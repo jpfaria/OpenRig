@@ -1,3 +1,4 @@
+//! Responsibility: wires the back-to-launcher action.
 //! Wiring for the "back to launcher" callback on the main window.
 //!
 //! Hides the standalone settings/chain editor/block editor windows, clears the

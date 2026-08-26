@@ -1,3 +1,4 @@
+//! Responsibility: handles the parameter updates of the compact chain view.
 //! Compact chain view — block parameter update callbacks.
 //!
 //! Three near-identical handlers driving live parameter changes from the

@@ -1,3 +1,4 @@
+//! Responsibility: runs the project operations the GUI asks for.
 use application::command::{Command, ProjectCommand, SelectionCommand};
 
 use crate::state::{AppConfigYaml, ProjectPaths, ProjectSession};

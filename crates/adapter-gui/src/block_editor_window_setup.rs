@@ -1,3 +1,4 @@
+//! Responsibility: builds a fresh detached block editor window.
 //! Builds a fresh per-block detached `BlockEditorWindow` and wires its
 //! callbacks.
 //!

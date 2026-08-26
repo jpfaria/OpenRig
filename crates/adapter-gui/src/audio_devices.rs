@@ -1,3 +1,4 @@
+//! Responsibility: lists the audio devices the settings screen offers.
 use crate::{
     DeviceSelectionItem, DEFAULT_BIT_DEPTH, DEFAULT_BUFFER_SIZE_FRAMES, DEFAULT_SAMPLE_RATE,
     SUPPORTED_BIT_DEPTHS, SUPPORTED_BUFFER_SIZES, SUPPORTED_SAMPLE_RATES,

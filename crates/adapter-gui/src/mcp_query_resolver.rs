@@ -1,3 +1,4 @@
+//! Responsibility: answers a transport query from the GUI thread.
 //! Frontend side of the read bus: hands the GUI thread's live state
 //! (`!Send` project, runtime meters, analyzer sessions) to the one
 //! [`QueryKind`] resolver.

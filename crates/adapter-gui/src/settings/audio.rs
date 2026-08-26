@@ -1,3 +1,4 @@
+//! Responsibility: wires the audio settings save.
 //! Wiring for `on_save_audio_settings` on the main window and the standalone
 //! project-settings window.
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: wires the chain name edit.
 //! Wiring for the main window's chain-name edit callback.
 //!
 //! Mirrors the typed name into the active `ChainDraft` and the window

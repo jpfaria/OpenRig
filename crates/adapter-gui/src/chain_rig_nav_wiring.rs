@@ -1,3 +1,4 @@
+//! Responsibility: wires the per-chain rig navigation.
 //! Wiring for the per-chain rig preset/scene selectors (#436 #1) on the
 //! legacy chains screen. A switch mutates the retained `RigProject`,
 //! re-projects that one input's synthetic chain, swaps it into the live

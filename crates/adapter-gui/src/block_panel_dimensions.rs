@@ -1,3 +1,4 @@
+//! Responsibility: computes the block editor panel's geometry.
 //! Pure dimensional layout for the block editor's `BlockPanelEditor`.
 //!
 //! Wrap policy is universal: every block kind (NAM, native, LV2, IR,

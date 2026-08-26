@@ -1,3 +1,4 @@
+//! Responsibility: bridges the chain editor's binding checklist to the registry.
 //! #716: pure bridge between the chain editor's binding checklist and the
 //! domain. No `AppWindow` — these are plain transforms (LAW 1/2).
 

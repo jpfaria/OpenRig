@@ -1,3 +1,4 @@
+//! Responsibility: handles the looper panel's callbacks.
 //! #323 — the looper panel's callbacks: every one dispatches a `Command` and
 //! refreshes the chain-card's looper rows in the same turn.
 //!

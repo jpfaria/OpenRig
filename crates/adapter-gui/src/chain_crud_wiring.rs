@@ -1,3 +1,4 @@
+//! Responsibility: wires the chain CRUD actions of the main window.
 //! Wiring for the main window's chain create/edit callbacks.
 //!
 //! Owns `on_add_chain` (creates a fresh `ChainEditorWindow`, builds a default

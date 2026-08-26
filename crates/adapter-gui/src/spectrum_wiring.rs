@@ -1,3 +1,4 @@
+//! Responsibility: wires the spectrum window.
 //! SpectrumWindow wiring — all callbacks for the top-bar Spectrum feature.
 //! Mirrors `tuner_wiring.rs` (open / close / power) minus the mute path — the
 //! spectrum view is a passive display.

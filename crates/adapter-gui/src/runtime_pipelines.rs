@@ -1,3 +1,4 @@
+//! Responsibility: implements the pipeline doors of the runtime seam.
 //! #127: the INDEPENDENT pipelines' runtime doors — the DI loop (#614/#771)
 //! and the metronome click (#14).
 //!

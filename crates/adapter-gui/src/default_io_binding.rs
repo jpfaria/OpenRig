@@ -1,3 +1,4 @@
+//! Responsibility: builds the default I O binding.
 //! Helper for building the "default" I/O binding from a chosen input and
 //! output device pair (#716, Task 13).
 //!

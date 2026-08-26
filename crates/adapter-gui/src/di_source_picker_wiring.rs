@@ -1,3 +1,4 @@
+//! Responsibility: wires the search of the DI source picker.
 //! #749: search-as-you-type for the chain DI loop source dropdown (the shared
 //! `Select` component). Mirrors `chain_rig_nav_wiring::wire_preset_picker_search`
 //! one-to-one, but DI sources are plain strings where `key == label ==` the

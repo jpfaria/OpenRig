@@ -1,3 +1,4 @@
+//! Responsibility: wires the chain deletion from the compact view.
 //! Issue #360: the compact chain view deletes a chain through an overlay of its
 //! OWN — the modal stays where the user clicked instead of surfacing on the main
 //! window. The pending chain id is per-window, so cancel/confirm always resolve

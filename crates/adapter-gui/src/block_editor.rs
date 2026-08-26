@@ -1,3 +1,4 @@
+//! Responsibility: holds the block editor primitives every flow shares.
 //! Core block-editor primitives shared by the desktop and touch flows:
 //! knob-overlay layout, the editor data lift from `AudioBlock`, and the
 //! numeric quantization / widget-kind heuristics.

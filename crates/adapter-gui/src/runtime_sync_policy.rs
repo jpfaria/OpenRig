@@ -1,3 +1,4 @@
+//! Responsibility: decides when an external event forces a runtime sync.
 //! Issue #670 — runtime-sync policy for EXTERNAL events (MCP tools, MIDI
 //! footswitch). The drain loop used to call `sync_live_chain_runtime` (a full
 //! chain upsert, including live CoreAudio device queries) for EVERY event

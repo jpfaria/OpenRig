@@ -1,3 +1,4 @@
+//! Responsibility: implements the looper doors of the runtime seam.
 //! #127/#323: the looper doors' bodies — how a `LooperCommand` reaches the
 //! controller's looper store, and how a project's loops leave and re-enter it.
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: wires the DI panel's output select.
 //! #771: wiring for the DI panel's OUTPUT select — its own module so the
 //! (already oversized) chain_row_wiring / compact_chain_callbacks don't grow.
 //! Both entry points delegate to `di_loop_wiring::select_chain_di_output`,

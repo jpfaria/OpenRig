@@ -1,3 +1,4 @@
+//! Responsibility: persists the block editor's draft.
 //! Persistence flow for the block editor draft.
 //!
 //! `persist_block_editor_draft` is the synchronous commit:

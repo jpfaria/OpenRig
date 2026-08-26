@@ -1,3 +1,4 @@
+//! Responsibility: performs the driver-level operations on this machine's devices.
 //! #127: driver-level operations on THIS machine's devices — the body of
 //! `RuntimeControl::apply_device_settings` (making them adopt the rate and
 //! buffer size the project just saved) and, on Linux, starting the JACK server

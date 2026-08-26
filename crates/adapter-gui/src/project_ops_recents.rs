@@ -1,3 +1,4 @@
+//! Responsibility: keeps the recent projects list.
 //! Recent-projects list + project-path/name helpers (issue #792 split
 //! from project_ops.rs). Pure functions over AppConfig / paths; no
 //! dispatcher or session state. Re-exported from project_ops so the

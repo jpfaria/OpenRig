@@ -1,3 +1,4 @@
+//! Responsibility: drives the graphic EQ widget.
 use std::cell::RefCell;
 use std::rc::Rc;
 

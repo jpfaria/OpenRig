@@ -1,3 +1,4 @@
+//! Responsibility: wires the per-chain level meters.
 //! Per-chain IN/OUT dBFS meter wiring — issue #496 / #32 / #36.
 //!
 //! Lifecycle:

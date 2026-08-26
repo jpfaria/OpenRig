@@ -1,3 +1,4 @@
+//! Responsibility: finalises the per-instance chain editor flow.
 //! Save / cancel callbacks for the per-instance `ChainEditorWindow`.
 //!
 //! `on_save_chain` validates the active draft and either replaces the

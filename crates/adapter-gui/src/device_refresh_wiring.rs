@@ -1,3 +1,4 @@
+//! Responsibility: wires the refresh-devices action.
 //! Wiring for the "refresh devices" callbacks on the main window and the
 //! standalone project-settings window.
 //!

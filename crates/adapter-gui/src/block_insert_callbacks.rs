@@ -1,3 +1,4 @@
+//! Responsibility: handles the user inserting a block.
 //! `on_start_block_insert` and `on_choose_block_model` callbacks.
 //!
 //! * `on_start_block_insert` — opens the type picker for a new block at a

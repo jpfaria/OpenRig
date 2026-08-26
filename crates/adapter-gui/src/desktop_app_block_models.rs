@@ -1,3 +1,4 @@
+//! Responsibility: holds the block editor's Slint models.
 //! Block-editor `VecModel`s bound to the main `AppWindow` (the inline editor
 //! and pickers). The detached editor builds its own per-window models in
 //! `block_editor_window_setup::create_and_wire` (#819).

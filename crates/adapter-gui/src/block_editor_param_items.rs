@@ -1,3 +1,4 @@
+//! Responsibility: builds the parameter rows the block editor renders.
 //! Builders for `Vec<BlockParameterItem>` — the rows that drive the block
 //! editor's parameter grid in Slint.
 //!

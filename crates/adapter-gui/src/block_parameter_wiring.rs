@@ -1,3 +1,4 @@
+//! Responsibility: wires the parameter edits made in the block drawer.
 //! Wiring for the block-drawer parameter edit callbacks.
 //!
 //! Owns the 7 callbacks that mutate parameters of the active block_editor_draft:

@@ -1,3 +1,4 @@
+//! Responsibility: wires the detached block editor deletion.
 //! Block-editor drawer delete + plugin-info/close callback wiring
 //! (issue #792 split from block_editor_window_lifecycle.rs).
 

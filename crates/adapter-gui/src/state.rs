@@ -1,3 +1,4 @@
+//! Responsibility: holds the GUI session state.
 use std::cell::RefCell;
 use std::rc::Rc;
 

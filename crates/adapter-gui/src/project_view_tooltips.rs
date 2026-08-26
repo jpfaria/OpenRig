@@ -1,3 +1,4 @@
+//! Responsibility: builds the tooltips of a chain's endpoints.
 //! Chain input/output tooltip helpers — lifted out of project_view.rs
 //! so the parent module stays under the size cap.
 

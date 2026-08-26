@@ -1,3 +1,4 @@
+//! Responsibility: wires the integrations toggles.
 //! Wires the System / Integrations toggles (issue #712): per-machine
 //! master switches for the MIDI/BLE-MIDI adapter and the MCP server.
 //!

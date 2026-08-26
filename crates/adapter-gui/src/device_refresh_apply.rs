@@ -1,3 +1,4 @@
+//! Responsibility: re-enumerates the audio devices.
 //! The device re-enumeration itself, in one place (#829).
 //!
 //! Re-enumerating after a USB hot-swap used to live inside the two Slint

@@ -1,3 +1,4 @@
+//! Responsibility: builds what the metronome window shows.
 //! What the metronome window SHOWS (#14) — the knob vocabulary and the output
 //! endpoints the click can play through. No state lives here.
 //!

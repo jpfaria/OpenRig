@@ -1,3 +1,4 @@
+//! Responsibility: wires the chain preset flow.
 //! Wiring for chain preset save/load callbacks on the main window.
 //!
 //! Owns the 5 callbacks driving preset save/load and the touch-mode picker:

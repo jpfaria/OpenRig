@@ -1,3 +1,4 @@
+//! Responsibility: builds the DI loop source list the UI shows.
 //! Pure helpers for building and parsing the per-chain DI loop source list
 //! that populates the chain-tile ComboBox (issue #614, Task 7).
 //!

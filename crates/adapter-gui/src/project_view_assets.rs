@@ -1,3 +1,4 @@
+//! Responsibility: loads the images the project view draws.
 //! Image asset loaders for thumbnails and screenshots — lifted out of
 //! project_view.rs so the parent module stays under the size cap.
 

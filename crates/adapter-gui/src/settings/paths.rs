@@ -1,3 +1,4 @@
+//! Responsibility: wires the paths section.
 //! System / Paths section wiring (#513). Two rows — Presets and
 //! Plugins — each backed by a "Choose…" callback that opens an
 //! `rfd::FileDialog::pick_folder()` and a "Reset" callback that clears

@@ -1,3 +1,4 @@
+//! Responsibility: rebuilds the block editor's parameter tabs.
 //! #780 — (re)builds the block editor's parameter tab state from a full param
 //! list. Called at EVERY point that (re)sets the editor's params — initial
 //! window setup and switching the plugin/model — so changing a VST3 plugin

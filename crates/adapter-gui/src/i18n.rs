@@ -1,3 +1,4 @@
+//! Responsibility: runs the translation lookup at runtime.
 //! Internationalization runtime — locale detection, override, and i18n wiring.
 //!
 //! OpenRig has two translation catalogs because Slint's `@tr(...)` macro

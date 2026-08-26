@@ -1,3 +1,4 @@
+//! Responsibility: wires the block picker cancel action.
 //! Wiring for the block picker cancel callback.
 //!
 //! Clears the entire block-editor draft state (model options, parameters,

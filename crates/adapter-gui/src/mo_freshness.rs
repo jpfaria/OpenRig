@@ -1,3 +1,4 @@
+//! Responsibility: checks whether the compiled translations are stale.
 //! Freshness check for build.rs gettext `.mo` compilation (issue #726).
 //!
 //! `build.rs` writes the compiled `.mo` catalogs in-source under

@@ -1,3 +1,4 @@
+//! Responsibility: wires the metronome window.
 //! MetronomeWindow wiring (#14) — the single entry point plus the open, close
 //! and power paths for the top-bar metronome. Mirrors `tuner_wiring.rs`.
 //!

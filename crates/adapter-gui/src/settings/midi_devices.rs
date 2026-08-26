@@ -1,3 +1,4 @@
+//! Responsibility: wires the MIDI devices section.
 //! System / MIDI devices section wiring (#513). The adapter calls
 //! `adapter_midi::list_input_ports()` directly for the refresh button
 //! (no Command is necessary for a read-only query). User edits dispatch

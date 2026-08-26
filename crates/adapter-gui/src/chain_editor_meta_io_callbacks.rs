@@ -1,3 +1,4 @@
+//! Responsibility: handles the edits to a chain's metadata.
 //! Chain metadata (name, instrument) callbacks for the per-instance
 //! `ChainEditorWindow`.
 //!
