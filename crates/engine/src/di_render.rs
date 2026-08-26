@@ -1,3 +1,5 @@
+//! Responsibility: builds one loop's isolated playback runtime routed to its chosen output.
+//!
 //! #771: build the DI's isolated runtime, routed to the CHOSEN output.
 //!
 //! The DI plays on a fresh, independent copy of the chain's block graph
@@ -64,7 +66,7 @@ pub fn build_routed_di_runtime(
         })
         .or_else(|| groups.first().map(|g| (g.binding_id.clone(), 0)));
 
-    let (reduced, output_index) = match target {
+    let (mut reduced, output_index) = match target {
         Some((binding_id, local_index)) => {
             let mut reduced = chain.clone();
             reduced.io_binding_ids = vec![binding_id];
@@ -73,6 +75,7 @@ pub fn build_routed_di_runtime(
         // No bound outputs: the chain's implicit default route 0.
         None => (chain.clone(), 0),
     };
+    bypass_inserts(&mut reduced);
 
     let runtime = Arc::new(build_chain_runtime_state(
         &reduced,
@@ -106,4 +109,18 @@ pub fn build_routed_di_runtime(
         drain_width,
         loop_len,
     })
+}
+
+/// #903: an Insert splits the chain into segments — everything after it is fed
+/// by the external gear's RETURN. This runtime is stepped by an output-only
+/// worker that feeds segment 0 alone, so a bound insert leaves every later
+/// segment with no input and the loop never reaches the tail: the owner's
+/// "playing, cursor moving, no sound". Bypass them here, the same way #881
+/// bypasses an insert whose E/S does not resolve.
+fn bypass_inserts(chain: &mut Chain) {
+    for block in &mut chain.blocks {
+        if matches!(block.kind, project::block::AudioBlockKind::Insert(_)) {
+            block.enabled = false;
+        }
+    }
 }
