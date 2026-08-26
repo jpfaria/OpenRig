@@ -219,9 +219,14 @@ mod recent_projects;
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
 // `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
 mod audio_settings_mode;
+mod block_drawer_state;
 mod block_editor_draft;
+mod block_icon;
 mod block_window;
 mod chain_draft;
+mod chain_io_labels;
+mod insertion_slots;
+mod io_binding_models;
 mod project_session;
 pub mod project_view;
 mod project_view_assets;
