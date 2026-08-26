@@ -1,3 +1,5 @@
+//! Responsibility: applies the runtime half of every looper command.
+//!
 //! #127/#323: the looper doors' bodies — how a `LooperCommand` reaches the
 //! controller's looper store, and how a project's loops leave and re-enter it.
 //!
@@ -348,3 +350,7 @@ mod tests_808;
 #[cfg(test)]
 #[path = "runtime_loopers_826_tests.rs"]
 mod tests_826;
+
+#[cfg(test)]
+#[path = "runtime_loopers_903_tests.rs"]
+mod tests_903;

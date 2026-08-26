@@ -1,3 +1,5 @@
+//! Responsibility: wires the launcher's recent-projects callbacks to the window.
+//!
 //! Wiring for the launcher's "recent projects" callbacks on the main window.
 //!
 //! Owns the 3 callbacks driving the recent-projects list:
@@ -125,6 +127,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    let title =
+                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
+                    let display_name = project_display_name(&session.project.borrow());
+                    stop_the_previous_rig(&project_session);
+                    // #903: opening restores this project's recorded loops, which
+                    // ride on LoadProject and need a store to land in — so the
+                    // runtime seam is wired up first, and only after the previous
+                    // rig is stopped, or they would land in the controller that is
+                    // about to be dropped.
+                    runtime_attach.to_session(&session);
                     // #436 E: abrir recente é negócio → ProjectCommand::LoadProject
                     // no dispatcher da sessão (MCP/MIDI, observável via
                     // Event::ProjectLoaded). Load+swap é adapter-side
@@ -140,10 +152,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                             log::warn!("[open-recent] Command::LoadProject falhou: {e}");
                         }
                     }
-                    let title =
-                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
-                    let display_name = project_display_name(&session.project.borrow());
-                    stop_the_previous_rig(&project_session);
                     replace_project_chains(
                         &project_chains,
                         &session.project.borrow(),
@@ -163,7 +171,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
                     // anything can dispatch against it — a runtime-control command issued before
                     // the first chain sync must still reach the audio.
-                    runtime_attach.to_session(&session);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);

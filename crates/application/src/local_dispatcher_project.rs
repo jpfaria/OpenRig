@@ -1,3 +1,5 @@
+//! Responsibility: handles the commands scoped to the project session.
+//!
 //! Project lifecycle/settings handler.
 //!
 //! #555 round 2: `ProjectCommand::SaveProject` now owns the actual file
@@ -64,6 +66,13 @@ impl LocalDispatcher {
                 // Replace the shared project data in-place so all Rc::clone
                 // holders (adapter-gui's ProjectSession) see the updated state.
                 *self.project.borrow_mut() = project;
+                // #903: the loops the project carries are audio, not YAML —
+                // they live in the runtime's store, and a project opens with
+                // every chain disabled. Hand them back here so the panel shows
+                // the take on open, from any transport.
+                if let Some(control) = self.runtime_control() {
+                    control.restore_saved_loops();
+                }
                 Ok(vec![Event::ProjectLoaded, Event::ProjectMutated])
             }
 

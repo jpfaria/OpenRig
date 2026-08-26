@@ -180,7 +180,13 @@ looper and a Record / Play / PlayStop may bring the runtime up with no chain
 enabled (#808); nothing else may. The recorded audio leaves as an
 `Arc<engine::LoopPcm>` handle through `export_chain_loops`, which
 `ProjectCommand::SaveProject` writes into `<project>.loops/` — so a save issued
-over MCP keeps the loops too. See `docs/architecture.md` → "Write bus".
+over MCP keeps the loops too. The way back in is `ProjectCommand::LoadProject`
+(#903): a project opens with every chain disabled, so nothing had created the
+controller whose store holds a loop and the panel showed EMPTY until the user
+enabled a chain — the take only appeared after enabling and disabling it again.
+The handler now asks `RuntimeControl::restore_saved_loops` for the restore, so
+opening over MCP gets it too; like the DI arm, that door may create the audio
+runtime, and a disabled chain opens no stream. See `docs/architecture.md` → "Write bus".
 
 ### Per-entry stream isolation (issues #350 / #703)
 

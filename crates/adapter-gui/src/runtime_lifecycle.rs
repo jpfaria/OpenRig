@@ -1,3 +1,5 @@
+//! Responsibility: owns the lifecycle of this frontend's project audio runtime.
+//!
 //! Lifecycle of the project audio runtime — the ONE module that creates,
 //! syncs and drops the `ProjectRuntimeController`, and the home of
 //! `GuiRuntimeControl`, the [`RuntimeControl`] every command handler reaches
@@ -195,6 +197,22 @@ impl RuntimeControl for GuiRuntimeControl {
     // The looper doors' bodies live in `runtime_loopers`, where the rules they
     // share are written down: one chain each, the playback reconcile belongs
     // to the door, and only an add or a transport START may wake audio (#808).
+
+    /// #903: the loops of a just-opened project, back in the store. Creating
+    /// the controller is what gives them somewhere to live; a project opens
+    /// with every chain disabled, so no stream opens with it.
+    fn restore_saved_loops(&self) {
+        let Some(session) = self.session.session() else {
+            return;
+        };
+        if let Err(err) =
+            runtime_pipelines::ensure_runtime(&self.runtime, &self.analyzers, &session)
+        {
+            log::warn!("saved loops not restored: {err}");
+            return;
+        }
+        runtime_loopers::restore_project_loops(&self.runtime, &session);
+    }
 
     /// #808: the store slot is claimed on a LIVE runtime — the panel arms REC
     /// only against one, so a looper added with nothing running would be a
