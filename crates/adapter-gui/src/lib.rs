@@ -186,6 +186,10 @@ pub mod logging;
 mod looper_callbacks;
 mod looper_editor_callbacks;
 pub mod looper_view;
+mod meter_invalidation;
+mod meter_math;
+mod meter_rows;
+mod meter_taps;
 mod meter_wiring;
 mod meter_wiring_poll;
 #[cfg(test)]
