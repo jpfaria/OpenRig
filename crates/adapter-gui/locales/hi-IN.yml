@@ -22,6 +22,7 @@ insert-error-select-send: "सेंड डिवाइस और चैनल �
 warn-add-input: "कम से कम एक इनपुट जोड़ें।"
 warn-add-output: "कम से कम एक आउटपुट जोड़ें।"
 
+status-wizard-select-input: "जारी रखने से पहले कम से कम एक इनपुट चुनें।"
 status-audio-disconnected: "ऑडियो डिवाइस डिस्कनेक्ट हो गया — पुनः कनेक्ट हो रहा है..."
 status-audio-reconnected: "ऑडियो डिवाइस पुनः कनेक्ट हो गया"
 status-audio-starting: "ऑडियो शुरू हो रहा है..."

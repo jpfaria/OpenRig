@@ -33,6 +33,7 @@ warn-add-input: "Adicione pelo menos uma entrada."
 warn-add-output: "Adicione pelo menos uma saída."
 
 # --- status-* — info-level toasts
+status-wizard-select-input: "Selecione pelo menos um input antes de continuar."
 status-audio-disconnected: "Dispositivo de áudio desconectado — reconectando..."
 status-audio-reconnected: "Dispositivo de áudio reconectado"
 status-audio-starting: "Iniciando áudio..."

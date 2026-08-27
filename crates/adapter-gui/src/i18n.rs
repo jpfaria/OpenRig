@@ -202,3 +202,7 @@ mod catalog_tests;
 #[cfg(test)]
 #[path = "i18n_runtime_tests.rs"]
 mod runtime_tests;
+
+#[cfg(test)]
+#[path = "i18n_status_keys_tests.rs"]
+mod status_keys_tests;

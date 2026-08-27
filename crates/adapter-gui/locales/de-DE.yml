@@ -22,6 +22,7 @@ insert-error-select-send: "Gerät und Send-Kanäle auswählen."
 warn-add-input: "Fügen Sie mindestens einen Eingang hinzu."
 warn-add-output: "Fügen Sie mindestens einen Ausgang hinzu."
 
+status-wizard-select-input: "Wählen Sie mindestens einen Eingang, bevor Sie fortfahren."
 status-audio-disconnected: "Audiogerät getrennt — Wiederverbindung..."
 status-audio-reconnected: "Audiogerät wieder verbunden"
 status-audio-starting: "Audio wird gestartet..."

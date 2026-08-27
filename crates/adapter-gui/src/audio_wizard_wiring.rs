@@ -40,7 +40,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: AudioWizardCtx) {
                     set_status_warning(
                         &window,
                         &toast_timer,
-                        "Selecione pelo menos um input antes de continuar.",
+                        &rust_i18n::t!("status-wizard-select-input"),
                     );
                 }
                 crate::audio_wizard_step::WizardStep::Invalid(message) => {
