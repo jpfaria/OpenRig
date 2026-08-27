@@ -6,97 +6,13 @@
 
 use std::sync::OnceLock;
 
-use schemars::schema_for;
 use serde_json::Value;
 
 use crate::command::Command;
-
-fn command_root_schema() -> Value {
-    serde_json::to_value(schema_for!(Command)).expect("Command schema serializes")
-}
-
-/// Pull the variant name out of one `oneOf`/`anyOf` entry, whether it is a
-/// struct variant (`{ "required": ["Name"], "properties": { "Name": {...} } }`)
-/// or a unit variant (`{ "enum": ["Name"] }` / `{ "const": "Name" }`).
-fn entry_variant_name(entry: &Value) -> Option<String> {
-    if let Some(name) = entry["required"]
-        .as_array()
-        .and_then(|r| r.first())
-        .and_then(Value::as_str)
-    {
-        return Some(name.to_string());
-    }
-    if let Some(name) = entry["enum"]
-        .as_array()
-        .and_then(|e| e.first())
-        .and_then(Value::as_str)
-    {
-        return Some(name.to_string());
-    }
-    entry["const"].as_str().map(str::to_string)
-}
-
-fn branches(schema: &Value) -> Option<&Vec<Value>> {
-    schema["oneOf"]
-        .as_array()
-        .or_else(|| schema["anyOf"].as_array())
-}
-
-/// The document's definition map, whichever draft `schemars` emitted it under.
-fn definitions(root: &Value) -> Option<&serde_json::Map<String, Value>> {
-    root.get("definitions")
-        .or_else(|| root.get("$defs"))
-        .and_then(Value::as_object)
-}
-
-/// Follow one `anyOf` entry of the untagged `Command` root to the sub-enum it
-/// names, accepting both the bare `{"$ref": …}` and the
-/// `{"allOf": [{"$ref": …}]}` shape `schemars` emits when the variant carries
-/// extra metadata.
-fn resolve_ref<'a>(root: &'a Value, entry: &Value) -> Option<&'a Value> {
-    let reference = entry["$ref"]
-        .as_str()
-        .or_else(|| entry["allOf"][0]["$ref"].as_str())?;
-    let name = reference.rsplit('/').next()?;
-    definitions(root)?.get(name)
-}
-
-/// Push one entry per command, splitting the single string-`enum` entry
-/// `schemars` folds *all* of an enum's unit variants into
-/// (`{"enum":["SaveProject","CloseProject",…]}`) back into one entry each, so
-/// every unit command keeps its own tool.
-fn push_leaf(out: &mut Vec<Value>, entry: &Value) {
-    match entry["enum"].as_array() {
-        Some(names) if names.len() > 1 => out.extend(
-            names
-                .iter()
-                .map(|n| serde_json::json!({ "type": "string", "enum": [n] })),
-        ),
-        _ => out.push(entry.clone()),
-    }
-}
-
-/// Leaf variant entries of `Command`, one per command.
-///
-/// `Command` is `#[serde(untagged)]` over per-domain sub-enums, so the root
-/// schema is `anyOf: [{$ref: BlockCommand}, …]` and the tool surface lives one
-/// level down. Each `$ref` is resolved against the same document and its own
-/// `oneOf` spliced in, flattening back to the pre-split, one-entry-per-command
-/// list every adapter expects. Entries that are not sub-enum refs are kept
-/// as-is so a future inline variant still shows up.
-fn variant_entries(root: &Value) -> Vec<Value> {
-    let Some(top) = branches(root) else {
-        return Vec::new();
-    };
-    let mut leaves = Vec::new();
-    for entry in top {
-        match resolve_ref(root, entry).and_then(branches) {
-            Some(inner) => inner.iter().for_each(|e| push_leaf(&mut leaves, e)),
-            None => push_leaf(&mut leaves, entry),
-        }
-    }
-    leaves
-}
+pub(crate) use crate::schema_walk::{
+    command_root_schema, definitions, entry_variant_name, variant_entries,
+};
+pub use crate::tool_names::{tool_name, variant_from_tool_name};
 
 /// All `Command` variant names, derived once from the static schema.
 pub fn command_variant_names() -> &'static [&'static str] {
@@ -163,26 +79,6 @@ pub fn is_unit_variant(variant: &str) -> bool {
         }
     }
     false
-}
-
-/// `SetBlockParameterNumber` -> `set_block_parameter_number`.
-pub fn tool_name(variant: &str) -> String {
-    let mut s = String::with_capacity(variant.len() + 8);
-    for (i, ch) in variant.char_indices() {
-        if ch.is_uppercase() && i != 0 {
-            s.push('_');
-        }
-        s.push(ch.to_ascii_lowercase());
-    }
-    s
-}
-
-/// Reverse of [`tool_name`]; `None` if it matches no `Command` variant.
-pub fn variant_from_tool_name(tool: &str) -> Option<&'static str> {
-    command_variant_names()
-        .iter()
-        .copied()
-        .find(|v| tool_name(v) == tool)
 }
 
 /// Build a typed [`Command`] from a `Command` variant name (PascalCase, as

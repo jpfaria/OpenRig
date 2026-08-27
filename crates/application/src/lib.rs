@@ -88,6 +88,7 @@ pub mod query_presets;
 pub mod read;
 pub mod render_handler;
 pub mod runtime_control;
+mod schema_walk;
 pub mod selection_state;
 pub mod session;
 /// #693: published immutable state snapshot — transports serve reads
@@ -96,6 +97,7 @@ pub mod snapshot;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
 /// that apply its measured fix.
 pub mod tone_doctor_report;
+mod tool_names;
 
 pub use selection_state::SelectionState;
 pub mod validate;
