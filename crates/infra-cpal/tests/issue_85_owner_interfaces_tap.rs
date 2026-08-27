@@ -18,11 +18,9 @@
 
 mod hw_harness;
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use hw_harness::{device_guard, hw_tests_enabled, init_registry, BUFFER};

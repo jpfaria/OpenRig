@@ -190,6 +190,38 @@ pub(crate) use validation::{
 
 #[cfg(test)]
 mod controller_live_edit_replicates_user_report_tests;
+
+#[cfg(test)]
+#[path = "render_scheduling_903_tests.rs"]
+mod render_scheduling_903;
+
+#[cfg(test)]
+#[path = "looper_speed_tests.rs"]
+mod looper_speed;
+
+#[cfg(test)]
+#[path = "looper_enabled_tests.rs"]
+mod looper_enabled;
+
+#[cfg(test)]
+#[path = "looper_rearm_storm_tests.rs"]
+mod looper_rearm_storm;
+
+#[cfg(test)]
+#[path = "looper_rearm_churn_tests.rs"]
+mod looper_rearm_churn;
+
+#[cfg(test)]
+#[path = "looper_level_tests.rs"]
+mod looper_level;
+
+#[cfg(test)]
+#[path = "looper_transport_scope_tests.rs"]
+mod looper_transport_scope;
+
+#[cfg(test)]
+#[path = "controller_global_transport_tests.rs"]
+mod controller_global_transport;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

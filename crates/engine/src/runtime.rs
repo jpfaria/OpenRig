@@ -481,3 +481,7 @@ mod di_loop_injection;
 #[cfg(test)]
 #[path = "looper_runtime_tests.rs"]
 mod looper_runtime;
+
+#[cfg(test)]
+#[path = "issue_903_looper_playback_insert_tests.rs"]
+mod issue_903_looper_playback_insert;

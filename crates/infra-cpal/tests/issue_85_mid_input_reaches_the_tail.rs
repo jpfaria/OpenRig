@@ -99,7 +99,11 @@ fn play_source(device_name: &str) -> cpal::Stream {
     let device = host
         .output_devices()
         .expect("enumerate outputs")
-        .find(|d| d.name().map(|n| n.contains(device_name)).unwrap_or(false))
+        .find(|d| {
+            d.description()
+                .map(|desc| desc.name().contains(device_name))
+                .unwrap_or(false)
+        })
         .expect("loopback output device");
     let config = device.default_output_config().expect("loopback out config");
     let channels = config.config().channels as usize;
@@ -137,7 +141,11 @@ impl Listener {
         let device = host
             .input_devices()
             .expect("enumerate inputs")
-            .find(|d| d.name().map(|n| n.contains(LOOPBACK)).unwrap_or(false))
+            .find(|d| {
+                d.description()
+                    .map(|desc| desc.name().contains(LOOPBACK))
+                    .unwrap_or(false)
+            })
             .expect("loopback input device");
         let config = device.default_input_config().expect("loopback config");
         let channels = config.config().channels as usize;

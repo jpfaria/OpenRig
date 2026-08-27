@@ -255,9 +255,18 @@ impl LooperSlot {
     }
 
     /// Loop level, 0..=1 (values outside are clamped).
+    ///
+    /// #903: NOT content. The level is applied by the isolated stream as it
+    /// plays, so moving it neither rewrites the take nor re-renders it — it
+    /// used to bump the revision, which restarted the loop from the top and
+    /// only reached the ear once the new render took over.
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);
-        self.content_rev += 1;
+    }
+
+    /// The loop's level, 0..=1.
+    pub fn mix(&self) -> f32 {
+        self.mix
     }
 
     /// Per-layer-of-age gain applied to older layers, 0..=1. 1.0 = no decay.
@@ -319,8 +328,11 @@ impl LooperSlot {
                 acc[1] += buf[f * 2 + 1] * gain;
                 gain *= self.decay;
             }
-            out.push(acc[0] * self.mix);
-            out.push(acc[1] * self.mix);
+            // #903: `mix` is playback gain, not material — baking it here made
+            // the level a property of the render, so moving it restarted the
+            // loop and only landed when that render took over.
+            out.push(acc[0]);
+            out.push(acc[1]);
         }
         Some(out)
     }
