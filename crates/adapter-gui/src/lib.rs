@@ -221,6 +221,7 @@ mod meter_wiring_poll;
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 pub mod midi_profile_wiring;
+mod midi_selection_mirror;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 mod gui_device_settings;
