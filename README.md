@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0"></a>
-  <img src="https://img.shields.io/badge/version-0.1.0--dev-orange.svg" alt="Version: 0.1.0-dev">
+  <a href="https://github.com/jpfaria/OpenRig/releases/latest"><img src="https://img.shields.io/github/v/release/jpfaria/OpenRig?label=version&color=orange" alt="Version"></a>
   <img src="https://img.shields.io/badge/rust-2021_edition-brightgreen.svg" alt="Rust: 2021 Edition">
   <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg" alt="Platforms: macOS | Linux | Windows">
   <a href="https://github.com/jpfaria/OpenRig/actions/workflows/test.yml"><img src="https://github.com/jpfaria/OpenRig/actions/workflows/test.yml/badge.svg?branch=develop" alt="Tests"></a>
@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  Latest: <a href="https://github.com/jpfaria/OpenRig/releases/latest">v0.1.0-dev.24</a> · <a href="CHANGELOG.md">CHANGELOG</a>
+  <a href="https://github.com/jpfaria/OpenRig/releases/latest">Latest release</a> · <a href="CHANGELOG.md">CHANGELOG</a>
 </p>
 
 <p align="center">
