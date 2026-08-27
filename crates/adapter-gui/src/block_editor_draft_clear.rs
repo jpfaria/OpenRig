@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use slint::{SharedString, Timer, VecModel};
 
-use crate::state::BlockEditorDraft;
+use crate::state::{BlockEditorDraft, SelectedBlock};
 use crate::{BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint};
 
 /// Everything a cancelled block edit has to let go of.
@@ -40,6 +40,22 @@ pub(crate) fn clear_block_editor(models: &BlockEditorModels, persist_timer: &Tim
     models.multi_slider_points.set_vec(Vec::new());
     models.curve_editor_points.set_vec(Vec::new());
     models.eq_band_curves.set_vec(Vec::new());
+}
+
+/// Closing the drawer clears the same models AND lets go of the block the
+/// editor was pointed at, plus the inline diagnostic-stream timer it started.
+///
+/// Dropping that timer is what stops the stream: a drawer closed with it still
+/// alive keeps polling a block nobody is looking at.
+pub(crate) fn close_block_drawer(
+    models: &BlockEditorModels,
+    persist_timer: &Timer,
+    selected_block: &Rc<RefCell<Option<SelectedBlock>>>,
+    inline_stream_timer: &Rc<RefCell<Option<Timer>>>,
+) {
+    clear_block_editor(models, persist_timer);
+    *inline_stream_timer.borrow_mut() = None;
+    *selected_block.borrow_mut() = None;
 }
 
 #[cfg(test)]

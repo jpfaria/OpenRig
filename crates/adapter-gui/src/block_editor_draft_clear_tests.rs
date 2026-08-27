@@ -81,3 +81,56 @@ fn cancelling_twice_is_safe() {
     clear_block_editor(&models, &timer);
     assert_eq!(models.block_model_options.row_count(), 0);
 }
+
+// ── Closing the drawer: the same clear, plus what the drawer alone owns ────
+
+use crate::state::SelectedBlock;
+
+#[test]
+fn closing_the_drawer_lets_go_of_the_block_it_was_editing() {
+    let models = populated();
+    let selected = Rc::new(RefCell::new(Some(SelectedBlock {
+        chain_index: 0,
+        block_index: 2,
+    })));
+    let inline = Rc::new(RefCell::new(Some(Timer::default())));
+
+    super::close_block_drawer(&models, &Timer::default(), &selected, &inline);
+
+    assert!(selected.borrow().is_none());
+    assert!(models.block_editor_draft.borrow().is_none());
+}
+
+#[test]
+fn closing_the_drawer_drops_the_inline_stream_timer() {
+    let models = populated();
+    let selected = Rc::new(RefCell::new(None));
+    let inline = Rc::new(RefCell::new(Some(Timer::default())));
+
+    super::close_block_drawer(&models, &Timer::default(), &selected, &inline);
+
+    assert!(
+        inline.borrow().is_none(),
+        "dropping the timer is what stops the stream — a drawer closed with it \
+         alive keeps polling a block nobody is looking at"
+    );
+}
+
+#[test]
+fn closing_the_drawer_also_empties_the_models() {
+    let models = populated();
+    let selected = Rc::new(RefCell::new(None));
+    let inline = Rc::new(RefCell::new(None));
+    super::close_block_drawer(&models, &Timer::default(), &selected, &inline);
+    assert_eq!(models.block_parameter_items.row_count(), 0);
+    assert_eq!(models.eq_band_curves.row_count(), 0);
+}
+
+#[test]
+fn closing_a_drawer_that_was_never_opened_is_safe() {
+    let models = empty();
+    let selected = Rc::new(RefCell::new(None));
+    let inline = Rc::new(RefCell::new(None));
+    super::close_block_drawer(&models, &Timer::default(), &selected, &inline);
+    assert!(selected.borrow().is_none());
+}
