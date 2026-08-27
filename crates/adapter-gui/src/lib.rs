@@ -88,6 +88,8 @@ mod insert_wiring;
 mod live_sync_plan;
 mod looper_commands;
 mod looper_restore;
+mod param_tab_grouping;
+mod param_tabs_inline;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod preset_save_wiring;
