@@ -24,6 +24,7 @@
 
 mod bundle_metadata;
 pub mod catalog;
+mod catalog_params;
 pub mod discovery;
 mod host;
 pub mod host_application;
@@ -33,6 +34,7 @@ mod main_thread;
 mod param_changes;
 pub mod param_channel;
 pub mod param_registry;
+mod plugin_uid_cache;
 mod processor;
 mod stereo;
 mod vst3_search_paths;
