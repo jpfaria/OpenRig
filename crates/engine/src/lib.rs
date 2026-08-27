@@ -70,6 +70,8 @@ mod runtime_state_taps;
 mod runtime_stream_query;
 mod runtime_taps_lifecycle;
 mod runtime_taps_subscribe;
+mod segment_taps;
+mod segment_types;
 pub mod spsc;
 pub mod stream_tap;
 pub mod tone_doctor;
