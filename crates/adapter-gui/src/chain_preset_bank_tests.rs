@@ -122,7 +122,10 @@ fn a_slot_with_no_bank_entry_is_playing_no_preset() {
 
 #[test]
 fn a_non_rig_chain_has_no_active_preset() {
-    assert_eq!(active_preset_id(&ChainId("chain:legacy".into()), &rig()), None);
+    assert_eq!(
+        active_preset_id(&ChainId("chain:legacy".into()), &rig()),
+        None
+    );
 }
 
 #[test]
@@ -192,8 +195,14 @@ fn a_loaded_file_renames_the_preset_to_its_stem_untouched() {
 
 #[test]
 fn a_path_with_no_stem_renames_nothing() {
-    assert_eq!(preset_rename_target_from_path(std::path::Path::new("/")), None);
-    assert_eq!(preset_rename_target_from_path(std::path::Path::new("")), None);
+    assert_eq!(
+        preset_rename_target_from_path(std::path::Path::new("/")),
+        None
+    );
+    assert_eq!(
+        preset_rename_target_from_path(std::path::Path::new("")),
+        None
+    );
 }
 
 #[test]

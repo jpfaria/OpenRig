@@ -74,11 +74,21 @@ fn a_chain_with_no_insert_signs_only_its_own_binding() {
     let registry = vec![binding("io-main", "main")];
     let (inputs, outputs) = resolve_chain_io_with_inserts(&chain(head_and_tail()), &registry);
     assert_eq!(
-        devices(&inputs.iter().map(|e| e.device_id.clone()).collect::<Vec<_>>()),
+        devices(
+            &inputs
+                .iter()
+                .map(|e| e.device_id.clone())
+                .collect::<Vec<_>>()
+        ),
         vec!["main-in"]
     );
     assert_eq!(
-        devices(&outputs.iter().map(|e| e.device_id.clone()).collect::<Vec<_>>()),
+        devices(
+            &outputs
+                .iter()
+                .map(|e| e.device_id.clone())
+                .collect::<Vec<_>>()
+        ),
         vec!["main-out"]
     );
 }
@@ -90,12 +100,22 @@ fn an_enabled_insert_appends_its_return_and_send_after_the_chains_own_io() {
     blocks.push(insert_block("fx", "io-fx", true));
     let (inputs, outputs) = resolve_chain_io_with_inserts(&chain(blocks), &registry);
     assert_eq!(
-        devices(&inputs.iter().map(|e| e.device_id.clone()).collect::<Vec<_>>()),
+        devices(
+            &inputs
+                .iter()
+                .map(|e| e.device_id.clone())
+                .collect::<Vec<_>>()
+        ),
         vec!["main-in", "fx-in"],
         "the insert's RETURN is a stream this chain really opens"
     );
     assert_eq!(
-        devices(&outputs.iter().map(|e| e.device_id.clone()).collect::<Vec<_>>()),
+        devices(
+            &outputs
+                .iter()
+                .map(|e| e.device_id.clone())
+                .collect::<Vec<_>>()
+        ),
         vec!["main-out", "fx-out"],
         "the insert's SEND likewise — #881"
     );
@@ -133,7 +153,12 @@ fn two_inserts_are_appended_in_block_order() {
     blocks.push(insert_block("fx-b", "io-fx-b", true));
     let (inputs, _) = resolve_chain_io_with_inserts(&chain(blocks), &registry);
     assert_eq!(
-        devices(&inputs.iter().map(|e| e.device_id.clone()).collect::<Vec<_>>()),
+        devices(
+            &inputs
+                .iter()
+                .map(|e| e.device_id.clone())
+                .collect::<Vec<_>>()
+        ),
         vec!["main-in", "a-in", "b-in"],
         "the device vectors are built in this order, so the signature must match"
     );

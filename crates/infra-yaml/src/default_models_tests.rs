@@ -22,7 +22,10 @@ fn every_block_family_defaults_to_its_first_supported_model() {
     assert_is_first_supported(default_nam_model(), &block_nam::supported_models());
     assert_is_first_supported(default_preamp_model(), &block_preamp::supported_models());
     assert_is_first_supported(default_amp_model(), &block_amp::supported_models());
-    assert_is_first_supported(default_full_rig_model(), &block_full_rig::supported_models());
+    assert_is_first_supported(
+        default_full_rig_model(),
+        &block_full_rig::supported_models(),
+    );
     assert_is_first_supported(default_cab_model(), &block_cab::supported_models());
     assert_is_first_supported(default_body_model(), &block_body::supported_models());
     assert_is_first_supported(default_drive_model(), &block_gain::supported_models());
