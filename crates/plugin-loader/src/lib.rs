@@ -7,6 +7,7 @@
 //!
 //! Issue: #287
 
+mod capture_resolve;
 pub mod config;
 pub mod discover;
 pub mod dispatch;
@@ -14,6 +15,7 @@ pub mod dispatch_infer;
 mod dispatch_lv2_parse;
 pub mod grid_axes;
 pub mod install;
+mod lv2_ports;
 pub mod manifest;
 pub mod native_runtimes;
 pub mod package;
