@@ -76,6 +76,35 @@ Nunca se acrescenta arquivo à lista. Ela só encolhe.
 
 **Hoje a lista está VAZIA** — o último débito (`jack_supervisor/live_backend.rs`, 627 LOC) foi quitado em #873, dividido nos módulos `live_shm` (limpeza de shm), `live_socket` (espera do socket), `live_stderr` (falha de driver), `live_process` (jackd não-spawnado) e `live_probe` (metadata do servidor). Lista vazia é o estado normal: se alguém precisar reabri-la, é porque um arquivo nasceu grande — e isso é o FAIL de "arquivo novo acima do cap", não uma entrada de débito.
 
+### Dividir arquivo com `cfg` (#873)
+
+Metade do `infra-cpal` só compila em Linux+JACK, e a máquina de desenvolvimento
+é macOS: `cargo build` verde ali **não diz nada** sobre o outro caminho. Duas
+regressões seguidas saíram exatamente daí ao dividir arquivos gateados.
+
+O que quebrou, nas duas vezes:
+
+1. **Imports do arquivo novo.** O item continuava atrás do `cfg` certo, mas o
+   `use` que o alcança não — ou apontava para o módulo antigo, ou pedia um
+   símbolo que naquele `cfg` não existe (`select_host_for_enumeration` só
+   existe fora do JACK; `jack_server_is_running` só dentro).
+2. **A declaração do módulo em `lib.rs`.** Inserir `mod novo;` logo depois de
+   um `#[cfg(...)]` **rouba o atributo do módulo seguinte**. O `dsp_worker`
+   ficou sem gate e foi compilar em Linux procurando `audio_workgroup`,
+   `StreamConfig` e `BufferSize`, todos ausentes lá.
+
+Antes de commitar um split que toca código gateado:
+
+- confira a declaração em `lib.rs` — cada `mod` novo carrega o MESMO `cfg` do
+  arquivo de onde saiu, e o `cfg` do vizinho continua no vizinho;
+- para cada arquivo novo, liste os identificadores livres e confirme que o
+  `use` que os traz existe no MESMO `cfg` em que são usados;
+- o re-export do caminho antigo carrega o `cfg` do item, não o do arquivo.
+
+Quem confirma é o CI (job `Test Suite` do `pr.yml`, Ubuntu). Não existe
+substituto local: `jack-sys` precisa de sysroot Linux e não cross-compila do
+macOS.
+
 ### Declaração de responsabilidade (#873)
 
 Todo arquivo de produção — `.rs`, `.slint`, `build.rs`, exemplos — abre com uma
