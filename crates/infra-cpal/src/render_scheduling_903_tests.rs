@@ -7,6 +7,11 @@
 //! guitar's latency climbed, and it climbed again with every loop stacked on
 //! top — the owner's "empilhando loop vai aumentando a latência". Ten guitars
 //! means ten pipelines that do not know the others exist.
+//! Shares the live-controller fixtures of
+//! `controller_live_edit_replicates_user_report_tests`, which the linux+jack
+//! build cfg-s out (#755) — so this file is gated the same way.
+
+#![cfg(not(all(target_os = "linux", feature = "jack")))]
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -18,7 +23,7 @@ use super::di_stream_worker::{RenderScheduling, LAST_RENDER_SCHEDULING};
 fn a_loops_render_thread_never_takes_the_live_callbacks_scheduling_class() {
     super::controller_live_edit_replicates_user_report_tests::init_registry();
     let chain = super::controller_live_edit_replicates_user_report_tests::gain_chain(100.0);
-    let mut controller =
+    let controller =
         super::controller_live_edit_replicates_user_report_tests::controller_with_di_only_chain(
             &chain,
         );

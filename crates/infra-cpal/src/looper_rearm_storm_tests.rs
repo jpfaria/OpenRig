@@ -6,6 +6,11 @@
 //! (NAM + IR off disk) and burns a core, they pile up, and the machine — GUI
 //! and audio together — goes down with them. The owner's "algo consumindo e
 //! empilhando; o áudio fica lento".
+//! Shares the live-controller fixtures of
+//! `controller_live_edit_replicates_user_report_tests`, which the linux+jack
+//! build cfg-s out (#755) — so this file is gated the same way.
+
+#![cfg(not(all(target_os = "linux", feature = "jack")))]
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
