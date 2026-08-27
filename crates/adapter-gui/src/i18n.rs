@@ -198,3 +198,7 @@ mod tests;
 #[cfg(test)]
 #[path = "i18n_catalog_tests.rs"]
 mod catalog_tests;
+
+#[cfg(test)]
+#[path = "i18n_runtime_tests.rs"]
+mod runtime_tests;

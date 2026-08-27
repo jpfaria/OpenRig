@@ -33,3 +33,7 @@ pub fn mark_main_thread() {
 pub fn drain_deferred_vst3_teardowns() {
     vst3_host::drain_main_thread_deferred();
 }
+
+#[cfg(test)]
+#[path = "vst3_editor_tests.rs"]
+mod tests;

@@ -63,3 +63,7 @@ pub(crate) fn spawn() {
         })
         .ok();
 }
+
+#[cfg(test)]
+#[path = "ui_watchdog_tests.rs"]
+mod tests;
