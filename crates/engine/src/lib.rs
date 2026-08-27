@@ -30,6 +30,8 @@ pub mod loop_edit;
 pub mod loop_pcm;
 pub mod looper;
 pub mod looper_bank;
+mod looper_op;
+mod looper_status;
 pub mod metronome_state;
 pub mod native_registry;
 pub mod offline;

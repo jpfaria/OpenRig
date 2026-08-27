@@ -48,6 +48,7 @@ pub(crate) use crate::stream_rates::{
     resolved_output_sample_rate,
 };
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn build_stream_config(
     channels: u16,
     sample_rate: u32,
