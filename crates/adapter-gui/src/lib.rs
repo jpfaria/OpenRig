@@ -42,6 +42,7 @@ mod chain_editor_forwarders_wiring;
 mod chain_editor_meta_io_callbacks;
 mod chain_editor_save_cancel_callbacks;
 mod chain_name_wiring;
+mod chain_preset_bank;
 mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;

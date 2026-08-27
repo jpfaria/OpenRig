@@ -3,6 +3,9 @@
 #[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 
+#[cfg(target_os = "linux")]
+use crate::i18n::TEXT_DOMAIN;
+
 /// Search the filesystem for the gettext catalog directory containing
 /// `<lang>/LC_MESSAGES/adapter-gui.mo`. Same path order as before:
 ///

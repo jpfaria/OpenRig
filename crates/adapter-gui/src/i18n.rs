@@ -15,9 +15,6 @@
 //!
 //! See `docs/i18n.md` for the full flow and the rationale for two catalogs.
 
-#[cfg(target_os = "linux")]
-use std::path::{Path, PathBuf};
-
 /// gettext text domain for the Slint side — must match Slint's default
 /// (`CARGO_PKG_NAME`). End users never see this; it's just the .mo file
 /// name on disk. Linux-only: Windows/macOS rely on bundled translations.
