@@ -13,7 +13,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::di_loader::DiLoopSource;
 use rfd::FileDialog;
 use slint::{ComponentHandle, Timer};
 
@@ -37,40 +36,19 @@ pub(crate) fn wire(
         let Some(window) = weak_window.upgrade() else {
             return;
         };
-        let chain_id = {
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            let proj = session.project.borrow();
-            let Some(chain) = proj.chains.get(index as usize) else {
-                return;
-            };
-            chain.id.clone()
-        }; // session_borrow + proj dropped here
-           // Synchronous native file dialog — acceptable in this module
-           // (see module doc). Blocks the Slint event loop until the OS
-           // dialog closes, same as pick_block_parameter_file.
+        // Synchronous native file dialog — acceptable in this module (see the
+        // module doc). Blocks the Slint event loop until the OS dialog closes,
+        // same as pick_block_parameter_file.
         let Some(path) = FileDialog::new()
             .add_filter("WAV audio", &["wav"])
             .pick_file()
         else {
             return; // user cancelled
         };
-        let source = DiLoopSource::File(path);
-        let cmds = crate::di_loop_wiring::di_loop_commands(
-            chain_id,
-            crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
-        );
-        let session_borrow = project_session.borrow();
-        let Some(session) = session_borrow.as_ref() else {
-            return;
-        };
-        for cmd in cmds {
-            if let Err(err) = session.dispatcher.dispatch(cmd) {
-                set_status_error(&window, &toast_timer, &err.to_string());
-                return;
-            }
+        if let Err(err) =
+            crate::di_loop_file_pick::apply_di_loop_file(&project_session, index as usize, path)
+        {
+            set_status_error(&window, &toast_timer, &err);
         }
     });
 }
