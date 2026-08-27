@@ -266,7 +266,7 @@ mod block_picker_items;
 mod block_window;
 mod chain_block_item;
 mod chain_draft;
-mod chain_draft_name;
+mod chain_draft_edits;
 mod chain_endpoint_labels;
 mod chain_io_labels;
 mod chain_selection;

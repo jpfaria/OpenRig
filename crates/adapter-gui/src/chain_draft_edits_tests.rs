@@ -60,3 +60,53 @@ fn the_last_keystroke_wins() {
     }
     assert_eq!(draft.borrow().as_ref().unwrap().name, "Lead");
 }
+
+// ── The instrument picker writes into the same draft ───────────────────────
+
+use super::record_chain_instrument;
+
+#[test]
+fn the_open_draft_records_the_instrument_that_was_picked() {
+    let draft = draft();
+    assert!(record_chain_instrument(&draft, 1));
+    let picked = draft.borrow().as_ref().unwrap().instrument.clone();
+    assert!(!picked.is_empty());
+    assert_eq!(
+        picked,
+        crate::chain_editor::instrument_index_to_string(1),
+        "the index → id translation is shared with the detached editor"
+    );
+}
+
+#[test]
+fn picking_a_different_instrument_replaces_the_previous_one() {
+    let draft = draft();
+    record_chain_instrument(&draft, 0);
+    let first = draft.borrow().as_ref().unwrap().instrument.clone();
+    record_chain_instrument(&draft, 1);
+    let second = draft.borrow().as_ref().unwrap().instrument.clone();
+    assert_ne!(first, second);
+}
+
+#[test]
+fn recording_an_instrument_leaves_the_name_alone() {
+    let draft = draft();
+    record_chain_instrument(&draft, 1);
+    assert_eq!(draft.borrow().as_ref().unwrap().name, "Guitar");
+}
+
+#[test]
+fn with_no_draft_open_the_instrument_pick_is_dropped() {
+    let none: Rc<RefCell<Option<ChainDraft>>> = Rc::new(RefCell::new(None));
+    assert!(!record_chain_instrument(&none, 1));
+    assert!(none.borrow().is_none());
+}
+
+#[test]
+fn an_index_outside_the_picker_still_records_a_usable_instrument() {
+    // The translation is the single source of truth for what an index means;
+    // whatever it answers for a stale index, the draft must never end up empty.
+    let draft = draft();
+    assert!(record_chain_instrument(&draft, 99));
+    assert!(!draft.borrow().as_ref().unwrap().instrument.is_empty());
+}

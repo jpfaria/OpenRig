@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global};
 
-use crate::chain_draft_name::record_chain_name;
+use crate::chain_draft_edits::record_chain_name;
 use crate::state::ChainDraft;
 use crate::AppWindow;
 
