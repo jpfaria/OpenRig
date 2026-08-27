@@ -22,6 +22,7 @@
 //! The API mirrors the `lv2` crate so block crates can use either backend
 //! interchangeably.
 
+mod bundle_metadata;
 pub mod catalog;
 pub mod discovery;
 mod host;
@@ -34,6 +35,7 @@ pub mod param_channel;
 pub mod param_registry;
 mod processor;
 mod stereo;
+mod vst3_search_paths;
 
 pub use catalog::{
     catalog_params, find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model,
