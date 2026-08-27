@@ -93,3 +93,7 @@ pub(crate) fn dispatch_binding_pick(
     }
     true
 }
+
+#[cfg(test)]
+#[path = "compact_routing_pick_tests.rs"]
+mod tests;

@@ -122,3 +122,7 @@ pub(crate) const fn default_enabled() -> bool {
 pub(crate) fn default_instrument() -> String {
     block_core::DEFAULT_INSTRUMENT.to_string()
 }
+
+#[cfg(test)]
+#[path = "default_models_tests.rs"]
+mod tests;
