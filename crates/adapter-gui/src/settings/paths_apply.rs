@@ -11,7 +11,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use super::paths_overrides::{
-    apply_evaluations_override, apply_plugins_override, apply_presets_override,
+    apply_evaluations_override, apply_evaluations_override_at, apply_plugins_override,
+    apply_plugins_override_at, apply_presets_override, apply_presets_override_at,
 };
 
 /// Open a native folder picker and return the chosen directory (or
@@ -34,6 +35,31 @@ pub(crate) fn apply_presets_path(
         log::warn!("[paths] failed to persist presets-path into config.yaml: {e}");
         return;
     }
+    dispatch_presets_path(project_session, path);
+}
+
+/// [`apply_presets_path`] against an explicit config file — the persist half
+/// is the only difference, so a test drives this one and never touches the
+/// machine's real `config.yaml`.
+pub(crate) fn apply_presets_path_at(
+    config_path: &std::path::Path,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    app_config: &Rc<RefCell<AppConfig>>,
+    path: Option<PathBuf>,
+) {
+    if let Err(e) =
+        apply_presets_override_at(config_path, &mut app_config.borrow_mut(), path.clone())
+    {
+        log::warn!("[paths] failed to persist presets-path into config.yaml: {e}");
+        return;
+    }
+    dispatch_presets_path(project_session, path);
+}
+
+fn dispatch_presets_path(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    path: Option<PathBuf>,
+) {
     let session = project_session.borrow();
     let Some(session) = session.as_ref() else {
         return;
@@ -56,6 +82,29 @@ pub(crate) fn apply_plugins_path(
         log::warn!("[paths] failed to persist plugins-path into config.yaml: {e}");
         return;
     }
+    dispatch_plugins_path(project_session, path);
+}
+
+/// [`apply_plugins_path`] against an explicit config file.
+pub(crate) fn apply_plugins_path_at(
+    config_path: &std::path::Path,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    app_config: &Rc<RefCell<AppConfig>>,
+    path: Option<PathBuf>,
+) {
+    if let Err(e) =
+        apply_plugins_override_at(config_path, &mut app_config.borrow_mut(), path.clone())
+    {
+        log::warn!("[paths] failed to persist plugins-path into config.yaml: {e}");
+        return;
+    }
+    dispatch_plugins_path(project_session, path);
+}
+
+fn dispatch_plugins_path(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    path: Option<PathBuf>,
+) {
     let session = project_session.borrow();
     let Some(session) = session.as_ref() else {
         return;
@@ -78,6 +127,29 @@ pub(crate) fn apply_evaluations_path(
         log::warn!("[paths] failed to persist evaluations-path into config.yaml: {e}");
         return;
     }
+    dispatch_evaluations_path(project_session, path);
+}
+
+/// [`apply_evaluations_path`] against an explicit config file.
+pub(crate) fn apply_evaluations_path_at(
+    config_path: &std::path::Path,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    app_config: &Rc<RefCell<AppConfig>>,
+    path: Option<PathBuf>,
+) {
+    if let Err(e) =
+        apply_evaluations_override_at(config_path, &mut app_config.borrow_mut(), path.clone())
+    {
+        log::warn!("[paths] failed to persist evaluations-path into config.yaml: {e}");
+        return;
+    }
+    dispatch_evaluations_path(project_session, path);
+}
+
+fn dispatch_evaluations_path(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    path: Option<PathBuf>,
+) {
     let session = project_session.borrow();
     let Some(session) = session.as_ref() else {
         return;

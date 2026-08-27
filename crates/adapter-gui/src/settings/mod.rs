@@ -23,3 +23,7 @@ pub(crate) mod paths_apply;
 pub(crate) mod paths_overrides;
 pub(crate) mod paths_seed;
 pub mod project_meta;
+
+#[cfg(test)]
+#[path = "paths_apply_tests.rs"]
+mod paths_apply_tests;
