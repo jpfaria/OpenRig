@@ -16,6 +16,7 @@ mod back_to_launcher_wiring;
 mod bank_scene_render;
 mod bank_scene_session;
 mod block_choose_type_callback;
+mod block_delete;
 mod block_delete_wiring;
 mod block_drawer_close_wiring;
 mod block_drawer_save_delete_wiring;
