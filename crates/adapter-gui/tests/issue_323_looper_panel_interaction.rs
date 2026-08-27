@@ -214,3 +214,45 @@ fn the_drawer_controls_only_exist_when_the_row_is_expanded() {
     assert!(click_id(&w2, "LooperSegmented::opt-ta", 2));
     assert_eq!(picked.get(), 2, "picking 2x must report index 2");
 }
+
+/// #903: the panel's global transport. The row buttons are for ONE loop; these
+/// two act on the whole chain, so they are their own buttons and must fire
+/// their own callbacks.
+#[test]
+fn the_global_transport_buttons_fire_for_the_panel() {
+    i_slint_backend_testing::init_no_event_loop();
+    let w = harness(vec![item(7, 2), item(8, 2)]);
+    let fired: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    let f = fired.clone();
+    w.on_play_all(move || f.borrow_mut().push("play-all".into()));
+    let f = fired.clone();
+    w.on_stop_all(move || f.borrow_mut().push("stop-all".into()));
+    w.show().unwrap();
+
+    assert!(
+        click_id(&w, "LooperPanelView::play-all-btn", 0),
+        "the global play must be hittable"
+    );
+    assert!(
+        click_id(&w, "LooperPanelView::stop-all-btn", 0),
+        "the global stop must be hittable"
+    );
+
+    assert_eq!(*fired.borrow(), vec!["play-all", "stop-all"]);
+}
+
+/// With no loops there is nothing to start: the global buttons are dead, the
+/// same way a row's play is dead without a take.
+#[test]
+fn the_global_transport_is_dead_on_an_empty_panel() {
+    i_slint_backend_testing::init_no_event_loop();
+    let w = harness(vec![]);
+    let fired = Rc::new(Cell::new(false));
+    let f = fired.clone();
+    w.on_play_all(move || f.set(true));
+    w.show().unwrap();
+
+    click_id(&w, "LooperPanelView::play-all-btn", 0);
+
+    assert!(!fired.get(), "an empty panel has nothing to play");
+}

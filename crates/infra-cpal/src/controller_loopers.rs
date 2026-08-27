@@ -169,6 +169,16 @@ impl ProjectRuntimeController {
         self.looper_store.borrow_mut().play(chain_id, uid);
     }
 
+    /// #903: the panel's global play — every loop on THIS chain at once.
+    pub fn looper_play_all(&self, chain_id: &ChainId) {
+        self.looper_store.borrow_mut().play_all(chain_id);
+    }
+
+    /// #903: the panel's global stop.
+    pub fn looper_stop_all(&self, chain_id: &ChainId) {
+        self.looper_store.borrow_mut().stop_all(chain_id);
+    }
+
     pub fn looper_clear(&self, chain_id: &ChainId, uid: u64) {
         self.looper_store.borrow_mut().clear(chain_id, uid);
     }

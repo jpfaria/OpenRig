@@ -34,7 +34,7 @@ fn play_skips_a_disabled_looper() {
     let mut store = two_recorded_loops();
     store.set_enabled(&cid(), 2, false);
 
-    store.play(&cid(), 1);
+    store.play_all(&cid());
 
     assert_eq!(
         store.status(&cid(), 1).expect("looper exists").state,
@@ -64,10 +64,10 @@ fn a_disabled_looper_keeps_its_take() {
 fn switching_it_back_on_puts_it_back_in_the_take() {
     let mut store = two_recorded_loops();
     store.set_enabled(&cid(), 2, false);
-    store.play(&cid(), 1);
+    store.play_all(&cid());
 
     store.set_enabled(&cid(), 2, true);
-    store.play(&cid(), 1);
+    store.play_all(&cid());
 
     assert_eq!(
         store.status(&cid(), 2).expect("looper exists").state,

@@ -290,25 +290,34 @@ impl LooperStore {
         }
     }
 
-    /// Stop the chain's loops — every one of them (#903). The tap that asked
-    /// names a looper, but the loops of a chain are one performance: they are
-    /// already quantized to the master's bar, so stopping one and leaving the
-    /// rest running breaks the take the owner is playing. A loop still being
-    /// recorded keeps recording; an empty one has nothing to stop.
-    pub fn stop(&mut self, chain: &ChainId, _uid: u64) {
-        for uid in self.transportable(chain) {
-            if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
-                e.slot.stop();
-                e.rings.clear();
-            }
+    /// Stop ONE loop — the row's own button, for taking a single loop out of
+    /// what is sounding.
+    pub fn stop(&mut self, chain: &ChainId, uid: u64) {
+        if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
+            e.slot.stop();
+            e.rings.clear();
         }
     }
 
-    /// Start the chain's loops — every one of them, for the same reason
-    /// [`Self::stop`] stops them all.
-    pub fn play(&mut self, chain: &ChainId, _uid: u64) {
+    /// Play ONE loop — the row's own button, for hearing a single loop.
+    pub fn play(&mut self, chain: &ChainId, uid: u64) {
+        self.with_slot(chain, uid, |s| s.play());
+    }
+
+    /// #903: the panel's global stop — every loop on THIS chain at once, the
+    /// counterpart of [`Self::play_all`].
+    pub fn stop_all(&mut self, chain: &ChainId) {
         for uid in self.transportable(chain) {
-            self.with_slot(chain, uid, |s| s.play());
+            self.stop(chain, uid);
+        }
+    }
+
+    /// #903: the panel's global play — every loop on THIS chain at once, so a
+    /// take starts locked to the same bar. Skips what it cannot start: a loop
+    /// with no take, one still being recorded, and one switched off.
+    pub fn play_all(&mut self, chain: &ChainId) {
+        for uid in self.transportable(chain) {
+            self.play(chain, uid);
         }
     }
 
