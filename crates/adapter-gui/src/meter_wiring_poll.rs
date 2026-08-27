@@ -455,3 +455,7 @@ fn refresh_chain_meter_row(
         project_chains.set_row_data(idx, row);
     }
 }
+
+#[cfg(test)]
+#[path = "meter_wiring_poll_tests.rs"]
+mod tests;
