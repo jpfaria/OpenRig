@@ -143,6 +143,7 @@ mod tuner_session;
 mod tuner_wiring;
 pub mod ui_stall;
 mod ui_watchdog;
+mod virtual_key_text;
 mod virtual_keyboard_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
