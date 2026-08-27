@@ -17,3 +17,7 @@ pub trait PluginEditorHandle: Send {
     /// (some plugins break their module after a window close + reload).
     fn focus(&self) {}
 }
+
+#[cfg(test)]
+#[path = "plugin_editor_tests.rs"]
+mod tests;

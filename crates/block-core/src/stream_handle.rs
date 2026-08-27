@@ -31,3 +31,7 @@ pub type StreamHandle = Arc<ArcSwap<Vec<StreamEntry>>>;
 pub fn new_stream_handle() -> StreamHandle {
     Arc::new(ArcSwap::from_pointee(Vec::new()))
 }
+
+#[cfg(test)]
+#[path = "stream_handle_tests.rs"]
+mod tests;
