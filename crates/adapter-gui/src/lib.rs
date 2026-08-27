@@ -10,6 +10,7 @@
 #![allow(clippy::type_complexity)]
 
 mod audio_health_tick;
+mod audio_wizard_step;
 mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
 mod bank_scene_render;
@@ -96,6 +97,7 @@ mod param_tab_grouping;
 mod param_tabs_inline;
 mod plugin_info;
 mod plugin_info_inline_wiring;
+mod plugin_info_panel;
 mod preset_save_wiring;
 mod project_file_dialog_wiring;
 mod project_settings_wiring;
