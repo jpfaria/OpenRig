@@ -1,6 +1,8 @@
 //! Responsibility: routes the cab crate's public surface.
 pub mod model_visual;
-pub mod native_core;
+pub mod native_cab_schema;
+mod native_cab_settings;
+mod native_core;
 mod registry;
 
 use anyhow::Result;
