@@ -75,3 +75,33 @@ fn switching_it_back_on_puts_it_back_in_the_take() {
         "re-enabling lets the next play reach it"
     );
 }
+
+/// The transport asks about loopers it may not hold — a uid that was removed,
+/// a chain that never had one. Both answers must be safe defaults, not a
+/// panic: enabled (nothing to sit out) and unity (nothing to attenuate).
+#[test]
+fn an_unknown_looper_answers_with_safe_defaults() {
+    let store = LooperStore::default();
+
+    assert!(
+        store.is_enabled(&cid(), 99),
+        "a looper the store does not hold is not 'switched off'"
+    );
+    assert_eq!(
+        store.playback_gain(&cid(), 99),
+        1.0,
+        "and it is not attenuated either"
+    );
+}
+
+/// Switching an unknown uid is a no-op — the panel can ask for a looper the
+/// store has already dropped.
+#[test]
+fn switching_an_unknown_looper_changes_nothing() {
+    let mut store = two_recorded_loops();
+
+    store.set_enabled(&cid(), 99, false);
+
+    assert!(store.is_enabled(&cid(), 1));
+    assert!(store.is_enabled(&cid(), 2));
+}

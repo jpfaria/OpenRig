@@ -56,3 +56,7 @@ mod tests_826;
 #[cfg(test)]
 #[path = "runtime_loopers_903_tests.rs"]
 mod tests_903;
+
+#[cfg(test)]
+#[path = "looper_global_transport_tests.rs"]
+mod tests_global_transport;

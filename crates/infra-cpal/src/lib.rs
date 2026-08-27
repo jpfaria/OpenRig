@@ -218,6 +218,10 @@ mod looper_level;
 #[cfg(test)]
 #[path = "looper_transport_scope_tests.rs"]
 mod looper_transport_scope;
+
+#[cfg(test)]
+#[path = "controller_global_transport_tests.rs"]
+mod controller_global_transport;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
