@@ -111,3 +111,7 @@ pub(crate) fn refresh_now(also_status_window: bool) {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "device_refresh_apply_tests.rs"]
+mod tests;

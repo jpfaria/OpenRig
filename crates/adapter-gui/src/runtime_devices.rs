@@ -43,3 +43,7 @@ pub(crate) fn start_jack_in_background(
 ) -> std::sync::mpsc::Receiver<anyhow::Result<()>> {
     infra_cpal::start_jack_in_background(settings)
 }
+
+#[cfg(test)]
+#[path = "runtime_devices_tests.rs"]
+mod tests;

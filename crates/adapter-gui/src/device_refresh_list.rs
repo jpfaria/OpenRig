@@ -51,3 +51,7 @@ pub(crate) fn ensure_devices_loaded(
         *output.borrow_mut() = list_output_device_descriptors().unwrap_or_default();
     }
 }
+
+#[cfg(test)]
+#[path = "device_refresh_list_tests.rs"]
+mod tests;
