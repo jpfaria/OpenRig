@@ -28,6 +28,12 @@ mod device_config_cache;
 mod host;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_device_enum;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_server_presence;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod proc_asound_cache;
+#[cfg(all(target_os = "linux", feature = "jack"))]
 mod usb_proc;
 
 // is_jack_host() removed — CPAL JACK host is never created.

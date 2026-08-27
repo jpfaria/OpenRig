@@ -26,7 +26,14 @@ use anyhow::Result;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+pub(crate) use crate::jack_device_enum::{
+    jack_enumerate_input_devices, jack_enumerate_output_devices,
+};
+pub(crate) use crate::jack_server_presence::jack_server_is_running_for;
 use crate::jack_supervisor;
+pub(crate) use crate::proc_asound_cache::{
+    invalidate_proc_cache, lookup_or_cache_card_channels, proc_cache_snapshot,
+};
 use domain::AudioDeviceDescriptor;
 
 /// Represents a USB audio card detected in /proc/asound/cards.
@@ -67,166 +74,10 @@ fn server_name_from_bracket(bracket: &str) -> String {
 
 const PROC_CACHE_TTL: Duration = Duration::from_secs(10);
 
-#[derive(Clone)]
-pub(crate) struct ProcAsoundSnapshot {
-    pub(crate) cards: Vec<UsbAudioCard>,
-    pub(crate) fetched_at: Instant,
-}
-
-static PROC_CACHE: Mutex<Option<ProcAsoundSnapshot>> = Mutex::new(None);
-
-static PROC_REFRESH_LOCK: Mutex<()> = Mutex::new(());
-
-pub(crate) fn invalidate_proc_cache() {
-    *PROC_CACHE.lock().unwrap() = None;
-}
-
-fn proc_cache_is_fresh() -> bool {
-    PROC_CACHE
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map(|s| s.fetched_at.elapsed() < PROC_CACHE_TTL)
-        .unwrap_or(false)
-}
-
-/// Read and parse /proc/asound/cards + card{N}/stream0 for each USB card.
-/// Direct filesystem I/O — only called under PROC_REFRESH_LOCK.
-// Process-lifetime registry of channel counts per physical card. Keyed by
-// display_name (e.g. "Scarlett 2i2 4th Gen at usb-xhci-hcd.3.auto-1, ...")
-// so the lookup is stable across plug/unplug cycles. stream0 is read exactly
-// ONCE per distinct physical card that the app ever observes; the value is
-// kept in memory forever. Prevents the Scarlett firmware from seeing repeated
-// stream0 reads, which cause scarlett2_notify 0x20000000 → freeze.
-static CARD_CHANNELS_REGISTRY: Mutex<Option<std::collections::HashMap<String, (u32, u32)>>> =
-    Mutex::new(None);
-
-fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u32) {
-    {
-        let guard = CARD_CHANNELS_REGISTRY.lock().unwrap();
-        if let Some(map) = guard.as_ref() {
-            if let Some(&ch) = map.get(display_name) {
-                return ch;
-            }
-        }
-    }
-    // First time we see this display_name — read stream0 once and store forever.
-    let ch = read_card_channels_raw(card_num);
-    let mut guard = CARD_CHANNELS_REGISTRY.lock().unwrap();
-    let map = guard.get_or_insert_with(std::collections::HashMap::new);
-    map.insert(display_name.to_string(), ch);
-    log::info!(
-        "[CARD-REGISTRY] learned '{}' → capture={} playback={}",
-        display_name,
-        ch.0,
-        ch.1
-    );
-    ch
-}
-
-fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
-    log::trace!("[PROC-CACHE] >>> OPEN /proc/asound/cards");
-    let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
-    let mut cards = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim_start();
-        let Some(first) = trimmed.chars().next() else {
-            continue;
-        };
-        if !first.is_ascii_digit() {
-            continue;
-        }
-        if !(trimmed.contains("USB-Audio") || trimmed.contains("USB Audio")) {
-            continue;
-        }
-        let card_num = match trimmed.split_whitespace().next() {
-            Some(n) => n.to_string(),
-            None => continue,
-        };
-        let bracket = match (trimmed.find('['), trimmed.find(']')) {
-            (Some(a), Some(b)) if b > a => trimmed[a..=b].to_string(),
-            _ => format!("[card{}]", card_num),
-        };
-        let server_name = server_name_from_bracket(&bracket);
-        let display_name = if let Some(pos) = trimmed.find(" - ") {
-            trimmed[pos + 3..].trim().to_string()
-        } else {
-            format!("USB Audio Card {}", card_num)
-        };
-        let device_id = format!("jack:{}", server_name);
-        let (capture_channels, playback_channels) =
-            lookup_or_cache_card_channels(&display_name, &card_num);
-        cards.push(UsbAudioCard {
-            card_num,
-            server_name,
-            display_name,
-            device_id,
-            capture_channels,
-            playback_channels,
-        });
-    }
-    ProcAsoundSnapshot {
-        cards,
-        fetched_at: Instant::now(),
-    }
-}
-
-/// Non-blocking refresh: if another refresh is already running, skip. The
-/// caller who was blocked will simply read the existing cache afterwards.
-fn try_refresh_proc_cache() {
-    let Ok(_guard) = PROC_REFRESH_LOCK.try_lock() else {
-        log::debug!("[PROC-CACHE] try_refresh SKIPPED (another refresh in progress)");
-        return;
-    };
-    if proc_cache_is_fresh() {
-        log::debug!("[PROC-CACHE] try_refresh SKIPPED (became fresh while waiting)");
-        return;
-    }
-    let caller = std::panic::Location::caller();
-    log::debug!(
-        "[PROC-CACHE] REFRESH /proc/asound — triggered from {}:{}",
-        caller.file(),
-        caller.line()
-    );
-    let snapshot = read_proc_asound_snapshot();
-    *PROC_CACHE.lock().unwrap() = Some(snapshot);
-}
-
-#[track_caller]
-fn proc_cache_snapshot() -> Option<ProcAsoundSnapshot> {
-    let fresh = proc_cache_is_fresh();
-    if !fresh {
-        let caller = std::panic::Location::caller();
-        log::debug!(
-            "[PROC-CACHE] snapshot STALE — caller={}:{}",
-            caller.file(),
-            caller.line()
-        );
-        try_refresh_proc_cache();
-    }
-    PROC_CACHE.lock().unwrap().clone()
-}
-
 /// Detect all USB audio ALSA cards. Serialized + cached: concurrent callers
 /// receive a cached snapshot instead of hammering /proc/asound.
 pub(crate) fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
     proc_cache_snapshot().map(|s| s.cards).unwrap_or_default()
-}
-
-/// Check if a specific named JACK server is running by looking for its socket.
-/// jackd -n <name> creates /dev/shm/jack_<name>_<uid>_0
-pub(crate) fn jack_server_is_running_for(server_name: &str) -> bool {
-    let prefix = format!("jack_{}_", server_name);
-    std::fs::read_dir("/dev/shm")
-        .ok()
-        .map(|entries| {
-            entries.filter_map(|e| e.ok()).any(|e| {
-                let name = e.file_name();
-                let s = name.to_string_lossy();
-                s.starts_with(&prefix) && s.ends_with("_0")
-            })
-        })
-        .unwrap_or(false)
 }
 
 /// Direct /proc/asound/card{N}/stream0 read — only called from inside
@@ -283,50 +134,4 @@ fn read_card_channels_raw(card: &str) -> (u32, u32) {
         playback
     );
     (capture, playback)
-}
-
-/// Enumerate input devices via JACK — one entry per running named JACK server.
-/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:card1").
-pub(crate) fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
-    let cards = detect_all_usb_audio_cards();
-    let mut devices = Vec::new();
-    for card in &cards {
-        if !jack_server_is_running_for(&card.server_name) {
-            continue;
-        }
-        let server = jack_supervisor::ServerName::from(card.server_name.clone());
-        if let Ok(meta) = jack_supervisor::live_backend::probe_server_meta(&server) {
-            if meta.capture_port_count > 0 {
-                devices.push(AudioDeviceDescriptor {
-                    id: card.device_id.clone(),
-                    name: format!("{} (JACK)", card.display_name),
-                    channels: meta.capture_port_count,
-                });
-            }
-        }
-    }
-    Ok(devices)
-}
-
-/// Enumerate output devices via JACK — one entry per running named JACK server.
-/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:card1").
-pub(crate) fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
-    let cards = detect_all_usb_audio_cards();
-    let mut devices = Vec::new();
-    for card in &cards {
-        if !jack_server_is_running_for(&card.server_name) {
-            continue;
-        }
-        let server = jack_supervisor::ServerName::from(card.server_name.clone());
-        if let Ok(meta) = jack_supervisor::live_backend::probe_server_meta(&server) {
-            if meta.playback_port_count > 0 {
-                devices.push(AudioDeviceDescriptor {
-                    id: card.device_id.clone(),
-                    name: format!("{} (JACK)", card.display_name),
-                    channels: meta.playback_port_count,
-                });
-            }
-        }
-    }
-    Ok(devices)
 }
