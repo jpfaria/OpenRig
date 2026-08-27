@@ -151,3 +151,7 @@ pub(crate) fn apply_preset_filter(
     crate::OverlayBridge::get(window)
         .set_preset_picker_items(ModelRc::from(Rc::new(VecModel::from(visible_names))));
 }
+
+#[cfg(test)]
+#[path = "chain_preset_bank_tests.rs"]
+mod tests;
