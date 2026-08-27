@@ -264,6 +264,7 @@ mod chain_draft;
 mod chain_draft_name;
 mod chain_endpoint_labels;
 mod chain_io_labels;
+mod chain_selection;
 mod insertion_slots;
 mod io_binding_models;
 mod project_chains_refresh;
