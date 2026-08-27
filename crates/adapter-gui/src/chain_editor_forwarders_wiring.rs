@@ -1,3 +1,4 @@
+//! Responsibility: forwards the chain editor actions to the main window.
 //! Wiring for the main window's chain-editor delegation forwarder.
 //!
 //! Re-emits the instrument selection on the active `ChainEditorWindow` so the

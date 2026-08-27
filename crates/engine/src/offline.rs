@@ -1,3 +1,4 @@
+//! Responsibility: drives a chain through its DSP with no audio device.
 //! Offline render driver — drives a chain's DSP without any cpal binding.
 //!
 //! Reuses the same `RuntimeProcessor` and `process_buffer` as the realtime

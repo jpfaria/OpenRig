@@ -1,3 +1,4 @@
+//! Responsibility: runs a VST3 plugin over a mono signal.
 //! Mono VST3 processor: wraps `Vst3Plugin` and implements `MonoProcessor`.
 //!
 //! VST3 plugins are inherently stereo (or multi-channel). The mono wrapper

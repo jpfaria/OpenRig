@@ -1,3 +1,4 @@
+//! Responsibility: builds the runtime node a block turns into.
 //! Block-level runtime node construction (slice 4 of Phase 2 issue #194).
 //!
 //! Setup-time only — every function in this module runs when a chain is

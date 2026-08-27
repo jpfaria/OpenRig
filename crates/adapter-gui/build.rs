@@ -1,3 +1,4 @@
+// Responsibility: compiles the UI assets the GUI needs at build time.
 use std::path::{Path, PathBuf};
 use std::process::Command;
 

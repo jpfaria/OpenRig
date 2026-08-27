@@ -318,7 +318,7 @@ fn fitting_a_stopped_loop_through_the_store_shortens_it() {
 }
 
 #[test]
-fn what_the_project_save_exports_is_the_EDITED_loop() {
+fn what_the_project_save_exports_is_the_edited_loop() {
     // The user edited a loop and it came back unedited. The save path reads
     // `export` (the mixdown), NOT `export_raw` — if an edit only reached the
     // raw side, the wav on disk would still be the take before the edit.

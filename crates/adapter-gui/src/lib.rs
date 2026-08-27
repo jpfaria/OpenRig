@@ -1,3 +1,4 @@
+//! Responsibility: routes the GUI crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -41,6 +42,7 @@ mod chain_editor_forwarders_wiring;
 mod chain_editor_meta_io_callbacks;
 mod chain_editor_save_cancel_callbacks;
 mod chain_name_wiring;
+mod chain_preset_bank;
 mod chain_preset_wiring;
 mod chain_rig_nav;
 mod chain_rig_nav_wiring;
@@ -63,6 +65,7 @@ pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
 mod compact_routing_pick;
+mod compact_view_refresh;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
@@ -84,6 +87,10 @@ mod di_output_select_wiring;
 pub mod di_source_picker_wiring;
 mod insert_wiring;
 mod live_sync_plan;
+mod looper_commands;
+mod looper_restore;
+mod param_tab_grouping;
+mod param_tabs_inline;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod preset_save_wiring;
@@ -122,7 +129,9 @@ pub use settings::paths::{
 mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
+mod metronome_outputs;
 mod metronome_view;
+mod metronome_vocabulary;
 mod metronome_wiring;
 mod sample_rate;
 pub mod spectrum_close;
@@ -151,6 +160,7 @@ mod defaults;
 pub(crate) use defaults::*;
 
 mod audio_devices;
+mod binding_status;
 mod block_editor;
 mod block_editor_param_items;
 mod block_editor_persist;
@@ -158,6 +168,10 @@ mod block_editor_setters;
 mod block_editor_values;
 mod chain_editor;
 mod default_io_binding;
+mod device_refresh_list;
+mod device_rows;
+mod device_selection_items;
+mod device_settings_resolve;
 mod eq;
 pub mod graph_view_model;
 mod gui_live_source;
@@ -172,11 +186,25 @@ mod issue_819_retire_persistent_window_tests;
 #[path = "issue_85_stream_rows_tests.rs"]
 mod issue_85_stream_rows_tests;
 mod latency_probe;
+mod live_source_block_stream;
+mod live_source_chain_rate;
+mod live_source_chain_row;
+mod live_source_gui;
+mod live_source_health;
+mod live_source_looper;
+mod live_source_metronome;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
 mod looper_editor_callbacks;
-pub mod looper_view;
+pub mod looper_items;
+mod looper_rows;
+mod looper_view;
+mod looper_vocabulary;
+mod meter_invalidation;
+mod meter_math;
+mod meter_rows;
+mod meter_taps;
 mod meter_wiring;
 mod meter_wiring_poll;
 #[cfg(test)]
@@ -184,6 +212,8 @@ mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 pub mod midi_profile_wiring;
 pub use midi_profile_wiring::start_midi_profiles;
+mod app_config_load;
+mod gui_device_settings;
 #[cfg(test)]
 #[path = "issue_85_click_port_opens_editor_tests.rs"]
 mod issue_85_click_port_opens_editor_tests;
@@ -196,6 +226,9 @@ mod issue_881_compact_insert_tests;
 #[cfg(test)]
 #[path = "issue_881_insert_editor_tests.rs"]
 mod issue_881_insert_editor_tests;
+#[cfg(test)]
+#[path = "issue_898_compact_insert_refresh_tests.rs"]
+mod issue_898_compact_insert_refresh_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
@@ -204,12 +237,33 @@ mod model_search_wiring;
 mod no_infra_cpal_in_wiring_tests;
 mod port_wiring;
 mod preset_search;
+mod project_dirty;
+mod project_display_name;
 mod project_load_normalize;
 mod project_ops;
 mod project_ops_recents;
+mod project_path;
+mod project_paths_resolve;
+mod project_session_load;
+mod project_title;
+mod recent_projects;
 // #679: `pub` so the issue_599 integration test can reach
 // `block_type_picker_items`. A private mod made `cargo test --tests` (and thus
 // `cargo llvm-cov`) fail to compile, which silently zeroed all coverage.
+mod audio_settings_mode;
+mod block_drawer_state;
+mod block_editor_draft;
+mod block_icon;
+mod block_picker_items;
+mod block_window;
+mod chain_block_item;
+mod chain_draft;
+mod chain_endpoint_labels;
+mod chain_io_labels;
+mod insertion_slots;
+mod io_binding_models;
+mod project_chains_refresh;
+mod project_session;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
@@ -237,6 +291,10 @@ mod desktop_app_settings_wiring;
 mod desktop_app_topbar_wiring;
 mod desktop_app_windows;
 mod i18n;
+mod language_names;
+mod locale_font;
+mod locale_resolve;
+mod translations_dir;
 
 pub use desktop_app::run_desktop_app;
 pub use i18n::{apply_bundled_translation, init_translations, resolve_locale, SUPPORTED_LANGUAGES};

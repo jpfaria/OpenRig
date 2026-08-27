@@ -1,3 +1,4 @@
+//! Responsibility: wires the project settings actions.
 //! Wiring for project-settings management callbacks (open / name edit / close).
 //!
 //! Owns the 5 callbacks driving project settings on the main window and the

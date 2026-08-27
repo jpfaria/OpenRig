@@ -1,3 +1,4 @@
+//! Responsibility: handles the io binding commands.
 //! I/O binding registry command handlers (#716).
 //!
 //! Create / Update (upsert by id) / Delete operations on the per-machine

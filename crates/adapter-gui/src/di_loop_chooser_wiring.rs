@@ -1,3 +1,4 @@
+//! Responsibility: wires the DI loop file chooser.
 //! Wires the `on_di_loop_choose_file` callback from the chain-tile DI loop
 //! control (issue #614, Task 7).
 //!

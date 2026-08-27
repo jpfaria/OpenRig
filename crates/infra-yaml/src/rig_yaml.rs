@@ -1,3 +1,4 @@
+//! Responsibility: maps the `project.openrig` document onto the rig it describes.
 //! `project.openrig` file parser/serializer (#449).
 //!
 //! Owns the `serde_yaml` <-> [`RigProject`] boundary. The document is wrapped

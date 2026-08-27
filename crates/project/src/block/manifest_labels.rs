@@ -1,3 +1,4 @@
+//! Responsibility: sanitises a label that came from an external manifest.
 //! Sanitisation of human-facing labels coming from external plugin
 //! manifests (NAM/IR `GridParameter`, LV2 port names, VST3 parameter
 //! display names) before they reach the Slint UI.

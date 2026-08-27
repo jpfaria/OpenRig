@@ -1,3 +1,4 @@
+//! Responsibility: describes the tone of a signal without a reference.
 //! Reference-free tone descriptors for the Tone Doctor diagnosis (#791).
 //!
 //! Pure, self-contained DSP: in = a rendered buffer, out = a small set of
@@ -154,13 +155,19 @@ impl ToneDescriptors {
         let mut candidates = vec![
             (Symptom::Fizz, (self.fizz_ratio - limits.fizz) / limits.fizz),
             (Symptom::Mud, (self.mud_ratio - limits.mud) / limits.mud),
-            (Symptom::Boomy, (self.boom_ratio - limits.boom) / limits.boom),
+            (
+                Symptom::Boomy,
+                (self.boom_ratio - limits.boom) / limits.boom,
+            ),
         ];
         if limits.thin > 0.0 {
             candidates.push((Symptom::Thin, (limits.thin - self.mud_ratio) / limits.thin));
         }
         if limits.squash > 0.0 {
-            candidates.push((Symptom::Squash, (limits.squash - self.crest_db) / limits.squash));
+            candidates.push((
+                Symptom::Squash,
+                (limits.squash - self.crest_db) / limits.squash,
+            ));
         }
         candidates
             .into_iter()
@@ -256,7 +263,9 @@ fn welch_power_spectrum(samples: &[f32]) -> Vec<f32> {
     let mut planner = FftPlanner::<f32>::new();
     let fft = planner.plan_fft_forward(FFT_SIZE);
     let hann: Vec<f32> = (0..FFT_SIZE)
-        .map(|i| 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FFT_SIZE - 1) as f32).cos()))
+        .map(|i| {
+            0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FFT_SIZE - 1) as f32).cos())
+        })
         .collect();
     let mut power = vec![0.0_f32; FFT_SIZE / 2];
     let mut frames = 0usize;

@@ -1,3 +1,4 @@
+//! Responsibility: checks a project against the devices it asks for.
 //! Pre-stream sanity checks against the device the project actually
 //! intends to open.
 //!

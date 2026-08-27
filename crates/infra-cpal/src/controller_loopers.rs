@@ -1,3 +1,4 @@
+//! Responsibility: fronts the controller's loopers to the application.
 //! Issue #323 — the controller's looper facade (redesigned).
 //!
 //! Looper state lives in the controller-owned [`crate::looper_store::LooperStore`],

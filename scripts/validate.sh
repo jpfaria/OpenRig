@@ -131,6 +131,8 @@ find_package_name() {
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 SWEEP=false   # true when a directory was passed: whole-repo sweep, not a diff
+              # (kept for the size check; the responsibility check no longer
+              #  softens for it — see check 1)
 
 if [ $# -gt 0 ]; then
   # Expand directories recursively; keep plain files as-is
@@ -181,11 +183,11 @@ for file in $FILES; do
   responsibility=$(declared_responsibility "$file")
 
   if [ -z "$responsibility" ]; then
-    if $SWEEP; then
-      warn "$name: no '// Responsibility:' header — declare it next time you touch this file (#873)"
-    else
-      fail "$name: no '// Responsibility:' header — state the ONE thing this file does, in one sentence (#873)"
-    fi
+    # Sweep mode used to WARN here, because most of the repo had no header yet
+    # and a hard failure would have blocked every commit. #873 finished the
+    # sweep — every production file declares — so the leniency is gone: a
+    # missing header is an error whether you passed a directory or a diff.
+    fail "$name: no '// Responsibility:' header — state the ONE thing this file does, in one sentence (#873)"
   elif declares_more_than_one "$responsibility"; then
     fail "$name declares more than one responsibility — \"$responsibility\". One file, ONE job: split it (#873)"
   else
@@ -257,10 +259,14 @@ if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && [ -n "$RS_FILES" ]; then
   echo -e "${BOLD}── 3. Rust Formatting ──${NC}"
   for file in $RS_FILES; do
     [ -f "$file" ] || continue
-    if rustfmt --check "$file" > /dev/null 2>&1; then
+    # --edition matters: without it rustfmt parses as 2015, where a leading
+    # `::` in a use path is redundant and gets stripped — which in 2018+ can
+    # change what the path resolves to (`::project` vs a sibling `project`
+    # module) and break the build. The workspace is 2021.
+    if rustfmt --edition 2021 --check "$file" > /dev/null 2>&1; then
       ok "$(basename "$file"): formatting OK"
     else
-      fail "$(basename "$file"): formatting violations — run: rustfmt $file"
+      fail "$(basename "$file"): formatting violations — run: rustfmt --edition 2021 $file"
     fi
   done
 fi

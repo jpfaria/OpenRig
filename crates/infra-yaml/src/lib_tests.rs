@@ -559,4 +559,3 @@ fn roundtrip_full_rig_block_preserves_type_and_model() {
     }
     assert_core_roundtrip("full_rig", first_model(models));
 }
-

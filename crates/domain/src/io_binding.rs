@@ -1,3 +1,4 @@
+//! Responsibility: describes how physical devices map onto named logical endpoints.
 //! Single source of truth for I/O binding types.
 //!
 //! `IoBinding` and `IoEndpoint` describe how physical audio devices map to

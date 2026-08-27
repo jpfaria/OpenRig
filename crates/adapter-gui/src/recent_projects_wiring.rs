@@ -1,3 +1,4 @@
+//! Responsibility: wires the launcher's recent projects list.
 //! Wiring for the launcher's "recent projects" callbacks on the main window.
 //!
 //! Owns the 3 callbacks driving the recent-projects list:

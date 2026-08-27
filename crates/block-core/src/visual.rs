@@ -1,3 +1,4 @@
+//! Responsibility: describes how a model draws itself in the catalog.
 //! Per-model visual metadata structs consumed by the GUI catalog layer.
 //!
 //! Lifted out of `lib.rs` (Phase 6 of issue #194). Visual config in a

@@ -1,3 +1,4 @@
+//! Responsibility: handles the chain io commands.
 //! Chain I/O replace + preset-load handler (file-per-feature; #436 split).
 //! Behaviour byte-identical to the original inline arm — pure move.
 

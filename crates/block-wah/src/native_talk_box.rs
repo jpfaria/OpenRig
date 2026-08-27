@@ -1,3 +1,4 @@
+//! Responsibility: implements the talk box wah model.
 //! Talk-box / formant filter — 3-band parallel band-pass cascade
 //! sweeping the vowel formants F1/F2/F3.
 //!
@@ -175,9 +176,14 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = parse(params)?;
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(TalkBox::new(p, sample_rate)))),
+        AudioChannelLayout::Mono => {
+            Ok(BlockProcessor::Mono(Box::new(TalkBox::new(p, sample_rate))))
+        }
         AudioChannelLayout::Stereo => {
-            struct Dual { l: Box<dyn MonoProcessor>, r: Box<dyn MonoProcessor> }
+            struct Dual {
+                l: Box<dyn MonoProcessor>,
+                r: Box<dyn MonoProcessor>,
+            }
             impl StereoProcessor for Dual {
                 fn process_frame(&mut self, i: [f32; 2]) -> [f32; 2] {
                     [self.l.process_sample(i[0]), self.r.process_sample(i[1])]

@@ -1,3 +1,4 @@
+//! Responsibility: wires the calibration binary from argv to the driver.
 //! `openrig-tone-calibrate` — offline Tone Doctor limit calibration (#809).
 //!
 //! Usage:
@@ -16,7 +17,9 @@ use tone_calibrate::{calibrate_corpus, measure_stems, measurements_to_csv, to_ya
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
-    let first = args.next().context("missing <evaluations-root> (or `measure`)")?;
+    let first = args
+        .next()
+        .context("missing <evaluations-root> (or `measure`)")?;
     if first == "measure" {
         return run_measure(&mut args);
     }

@@ -1,3 +1,4 @@
+//! Responsibility: routes the gain crate's public surface.
 //! Gain blocks such as boost, overdrive, distortion, and fuzz.
 mod registry;
 

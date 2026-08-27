@@ -1,3 +1,4 @@
+//! Responsibility: holds the string constants every block crate agrees on.
 //! Crate-wide string constants — instrument types, brand sentinels, effect
 //! type tags, and instrument list groupings.
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: holds the in-process dispatcher state.
 //! `LocalDispatcher` — in-process implementation of `CommandDispatcher`.
 //!
 //! Holds the project via `Rc<RefCell<Project>>` for interior mutability so

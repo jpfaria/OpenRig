@@ -1,3 +1,4 @@
+//! Responsibility: wires the device settings widgets.
 //! Wiring for the trivial device settings toggles and value updates.
 //!
 //! Registers the small one-liner callbacks that delegate to `audio_devices`

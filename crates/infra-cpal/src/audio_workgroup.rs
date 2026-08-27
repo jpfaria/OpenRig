@@ -1,3 +1,4 @@
+//! Responsibility: joins an audio callback thread to the device workgroup.
 //! Issue #670 — join each audio callback thread to its device's OS workgroup
 //! (macOS). The chain DSP runs in the cpal INPUT callback and the mix+limiter
 //! in the OUTPUT callback; when the OS lets either thread drift off the audio

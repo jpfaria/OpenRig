@@ -1,3 +1,4 @@
+//! Responsibility: listens to the MIDI port then feeds what arrives into the pipeline.
 //! The only impure layer: open a `midir` input (USB or BLE-MIDI — a paired
 //! M-Vave Chocolate shows up here like any other input), parse each message,
 //! resolve it through the map, and submit the `Command` over the bridge. The

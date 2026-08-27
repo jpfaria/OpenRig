@@ -1,3 +1,4 @@
+//! Responsibility: detects the pitch of a buffer.
 //! YIN-based pitch detection — extracted for reuse beyond the chromatic_tuner block.
 //!
 //! Runs entirely on a non-RT thread. The audio thread feeds buffers via a bounded

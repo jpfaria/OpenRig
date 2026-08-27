@@ -1,3 +1,4 @@
+//! Responsibility: dispatches the chain callback wirings at startup.
 //! Chain-level callback wirings dispatched from `run_desktop_app`.
 //!
 //! Three `*_wiring::wire(...)` / `*_callbacks::wire(...)` calls live here:

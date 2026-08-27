@@ -1,3 +1,4 @@
+//! Responsibility: analyses a buffer into its frequency bands.
 //! 63-band 1/6-octave spectrum analyzer DSP.
 //!
 //! Pure, self-contained DSP. The caller owns sample accumulation, threading

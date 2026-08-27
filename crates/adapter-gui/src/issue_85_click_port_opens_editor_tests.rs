@@ -174,6 +174,7 @@ fn open_with(
         &insert_window,
         &port_window,
         SelectChainBlockCallbackCtx {
+            open_compact_window: Rc::new(RefCell::new(None)),
             inline_tab_state: Rc::new(RefCell::new(Default::default())),
             selected_block: Rc::new(RefCell::new(None)),
             block_editor_draft: Rc::new(RefCell::new(None)),

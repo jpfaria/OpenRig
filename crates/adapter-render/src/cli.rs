@@ -1,3 +1,4 @@
+//! Responsibility: parses the render binary's arguments.
 //! CLI argument parsing for `openrig-render`.
 //!
 //! Hand-rolled — keeps the headless binary dep-light. The CLI surface is

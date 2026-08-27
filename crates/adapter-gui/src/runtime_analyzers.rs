@@ -1,3 +1,4 @@
+//! Responsibility: owns the analyzer sessions' lifecycle.
 //! #127: the ANALYZERS' lifecycle, behind the seam — the tuner (#544) and the
 //! spectrum (#546).
 //!

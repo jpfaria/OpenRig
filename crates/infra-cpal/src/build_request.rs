@@ -1,3 +1,4 @@
+//! Responsibility: describes a chain build the worker can run.
 //! Issue #672 — the worker-runnable build entry.
 //!
 //! `BuildRequest` is the owned, `Send` payload the frontend thread hands to the

@@ -49,7 +49,10 @@ fn inline_editor_model_pick_recalculates_panel_height() {
     for (file, what) in [
         ("block_choose_type_callback.rs", "picking a block type"),
         ("block_insert_callbacks.rs", "changing the model"),
-        ("select_chain_block_callback.rs", "opening an existing block"),
+        (
+            "select_chain_block_callback.rs",
+            "opening an existing block",
+        ),
     ] {
         let src = read_src(file);
         assert!(

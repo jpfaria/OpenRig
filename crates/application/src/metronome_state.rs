@@ -1,3 +1,4 @@
+//! Responsibility: holds the metronome's control-plane state.
 //! #127: the metronome's control-plane state, owned by the dispatcher.
 //!
 //! It used to live in the GUI (`adapter_gui`'s `MetronomeSession`, in what is

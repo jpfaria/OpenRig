@@ -1,3 +1,4 @@
+//! Responsibility: wires the insert block editor window.
 //! Wiring for the chain Insert block editor window (`ChainInsertWindow`).
 //!
 //! An insert is an external send/return loop, and since #716 (model A) all it

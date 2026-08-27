@@ -1,3 +1,4 @@
+//! Responsibility: answers what a given effect type is capable of.
 //! Capability predicates keyed on a block's `effect_type`.
 //!
 //! Pure domain logic (no UI, no state) so the rules are testable in

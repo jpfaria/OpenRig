@@ -1,3 +1,4 @@
+//! Responsibility: wires the language selector.
 //! Wires the language selector dropdown into the gui-settings.yaml roundtrip.
 //!
 //! Reads the persisted `language` field, computes the index in

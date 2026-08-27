@@ -1,3 +1,4 @@
+//! Responsibility: serves the read-only MCP resources.
 //! Read-only MCP resources. The adapter never re-derives project structure:
 //! it asks the frontend (which owns the `!Send` `Project`) to serialize via
 //! domain code over the bridge query channel.

@@ -1,3 +1,4 @@
+//! Responsibility: decides when the event loop counts as stalled.
 //! Decision logic for the `[ui-stall]` event-loop watchdog (#693, #721).
 //!
 //! The watchdog (in [`crate::desktop_app`]) runs on its own thread that wakes

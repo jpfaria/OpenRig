@@ -1,3 +1,4 @@
+//! Responsibility: normalises a freshly read project.
 //! Load-time normalization of a freshly-read project, before the session and
 //! the runtime see it. Same passes the dispatcher's `LoadProject` handler
 //! applies, so a GUI open and an MCP/gRPC open agree on the resulting state.

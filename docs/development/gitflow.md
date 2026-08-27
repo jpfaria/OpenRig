@@ -50,6 +50,8 @@ Só quando o usuário pedir. Antes do close, atribuir milestone — **plain semv
 2. **NUNCA criar nem reabrir um milestone `vX.Y.Z-dev.N`** (esquema morto) nem `-beta.N` (beta é tag, não milestone). Use o milestone `vX.Y.Z` aberto.
 3. `gh issue edit <N> --milestone "vX.Y.Z"` → `gh issue close <N>`.
 
+**O merge do PR NÃO fecha a issue.** O `Closes #N` do corpo do PR só dispara quando a base é a branch default do repo — e aqui toda PR de feature/bug tem como base a `release/vX.Y.Z` ativa. Depois do merge a issue continua OPEN e o close é manual, com o milestone antes (#900 ficou aberta depois da #901 mergeada exatamente por isso).
+
 ## Labels que excluem das release notes
 
 - `duplicate` — escopo idêntico a outra issue (a duplicata é a mais nova).
@@ -91,7 +93,11 @@ cd .solvers/issue-{N} && git fetch origin
 # branch existe? checkout. não existe? checkout release/vX.Y.Z && pull && checkout -b feature/issue-{N}
 ```
 
-Após merge+close: `rm -rf .solvers/issue-{N}/`.
+Depois do merge, a entrega só termina com os três passos — nenhum deles é automático:
+
+1. **Fechar a issue** com o milestone atribuído antes (ver [Fechar issue](#fechar-issue)) — o merge numa `release/vX.Y.Z` não fecha nada sozinho.
+2. **Apagar a branch, remota E local.** O auto-delete-on-merge do GitHub cobre a remota só quando está ligado; a local em `.solvers/issue-{N}` nunca some sozinha. `git push origin --delete {tipo}/issue-{N}` (ou `gh api -X DELETE repos/jpfaria/OpenRig/git/refs/heads/{tipo}/issue-{N}`), e confira com `gh api repos/jpfaria/OpenRig/git/refs/heads --jq '.[].ref'` — branch de trabalho que sobra vira lixo permanente no remote.
+3. **Remover o workspace:** `rm -rf .solvers/issue-{N}/` — só com a issue já FECHADA (#568), porque o `rm -rf` leva junto qualquer WIP não-commitado.
 
 ## Issues irmãs
 

@@ -1,3 +1,4 @@
+//! Responsibility: filters the preset bank by what was typed.
 //! Search/filter logic for the chain preset bank dropdown (`PresetSelect`).
 //!
 //! The bank dropdown lists the rig input's saved preset slots. Selecting a

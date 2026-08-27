@@ -1,3 +1,4 @@
+// Responsibility: builds the native amp modeler library this crate links against.
 fn main() {
     let mut cmake_cfg = cmake::Config::new("../../cpp");
     cmake_cfg.define("CMAKE_BUILD_TYPE", "Release");

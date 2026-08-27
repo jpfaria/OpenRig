@@ -1,3 +1,4 @@
+//! Responsibility: measures the level leaving a chain.
 //! Output level meter for chain UI — issue #496 / #32.
 //!
 //! Drains the L+R rings of a `StreamTap` (post-FX, pre-mixdown) and

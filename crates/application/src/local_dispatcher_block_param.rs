@@ -1,3 +1,4 @@
+//! Responsibility: handles the block param commands.
 //! Block-parameter handler (file-per-feature; #436 dispatcher split).
 //! Behaviour byte-identical to the original inline arm — pure move.
 

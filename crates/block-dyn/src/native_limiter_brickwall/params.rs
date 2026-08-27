@@ -1,3 +1,4 @@
+//! Responsibility: describes the brick wall limiter's parameters.
 //! User-facing parameter schema and parsing.
 
 use anyhow::{Error, Result};

@@ -1,3 +1,4 @@
+//! Responsibility: handles the midi system commands.
 //! `LocalDispatcher` MIDI system command handler (issue #792 split).
 //!
 //! Single responsibility: the system-side MIDI commands (#513/#493). None

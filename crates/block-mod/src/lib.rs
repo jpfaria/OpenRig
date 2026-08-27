@@ -1,3 +1,4 @@
+//! Responsibility: routes the modulation crate's public surface.
 //! Modulation implementations.
 pub mod model_visual;
 mod registry;

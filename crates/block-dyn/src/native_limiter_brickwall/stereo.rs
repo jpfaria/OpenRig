@@ -1,3 +1,4 @@
+//! Responsibility: limits two channels under one shared gain reduction.
 //! Stereo-linked brick wall limiter. Used when the chain layout is Stereo so
 //! that L and R receive identical gain reduction, preserving the stereo image.
 

@@ -1,3 +1,4 @@
+//! Responsibility: holds one chain's runtime state.
 //! The `ChainRuntimeState` root struct and its core accessors (split out of
 //! `runtime_state.rs`, which kept growing past the file cap).
 //!

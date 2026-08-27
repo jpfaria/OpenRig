@@ -1,3 +1,4 @@
+//! Responsibility: filters a signal with a state-variable section.
 //! State-Variable Filter (Zero-Delay Feedback topology).
 //!
 //! Reference: Simper, A. (2011). "Linear Trapezoidal Integrated State

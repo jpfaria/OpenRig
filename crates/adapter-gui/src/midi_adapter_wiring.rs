@@ -1,3 +1,4 @@
+//! Responsibility: wires the opt-in MIDI controller adapter.
 //! Opt-in MIDI/BLE-MIDI controller adapter wiring (issue #548 supersedes
 //! the earlier #22 + #499 path). Wired once from `run_desktop_app` when
 //! `--midi[=PATH]` is given.

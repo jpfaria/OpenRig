@@ -1,3 +1,4 @@
+// Responsibility: generates the model registry of this block crate.
 use std::env;
 use std::fs;
 use std::path::PathBuf;

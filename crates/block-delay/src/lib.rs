@@ -1,4 +1,8 @@
+//! Responsibility: routes the delay crate's public surface.
 //! Delay implementations.
+pub mod channel_adapters;
+pub mod delay_line;
+pub mod delay_math;
 pub mod model_visual;
 mod registry;
 pub mod shared;

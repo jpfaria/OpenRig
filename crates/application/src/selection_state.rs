@@ -1,3 +1,4 @@
+//! Responsibility: holds what the user has selected on screen.
 //! GUI selection state — what the user has selected on the Chains screen.
 //!
 //! Read by MIDI slots (issue #548) to resolve "active chain / active block"

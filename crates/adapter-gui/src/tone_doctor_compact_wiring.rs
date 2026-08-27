@@ -1,3 +1,4 @@
+//! Responsibility: wires the tone doctor into the chain windows.
 //! #791 — Tone Doctor closures for the chain windows (main + compact).
 //!
 //! These are dispatchers, nothing more: Diagnose and Apply are `Command`s the

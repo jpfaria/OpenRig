@@ -1,3 +1,4 @@
+//! Responsibility: wires the secondary actions of a chain row.
 //! Chain-row reorder + DI-loop callback wiring (issue #792 split from
 //! chain_row_wiring.rs — extracted from the former 470-line `wire`).
 

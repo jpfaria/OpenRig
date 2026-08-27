@@ -1,3 +1,4 @@
+//! Responsibility: attaches the dispatcher to the dependencies it needs.
 //! `LocalDispatcher` dependency-attachment setters (issue #792 split).
 //!
 //! Single responsibility: wiring. The session bootstrap hands the dispatcher

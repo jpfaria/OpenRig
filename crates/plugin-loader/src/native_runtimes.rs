@@ -1,3 +1,4 @@
+//! Responsibility: maps a native runtime name onto the code compiled in.
 //! In-binary lookup table for native plugin runtimes.
 //!
 //! Native plugins live as Rust DSP code in their `block-*` crate; the

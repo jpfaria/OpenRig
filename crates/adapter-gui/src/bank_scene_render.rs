@@ -1,3 +1,4 @@
+//! Responsibility: maps the bank navigator state onto what it shows.
 //! Pure presentation mapper for the #453 navigator: `BankSceneState` →
 //! plain rows. No Slint, no `AppWindow` (memory: no business logic in the
 //! screen; testable without a window). The Slint glue converts `BankNavRow`

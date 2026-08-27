@@ -1,3 +1,4 @@
+//! Responsibility: names the looper commands.
 //! Per-chain looper commands (#323): membership, transport, the persisted
 //! parameters, the record/playback endpoints and the linked preset.
 //!

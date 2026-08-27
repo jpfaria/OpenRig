@@ -1,3 +1,4 @@
+//! Responsibility: implements the dattorro plate reverb model.
 //! Dattorro plate reverb — Lexicon-style modulated-allpass plate after
 //! Jon Dattorro, "Effect Design Part 1: Reverberator and Other Filters",
 //! JAES Vol. 45 No. 9, September 1997.
@@ -20,7 +21,9 @@ use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor,
+};
 
 use crate::registry::ReverbModelDefinition;
 use crate::ReverbBackendKind;
@@ -31,7 +34,7 @@ pub const DISPLAY_NAME: &str = "Plate Reverb (Dattorro)";
 const DATTORRO_SR: f32 = 29761.0;
 
 // Sizes in samples at the paper's 29761 Hz reference.
-const PRE_DELAY: usize = 0;            // we add a configurable pre-delay separately
+const PRE_DELAY: usize = 0; // we add a configurable pre-delay separately
 const INPUT_AP1: usize = 142;
 const INPUT_AP2: usize = 107;
 const INPUT_AP3: usize = 379;
@@ -52,9 +55,9 @@ const DECAY_DIFFUSION_1: f32 = 0.7;
 const DECAY_DIFFUSION_2: f32 = 0.5;
 
 struct Params {
-    decay_pct: f32,        // 0..1 → tank decay coefficient
-    damping: f32,          // 0..1 → in-loop lowpass coefficient
-    bandwidth: f32,        // 0..1 → input lowpass cutoff
+    decay_pct: f32, // 0..1 → tank decay coefficient
+    damping: f32,   // 0..1 → in-loop lowpass coefficient
+    bandwidth: f32, // 0..1 → input lowpass cutoff
     pre_delay_ms: f32,
     mix: f32,
 }
@@ -79,11 +82,56 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
-            float_parameter("decay", "Decay", None, Some(d.decay_pct), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("damping", "Damping", None, Some(d.damping), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("bandwidth", "Bandwidth", None, Some(d.bandwidth), 50.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("pre_delay_ms", "Pre-delay", None, Some(d.pre_delay_ms), 0.0, 100.0, 1.0, ParameterUnit::Milliseconds),
-            float_parameter("mix", "Mix", None, Some(d.mix), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "decay",
+                "Decay",
+                None,
+                Some(d.decay_pct),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(d.damping),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "bandwidth",
+                "Bandwidth",
+                None,
+                Some(d.bandwidth),
+                50.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "pre_delay_ms",
+                "Pre-delay",
+                None,
+                Some(d.pre_delay_ms),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Milliseconds,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(d.mix),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -134,7 +182,10 @@ struct Allpass {
 
 impl Allpass {
     fn new(samples: usize, g: f32) -> Self {
-        Self { delay: Delay::new(samples), g }
+        Self {
+            delay: Delay::new(samples),
+            g,
+        }
     }
     fn process(&mut self, x: f32) -> f32 {
         let buffered = self.delay.read();
@@ -149,7 +200,12 @@ struct OnePoleLpf {
     coeff: f32,
 }
 impl OnePoleLpf {
-    fn new() -> Self { Self { state: 0.0, coeff: 0.0 } }
+    fn new() -> Self {
+        Self {
+            state: 0.0,
+            coeff: 0.0,
+        }
+    }
     fn set_damping(&mut self, d: f32) {
         self.coeff = d.clamp(0.0, 1.0);
     }
@@ -279,15 +335,13 @@ impl StereoProcessor for DattorroPlate {
         // what produces the dense, smeared early field of a plate; the
         // previous two-tap simplification left the first ~50 ms sparse.
         let s = self.sr;
-        let wet_l = self.delay_a1.tap(scale(266, s))
-            + self.delay_a1.tap(scale(2974, s))
+        let wet_l = self.delay_a1.tap(scale(266, s)) + self.delay_a1.tap(scale(2974, s))
             - self.ap_b.tap(scale(1913, s))
             + self.delay_b2.tap(scale(1996, s))
             - self.delay_b1.tap(scale(1990, s))
             - self.ap_a.tap(scale(187, s))
             - self.delay_a2.tap(scale(1066, s));
-        let wet_r = self.delay_b1.tap(scale(353, s))
-            + self.delay_b1.tap(scale(3627, s))
+        let wet_r = self.delay_b1.tap(scale(353, s)) + self.delay_b1.tap(scale(3627, s))
             - self.ap_a.tap(scale(1228, s))
             + self.delay_a2.tap(scale(2673, s))
             - self.delay_a1.tap(scale(2111, s))
@@ -334,8 +388,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(DattorroPlate::new(p, sample_rate)))),
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(DattorroAsMono(DattorroPlate::new(p, sample_rate))))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(DattorroPlate::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(DattorroAsMono(
+            DattorroPlate::new(p, sample_rate),
+        )))),
     }
 }
 
