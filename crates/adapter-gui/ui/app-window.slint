@@ -148,6 +148,9 @@ export component AppWindow inherits Window {
     callback looper-add(int);
     callback looper-record(int, int);
     callback looper-play-stop(int, int);
+    // #903: the looper panel's global transport (chain index).
+    callback looper-play-all(int);
+    callback looper-stop-all(int);
     callback looper-undo(int, int);
     callback looper-redo(int, int);
     callback looper-clear(int, int);
@@ -447,6 +450,8 @@ export component AppWindow inherits Window {
         add(ci) => { root.looper-add(ci); }
         record(ci, uid) => { root.looper-record(ci, uid); }
         play-stop(ci, uid) => { root.looper-play-stop(ci, uid); }
+        play-all(ci) => { root.looper-play-all(ci); }
+        stop-all(ci) => { root.looper-stop-all(ci); }
         undo(ci, uid) => { root.looper-undo(ci, uid); }
         redo(ci, uid) => { root.looper-redo(ci, uid); }
         clear(ci, uid) => { root.looper-clear(ci, uid); }

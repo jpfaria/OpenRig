@@ -21,6 +21,8 @@ export component LooperHarness inherits Window {
     callback add();
     callback record(int);
     callback play-stop(int);
+    callback play-all();
+    callback stop-all();
     callback undo(int);
     callback redo(int);
     callback clear(int);
@@ -47,6 +49,8 @@ export component LooperHarness inherits Window {
         add => { root.add(); }
         record(uid) => { root.record(uid); }
         play-stop(uid) => { root.play-stop(uid); }
+        play-all => { root.play-all(); }
+        stop-all => { root.stop-all(); }
         undo(uid) => { root.undo(uid); }
         redo(uid) => { root.redo(uid); }
         clear(uid) => { root.clear(uid); }

@@ -3,7 +3,7 @@
 #![cfg(all(target_os = "linux", feature = "jack"))]
 
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::usb_proc::{
     read_card_channels_raw, server_name_from_bracket, UsbAudioCard, PROC_CACHE_TTL,

@@ -41,6 +41,10 @@ struct LoopEntry {
     /// stream re-arms when the linked preset is edited or reassigned even
     /// though the recorded loop content is unchanged.
     playback_rev: u64,
+    /// #903: whether the chain's transport reaches this looper. A disabled
+    /// looper keeps its take and its routing — it just sits out play and stop
+    /// until it is switched back on.
+    enabled: bool,
     /// #826: pre-edit buffers, newest last, and the redo tail. Control thread
     /// only — the audio thread never sees these.
     edit_undo: Vec<Vec<f32>>,
@@ -56,6 +60,7 @@ impl LoopEntry {
             rings: Vec::new(),
             playback_blocks: None,
             playback_rev: 0,
+            enabled: true,
             edit_undo: Vec::new(),
             edit_redo: Vec::new(),
         }
@@ -285,14 +290,68 @@ impl LooperStore {
         }
     }
 
+    /// Stop ONE loop — the row's own button, for taking a single loop out of
+    /// what is sounding.
     pub fn stop(&mut self, chain: &ChainId, uid: u64) {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
             e.slot.stop();
             e.rings.clear();
         }
     }
+
+    /// Play ONE loop — the row's own button, for hearing a single loop.
     pub fn play(&mut self, chain: &ChainId, uid: u64) {
         self.with_slot(chain, uid, |s| s.play());
+    }
+
+    /// #903: the panel's global stop — every loop on THIS chain at once, the
+    /// counterpart of [`Self::play_all`].
+    pub fn stop_all(&mut self, chain: &ChainId) {
+        for uid in self.transportable(chain) {
+            self.stop(chain, uid);
+        }
+    }
+
+    /// #903: the panel's global play — every loop on THIS chain at once, so a
+    /// take starts locked to the same bar. Skips what it cannot start: a loop
+    /// with no take, one still being recorded, and one switched off.
+    pub fn play_all(&mut self, chain: &ChainId) {
+        for uid in self.transportable(chain) {
+            self.play(chain, uid);
+        }
+    }
+
+    /// The chain's loopers the transport may move: switched on, holding a take,
+    /// and not in the middle of making one.
+    fn transportable(&self, chain: &ChainId) -> Vec<u64> {
+        self.slots
+            .iter()
+            .filter(|((cid, _), e)| {
+                cid == chain
+                    && e.enabled
+                    && !matches!(
+                        status_of(0, &e.slot).state,
+                        LooperState::Empty | LooperState::Recording | LooperState::Overdubbing
+                    )
+            })
+            .map(|((_, uid), _)| *uid)
+            .collect()
+    }
+
+    /// #903: switch one looper in or out of the chain's transport. Keeps the
+    /// take: this is not a stop and not a clear.
+    pub fn set_enabled(&mut self, chain: &ChainId, uid: u64, enabled: bool) {
+        if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
+            e.enabled = enabled;
+        }
+    }
+
+    /// Whether the chain's transport reaches this looper.
+    pub fn is_enabled(&self, chain: &ChainId, uid: u64) -> bool {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| e.enabled)
+            .unwrap_or(true)
     }
     pub fn clear(&mut self, chain: &ChainId, uid: u64) {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
@@ -310,6 +369,14 @@ impl LooperStore {
     pub fn redo(&mut self, _chain: &ChainId, _uid: u64) {}
     pub fn set_mix(&mut self, chain: &ChainId, uid: u64, v: f32) {
         self.with_slot(chain, uid, |s| s.set_mix(v));
+    }
+
+    /// The level the isolated stream should apply to this loop, 0..=1.
+    pub fn playback_gain(&self, chain: &ChainId, uid: u64) -> f32 {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| e.slot.mix())
+            .unwrap_or(1.0)
     }
     pub fn set_decay(&mut self, chain: &ChainId, uid: u64, v: f32) {
         self.with_slot(chain, uid, |s| s.set_decay(v));

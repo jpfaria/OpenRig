@@ -38,6 +38,9 @@ pub fn transport(runtime: &Runtime, chain: &Chain, looper: u64, action: LooperAc
                 c.looper_play(&chain.id, looper)
             }
         }
+        // #903: the panel's global buttons — the whole chain, one bar.
+        LooperAction::PlayAll => c.looper_play_all(&chain.id),
+        LooperAction::StopAll => c.looper_stop_all(&chain.id),
         LooperAction::Undo => c.looper_undo(&chain.id, looper),
         LooperAction::Redo => c.looper_redo(&chain.id, looper),
         LooperAction::Clear => c.looper_clear(&chain.id, looper),
@@ -89,7 +92,7 @@ pub fn redo_edit(runtime: &Runtime, chain: &Chain, looper: u64) {
 pub fn transport_may_start_audio(action: LooperAction) -> bool {
     matches!(
         action,
-        LooperAction::Record | LooperAction::Play | LooperAction::PlayStop
+        LooperAction::Record | LooperAction::Play | LooperAction::PlayStop | LooperAction::PlayAll
     )
 }
 

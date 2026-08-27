@@ -257,7 +257,8 @@ exceção pra "é só visual".
 
 1. **Implementar** no `.solvers/issue-N/` (workspace isolado do gitflow).
 2. **`cargo clean` se necessário, ANTES de validar.** Se a mudança envolveu: arquivo gerado por `build.rs` (registries), rename/move de arquivo, `.rs` removido/adicionado, mudança de dep no `Cargo.toml`, ou qualquer suspeita de artefato obsoleto em `target/` → rodar `cargo clean` e rebuildar antes de pedir validação. Senão o usuário faz `git checkout` e o build dele quebra por cache velho (ex.: `generated_registry.rs` apontando pra módulo deletado, `E0761` por `.rs` órfão). Na dúvida, limpa.
-3. **`cargo test --workspace --lib`** verde no solver (após o clean, se houve).
+3. **`cargo test --workspace`** verde no solver (após o clean, se houve). **`--workspace` inteiro, NUNCA `-p <crate> --lib`:** por crate não compila os `tests/` daquele crate, então um arquivo de teste quebrado — ou um módulo de teste que só existe atrás de um `cfg` (`linux+jack`) — passa batido e o CI reprova. Warning conta como quebrado: `cargo build --workspace` tem que sair com zero.
+3b. **`./scripts/patch-coverage.sh <base>`** antes do push, quando a branch adiciona código. Ele mede a MESMA coisa que o `codecov/patch` do PR — as linhas que o diff adiciona, pontuadas contra o alvo da base — então descobrir isso aqui custa uma rodada local em vez de uma rodada de CI por tentativa. `--files` lista o que ainda está descoberto, em ordem de tamanho. Desligar como os outros gates: `PATCH_COV_OFF=1`.
 4. **`git push` da branch** (sem PR ainda).
 5. **Usuário valida na máquina dele** (`git checkout <branch> && git pull` → roda app/testa cenário). Esperar feedback explícito antes de prosseguir.
 6. **Quality gate compartilhado** — NÃO rodar localmente. Em Rust o gate compila o workspace duas vezes (base + branch) e é inviável na máquina do dev; ele roda no CI, no job `quality-gate` do `.github/workflows/pr.yml`, quando o PR abre. O veredito verde/vermelho vem de lá.
@@ -274,6 +275,8 @@ Não inverter:
 - PR antes da validação do usuário = retrabalho quando ele acha problema no comportamento real.
 - PR antes do gate = CI falha e abre sticky comment no PR.
 - Gate antes do push = bloqueia o usuário de testar enquanto roda (gate demora ~25min).
+
+**Cobertura do patch reprova o PR mesmo com tudo verde.** O alvo é a cobertura da base (hoje ~65%), e um PR de release acumula o diff de todos os merges do ciclo — foi assim que a v0.4.0 reprovou duas vezes com build limpo e 363 suites verdes. O que puxa para baixo é sempre a mesma coisa: arquivo novo com lógica de verdade e nenhum teste. Cobrir o que é **puro** (projeções, resolvers, parsers) paga rápido; wiring de janela e construção de stream não são cobríveis hoje e viram decisão explícita (seam ou exclusão escrita), nunca dívida silenciosa — escopo em #913.
 
 **Foco desta skill (não do gate):** invariantes de áudio, decisões de arquitetura OpenRig (Command/Query/i18n), qualidade **semântica** dos testes (comportamento ≠ cobertura), anti-patterns brand/model. Métrica mecânica (fmt/lint/build/test/complexity/coverage) é a skill `quality-gate`.
 

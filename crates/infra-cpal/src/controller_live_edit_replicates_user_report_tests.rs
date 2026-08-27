@@ -43,7 +43,7 @@ const BUF: usize = 64;
 const BLOCK_ID: &str = "userreport:compressor";
 const CHAIN_ID: &str = "userreport-chain";
 
-fn init_registry() {
+pub(super) fn init_registry() {
     use std::sync::Once;
     static INIT: Once = Once::new();
     INIT.call_once(|| {
@@ -280,7 +280,7 @@ fn gain_params(volume_pct: f32) -> ParameterSet {
         .expect("volume param must normalize")
 }
 
-fn gain_chain(volume_pct: f32) -> Chain {
+pub(super) fn gain_chain(volume_pct: f32) -> Chain {
     Chain {
         id: ChainId(CHAIN_ID.into()),
         description: None,
@@ -377,7 +377,7 @@ fn wait_for_di_render(controller: &ProjectRuntimeController) {
 /// (issue #808) forgot to re-render the monitored DI, so the timbre only
 /// changed after a block toggle. The DI is an independent pipeline (invariant
 /// #4) — editing the chain must re-render it regardless of the guitar's state.
-fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
+pub(super) fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
     let chain_id = chain.id.clone();
     let runtime = Arc::new(
         build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], &registry())

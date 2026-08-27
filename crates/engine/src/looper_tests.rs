@@ -376,8 +376,11 @@ fn export_mixdown_honours_undo_and_is_none_when_empty() {
     );
 }
 
+/// #903: the level left the mixdown. It is playback gain now — baking it into
+/// the material made a level move a CONTENT change, which restarted the loop
+/// and only reached the ear once the new render took over.
 #[test]
-fn export_mixdown_applies_level_and_reverse_and_bumps_revision() {
+fn export_mixdown_applies_reverse_but_never_the_level() {
     let mut s = slot();
     s.tap_record(Some(spare(MAX)));
     feed(&mut s, &[[1.0, 1.0], [2.0, 2.0], [4.0, 4.0]]);
@@ -388,30 +391,35 @@ fn export_mixdown_applies_level_and_reverse_and_bumps_revision() {
         "closing the recording must bump the content revision"
     );
 
-    // Level halves every sample.
+    // The level does not touch the material.
     s.set_mix(0.5);
     assert_eq!(
         s.export_mixdown().unwrap(),
-        vec![0.5, 0.5, 1.0, 1.0, 2.0, 2.0]
+        vec![1.0, 1.0, 2.0, 2.0, 4.0, 4.0]
     );
 
-    // Reverse plays the frames back to front (at the current 0.5 level).
+    // Reverse does: it plays the frames back to front.
     s.set_reverse(true);
     assert_eq!(
         s.export_mixdown().unwrap(),
-        vec![2.0, 2.0, 1.0, 1.0, 0.5, 0.5]
+        vec![4.0, 4.0, 2.0, 2.0, 1.0, 1.0]
     );
 }
 
 #[test]
-fn setting_level_bumps_the_revision_so_the_stream_re_arms() {
+fn setting_the_level_leaves_the_content_alone_and_reverse_re_arms() {
     let mut s = slot();
     s.tap_record(Some(spare(MAX)));
     feed(&mut s, &[[1.0, 1.0]]);
     s.tap_record(None);
     let r0 = s.content_revision();
     s.set_mix(0.5);
-    assert!(s.content_revision() > r0, "level change must be observable");
+    assert_eq!(
+        s.content_revision(),
+        r0,
+        "#903: the level is playback gain — bumping the revision here re-renders \
+         the loop and restarts it under the owner's hand"
+    );
     let r1 = s.content_revision();
     s.set_reverse(true);
     assert!(
@@ -439,8 +447,8 @@ fn export_raw_ignores_level_and_reverse() {
     );
     assert_eq!(
         s.export_mixdown().unwrap(),
-        vec![2.0, 2.0, 1.0, 1.0, 0.5, 0.5],
-        "the mixdown path is unchanged"
+        vec![4.0, 4.0, 2.0, 2.0, 1.0, 1.0],
+        "the mixdown reverses the material but leaves the level to playback"
     );
 }
 

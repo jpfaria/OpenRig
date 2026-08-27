@@ -25,8 +25,6 @@ pub use crate::lv2_ports::{scan_lv2_ports, Lv2Port, Lv2PortRole, Lv2ScalePoint};
 pub(crate) use crate::manifest::{GridCapture, GridParameter};
 #[cfg(test)]
 pub(crate) use block_core::param::ParameterSet;
-#[cfg(test)]
-pub(crate) use domain::value_objects::ParameterValue;
 
 #[cfg(test)]
 #[path = "dispatch_tests.rs"]

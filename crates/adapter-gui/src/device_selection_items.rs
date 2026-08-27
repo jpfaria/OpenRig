@@ -57,3 +57,7 @@ pub(crate) fn mark_unselected_devices(
         model.set_row_data(index, row);
     }
 }
+
+#[cfg(test)]
+#[path = "device_selection_items_tests.rs"]
+mod tests;

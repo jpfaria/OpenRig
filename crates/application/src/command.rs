@@ -105,6 +105,12 @@ pub enum LooperAction {
     /// Toggle: whoever applies it (the adapter, which can see the runtime)
     /// turns it into `Play` or `Stop`. A footswitch has one button for both.
     PlayStop,
+    /// #903: the panel's global transport — every loop on the chain at once,
+    /// so a take starts (or stops) locked to the same bar. A row's `Play` and
+    /// `Stop` stay single: the owner wants both, one loop alone or everything
+    /// together. The `looper` argument is ignored for these two.
+    PlayAll,
+    StopAll,
     Undo,
     Redo,
     Clear,

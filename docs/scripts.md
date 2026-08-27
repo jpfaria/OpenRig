@@ -7,6 +7,7 @@
 | `scripts/build-orange-pi-image.sh` | Imagem SD para Orange Pi |
 | `scripts/flash-sd.sh` | Flasha SD card |
 | `scripts/coverage.sh` | Relatório HTML de cobertura |
+| `scripts/patch-coverage.sh [base] [--files] [--fresh]` | Cobertura do PATCH — as linhas que a branch adiciona, o mesmo número que o `codecov/patch` reporta no PR. Rode antes do push; `PATCH_COV_OFF=1` desliga. |
 | `scripts/package-linux.sh` | Empacota Linux .tar.gz/.deb/.rpm/.AppImage (patchelf RUNPATH p/ libnam_wrapper + libseat) |
 | `scripts/package-macos.sh` | Empacota macOS (assina ad-hoc inside-out + gate de verificação). Plugins bundled: `OPENRIG_PLUGINS_DIR=/path/plugins/source` sobrescreve a origem (default `plugins/source`; override inexistente = erro fatal) |
 | `scripts/lib/console-binaries.{sh,tsv}` | Fonte única dos binários console-style empacotados junto da GUI (`openrig-console`, `openrig-console-rig`, `openrig-render` — #741). Os três packagers buildam e stageam a partir dela; testado por `scripts/tests/console_bundle_test.sh` |

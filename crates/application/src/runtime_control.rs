@@ -310,6 +310,16 @@ pub trait RuntimeControl {
     // cannot address a stream it was not handed. Never a group, never "every
     // chain at this rate" (`CLAUDE.md` LAW).
 
+    /// Give a freshly opened project its recorded loops back (#903).
+    ///
+    /// A project opens with every chain disabled, so nothing had created the
+    /// controller whose store holds a loop: the panel showed EMPTY until the
+    /// user enabled a chain, and the take reappeared only after enabling and
+    /// disabling it again. Opening IS the moment the loops come back, so this
+    /// door — like [`Self::arm_di_stream`] — may create the audio runtime. No
+    /// stream opens for a disabled chain, so a stopped rig stays silent.
+    fn restore_saved_loops(&self) {}
+
     /// Claim this chain's store slot for a newly added looper.
     ///
     /// **#808:** a looper the user cannot record into is not a looper — the
