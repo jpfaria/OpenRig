@@ -7,6 +7,7 @@
 
 use super::apply_di_loop_file;
 use crate::state::ProjectSession;
+use domain::ids::ChainId;
 use project::chain::Chain;
 use project::project::Project;
 use std::cell::RefCell;
