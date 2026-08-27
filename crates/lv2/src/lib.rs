@@ -1,3 +1,4 @@
+//! Responsibility: routes the LV2 crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -10,12 +11,18 @@
 
 mod from_package;
 mod host;
+mod host_abi;
+mod host_ports;
+mod host_urid;
+mod host_worker;
+mod host_worker_probe;
 mod processor;
 mod stereo_processor;
 
 pub use from_package::{build_from_package, register_builder};
-pub use host::{issue670_schedule_work_thread_check, WorkerThreadCheck};
-pub use host::{Lv2Plugin, Lv2PortInfo, Lv2PortKind};
+pub use host::Lv2Plugin;
+pub use host_ports::{Lv2PortInfo, Lv2PortKind};
+pub use host_worker_probe::{issue670_schedule_work_thread_check, WorkerThreadCheck};
 pub use processor::Lv2Processor;
 pub use stereo_processor::StereoLv2Processor;
 

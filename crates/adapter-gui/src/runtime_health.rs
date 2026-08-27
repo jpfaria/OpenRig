@@ -1,3 +1,4 @@
+//! Responsibility: reports the health the frontend polls for.
 //! #127: the write half of the frontend's poll tick — installing finished
 //! rebuilds and reconnecting a backend that died.
 //!

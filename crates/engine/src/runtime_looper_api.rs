@@ -1,3 +1,4 @@
+//! Responsibility: fronts a chain's loopers to the control thread.
 //! Issue #323 — the control-thread facade of a chain's loopers.
 //!
 //! Everything here is wait-free: pushing an op is an `ArrayQueue` push,

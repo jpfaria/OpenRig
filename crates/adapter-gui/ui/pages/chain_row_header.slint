@@ -1,0 +1,218 @@
+// Responsibility: renders one chain card's header bar.
+//
+// The power switch, the title with its preset/scene picker, the rig-nav
+// arrows and the chain action toolbar (probe latency, save preset, configure,
+// compact view, move, remove). #591: tapping empty header space selects the
+// chain as the footswitch's active chain.
+
+import { ProjectChainItem, ChainRigNav } from "../models.slint";
+import { ChainTitlePreset } from "../components/chain_title_preset.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
+import { ChainActionIcon, ChainPowerToggle, HeaderIconAction } from "../components/chain_chips.slint";
+import { ChainVolumeButton } from "../components/chain_volume_button.slint";
+import { ChainDiLoopButton } from "../components/chain_di_loop_button.slint";
+import { ChainLooperButton } from "../components/chain_looper_button.slint";
+import { ChainToneDoctorButton } from "../components/chain_tone_doctor_button.slint";
+
+export component ChainRowHeader inherits Rectangle {
+    in property <ProjectChainItem> chain;
+    in property <ChainRigNav> rig-nav;
+    in property <int> chain-index;
+    in property <int> chain-count;
+    in property <bool> fullscreen: false;
+    callback switch-chain-preset(int);
+    callback switch-chain-scene(int);
+    callback rename-chain-preset(string);
+    callback toggle-chain-enabled(int);
+    callback chain-volume-changed(int, int);
+    callback select-chain(int);
+    callback configure-chain(int);
+    callback configure-chain-preset(int);
+    callback save-chain-preset(int);
+    callback probe-chain-latency(int);
+    callback open-compact-chain-view(int);
+    callback move-chain-up(int);
+    callback move-chain-down(int);
+    callback remove-chain(int);
+
+    background: transparent;
+
+    // #591: tapping empty header space selects the chain as the
+    // footswitch's active chain. Declared first → lowest z-order, so
+    // the PowerSwitch / title / action controls on top still get their
+    // own clicks; only the gaps fall through to this selector.
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        clicked => { root.select-chain(root.chain-index); }
+    }
+
+    PowerSwitch {
+        x: 10px;
+        y: (58px - 44px) / 2;
+        width: 44px; height: 44px;
+        enabled: root.chain.enabled;
+        clicked => { root.toggle-chain-enabled(root.chain-index); }
+    }
+
+    Image {
+        x: 48px;
+        y: 17px;
+        width: 16px;
+        height: 16px;
+        source: root.chain.instrument == "electric_guitar" ? @image-url("../../../../assets/instruments/electric_guitar.svg")
+            : root.chain.instrument == "acoustic_guitar" ? @image-url("../../../../assets/instruments/acoustic_guitar.svg")
+            : root.chain.instrument == "bass" ? @image-url("../../../../assets/instruments/bass.svg")
+            : root.chain.instrument == "voice" ? @image-url("../../../../assets/instruments/voice.svg")
+            : root.chain.instrument == "keys" ? @image-url("../../../../assets/instruments/keys.svg")
+            : root.chain.instrument == "drums" ? @image-url("../../../../assets/instruments/drums.svg")
+            : @image-url("../../../../assets/instruments/generic.svg");
+        image-fit: contain;
+        colorize: #6a7483;
+    }
+
+    // Issue #670: audio-overload (xrun) red LED. Lit while the chain's
+    // audio callback is missing its deadline — the rig is too heavy for
+    // the buffer size and the user is hearing dropouts ("crackle").
+    // Placed BEFORE the PowerSwitch (x:0–10, flush against the switch at
+    // x:10) as a status LED, using the same led-red sprite as the block
+    // chips. (Feedback: the triangle on top of the power button looked
+    // like the button itself blinking.)
+    Rectangle {
+        x: 0px;
+        y: (58px - 10px) / 2;
+        width: 10px;
+        height: 10px;
+        clip: true;
+        visible: root.chain.audio_overload;
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: -10px;
+            y: 0;
+            width: 20px;
+            height: 10px;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    ChainTitlePreset {
+        x: 72px;
+        y: 9px;
+        // Preset open/save moved into this component, so the
+        // chain-action cluster on the right needs ~80px less.
+        // Title area now reaches further across the row.
+        // #323: the looper button joined the cluster at -372px, so the
+        // title stops 32px earlier and never runs under it.
+        width: parent.width - 72px - 284px;
+        height: 40px;
+        title: root.chain.title;
+        nav: root.rig-nav;
+        fullscreen: root.fullscreen;
+        open-compact => {
+            root.open-compact-chain-view(root.chain-index);
+        }
+        preset-picked(slot) => {
+            root.switch-chain-preset(slot);
+        }
+        scene-picked(s) => {
+            root.switch-chain-scene(s);
+        }
+        rename-preset(name) => {
+            root.rename-chain-preset(name);
+        }
+        load-preset => {
+            root.configure-chain-preset(root.chain-index);
+        }
+        save-preset => {
+            root.save-chain-preset(root.chain-index);
+        }
+    }
+
+    // Volume da chain (#440) atrás de ícone (#436): clica no alto-
+    // falante e o slider aparece; fica junto ao cluster de ações.
+    ChainVolumeButton {
+        x: parent.width - 276px;
+        y: 12px;
+        volume: root.chain.volume;
+        value-changed(v) => { root.chain-volume-changed(root.chain-index, v); }
+    }
+
+    // #791: Tone Doctor trigger (stethoscope), left of the DI fone.
+    ChainToneDoctorButton { x: parent.width - 340px; y: 12px; chain-index: root.chain-index; }
+    // #323: looper trigger — opens the looper panel (root overlay).
+    ChainLooperButton {
+        x: parent.width - 372px;
+        y: 12px;
+        active: root.chain.looper_active;
+        input-options: root.chain.looper_input_options;
+        output-options: root.chain.looper_output_options;
+        chain-index: root.chain-index;
+    }
+    // #614/#749: DI loop trigger — the fone opens the DI panel (root overlay).
+    ChainDiLoopButton {
+        x: parent.width - 308px;
+        y: 12px;
+        playing: root.chain.di_loop_playing;
+        sources: root.chain.di_loop_sources;
+        selected-index: root.chain.di_loop_selected_index;
+        outputs: root.chain.di_loop_outputs;
+        output-selected-index: root.chain.di_output_selected_index;
+        chain-index: root.chain-index;
+    }
+
+    if !root.fullscreen : ChainActionIcon {
+        x: parent.width - 116px;
+        y: 14px;
+        icon: @image-url("../assets/expand.svg");
+        tooltip: @tr("tooltip-expand-blocks");
+        clicked => { root.open-compact-chain-view(root.chain-index); }
+    }
+
+    ChainActionIcon {
+        x: parent.width - 156px;
+        y: 14px;
+        icon: @image-url("../assets/sonar.svg");
+        tooltip: @tr("tooltip-measure-latency");
+        clicked => { root.probe-chain-latency(root.chain-index); }
+    }
+
+    // Reorder controls — visible when more than one chain exists; the
+    // boundary icon (first/last) renders dimmed and the wiring side
+    // ignores no-op clicks. Issue #246.
+    if root.chain-count > 1 : ChainActionIcon {
+        x: parent.width - 236px;
+        y: 14px;
+        opacity: root.chain-index == 0 ? 0.35 : 1.0;
+        icon: @image-url("../assets/arrow-up.svg");
+        tooltip: "Mover chain para cima";
+        clicked => { root.move-chain-up(root.chain-index); }
+    }
+
+    if root.chain-count > 1 : ChainActionIcon {
+        x: parent.width - 196px;
+        y: 14px;
+        opacity: root.chain-index >= root.chain-count - 1 ? 0.35 : 1.0;
+        icon: @image-url("../assets/arrow-down.svg");
+        tooltip: "Mover chain para baixo";
+        clicked => { root.move-chain-down(root.chain-index); }
+    }
+
+    ChainActionIcon {
+        x: parent.width - 76px;
+        y: 14px;
+        icon: @image-url("../assets/gear.svg");
+        tooltip: @tr("tooltip-configure");
+        clicked => { root.configure-chain(root.chain-index); }
+    }
+
+    ChainActionIcon {
+        x: parent.width - 36px;
+        y: 14px;
+        icon: @image-url("../assets/trash.svg");
+        tooltip: @tr("tooltip-delete");
+        clicked => { root.remove-chain(root.chain-index); }
+    }
+}

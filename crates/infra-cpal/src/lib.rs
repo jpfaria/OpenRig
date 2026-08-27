@@ -1,3 +1,4 @@
+//! Responsibility: routes the cpal backend crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -27,6 +28,12 @@ mod device_config_cache;
 mod host;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_device_enum;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod jack_server_presence;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod proc_asound_cache;
+#[cfg(all(target_os = "linux", feature = "jack"))]
 mod usb_proc;
 
 // is_jack_host() removed — CPAL JACK host is never created.
@@ -49,8 +56,13 @@ mod active_runtime;
 // so a frontend that never opens a stream never mentions the backend.
 
 mod resolved;
+mod resolved_device;
+mod stream_signature_types;
 
 mod io_topology;
+#[cfg(test)]
+#[path = "issue_881_stream_lifecycle_tests.rs"]
+mod issue_881_stream_lifecycle_tests;
 pub use io_topology::io_topology_changed;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -72,21 +84,29 @@ mod controller;
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
+mod controller_health;
+#[cfg(all(target_os = "linux", feature = "jack"))]
+mod controller_jack_servers;
 mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
+mod controller_rebuild_queue;
+mod controller_sync;
 mod controller_taps;
+mod controller_upsert;
+mod device_cache;
 mod device_enum;
 mod di_playback;
 mod di_stream;
 mod di_stream_worker;
 pub mod looper_store;
 #[cfg(all(target_os = "linux", feature = "jack"))]
-pub use device_enum::jack_is_running;
-pub use device_enum::{
-    has_new_devices, invalidate_device_cache, list_devices, list_input_device_descriptors,
+pub use device_cache::jack_is_running;
+pub use device_cache::{
+    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
     list_output_device_descriptors,
 };
+pub use device_enum::list_devices;
 
 mod device_settings;
 pub use device_settings::apply_device_settings;
@@ -120,6 +140,8 @@ mod validation;
 // the same `cfg` as their callers to avoid dead-code warnings (#755).
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod audio_workgroup;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod budget_tracker;
 mod callback_load_timing;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod dsp_worker;
@@ -127,9 +149,22 @@ mod dsp_worker;
 #[path = "dsp_worker_recovery_tests.rs"]
 mod dsp_worker_recovery_tests;
 mod metronome_stream;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod rt_thread_policy;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod saturation_recovery;
 mod stream_builder;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod stream_builder_input;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod stream_builder_output;
+mod stream_builder_project;
+mod stream_channels;
 mod stream_config;
-pub use stream_builder::build_streams_for_project;
+mod stream_rates;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod stream_signature;
+pub use stream_builder_project::build_streams_for_project;
 
 // Cross-module helpers — these used to live in lib.rs and are referenced
 // by sibling modules (chain_resolve, controller, validation, device_enum,
@@ -138,10 +173,7 @@ pub use stream_builder::build_streams_for_project;
 // flip-day across every file.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub(crate) use jack_chain_resolve::jack_resolve_chain_config;
-#[cfg(all(target_os = "linux", feature = "jack"))]
 pub(crate) use stream_builder::build_active_chain_runtime;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-pub(crate) use stream_builder::{build_active_chain_runtime, build_chain_stream_signature_multi};
 pub(crate) use stream_config::resolved_output_buffer_size_frames;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use stream_config::{
@@ -150,12 +182,46 @@ pub(crate) use stream_config::{
     resolved_output_sample_rate, select_supported_stream_config,
 };
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+pub(crate) use stream_signature::build_chain_stream_signature_multi;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) use validation::{
     find_input_device_by_id, find_output_device_by_id, validate_buffer_size,
 };
 
 #[cfg(test)]
 mod controller_live_edit_replicates_user_report_tests;
+
+#[cfg(test)]
+#[path = "render_scheduling_903_tests.rs"]
+mod render_scheduling_903;
+
+#[cfg(test)]
+#[path = "looper_speed_tests.rs"]
+mod looper_speed;
+
+#[cfg(test)]
+#[path = "looper_enabled_tests.rs"]
+mod looper_enabled;
+
+#[cfg(test)]
+#[path = "looper_rearm_storm_tests.rs"]
+mod looper_rearm_storm;
+
+#[cfg(test)]
+#[path = "looper_rearm_churn_tests.rs"]
+mod looper_rearm_churn;
+
+#[cfg(test)]
+#[path = "looper_level_tests.rs"]
+mod looper_level;
+
+#[cfg(test)]
+#[path = "looper_transport_scope_tests.rs"]
+mod looper_transport_scope;
+
+#[cfg(test)]
+#[path = "controller_global_transport_tests.rs"]
+mod controller_global_transport;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

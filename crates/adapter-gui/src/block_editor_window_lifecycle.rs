@@ -1,3 +1,4 @@
+//! Responsibility: runs the lifecycle of a detached block editor window.
 //! Lifecycle callbacks on a per-block detached `BlockEditorWindow`.
 //!
 //! Seven handlers covering the window's full lifecycle outside per-parameter
@@ -24,7 +25,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
 
@@ -54,7 +55,9 @@ use crate::{
 /// re-derives the wrap math. Issue #500.
 pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     use slint::Model;
-    let overlay_count = win.get_block_knob_overlays().row_count();
+    let overlay_count = crate::BlockEditorBridge::get(win)
+        .get_block_knob_overlays()
+        .row_count();
     let param_count = crate::block_editor_param_tabs::visible_param_count(win);
     // Slint hides the param grid when overlays are present
     // (`block-knob-overlays.length == 0` gates `params-visible`), so
@@ -64,10 +67,16 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     } else {
         param_count
     };
-    let has_eq_widget = win.get_multi_slider_points().row_count() > 0
-        || win.get_curve_editor_points().row_count() > 0;
-    let type_idx = win.get_block_drawer_selected_type_index();
-    let types = win.get_block_type_options();
+    let eq_widget = crate::block_panel_dimensions::eq_widget_for(
+        crate::BlockEditorBridge::get(win)
+            .get_curve_editor_points()
+            .row_count(),
+        crate::BlockEditorBridge::get(win)
+            .get_multi_slider_points()
+            .row_count(),
+    );
+    let type_idx = crate::BlockEditorBridge::get(win).get_block_drawer_selected_type_index();
+    let types = crate::BlockEditorBridge::get(win).get_block_type_options();
     let use_panel_editor = if type_idx >= 0 {
         types
             .row_data(type_idx as usize)
@@ -83,12 +92,14 @@ pub(crate) fn apply_panel_dimensions(win: &BlockEditorWindow) {
     let dims = crate::block_panel_dimensions::compute(crate::block_panel_dimensions::PanelInputs {
         knob_count,
         use_panel_editor,
-        has_eq_widget,
+        eq_widget,
     });
     win.set_panel_knob_window_width(dims.window_width_px);
+    // The tab bar is suppressed for EQ-widget blocks (#878), so its 40px must
+    // not be added to their window either — it would only pad dead space.
     win.set_panel_knob_window_height(
         dims.window_height_px
-            + if win.get_block_parameter_groups().row_count() > 1 {
+            + if !eq_widget.is_some() && win.get_block_parameter_groups().row_count() > 1 {
                 40.0
             } else {
                 0.0
@@ -126,6 +137,8 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub selected_block: Rc<RefCell<Option<SelectedBlock>>>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
+    /// #898: the compact view this editor was opened from.
+    pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
     pub chain_index: usize,
     pub block_index: usize,
     pub auto_save: bool,
@@ -181,7 +194,7 @@ fn wire_model_selection(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_choose_block_model(move |index| {
+        crate::BlockEditorBridge::get(win).on_choose_block_model(move |index| {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
@@ -239,7 +252,7 @@ fn wire_model_selection(
                     .map(SharedString::from)
                     .collect::<Vec<_>>(),
             );
-            win.set_eq_total_curve(eq_total.into());
+            crate::BlockEditorBridge::get(&win).set_eq_total_curve(eq_total.into());
             // Re-size the window for the new knob count / EQ state
             // (issue #500: model switch inside the editor must resize).
             apply_panel_dimensions(&win);
@@ -299,7 +312,7 @@ fn wire_drawer_toggle_save(
         let output_chain_devices = output_chain_devices.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_toggle_block_drawer_enabled(move || {
+        crate::BlockEditorBridge::get(win).on_toggle_block_drawer_enabled(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
@@ -352,7 +365,8 @@ fn wire_drawer_toggle_save(
                     }),
                     Err(e) => {
                         log::error!("[adapter-gui] block-window.toggle-enabled dispatch: {e}");
-                        main.set_block_drawer_status_message(e.to_string().into());
+                        crate::BlockEditorBridge::get(&main)
+                            .set_block_drawer_status_message(e.to_string().into());
                         return;
                     }
                 }
@@ -389,7 +403,7 @@ fn wire_drawer_toggle_save(
                 auto_save,
             );
             drop(session_borrow);
-            win.set_block_drawer_enabled(new_enabled);
+            crate::BlockEditorBridge::get(&win).set_block_drawer_enabled(new_enabled);
         });
     }
 
@@ -406,9 +420,10 @@ fn wire_drawer_toggle_save(
         let output_chain_devices = output_chain_devices.clone();
         let selected_block_save = selected_block.clone();
         let open_block_windows_save = open_block_windows.clone();
+        let open_compact_window = ctx.open_compact_window.clone();
         let weak_main = weak_main_window.clone();
         let weak_win = win.as_weak();
-        win.on_save_block_drawer(move || {
+        crate::BlockEditorBridge::get(win).on_save_block_drawer(move || {
             let Some(win) = weak_win.upgrade() else {
                 return;
             };
@@ -433,9 +448,17 @@ fn wire_drawer_toggle_save(
                 auto_save,
             ) {
                 log::error!("[adapter-gui] block-window.save: {e}");
-                main.set_block_drawer_status_message(e.to_string().into());
+                crate::BlockEditorBridge::get(&main)
+                    .set_block_drawer_status_message(e.to_string().into());
                 return;
             }
+            // #898: this editor is also the ADD flow (#815). The block only
+            // exists after this save, so the compact view the insert came from
+            // has to re-project its own block list here.
+            crate::compact_view_refresh::refresh_open_compact_view(
+                &open_compact_window,
+                &project_session,
+            );
             *selected_block_save.borrow_mut() = None;
             set_selected_block(&main, None, None);
             open_block_windows_save.borrow_mut().retain(|bw| {

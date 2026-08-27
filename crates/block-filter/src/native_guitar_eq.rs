@@ -1,13 +1,13 @@
+//! Responsibility: implements the guitar eq filter model.
 //! 4-band tone-shaping EQ tuned for electric guitar / acoustic / bass.
 //! Issue #303 — replaces the prior `native_guitar_eq` (an HPF+LPF cleanup
 //! filter, now `native_guitar_hpf_lpf`) with a real boost+cut tone shaper.
 
-use anyhow::{Error, Result};
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
-    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterSpec,
-    ParameterUnit,
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
 };
 use block_core::{
     AudioChannelLayout, BiquadFilter, BiquadKind, BlockProcessor, ModelAudioMode, MonoProcessor,
@@ -135,9 +135,7 @@ fn build(
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     match layout {
-        AudioChannelLayout::Mono => {
-            Ok(BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(build_processor(params, sample_rate)?)),
         AudioChannelLayout::Stereo => anyhow::bail!(
             "filter model '{}' is mono-only and cannot build native stereo processing",
             MODEL_ID

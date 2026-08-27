@@ -1,3 +1,4 @@
+//! Responsibility: routes a block to the crate that implements its effect type.
 //! Per-effect-type dispatch — the three big match arms that route a
 //! block (`effect_type`, `model`) to the right `block-*` crate's schema /
 //! validation / kind constructor, plus two private describe helpers.

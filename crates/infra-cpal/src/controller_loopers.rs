@@ -1,3 +1,4 @@
+//! Responsibility: fronts the controller's loopers to the application.
 //! Issue #323 — the controller's looper facade (redesigned).
 //!
 //! Looper state lives in the controller-owned [`crate::looper_store::LooperStore`],
@@ -17,10 +18,20 @@ use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
 use project::chain::{Chain, EndpointRef, LooperSpeed};
 
 use crate::controller::ProjectRuntimeController;
+use crate::di_stream::IsolatedSource;
+use crate::looper_store::LooperEditRefused;
+use engine::loop_edit::LoopEditOp;
 
 /// Record-tap ring capacity per channel — ~1 s at 48 kHz, so a delayed meter
 /// tick never drops recorded samples before the drain runs.
 const RECORD_RING_CAP: usize = 48_000;
+
+/// #903: how many times a looper's isolated render has been armed, this
+/// process. A steady, playing loop must not move this — every arm rebuilds the
+/// chain (NAM + IR off disk), copies the take and spawns a render thread, so a
+/// tick that re-arms is the "empilhando" the owner sees.
+pub(crate) static LOOPER_ARMS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
 
 /// #323 phase 2: the chain the loop's isolated stream plays through. With a
 /// linked preset the adapter has resolved (`Some(blocks)`), it is the chain
@@ -37,6 +48,26 @@ pub(crate) fn looper_playback_chain(
         c.blocks = blocks;
     }
     c
+}
+
+/// The PCM an armed loop plays, at the rate its isolated stream should read it.
+///
+/// #903: `speed` is not a resample — the read cursor steps by the factor and the
+/// pitch follows it, the classic looper behaviour. Declaring the take's source
+/// rate scaled by that factor gives exactly that when the stream resamples to
+/// its output rate: half reads it as if recorded at half the rate (twice as
+/// long, an octave down), double as if at twice (half as long, an octave up).
+pub(crate) fn looper_playback_pcm(
+    samples: Vec<f32>,
+    sample_rate: u32,
+    speed: LooperSpeed,
+) -> DiPcm {
+    let read_rate = match speed {
+        LooperSpeed::Half => sample_rate / 2,
+        LooperSpeed::Normal => sample_rate,
+        LooperSpeed::Double => sample_rate.saturating_mul(2),
+    };
+    DiPcm::new(samples, read_rate.max(1), 2)
 }
 
 #[cfg(test)]
@@ -119,7 +150,9 @@ impl ProjectRuntimeController {
 
     pub fn looper_remove(&self, chain_id: &ChainId, uid: u64) {
         self.looper_store.borrow_mut().remove(chain_id, uid);
-        self.looper_armed.borrow_mut().remove(&(chain_id.clone(), uid));
+        self.looper_armed
+            .borrow_mut()
+            .remove(&(chain_id.clone(), uid));
         self.disarm_looper_stream(chain_id, uid);
     }
 
@@ -136,6 +169,16 @@ impl ProjectRuntimeController {
         self.looper_store.borrow_mut().play(chain_id, uid);
     }
 
+    /// #903: the panel's global play — every loop on THIS chain at once.
+    pub fn looper_play_all(&self, chain_id: &ChainId) {
+        self.looper_store.borrow_mut().play_all(chain_id);
+    }
+
+    /// #903: the panel's global stop.
+    pub fn looper_stop_all(&self, chain_id: &ChainId) {
+        self.looper_store.borrow_mut().stop_all(chain_id);
+    }
+
     pub fn looper_clear(&self, chain_id: &ChainId, uid: u64) {
         self.looper_store.borrow_mut().clear(chain_id, uid);
     }
@@ -148,16 +191,63 @@ impl ProjectRuntimeController {
         self.looper_store.borrow_mut().redo(chain_id, uid);
     }
 
+    /// #826: the loop's raw material — no `mix`/`decay`/`reverse` baked in —
+    /// for the waveform editor to draw and reshape.
+    pub fn export_chain_looper_raw(&self, chain_id: &ChainId, uid: u64) -> Option<Vec<f32>> {
+        self.looper_store.borrow().export_raw(chain_id, uid)
+    }
+
+    /// #826: reshape a stopped loop; the new length in frames on success.
+    pub fn looper_apply_edit(
+        &self,
+        chain_id: &ChainId,
+        uid: u64,
+        op: LoopEditOp,
+        start: usize,
+        end: usize,
+    ) -> Result<usize, LooperEditRefused> {
+        self.looper_store
+            .borrow_mut()
+            .apply_edit(chain_id, uid, op, start, end)
+    }
+
+    /// #826: step back one waveform edit; `false` when there is nothing to undo.
+    pub fn looper_undo_edit(&self, chain_id: &ChainId, uid: u64) -> bool {
+        self.looper_store.borrow_mut().undo_edit(chain_id, uid)
+    }
+
+    /// #826: step forward one undone waveform edit.
+    pub fn looper_redo_edit(&self, chain_id: &ChainId, uid: u64) -> bool {
+        self.looper_store.borrow_mut().redo_edit(chain_id, uid)
+    }
+
+    /// #826: (undo depth, redo depth) — what the editor's buttons enable on.
+    pub fn looper_edit_history_depth(&self, chain_id: &ChainId, uid: u64) -> (usize, usize) {
+        self.looper_store.borrow().edit_history_depth(chain_id, uid)
+    }
+
     /// Whether the loop is currently sounding — the `PlayStop` toggle reads this.
     pub fn looper_is_playing(&self, chain_id: &ChainId, uid: u64) -> bool {
         matches!(
-            self.looper_store.borrow().status(chain_id, uid).map(|s| s.state),
+            self.looper_store
+                .borrow()
+                .status(chain_id, uid)
+                .map(|s| s.state),
             Some(LooperState::Playing | LooperState::Overdubbing)
         )
     }
 
+    /// #903: the level lands on the playback that is SOUNDING, not on the next
+    /// render — moving it may neither restart the loop nor wait for a re-arm.
     pub fn looper_set_mix(&self, chain_id: &ChainId, uid: u64, v: f32) {
         self.looper_store.borrow_mut().set_mix(chain_id, uid, v);
+        self.push_looper_gain(chain_id, uid);
+    }
+
+    /// Hand this looper's level to its live playback, if it has one.
+    pub(crate) fn push_looper_gain(&self, chain_id: &ChainId, uid: u64) {
+        let gain = self.looper_store.borrow().playback_gain(chain_id, uid);
+        self.set_isolated_playback_gain(chain_id, IsolatedSource::Looper(uid), gain);
     }
     pub fn looper_set_decay(&self, chain_id: &ChainId, uid: u64, v: f32) {
         self.looper_store.borrow_mut().set_decay(chain_id, uid, v);
@@ -176,7 +266,9 @@ impl ProjectRuntimeController {
         store.set_recording_rings(chain_id, uid, Vec::new());
     }
     pub fn looper_set_output(&self, chain_id: &ChainId, uid: u64, output: Option<EndpointRef>) {
-        self.looper_store.borrow_mut().set_output(chain_id, uid, output);
+        self.looper_store
+            .borrow_mut()
+            .set_output(chain_id, uid, output);
     }
     /// #323 phase 2: install the effect blocks the loop plays through — its
     /// LINKED preset's blocks, resolved by the adapter (which owns the rig).
@@ -269,7 +361,9 @@ impl ProjectRuntimeController {
             .map(|(_, uid)| *uid)
             .collect();
         for uid in stale {
-            self.looper_armed.borrow_mut().remove(&(chain.id.clone(), uid));
+            self.looper_armed
+                .borrow_mut()
+                .remove(&(chain.id.clone(), uid));
             self.disarm_looper_stream(&chain.id, uid);
         }
 
@@ -297,7 +391,15 @@ impl ProjectRuntimeController {
             // generation is folded in so editing/reassigning the linked preset
             // (#323 phase 2) also re-renders the loop through the new tone.
             let playback_rev = self.looper_store.borrow().playback_rev(&chain.id, uid);
-            let content = (status.len_frames as u64, status.content_rev, playback_rev);
+            // #903: speed changes what the stream reads, so it belongs in the
+            // key that decides a re-arm — without it, switching speed on a
+            // playing loop changed the project and nothing else.
+            let content = (
+                status.len_frames as u64,
+                status.content_rev,
+                playback_rev,
+                cfg.speed,
+            );
             if self.looper_armed.borrow().get(&key) == Some(&content) {
                 continue;
             }
@@ -305,19 +407,40 @@ impl ProjectRuntimeController {
                 Some(s) => s,
                 None => continue,
             };
-            let output_index = resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
-            let pcm = Arc::new(DiPcm::new(samples, self.sample_rate, 2));
+            let output_index =
+                resolve_output_segment(chain, &self.io_bindings, cfg.output.as_ref());
+            let pcm = Arc::new(looper_playback_pcm(samples, self.sample_rate, cfg.speed));
             // #323 phase 2: play through the loop's LINKED preset when the
             // adapter has resolved its blocks — a routed copy of the chain with
             // its processing swapped, same id/I/O so isolation is unchanged
             // (invariant #4). No linked preset ⇒ the chain's current blocks.
             let linked = self.looper_store.borrow().playback_blocks(&chain.id, uid);
             let playback_chain = looper_playback_chain(chain, linked);
-            if self
-                .arm_looper_stream(&playback_chain, uid, output_index, pcm)
-                .is_ok()
-            {
-                self.looper_armed.borrow_mut().insert(key, content);
+            match self.arm_looper_stream(&playback_chain, uid, output_index, pcm) {
+                Ok(()) => {
+                    LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    self.push_looper_gain(&chain.id, uid);
+                    self.looper_armed.borrow_mut().insert(key, content);
+                    log::info!(
+                        "looper {uid} on '{}' armed (renders alive: {})",
+                        chain.id.0,
+                        crate::di_stream_worker::DI_WORKERS_ALIVE
+                            .load(std::sync::atomic::Ordering::Relaxed)
+                    );
+                }
+                // #903: a failed arm leaves the key unrecorded, so the meter
+                // tick tries again — ten times a second, each attempt copying
+                // the take and spawning a render. Log it loudly; a storm here
+                // is the "empilhando" the owner sees.
+                Err(e) => {
+                    LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    log::warn!(
+                    "looper {uid} on '{}' FAILED to arm ({e:#}) — the next tick will retry                      (renders alive: {})",
+                    chain.id.0,
+                    crate::di_stream_worker::DI_WORKERS_ALIVE
+                        .load(std::sync::atomic::Ordering::Relaxed)
+                    )
+                }
             }
         }
     }

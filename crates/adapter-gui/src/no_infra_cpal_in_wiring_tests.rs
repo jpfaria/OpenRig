@@ -86,14 +86,22 @@ const GUARDED: &[Guarded] = &[
 ///   are driver reconfiguration on the host, not a rig operation, and both are
 ///   in the "NOT on the bus" table for that reason.
 const NAMES_THE_BACKEND_CRATE: &[&str] = &[
-    "audio_devices.rs",
+    "device_refresh_list.rs",
     "desktop_app.rs",
-    "gui_live_source.rs",
+    "desktop_app_mcp.rs",
+    "live_source_block_stream.rs",
+    "live_source_chain_rate.rs",
+    "live_source_chain_row.rs",
+    "live_source_gui.rs",
+    "live_source_health.rs",
+    "live_source_looper.rs",
+    "live_source_metronome.rs",
     "mcp_query_resolver.rs",
     "runtime_devices.rs",
     "runtime_health.rs",
     "runtime_lifecycle.rs",
-    "runtime_loopers.rs",
+    "looper_commands.rs",
+    "looper_restore.rs",
     "runtime_pipelines.rs",
     "runtime_taps.rs",
     "runtime_teardown.rs",
@@ -108,6 +116,11 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// `crates/adapter-gui/src`.
 ///
 /// ── Owns the runtime ────────────────────────────────────────────────────────
+/// * `desktop_app_mcp.rs` — the MCP drain timer. It left `desktop_app.rs` in
+///   #873 because that file had reached its line cap; it is the SAME code, in
+///   the same position, serving `mcp_query_resolver`'s reads on the event
+///   loop. Same reason `runtime_pipelines.rs` / `runtime_teardown.rs` are
+///   here: an owner split off by the cap, not a wiring module.
 /// * `runtime_lifecycle.rs` — CREATES, syncs and drops the controller, and
 ///   hosts `GuiRuntimeControl`, the `RuntimeControl` impl every command handler
 ///   reaches the audio through. This is the module the invariant exists to
@@ -271,11 +284,19 @@ const SYNC_SEQUENCE: &str = "sync_live_chain_runtime(";
 /// a tick is nobody's request and a reconnect changes no project state.
 const OWNS_THE_RUNTIME: &[&str] = &[
     "desktop_app.rs",
-    "gui_live_source.rs",
+    "desktop_app_mcp.rs",
+    "live_source_block_stream.rs",
+    "live_source_chain_rate.rs",
+    "live_source_chain_row.rs",
+    "live_source_gui.rs",
+    "live_source_health.rs",
+    "live_source_looper.rs",
+    "live_source_metronome.rs",
     "mcp_query_resolver.rs",
     "runtime_health.rs",
     "runtime_lifecycle.rs",
-    "runtime_loopers.rs",
+    "looper_commands.rs",
+    "looper_restore.rs",
     "runtime_pipelines.rs",
     "runtime_taps.rs",
     "runtime_teardown.rs",

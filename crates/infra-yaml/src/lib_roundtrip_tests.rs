@@ -532,7 +532,6 @@ fn legacy_device_settings_still_deserialize() {
     );
 }
 
-
 // ─── #323: loopers survive the .openrig round-trip ───
 
 #[test]

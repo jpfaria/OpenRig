@@ -6,14 +6,18 @@
 
 use adapter_gui::block_editor_param_tabs::{apply_param_tabs, TabState};
 use adapter_gui::{BlockEditorWindow, BlockParameterItem};
-use slint::{Model, VecModel};
+use slint::{Global, Model, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// A plugin parameter the grid draws itself. The widget kind matters: a row
+/// with none is one an EQ widget draws, and such a block publishes no tabs at
+/// all (#878).
 fn item(label: &str, group: &str) -> BlockParameterItem {
     BlockParameterItem {
         label: label.into(),
         group: group.into(),
+        widget_kind: "knob".into(),
         ..Default::default()
     }
 }
@@ -24,7 +28,8 @@ fn switching_models_rebuilds_the_tabs_and_resets_active() {
 
     let win = BlockEditorWindow::new().unwrap();
     let items = Rc::new(VecModel::<BlockParameterItem>::default());
-    win.set_block_parameter_items(slint::ModelRc::from(items.clone()));
+    adapter_gui::BlockEditorBridge::get(&win)
+        .set_block_parameter_items(slint::ModelRc::from(items.clone()));
     let state = Rc::new(RefCell::new(TabState::default()));
 
     // Plugin A: two groups (Tone, Voicing) → a two-tab bar.

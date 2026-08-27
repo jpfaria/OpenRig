@@ -1,4 +1,4 @@
-//! Generic IR instantiation from a `plugin_loader::LoadedPackage`.
+//! Responsibility: builds an impulse response processor out of a loaded plugin package.
 //!
 //! Resolves the user's parameter set against the manifest's capture
 //! grid, loads the WAV, and builds a mono/stereo IR processor matching

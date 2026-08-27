@@ -1,3 +1,4 @@
+//! Responsibility: routes the reverb crate's public surface.
 //! Reverb implementations.
 mod ir_reverb;
 pub mod model_visual;

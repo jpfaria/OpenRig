@@ -1,3 +1,4 @@
+//! Responsibility: measures the objective quality of what a chain produced.
 //! Objective chain-quality measurement (#791, Layer 3; was #609).
 //!
 //! Pushes the deterministic test-signal battery through the offline render and

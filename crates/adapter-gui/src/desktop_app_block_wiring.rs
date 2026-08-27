@@ -1,3 +1,4 @@
+//! Responsibility: dispatches the block callback wirings at startup.
 //! All block-related callback wirings dispatched from `run_desktop_app`.
 //!
 //! Ten `*_wiring::wire(...)` / `*_callbacks::wire(...)` calls live here:
@@ -22,8 +23,7 @@ use domain::AudioDeviceDescriptor;
 use crate::state::{BlockEditorDraft, BlockWindow, InsertDraft, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainInsertWindow,
-    ChannelOptionItem, CompactChainViewWindow, CurveEditorPoint, MultiSliderPoint,
-    PluginInfoWindow, ProjectChainItem,
+    CompactChainViewWindow, CurveEditorPoint, MultiSliderPoint, PluginInfoWindow, ProjectChainItem,
 };
 
 #[allow(dead_code)]
@@ -58,9 +58,6 @@ pub(crate) struct BlockWiringDeps<'a> {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub chain_input_device_options: Rc<VecModel<SharedString>>,
     pub chain_output_device_options: Rc<VecModel<SharedString>>,
-
-    pub insert_send_channels: Rc<VecModel<ChannelOptionItem>>,
-    pub insert_return_channels: Rc<VecModel<ChannelOptionItem>>,
 
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
     pub inline_stream_timer: Rc<RefCell<Option<Timer>>>,
@@ -97,6 +94,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
         deps.chain_insert_window,
         deps.chain_port_window,
         crate::select_chain_block_callback::SelectChainBlockCallbackCtx {
+            open_compact_window: deps.open_compact_window.clone(),
             inline_tab_state: inline_tab_state.clone(),
             selected_block: deps.selected_block.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -116,10 +114,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
-            chain_input_device_options: deps.chain_input_device_options.clone(),
-            chain_output_device_options: deps.chain_output_device_options.clone(),
-            insert_send_channels: deps.insert_send_channels.clone(),
-            insert_return_channels: deps.insert_return_channels.clone(),
             open_block_windows: deps.open_block_windows.clone(),
             inline_stream_timer: deps.inline_stream_timer.clone(),
             toast_timer: deps.toast_timer.clone(),
@@ -190,6 +184,7 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
         deps.chain_insert_window,
         deps.chain_port_window,
         crate::block_choose_type_callback::BlockChooseTypeCallbackCtx {
+            open_compact_window: deps.open_compact_window.clone(),
             port_draft: deps.port_draft.clone(),
             inline_tab_state: inline_tab_state.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
@@ -208,10 +203,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             project_dirty: deps.project_dirty.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
-            chain_input_device_options: deps.chain_input_device_options.clone(),
-            chain_output_device_options: deps.chain_output_device_options.clone(),
-            insert_send_channels: deps.insert_send_channels.clone(),
-            insert_return_channels: deps.insert_return_channels.clone(),
             selected_block: deps.selected_block.clone(),
             open_block_windows: deps.open_block_windows.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),

@@ -461,4 +461,3 @@ fn vibrato_process_produces_non_nan() {
         assert!(!s.is_nan(), "NaN at frame {} for vibrato", i);
     }
 }
-

@@ -1,3 +1,4 @@
+//! Responsibility: handles the block CRUD of the compact chain view.
 //! Compact chain view — block CRUD callbacks.
 //!
 //! Handles per-block manipulation from the compact chain view: enable toggle,
@@ -136,7 +137,11 @@ fn wire_block_toggle_and_model(
                 &[],
             );
             // Refresh compact blocks
-            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(
+                &session.project.borrow(),
+                chain_idx,
+                &session.io_bindings.borrow(),
+            );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -253,7 +258,11 @@ fn wire_block_toggle_and_model(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(
+                &session.project.borrow(),
+                chain_idx,
+                &session.io_bindings.borrow(),
+            );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,

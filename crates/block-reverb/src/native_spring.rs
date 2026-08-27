@@ -1,3 +1,4 @@
+//! Responsibility: implements the spring reverb model.
 use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
@@ -199,12 +200,13 @@ fn build(
 ) -> Result<BlockProcessor> {
     let p = params_from_set(params)?;
     match layout {
-        AudioChannelLayout::Stereo => {
-            Ok(BlockProcessor::Stereo(Box::new(SpringReverb::new(p, sample_rate))))
-        }
-        AudioChannelLayout::Mono => {
-            Ok(BlockProcessor::Mono(Box::new(SpringAsMono(SpringReverb::new(p, sample_rate)))))
-        }
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(SpringReverb::new(
+            p,
+            sample_rate,
+        )))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(SpringAsMono(
+            SpringReverb::new(p, sample_rate),
+        )))),
     }
 }
 

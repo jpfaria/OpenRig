@@ -1,3 +1,4 @@
+//! Responsibility: routes the engine crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -8,25 +9,38 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+mod audio_frame;
+mod audio_processor;
 pub mod chain_quality;
+pub mod crossfade;
 pub mod di_loop;
 pub mod di_output_resolve;
 pub mod di_render;
+mod effective_endpoints;
+mod elastic_buffer;
 pub mod elastic_prime;
+mod endpoint_entry;
+mod input_conflicts;
 pub mod input_tap;
+mod insert_endpoints;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
 mod issue_85_stream_per_pair_tests;
+pub mod loop_edit;
 pub mod loop_pcm;
 pub mod looper;
 pub mod looper_bank;
+mod looper_op;
+mod looper_status;
 pub mod metronome_state;
 pub mod native_registry;
 pub mod offline;
 pub mod output_meter;
 pub mod probe;
+mod rig_projection;
 pub mod rig_runtime;
 mod rig_runtime_normalize;
+mod rig_tap_conflict;
 pub mod runtime;
 pub mod runtime_audio_frame;
 pub mod runtime_block_builders;
@@ -53,6 +67,11 @@ mod runtime_route_resample;
 pub mod runtime_segments;
 pub mod runtime_state;
 mod runtime_state_taps;
+mod runtime_stream_query;
+mod runtime_taps_lifecycle;
+mod runtime_taps_subscribe;
+mod segment_taps;
+mod segment_types;
 pub mod spsc;
 pub mod stream_tap;
 pub mod tone_doctor;

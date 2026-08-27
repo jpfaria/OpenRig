@@ -1,3 +1,4 @@
+//! Responsibility: handles the language commands.
 //! #436 F — `SettingsCommand::SetLanguage`: trocar idioma é negócio (estado de
 //! preferência). Segue o precedente `SaveProject`: o adapter faz a
 //! persistência/efeito (FilesystemStorage + i18n live swap); o Command

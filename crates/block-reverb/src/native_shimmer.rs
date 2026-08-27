@@ -1,3 +1,4 @@
+//! Responsibility: implements the shimmer reverb model.
 //! Shimmer reverb — Eventide H8000 / Strymon Big Sky "Shimmer" character.
 //! An FDN tail with the wet output pitch-shifted up an octave and fed
 //! back into the input. Each pass adds another stacked octave of the

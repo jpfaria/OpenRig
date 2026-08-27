@@ -6,8 +6,8 @@ use super::*;
 
 #[test]
 fn stderr_log_path_is_scoped_per_server_name() {
-    let a = LiveJackBackend::stderr_log_path(&ServerName::from("a"));
-    let b = LiveJackBackend::stderr_log_path(&ServerName::from("b"));
+    let a = live_stderr::stderr_log_path(&ServerName::from("a"));
+    let b = live_stderr::stderr_log_path(&ServerName::from("b"));
     assert_ne!(a, b);
     assert!(a.to_string_lossy().contains("/tmp/jackd-a-"));
 }
@@ -16,7 +16,7 @@ fn stderr_log_path_is_scoped_per_server_name() {
 fn stderr_driver_failure_detected_for_known_markers() {
     let tmp = std::env::temp_dir().join("openrig-jack-test-failure.log");
     std::fs::write(&tmp, "xrun\nALSA: could not start playback (Broken pipe)\n").unwrap();
-    let marker = LiveJackBackend::stderr_has_driver_failure(&tmp);
+    let marker = live_stderr::stderr_has_driver_failure(&tmp);
     assert_eq!(marker.as_deref(), Some("Broken pipe"));
     let _ = std::fs::remove_file(&tmp);
 }
@@ -25,7 +25,7 @@ fn stderr_driver_failure_detected_for_known_markers() {
 fn stderr_driver_failure_absent_for_benign_content() {
     let tmp = std::env::temp_dir().join("openrig-jack-test-benign.log");
     std::fs::write(&tmp, "JackMessageBuffer:: nothing wrong here\n").unwrap();
-    let marker = LiveJackBackend::stderr_has_driver_failure(&tmp);
+    let marker = live_stderr::stderr_has_driver_failure(&tmp);
     assert!(marker.is_none());
     let _ = std::fs::remove_file(&tmp);
 }

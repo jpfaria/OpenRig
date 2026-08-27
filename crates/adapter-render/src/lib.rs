@@ -1,3 +1,4 @@
+//! Responsibility: renders a chain offline.
 //! Offline render adapter for OpenRig.
 //!
 //! Drives the engine through a chain/preset YAML headlessly, reading an
@@ -15,8 +16,12 @@
 //!   without making you play again), then push through the chain.
 
 pub mod capture;
+mod channel_layout_convert;
 pub mod cli;
 pub mod wav;
+mod wav_read;
+mod wav_types;
+mod wav_write;
 
 use std::path::PathBuf;
 

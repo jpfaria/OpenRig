@@ -1,3 +1,4 @@
+//! Responsibility: routes the VST3 host crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -21,7 +22,9 @@
 //! The API mirrors the `lv2` crate so block crates can use either backend
 //! interchangeably.
 
+mod bundle_metadata;
 pub mod catalog;
+mod catalog_params;
 pub mod discovery;
 mod host;
 pub mod host_application;
@@ -31,8 +34,10 @@ mod main_thread;
 mod param_changes;
 pub mod param_channel;
 pub mod param_registry;
+mod plugin_uid_cache;
 mod processor;
 mod stereo;
+mod vst3_search_paths;
 
 pub use catalog::{
     catalog_params, find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model,

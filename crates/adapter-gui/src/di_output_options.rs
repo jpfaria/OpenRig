@@ -1,3 +1,4 @@
+//! Responsibility: builds the option list of the DI panel's output select.
 //! #771: pure option list for the DI panel's OUTPUT select — the chain's
 //! already-bound output endpoints, in the SAME flat order
 //! `engine::di_output_resolve::resolve_di_output_index` numbers them with

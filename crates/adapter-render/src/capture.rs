@@ -1,3 +1,4 @@
+//! Responsibility: captures a mono buffer from a live input device.
 //! Live capture from a cpal input device into a mono WAV file.
 //!
 //! Used by `adapter_render::render()` when the input WAV path does not

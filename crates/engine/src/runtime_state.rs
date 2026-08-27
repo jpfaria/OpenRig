@@ -1,3 +1,4 @@
+//! Responsibility: describes the state a chain runtime keeps between callbacks.
 //! Internal state types for the chain runtime — block nodes, processor
 //! variants, fade state, scratch buffers, output routing.
 //!

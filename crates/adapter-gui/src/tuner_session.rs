@@ -1,3 +1,4 @@
+//! Responsibility: owns the live tuner session.
 //! TunerWindow live session — owns the per-row sample taps, accumulators and
 //! pitch detectors that drive the row model.
 //!

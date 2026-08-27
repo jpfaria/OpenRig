@@ -1,3 +1,4 @@
+//! Responsibility: identifies which MIDI ports this machine listens to.
 //! Per-machine MIDI device selection persisted to `config.yaml`. Identity is
 //! `MidiPortKey { name, instance }` so two physically distinct devices with
 //! the same OS-reported name remain addressable; the user-editable `alias`

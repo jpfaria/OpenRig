@@ -1,3 +1,4 @@
+//! Responsibility: handles the parameter updates of the compact chain view.
 //! Compact chain view — block parameter update callbacks.
 //!
 //! Three near-identical handlers driving live parameter changes from the
@@ -111,7 +112,11 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(
+                &session.project.borrow(),
+                chain_idx,
+                &session.io_bindings.borrow(),
+            );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -204,7 +209,11 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(
+                &session.project.borrow(),
+                chain_idx,
+                &session.io_bindings.borrow(),
+            );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,
@@ -275,7 +284,11 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            let blocks = build_compact_blocks(&session.project.borrow(), chain_idx);
+            let blocks = build_compact_blocks(
+                &session.project.borrow(),
+                chain_idx,
+                &session.io_bindings.borrow(),
+            );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
             sync_project_dirty(
                 &main_win,

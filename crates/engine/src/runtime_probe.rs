@@ -1,3 +1,4 @@
+//! Responsibility: drives the latency probe of a chain runtime.
 //! Latency probe state machine + impl methods on `ChainRuntimeState`.
 //!
 //! Lifted out of `runtime.rs` (slice 6 of the Phase 2 split) so the parent

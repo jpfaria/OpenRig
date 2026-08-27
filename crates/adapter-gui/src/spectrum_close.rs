@@ -1,3 +1,4 @@
+//! Responsibility: resolves what closing the spectrum means.
 //! Issue #546 — close-spectrum intent as a pure helper.
 //!
 //! Sibling of `tuner_close.rs` (#544). Closing the spectrum window is

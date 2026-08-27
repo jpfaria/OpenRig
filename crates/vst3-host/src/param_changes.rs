@@ -1,3 +1,4 @@
+//! Responsibility: hands a VST3 plugin the parameter changes for one block.
 //! Host-side IParameterChanges / IParamValueQueue COM objects.
 //!
 //! The VST3 spec requires the host to pass parameter changes to the audio

@@ -1,3 +1,4 @@
+//! Responsibility: names the MIDI commands.
 //! MIDI commands: per-machine device selection, the project's binding map,
 //! learn mode, event passthrough, and the adapter master switch.
 

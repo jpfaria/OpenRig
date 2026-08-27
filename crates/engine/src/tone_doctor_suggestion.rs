@@ -1,3 +1,4 @@
+//! Responsibility: suggests which parameter explains a symptom.
 //! Symptom → parameter suggestion for the Tone Doctor (#791).
 //!
 //! Once [`super::diagnose`] has named the guilty block, this maps the symptom

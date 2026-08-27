@@ -1,6 +1,7 @@
-use anyhow::{Error, Result};
+//! Responsibility: implements the eq three band basic filter model.
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
     curve_editor_parameter, required_f32, CurveEditorRole, ModelParameterSchema, ParameterSet,
     ParameterUnit,
@@ -161,7 +162,14 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
     let high_gain = required_f32(params, "high_gain").map_err(Error::msg)?;
     let high_freq = required_f32(params, "high_freq").map_err(Error::msg)?;
     Ok(Box::new(ThreeBandEq::new(
-        low_gain, low_freq, mid_gain, mid_freq, mid_q, high_gain, high_freq, sample_rate,
+        low_gain,
+        low_freq,
+        mid_gain,
+        mid_freq,
+        mid_q,
+        high_gain,
+        high_freq,
+        sample_rate,
     )))
 }
 
@@ -175,9 +183,9 @@ fn build(
     layout: block_core::AudioChannelLayout,
 ) -> Result<block_core::BlockProcessor> {
     match layout {
-        block_core::AudioChannelLayout::Mono => {
-            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(
+            build_processor(params, sample_rate)?,
+        )),
         block_core::AudioChannelLayout::Stereo => anyhow::bail!(
             "eq model '{}' is mono-only and cannot build native stereo processing",
             MODEL_ID

@@ -1,3 +1,4 @@
+//! Responsibility: wires the on-screen keyboard.
 //! Wiring for the on-screen virtual keyboard's key events.
 //!
 //! Translates the keyboard label (Backspace `⌫`, Return `⏎`, Space `⎵`,

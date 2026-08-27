@@ -1,3 +1,4 @@
+//! Responsibility: exposes the open session to a command handler.
 //! #127: the open session, as seen from inside a command handler.
 //!
 //! `GuiRuntimeControl`'s doors need the whole [`ProjectSession`], but the

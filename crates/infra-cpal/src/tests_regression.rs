@@ -25,6 +25,7 @@ fn is_healthy_returns_true_when_no_chains_active() {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: Vec::new(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
@@ -55,6 +56,7 @@ fn is_running_returns_false_when_no_chains() {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: Vec::new(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
@@ -104,6 +106,7 @@ fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: Vec::new(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
@@ -123,6 +126,8 @@ fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
     controller.active_chains.insert(
         chain_id.clone(),
         super::active_runtime::ActiveChainRuntime {
+            structure: Vec::new(),
+            generation: 0,
             stream_signature: super::resolved::ChainStreamSignature {
                 inputs: vec![],
                 outputs: vec![],
@@ -158,6 +163,7 @@ fn teardown_active_chain_for_rebuild_is_noop_when_chain_absent() {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: Vec::new(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
@@ -227,6 +233,8 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
     active_chains.insert(
         chain_id.clone(),
         super::active_runtime::ActiveChainRuntime {
+            structure: Vec::new(),
+            generation: 0,
             stream_signature: super::resolved::ChainStreamSignature {
                 inputs: vec![],
                 outputs: vec![],
@@ -247,6 +255,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: Vec::new(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),

@@ -289,3 +289,59 @@ fn a_runtime_failure_surfaces_as_a_dispatch_error() {
         "expected the runtime's own error, got {error}"
     );
 }
+
+// ── #881: routing blocks are topology, not processors ────────────────────────
+
+/// A mid-chain `Insert` — routing metadata, never a processor node.
+fn insert_block(id: &str) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.to_string()),
+        enabled: true,
+        kind: AudioBlockKind::Insert(project::block::InsertBlock {
+            model: "external_loop".to_string(),
+            io: "fx".to_string(),
+        }),
+    }
+}
+
+fn dispatcher_with_insert() -> (LocalDispatcher, Rc<RefCell<Vec<RuntimeCall>>>) {
+    let calls = Rc::new(RefCell::new(Vec::new()));
+    let project = Rc::new(RefCell::new(Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![
+            chain(
+                "chain_a",
+                vec![block("a_drive", true), insert_block("a_insert")],
+            ),
+            chain("chain_b", vec![block("b_drive", true)]),
+        ],
+        midi: None,
+    }));
+    let d = LocalDispatcher::new(project);
+    d.attach_runtime_control(Rc::new(SpyRuntimeControl {
+        calls: Rc::clone(&calls),
+    }));
+    (d, calls)
+}
+
+/// #881 — an `Insert` splits the chain into segments; it has no live node to
+/// fade. The #522 in-place toggle finds nothing, posts "block '…' not found in
+/// any input runtime of the chain" from the audio thread and changes nothing
+/// audible. Only a rebuild re-splits the chain, so that is what the toggle of a
+/// routing block must ask for — scoped to its own chain.
+#[test]
+fn toggling_an_insert_asks_for_its_chain_rebuild() {
+    let (dispatcher, calls) = dispatcher_with_insert();
+
+    dispatcher
+        .dispatch(toggle("chain_a", "a_insert"))
+        .expect("toggling an insert must succeed");
+
+    assert_eq!(
+        *calls.borrow(),
+        vec![RuntimeCall::SyncChain("chain_a".to_string())],
+        "an insert is a segment boundary: rebuild its chain, never the in-place \
+         block toggle that cannot apply it"
+    );
+}

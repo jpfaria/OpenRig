@@ -1,3 +1,4 @@
+//! Responsibility: owns the looper state the controller edits.
 //! #323 — controller-owned looper state.
 //!
 //! The redesign's core: the recorded material and transport state of every
@@ -15,6 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use domain::ids::ChainId;
+use engine::loop_edit::{self, LoopEditError, LoopEditOp};
 use engine::spsc::SpscRing;
 use engine::{LooperSlot, LooperSpeed, LooperState, LooperStatus, LOOPER_MAX_SECONDS};
 use project::block::AudioBlock;
@@ -39,6 +41,14 @@ struct LoopEntry {
     /// stream re-arms when the linked preset is edited or reassigned even
     /// though the recorded loop content is unchanged.
     playback_rev: u64,
+    /// #903: whether the chain's transport reaches this looper. A disabled
+    /// looper keeps its take and its routing — it just sits out play and stop
+    /// until it is switched back on.
+    enabled: bool,
+    /// #826: pre-edit buffers, newest last, and the redo tail. Control thread
+    /// only — the audio thread never sees these.
+    edit_undo: Vec<Vec<f32>>,
+    edit_redo: Vec<Vec<f32>>,
 }
 
 impl LoopEntry {
@@ -50,9 +60,42 @@ impl LoopEntry {
             rings: Vec::new(),
             playback_blocks: None,
             playback_rev: 0,
+            enabled: true,
+            edit_undo: Vec::new(),
+            edit_redo: Vec::new(),
         }
     }
 }
+
+/// #826: how many waveform edits can be undone. A 60 s stereo loop at 48 kHz
+/// is ~23 MB, so the cap is memory, not taste — the oldest entry drops first.
+pub const LOOPER_EDIT_HISTORY_MAX: usize = 8;
+
+/// Why a waveform edit did not happen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LooperEditRefused {
+    /// The looper is recording, overdubbing or playing.
+    NotStopped,
+    /// Nothing is recorded.
+    Empty,
+    /// No such chain/looper.
+    Unknown,
+    /// The region itself does not describe a usable loop.
+    Edit(LoopEditError),
+}
+
+impl std::fmt::Display for LooperEditRefused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotStopped => write!(f, "the looper must be stopped to be edited"),
+            Self::Empty => write!(f, "the looper holds no material"),
+            Self::Unknown => write!(f, "no such looper"),
+            Self::Edit(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for LooperEditRefused {}
 
 /// All loopers of the whole project, keyed by `(chain, uid)`.
 pub struct LooperStore {
@@ -144,10 +187,7 @@ impl LooperStore {
             .filter(|((c, u), e)| {
                 c == chain
                     && *u != uid
-                    && matches!(
-                        e.slot.state(),
-                        LooperState::Playing | LooperState::Stopped
-                    )
+                    && matches!(e.slot.state(), LooperState::Playing | LooperState::Stopped)
                     && e.slot.len_frames() > 0
             })
             .map(|(_, e)| e.slot.len_frames())
@@ -226,15 +266,12 @@ impl LooperStore {
                     interleaved.push(s);
                 }
             }
-            [l, r, ..] => loop {
-                match (l.pop(), r.pop()) {
-                    (Some(a), Some(b)) => {
-                        interleaved.push(a);
-                        interleaved.push(b);
-                    }
-                    _ => break,
+            [l, r, ..] => {
+                while let (Some(a), Some(b)) = (l.pop(), r.pop()) {
+                    interleaved.push(a);
+                    interleaved.push(b);
                 }
-            },
+            }
         }
         for f in interleaved.chunks_exact(2) {
             let _ = entry.slot.tick([f[0], f[1]]);
@@ -253,14 +290,68 @@ impl LooperStore {
         }
     }
 
+    /// Stop ONE loop — the row's own button, for taking a single loop out of
+    /// what is sounding.
     pub fn stop(&mut self, chain: &ChainId, uid: u64) {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
             e.slot.stop();
             e.rings.clear();
         }
     }
+
+    /// Play ONE loop — the row's own button, for hearing a single loop.
     pub fn play(&mut self, chain: &ChainId, uid: u64) {
         self.with_slot(chain, uid, |s| s.play());
+    }
+
+    /// #903: the panel's global stop — every loop on THIS chain at once, the
+    /// counterpart of [`Self::play_all`].
+    pub fn stop_all(&mut self, chain: &ChainId) {
+        for uid in self.transportable(chain) {
+            self.stop(chain, uid);
+        }
+    }
+
+    /// #903: the panel's global play — every loop on THIS chain at once, so a
+    /// take starts locked to the same bar. Skips what it cannot start: a loop
+    /// with no take, one still being recorded, and one switched off.
+    pub fn play_all(&mut self, chain: &ChainId) {
+        for uid in self.transportable(chain) {
+            self.play(chain, uid);
+        }
+    }
+
+    /// The chain's loopers the transport may move: switched on, holding a take,
+    /// and not in the middle of making one.
+    fn transportable(&self, chain: &ChainId) -> Vec<u64> {
+        self.slots
+            .iter()
+            .filter(|((cid, _), e)| {
+                cid == chain
+                    && e.enabled
+                    && !matches!(
+                        status_of(0, &e.slot).state,
+                        LooperState::Empty | LooperState::Recording | LooperState::Overdubbing
+                    )
+            })
+            .map(|((_, uid), _)| *uid)
+            .collect()
+    }
+
+    /// #903: switch one looper in or out of the chain's transport. Keeps the
+    /// take: this is not a stop and not a clear.
+    pub fn set_enabled(&mut self, chain: &ChainId, uid: u64, enabled: bool) {
+        if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
+            e.enabled = enabled;
+        }
+    }
+
+    /// Whether the chain's transport reaches this looper.
+    pub fn is_enabled(&self, chain: &ChainId, uid: u64) -> bool {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| e.enabled)
+            .unwrap_or(true)
     }
     pub fn clear(&mut self, chain: &ChainId, uid: u64) {
         if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
@@ -268,6 +359,8 @@ impl LooperStore {
             drain_retired(&mut e.slot);
             e.rings.clear();
         }
+        // #826: the edit history describes audio that no longer exists.
+        self.clear_edit_history(chain, uid);
     }
     /// Single-take looper (#323): there are no overdub layers, so undo/redo do
     /// nothing. Kept as no-ops so the `Command`/MCP surface stays unchanged and
@@ -276,6 +369,14 @@ impl LooperStore {
     pub fn redo(&mut self, _chain: &ChainId, _uid: u64) {}
     pub fn set_mix(&mut self, chain: &ChainId, uid: u64, v: f32) {
         self.with_slot(chain, uid, |s| s.set_mix(v));
+    }
+
+    /// The level the isolated stream should apply to this loop, 0..=1.
+    pub fn playback_gain(&self, chain: &ChainId, uid: u64) -> f32 {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| e.slot.mix())
+            .unwrap_or(1.0)
     }
     pub fn set_decay(&mut self, chain: &ChainId, uid: u64, v: f32) {
         self.with_slot(chain, uid, |s| s.set_decay(v));
@@ -369,6 +470,99 @@ impl LooperStore {
         self.slots
             .get(&(chain.clone(), uid))
             .and_then(|e| e.slot.export_mixdown())
+    }
+
+    /// #826: the recorded material without `mix`/`decay`/`reverse` — what the
+    /// waveform editor draws and edits. `None` when nothing is recorded.
+    pub fn export_raw(&self, chain: &ChainId, uid: u64) -> Option<Vec<f32>> {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .and_then(|e| e.slot.export_raw())
+    }
+
+    /// #826: reshape a STOPPED loop and install the result, returning its new
+    /// length in frames. The pre-edit buffer goes on the undo stack.
+    pub fn apply_edit(
+        &mut self,
+        chain: &ChainId,
+        uid: u64,
+        op: LoopEditOp,
+        start: usize,
+        end: usize,
+    ) -> Result<usize, LooperEditRefused> {
+        let entry = self
+            .slots
+            .get(&(chain.clone(), uid))
+            .ok_or(LooperEditRefused::Unknown)?;
+        if entry.slot.state() != LooperState::Stopped {
+            return Err(LooperEditRefused::NotStopped);
+        }
+        let before = entry.slot.export_raw().ok_or(LooperEditRefused::Empty)?;
+        let edited =
+            loop_edit::apply_edit(&before, op, start, end).map_err(LooperEditRefused::Edit)?;
+
+        self.load(chain, uid, &edited);
+        if let Some(entry) = self.slots.get_mut(&(chain.clone(), uid)) {
+            entry.edit_redo.clear();
+            entry.edit_undo.push(before);
+            if entry.edit_undo.len() > LOOPER_EDIT_HISTORY_MAX {
+                entry.edit_undo.remove(0);
+            }
+        }
+        Ok(edited.len() / 2)
+    }
+
+    /// #826: step back one waveform edit. `false` when there is nothing to
+    /// undo. Independent of the transport's undo, which is a no-op here.
+    pub fn undo_edit(&mut self, chain: &ChainId, uid: u64) -> bool {
+        self.step_edit_history(chain, uid, true)
+    }
+
+    /// #826: step forward one undone waveform edit.
+    pub fn redo_edit(&mut self, chain: &ChainId, uid: u64) -> bool {
+        self.step_edit_history(chain, uid, false)
+    }
+
+    fn step_edit_history(&mut self, chain: &ChainId, uid: u64, undo: bool) -> bool {
+        let key = (chain.clone(), uid);
+        let Some(entry) = self.slots.get_mut(&key) else {
+            return false;
+        };
+        let stack = if undo {
+            &mut entry.edit_undo
+        } else {
+            &mut entry.edit_redo
+        };
+        let Some(target) = stack.pop() else {
+            return false;
+        };
+        let Some(current) = entry.slot.export_raw() else {
+            return false;
+        };
+        if undo {
+            entry.edit_redo.push(current);
+        } else {
+            entry.edit_undo.push(current);
+        }
+        self.load(chain, uid, &target);
+        true
+    }
+
+    /// #826: (undo depth, redo depth) — what the editor's buttons enable on.
+    pub fn edit_history_depth(&self, chain: &ChainId, uid: u64) -> (usize, usize) {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| (e.edit_undo.len(), e.edit_redo.len()))
+            .unwrap_or((0, 0))
+    }
+
+    /// #826: forget the edit history — its buffers describe audio that no
+    /// longer exists, and undoing into them would resurrect a replaced take.
+    fn clear_edit_history(&mut self, chain: &ChainId, uid: u64) {
+        if let Some(e) = self.slots.get_mut(&(chain.clone(), uid)) {
+            e.edit_undo.clear();
+            e.edit_redo.clear();
+        }
     }
 
     fn with_slot(&mut self, chain: &ChainId, uid: u64, f: impl FnOnce(&mut LooperSlot)) {

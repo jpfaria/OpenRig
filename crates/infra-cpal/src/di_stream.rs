@@ -1,3 +1,4 @@
+//! Responsibility: runs an armed DI loop on its own isolated stream.
 //! Issue #771 — an armed DI loop plays on its own isolated, STREAMED
 //! runtime, output-clocked via ring backpressure, never injected into the
 //! guitar's runtime.
@@ -134,6 +135,23 @@ impl ProjectRuntimeController {
     /// The playback cell for one `(chain, source, output index)`. DI and each
     /// looper get their own cell even on the same output, so they never share
     /// a parked playback.
+    /// #903: set the level of whatever is sounding for this `(chain, source)`.
+    /// A no-op when nothing is armed — the next arm reads the level itself.
+    pub(crate) fn set_isolated_playback_gain(
+        &self,
+        chain_id: &ChainId,
+        source: IsolatedSource,
+        gain: f32,
+    ) {
+        for ((key, _), cell) in self.di_playback_cells.borrow().iter() {
+            if key.0 == *chain_id && key.1 == source {
+                if let Some(playback) = cell.load().as_ref() {
+                    playback.set_gain(gain);
+                }
+            }
+        }
+    }
+
     pub(crate) fn isolated_playback_cell(
         &self,
         chain_id: &ChainId,

@@ -1,3 +1,4 @@
+//! Responsibility: describes the sidecar file a recorded loop lives in.
 //! #323 — the recorded loop's sidecar file.
 //!
 //! A loop is audio, so it does not belong in the project YAML: each non-empty

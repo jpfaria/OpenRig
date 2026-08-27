@@ -1,3 +1,4 @@
+//! Responsibility: records a loop then plays it back.
 //! Issue #323 — the per-chain looper core (Boss RC-style, multi-layer).
 //!
 //! One [`LooperSlot`] is one looper: a stack of interleaved-stereo layers, a
@@ -254,9 +255,18 @@ impl LooperSlot {
     }
 
     /// Loop level, 0..=1 (values outside are clamped).
+    ///
+    /// #903: NOT content. The level is applied by the isolated stream as it
+    /// plays, so moving it neither rewrites the take nor re-renders it — it
+    /// used to bump the revision, which restarted the loop from the top and
+    /// only reached the ear once the new render took over.
     pub fn set_mix(&mut self, mix: f32) {
         self.mix = mix.clamp(0.0, 1.0);
-        self.content_rev += 1;
+    }
+
+    /// The loop's level, 0..=1.
+    pub fn mix(&self) -> f32 {
+        self.mix
     }
 
     /// Per-layer-of-age gain applied to older layers, 0..=1. 1.0 = no decay.
@@ -318,8 +328,37 @@ impl LooperSlot {
                 acc[1] += buf[f * 2 + 1] * gain;
                 gain *= self.decay;
             }
-            out.push(acc[0] * self.mix);
-            out.push(acc[1] * self.mix);
+            // #903: `mix` is playback gain, not material — baking it here made
+            // the level a property of the render, so moving it restarted the
+            // loop and only landed when that render took over.
+            out.push(acc[0]);
+            out.push(acc[1]);
+        }
+        Some(out)
+    }
+
+    /// The recorded material exactly as captured — the audible layers summed,
+    /// with NO `mix`, `decay` or `reverse` — one loop long, interleaved stereo.
+    ///
+    /// This is what the waveform editor (#826) reads and re-installs. Exporting
+    /// the mixdown instead would bake the loop level and the reverse flag into
+    /// the buffer, and playback would then apply them a second time.
+    ///
+    /// Allocates, so it is for the CONTROL thread only.
+    pub fn export_raw(&self) -> Option<Vec<f32>> {
+        if self.active == 0 || self.len_frames == 0 {
+            return None;
+        }
+        let mut out = Vec::with_capacity(self.len_frames * 2);
+        for frame in 0..self.len_frames {
+            let mut acc = [0.0f32; 2];
+            for layer in 0..self.active {
+                let buf = &self.layers[layer];
+                acc[0] += buf[frame * 2];
+                acc[1] += buf[frame * 2 + 1];
+            }
+            out.push(acc[0]);
+            out.push(acc[1]);
         }
         Some(out)
     }

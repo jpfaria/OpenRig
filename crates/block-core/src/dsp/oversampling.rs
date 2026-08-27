@@ -1,3 +1,4 @@
+//! Responsibility: runs a stage at twice the sample rate.
 //! 2× oversampling via half-band FIR.
 //!
 //! Why: any audio non-linearity (saturation, ring-mod, fold, clipper)

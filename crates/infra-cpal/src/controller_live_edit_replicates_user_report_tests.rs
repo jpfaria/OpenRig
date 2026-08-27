@@ -43,7 +43,7 @@ const BUF: usize = 64;
 const BLOCK_ID: &str = "userreport:compressor";
 const CHAIN_ID: &str = "userreport-chain";
 
-fn init_registry() {
+pub(super) fn init_registry() {
     use std::sync::Once;
     static INIT: Once = Once::new();
     INIT.call_once(|| {
@@ -136,6 +136,8 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
     active_chains.insert(
         chain_id.clone(),
         ActiveChainRuntime {
+            structure: Vec::new(),
+            generation: 0,
             // A signature that MATCHES the binding registry, so the live edit
             // path sees "I/O unchanged" and takes the off-thread rebuild (what
             // happens in the running app for a plain param/block edit).
@@ -171,6 +173,7 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: registry(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),
@@ -277,7 +280,7 @@ fn gain_params(volume_pct: f32) -> ParameterSet {
         .expect("volume param must normalize")
 }
 
-fn gain_chain(volume_pct: f32) -> Chain {
+pub(super) fn gain_chain(volume_pct: f32) -> Chain {
     Chain {
         id: ChainId(CHAIN_ID.into()),
         description: None,
@@ -374,7 +377,7 @@ fn wait_for_di_render(controller: &ProjectRuntimeController) {
 /// (issue #808) forgot to re-render the monitored DI, so the timbre only
 /// changed after a block toggle. The DI is an independent pipeline (invariant
 /// #4) — editing the chain must re-render it regardless of the guitar's state.
-fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
+pub(super) fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
     let chain_id = chain.id.clone();
     let runtime = Arc::new(
         build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], &registry())
@@ -399,6 +402,7 @@ fn controller_with_di_only_chain(chain: &Chain) -> ProjectRuntimeController {
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: registry(),
         di_streams: std::cell::RefCell::new(std::collections::HashMap::new()),

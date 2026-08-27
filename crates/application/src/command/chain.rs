@@ -1,3 +1,4 @@
+//! Responsibility: names the chain-scoped commands.
 //! Chain-scoped commands: chain CRUD and ordering, enable, I/O endpoints,
 //! presets, volume/bindings, the per-chain virtual DI loop, and offline render.
 

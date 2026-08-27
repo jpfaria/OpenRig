@@ -1,3 +1,4 @@
+//! Responsibility: describes the data a chain block holds.
 //! Data struct definitions for chain blocks. Pure type defs + serde
 //! plumbing; no business logic, no per-effect-type dispatch.
 //!
@@ -72,6 +73,15 @@ impl AudioBlockKind {
             Self::Output(_) => "output",
             Self::Insert(_) => "insert",
         }
+    }
+
+    /// Whether this block is ROUTING metadata rather than a processor: a mid
+    /// `Input`/`Output` port or an `Insert`. The runtime builds no node for
+    /// them — `runtime_segments` splits the chain on the enabled ones — so
+    /// enabling or disabling one is a topology change that only a rebuild can
+    /// apply, never the in-place block fade (#85/#881).
+    pub fn is_routing(&self) -> bool {
+        matches!(self, Self::Input(_) | Self::Output(_) | Self::Insert(_))
     }
 
     /// A params-free signature of the block's MODEL identity (variant + model

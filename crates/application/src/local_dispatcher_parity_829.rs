@@ -1,3 +1,4 @@
+//! Responsibility: handles the parity 829 commands.
 //! #829 — re-enumerating the audio devices as a command.
 //!
 //! A USB hot-swap was only recoverable by clicking the GUI's refresh

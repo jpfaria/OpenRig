@@ -1,5 +1,4 @@
-//! Chain block model — data structs, validation/descriptor methods, and
-//! per-effect-type dispatch.
+//! Responsibility: routes the block model's public surface.
 //!
 //! Phase 7 of issue #194 split the original 464-LOC `block.rs` by concern:
 //! - `types.rs`     — pure data structs + serde
@@ -11,6 +10,8 @@
 //! callers (engine, infra-cpal, infra-yaml, adapter-gui, etc.) keep
 //! working unchanged.
 
+pub mod audio_block_methods;
+pub mod core_block_methods;
 pub mod dispatch;
 mod grid_schema;
 mod ir_schema;
@@ -19,11 +20,13 @@ pub mod manifest_labels;
 pub mod methods;
 mod nam_schema;
 pub mod param_writer;
+pub mod port_duplication;
+pub mod select_block_methods;
 pub mod types;
 pub mod vst3_schema;
 
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};
-pub use methods::duplicates_chain_binding;
+pub use port_duplication::duplicates_chain_binding;
 pub use types::{
     AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef, CoreBlock, InputBlock,
     InsertBlock, NamBlock, OutputBlock, SelectBlock,

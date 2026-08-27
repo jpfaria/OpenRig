@@ -1,3 +1,4 @@
+//! Responsibility: navigates the banks of an input.
 //! Pure bank/scene navigation core (#453).
 //!
 //! **No Slint here.** Slint is a pure dispatcher: a UI callback maps to a

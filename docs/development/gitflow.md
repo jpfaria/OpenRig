@@ -22,6 +22,17 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
 1. **Issue primeiro.** `gh issue list --search` antes de criar (evita duplicata). NUNCA criar issue sem pedido explícito do usuário.
 2. **Nome de branch: `feature/issue-{N}` ou `bugfix/issue-{N}`** — sem sufixo descritivo. Antes de criar: `git fetch && git branch -a | grep issue-{N}`.
 3. **A partir da `release/vX.Y.Z` ativa atualizada**: `git fetch && git checkout release/vX.Y.Z && git pull`. Não existe release ativa ainda? Corta da `develop`: `git checkout develop && git pull && git checkout -b release/vX.Y.Z && git push -u origin release/vX.Y.Z`.
+
+   **Ativa = a release que AINDA NÃO foi finalizada.** Uma release finalizada tem a tag `vX.Y.Z` criada e já foi mergeada na `main` — trabalhar nela (ou abrir PR pra ela) entrega código que nunca sai, porque aquela versão já foi publicada. Existir a branch `release/vX.Y.Z` não significa nada: as antigas ficam no remote. A `develop` estar na versão X.Y.Z também não — o bump acontece quando a release é cortada. **Checagem obrigatória antes de cortar branch e antes de `gh pr create`:**
+
+   ```bash
+   git fetch --tags
+   git branch -r | grep release/          # candidatas
+   git tag -l 'v0.4.0'                    # vazio = não finalizada
+   git log --oneline -1 origin/main       # "Merge release/vX.Y.Z into main" = essa acabou
+   ```
+
+   A ativa é a MAIOR versão sem tag. Errei isso na #881: cortei e ia abrir PR pra `release/v0.3.0` com `v0.3.0` já taggeada e mergeada na `main`, enquanto a ativa era a `release/v0.4.0`.
 4. **Mergear a release ativa antes de qualquer trabalho**: `git merge -X theirs origin/release/vX.Y.Z`.
 5. Commits em inglês, sem `Co-Authored-By`, foco no "why".
 6. **NUNCA `Closes #N` ou `Fixes #N`** em commits — GitHub auto-fecha.
@@ -38,6 +49,8 @@ Só quando o usuário pedir. Antes do close, atribuir milestone — **plain semv
 1. O milestone é a **versão da `release/vX.Y.Z` ativa** — o milestone aberto `vX.Y.Z` (hoje `v0.2.0`). `gh api repos/jpfaria/OpenRig/milestones --jq '.[].title'` lista os abertos.
 2. **NUNCA criar nem reabrir um milestone `vX.Y.Z-dev.N`** (esquema morto) nem `-beta.N` (beta é tag, não milestone). Use o milestone `vX.Y.Z` aberto.
 3. `gh issue edit <N> --milestone "vX.Y.Z"` → `gh issue close <N>`.
+
+**O merge do PR NÃO fecha a issue.** O `Closes #N` do corpo do PR só dispara quando a base é a branch default do repo — e aqui toda PR de feature/bug tem como base a `release/vX.Y.Z` ativa. Depois do merge a issue continua OPEN e o close é manual, com o milestone antes (#900 ficou aberta depois da #901 mergeada exatamente por isso).
 
 ## Labels que excluem das release notes
 
@@ -80,7 +93,11 @@ cd .solvers/issue-{N} && git fetch origin
 # branch existe? checkout. não existe? checkout release/vX.Y.Z && pull && checkout -b feature/issue-{N}
 ```
 
-Após merge+close: `rm -rf .solvers/issue-{N}/`.
+Depois do merge, a entrega só termina com os três passos — nenhum deles é automático:
+
+1. **Fechar a issue** com o milestone atribuído antes (ver [Fechar issue](#fechar-issue)) — o merge numa `release/vX.Y.Z` não fecha nada sozinho.
+2. **Apagar a branch, remota E local.** O auto-delete-on-merge do GitHub cobre a remota só quando está ligado; a local em `.solvers/issue-{N}` nunca some sozinha. `git push origin --delete {tipo}/issue-{N}` (ou `gh api -X DELETE repos/jpfaria/OpenRig/git/refs/heads/{tipo}/issue-{N}`), e confira com `gh api repos/jpfaria/OpenRig/git/refs/heads --jq '.[].ref'` — branch de trabalho que sobra vira lixo permanente no remote.
+3. **Remover o workspace:** `rm -rf .solvers/issue-{N}/` — só com a issue já FECHADA (#568), porque o `rm -rf` leva junto qualquer WIP não-commitado.
 
 ## Issues irmãs
 

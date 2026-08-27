@@ -222,7 +222,11 @@ fn peak_on_loopback(mid: bool) -> f32 {
     let device = host
         .input_devices()
         .expect("enumerate inputs")
-        .find(|d| d.name().map(|n| n.contains(LOOPBACK)).unwrap_or(false))
+        .find(|d| {
+            d.description()
+                .map(|desc| desc.name().contains(LOOPBACK))
+                .unwrap_or(false)
+        })
         .expect("loopback input device");
     let config = device.default_input_config().expect("loopback config");
     let peak_milli = Arc::new(AtomicU32::new(0));

@@ -1,3 +1,4 @@
+//! Responsibility: generates the metronome click.
 //! Click generator for the built-in metronome (issue #14).
 //!
 //! Pure DSP: no I/O, no allocation in [`MetronomeGenerator::render`], no

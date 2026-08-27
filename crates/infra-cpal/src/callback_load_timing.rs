@@ -1,3 +1,4 @@
+//! Responsibility: times how much of the callback deadline was used.
 //! Issue #670 — audio-callback deadline timing seam.
 //!
 //! In OpenRig the heavy block DSP (`processor.process_buffer` — NAM

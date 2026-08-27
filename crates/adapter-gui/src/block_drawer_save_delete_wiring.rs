@@ -1,3 +1,4 @@
+//! Responsibility: wires the block drawer actions that open a confirmation.
 //! Wiring for the block drawer save + delete (open-confirm-dialog) callbacks.
 //!
 //! Save: persists the active block_editor_draft, clears all editor state, hides
@@ -8,12 +9,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, ModelRc, SharedString, Timer, VecModel, Weak};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel, Weak};
 
 use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::persist_block_editor_draft;
-use crate::compact_block_view::build_compact_blocks;
 use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::{
@@ -71,7 +71,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
         let project_session_save = project_session.clone();
         let project_session_compact = project_session.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
-        window.on_save_block_drawer(move || {
+        crate::BlockEditorBridge::get(window).on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -93,7 +93,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
                 auto_save,
             ) {
                 log::error!("[adapter-gui] block-drawer.save: {error}");
-                window.set_block_drawer_status_message(error.to_string().into());
+                crate::BlockEditorBridge::get(&window)
+                    .set_block_drawer_status_message(error.to_string().into());
                 return;
             }
             *selected_block.borrow_mut() = None;
@@ -106,22 +107,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
             multi_slider_points.set_vec(Vec::new());
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
-            window.set_eq_total_curve("".into());
-            // Refresh compact chain view if open
-            if let Some((ci, weak_cw)) = open_compact_window.borrow().as_ref() {
-                if let Some(cw) = weak_cw.upgrade() {
-                    let session_borrow = project_session_compact.borrow();
-                    if let Some(session) = session_borrow.as_ref() {
-                        let blocks = build_compact_blocks(&session.project.borrow(), *ci);
-                        cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-                    }
-                }
-            }
+            crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
+            crate::compact_view_refresh::refresh_open_compact_view(
+                &open_compact_window,
+                &project_session_compact,
+            );
         });
     }
     {
         let weak_window = window.as_weak();
-        window.on_delete_block_drawer(move || {
+        crate::BlockEditorBridge::get(window).on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -132,8 +127,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
             if draft.block_index.is_none() {
                 return;
             }
-            window.set_confirm_delete_block_name(draft.model_id.into());
-            window.set_show_confirm_delete_block(true);
+            crate::OverlayBridge::get(&window).set_confirm_delete_block_name(draft.model_id.into());
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_block(true);
         });
     }
 }

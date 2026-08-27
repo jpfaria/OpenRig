@@ -1,3 +1,4 @@
+//! Responsibility: handles the selection commands.
 //! #548: handlers for the 3 MIDI selection commands.
 //!
 //! Operate on `LocalDispatcher::selection_state` (`SelectionState`) using

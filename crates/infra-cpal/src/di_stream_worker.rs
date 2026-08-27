@@ -1,3 +1,4 @@
+//! Responsibility: renders the DI loop on its own thread.
 //! The `di-stream` render thread (#771) and its gapless hand-off (#785).
 //!
 //! One worker renders one armed DI: it builds the routed isolated runtime, then
@@ -13,7 +14,7 @@
 //! builds, so more than one may be in flight) and retires the outgoing playback
 //! off the audio thread.
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -24,6 +25,23 @@ use engine::DiPcm;
 use project::chain::Chain;
 
 use crate::di_playback::{DiPlayback, DiPlaybackCell, DiRetired};
+
+/// Scheduling class an isolated playback render declared for itself.
+///
+/// Recorded so a test can assert the render never shares the live callback's
+/// class — `CLAUDE.md`'s isolation LAW covers CPU time, not just buffers.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // `AudioRealtime` is the value the #903 test refuses to see.
+pub(crate) enum RenderScheduling {
+    Unset = 0,
+    /// The chain callback's Mach time-constraint class.
+    AudioRealtime = 1,
+    /// Below the callback: the render yields to every live stream.
+    BelowAudioThread = 2,
+}
+
+/// What the most recent render thread declared. Pinned by the #903 test.
+pub(crate) static LAST_RENDER_SCHEDULING: AtomicU8 = AtomicU8::new(RenderScheduling::Unset as u8);
 
 /// Live `di-stream` render threads. A hand-off leaves the outgoing worker
 /// running until the incoming one stops it; a worker left behind would burn a
@@ -84,6 +102,19 @@ impl Drop for AliveGuard {
     fn drop(&mut self) {
         DI_WORKERS_ALIVE.fetch_sub(1, Ordering::Relaxed);
     }
+}
+
+/// Keep THIS thread out of the audio threads' scheduling class (#903).
+///
+/// Leaving the Mach time-constraint class is the whole isolation point: a
+/// default-priority thread can never outrank an audio thread's deadline, so the
+/// live streams stop competing with the render. Stepping BELOW the default was
+/// tried and reverted — under load the render then lost to the GUI as well,
+/// never filled its pre-buffer, and the loop simply did not start (the owner's
+/// "nem com latência dá play"). Isolation is about not competing, not about
+/// starving.
+fn stay_out_of_the_audio_class() {
+    log::info!("di-stream render runs outside the audio threads' class");
 }
 
 fn run(spec: DiWorkerSpec) {
@@ -154,20 +185,18 @@ fn run(spec: DiWorkerSpec) {
     // by construction; the sleep-paced worker tried in #717 drifted and was
     // reverted, f1131725e).
     //
-    // Scheduling shape matters more than raw priority (#698 lesson, re-measured
-    // live on the owner's rig): normal priority + continuous burn → 71-88% fill
-    // (preempted by the GUI + the guitar's RT worker); RT class + continuous
-    // burn → 38% (the kernel demotes a time-constraint thread that blows
-    // through its declared budget for seconds). The guitar's dsp_worker sustains
-    // the SAME chain cost in debug because it works in SHORT BURSTS. Mirror it:
-    // one block per iteration, a breath every few blocks, and an honest RT
-    // declaration sized to that cadence.
+    // #903 (isolation LAW, CPU time): this render must NEVER share the live
+    // callback's time-constraint class. It used to promote itself exactly like
+    // the guitar's `dsp_worker`, so the two competed for the same slots: one
+    // loop playing raised the live latency, and every loop stacked on raised it
+    // again — ten pipelines that knew the others existed. It runs BELOW the
+    // audio threads instead: the ring's backpressure already paces it, and the
+    // pre-buffer absorbs the preemption a lower class costs. Nothing here is
+    // about spending less CPU — the render costs what it costs; it just never
+    // takes a slot a live stream needs.
     let period_ns = (BLOCK as u64) * 1_000_000_000 / (output_rate.max(1) as u64);
-    // `dsp_worker` is cfg'd out under Linux+JACK (#755); mirror that gate so the
-    // crate still compiles there. `promote_to_audio_rt` is a no-op off macOS
-    // regardless, so skipping it under Linux+JACK changes no behavior.
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    crate::dsp_worker::promote_to_audio_rt(period_ns, period_ns * 3 / 5);
+    stay_out_of_the_audio_class();
+    LAST_RENDER_SCHEDULING.store(RenderScheduling::BelowAudioThread as u8, Ordering::Relaxed);
     let silence = vec![0.0f32; BLOCK];
     let mut drain = vec![0.0f32; BLOCK * routed.drain_width];
     let mut pos: usize = start_pos;

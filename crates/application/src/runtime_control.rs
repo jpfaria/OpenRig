@@ -1,3 +1,4 @@
+//! Responsibility: declares the write side of a live rig.
 //! #127: the write-side counterpart to [`crate::live_source::LiveSource`].
 //!
 //! `LiveSource` lets the core READ what only a frontend's audio runtime
@@ -43,6 +44,7 @@ use project::chain::{Chain, EndpointRef};
 use project::device::DeviceSettings;
 
 use crate::command::{LooperAction, LooperParam};
+use crate::looper_edit::LoopEdit;
 
 /// Runtime state changes a command handler can apply to the frontend's audio
 /// runtime.
@@ -308,6 +310,16 @@ pub trait RuntimeControl {
     // cannot address a stream it was not handed. Never a group, never "every
     // chain at this rate" (`CLAUDE.md` LAW).
 
+    /// Give a freshly opened project its recorded loops back (#903).
+    ///
+    /// A project opens with every chain disabled, so nothing had created the
+    /// controller whose store holds a loop: the panel showed EMPTY until the
+    /// user enabled a chain, and the take reappeared only after enabling and
+    /// disabling it again. Opening IS the moment the loops come back, so this
+    /// door — like [`Self::arm_di_stream`] — may create the audio runtime. No
+    /// stream opens for a disabled chain, so a stopped rig stays silent.
+    fn restore_saved_loops(&self) {}
+
     /// Claim this chain's store slot for a newly added looper.
     ///
     /// **#808:** a looper the user cannot record into is not a looper — the
@@ -355,6 +367,28 @@ pub trait RuntimeControl {
     /// Play to the chosen output endpoint. Never starts anything.
     fn set_looper_output(&self, chain: &Chain, looper: u64, output: Option<EndpointRef>) {
         let _ = (chain, looper, output);
+    }
+
+    /// #826: reshape a STOPPED loop — trim / crop / cut — and install the
+    /// result, returning its new length in frames.
+    ///
+    /// Never wakes audio: an edit is not a request to hear something (#808).
+    /// The store refuses the edit while the looper is recording or playing, so
+    /// a live take is never reshaped under the player's feet.
+    fn apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize> {
+        let _ = (chain, looper, edit);
+        Ok(0)
+    }
+
+    /// #826: step back one waveform edit. Independent of the transport's undo,
+    /// which is a no-op for the single-take looper.
+    fn undo_looper_edit(&self, chain: &Chain, looper: u64) {
+        let _ = (chain, looper);
+    }
+
+    /// #826: step forward one undone waveform edit.
+    fn redo_looper_edit(&self, chain: &Chain, looper: u64) {
+        let _ = (chain, looper);
     }
 
     /// Hand over every recorded loop this chain holds, so the project save can

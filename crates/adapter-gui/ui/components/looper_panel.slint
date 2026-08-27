@@ -1,3 +1,4 @@
+// Responsibility: renders the chain's looper panel.
 // #323 — the looper "janela": the chain's loopers as a stacked list, one row
 // each with its own transport. Opened by the loop button in the chain header,
 // rendered at the window root (see looper_overlay.slint) so the chain list
@@ -10,6 +11,7 @@
 import { Theme } from "../theme.slint";
 import { LooperItem } from "../models.slint";
 import { LooperRow } from "looper_row.slint";
+import { LooperIconButton } from "looper_controls.slint";
 
 export component LooperPanelView inherits Rectangle {
     in property <[LooperItem]> loopers;
@@ -23,6 +25,11 @@ export component LooperPanelView inherits Rectangle {
     in property <[string]> preset-options;
 
     callback add();
+    // #903: the panel's global transport — the whole chain at once. A row's
+    // own play stays single: the owner wants both, one loop alone or the
+    // take together.
+    callback play-all();
+    callback stop-all();
     callback record(int);
     callback play-stop(int);
     callback undo(int);
@@ -37,6 +44,8 @@ export component LooperPanelView inherits Rectangle {
     callback input-picked(int, int);
     callback output-picked(int, int);
     callback preset-open(int, int);
+    // #826: open the waveform editor for this loop.
+    callback edit(int);
 
     private property <length> row-height: 60px;
     private property <length> drawer-extra: 222px;
@@ -71,6 +80,29 @@ export component LooperPanelView inherits Rectangle {
         color: Theme.palette.text-primary;
         font-size: 15px;
         font-weight: 700;
+    }
+
+    // ── global transport ────────────────────────────────────────────────
+    // Left of ADD LOOPER, in the header, because they act on the panel — not
+    // on any one row.
+    play-all-btn := LooperIconButton {
+        x: parent.width - 202px;
+        y: 12px;
+        icon: @image-url("../assets/play.svg");
+        label: @tr("looper-play-all");
+        tint: #e6ebf5;
+        is-enabled: !root.is-empty;
+        clicked => { root.play-all(); }
+    }
+
+    stop-all-btn := LooperIconButton {
+        x: parent.width - 164px;
+        y: 12px;
+        icon: @image-url("../assets/stop.svg");
+        label: @tr("looper-stop-all");
+        tint: #e6ebf5;
+        is-enabled: !root.is-empty;
+        clicked => { root.stop-all(); }
     }
 
     add-button := Rectangle {
@@ -168,6 +200,7 @@ export component LooperPanelView inherits Rectangle {
             input-picked(v) => { root.input-picked(item.uid, v); }
             output-picked(v) => { root.output-picked(item.uid, v); }
             preset-open => { root.preset-open(item.uid, item.preset_index); }
+            edit => { root.edit(item.uid); }
         }
     }
 }

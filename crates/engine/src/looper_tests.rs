@@ -376,8 +376,11 @@ fn export_mixdown_honours_undo_and_is_none_when_empty() {
     );
 }
 
+/// #903: the level left the mixdown. It is playback gain now — baking it into
+/// the material made a level move a CONTENT change, which restarted the loop
+/// and only reached the ear once the new render took over.
 #[test]
-fn export_mixdown_applies_level_and_reverse_and_bumps_revision() {
+fn export_mixdown_applies_reverse_but_never_the_level() {
     let mut s = slot();
     s.tap_record(Some(spare(MAX)));
     feed(&mut s, &[[1.0, 1.0], [2.0, 2.0], [4.0, 4.0]]);
@@ -388,34 +391,83 @@ fn export_mixdown_applies_level_and_reverse_and_bumps_revision() {
         "closing the recording must bump the content revision"
     );
 
-    // Level halves every sample.
+    // The level does not touch the material.
     s.set_mix(0.5);
     assert_eq!(
         s.export_mixdown().unwrap(),
-        vec![0.5, 0.5, 1.0, 1.0, 2.0, 2.0]
+        vec![1.0, 1.0, 2.0, 2.0, 4.0, 4.0]
     );
 
-    // Reverse plays the frames back to front (at the current 0.5 level).
+    // Reverse does: it plays the frames back to front.
     s.set_reverse(true);
     assert_eq!(
         s.export_mixdown().unwrap(),
-        vec![2.0, 2.0, 1.0, 1.0, 0.5, 0.5]
+        vec![4.0, 4.0, 2.0, 2.0, 1.0, 1.0]
     );
 }
 
 #[test]
-fn setting_level_bumps_the_revision_so_the_stream_re_arms() {
+fn setting_the_level_leaves_the_content_alone_and_reverse_re_arms() {
     let mut s = slot();
     s.tap_record(Some(spare(MAX)));
     feed(&mut s, &[[1.0, 1.0]]);
     s.tap_record(None);
     let r0 = s.content_revision();
     s.set_mix(0.5);
-    assert!(s.content_revision() > r0, "level change must be observable");
+    assert_eq!(
+        s.content_revision(),
+        r0,
+        "#903: the level is playback gain — bumping the revision here re-renders \
+         the loop and restarts it under the owner's hand"
+    );
     let r1 = s.content_revision();
     s.set_reverse(true);
     assert!(
         s.content_revision() > r1,
         "reverse change must be observable"
+    );
+}
+
+#[test]
+fn export_raw_ignores_level_and_reverse() {
+    // #826: the waveform editor re-installs what it exports. If the export
+    // applied mix/reverse, an edit would bake them into the audio and playback
+    // would apply them a second time.
+    let mut s = slot();
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0], [2.0, 2.0], [4.0, 4.0]]);
+    s.tap_record(None); // freeze
+    s.set_mix(0.5);
+    s.set_reverse(true);
+
+    assert_eq!(
+        s.export_raw().expect("there is material"),
+        vec![1.0, 1.0, 2.0, 2.0, 4.0, 4.0],
+        "the raw export is the captured material, in order, at unity"
+    );
+    assert_eq!(
+        s.export_mixdown().unwrap(),
+        vec![4.0, 4.0, 2.0, 2.0, 1.0, 1.0],
+        "the mixdown reverses the material but leaves the level to playback"
+    );
+}
+
+#[test]
+fn export_raw_sums_the_audible_layers_and_is_none_when_empty() {
+    let mut s = slot();
+    assert!(s.export_raw().is_none(), "nothing recorded yet");
+
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[1.0, 1.0], [2.0, 2.0]]);
+    s.tap_record(None);
+    s.tap_record(Some(spare(MAX)));
+    feed(&mut s, &[[0.5, 0.5], [0.25, 0.25]]);
+    s.tap_record(None);
+    s.undo();
+
+    assert_eq!(
+        s.export_raw().unwrap(),
+        vec![1.0, 1.0, 2.0, 2.0],
+        "an undone layer is not audible, so it is not exported"
     );
 }

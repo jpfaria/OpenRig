@@ -50,7 +50,7 @@ fn project_with(blocks: Vec<AudioBlock>) -> Project {
 fn every_compact_block_carries_its_geometry() {
     let project = project_with(vec![delay_block("a"), delay_block("b")]);
 
-    let items = build_compact_blocks(&project, 0);
+    let items = build_compact_blocks(&project, 0, &[]);
 
     assert_eq!(items.len(), 2);
     assert!(
@@ -73,7 +73,7 @@ fn every_compact_block_carries_its_geometry() {
 fn a_single_group_block_shows_no_tab_bar() {
     let project = project_with(vec![delay_block("a")]);
 
-    let items = build_compact_blocks(&project, 0);
+    let items = build_compact_blocks(&project, 0, &[]);
 
     assert!(
         items[0].parameter_groups.row_count() <= 1,

@@ -1,3 +1,4 @@
+//! Responsibility: wires the launcher's recent projects list.
 //! Wiring for the launcher's "recent projects" callbacks on the main window.
 //!
 //! Owns the 3 callbacks driving the recent-projects list:
@@ -17,7 +18,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, Timer, VecModel};
+use slint::{ComponentHandle, Global, Timer, VecModel};
 
 use application::command::{Command, ProjectCommand};
 use domain::AudioDeviceDescriptor;
@@ -125,6 +126,16 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    let title =
+                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
+                    let display_name = project_display_name(&session.project.borrow());
+                    stop_the_previous_rig(&project_session);
+                    // #903: opening restores this project's recorded loops, which
+                    // ride on LoadProject and need a store to land in — so the
+                    // runtime seam is wired up first, and only after the previous
+                    // rig is stopped, or they would land in the controller that is
+                    // about to be dropped.
+                    runtime_attach.to_session(&session);
                     // #436 E: abrir recente é negócio → ProjectCommand::LoadProject
                     // no dispatcher da sessão (MCP/MIDI, observável via
                     // Event::ProjectLoaded). Load+swap é adapter-side
@@ -140,10 +151,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                             log::warn!("[open-recent] Command::LoadProject falhou: {e}");
                         }
                     }
-                    let title =
-                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
-                    let display_name = project_display_name(&session.project.borrow());
-                    stop_the_previous_rig(&project_session);
                     replace_project_chains(
                         &project_chains,
                         &session.project.borrow(),
@@ -163,7 +170,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                     // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
                     // anything can dispatch against it — a runtime-control command issued before
                     // the first chain sync must still reach the audio.
-                    runtime_attach.to_session(&session);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
@@ -278,17 +284,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 entry.project_name.clone()
             };
             *pending.borrow_mut() = Some(idx);
-            window.set_confirm_delete_recent_project_name(display_name.into());
-            window.set_show_confirm_delete_recent_project(true);
+            crate::OverlayBridge::get(&window)
+                .set_confirm_delete_recent_project_name(display_name.into());
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_recent_project(true);
         });
     }
     {
         let weak_window = window.as_weak();
         let pending = pending_remove_recent.clone();
-        window.on_cancel_delete_recent_project(move || {
+        crate::OverlayBridge::get(window).on_cancel_delete_recent_project(move || {
             *pending.borrow_mut() = None;
             if let Some(window) = weak_window.upgrade() {
-                window.set_show_confirm_delete_recent_project(false);
+                crate::OverlayBridge::get(&window).set_show_confirm_delete_recent_project(false);
             }
         });
     }
@@ -298,11 +305,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
         let recent_projects = recent_projects.clone();
         let project_session = project_session.clone();
         let pending = pending_remove_recent.clone();
-        window.on_confirm_delete_recent_project(move || {
+        crate::OverlayBridge::get(window).on_confirm_delete_recent_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_show_confirm_delete_recent_project(false);
+            crate::OverlayBridge::get(&window).set_show_confirm_delete_recent_project(false);
             let Some(index) = pending.borrow_mut().take() else {
                 return;
             };

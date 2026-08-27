@@ -57,7 +57,11 @@ use application::command_schema::command_variant_names;
 /// #127 bumped to 96 with `StopProjectRuntime` — STOPPING the rig was
 /// reachable only from the GUI's back-to-launcher button, so a client that
 /// started the audio (a chain enable, a DI play) could not silence it again.
-const COMMAND_VARIANT_COUNT: usize = 96;
+/// #826 bumped to 99 with the three loop-editing leaves
+/// (`EditChainLooperAudio`/`UndoChainLooperEdit`/`RedoChainLooperEdit`) —
+/// trimming, cropping and cutting a recorded loop, so a headless client
+/// reshapes a take exactly as the waveform editor does.
+const COMMAND_VARIANT_COUNT: usize = 99;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {

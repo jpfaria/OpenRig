@@ -1,3 +1,4 @@
+//! Responsibility: parses an LV2 bundle's ports out of its TTL.
 //! LV2 TTL port + scale-point parsing (issue #792 split from dispatch.rs).
 //!
 //! Turns a single plugin's Turtle block into typed [`Lv2Port`]s. The scan
@@ -205,4 +206,3 @@ pub fn lv2_control_value(symbol: &str, default: Option<f32>, params: &ParameterS
     }
     default.unwrap_or(0.0)
 }
-

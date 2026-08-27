@@ -131,3 +131,59 @@ fn a_mid_inputs_stream_feeds_the_chains_tail_device() {
          so the tail stream drops that runtime and the port is inaudible"
     );
 }
+
+// ── #881: the insert SEND is an output device of this chain too ──────────────
+
+/// An insert's send goes out its own E/S. That E/S usually contributes no input
+/// to the chain, so the binding-group pass never reaches it and the send's
+/// output stream — which mixes only the runtimes mapped to its device — drops
+/// this chain's runtime and writes SILENCE. Proven on a real BlackHole loop:
+/// the segment's post-FX tap carried 0.5 while the return read 0.0.
+#[test]
+fn the_insert_send_device_is_mapped_to_the_chains_input_stream() {
+    use project::block::InsertBlock;
+
+    const LOOP_DEV: &str = "coreaudio:loop";
+    let registry = vec![
+        IoBinding {
+            id: "scarlett".into(),
+            name: "SCARLET - ALL".into(),
+            inputs: vec![endpoint("In 1", SCARLETT, vec![0])],
+            outputs: vec![endpoint("Out 1", SCARLETT, vec![0, 1])],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX LOOP".into(),
+            inputs: vec![endpoint("ret", LOOP_DEV, vec![0])],
+            outputs: vec![endpoint("snd", LOOP_DEV, vec![0])],
+        },
+    ];
+    let chain = Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["scarlett".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId("rig:input-1:insert:1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "external_loop".into(),
+                io: "fx".into(),
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+    };
+    let (logical_inputs, _) = engine::runtime_endpoints::resolve_chain_io(&chain, &registry);
+    let by_cpal = output_devices_by_input_cpal(&chain, &registry, &logical_inputs);
+
+    assert!(
+        by_cpal[0].iter().any(|d| d == LOOP_DEV),
+        "#881: the send's device must be mapped to this chain's input stream, \
+         else its output stream mixes no runtime and the loop is fed silence — \
+         got {:?}",
+        by_cpal[0]
+    );
+}

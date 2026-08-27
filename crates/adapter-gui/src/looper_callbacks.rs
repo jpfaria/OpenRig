@@ -1,3 +1,4 @@
+//! Responsibility: handles the looper panel's callbacks.
 //! #323 — the looper panel's callbacks: every one dispatches a `Command` and
 //! refreshes the chain-card's looper rows in the same turn.
 //!
@@ -290,6 +291,35 @@ pub(crate) fn wire_looper_callbacks(
     transport!(on_looper_undo, LooperAction::Undo);
     transport!(on_looper_redo, LooperAction::Redo);
     transport!(on_looper_clear, LooperAction::Clear);
+
+    // #903: the panel's global transport. Same Command, chain scope — the
+    // `looper` argument is unused for these two, so any uid does.
+    macro_rules! transport_all {
+        ($setter:ident, $action:expr) => {{
+            let session = session.clone();
+            let live = live.clone();
+            let chains = chains.clone();
+            let dirty_ctx = dirty_ctx.clone();
+            window.$setter(move |index| {
+                with_chain!(session, index, |s: &ProjectSession, chain: ChainId| {
+                    dispatch_and_apply(
+                        s,
+                        &live,
+                        &chains,
+                        index,
+                        Command::Looper(LooperCommand::SetChainLooperTransport {
+                            chain,
+                            looper: 0,
+                            action: $action,
+                        }),
+                        &dirty_ctx,
+                    );
+                });
+            });
+        }};
+    }
+    transport_all!(on_looper_play_all, LooperAction::PlayAll);
+    transport_all!(on_looper_stop_all, LooperAction::StopAll);
 
     // Play/stop is one button: the PlayStop action is resolved against the
     // runtime by the wiring, so the GUI and a footswitch behave identically.

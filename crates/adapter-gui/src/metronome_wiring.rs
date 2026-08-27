@@ -1,3 +1,4 @@
+//! Responsibility: wires the metronome window.
 //! MetronomeWindow wiring (#14) — the single entry point plus the open, close
 //! and power paths for the top-bar metronome. Mirrors `tuner_wiring.rs`.
 //!
@@ -139,7 +140,7 @@ fn wire_open(window: &AppWindow, metronome_window: &MetronomeWindow, ctx: &Metro
     let metronome_window_weak = metronome_window.as_weak();
     let main_window_weak = window.as_weak();
     let ctx = ctx.clone_ctx();
-    window.on_open_metronome_window(move || {
+    crate::AnalyzerBridge::get(window).on_open_metronome_window(move || {
         let Some(main_w) = main_window_weak.upgrade() else {
             return;
         };

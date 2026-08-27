@@ -1,0 +1,35 @@
+// Responsibility: holds the analyzer state every surface renders from.
+//
+// #873. The tuner and the spectrum each render in two places — a standalone
+// window and an inline panel in fullscreen/touch — and the top bar opens
+// them. Every one of those roots re-declared the same rows, flags and
+// callbacks. #127: the analyzers are powered through `SelectionCommand`, so a
+// MIDI footswitch or an MCP client starts the very same session the POWER
+// button does; the surfaces only render what Rust publishes here.
+
+import { SpectrumRow, TunerRow } from "analyzer_rows.slint";
+
+export global AnalyzerBridge {
+    // ── Tuner ────────────────────────────────────────────────────────────
+    in-out property <bool> show-tuner;
+    in-out property <[TunerRow]> tuner-rows;
+    in-out property <bool> tuner-mute-active;
+    in-out property <bool> tuner-enabled: false;
+    callback open-tuner-window();
+    callback close-tuner();
+    callback toggle-tuner-mute(bool);
+    callback toggle-tuner-enabled(bool);
+
+    // ── Spectrum ─────────────────────────────────────────────────────────
+    in-out property <bool> show-spectrum;
+    in-out property <[SpectrumRow]> spectrum-rows;
+    in-out property <bool> spectrum-enabled: false;
+    callback open-spectrum-window();
+    callback close-spectrum();
+    callback toggle-spectrum-enabled(bool);
+
+    // ── Metronome (#14) ──────────────────────────────────────────────────
+    // Every control lives on MetronomeWindow, so the top bar only needs the
+    // door that opens it.
+    callback open-metronome-window();
+}

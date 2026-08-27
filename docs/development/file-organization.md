@@ -1,8 +1,29 @@
-# Organização de arquivos (issue #194)
+# Organização de arquivos (issues #194, #873)
 
 God-files surgem quando lógica feature-specific entra em arquivos compartilhados. Regra dura:
 
 > **Código compartilhado SÓ quando 2+ features usam aquele código.** Lógica feature-specific mora no módulo da feature.
+
+## A lei: um arquivo, uma responsabilidade
+
+**Arquivo de produção faz UMA coisa** — uma responsabilidade é um motivo pra mudar. O teste é verbal: descreva o arquivo em uma frase; precisou de "e", são dois arquivos.
+
+**Só arquivo de teste pode ser grande.** Teste não tem cap de linhas. Produção (`.rs` não-test, `.slint`) tem cap E tem a lei da responsabilidade — e a lei é a que manda: 300 linhas fazendo 4 coisas já viola, mesmo passando no cap.
+
+Responsabilidade nova nunca entra no fim de um arquivo existente — nasce no arquivo dela.
+
+### A declaração no cabeçalho
+
+Todo arquivo de produção declara sua responsabilidade na primeira dúzia de linhas:
+
+```rust
+//! Responsibility: rebuilds a chain runtime in place
+```
+```slint
+// Responsibility: renders one block tile inside a chain row
+```
+
+`validate.sh` (check 1) reprova arquivo tocado que não declara, e reprova declaração que precisa de "and"/"+"/vírgula pra ser escrita — isso é o arquivo dizendo que faz duas coisas. Arquivo legado que você não tocou só avisa: a regra entra sem rewrite do repo, e cada arquivo paga a dele quando alguém o edita.
 
 ## Onde mora cada coisa
 
@@ -36,9 +57,91 @@ God-files surgem quando lógica feature-specific entra em arquivos compartilhado
 ## Caps de tamanho (validate.sh)
 
 - `.rs` (não-test): **600 LOC**
-- `.rs` test: ilimitado, mas split se passa de 1000 LOC e cobre múltiplas responsabilidades
 - `.slint`: **500 LOC**
+- `.rs` de teste: **sem cap** — é a única exceção de tamanho do repo, e `validate.sh` nem mede
 - `lib.rs` / `mod.rs`: só re-exports, < 100 LOC
+
+### Catraca do débito (#873)
+
+`validate.sh` mantém `DEBT_FILES` com o LOC de referência de cada arquivo de produção que já nasceu acima do cap. A lista é catraca, não anistia:
+
+| Situação | Resultado do gate |
+|---|---|
+| Arquivo NOVO acima do cap | ❌ FAIL — split antes de commitar |
+| Arquivo em débito que **cresceu** acima do LOC de referência | ❌ FAIL — proibido crescer |
+| Arquivo em débito que encolheu, ainda acima do cap | ⚠️ WARN + baixe o LOC de referência no mesmo commit |
+| Arquivo em débito que caiu **abaixo** do cap | ❌ FAIL — tire a linha da lista (o débito acabou) |
+
+Nunca se acrescenta arquivo à lista. Ela só encolhe.
+
+**Hoje a lista está VAZIA** — o último débito (`jack_supervisor/live_backend.rs`, 627 LOC) foi quitado em #873, dividido nos módulos `live_shm` (limpeza de shm), `live_socket` (espera do socket), `live_stderr` (falha de driver), `live_process` (jackd não-spawnado) e `live_probe` (metadata do servidor). Lista vazia é o estado normal: se alguém precisar reabri-la, é porque um arquivo nasceu grande — e isso é o FAIL de "arquivo novo acima do cap", não uma entrada de débito.
+
+### Dividir arquivo com `cfg` (#873)
+
+Metade do `infra-cpal` só compila em Linux+JACK, e a máquina de desenvolvimento
+é macOS: `cargo build` verde ali **não diz nada** sobre o outro caminho. Duas
+regressões seguidas saíram exatamente daí ao dividir arquivos gateados.
+
+O que quebrou, nas duas vezes:
+
+1. **Imports do arquivo novo.** O item continuava atrás do `cfg` certo, mas o
+   `use` que o alcança não — ou apontava para o módulo antigo, ou pedia um
+   símbolo que naquele `cfg` não existe (`select_host_for_enumeration` só
+   existe fora do JACK; `jack_server_is_running` só dentro).
+2. **A declaração do módulo em `lib.rs`.** Inserir `mod novo;` logo depois de
+   um `#[cfg(...)]` **rouba o atributo do módulo seguinte**. O `dsp_worker`
+   ficou sem gate e foi compilar em Linux procurando `audio_workgroup`,
+   `StreamConfig` e `BufferSize`, todos ausentes lá.
+
+Antes de commitar um split que toca código gateado:
+
+- confira a declaração em `lib.rs` — cada `mod` novo carrega o MESMO `cfg` do
+  arquivo de onde saiu, e o `cfg` do vizinho continua no vizinho;
+- para cada arquivo novo, liste os identificadores livres e confirme que o
+  `use` que os traz existe no MESMO `cfg` em que são usados;
+- o re-export do caminho antigo carrega o `cfg` do item, não o do arquivo.
+
+Quem confirma é o CI (job `Test Suite` do `pr.yml`, Ubuntu). Não existe
+substituto local: `jack-sys` precisa de sysroot Linux e não cross-compila do
+macOS.
+
+### Declaração de responsabilidade (#873)
+
+Todo arquivo de produção — `.rs`, `.slint`, `build.rs`, exemplos — abre com uma
+linha declarando a ÚNICA coisa que ele faz:
+
+```rust
+//! Responsibility: rebuilds a chain runtime in place
+```
+```slint
+// Responsibility: renders one block tile inside a chain row
+```
+
+O gate (check 1 do `validate.sh`) reprova duas coisas:
+
+| Situação | Resultado |
+|---|---|
+| Arquivo de produção sem a linha | ❌ FAIL |
+| Declaração com conjunção ou lista (`and`, `+`, `,`, `/`) | ❌ FAIL — o arquivo está confessando que faz duas coisas |
+
+Arquivo de teste é isento: o nome dele já diz o que ele cobre.
+
+**O sweep terminou.** Todos os arquivos de produção do repositório declaram —
+os crates puros, os 17 `block-*`, `project`, `application`, `engine`,
+`infra-cpal`, `adapter-gui` (148 `.rs` + 109 `.slint`), os `build.rs` e os
+`examples/`. Por isso o modo sweep (`validate.sh crates`) **não avisa mais, ele
+reprova**: antes ele só avisava porque a maior parte do repo ainda não tinha
+header e um FAIL travaria qualquer commit. Esse período acabou.
+
+Escrever a frase É a análise. Quando ela não sai sem um "e", o arquivo tem dois
+donos e o destino do código novo é um arquivo novo — foi assim que
+`catalog.rs` (482 LOC, seis perguntas diferentes), `query.rs` (447, cinco),
+`dsp/legacy.rs` (426, quatro primitivas) e `runtime_audio_frame.rs` (365,
+frame + buffer elástico + processador) se dividiram.
+
+### Guard em tempo de edição
+
+O `line-cap-guard` do plugin dev-rules (PreToolUse) **nega Edit/Write que cresça** um arquivo já acima do cap; edit que encolhe passa, então o split nunca fica bloqueado por si mesmo. Os caps que ele usa vêm do `.dev-rules.json` do repo (`line_caps`) — mesma fonte de números do `validate.sh`.
 
 ## LV2 plugin — `audio_mode` vs builder (issue #130)
 

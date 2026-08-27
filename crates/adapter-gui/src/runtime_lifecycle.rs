@@ -1,3 +1,4 @@
+//! Responsibility: starts the project audio runtime.
 //! Lifecycle of the project audio runtime — the ONE module that creates,
 //! syncs and drops the `ProjectRuntimeController`, and the home of
 //! `GuiRuntimeControl`, the [`RuntimeControl`] every command handler reaches
@@ -29,6 +30,7 @@ use anyhow::Result;
 
 use application::command::{LooperAction, LooperParam};
 use application::dispatcher::CommandDispatcher;
+use application::looper_edit::LoopEdit;
 use application::runtime_control::RuntimeControl;
 use application::validate::validate_project;
 use domain::ids::{BlockId, ChainId};
@@ -195,6 +197,22 @@ impl RuntimeControl for GuiRuntimeControl {
     // share are written down: one chain each, the playback reconcile belongs
     // to the door, and only an add or a transport START may wake audio (#808).
 
+    /// #903: the loops of a just-opened project, back in the store. Creating
+    /// the controller is what gives them somewhere to live; a project opens
+    /// with every chain disabled, so no stream opens with it.
+    fn restore_saved_loops(&self) {
+        let Some(session) = self.session.session() else {
+            return;
+        };
+        if let Err(err) =
+            runtime_pipelines::ensure_runtime(&self.runtime, &self.analyzers, &session)
+        {
+            log::warn!("saved loops not restored: {err}");
+            return;
+        }
+        runtime_loopers::restore_project_loops(&self.runtime, &session);
+    }
+
     /// #808: the store slot is claimed on a LIVE runtime — the panel arms REC
     /// only against one, so a looper added with nothing running would be a
     /// looper the user cannot record into.
@@ -232,6 +250,21 @@ impl RuntimeControl for GuiRuntimeControl {
 
     fn set_looper_output(&self, chain: &Chain, looper: u64, output: Option<EndpointRef>) {
         runtime_loopers::set_output(&self.runtime, chain, looper, output);
+    }
+
+    /// #826/#808: reshaping a recorded loop never wakes audio — an edit is not
+    /// a request to hear something. With nothing running there is no store to
+    /// edit and the call no-ops.
+    fn apply_looper_edit(&self, chain: &Chain, looper: u64, edit: LoopEdit) -> Result<usize> {
+        runtime_loopers::apply_edit(&self.runtime, chain, looper, edit)
+    }
+
+    fn undo_looper_edit(&self, chain: &Chain, looper: u64) {
+        runtime_loopers::undo_edit(&self.runtime, chain, looper);
+    }
+
+    fn redo_looper_edit(&self, chain: &Chain, looper: u64) {
+        runtime_loopers::redo_edit(&self.runtime, chain, looper);
     }
 
     fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<LoopPcm>)>> {
@@ -396,9 +429,13 @@ pub(crate) fn sync_live_chain_runtime(
                     // With unchanged I/O it reuses the live stream config and
                     // rebuilds the DSP off-thread; the GUI returns immediately.
                     let chain = chain.expect("Enable implies the chain is present");
-                    if io_changed {
-                        runtime.remove_chain(&chain.id);
-                    }
+                    // #881 (owner's rule): the old streams die only AFTER the
+                    // new ones are up. `schedule_chain_activation` builds
+                    // off-thread, starts the new streams and the install swaps
+                    // them in, dropping the previous set at that moment.
+                    // Tearing them down here — as this path used to on every
+                    // re-bind — is a hole of silence on each topology edit.
+                    let _ = io_changed;
                     if !runtime.schedule_chain_activation(&proj, chain)?
                         && !runtime.request_offthread_rebuild_if_live(&proj, chain)?
                     {

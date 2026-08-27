@@ -1,3 +1,4 @@
+//! Responsibility: describes the settings one audio device is opened with.
 use domain::ids::DeviceId;
 use serde::{Deserialize, Serialize};
 

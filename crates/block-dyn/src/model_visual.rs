@@ -1,3 +1,4 @@
+//! Responsibility: names the colour override each dynamics model renders with.
 //! Per-model visual color overrides for native dynamics owned by this crate.
 //! Phase 4b of issue #194.
 

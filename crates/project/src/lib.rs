@@ -1,3 +1,4 @@
+//! Responsibility: routes the project crate's public surface.
 // Snapshot of complexity debt that existed on develop before the
 // #548 build break was fixed (issue #576). Refactor of long fns and
 // complex types is tracked under god-file ticket #276 and follow-ups.
@@ -11,12 +12,21 @@
 pub mod binding_discovery;
 pub mod block;
 pub mod catalog;
+mod catalog_availability;
+mod catalog_build;
+mod catalog_colors;
 mod catalog_label;
+mod catalog_listing;
+mod catalog_model_info;
 mod catalog_registry;
+mod catalog_types;
 pub mod chain;
+pub mod chain_modes;
 pub mod channel_mode_conv;
 pub mod device;
+pub mod endpoint_ref;
 pub mod io_binding;
+pub mod looper;
 pub mod midi;
 pub mod migrate;
 pub mod param;
@@ -25,7 +35,10 @@ pub mod project_disable_unavailable;
 pub mod rig;
 pub mod rig_command;
 pub mod rig_methods;
+pub mod rig_nav;
 pub mod rig_sync;
+pub mod rig_validate;
+pub mod rig_write_back;
 pub mod vst3_editor;
 
 #[cfg(test)]

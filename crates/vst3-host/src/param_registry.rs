@@ -1,3 +1,4 @@
+//! Responsibility: maps a block instance onto its VST3 parameter state.
 //! Global registry that maps a VST3 block-instance key → `Vst3GuiContext`.
 //!
 //! The engine registers a context (param channel + shared controller + library

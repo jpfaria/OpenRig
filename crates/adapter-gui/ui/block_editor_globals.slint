@@ -1,0 +1,59 @@
+// Responsibility: holds the block editor's state for whichever window draws it.
+//
+// #873. One block is edited at a time, but its models and callbacks were
+// declared on `AppWindow`, on `BlockEditorWindow`, on `CompactChainViewWindow`
+// and forwarded through `DesktopMain`/`TouchMain` and the chains page before
+// reaching the panel that actually renders them. The declaration now lives
+// here once; each root still gets its own instance (Rust installs per window),
+// and every panel reads it directly.
+
+import {
+    BlockKnobOverlay, BlockModelPickerItem, BlockParameterItem, BlockStreamData,
+    BlockTypePickerItem, CurveEditorPoint, MultiSliderPoint,
+} from "models.slint";
+
+export global BlockEditorBridge {
+    // ── Type / model pickers ─────────────────────────────────────────────
+    in-out property <[BlockTypePickerItem]> block-type-options;
+    in-out property <[BlockModelPickerItem]> block-model-options;
+    in-out property <[BlockModelPickerItem]> filtered-block-model-options;
+    in-out property <[string]> block-model-option-labels;
+    in-out property <string> block-picker-title;
+    in-out property <bool> show-block-type-picker;
+    in-out property <bool> show-block-model-picker;
+    callback choose-block-type(int);
+    callback choose-block-model(int);
+    callback choose-block-model-by-id(string);
+    callback search-block-model(string);
+    callback cancel-block-picker();
+
+    // ── The drawer itself ────────────────────────────────────────────────
+    in-out property <bool> show-block-drawer;
+    in-out property <string> block-drawer-title;
+    in-out property <string> block-drawer-confirm-label;
+    in-out property <string> block-drawer-status-message;
+    in-out property <bool> block-drawer-edit-mode;
+    in-out property <int> block-drawer-selected-type-index;
+    in-out property <int> block-drawer-selected-model-index;
+    in-out property <string> block-model-search-text;
+    in-out property <bool> block-drawer-enabled;
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+
+    // ── Parameters, EQ widgets and the live stream ───────────────────────
+    in-out property <[BlockParameterItem]> block-parameter-items;
+    in-out property <[MultiSliderPoint]> multi-slider-points;
+    in-out property <[CurveEditorPoint]> curve-editor-points;
+    in-out property <string> eq-total-curve;
+    in-out property <[string]> eq-band-curves;
+    in-out property <BlockStreamData> block-stream-data;
+    in-out property <[BlockKnobOverlay]> block-knob-overlays;
+    callback update-block-parameter-text(string, string);
+    callback update-block-parameter-number(string, float);
+    callback update-block-parameter-number-text(string, string);
+    callback update-block-parameter-bool(string, bool);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+}

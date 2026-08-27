@@ -1,3 +1,4 @@
+//! Responsibility: handles the project commands.
 //! Project lifecycle/settings handler.
 //!
 //! #555 round 2: `ProjectCommand::SaveProject` now owns the actual file
@@ -64,6 +65,13 @@ impl LocalDispatcher {
                 // Replace the shared project data in-place so all Rc::clone
                 // holders (adapter-gui's ProjectSession) see the updated state.
                 *self.project.borrow_mut() = project;
+                // #903: the loops the project carries are audio, not YAML —
+                // they live in the runtime's store, and a project opens with
+                // every chain disabled. Hand them back here so the panel shows
+                // the take on open, from any transport.
+                if let Some(control) = self.runtime_control() {
+                    control.restore_saved_loops();
+                }
                 Ok(vec![Event::ProjectLoaded, Event::ProjectMutated])
             }
 
@@ -211,6 +219,18 @@ impl LocalDispatcher {
             parent_dir.clone(),
         ));
 
+        // #323/#127: a recorded loop is audio — write it as a sidecar and let
+        // the chain remember the file, BEFORE the project is serialized. The
+        // GUI used to do this inline in its Save callback, so a save issued
+        // over MCP/gRPC lost every loop.
+        //
+        // #826: this runs BEFORE the rig capture, not after. What hits disk is
+        // built from the RIG, and the capture is what carries a chain's
+        // loopers into it — exporting afterwards stamped `audio_file` onto a
+        // project the serializer never reads, so the wav was written and the
+        // saved project pointed at nothing.
+        self.export_project_loops(project_path);
+
         // #555: flush any pending GUI-side rig edits back into the rig
         // before serializing. The GUI used to do this implicitly inside
         // `build_rig_for_save`; now the dispatcher owns it so every
@@ -219,12 +239,6 @@ impl LocalDispatcher {
         // case is "saved without the very latest edit", same as the
         // pre-#555 GUI behaviour on dispatch failure.
         let _ = self.dispatch(Command::Project(ProjectCommand::CaptureRigEdits));
-
-        // #323/#127: a recorded loop is audio — write it as a sidecar and let
-        // the chain remember the file, BEFORE the project is serialized. The
-        // GUI used to do this inline in its Save callback, so a save issued
-        // over MCP/gRPC lost every loop.
-        self.export_project_loops(project_path);
 
         // Build the rig that will hit disk.
         let project_snapshot = self.project.borrow().clone();

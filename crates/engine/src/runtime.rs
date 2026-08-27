@@ -1,3 +1,4 @@
+//! Responsibility: feeds the input callback into the chain runtimes it belongs to.
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
@@ -374,6 +375,10 @@ mod rt_frame_buffer;
 mod rt_graph;
 
 #[cfg(test)]
+#[path = "issue_881_insert_audio_tests.rs"]
+mod issue_881_insert_audio;
+
+#[cfg(test)]
 #[path = "runtime_integration_tests.rs"]
 mod rt_integration;
 
@@ -476,3 +481,7 @@ mod di_loop_injection;
 #[cfg(test)]
 #[path = "looper_runtime_tests.rs"]
 mod looper_runtime;
+
+#[cfg(test)]
+#[path = "issue_903_looper_playback_insert_tests.rs"]
+mod issue_903_looper_playback_insert;

@@ -1,3 +1,4 @@
+//! Responsibility: migrates a legacy chain-based project into a rig.
 //! Legacy chain-based [`Project`] → [`RigProject`] migration (#450).
 //!
 //! Pure and deterministic ⇒ idempotent. Processing blocks are preserved

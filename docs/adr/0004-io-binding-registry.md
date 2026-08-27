@@ -90,13 +90,18 @@ ch1 → A B C D E → ch3         (head-input × tail-output)
 ch1 → A B C     → ch4         (head-input × middle-output)
 ```
 
-### Inserts stay raw (scope decision)
+### Inserts stay raw (scope decision) — superseded by #881
 
-Insert blocks keep their raw send/return endpoints and are **not** migrated to
-the registry. An insert is a single-runtime send/return pipeline, not a
-binding-paired stream; forcing it through the registry would add complexity
-without benefit and risks a regression in the insert path. This is a deliberate
-scope decision for issue #716.
+*Original decision (#716):* insert blocks keep their raw send/return endpoints
+and are **not** migrated to the registry, because an insert is a single-runtime
+send/return pipeline rather than a binding-paired stream.
+
+*What shipped instead:* an `InsertBlock` is `{ model, io }` — it references ONE
+binding, whose OUTPUT carries the send and whose INPUT carries the return. The
+raw endpoints were dropped from the model at the same time, but the editor was
+left on the old device pickers, so no insert could be bound at all and any chain
+carrying one went silent (#881). The editor now picks that binding, and an
+insert that does not resolve is bypassed instead of splitting the chain.
 
 ### Commands (system scope)
 
@@ -138,8 +143,9 @@ machine. A legacy file remains loadable without silently wiring it to devices.
   a legacy chain loads but plays no audio until reconfigured against the registry.
 - **Future settings have a written home.** Per ADR 0003, any new per-machine
   device reference belongs in `config.yaml` alongside the registry.
-- **Inserts are a known gap.** If a future issue adds insert-to-registry
-  migration, it is additive and does not conflict with this ADR.
+- **Inserts went through the registry too (#881).** An insert references one
+  binding (send = its output, return = its input), so it is portable like every
+  other chain reference.
 
 ## Relations
 

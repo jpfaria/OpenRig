@@ -156,13 +156,20 @@ fn looper_playback_blocks_resolve_the_linked_preset_stripped_of_io() {
     // stream routes from the chain's bindings, not from blocks.
     let r = rig(
         vec![("input-1", input("io1", &[(1, "clean"), (2, "lead")], 1))],
-        vec![("clean", vec![fx("clean-fx")]), ("lead", vec![fx("lead-fx")])],
+        vec![
+            ("clean", vec![fx("clean-fx")]),
+            ("lead", vec![fx("lead-fx")]),
+        ],
     );
 
-    let blocks = super::looper_playback_blocks(&r, "input-1", "lead")
-        .expect("the linked preset resolves");
+    let blocks =
+        super::looper_playback_blocks(&r, "input-1", "lead").expect("the linked preset resolves");
     let ids: Vec<_> = blocks.iter().map(|b| b.id.0.clone()).collect();
-    assert_eq!(ids, vec!["lead-fx"], "plays LEAD, not the active CLEAN preset");
+    assert_eq!(
+        ids,
+        vec!["lead-fx"],
+        "plays LEAD, not the active CLEAN preset"
+    );
 
     // A deleted / unknown preset falls back (None ⇒ chain's current blocks).
     assert!(super::looper_playback_blocks(&r, "input-1", "gone").is_none());

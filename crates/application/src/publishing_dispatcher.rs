@@ -1,3 +1,4 @@
+//! Responsibility: publishes the events an inner dispatcher produced.
 //! `CommandDispatcher` decorator: dispatches via an inner `LocalDispatcher`,
 //! then fans every resulting event batch out to an [`EventSink`]. This is the
 //! single point where every frontend's command path becomes observable by

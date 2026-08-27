@@ -436,3 +436,158 @@ fn build_runtime_graph_mixed_enabled_and_disabled() {
     assert_eq!(runtime.chains.len(), 1);
     assert!(!runtime.runtimes_for(&ChainId("enabled".into())).is_empty());
 }
+
+#[test]
+fn split_chain_with_unbound_insert_produces_one_segment() {
+    // #881: an insert whose binding does not resolve contributes no send and no
+    // return, so it cannot split the chain — it has to be bypassed, not turn
+    // into a segment boundary pointing at endpoints that were never created.
+    let mut chain = insert_chain();
+    if let AudioBlockKind::Insert(ref mut ib) = chain.blocks[2].kind {
+        ib.io = String::new();
+    } else {
+        panic!("block 2 should be the insert");
+    }
+    let (resolved_in, resolved_out) =
+        crate::runtime_endpoints::resolve_chain_io(&chain, &insert_registry());
+    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
+        effective_inputs(&chain, &resolved_in, &insert_registry());
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &insert_registry());
+    let segments = split_chain_into_segments(
+        &chain,
+        &eff_inputs,
+        &cpal_indices,
+        &split_positions,
+        &entry_groups,
+        &eff_outputs,
+        &insert_registry(),
+    );
+
+    assert_eq!(
+        segments.len(),
+        1,
+        "an unbound insert must not split the chain"
+    );
+    assert_eq!(
+        segments[0].block_indices,
+        vec![1, 3],
+        "the chain must flow straight through the unbound insert"
+    );
+    assert!(
+        segments[0]
+            .output_route_indices
+            .iter()
+            .all(|&i| i < eff_outputs.len()),
+        "every output route must exist: {:?} against {} outputs",
+        segments[0].output_route_indices,
+        eff_outputs.len()
+    );
+}
+
+#[test]
+fn split_mono_input_does_not_steal_the_insert_return() {
+    // #881: `effective_inputs` expands a mono multi-channel endpoint into one
+    // entry per channel and appends the insert return AFTER them, but the
+    // segment walker counted Input BLOCKS — so the post-insert segment read
+    // from the second split-mono sibling (the guitar) instead of the return.
+    let chain = insert_chain();
+    let mut registry = insert_registry();
+    registry[0].inputs[0].mode = domain::io_binding::ChannelMode::Mono;
+    registry[0].inputs[0].channels = vec![0, 1];
+
+    let (resolved_in, resolved_out) = crate::runtime_endpoints::resolve_chain_io(&chain, &registry);
+    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
+        effective_inputs(&chain, &resolved_in, &registry);
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &registry);
+    let segments = split_chain_into_segments(
+        &chain,
+        &eff_inputs,
+        &cpal_indices,
+        &split_positions,
+        &entry_groups,
+        &eff_outputs,
+        &registry,
+    );
+
+    let last = segments.last().expect("a post-insert segment exists");
+    assert_eq!(
+        last.input.device_id.0, "return_dev",
+        "the post-insert segment must read the insert RETURN, got {:?}",
+        last.input
+    );
+}
+
+/// #881 — the reported rig: the SYNERGY loop lives on the SAME interface as the
+/// guitar (HD 8 — send on OUT 5, return on IN 4). infra-cpal opens ONE input
+/// stream per DEVICE and feeds every runtime bound to it (#703), so the return
+/// has to ride the guitar's stream and pick its own channel. It was instead
+/// given a cpal index of its own (`raw_entries.len() + i`), which no stream ever
+/// carries — the post-insert segment was never fed and the rig went silent.
+#[test]
+fn a_return_on_the_input_device_rides_that_devices_stream() {
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+
+    const HD8: &str = "coreaudio:hd8";
+    let registry = vec![
+        IoBinding {
+            id: IO_BINDING_ID.into(),
+            name: "HD 8 - 1".into(),
+            inputs: vec![IoEndpoint {
+                name: "in0".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Mono,
+                channels: vec![0],
+            }],
+            outputs: vec![IoEndpoint {
+                name: "out0".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "SYNERGY".into(),
+            // IN 4 / OUT 5 of the same interface, one-based on the panel.
+            inputs: vec![IoEndpoint {
+                name: "ret".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Mono,
+                channels: vec![3],
+            }],
+            outputs: vec![IoEndpoint {
+                name: "snd".into(),
+                device_id: DeviceId(HD8.into()),
+                mode: ChannelMode::Mono,
+                channels: vec![4],
+            }],
+        },
+    ];
+
+    let chain = insert_chain();
+    let (resolved_in, resolved_out) = crate::runtime_endpoints::resolve_chain_io(&chain, &registry);
+    let (eff_inputs, cpal_indices, split_positions, entry_groups) =
+        effective_inputs(&chain, &resolved_in, &registry);
+    let eff_outputs = effective_outputs(&chain, &resolved_out, &registry);
+    let segments = split_chain_into_segments(
+        &chain,
+        &eff_inputs,
+        &cpal_indices,
+        &split_positions,
+        &entry_groups,
+        &eff_outputs,
+        &registry,
+    );
+
+    assert_eq!(segments.len(), 2, "the bound insert splits the chain");
+    assert_eq!(
+        segments[1].input.channels,
+        vec![3],
+        "the post-insert segment must read the RETURN channel"
+    );
+    assert_eq!(
+        segments[1].cpal_input_index, segments[0].cpal_input_index,
+        "send and return share the interface, so the return rides the same cpal \
+         input stream — a private index is a stream that is never opened"
+    );
+}

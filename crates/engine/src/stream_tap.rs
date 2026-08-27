@@ -1,3 +1,4 @@
+//! Responsibility: taps the samples of one stream.
 //! Lock-free per-stream sample taps.
 //!
 //! A "stream" is one [`InputProcessingState`] (one input feeding one

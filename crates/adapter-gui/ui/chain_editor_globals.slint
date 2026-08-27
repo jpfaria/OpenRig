@@ -1,0 +1,39 @@
+// Responsibility: holds the chain editor's draft for whichever window edits it.
+//
+// #873. One chain is edited at a time — its name, its I/O selection and its
+// instrument binding. That draft was declared on `AppWindow` and on
+// `ChainEditorWindow` and forwarded through `DesktopMain`/`TouchMain` before
+// reaching the page. It lives here now; each root keeps its own instance and
+// Rust installs on whichever one is open.
+
+import { ChainBindingChoice, ChannelOptionItem } from "models.slint";
+
+export global ChainEditorBridge {
+    in-out property <string> chain-editor-title;
+    in-out property <string> chain-editor-save-label;
+    in-out property <string> chain-draft-name;
+    in-out property <string> chain-input-summary;
+    in-out property <string> chain-output-summary;
+    in-out property <[string]> chain-input-device-options;
+    in-out property <[string]> chain-output-device-options;
+    in-out property <int> selected-chain-input-device-index;
+    in-out property <int> selected-chain-output-device-index;
+    in-out property <[ChannelOptionItem]> chain-input-channels;
+    in-out property <[ChannelOptionItem]> chain-output-channels;
+    // #716: the I/O bindings this chain can pick from, and which one it uses.
+    in-out property <[ChainBindingChoice]> chain-editor-bindings;
+    in-out property <bool> chain-editor-is-create-mode: true;
+    in-out property <int> chain-editor-selected-instrument-index: 0;
+
+    callback update-chain-name(string);
+    callback open-chain-input-editor();
+    callback open-chain-output-editor();
+    callback select-chain-input-device(int);
+    callback select-chain-output-device(int);
+    callback toggle-chain-input-channel(int, bool);
+    callback toggle-chain-output-channel(int, bool);
+    callback toggle-binding(int, bool);
+    callback select-chain-instrument(int);
+    callback save-chain();
+    callback cancel-chain();
+}

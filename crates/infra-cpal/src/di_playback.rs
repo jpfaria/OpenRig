@@ -1,3 +1,4 @@
+//! Responsibility: plays the rendered DI clocked by the output callback.
 //! #771: RT-safe, output-clocked playback of the DI worker's stream.
 //!
 //! One [`DiPlaybackCell`] exists per chain output stream. Arming parks a
@@ -26,6 +27,9 @@ pub(crate) struct DiPlayback {
     /// Interleaved stereo samples (L,R per frame). Single producer (the DI
     /// worker), single consumer (the output callback).
     ring: Arc<SpscRing<f32>>,
+    /// #903: playback level, `f32` bits — the callback reads it per frame and
+    /// the control thread writes it when the owner moves the knob.
+    gain_bits: AtomicU32,
     /// Device-frame channel offsets the L/R land on.
     dest_left: usize,
     dest_right: usize,
@@ -70,6 +74,7 @@ impl DiPlayback {
             loop_len,
             start_pos,
             consumed: AtomicU64::new(0),
+            gain_bits: AtomicU32::new(1.0f32.to_bits()),
             in_peak_bits: AtomicU32::new(0),
             out_peak_bits: AtomicU32::new(0),
         }
@@ -85,6 +90,20 @@ impl DiPlayback {
     /// The worker's handle to the ring (producer side).
     pub(crate) fn ring(&self) -> Arc<SpscRing<f32>> {
         Arc::clone(&self.ring)
+    }
+
+    /// #903: the loop's level, applied as the callback pops frames. A level is
+    /// not content — moving it must reach the ear at once, without rebuilding
+    /// the render and restarting the take.
+    pub(crate) fn set_gain(&self, gain: f32) {
+        let gain = gain.clamp(0.0, 1.0);
+        if (self.gain() - gain).abs() > f32::EPSILON {
+            self.gain_bits.store(gain.to_bits(), Ordering::Relaxed);
+        }
+    }
+
+    pub(crate) fn gain(&self) -> f32 {
+        f32::from_bits(self.gain_bits.load(Ordering::Relaxed))
     }
 
     /// Worker-side: publish the raw loop's peak for the DI IN meter.
@@ -134,6 +153,8 @@ pub(crate) fn mix_di_playback(
         let (Some(l), Some(r)) = (playback.ring.pop(), playback.ring.pop()) else {
             break;
         };
+        let gain = f32::from_bits(playback.gain_bits.load(Ordering::Relaxed));
+        let (l, r) = (l * gain, r * gain);
         out_peak = out_peak.max(l.abs()).max(r.abs());
         popped += 1;
         if let Some(s) = frame.get_mut(playback.dest_left) {

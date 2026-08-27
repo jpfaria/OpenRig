@@ -1,3 +1,4 @@
+//! Responsibility: wires the project settings actions.
 //! Wiring for project-settings management callbacks (open / name edit / close).
 //!
 //! Owns the 5 callbacks driving project settings on the main window and the
@@ -14,7 +15,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use slint::{ComponentHandle, SharedString, Timer, VecModel};
+use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
 
@@ -149,12 +150,14 @@ pub(crate) fn wire(
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "(unsaved)".into())
                 .into();
-            settings_window.set_project_path_display(path_display);
+            crate::SettingsBridge::get(&settings_window).set_project_path_display(path_display);
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             if fullscreen {
                 // In fullscreen mode, render inline — set project-devices on main window
-                window.set_project_devices(settings_window.get_project_devices());
+                crate::SettingsBridge::get(&window).set_project_devices(
+                    crate::SettingsBridge::get(&settings_window).get_project_devices(),
+                );
                 window.set_show_settings(true);
             } else {
                 // The settings window is a startup-created singleton reshown on

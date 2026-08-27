@@ -1,3 +1,4 @@
+//! Responsibility: wires the block model search.
 //! Wiring for the block-model search/choose-by-id callbacks on the main
 //! (inline-editor) window.
 //!
@@ -9,7 +10,7 @@
 
 use std::rc::Rc;
 
-use slint::{ComponentHandle, VecModel};
+use slint::{ComponentHandle, Global, VecModel};
 
 use crate::{AppWindow, BlockModelPickerItem};
 
@@ -21,7 +22,7 @@ pub(crate) fn wire(
     {
         let block_model_options = block_model_options.clone();
         let filtered_block_model_options = filtered_block_model_options.clone();
-        window.on_search_block_model(move |text| {
+        crate::BlockEditorBridge::get(window).on_search_block_model(move |text| {
             crate::model_search_wiring::refilter_block_model_options(
                 &block_model_options,
                 &filtered_block_model_options,
@@ -32,7 +33,7 @@ pub(crate) fn wire(
     {
         let block_model_options = block_model_options.clone();
         let weak_window = window.as_weak();
-        window.on_choose_block_model_by_id(move |model_id| {
+        crate::BlockEditorBridge::get(window).on_choose_block_model_by_id(move |model_id| {
             let Some(idx) = crate::model_search_wiring::resolve_model_id_in_block_options(
                 &block_model_options,
                 model_id.as_str(),
@@ -49,8 +50,8 @@ pub(crate) fn wire(
                 idx
             );
             if let Some(win) = weak_window.upgrade() {
-                win.set_block_drawer_selected_model_index(idx);
-                win.invoke_choose_block_model(idx);
+                crate::BlockEditorBridge::get(&win).set_block_drawer_selected_model_index(idx);
+                crate::BlockEditorBridge::get(&win).invoke_choose_block_model(idx);
             }
         });
     }

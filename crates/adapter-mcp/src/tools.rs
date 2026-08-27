@@ -1,3 +1,4 @@
+//! Responsibility: exposes one MCP tool per command variant.
 //! One MCP tool per `Command` variant. Schema from `application::command_schema`
 //! (single source of truth). A tool call rebuilds the externally-tagged
 //! `Command` JSON (`{ "<Variant>": <args> }`), deserializes, and submits to

@@ -1,3 +1,4 @@
+// Responsibility: hosts the looper panel for a test.
 // #323 TEST-ONLY harness: hosts LooperPanelView in a real Window so the
 // headless interaction tests (i-slint-backend-testing) can dispatch real
 // pointer events at the transport buttons — all INLINE (the reason the panel
@@ -20,6 +21,8 @@ export component LooperHarness inherits Window {
     callback add();
     callback record(int);
     callback play-stop(int);
+    callback play-all();
+    callback stop-all();
     callback undo(int);
     callback redo(int);
     callback clear(int);
@@ -32,6 +35,7 @@ export component LooperHarness inherits Window {
     callback input-picked(int, int);
     callback output-picked(int, int);
     callback preset-open(int, int);
+    callback edit(int);
 
     LooperPanelView {
         x: 20px;
@@ -45,6 +49,8 @@ export component LooperHarness inherits Window {
         add => { root.add(); }
         record(uid) => { root.record(uid); }
         play-stop(uid) => { root.play-stop(uid); }
+        play-all => { root.play-all(); }
+        stop-all => { root.stop-all(); }
         undo(uid) => { root.undo(uid); }
         redo(uid) => { root.redo(uid); }
         clear(uid) => { root.clear(uid); }
@@ -57,5 +63,6 @@ export component LooperHarness inherits Window {
         input-picked(uid, v) => { root.input-picked(uid, v); }
         output-picked(uid, v) => { root.output-picked(uid, v); }
         preset-open(uid, sel) => { root.preset-open(uid, sel); }
+        edit(uid) => { root.edit(uid); }
     }
 }

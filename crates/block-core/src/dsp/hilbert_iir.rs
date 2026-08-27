@@ -1,3 +1,4 @@
+//! Responsibility: produces the analytic signal of an input.
 //! IIR Hilbert pair — analytic-signal generator using two cascades of
 //! 2nd-order all-pass filters arranged in polyphase.
 //!

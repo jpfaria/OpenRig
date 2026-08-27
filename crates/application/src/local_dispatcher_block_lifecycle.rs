@@ -1,3 +1,4 @@
+//! Responsibility: handles the block lifecycle commands.
 //! Block-lifecycle handler (file-per-feature; #436 dispatcher split).
 //! Behaviour byte-identical to the original inline arm — pure move.
 
@@ -15,7 +16,11 @@ impl LocalDispatcher {
     pub(crate) fn handle_block_lifecycle(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             Command::Block(BlockCommand::ToggleBlockEnabled { chain, block }) => {
+                let mut is_routing = false;
                 let new_state = self.with_block(&chain, &block, |b| {
+                    // #881: remember WHAT was toggled — a routing block reaches
+                    // the runtime by rebuild, not by the in-place fade below.
+                    is_routing = b.kind.is_routing();
                     // #606: never enable a block whose model is unavailable —
                     // the user cannot activate a pedal whose pack is not
                     // installed (or is unsupported on this platform). Disabling
@@ -50,6 +55,13 @@ impl LocalDispatcher {
                     enabled: new_state,
                 }];
                 match self.runtime_control() {
+                    // #85/#881: a port and an insert are not processors —
+                    // `runtime_block_builders` skips them and `runtime_segments`
+                    // splits the chain on the enabled ones. The in-place toggle
+                    // finds no node, posts "block '…' not found in any input
+                    // runtime of the chain" from the audio thread and changes
+                    // nothing audible; only a rebuild re-splits the chain.
+                    Some(control) if is_routing => control.sync_chain(&chain)?,
                     Some(control) => control.set_block_enabled(&chain, &block, new_state)?,
                     // Nothing to apply it to (yet). Say the sync is owed rather
                     // than report a silent success: this used to cold-start an

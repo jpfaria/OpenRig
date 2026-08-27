@@ -7,5 +7,9 @@
     "**/*_test*.rs",
     "**/tests/**",
     "**/*test*.rs"
-  ]
+  ],
+  "line_caps": {
+    ".rs": 600,
+    ".slint": 500
+  }
 }

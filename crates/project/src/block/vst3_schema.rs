@@ -1,3 +1,4 @@
+//! Responsibility: turns a VST3 plugin's parameters into a parameter schema.
 //! #780: synthesise an OpenRig parameter schema for a VST3 block from the
 //! plugin's own parameters (read off its `IEditController`, cached).
 //!

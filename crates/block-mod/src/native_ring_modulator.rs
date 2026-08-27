@@ -1,3 +1,4 @@
+//! Responsibility: implements the ring modulator modulation model.
 //! Ring modulator — DSB-SC: `output = input × carrier`.
 //!
 //! Reference: Bode, H. (1967). "A new tool for the exploration of audio
@@ -134,7 +135,11 @@ impl MonoProcessor for RingModulator {
 
 pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
     let p = params_from_set(params)?;
-    Ok(Box::new(RingModulator::new(p.carrier_hz, p.mix, sample_rate)))
+    Ok(Box::new(RingModulator::new(
+        p.carrier_hz,
+        p.mix,
+        sample_rate,
+    )))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -165,10 +170,12 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoRingMod {
-                left: build_processor(params, sample_rate)?,
-                right: build_processor(params, sample_rate)?,
-            })))
+            Ok(block_core::BlockProcessor::Stereo(Box::new(
+                StereoRingMod {
+                    left: build_processor(params, sample_rate)?,
+                    right: build_processor(params, sample_rate)?,
+                },
+            )))
         }
     }
 }
