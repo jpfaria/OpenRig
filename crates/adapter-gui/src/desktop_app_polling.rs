@@ -104,51 +104,24 @@ pub(crate) fn start(
                 // freezes the device. The device list now refreshes only when the
                 // user enters a UI surface that needs it (chain I/O editor, Settings,
                 // configure-project) — see the refresh_input_devices call sites.
-                let Some(health) = live.audio_health() else {
-                    return;
-                };
-                if !health.running {
-                    return;
-                }
-                let mut is_disconnected = disconnected.borrow_mut();
-
-                if health.healthy {
-                    if *is_disconnected {
-                        // Was disconnected, now healthy again — nothing to do,
-                        // reconnection already happened
-                        *is_disconnected = false;
-                    }
-                    return;
-                }
-
-                // Backend is unhealthy
-                if !*is_disconnected {
-                    *is_disconnected = true;
+                let report = crate::audio_health_tick::health_tick(
+                    live.as_ref(),
+                    control.as_ref(),
+                    &disconnected,
+                );
+                if report.announce_disconnect {
                     set_status_warning(
                         &win,
                         &toast_timer_health,
                         &rust_i18n::t!("status-audio-disconnected"),
                     );
-                    log::warn!("health check: audio backend unhealthy, will attempt reconnection");
                 }
-
-                // Try to reconnect
-                match control.reconnect_audio() {
-                    Ok(true) => {
-                        *is_disconnected = false;
-                        set_status_info(
-                            &win,
-                            &toast_timer_health,
-                            &rust_i18n::t!("status-audio-reconnected"),
-                        );
-                        log::info!("health check: successfully reconnected");
-                    }
-                    Ok(false) => {
-                        log::debug!("health check: backend not ready yet, will retry");
-                    }
-                    Err(e) => {
-                        log::warn!("health check: reconnection attempt failed: {}", e);
-                    }
+                if report.announce_reconnect {
+                    set_status_info(
+                        &win,
+                        &toast_timer_health,
+                        &rust_i18n::t!("status-audio-reconnected"),
+                    );
                 }
             },
         );

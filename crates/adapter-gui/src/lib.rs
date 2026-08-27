@@ -9,6 +9,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+mod audio_health_tick;
 mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
 mod bank_scene_render;
