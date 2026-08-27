@@ -21,6 +21,10 @@ pub mod native_runtimes;
 pub mod package;
 pub mod package_builders;
 pub mod registry;
+mod registry_edit;
+mod registry_load;
+mod registry_natives;
+mod registry_query;
 pub mod validate;
 
 pub use config::{plugins_root_from_config, PluginPathsConfig, PluginPathsSection};
