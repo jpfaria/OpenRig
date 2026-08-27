@@ -14,7 +14,7 @@ use application::live_source::LiveSource;
 use crate::state::ProjectSession;
 use crate::AppWindow;
 use crate::ProjectChainItem;
-use slint::{Model, Timer, TimerMode, VecModel, Weak};
+use slint::{Timer, TimerMode, VecModel, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -48,41 +48,17 @@ pub fn install_handler(
         let Some(session) = session_borrow.as_ref() else {
             return;
         };
-        let Some(chain_id) = session
-            .project
-            .borrow()
-            .chains
-            .get(index as usize)
-            .map(|c| c.id.clone())
-        else {
-            return;
-        };
         // #829: rate/buffer resolution and the probe itself live in
         // `application::query_latency`, shared with `openrig://chains/{id}/latency`
         // — the badge and every transport measure the same way (#723).
-        // #127: the rate comes from the seam FIRST — `engine_sr` mirrors a
-        // running stream and resets to the reference rate when the rig stops,
-        // so asking it first measured a stopped rig on a 44.1 kHz interface at
-        // 48 kHz. Same order as `openrig://chains/{id}/latency`.
-        let sample_rate = live
-            .chain_sample_rate(&chain_id)
-            .unwrap_or_else(|| session.dispatcher.engine_sr() as f32);
-        let report = application::query_latency::measure_chain_latency(
-            &session.project.borrow(),
-            &session.io_bindings.borrow(),
-            &chain_id,
-            sample_rate,
+        crate::latency_probe_run::probe_chain_latency(
+            session,
+            live.as_ref(),
+            &project_chains,
+            &probe_windows,
+            index as usize,
+            Instant::now(),
         );
-        let Ok(report) = report else {
-            return;
-        };
-        let ms = report.dsp_latency_ms;
-        let expiry = Instant::now() + Duration::from_secs(10);
-        probe_windows.borrow_mut().insert(index as usize, expiry);
-        if let Some(mut item) = project_chains.row_data(index as usize) {
-            item.latency_ms = ms;
-            project_chains.set_row_data(index as usize, item);
-        }
     });
 }
 
@@ -100,31 +76,11 @@ pub fn install_expiry_timer(
         if weak_window.upgrade().is_none() {
             return;
         }
-        let now = Instant::now();
-        let mut expired: Vec<usize> = Vec::new();
-        {
-            let windows = probe_windows.borrow();
-            for (i, expiry) in windows.iter() {
-                if now >= *expiry {
-                    expired.push(*i);
-                }
-            }
-        }
-        if expired.is_empty() {
-            return;
-        }
-        for i in &expired {
-            if let Some(mut item) = project_chains.row_data(*i) {
-                if item.latency_ms != 0.0 {
-                    item.latency_ms = 0.0;
-                    project_chains.set_row_data(*i, item);
-                }
-            }
-        }
-        let mut w = probe_windows.borrow_mut();
-        for i in expired {
-            w.remove(&i);
-        }
+        crate::latency_badge_expiry::clear_expired_badges(
+            &project_chains,
+            &probe_windows,
+            Instant::now(),
+        );
     });
     timer
 }

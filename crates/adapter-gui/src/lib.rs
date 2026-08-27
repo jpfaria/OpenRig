@@ -185,7 +185,9 @@ mod issue_819_retire_persistent_window_tests;
 #[cfg(test)]
 #[path = "issue_85_stream_rows_tests.rs"]
 mod issue_85_stream_rows_tests;
+mod latency_badge_expiry;
 mod latency_probe;
+mod latency_probe_run;
 mod live_source_block_stream;
 mod live_source_chain_rate;
 mod live_source_chain_row;
@@ -259,6 +261,7 @@ mod block_picker_items;
 mod block_window;
 mod chain_block_item;
 mod chain_draft;
+mod chain_draft_name;
 mod chain_endpoint_labels;
 mod chain_io_labels;
 mod insertion_slots;
