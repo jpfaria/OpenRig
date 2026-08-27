@@ -11,9 +11,19 @@ fn build_cost_of_the_isolated_runtime() {
     engine::native_registry::register_all_natives();
     plugin_loader::registry::init_many(&[std::path::PathBuf::from(root)]);
 
-    let text = std::fs::read_to_string(&path).expect("read chain");
-    let chain: project::chain::Chain =
-        infra_yaml::preset_chain_from_str(&text).expect("parse preset");
+    let preset =
+        infra_yaml::load_chain_preset_file(std::path::Path::new(&path)).expect("read the preset");
+    let chain = project::chain::Chain {
+        id: domain::ids::ChainId("arm-cost-probe".into()),
+        description: None,
+        instrument: preset.instrument,
+        enabled: true,
+        volume: preset.volume,
+        io_binding_ids: vec![],
+        blocks: preset.blocks,
+        di_output: None,
+        loopers: vec![],
+    };
     let pcm = engine::DiPcm::new(vec![0.3; 44_100 * 2], 44_100, 2);
 
     for round in 0..3 {
