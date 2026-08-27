@@ -1,0 +1,47 @@
+# Coverage config (#913).
+#
+# `ignore:` is a DEBT LIST, not a permanent carve-out. Each entry is a file no
+# test can reach today, for a stated reason. Entries LEAVE the list when the
+# logic moves somewhere a test can call it; nothing is added without writing
+# the reason down in docs/testing.md.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+ignore:
+  # ── Stream construction: needs a real audio device ────────────────────────
+  # Building a cpal stream requires a `cpal::Device`, which cannot be faked —
+  # `ResolvedInputDevice`/`ResolvedOutputDevice` carry the device itself. These
+  # two are exercised by the real-hardware battery (OPENRIG_HW_TESTS=1), which
+  # does not run in CI and produces no coverage.
+  - "crates/infra-cpal/src/stream_builder_input.rs"
+  - "crates/infra-cpal/src/stream_builder_output.rs"
+
+  # ── Window wiring: registers callbacks on an AppWindow ────────────────────
+  # The repo's law keeps `AppWindow` out of tests, so a file whose whole body
+  # is `window.on_x(...)` registration is unreachable by construction. The way
+  # off this list is the `looper_commands` pattern: the closure body becomes a
+  # pure function the wiring only calls, and THAT function gets the test.
+  - "crates/adapter-gui/src/desktop_app.rs"
+  - "crates/adapter-gui/src/desktop_app_language.rs"
+  - "crates/adapter-gui/src/desktop_app_mcp.rs"
+  - "crates/adapter-gui/src/desktop_app_project_wiring.rs"
+  - "crates/adapter-gui/src/desktop_app_settings_wiring.rs"
+  - "crates/adapter-gui/src/desktop_app_windows.rs"
+  - "crates/adapter-gui/src/block_parameter_extras.rs"
+  - "crates/adapter-gui/src/block_parameter_wiring.rs"
+  - "crates/adapter-gui/src/settings/paths_apply.rs"
+  - "crates/adapter-gui/src/settings/paths_seed.rs"
+  - "crates/adapter-gui/src/device_refresh_list.rs"
+
+  # ── Test code itself ──────────────────────────────────────────────────────
+  - "crates/**/*_tests.rs"
+  - "crates/**/tests.rs"
+  - "crates/*/tests/**"

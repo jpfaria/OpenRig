@@ -46,6 +46,25 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
 - **Ferramenta**: `cargo-llvm-cov` (instalar com `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`)
 - **Script local**: `scripts/coverage.sh` — gera relatório HTML em `coverage/`
 - **CI**: `.github/workflows/test.yml` — informativo, sem gate
+- **Patch coverage antes do push**: `./scripts/patch-coverage.sh [base]` — reproduz
+  localmente o número que `codecov/patch` reporta no PR (`cargo llvm-cov --lcov`
+  cruzado com `git diff --unified=0 <base>...HEAD`). Reaproveite um relatório com
+  `LCOV=path/to/lcov.info ./scripts/patch-coverage.sh` — o rebuild instrumentado é caro.
+
+### What is deliberately outside the coverage target (#913)
+
+Two layers cannot be reached by a test as they stand. They are listed in
+`codecov.yml` under `ignore:` so they stop dragging every release PR's patch
+score down for a reason nobody can act on. **That list is a debt list: it only
+shrinks.** Adding to it means writing the reason here first.
+
+| Layer | Why no test reaches it | The way off the list |
+|---|---|---|
+| `stream_builder_input.rs`, `stream_builder_output.rs` | Building a cpal stream needs a real `cpal::Device`; `ResolvedInputDevice`/`ResolvedOutputDevice` carry the device itself, so there is nothing to fake. | They ARE exercised — by the real-hardware battery below (`OPENRIG_HW_TESTS=1`), which does not run in CI and emits no coverage. A fake-host seam would move them back in scope. |
+| `desktop_app*.rs`, `block_parameter_*.rs`, `settings/paths_{apply,seed}.rs`, `device_refresh_list.rs` | Their body is callback registration on an `AppWindow`, and the repo's law keeps `AppWindow` out of tests. | The `looper_commands` pattern: the closure body becomes a pure function the wiring only calls, and that function gets the test. Then delete the entry. |
+
+Everything else stays in the target. A new file that "cannot be tested" is a
+design answer, not a coverage exemption — split the logic out of the wiring.
 
 ## Convenções
 
