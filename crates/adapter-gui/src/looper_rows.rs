@@ -138,3 +138,7 @@ pub fn write_chain_looper_row(
     row.loopers = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(rows)));
     project_chains.set_row_data(index, row);
 }
+
+#[cfg(test)]
+#[path = "looper_rows_tests.rs"]
+mod tests;
