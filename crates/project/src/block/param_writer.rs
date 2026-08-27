@@ -1,3 +1,4 @@
+//! Responsibility: writes one parameter value into a block.
 //! Domain-level parameter writers for `AudioBlock`.
 //!
 //! Provides typed write operations used by `LocalDispatcher` to fulfil

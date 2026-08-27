@@ -1,3 +1,4 @@
+//! Responsibility: handles the user tapping a chain.
 //! `on_select_chain` — dispatch entry for tapping a chain (not a block) on
 //! the Chains screen (issue #591).
 //!

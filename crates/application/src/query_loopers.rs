@@ -1,3 +1,4 @@
+//! Responsibility: reports what the loopers of a chain hold.
 //! #323 — the looper read model: what every transport (GUI, MCP, gRPC) sees.
 //!
 //! Merges the PERSISTED parameters (`project::chain::LooperConfig`) with the

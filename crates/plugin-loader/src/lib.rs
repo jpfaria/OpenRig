@@ -1,3 +1,4 @@
+//! Responsibility: routes the plugin loader's public surface.
 //! Runtime loader for OpenRig plugin packages.
 //!
 //! Reads `.openrig-plugin` packages (NAM / IR / LV2) from a directory and
@@ -6,6 +7,7 @@
 //!
 //! Issue: #287
 
+mod capture_resolve;
 pub mod config;
 pub mod discover;
 pub mod dispatch;
@@ -13,11 +15,16 @@ pub mod dispatch_infer;
 mod dispatch_lv2_parse;
 pub mod grid_axes;
 pub mod install;
+mod lv2_ports;
 pub mod manifest;
 pub mod native_runtimes;
 pub mod package;
 pub mod package_builders;
 pub mod registry;
+mod registry_edit;
+mod registry_load;
+mod registry_natives;
+mod registry_query;
 pub mod validate;
 
 pub use config::{plugins_root_from_config, PluginPathsConfig, PluginPathsSection};

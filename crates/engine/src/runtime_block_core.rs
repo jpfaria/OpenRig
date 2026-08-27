@@ -1,3 +1,4 @@
+//! Responsibility: builds the runtime node a core block turns into.
 //! Per-effect-type dispatch for `CoreBlock` runtime node construction.
 //!
 //! Lifted out of `runtime_block_builders.rs` (slice 8 of the Phase 2 split)

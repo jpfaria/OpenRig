@@ -1,3 +1,4 @@
+//! Responsibility: bridges the metronome control side to the audio thread.
 //! Issue #14 — lock-free bridge between the control side (GUI, dispatcher,
 //! MIDI) and the metronome's audio callback.
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: handles the offline render command.
 //! Handler for [`crate::command::Command::RenderChain`] (issue #576).
 //!
 //! Render is a Command so every transport adapter (MCP today, gRPC and any

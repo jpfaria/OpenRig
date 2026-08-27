@@ -1,3 +1,4 @@
+//! Responsibility: resolves which sample rate the app runs at.
 //! Single source of truth for resolving the sample rate a live-analysis
 //! consumer (tuner, spectrum, latency probe) must use for an input.
 //!

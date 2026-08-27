@@ -1,3 +1,4 @@
+//! Responsibility: handles the rig commands.
 //! #436 architectural fix: the rig-nav handler. This is exactly what
 //! the GUI's `chain_rig_nav_wiring::reproject` closure used to do by
 //! hand (capture pending edits → apply the preset/scene change →

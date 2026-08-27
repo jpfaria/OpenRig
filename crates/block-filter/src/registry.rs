@@ -1,3 +1,4 @@
+//! Responsibility: registers the filter models this crate exposes.
 use anyhow::{anyhow, Result};
 use block_core::param::ModelParameterSchema;
 use block_core::param::ParameterSet;

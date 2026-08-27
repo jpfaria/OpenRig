@@ -1,3 +1,4 @@
+//! Responsibility: taps a chain mid-way to a second output.
 //! Mid-chain output taps (issue #85).
 //!
 //! An `Output` block placed BETWEEN effect blocks emits the signal as

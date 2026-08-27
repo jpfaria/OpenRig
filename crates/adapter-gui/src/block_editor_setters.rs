@@ -1,3 +1,4 @@
+//! Responsibility: writes one parameter row back.
 //! Mutators for individual `BlockParameterItem` rows by parameter path.
 //!
 //! Each setter walks the `VecModel<BlockParameterItem>` until it finds the

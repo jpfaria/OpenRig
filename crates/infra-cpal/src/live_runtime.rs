@@ -1,3 +1,4 @@
+//! Responsibility: swaps a chain's live runtime without waiting.
 //! Issue #672 — wait-free swappable holder of a chain's live runtime.
 //!
 //! The audio callback calls [`LiveRuntimeSlot::load`] once per buffer to obtain

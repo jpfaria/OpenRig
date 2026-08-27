@@ -1,3 +1,4 @@
+//! Responsibility: converts between a preset name its filename.
 //! Filename ↔ preset-name helpers (#555 round 2 of #436).
 //!
 //! These used to live in `adapter-gui::chain_preset_wiring` next to the

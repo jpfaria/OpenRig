@@ -1,3 +1,4 @@
+//! Responsibility: computes the geometry of a compact chain row.
 //! #787 — geometry of a compact chain row: how its parameter strip wraps into
 //! lines, how tall the row is, and where it sits in the flickable.
 //!

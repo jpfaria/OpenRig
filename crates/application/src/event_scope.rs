@@ -1,3 +1,4 @@
+//! Responsibility: says which chain an event affected.
 //! `Event::chain()` — which chain an event affected (#792 file split).
 //!
 //! Lives beside the enum rather than inside `event.rs`: the enum itself is the

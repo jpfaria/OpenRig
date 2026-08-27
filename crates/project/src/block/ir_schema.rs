@@ -1,3 +1,4 @@
+//! Responsibility: turns an impulse response manifest into a parameter schema.
 //! IR (`backend: ir`) manifest → parameter schema.
 
 use super::grid_schema::grid_parameter_to_spec;

@@ -1,3 +1,4 @@
+//! Responsibility: dispatches a metronome command then mirrors the result.
 //! #14 — the metronome's dispatch door, and the mirror it draws afterwards.
 //!
 //! A control never writes state, `config.yaml` or the audio runtime: it

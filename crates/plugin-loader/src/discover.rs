@@ -1,3 +1,4 @@
+//! Responsibility: loads every package found under a bundle directory.
 //! Walks a bundle directory and loads every package found.
 //!
 //! Given a root like `plugins/bundle/`, this module produces one entry per

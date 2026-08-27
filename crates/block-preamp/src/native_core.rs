@@ -1,3 +1,4 @@
+//! Responsibility: implements the core preamp model.
 use anyhow::Result;
 use block_core::param::{
     bool_parameter, float_parameter, required_bool, required_f32, ModelParameterSchema,

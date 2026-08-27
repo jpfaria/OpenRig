@@ -1,5 +1,4 @@
-//! Responsibility: wires the launcher's project-file dialog callbacks to the window.
-//!
+//! Responsibility: wires the launcher's project file dialogs.
 //! Wiring for the launcher's project-file callbacks on the main window.
 //!
 //! Owns the 5 callbacks that drive the project-file dialog flow:

@@ -1,3 +1,4 @@
+//! Responsibility: resamples a route whose device runs at another rate.
 //! Per-route sample-rate conversion for an output whose device does NOT run at
 //! the chain's rate (issue #85).
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: stops the project audio runtime.
 //! The two ways a rig STOPS — the same seam as `runtime_lifecycle`, split off
 //! by concern (and because that file had reached its line cap).
 //!

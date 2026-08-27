@@ -1,5 +1,4 @@
-//! Responsibility: handles the commands scoped to the project session.
-//!
+//! Responsibility: handles the project commands.
 //! Project lifecycle/settings handler.
 //!
 //! #555 round 2: `ProjectCommand::SaveProject` now owns the actual file

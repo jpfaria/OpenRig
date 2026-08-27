@@ -1,3 +1,4 @@
+//! Responsibility: runs the lifecycle of a detached block editor window.
 //! Lifecycle callbacks on a per-block detached `BlockEditorWindow`.
 //!
 //! Seven handlers covering the window's full lifecycle outside per-parameter

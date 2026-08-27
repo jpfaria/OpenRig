@@ -1,3 +1,4 @@
+//! Responsibility: implements the cathedral reverb model.
 //! Cathedral reverb — very long decay (6-10s), high modal density, bright
 //! tail with controllable HF damping. Implemented as a 16-channel FDN
 //! after Jot 1991 with long delay lengths and a long pre-delay so the

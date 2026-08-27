@@ -1,3 +1,4 @@
+//! Responsibility: wires the block delete confirmation.
 //! Wiring for the block-delete confirm/cancel callbacks.
 //!
 //! Confirm: removes the block at the selected chain/block index, resyncs

@@ -1,10 +1,13 @@
-use anyhow::{Error, Result};
+//! Responsibility: implements the guitar hpf lpf filter model.
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
+use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, BiquadFilter, BiquadKind, ModelAudioMode, MonoProcessor};
+use block_core::{
+    AudioChannelLayout, BiquadFilter, BiquadKind, BlockProcessor, ModelAudioMode, MonoProcessor,
+};
 
 pub const MODEL_ID: &str = "native_guitar_hpf_lpf";
 pub const DISPLAY_NAME: &str = "Guitar HPF/LPF";
@@ -62,10 +65,34 @@ impl GuitarHpfLpf {
         let hpf_freq = 20.0 + (low_cut / 100.0) * 80.0;
         let lpf_freq = 20000.0 - (high_cut / 100.0) * 13000.0;
         Self {
-            hpf1: BiquadFilter::new(BiquadKind::HighPass, hpf_freq, 0.0, BUTTERWORTH_Q1, sample_rate),
-            hpf2: BiquadFilter::new(BiquadKind::HighPass, hpf_freq, 0.0, BUTTERWORTH_Q2, sample_rate),
-            lpf1: BiquadFilter::new(BiquadKind::LowPass,  lpf_freq, 0.0, BUTTERWORTH_Q1, sample_rate),
-            lpf2: BiquadFilter::new(BiquadKind::LowPass,  lpf_freq, 0.0, BUTTERWORTH_Q2, sample_rate),
+            hpf1: BiquadFilter::new(
+                BiquadKind::HighPass,
+                hpf_freq,
+                0.0,
+                BUTTERWORTH_Q1,
+                sample_rate,
+            ),
+            hpf2: BiquadFilter::new(
+                BiquadKind::HighPass,
+                hpf_freq,
+                0.0,
+                BUTTERWORTH_Q2,
+                sample_rate,
+            ),
+            lpf1: BiquadFilter::new(
+                BiquadKind::LowPass,
+                lpf_freq,
+                0.0,
+                BUTTERWORTH_Q1,
+                sample_rate,
+            ),
+            lpf2: BiquadFilter::new(
+                BiquadKind::LowPass,
+                lpf_freq,
+                0.0,
+                BUTTERWORTH_Q2,
+                sample_rate,
+            ),
         }
     }
 }
@@ -95,9 +122,7 @@ fn build(
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     match layout {
-        AudioChannelLayout::Mono => {
-            Ok(BlockProcessor::Mono(build_processor(params, sample_rate)?))
-        }
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(build_processor(params, sample_rate)?)),
         AudioChannelLayout::Stereo => anyhow::bail!(
             "filter model '{}' is mono-only and cannot build native stereo processing",
             MODEL_ID

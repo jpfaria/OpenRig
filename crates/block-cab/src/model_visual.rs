@@ -1,3 +1,4 @@
+//! Responsibility: names the colour override each cab model renders with.
 //! Per-model visual color overrides for native cabs owned by this crate.
 //! Phase 4b of issue #194 — see `block-amp::model_visual` for rationale.
 

@@ -1,3 +1,4 @@
+//! Responsibility: persists the per-machine `config.yaml`.
 //! Read/modify/write of the per-machine `config.yaml` (`AppConfig`).
 //!
 //! Split out of `lib.rs` (size cap) in #731. The `*_at` variants take an

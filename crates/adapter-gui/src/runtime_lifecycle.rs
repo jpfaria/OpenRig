@@ -1,5 +1,4 @@
-//! Responsibility: owns the lifecycle of this frontend's project audio runtime.
-//!
+//! Responsibility: starts the project audio runtime.
 //! Lifecycle of the project audio runtime — the ONE module that creates,
 //! syncs and drops the `ProjectRuntimeController`, and the home of
 //! `GuiRuntimeControl`, the [`RuntimeControl`] every command handler reaches

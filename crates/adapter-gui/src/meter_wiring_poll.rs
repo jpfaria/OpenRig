@@ -1,3 +1,4 @@
+//! Responsibility: runs the meter polling timer.
 //! Meter-polling timer lifecycle (issue #792 split from meter_wiring.rs).
 //!
 //! `start_meter_polling` sets up the ~15 Hz Slint timer and, per tick, refreshes

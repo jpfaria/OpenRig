@@ -1,3 +1,4 @@
+//! Responsibility: names the plugin catalog commands.
 //! Plugin catalog commands (#561): re-scan the plugin roots, or load/unload a
 //! single disk plugin by manifest id without a session break.
 

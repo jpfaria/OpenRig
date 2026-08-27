@@ -1,3 +1,4 @@
+//! Responsibility: describes the data a chain block holds.
 //! Data struct definitions for chain blocks. Pure type defs + serde
 //! plumbing; no business logic, no per-effect-type dispatch.
 //!

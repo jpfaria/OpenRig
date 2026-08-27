@@ -1,3 +1,4 @@
+//! Responsibility: resolves which ports a chain gets from the bindings it selected.
 //! #716 discovery: resolve a chain's audio I/O PORTS from the I/O bindings it
 //! selects (`chain.io_binding_ids`) plus its mid Input/Output blocks — never
 //! from per-block device endpoints.
@@ -173,7 +174,11 @@ pub fn chain_endpoint_labels(chain: &Chain, registry: &[IoBinding]) -> (Vec<Stri
             .count()
             > 1;
         if same_name {
-            format!("{} · {}", binding_name(&port.binding_id), port.endpoint.name)
+            format!(
+                "{} · {}",
+                binding_name(&port.binding_id),
+                port.endpoint.name
+            )
         } else {
             port.endpoint.name.clone()
         }

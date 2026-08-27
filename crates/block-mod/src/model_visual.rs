@@ -1,3 +1,4 @@
+//! Responsibility: names the colour override each modulation model renders with.
 //! Per-model visual color overrides for native modulation owned by this crate.
 //! Phase 4b of issue #194.
 

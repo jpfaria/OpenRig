@@ -1,3 +1,4 @@
+//! Responsibility: builds the parameter spec a given widget needs.
 //! Per-widget `ParameterSpec` constructor functions. Each builder produces
 //! a `ParameterSpec` pre-configured for one widget kind (knob / toggle /
 //! file picker / select / text input / multi-slider / curve editor) so

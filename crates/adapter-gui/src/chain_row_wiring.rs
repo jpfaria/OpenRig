@@ -1,3 +1,4 @@
+//! Responsibility: wires the actions of a chain row.
 //! Wiring for the per-chain row actions on the main window.
 //!
 //! Owns `on_remove_chain` (confirms with the user, dispatches

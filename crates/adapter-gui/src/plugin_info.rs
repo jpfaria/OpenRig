@@ -1,3 +1,4 @@
+//! Responsibility: builds what the plugin info panel shows.
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};

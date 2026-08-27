@@ -1,5 +1,4 @@
-//! Responsibility: exposes the chain-runtime surface the audio callback calls.
-
+//! Responsibility: feeds the input callback into the chain runtimes it belongs to.
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 

@@ -1,5 +1,4 @@
-//! Responsibility: declares the door a handler applies a state change to the live runtime through.
-//!
+//! Responsibility: declares the write side of a live rig.
 //! #127: the write-side counterpart to [`crate::live_source::LiveSource`].
 //!
 //! `LiveSource` lets the core READ what only a frontend's audio runtime

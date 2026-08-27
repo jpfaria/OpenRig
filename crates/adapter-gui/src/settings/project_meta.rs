@@ -1,3 +1,4 @@
+//! Responsibility: wires the project metadata section.
 //! Project / Metadata section wiring (#513). Name auto-saves on edit
 //! (dispatches `UpdateProjectName`); the path is a read-only display
 //! sourced from the active `ProjectSession`.

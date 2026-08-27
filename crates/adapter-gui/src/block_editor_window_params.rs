@@ -1,3 +1,4 @@
+//! Responsibility: wires the parameter updates of a detached block editor.
 //! Parameter-update callbacks on a per-block detached `BlockEditorWindow`.
 //!
 //! Seven near-identical handlers driving live parameter changes, plus the

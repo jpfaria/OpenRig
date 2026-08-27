@@ -1,3 +1,4 @@
+//! Responsibility: initialises the process-wide logger.
 //! Process-wide logger initialization (issue #693).
 //!
 //! The GUI thread logs dozens of lines per user action, and `env_logger`

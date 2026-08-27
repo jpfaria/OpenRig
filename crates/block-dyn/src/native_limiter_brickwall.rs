@@ -1,3 +1,4 @@
+//! Responsibility: implements the limiter brickwall dynamics model.
 //! Brick wall limiter — native Rust implementation.
 //!
 //! Architecture is split across submodules so each piece stays small and

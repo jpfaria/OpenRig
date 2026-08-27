@@ -1,3 +1,4 @@
+//! Responsibility: wires the chain block CRUD actions of the main window.
 //! Wiring for chain-block CRUD callbacks on the main window.
 //!
 //! Three callbacks driving the per-block actions inside an open chain:

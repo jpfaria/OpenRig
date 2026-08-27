@@ -1,3 +1,4 @@
+//! Responsibility: exposes the device-level configuration to the application.
 //! Device-level config helpers exposed to the application layer.
 //!
 //! - `start_jack_in_background` (Linux+JACK) — spawn one jackd per
@@ -21,7 +22,7 @@ use project::device::DeviceSettings;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use cpal::traits::DeviceTrait;
 
-use crate::device_enum::invalidate_device_cache;
+use crate::device_cache::invalidate_device_cache;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::host::get_host;
 #[cfg(all(target_os = "linux", feature = "jack"))]

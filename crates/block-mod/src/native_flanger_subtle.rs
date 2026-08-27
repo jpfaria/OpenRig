@@ -1,3 +1,4 @@
+//! Responsibility: implements the flanger subtle modulation model.
 //! "Subtle" flanger variant — chorus-like, longer base delay, modest
 //! feedback. Sits behind a clean tone without dominating. Same engine
 //! as `native_flanger.rs`; only the hidden tuning differs.

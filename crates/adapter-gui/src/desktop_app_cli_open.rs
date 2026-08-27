@@ -1,3 +1,4 @@
+//! Responsibility: opens the project named on the command line.
 //! Auto-opens a project file passed on the command line.
 //!
 //! When `cli_project_path` is `Some`, loads the YAML, registers it in the

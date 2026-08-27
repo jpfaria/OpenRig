@@ -1,5 +1,4 @@
-//! Responsibility: builds one loop's isolated playback runtime routed to its chosen output.
-//!
+//! Responsibility: builds the isolated runtime a DI loop renders through.
 //! #771: build the DI's isolated runtime, routed to the CHOSEN output.
 //!
 //! The DI plays on a fresh, independent copy of the chain's block graph

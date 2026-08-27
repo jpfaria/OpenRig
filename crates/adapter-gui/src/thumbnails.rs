@@ -1,3 +1,4 @@
+//! Responsibility: resolves where a block thumbnail lives.
 use std::path::PathBuf;
 use std::sync::OnceLock;
 

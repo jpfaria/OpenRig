@@ -1,0 +1,192 @@
+//! Responsibility: serves the readings the open window already has.
+//!
+//! Split out of `gui_live_source.rs` (#873), which was serving seven
+//! different readings from one file.
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use application::live_source::{ChainMeterReading, LiveSource, MetronomeReading};
+use application::query_analyzers::{SpectrumReading, TunerReading};
+use application::query_di::DiLoopReading;
+use domain::ids::ChainId;
+use domain::io_binding::IoBinding;
+use engine::LooperStatus;
+use infra_cpal::ProjectRuntimeController;
+use project::project::Project;
+use slint::{Model, VecModel};
+
+use crate::live_source_chain_rate::resolve_chain_rate;
+use crate::spectrum_session::SpectrumSession;
+use crate::tuner_session::TunerSession;
+use crate::ProjectChainItem;
+
+/// Live GUI handles, borrowed for the length of one read. Nothing is
+/// cached, so a reply always reflects the frame the user is looking at.
+pub(crate) struct GuiLiveSource<'a> {
+    /// The project the rows are aligned with — the rows carry display
+    /// values only, so the chain identity of row `i` is chain `i`.
+    pub(crate) project: &'a Project,
+    /// Chain rows the GUI meters write into (`meter_in_dbfs` / `meter_out_dbfs`).
+    pub(crate) chain_rows: &'a Rc<VecModel<ProjectChainItem>>,
+    /// #716: the per-machine binding registry a chain's device endpoints —
+    /// and therefore its real sample rate — resolve against when no runtime
+    /// is up to report one.
+    pub(crate) io_bindings: &'a [IoBinding],
+    pub(crate) tuner: &'a Rc<RefCell<Option<TunerSession>>>,
+    pub(crate) spectrum: &'a Rc<RefCell<Option<SpectrumSession>>>,
+    /// Live runtime — DI playback state, DI peaks and looper transport
+    /// state come from it, per chain.
+    pub(crate) runtime: &'a Rc<RefCell<Option<ProjectRuntimeController>>>,
+}
+
+impl LiveSource for GuiLiveSource<'_> {
+    /// The numbers the IN/OUT bars are drawing, read from the rows they are
+    /// bound to. Deliberately NOT a second poll of the audio taps: a second
+    /// read would let the screen and the transport disagree, and would put
+    /// extra work on the audio path.
+    fn chain_meters(&self) -> Option<Vec<ChainMeterReading>> {
+        Some(
+            self.project
+                .chains
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, chain)| {
+                    self.chain_rows.row_data(idx).map(|row| ChainMeterReading {
+                        chain: chain.id.clone(),
+                        in_dbfs: row.meter_in_dbfs,
+                        out_dbfs: row.meter_out_dbfs,
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    /// #829: the same rows the Tuner window renders. No session (window
+    /// closed / tuner powered off) ⇒ not hosted.
+    fn tuner(&self) -> Option<Vec<TunerReading>> {
+        self.tuner.borrow().as_ref().map(TunerSession::readings)
+    }
+
+    fn spectrum(&self) -> Option<Vec<SpectrumReading>> {
+        self.spectrum
+            .borrow()
+            .as_ref()
+            .map(SpectrumSession::readings)
+    }
+
+    /// Per-chain DI loop state from the live controller — the same
+    /// `di_stream_active` / `di_playback_peaks` the chain tile shows.
+    ///
+    /// `source` is filled by the resolver from the dispatcher (the only
+    /// owner of that state) and whatever is set here is discarded, so it
+    /// cannot drift between transports.
+    fn di_loop(&self) -> Option<Vec<DiLoopReading>> {
+        let runtime = self.runtime.borrow();
+        let controller = runtime.as_ref()?;
+        Some(
+            self.project
+                .chains
+                .iter()
+                .filter_map(|chain| di_reading(controller, &chain.id))
+                .collect(),
+        )
+    }
+
+    /// The per-chain half of [`Self::di_loop`], through the same helper.
+    fn chain_di_loop(&self, chain: &ChainId) -> Option<DiLoopReading> {
+        let runtime = self.runtime.borrow();
+        di_reading(runtime.as_ref()?, chain)
+    }
+
+    /// #127: the rate THIS chain runs at, or would be opened at with the rig
+    /// stopped — the one the latency probe measures against.
+    ///
+    /// Same resolution as [`Self::chain_loopers`], and for the same reason: the
+    /// GUI owns the binding registry and the audio host, so a stopped rig still
+    /// has a real, measurable rate for the chain's own device. `None` when it
+    /// cannot be resolved — the caller falls back to the dispatcher's tracked
+    /// rate rather than being handed a guess (#723).
+    fn chain_sample_rate(&self, chain: &ChainId) -> Option<f32> {
+        resolve_chain_rate(self.runtime, self.project, self.io_bindings, chain)
+    }
+
+    /// #323: the chain's live looper transport state, at THIS chain's real
+    /// rate — never a constant (issue #723).
+    ///
+    /// Running: the statuses and the rate the streams are actually running
+    /// at, both from the controller. Stopped: there is no transport state,
+    /// but the rate is still a real, measurable property of the chain's own
+    /// device — the GUI owns the binding registry and the audio host, so it
+    /// resolves that rate the same way `build_streams` does, keyed by this
+    /// chain's id (a sibling chain never leaks into the answer). A rate that
+    /// cannot be resolved is a real failure and propagates as one; never
+    /// falls through to a tracked/default engine rate.
+    fn chain_loopers(&self, chain: &ChainId) -> Option<Result<(Vec<LooperStatus>, u32), String>> {
+        let runtime = self.runtime.borrow();
+        if let Some(controller) = runtime.as_ref() {
+            return Some(Ok((
+                controller.chain_looper_statuses(chain),
+                controller.sample_rate(),
+            )));
+        }
+        let rate = infra_cpal::resolve_project_chain_sample_rates(self.project, self.io_bindings)
+            .ok()
+            .and_then(|rates| rates.get(chain).copied())
+            .ok_or_else(|| format!("no resolved sample rate for chain {}", chain.0));
+        Some(rate.map(|rate| (Vec::new(), rate.round() as u32)))
+    }
+
+    /// The GUI owns an audio host, so it always answers — an enumeration
+    /// that FAILED is a real failure (a dead host, a JACK server that is
+    /// down) and propagates as one, not as an empty listing.
+    fn devices(&self) -> Option<Result<Vec<String>, String>> {
+        Some(infra_cpal::list_devices().map_err(|e| e.to_string()))
+    }
+
+    fn metronome(&self) -> Option<MetronomeReading> {
+        metronome_reading(self.runtime)
+    }
+}
+
+/// One chain's DI loop state: is its dedicated stream playing (#614/#717 —
+/// the DI has its own stream, so "playing" is `di_stream_active`, not an
+/// injection into the guitar runtime), and that playback's OWN peaks (#771 —
+/// never the chain's).
+///
+/// The single source for both the chain row and the `openrig://` reading, so
+/// the tile and a remote client cannot disagree.
+pub(crate) fn di_reading(
+    controller: &ProjectRuntimeController,
+    chain: &ChainId,
+) -> Option<DiLoopReading> {
+    let playing = controller.di_stream_active(chain);
+    let meter = crate::di_meter::di_meter_from_peaks(controller.di_playback_peaks(chain), playing);
+    Some(DiLoopReading {
+        chain: chain.0.clone(),
+        playing,
+        in_dbfs: meter.in_dbfs,
+        out_dbfs: meter.out_dbfs,
+        source: None,
+    })
+}
+
+/// Where the click is in the bar, from the generator's own lock-free cell.
+///
+/// `None` ⇒ no runtime is hosted (the rig is stopped), never a fabricated
+/// beat. `running` is the flag the audio callback itself reads, so a control
+/// mirror that disagrees is the one that is wrong.
+pub(crate) fn metronome_reading(
+    runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> Option<MetronomeReading> {
+    let borrow = runtime.borrow();
+    let shared = borrow.as_ref()?.metronome_shared();
+    let position = shared.position();
+    Some(MetronomeReading {
+        running: shared.enabled(),
+        bar: position.bar,
+        beat: position.beat,
+        tick: position.tick,
+        counting_in: position.counting_in,
+    })
+}

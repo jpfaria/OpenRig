@@ -1,3 +1,4 @@
+//! Responsibility: wires the block drawer actions that open a confirmation.
 //! Wiring for the block drawer save + delete (open-confirm-dialog) callbacks.
 //!
 //! Save: persists the active block_editor_draft, clears all editor state, hides

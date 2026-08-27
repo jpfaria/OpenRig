@@ -1,3 +1,4 @@
+//! Responsibility: wires the tuner window.
 //! TunerWindow wiring — all callbacks for the top-bar Tuner feature.
 //! Extracted out of `adapter-gui/src/lib.rs` (god file, issue #276) so a
 //! feature lives in its own file.

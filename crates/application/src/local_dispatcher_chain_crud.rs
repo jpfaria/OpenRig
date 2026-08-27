@@ -1,3 +1,4 @@
+//! Responsibility: handles the chain crud commands.
 //! Chain CRUD handler (file-per-feature; #436 dispatcher split).
 //! Behaviour byte-identical to the original inline arm — pure move.
 

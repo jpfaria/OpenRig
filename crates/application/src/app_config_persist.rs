@@ -1,3 +1,4 @@
+//! Responsibility: writes the config file from the persist worker.
 //! Dispatch-time-bound `config.yaml` writes on the persist worker (#731).
 //!
 //! Persisting `AppConfig` runs off the dispatching thread on the single

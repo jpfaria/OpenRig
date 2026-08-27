@@ -1,3 +1,4 @@
+//! Responsibility: processes one audio slot on the audio thread.
 //! Issue #672 — the audio-thread processing seam.
 //!
 //! The CPAL input/output callbacks call these helpers, which read the chain's

@@ -1,3 +1,4 @@
+//! Responsibility: holds the static table of block types.
 //! The static block-type registry table (issue #792 split from `catalog.rs`).
 //!
 //! One `BlockRegistryEntry` per native block-* crate, wiring each effect type

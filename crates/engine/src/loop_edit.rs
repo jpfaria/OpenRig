@@ -1,3 +1,4 @@
+//! Responsibility: reshapes a recorded loop.
 //! #826 — reshaping a recorded loop: trim / crop / cut, on the control thread.
 //!
 //! Pure transforms over an interleaved-stereo buffer: frame indices in, a new

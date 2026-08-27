@@ -1,3 +1,4 @@
+//! Responsibility: wires every callback the chain editor registers.
 //! Orchestrator that wires every callback registered on the per-instance
 //! `ChainEditorWindow`.
 //!

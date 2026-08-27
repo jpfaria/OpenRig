@@ -1,3 +1,4 @@
+//! Responsibility: describes an edit applied to a recorded loop.
 //! #826 — the command-facing shape of a loop edit.
 //!
 //! The audio itself lives in `engine::loop_edit` (pure, serde-free, reachable

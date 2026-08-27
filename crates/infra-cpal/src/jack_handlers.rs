@@ -1,3 +1,4 @@
+//! Responsibility: serves the JACK process callback.
 //! Audio-thread JACK handlers + lock-free producer/consumer ring used
 //! between the JACK RT callback and the DSP worker.
 //!

@@ -1,3 +1,4 @@
+//! Responsibility: keeps the editing screen’s block bookkeeping straight.
 //! Chain-block bookkeeping for the editing screens: block identity when a
 //! chain is cloned, and the UI-position → real-position mapping.
 //!

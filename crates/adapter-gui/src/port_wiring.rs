@@ -1,3 +1,4 @@
+//! Responsibility: wires the mid-chain port editor.
 //! #85 — the mid-chain I/O port editor (`ChainPortWindow`).
 //!
 //! A port block (`Input`/`Output` placed between effects) has no model and no

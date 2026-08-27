@@ -1,3 +1,4 @@
+//! Responsibility: handles the waveform editor's callbacks.
 //! #826 — the waveform editor's callbacks: open it for a loop, and dispatch
 //! the trim / crop / cut it asks for.
 //!

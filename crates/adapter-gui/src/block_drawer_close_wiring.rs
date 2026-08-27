@@ -1,3 +1,4 @@
+//! Responsibility: wires the block drawer close action.
 //! Wiring for the block drawer close callback.
 //!
 //! Stops the persist timer + inline stream timer, clears all selected-block

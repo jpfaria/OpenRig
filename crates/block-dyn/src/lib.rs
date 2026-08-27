@@ -1,10 +1,9 @@
+//! Responsibility: routes the dynamics crate's public surface.
 //! Dynamics implementations.
 pub mod model_visual;
 mod registry;
 
-use anyhow::Result;
-use block_core::param::{ModelParameterSchema, ParameterSet};
-use block_core::{AudioChannelLayout, BlockProcessor, ModelVisualData};
+use block_core::ModelVisualData;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
@@ -62,78 +61,19 @@ pub fn gate_supported_models() -> &'static [&'static str] {
     registry::GATE_SUPPORTED_MODELS
 }
 
-pub fn dynamics_model_schema(model: &str) -> Result<ModelParameterSchema> {
-    (registry::find_model_definition(model)?.schema)()
-}
+mod compressor_family;
+mod dynamics_family;
+mod gate_family;
 
-pub fn build_dynamics_processor(
-    model: &str,
-    params: &ParameterSet,
-    sample_rate: f32,
-) -> Result<BlockProcessor> {
-    build_dynamics_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
-}
-
-pub fn build_dynamics_processor_for_layout(
-    model: &str,
-    params: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
-    if let Ok(definition) = registry::find_model_definition(model) {
-        return (definition.build)(params, sample_rate, layout);
-    }
-    if let Some(package) = plugin_loader::registry::find(model) {
-        return package.build_processor(params, sample_rate, layout);
-    }
-    anyhow::bail!("unsupported dyn model '{}'", model)
-}
-
-pub fn compressor_model_schema(model: &str) -> Result<ModelParameterSchema> {
-    (registry::find_compressor_model_definition(model)?.schema)()
-}
-
-pub fn build_compressor_processor(
-    model: &str,
-    params: &ParameterSet,
-    sample_rate: f32,
-) -> Result<BlockProcessor> {
-    build_compressor_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
-}
-
-pub fn build_compressor_processor_for_layout(
-    model: &str,
-    params: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
-    (registry::find_compressor_model_definition(model)?.build)(params, sample_rate, layout)
-}
-
-pub fn gate_model_schema(model: &str) -> Result<ModelParameterSchema> {
-    (registry::find_gate_model_definition(model)?.schema)()
-}
-
-pub fn build_gate_processor(
-    model: &str,
-    params: &ParameterSet,
-    sample_rate: f32,
-) -> Result<BlockProcessor> {
-    build_gate_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
-}
-
-pub fn build_gate_processor_for_layout(
-    model: &str,
-    params: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
-    (registry::find_gate_model_definition(model)?.build)(params, sample_rate, layout)
-}
-
-#[cfg(test)]
-#[path = "lib_tests.rs"]
-mod tests;
+pub use crate::compressor_family::{
+    build_compressor_processor, build_compressor_processor_for_layout, compressor_model_schema,
+};
+pub use crate::dynamics_family::{
+    build_dynamics_processor, build_dynamics_processor_for_layout, dynamics_model_schema,
+};
+pub use crate::gate_family::{
+    build_gate_processor, build_gate_processor_for_layout, gate_model_schema,
+};
 
 /// Push every native model into the unified plugin-loader registry.
 /// Called by `adapter-gui` at startup before plugin discovery freezes
@@ -145,3 +85,7 @@ pub fn register_natives() {
 pub fn is_dyn_model_available(model: &str) -> bool {
     registry::is_model_available(model)
 }
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod tests;

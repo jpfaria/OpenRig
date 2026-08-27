@@ -1,3 +1,4 @@
+//! Responsibility: wires the in-window preset save flow.
 //! In-window preset save flow (issue #510). Replaces the desktop's
 //! native `FileDialog` with two overlays:
 //!

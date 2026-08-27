@@ -1,3 +1,4 @@
+//! Responsibility: declares the contract every command dispatcher implements.
 //! `CommandDispatcher` trait — the single abstraction over the command bus.
 //!
 //! **Spec reference:** `docs/superpowers/specs/2026-04-23-command-dispatch-architecture-design.md`

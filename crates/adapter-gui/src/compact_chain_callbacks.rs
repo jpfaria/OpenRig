@@ -1,3 +1,4 @@
+//! Responsibility: opens the compact chain view.
 //! `on_open_compact_chain_view` — entry point for the compact chain view.
 //!
 //! Creates a per-chain `CompactChainViewWindow` on demand, populates its

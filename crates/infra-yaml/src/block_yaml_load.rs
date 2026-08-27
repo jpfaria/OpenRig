@@ -1,3 +1,4 @@
+//! Responsibility: reads one audio block out of its YAML value.
 //! Loading/parsing helpers for audio blocks from YAML (issue #792 split).
 //! Kept out of block_yaml.rs (which holds the AudioBlockYaml types + impl).
 

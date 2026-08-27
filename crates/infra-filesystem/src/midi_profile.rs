@@ -1,3 +1,4 @@
+//! Responsibility: says which MIDI controller this machine listens to.
 //! System-level MIDI device profile (ADR 0003 / #499).
 //!
 //! The profile says **which** controller to listen to — substring match on
