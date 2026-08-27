@@ -4,15 +4,14 @@ use crate::state::ProjectSession;
 use application::command::{Command, PluginCommand, SettingsCommand};
 use application::dispatcher::CommandDispatcher;
 use application::event::Event;
-use infra_filesystem::AppConfig;
+use infra_filesystem::{AppConfig, FilesystemStorage};
 use rfd::FileDialog;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
 use super::paths_overrides::{
-    apply_evaluations_override, apply_evaluations_override_at, apply_plugins_override,
-    apply_plugins_override_at, apply_presets_override, apply_presets_override_at,
+    apply_evaluations_override_at, apply_plugins_override_at, apply_presets_override_at,
 };
 
 /// Open a native folder picker and return the chosen directory (or
@@ -31,16 +30,15 @@ pub(crate) fn apply_presets_path(
     app_config: &Rc<RefCell<AppConfig>>,
     path: Option<PathBuf>,
 ) {
-    if let Err(e) = apply_presets_override(&mut app_config.borrow_mut(), path.clone()) {
-        log::warn!("[paths] failed to persist presets-path into config.yaml: {e}");
-        return;
+    match FilesystemStorage::app_config_path() {
+        Ok(config_path) => apply_presets_path_at(&config_path, project_session, app_config, path),
+        Err(e) => log::warn!("[paths] cannot locate config.yaml: {e}"),
     }
-    dispatch_presets_path(project_session, path);
 }
 
-/// [`apply_presets_path`] against an explicit config file — the persist half
-/// is the only difference, so a test drives this one and never touches the
-/// machine's real `config.yaml`.
+/// [`apply_presets_path`] against an explicit config file. The public entry
+/// point is this function with the machine's real path, so a test drives the
+/// SAME body without writing that file (#701).
 pub(crate) fn apply_presets_path_at(
     config_path: &std::path::Path,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
@@ -78,11 +76,10 @@ pub(crate) fn apply_plugins_path(
     app_config: &Rc<RefCell<AppConfig>>,
     path: Option<PathBuf>,
 ) {
-    if let Err(e) = apply_plugins_override(&mut app_config.borrow_mut(), path.clone()) {
-        log::warn!("[paths] failed to persist plugins-path into config.yaml: {e}");
-        return;
+    match FilesystemStorage::app_config_path() {
+        Ok(config_path) => apply_plugins_path_at(&config_path, project_session, app_config, path),
+        Err(e) => log::warn!("[paths] cannot locate config.yaml: {e}"),
     }
-    dispatch_plugins_path(project_session, path);
 }
 
 /// [`apply_plugins_path`] against an explicit config file.
@@ -123,11 +120,12 @@ pub(crate) fn apply_evaluations_path(
     app_config: &Rc<RefCell<AppConfig>>,
     path: Option<PathBuf>,
 ) {
-    if let Err(e) = apply_evaluations_override(&mut app_config.borrow_mut(), path.clone()) {
-        log::warn!("[paths] failed to persist evaluations-path into config.yaml: {e}");
-        return;
+    match FilesystemStorage::app_config_path() {
+        Ok(config_path) => {
+            apply_evaluations_path_at(&config_path, project_session, app_config, path)
+        }
+        Err(e) => log::warn!("[paths] cannot locate config.yaml: {e}"),
     }
-    dispatch_evaluations_path(project_session, path);
 }
 
 /// [`apply_evaluations_path`] against an explicit config file.

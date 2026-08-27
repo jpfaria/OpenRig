@@ -27,3 +27,7 @@ pub mod project_meta;
 #[cfg(test)]
 #[path = "paths_apply_tests.rs"]
 mod paths_apply_tests;
+
+#[cfg(test)]
+#[path = "paths_overrides_tests.rs"]
+mod paths_overrides_tests;
