@@ -9,6 +9,9 @@
 //! profile-driven daemon shipped.)
 
 pub mod audio;
+pub(crate) mod endpoint_build;
+pub(crate) mod endpoint_channels;
+pub(crate) mod endpoint_prefill;
 pub mod integrations;
 pub mod io_bindings;
 pub(crate) mod io_bindings_helpers;
