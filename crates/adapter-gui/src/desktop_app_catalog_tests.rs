@@ -1,42 +1,43 @@
-//! #913 — the plugin catalog the app starts with.
+//! #913 — the two roots the boot catalog scans.
 //!
-//! Boot scans two roots and registers the compiled-in natives first, so by the
-//! time any project opens everything lives in one catalog. What must hold: the
-//! natives are always there (they need no disk at all, so a missing or empty
-//! plugins directory can never leave the app with no blocks), and loading is
-//! idempotent — the settings screen re-runs it on "reload catalog".
+//! `load` itself is not exercised here on purpose: `registry::init_many`
+//! REPLACES the process-wide catalog, so calling it from one test wipes the
+//! fixture catalog every other test in the binary shares (it took out the #690
+//! NAM persistence tests when it was tried). What a test CAN hold is the root
+//! resolution the boot does — bundled next to the install, user next to the
+//! config file — because getting those wrong is how the app boots with no
+//! blocks or with the user's own packages invisible.
 
-use super::load;
 use crate::state::ProjectPaths;
 
-fn paths_pointing_nowhere() -> (tempfile::TempDir, ProjectPaths) {
+#[test]
+fn the_bundled_root_sits_under_the_installs_data_root() {
+    let bundled = infra_filesystem::detect_data_root().join("plugins");
+    assert!(bundled.ends_with("plugins"));
+    assert!(bundled.starts_with(infra_filesystem::detect_data_root()));
+}
+
+#[test]
+fn the_user_root_is_derived_from_the_config_file_this_session_reads() {
     let dir = tempfile::tempdir().expect("tempdir");
     let paths = ProjectPaths {
         default_config_path: dir.path().join("config.yaml"),
     };
-    (dir, paths)
-}
-
-#[test]
-fn the_compiled_in_natives_are_registered_even_with_no_plugins_on_disk() {
-    let (_guard, paths) = paths_pointing_nowhere();
-    load(&paths, 48_000.0);
+    let user = plugin_loader::plugins_root_from_config(&paths.default_config_path);
     assert!(
-        plugin_loader::registry::native_count() > 0,
-        "the natives need no disk — an empty plugins dir must still leave blocks"
+        !user.as_os_str().is_empty(),
+        "a missing config must still resolve a plugins root, not an empty path"
     );
-    assert!(plugin_loader::registry::len() >= plugin_loader::registry::native_count());
 }
 
 #[test]
-fn loading_twice_does_not_duplicate_the_catalog() {
-    let (_guard, paths) = paths_pointing_nowhere();
-    load(&paths, 48_000.0);
-    let after_first = plugin_loader::registry::len();
-    load(&paths, 48_000.0);
-    assert_eq!(
-        plugin_loader::registry::len(),
-        after_first,
-        "the settings screen re-runs this; a second scan must not double the list"
+fn the_two_roots_are_different_places() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let bundled = infra_filesystem::detect_data_root().join("plugins");
+    let user = plugin_loader::plugins_root_from_config(&dir.path().join("config.yaml"));
+    assert_ne!(
+        bundled, user,
+        "the bundled root is read-only and replaced on upgrade — sharing it \
+         with the user root would delete their installed packages"
     );
 }

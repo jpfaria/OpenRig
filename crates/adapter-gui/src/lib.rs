@@ -237,6 +237,7 @@ mod model_search_wiring;
 mod no_infra_cpal_in_wiring_tests;
 mod port_wiring;
 mod preset_search;
+mod project_close_session;
 mod project_dirty;
 mod project_display_name;
 mod project_load_normalize;
