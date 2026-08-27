@@ -140,13 +140,16 @@ mod validation;
 // the same `cfg` as their callers to avoid dead-code warnings (#755).
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod audio_workgroup;
-mod callback_load_timing;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod budget_tracker;
+mod callback_load_timing;
 mod dsp_worker;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "dsp_worker_recovery_tests.rs"]
 mod dsp_worker_recovery_tests;
 mod metronome_stream;
+mod rt_thread_policy;
+mod saturation_recovery;
 mod stream_builder;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod stream_builder_input;

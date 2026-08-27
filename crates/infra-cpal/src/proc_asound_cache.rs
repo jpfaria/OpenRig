@@ -2,14 +2,12 @@
 
 #![cfg(all(target_os = "linux", feature = "jack"))]
 
-use anyhow::Result;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use crate::jack_supervisor;
-use domain::AudioDeviceDescriptor;
-
-use crate::usb_proc::{read_proc_asound_snapshot, ProcAsoundSnapshot};
+use crate::usb_proc::{
+    read_card_channels_raw, server_name_from_bracket, UsbAudioCard, PROC_CACHE_TTL,
+};
 
 #[derive(Clone)]
 pub(crate) struct ProcAsoundSnapshot {
@@ -25,7 +23,7 @@ pub(crate) fn invalidate_proc_cache() {
     *PROC_CACHE.lock().unwrap() = None;
 }
 
-fn proc_cache_is_fresh() -> bool {
+pub(crate) fn proc_cache_is_fresh() -> bool {
     PROC_CACHE
         .lock()
         .unwrap()
@@ -45,7 +43,7 @@ fn proc_cache_is_fresh() -> bool {
 static CARD_CHANNELS_REGISTRY: Mutex<Option<std::collections::HashMap<String, (u32, u32)>>> =
     Mutex::new(None);
 
-fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u32) {
+pub(crate) fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u32) {
     {
         let guard = CARD_CHANNELS_REGISTRY.lock().unwrap();
         if let Some(map) = guard.as_ref() {
@@ -68,7 +66,7 @@ fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u3
     ch
 }
 
-fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
+pub(crate) fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
     log::trace!("[PROC-CACHE] >>> OPEN /proc/asound/cards");
     let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
     let mut cards = Vec::new();
@@ -117,7 +115,7 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
 
 /// Non-blocking refresh: if another refresh is already running, skip. The
 /// caller who was blocked will simply read the existing cache afterwards.
-fn try_refresh_proc_cache() {
+pub(crate) fn try_refresh_proc_cache() {
     let Ok(_guard) = PROC_REFRESH_LOCK.try_lock() else {
         log::debug!("[PROC-CACHE] try_refresh SKIPPED (another refresh in progress)");
         return;
@@ -137,7 +135,7 @@ fn try_refresh_proc_cache() {
 }
 
 #[track_caller]
-fn proc_cache_snapshot() -> Option<ProcAsoundSnapshot> {
+pub(crate) fn proc_cache_snapshot() -> Option<ProcAsoundSnapshot> {
     let fresh = proc_cache_is_fresh();
     if !fresh {
         let caller = std::panic::Location::caller();

@@ -2,13 +2,6 @@
 
 #![cfg(all(target_os = "linux", feature = "jack"))]
 
-use anyhow::Result;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
-
-use crate::jack_supervisor;
-use domain::AudioDeviceDescriptor;
-
 /// Check if a specific named JACK server is running by looking for its socket.
 /// jackd -n <name> creates /dev/shm/jack_<name>_<uid>_0
 pub(crate) fn jack_server_is_running_for(server_name: &str) -> bool {

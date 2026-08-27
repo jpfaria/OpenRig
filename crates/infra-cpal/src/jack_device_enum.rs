@@ -3,12 +3,11 @@
 #![cfg(all(target_os = "linux", feature = "jack"))]
 
 use anyhow::Result;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
 
 use crate::jack_supervisor;
 use domain::AudioDeviceDescriptor;
 
+use crate::jack_server_presence::jack_server_is_running_for;
 use crate::usb_proc::detect_all_usb_audio_cards;
 
 /// Enumerate input devices via JACK — one entry per running named JACK server.

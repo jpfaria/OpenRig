@@ -22,19 +22,13 @@
 
 #![cfg(all(target_os = "linux", feature = "jack"))]
 
-use anyhow::Result;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 pub(crate) use crate::jack_device_enum::{
     jack_enumerate_input_devices, jack_enumerate_output_devices,
 };
 pub(crate) use crate::jack_server_presence::jack_server_is_running_for;
-use crate::jack_supervisor;
-pub(crate) use crate::proc_asound_cache::{
-    invalidate_proc_cache, lookup_or_cache_card_channels, proc_cache_snapshot,
-};
-use domain::AudioDeviceDescriptor;
+pub(crate) use crate::proc_asound_cache::{invalidate_proc_cache, proc_cache_snapshot};
 
 /// Represents a USB audio card detected in /proc/asound/cards.
 #[derive(Debug, Clone)]
@@ -57,7 +51,7 @@ pub(crate) struct UsbAudioCard {
 
 /// Derive a safe JACK server name from the ALSA bracket identifier.
 /// E.g. "[Gen            ]" → "gen", "[Card1          ]" → "card1"
-fn server_name_from_bracket(bracket: &str) -> String {
+pub(crate) fn server_name_from_bracket(bracket: &str) -> String {
     bracket
         .trim_matches(|c: char| c == '[' || c == ']' || c.is_whitespace())
         .chars()
@@ -72,7 +66,7 @@ fn server_name_from_bracket(bracket: &str) -> String {
 // reads must be serialized through a single mutex; requests that arrive while
 // another refresh is in progress return cached data instead of queueing.
 
-const PROC_CACHE_TTL: Duration = Duration::from_secs(10);
+pub(crate) const PROC_CACHE_TTL: Duration = Duration::from_secs(10);
 
 /// Detect all USB audio ALSA cards. Serialized + cached: concurrent callers
 /// receive a cached snapshot instead of hammering /proc/asound.
@@ -82,7 +76,7 @@ pub(crate) fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
 
 /// Direct /proc/asound/card{N}/stream0 read — only called from inside
 /// `lookup_or_cache_card_channels` when a new card is first observed.
-fn read_card_channels_raw(card: &str) -> (u32, u32) {
+pub(crate) fn read_card_channels_raw(card: &str) -> (u32, u32) {
     let path = format!("/proc/asound/card{}/stream0", card);
     log::trace!("[PROC-CACHE] >>> OPEN {}", path);
     let content = match std::fs::read_to_string(&path) {
