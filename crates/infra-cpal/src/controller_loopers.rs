@@ -18,6 +18,7 @@ use project::binding_discovery::{resolve_input_segment, resolve_output_segment};
 use project::chain::{Chain, EndpointRef, LooperSpeed};
 
 use crate::controller::ProjectRuntimeController;
+use crate::di_stream::IsolatedSource;
 use crate::looper_store::LooperEditRefused;
 use engine::loop_edit::LoopEditOp;
 
@@ -226,8 +227,17 @@ impl ProjectRuntimeController {
         )
     }
 
+    /// #903: the level lands on the playback that is SOUNDING, not on the next
+    /// render — moving it may neither restart the loop nor wait for a re-arm.
     pub fn looper_set_mix(&self, chain_id: &ChainId, uid: u64, v: f32) {
         self.looper_store.borrow_mut().set_mix(chain_id, uid, v);
+        self.push_looper_gain(chain_id, uid);
+    }
+
+    /// Hand this looper's level to its live playback, if it has one.
+    pub(crate) fn push_looper_gain(&self, chain_id: &ChainId, uid: u64) {
+        let gain = self.looper_store.borrow().playback_gain(chain_id, uid);
+        self.set_isolated_playback_gain(chain_id, IsolatedSource::Looper(uid), gain);
     }
     pub fn looper_set_decay(&self, chain_id: &ChainId, uid: u64, v: f32) {
         self.looper_store.borrow_mut().set_decay(chain_id, uid, v);
@@ -399,6 +409,7 @@ impl ProjectRuntimeController {
             match self.arm_looper_stream(&playback_chain, uid, output_index, pcm) {
                 Ok(()) => {
                     LOOPER_ARMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    self.push_looper_gain(&chain.id, uid);
                     self.looper_armed.borrow_mut().insert(key, content);
                     log::info!(
                         "looper {uid} on '{}' armed (renders alive: {})",

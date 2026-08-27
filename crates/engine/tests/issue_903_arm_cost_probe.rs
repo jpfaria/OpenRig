@@ -1,0 +1,27 @@
+//! Probe (ignored by default): what an arm of the isolated playback costs.
+//!
+//! `cargo test -p engine --release --test issue_903_arm_cost_probe -- --ignored --nocapture`
+use std::time::Instant;
+
+#[test]
+#[ignore = "probe: needs the machine's plugin catalog"]
+fn build_cost_of_the_isolated_runtime() {
+    let path = std::env::var("PROBE_CHAIN").expect("PROBE_CHAIN=<preset yaml>");
+    let root = std::env::var("OPENRIG_PLUGINS_ROOT").expect("OPENRIG_PLUGINS_ROOT");
+    engine::native_registry::register_all_natives();
+    plugin_loader::registry::init_many(&[std::path::PathBuf::from(root)]);
+
+    let text = std::fs::read_to_string(&path).expect("read chain");
+    let chain: project::chain::Chain =
+        infra_yaml::preset_chain_from_str(&text).expect("parse preset");
+    let pcm = engine::DiPcm::new(vec![0.3; 44_100 * 2], 44_100, 2);
+
+    for round in 0..3 {
+        let t = Instant::now();
+        let routed = engine::di_render::build_routed_di_runtime(&chain, &[], None, 44_100, &pcm)
+            .expect("build");
+        let ms = t.elapsed().as_secs_f64() * 1000.0;
+        println!("arm #{round}: {ms:.1} ms");
+        drop(routed);
+    }
+}

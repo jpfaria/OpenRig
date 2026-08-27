@@ -92,3 +92,24 @@ fn peaks_reflect_the_last_mixed_window() {
     assert!((out_peak - 0.25).abs() < 1e-6, "out peak, got {out_peak}");
     assert_eq!(in_peak, 0.5, "in peak comes from the worker");
 }
+
+/// #903: the level the owner sets must come out of the callback, on the take
+/// that is already sounding — that is the whole point of it being gain and not
+/// content.
+#[test]
+fn the_playback_gain_scales_what_the_callback_writes() {
+    let playback = DiPlayback::starting_at(0, 1, 8, 0);
+    assert_eq!(playback.gain(), 1.0, "a fresh playback is at unity");
+    playback.set_gain(0.25);
+    let (cell, ring) = cell_with(playback);
+    push_frames(&ring, &[[1.0, -1.0], [1.0, -1.0]]);
+
+    let mut out = vec![0.0f32; 2 * 2];
+    mix_di_playback(&cell, &mut out, 2);
+
+    assert_eq!(
+        out,
+        vec![0.25, -0.25, 0.25, -0.25],
+        "the callback writes the take at the level that is set"
+    );
+}

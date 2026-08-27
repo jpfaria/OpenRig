@@ -361,6 +361,14 @@ impl LooperStore {
     pub fn set_mix(&mut self, chain: &ChainId, uid: u64, v: f32) {
         self.with_slot(chain, uid, |s| s.set_mix(v));
     }
+
+    /// The level the isolated stream should apply to this loop, 0..=1.
+    pub fn playback_gain(&self, chain: &ChainId, uid: u64) -> f32 {
+        self.slots
+            .get(&(chain.clone(), uid))
+            .map(|e| e.slot.mix())
+            .unwrap_or(1.0)
+    }
     pub fn set_decay(&mut self, chain: &ChainId, uid: u64, v: f32) {
         self.with_slot(chain, uid, |s| s.set_decay(v));
     }
