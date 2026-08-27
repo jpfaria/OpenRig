@@ -143,12 +143,15 @@ mod audio_workgroup;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod budget_tracker;
 mod callback_load_timing;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod dsp_worker;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "dsp_worker_recovery_tests.rs"]
 mod dsp_worker_recovery_tests;
 mod metronome_stream;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod rt_thread_policy;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod saturation_recovery;
 mod stream_builder;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
