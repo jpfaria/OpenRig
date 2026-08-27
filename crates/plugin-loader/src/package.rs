@@ -1,3 +1,4 @@
+//! Responsibility: validates a plugin package on disk.
 //! Filesystem-level validation for plugin packages.
 //!
 //! [`validate_manifest`](crate::validate::validate_manifest) checks the manifest

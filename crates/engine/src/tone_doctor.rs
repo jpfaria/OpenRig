@@ -1,3 +1,4 @@
+//! Responsibility: blames the block a tone problem comes from.
 //! Tone Doctor — offline blame-by-ablation (#791, Layer 2).
 //!
 //! Given a chain and a slice of the player's own DI, this re-renders the chain

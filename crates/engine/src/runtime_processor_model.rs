@@ -1,3 +1,4 @@
+//! Responsibility: builds the processor a block model asks for.
 //! Build an [`AudioProcessor`] for a block model from its audio-mode schema
 //! (issue #792 split — single responsibility).
 //!

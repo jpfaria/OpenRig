@@ -1,3 +1,4 @@
+//! Responsibility: reads the loudness a NAM capture was trained at.
 //! Reads the `metadata.loudness` field that NAM trainers (v0.5+) bake
 //! into the JSON header of every `.nam` capture. It's a real loudness
 //! measurement done with guitar training data — far better than any

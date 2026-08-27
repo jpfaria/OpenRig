@@ -1,3 +1,4 @@
+//! Responsibility: finalises the chain editor flow.
 //! `on_save_chain` and `on_cancel_chain` — finalize the chain editor flow.
 //!
 //! Save validates the active draft (must have at least one input + one

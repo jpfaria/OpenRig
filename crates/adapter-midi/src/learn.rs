@@ -1,3 +1,4 @@
+//! Responsibility: holds the learn-mode flag the UI arms.
 //! Single-shot MIDI learn-mode flag shared between the adapter wiring and
 //! the daemon callback (#513 / #493).
 //!

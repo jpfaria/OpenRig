@@ -1,3 +1,4 @@
+//! Responsibility: instantiates an LV2 plugin out of a loaded package.
 //! Generic LV2 instantiation from a `plugin_loader::LoadedPackage`.
 //!
 //! Replaces the per-plugin hard-coded port indices that used to live in

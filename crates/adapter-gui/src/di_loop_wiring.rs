@@ -1,3 +1,4 @@
+//! Responsibility: wires the per-chain DI loop panel.
 //! Adapter-gui wiring for the per-chain virtual DI loop (issue #614).
 //!
 //! #127: this module names no audio backend. Every DI control here is a

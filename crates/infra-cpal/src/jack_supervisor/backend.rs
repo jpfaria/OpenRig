@@ -1,3 +1,4 @@
+//! Responsibility: declares the seam between the supervisor the jackd it drives.
 //! `JackBackend` trait — the single seam between the supervisor's state
 //! machine and the real `jackd` process + `libjack` library. Tests substitute
 //! a `MockBackend` so the state machine can be exercised without starting any

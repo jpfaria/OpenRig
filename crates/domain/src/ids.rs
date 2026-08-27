@@ -1,3 +1,5 @@
+//! Responsibility: mints the typed identifiers the rest of the domain refers to.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

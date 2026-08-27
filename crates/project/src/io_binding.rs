@@ -1,3 +1,4 @@
+//! Responsibility: keeps the binding types reachable under the project path.
 //! I/O binding types — re-exported from `domain` (single source of truth).
 //!
 //! All three consumers (`domain`, `project`, `infra-filesystem`) share one

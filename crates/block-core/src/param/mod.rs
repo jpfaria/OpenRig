@@ -1,7 +1,4 @@
-//! Parameter system — domain `ParameterSet`, schema definitions
-//! (`ParameterSpec` / `ModelParameterSchema` / `ParameterDomain` / etc.),
-//! the GUI-bound `BlockParameterDescriptor`, and the per-widget
-//! constructor builders.
+//! Responsibility: routes the parameter system's surface.
 //!
 //! Phase 6 of issue #194 split the original 541-LOC `param.rs` into
 //! topical sub-modules; this module entry re-exports their surface so
@@ -9,6 +6,7 @@
 
 pub mod builders;
 pub mod descriptor;
+pub mod lookup;
 pub mod schema;
 pub mod set;
 
@@ -17,11 +15,12 @@ pub use builders::{
     multi_slider_parameter, text_parameter,
 };
 pub use descriptor::BlockParameterDescriptor;
+pub use lookup::{optional_string, required_bool, required_f32, required_string};
 pub use schema::{
     CurveEditorRole, MaterializeContext, ModelParameterSchema, ParameterDomain, ParameterOption,
     ParameterSpec, ParameterUnit, ParameterWidget,
 };
-pub use set::{optional_string, required_bool, required_f32, required_string, ParameterSet};
+pub use set::ParameterSet;
 
 // Bring crate-external types used in `param_tests.rs` (mounted via
 // `#[path]` below) into this module's scope so the test file's

@@ -1,3 +1,4 @@
+//! Responsibility: delays the signal while tracking the peak that is coming.
 //! Lookahead delay line with O(1) amortized sliding-window peak tracking.
 //!
 //! The buffer delays the input signal by `len` samples. In parallel, a

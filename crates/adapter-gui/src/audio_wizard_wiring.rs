@@ -1,3 +1,4 @@
+//! Responsibility: wires the first-run audio wizard.
 //! Wiring for the first-run audio-setup wizard navigation callbacks.
 //!
 //! Two callbacks: `on_go_to_output_step` (validates that at least one input

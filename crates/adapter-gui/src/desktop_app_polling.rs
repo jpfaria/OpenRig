@@ -1,3 +1,4 @@
+//! Responsibility: runs the background timers of the desktop app.
 //! Two background timers wired by `run_desktop_app` against the main window.
 //!
 //! * **Error poll** (200 ms) — installs any chain rebuild the control worker

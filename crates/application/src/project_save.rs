@@ -1,3 +1,4 @@
+//! Responsibility: turns the dispatcher state into what gets saved.
 //! Pure helpers used by `Command::SaveProject` to turn the dispatcher's
 //! in-memory project + rig into the on-disk artifacts (#555 round 2).
 //!

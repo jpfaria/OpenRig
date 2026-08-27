@@ -1,3 +1,4 @@
+//! Responsibility: dispatches the block callback wirings at startup.
 //! All block-related callback wirings dispatched from `run_desktop_app`.
 //!
 //! Ten `*_wiring::wire(...)` / `*_callbacks::wire(...)` calls live here:

@@ -1,3 +1,4 @@
+//! Responsibility: matches an incoming message against the bindings.
 //! Match pipeline (issue #548 Phase 4).
 //!
 //! Given a raw incoming MIDI message + the MIDI port it came from + the

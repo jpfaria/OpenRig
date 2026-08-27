@@ -1,3 +1,4 @@
+//! Responsibility: measures how loud a NAM model plays.
 //! Per-NAM loudness probe (issue #402).
 //!
 //! Roda 1x na construção do `NamProcessor`: gera pink noise determinístico,

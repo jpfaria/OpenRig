@@ -1,3 +1,4 @@
+//! Responsibility: holds a recorded loop's audio behind a handle.
 //! #323/#127 — a recorded loop's audio, as a HANDLE.
 //!
 //! A loop's mixdown is megabytes of PCM. When it travels between the runtime

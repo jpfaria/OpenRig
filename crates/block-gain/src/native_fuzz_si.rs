@@ -1,3 +1,4 @@
+//! Responsibility: implements the fuzz si gain model.
 //! Silicon Fuzz Face — Dallas Arbiter Fuzz Face with Si BC108-style NPN
 //! transistors. Si fuzz has a sharper, more aggressive clip with bright
 //! upper harmonics — distinct from the smoother Ge variant.
@@ -62,7 +63,9 @@ impl FuzzProcessor {
         }
     }
 
-    fn pct(v: f32) -> f32 { (v / 100.0).clamp(0.0, 1.0) }
+    fn pct(v: f32) -> f32 {
+        (v / 100.0).clamp(0.0, 1.0)
+    }
 
     /// Si transistor saturation — harder clip than Ge. We use a tanh
     /// shaper but with very high pre-gain and asymmetric clip thresholds:
@@ -105,15 +108,21 @@ impl MonoProcessor for FuzzProcessor {
         let toned = down * tone + warm * (1.0 - tone);
 
         let out = self.out_hpf.process(toned);
-        out * (level * 1.5)  // 50% = ~0.75x (Fuzz Face is loud at unity)
+        out * (level * 1.5) // 50% = ~0.75x (Fuzz Face is loud at unity)
     }
 }
 
-struct DualMonoProcessor { left: FuzzProcessor, right: FuzzProcessor }
+struct DualMonoProcessor {
+    left: FuzzProcessor,
+    right: FuzzProcessor,
+}
 
 impl StereoProcessor for DualMonoProcessor {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
+        [
+            self.left.process_sample(input[0]),
+            self.right.process_sample(input[1]),
+        ]
     }
 }
 
@@ -124,9 +133,36 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("fuzz", "Fuzz", Some("Gain"), Some(60.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("tone", "Tone", Some("EQ"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
-            float_parameter("level", "Level", Some("Output"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter(
+                "fuzz",
+                "Fuzz",
+                Some("Gain"),
+                Some(60.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "tone",
+                "Tone",
+                Some("EQ"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "level",
+                "Level",
+                Some("Output"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
         ],
     }
 }
@@ -139,16 +175,23 @@ fn read_settings(p: &ParameterSet) -> Result<Settings> {
     })
 }
 
-pub fn validate_params(p: &ParameterSet) -> Result<()> { let _ = read_settings(p)?; Ok(()) }
+pub fn validate_params(p: &ParameterSet) -> Result<()> {
+    let _ = read_settings(p)?;
+    Ok(())
+}
 pub fn asset_summary(_: &ParameterSet) -> Result<String> {
     Ok("native='fuzz_si' algorithm='Si Fuzz Face — 2-stage soft clip 2x oversampled'".to_string())
 }
-fn schema() -> Result<ModelParameterSchema> { Ok(model_schema()) }
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
 
 fn build(p: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let s = read_settings(p)?;
     Ok(match layout {
-        AudioChannelLayout::Mono => BlockProcessor::Mono(Box::new(FuzzProcessor::new(s, sample_rate))),
+        AudioChannelLayout::Mono => {
+            BlockProcessor::Mono(Box::new(FuzzProcessor::new(s, sample_rate)))
+        }
         AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(DualMonoProcessor {
             left: FuzzProcessor::new(s, sample_rate),
             right: FuzzProcessor::new(s, sample_rate),
@@ -161,7 +204,10 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     display_name: DISPLAY_NAME,
     brand: BRAND,
     backend_kind: GainBackendKind::Native,
-    schema, validate: validate_params, asset_summary, build,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[],
 };

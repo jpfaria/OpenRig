@@ -1,3 +1,4 @@
+//! Responsibility: binds the MCP server to the command bridge.
 //! `ServerHandler` bound to the command bridge, served over Streamable HTTP.
 //!
 //! Tools/resources/prompts give an agent full control + read parity with the

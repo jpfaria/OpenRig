@@ -1,3 +1,4 @@
+//! Responsibility: parses the desktop binary's arguments.
 //! Minimal command-line argument parser for the desktop binary.
 //!
 //! Three forms are accepted (any order):

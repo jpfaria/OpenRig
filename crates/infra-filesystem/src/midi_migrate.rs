@@ -1,3 +1,4 @@
+//! Responsibility: migrates the legacy single-file MIDI map into the two files that replaced it.
 //! One-shot migration of the legacy `midi-map.yaml` into the two #499 files:
 //! a system [`crate::midi_profile`] (the `input:` field) and a system bindings
 //! fallback (`bindings:` block). The legacy file is deleted after a successful

@@ -1,3 +1,4 @@
+//! Responsibility: describes the tone doctor's verdict as plain data.
 //! #791 — the Tone Doctor's verdict as transport-agnostic data.
 //!
 //! `engine` owns the DSP (the ablation and the measured correction); this

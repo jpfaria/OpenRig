@@ -1,3 +1,4 @@
+//! Responsibility: names the tone doctor commands.
 //! #791 — the Tone Doctor as commands, so every transport reaches it.
 //!
 //! The diagnosis (offline blame-by-ablation over the chain's own signal) and

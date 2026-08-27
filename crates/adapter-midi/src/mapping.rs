@@ -1,3 +1,4 @@
+//! Responsibility: describes the legacy single-file MIDI map.
 //! `midi-map.yaml` — the legacy single-file controller mapping (#22) + the
 //! resolved runtime view. The data types (`Source`, `Scale`, `Binding`) moved
 //! to `project::midi` when the file split into a system **device profile** and

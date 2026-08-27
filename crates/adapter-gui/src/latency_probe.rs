@@ -1,3 +1,4 @@
+//! Responsibility: wires the per-chain latency probe.
 //! Latency probe wiring — installs the per-chain latency badge's click
 //! handler and the expiry timer.
 //!

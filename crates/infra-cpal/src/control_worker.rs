@@ -1,3 +1,4 @@
+//! Responsibility: runs the control plane off the audio thread.
 //! Issue #672 — off-thread control plane.
 //!
 //! `ControlWorker` owns a single dedicated thread that runs heavy chain-runtime

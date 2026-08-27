@@ -1,3 +1,4 @@
+//! Responsibility: starts the profile-driven MIDI daemon.
 //! GUI entry point for the profile-driven MIDI daemon (issue #548).
 //!
 //! The binary calls `start_midi_profiles` once, after the dispatcher

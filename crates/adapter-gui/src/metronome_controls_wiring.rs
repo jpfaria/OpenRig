@@ -1,3 +1,4 @@
+//! Responsibility: wires the metronome's control widgets.
 //! #14 — the metronome's control callbacks: the tempo row, the four knobs, the
 //! count-in pill and the output-device select.
 //!

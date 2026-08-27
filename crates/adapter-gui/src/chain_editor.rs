@@ -1,3 +1,4 @@
+//! Responsibility: holds the chain editor draft.
 use crate::state::{ChainDraft, ChainEditorMode};
 use crate::AppWindow;
 use domain::AudioDeviceDescriptor;

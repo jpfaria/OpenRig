@@ -1,3 +1,4 @@
+//! Responsibility: runs a rig headless.
 //! Headless rig runner (#436 / #1 integration).
 //!
 //! Loads a `project.openrig` (or transparently migrates a legacy

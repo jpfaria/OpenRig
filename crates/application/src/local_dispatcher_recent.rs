@@ -1,3 +1,4 @@
+//! Responsibility: handles the recent commands.
 //! #436 F — `ProjectCommand::RemoveRecentProject`: remover um projeto recente
 //! é negócio (preferência persistida em app-config). Precedente
 //! `SaveProject`: o adapter faz a persistência (`save_app_config`); o

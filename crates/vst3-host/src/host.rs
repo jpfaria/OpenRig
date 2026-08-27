@@ -1,3 +1,4 @@
+//! Responsibility: drives one loaded VST3 plugin.
 //! Low-level VST3 plugin host: loads a bundle, enumerates classes,
 //! instantiates IComponent + IAudioProcessor + IEditController and drives the
 //! audio processing loop.

@@ -1,3 +1,4 @@
+//! Responsibility: holds the genre-calibrated tone limits.
 //! Genre-calibrated Tone Doctor limits (#809, Piece 1 — aggregation core).
 //!
 //! Pure, I/O-free aggregation: in = a set of genre-labeled [`ToneDescriptors`]

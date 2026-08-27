@@ -1,3 +1,4 @@
+//! Responsibility: converts between the channel layout representations.
 //! `AudioChannelLayout` type helpers — conversion + diagnostics.
 //!
 //! Setup-time helpers, NOT audio thread. `layout_from_channels` is

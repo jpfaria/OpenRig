@@ -1,3 +1,4 @@
+//! Responsibility: implements the rhythmic delay model.
 use anyhow::{Error, Result};
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,

@@ -1,3 +1,4 @@
+//! Responsibility: handles the plugin catalog commands.
 //! #561 — plugin-catalog Commands: hot-reload the whole catalog, plus
 //! per-plugin load / unload, without restarting OpenRig.
 //!

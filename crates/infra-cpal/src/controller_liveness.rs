@@ -1,4 +1,4 @@
-//! Is the runtime sounding? Split out of `controller.rs` to keep it under the
+//! Responsibility: says whether the runtime is actually sounding.
 //! line cap, like `controller_chain_activation` and `controller_block_toggle`.
 //!
 //! This is the predicate the chain-teardown doors act on: `adapter-gui`'s

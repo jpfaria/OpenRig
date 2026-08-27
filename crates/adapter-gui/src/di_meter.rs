@@ -1,3 +1,4 @@
+//! Responsibility: reads the DI stream's output meter.
 //! #771: the DI meter row reads the DI stream's OWN levels — the linear
 //! peaks the output callback's playback mix maintains — never a mirror of
 //! the chain's meters (the DI no longer rides the chain path).

@@ -1,3 +1,4 @@
+//! Responsibility: picks the cpal host the app enumerates through.
 //! Cached CPAL host selection and JACK server detection helpers.
 //!
 //! - `get_host` / `create_host` (non-JACK platforms): cache the CPAL host

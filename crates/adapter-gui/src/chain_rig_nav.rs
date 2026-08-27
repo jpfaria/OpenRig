@@ -1,3 +1,4 @@
+//! Responsibility: builds the per-chain rig navigation rows.
 //! Per-chain rig navigation rows (#436 #1) — pure projection used to
 //! drive the preset/scene selectors on the legacy chains screen.
 //!

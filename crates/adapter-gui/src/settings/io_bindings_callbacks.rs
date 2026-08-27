@@ -1,3 +1,4 @@
+//! Responsibility: handles the interaction inside the bindings section.
 //! Interactive behaviour of the System / I/O bindings section (#716).
 //!
 //! `WireCtx` is the shared closure state one window surface hands to every one

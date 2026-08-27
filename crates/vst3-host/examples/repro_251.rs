@@ -1,3 +1,4 @@
+//! Responsibility: reproduces the crash that needs a real main-thread run loop.
 //! #251 reproduction/verification harness. This class of bug can't be a normal
 //! `#[test]`: the failure needs the process **main thread** to run an
 //! NSApplication + CFRunLoop (like the app's winit/Slint loop) while the plugin

@@ -1,3 +1,4 @@
+//! Responsibility: implements the rotary leslie studio modulation model.
 //! Studio-tight rotary variant — higher crossover, deeper AM/Doppler,
 //! shorter motor inertia. Sits forward in a recording mix without the
 //! cabinet's lower-mid haze. Same engine as `native_rotary_leslie.rs`;
@@ -38,7 +39,10 @@ struct StudioParams {
 
 impl Default for StudioParams {
     fn default() -> Self {
-        Self { speed: 1.0, mix: 100.0 }
+        Self {
+            speed: 1.0,
+            mix: 100.0,
+        }
     }
 }
 
@@ -87,9 +91,11 @@ fn build(
 ) -> Result<block_core::BlockProcessor> {
     let p = parse(params)?;
     match layout {
-        block_core::AudioChannelLayout::Mono => Ok(block_core::BlockProcessor::Mono(Box::new(
-            LeslieMono::new(LeslieRotary::with_tuning(p.speed, p.mix, sample_rate, TUNING)),
-        ))),
+        block_core::AudioChannelLayout::Mono => {
+            Ok(block_core::BlockProcessor::Mono(Box::new(LeslieMono::new(
+                LeslieRotary::with_tuning(p.speed, p.mix, sample_rate, TUNING),
+            ))))
+        }
         block_core::AudioChannelLayout::Stereo => {
             struct LeslieStereoProc {
                 inner: LeslieRotary,

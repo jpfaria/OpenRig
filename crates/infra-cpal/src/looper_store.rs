@@ -1,3 +1,4 @@
+//! Responsibility: owns the looper state the controller edits.
 //! #323 — controller-owned looper state.
 //!
 //! The redesign's core: the recorded material and transport state of every

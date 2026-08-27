@@ -1,3 +1,4 @@
+//! Responsibility: describes one audio device as a frontend sees it.
 //! Single source of truth for the shape of an audio device, as a frontend
 //! sees it.
 //!

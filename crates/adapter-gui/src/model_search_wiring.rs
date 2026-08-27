@@ -1,3 +1,4 @@
+//! Responsibility: connects a Slint model selector to the search.
 //! Wiring helpers that connect the Slint `ModelSelectWithSearch`
 //! component to the `model_search` filter functions.
 //!

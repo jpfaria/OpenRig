@@ -1,3 +1,4 @@
+//! Responsibility: describes a model's parameter contract.
 //! Parameter schema types — describe a model's parameter contract:
 //! widget, unit, value domain, default, optional/allow-empty flags, plus
 //! the per-spec value validation that backs `ParameterSet::normalized_against`.

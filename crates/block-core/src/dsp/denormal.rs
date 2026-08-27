@@ -1,3 +1,4 @@
+//! Responsibility: keeps denormal numbers out of a filter state.
 //! Denormal-number protection.
 //!
 //! When float values fall below ~1e-38 the CPU enters a slow gradual-

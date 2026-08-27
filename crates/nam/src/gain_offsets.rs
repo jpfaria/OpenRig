@@ -1,3 +1,4 @@
+//! Responsibility: resolves the gain offsets a NAM model needs.
 //! Pure resolution of NAM model gain offsets.
 //!
 //! Two sources of dB-domain gain layer onto the user's

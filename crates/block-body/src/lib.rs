@@ -1,3 +1,4 @@
+//! Responsibility: routes the body crate's public surface.
 mod registry;
 
 use anyhow::Result;

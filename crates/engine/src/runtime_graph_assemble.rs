@@ -1,3 +1,4 @@
+//! Responsibility: assembles the runtime graph of a chain.
 //! Chain-runtime assembly (issue #792 split from `runtime_graph.rs`).
 //!
 //! Setup-time only — never runs on the audio thread. This is the single

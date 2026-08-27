@@ -1,3 +1,4 @@
+//! Responsibility: translates a matched message into the command it stands for.
 //! Pure translation: a parsed [`MidiMessage`] + the loaded [`MidiMap`] →
 //! a typed `Command`. First matching binding wins. No device, no bridge —
 //! the daemon is the only impure layer.

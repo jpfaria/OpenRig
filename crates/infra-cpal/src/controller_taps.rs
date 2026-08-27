@@ -1,3 +1,4 @@
+//! Responsibility: subscribes a caller to the runtime taps of a chain.
 //! Runtime-query and tap-subscription methods on
 //! `ProjectRuntimeController`.
 //!

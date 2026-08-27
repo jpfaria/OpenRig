@@ -1,3 +1,4 @@
+//! Responsibility: describes the MIDI bindings a project carries.
 //! Project-level MIDI binding data types — owned by [`crate::rig::RigProject`]
 //! so they travel with the `.openrig` file (ADR 0003 / #499).
 //!

@@ -1,65 +1,17 @@
+//! Responsibility: implements the core cab model.
 use anyhow::Result;
-use block_core::param::{
-    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
-};
+use block_core::param::ParameterSet;
 use block_core::{
-    db_to_lin, AudioChannelLayout, BiquadFilter, BiquadKind, BlockProcessor, ModelAudioMode,
-    MonoProcessor, OnePoleLowPass, StereoProcessor,
+    db_to_lin, AudioChannelLayout, BiquadFilter, BiquadKind, BlockProcessor, MonoProcessor,
+    OnePoleLowPass, StereoProcessor,
 };
 
-#[derive(Debug, Clone, Copy)]
-pub struct NativeCabSettings {
-    pub low_cut_hz: f32,
-    pub high_cut_hz: f32,
-    pub resonance: f32,
-    pub air: f32,
-    pub mic_position: f32,
-    pub mic_distance: f32,
-    pub room_mix: f32,
-    pub output: f32,
-}
-
-/// Per-model magnitude-response fingerprint, approximating the measured response
-/// of a reference cabinet with a biquad cascade. These are *descriptive targets*
-/// (a 4x12 with Celestion-style speakers, a small warm 1x12, a bright scooped
-/// 2x12) — never a named/branded model (zero-coupling rule). The biquad cascade
-/// matches the magnitude curve; it does not reproduce the comb-filtering or
-/// complex phase of a real cabinet — that only comes from a measured IR.
-#[derive(Debug, Clone, Copy)]
-pub struct NativeCabProfile {
-    /// Speaker high-frequency rolloff corner — the dominant cabinet trait.
-    /// Applied as two cascaded low-passes (~24 dB/oct), the steep skirt a real
-    /// cone has above its top end.
-    pub rolloff_hz: f32,
-    pub rolloff_q: f32,
-    /// Low-end cone/cabinet resonance bump.
-    pub low_bump_hz: f32,
-    pub low_bump_db: f32,
-    pub low_bump_q: f32,
-    /// Mid scoop — the guitar-cab "honk" notch; its centre and depth strongly
-    /// separate one cabinet from another.
-    pub mid_dip_hz: f32,
-    pub mid_dip_db: f32,
-    pub mid_dip_q: f32,
-    /// Presence/bite peak in the upper mids.
-    pub presence_hz: f32,
-    pub presence_db: f32,
-    pub presence_q: f32,
-    /// Room reflection tap (kept from the previous engine).
-    pub room_base_ms: f32,
-    pub room_span_ms: f32,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct NativeCabSchemaDefaults {
-    pub low_cut_hz: f32,
-    pub high_cut_hz: f32,
-    pub resonance: f32,
-    pub air: f32,
-    pub mic_position: f32,
-    pub mic_distance: f32,
-    pub room_mix: f32,
-}
+pub use crate::native_cab_schema::{
+    asset_summary, model_schema, settings_from_params, validate_params,
+};
+pub use crate::native_cab_settings::{
+    NativeCabProfile, NativeCabSchemaDefaults, NativeCabSettings,
+};
 
 struct DualMonoProcessor {
     left: Box<dyn MonoProcessor>,
@@ -228,123 +180,6 @@ impl MonoProcessor for NativeCabProcessor {
 
         (sample * close_mix + room) * self.output_gain
     }
-}
-
-pub fn model_schema(
-    model_id: &'static str,
-    display_name: &'static str,
-    defaults: NativeCabSchemaDefaults,
-) -> ModelParameterSchema {
-    ModelParameterSchema {
-        effect_type: "cab".into(),
-        model: model_id.into(),
-        display_name: display_name.into(),
-        audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![
-            float_parameter(
-                "low_cut_hz",
-                "Low Cut",
-                Some("Filtering"),
-                Some(defaults.low_cut_hz),
-                20.0,
-                250.0,
-                1.0,
-                ParameterUnit::Hertz,
-            ),
-            float_parameter(
-                "high_cut_hz",
-                "High Cut",
-                Some("Filtering"),
-                Some(defaults.high_cut_hz),
-                2_000.0,
-                12_000.0,
-                10.0,
-                ParameterUnit::Hertz,
-            ),
-            float_parameter(
-                "resonance",
-                "Resonance",
-                Some("Speaker"),
-                Some(defaults.resonance),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "air",
-                "Air",
-                Some("Mic"),
-                Some(defaults.air),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "mic_position",
-                "Mic Position",
-                Some("Mic"),
-                Some(defaults.mic_position),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "mic_distance",
-                "Mic Distance",
-                Some("Mic"),
-                Some(defaults.mic_distance),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "room_mix",
-                "Room Mix",
-                Some("Room"),
-                Some(defaults.room_mix),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "output",
-                "Output",
-                Some("Output"),
-                Some(50.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-        ],
-    }
-}
-
-pub fn settings_from_params(params: &ParameterSet) -> Result<NativeCabSettings> {
-    Ok(NativeCabSettings {
-        low_cut_hz: required_f32(params, "low_cut_hz").map_err(anyhow::Error::msg)?,
-        high_cut_hz: required_f32(params, "high_cut_hz").map_err(anyhow::Error::msg)?,
-        resonance: required_f32(params, "resonance").map_err(anyhow::Error::msg)?,
-        air: required_f32(params, "air").map_err(anyhow::Error::msg)?,
-        mic_position: required_f32(params, "mic_position").map_err(anyhow::Error::msg)?,
-        mic_distance: required_f32(params, "mic_distance").map_err(anyhow::Error::msg)?,
-        room_mix: required_f32(params, "room_mix").map_err(anyhow::Error::msg)?,
-        output: required_f32(params, "output").map_err(anyhow::Error::msg)?,
-    })
-}
-
-pub fn validate_params(params: &ParameterSet) -> Result<()> {
-    let _ = settings_from_params(params)?;
-    Ok(())
-}
-
-pub fn asset_summary(model_id: &'static str, _params: &ParameterSet) -> Result<String> {
-    Ok(format!("native voice='{model_id}'"))
 }
 
 pub fn build_processor_for_profile(

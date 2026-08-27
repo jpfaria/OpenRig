@@ -1,3 +1,4 @@
+//! Responsibility: projects a chain's blocks into the compact view.
 //! #787 — projection of a chain's blocks into the compact view's row model.
 //!
 //! Split out of `project_view.rs` (line cap) when the compact row gained its own

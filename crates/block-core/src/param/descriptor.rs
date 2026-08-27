@@ -1,3 +1,4 @@
+//! Responsibility: describes one parameter of one block in a chain.
 //! `BlockParameterDescriptor` — a concrete instance of a parameter for a
 //! specific block in a chain. Carries the spec's metadata plus the
 //! current value, materialised by `ParameterSpec::materialize`.

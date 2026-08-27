@@ -1,3 +1,4 @@
+//! Responsibility: wires the render binary from argv to the driver.
 //! `openrig-render` binary entry — wires argv → `render()` → stdout.
 
 use std::path::PathBuf;

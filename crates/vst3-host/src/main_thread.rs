@@ -1,3 +1,4 @@
+//! Responsibility: defers VST3 teardown onto the main thread.
 //! Main-thread deferral for VST3 teardown (issue #778).
 //!
 //! A VST3 plugin's `IComponent::terminate()` / `IEditController::terminate()`

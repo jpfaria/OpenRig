@@ -1,3 +1,4 @@
+//! Responsibility: models the action a one-chain live sync will take.
 //! #743: the planned action for a one-chain live sync, modelled as data so the
 //! decision — crucially, WHETHER a device-IO resolve runs — is unit-testable
 //! without audio hardware.

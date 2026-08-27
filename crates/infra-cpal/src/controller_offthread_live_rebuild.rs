@@ -1,3 +1,4 @@
+//! Responsibility: rebuilds a live chain off the audio thread.
 //! Issue #672 / #740 / #762 — the off-thread LIVE-rebuild path.
 //!
 //! A param/block/preset edit on an ALREADY-running chain whose I/O topology is
