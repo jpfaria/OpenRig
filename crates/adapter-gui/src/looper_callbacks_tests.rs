@@ -152,10 +152,7 @@ fn a_chain_that_is_not_projected_from_a_rig_links_nothing() {
 fn a_fresh_recording_on_a_rig_chain_is_linked_to_the_active_preset() {
     // #323 phase 2: the loop keeps the tone it was recorded under, even after
     // the chain switches preset to solo.
-    let session = session(
-        vec![chain("rig:guitar")],
-        Some(rig_playing("lead-boost")),
-    );
+    let session = session(vec![chain("rig:guitar")], Some(rig_playing("lead-boost")));
     session.project.borrow_mut().chains[0]
         .loopers
         .push(project::looper::LooperConfig::new(1));
