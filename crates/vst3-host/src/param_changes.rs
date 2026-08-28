@@ -130,3 +130,7 @@ impl IParameterChangesTrait for HostParameterChanges {
         ptr::null_mut()
     }
 }
+
+#[cfg(test)]
+#[path = "param_changes_tests.rs"]
+mod tests;
