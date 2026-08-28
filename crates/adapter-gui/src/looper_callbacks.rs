@@ -462,3 +462,7 @@ pub(crate) fn wire_looper_callbacks(
         });
     }
 }
+
+#[cfg(test)]
+#[path = "looper_callbacks_tests.rs"]
+mod tests;
