@@ -167,6 +167,7 @@ mod block_editor_persist;
 mod block_editor_setters;
 mod block_editor_values;
 mod chain_editor;
+mod curated_knob_overlays;
 mod default_io_binding;
 mod device_refresh_list;
 mod device_rows;

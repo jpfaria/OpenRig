@@ -1,13 +1,14 @@
 //! Responsibility: holds the block editor primitives every flow shares.
 //! Core block-editor primitives shared by the desktop and touch flows:
-//! knob-overlay layout, the editor data lift from `AudioBlock`, and the
-//! numeric quantization / widget-kind heuristics.
+//! the editor data lift from `AudioBlock` and the numeric quantization /
+//! widget-kind heuristics.
 //!
 //! Heavier responsibilities are split out:
 //!   - `block_editor_param_items` — `Vec<BlockParameterItem>` builders
 //!   - `block_editor_setters`     — per-row mutators by parameter path
 //!   - `block_editor_values`      — `ParameterSet` + value reads
 //!   - `block_editor_persist`     — synchronous + debounced commit flow
+//!   - `curated_knob_overlays`    — the curated `knob_layout` overlays
 //!
 //! Each split module is re-exported here so existing call sites
 //! (`use crate::block_editor::...`) keep working.
@@ -15,7 +16,6 @@
 use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
 
 use crate::state::{BlockEditorData, SelectOptionEditorItem};
-use crate::{BlockKnobOverlay, BlockParameterItem};
 
 pub(crate) use crate::block_editor_param_items::{
     block_parameter_items_for_editor, block_parameter_items_for_model, parameter_groups,
@@ -31,36 +31,7 @@ pub(crate) use crate::block_editor_setters::{
 pub(crate) use crate::block_editor_values::{
     block_parameter_extensions, build_params_from_items, internal_block_parameter_value,
 };
-
-pub(crate) fn build_knob_overlays(
-    knob_layout: &[block_core::KnobLayoutEntry],
-    param_items: &[BlockParameterItem],
-) -> Vec<BlockKnobOverlay> {
-    knob_layout
-        .iter()
-        .map(|info| {
-            let found = param_items
-                .iter()
-                .find(|p| p.path.as_str() == info.param_key);
-            let value = found.map(|p| p.numeric_value).unwrap_or(info.min);
-            let label = found
-                .map(|p| p.label.to_string().to_uppercase())
-                .unwrap_or_else(|| info.param_key.to_uppercase());
-            BlockKnobOverlay {
-                strip_line: -1,
-                path: info.param_key.into(),
-                label: label.into(),
-                svg_cx: info.svg_cx,
-                svg_cy: info.svg_cy,
-                svg_r: info.svg_r,
-                value,
-                min_val: info.min,
-                max_val: info.max,
-                step: info.step,
-            }
-        })
-        .collect()
-}
+pub(crate) use crate::curated_knob_overlays::build_knob_overlays;
 
 pub(crate) fn block_editor_data(block: &AudioBlock) -> Option<BlockEditorData> {
     block_editor_data_with_selected(block, None)
