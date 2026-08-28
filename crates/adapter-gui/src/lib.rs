@@ -122,7 +122,8 @@ mod runtime_teardown;
 mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
-pub(crate) mod settings;
+pub(crate) mod session_dispatch;
+mod settings;
 pub mod tone_doctor_compact_wiring;
 pub mod tone_doctor_wiring;
 /// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
