@@ -19,8 +19,6 @@ use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
 
-use application::command::{Command, ProjectCommand};
-
 use crate::audio_devices::{
     build_project_device_rows, invalidate_device_cache, refresh_input_devices,
     refresh_output_devices,
@@ -181,12 +179,8 @@ pub(crate) fn wire(
                 return;
             };
             window.set_project_name_draft(value.clone());
+            crate::project_name_edit::record_project_name(&project_session, value.as_str());
             if let Some(session) = project_session.borrow_mut().as_mut() {
-                let _ = session.dispatcher.dispatch(Command::Project(
-                    ProjectCommand::UpdateProjectName {
-                        name: value.to_string(),
-                    },
-                ));
                 sync_project_dirty(
                     &window,
                     session,
@@ -212,12 +206,8 @@ pub(crate) fn wire(
             };
             window.set_project_name_draft(value.clone());
             settings_window.set_project_name_draft(value.clone());
+            crate::project_name_edit::record_project_name(&project_session, value.as_str());
             if let Some(session) = project_session.borrow_mut().as_mut() {
-                let _ = session.dispatcher.dispatch(Command::Project(
-                    ProjectCommand::UpdateProjectName {
-                        name: value.to_string(),
-                    },
-                ));
                 sync_project_dirty(
                     &window,
                     session,
