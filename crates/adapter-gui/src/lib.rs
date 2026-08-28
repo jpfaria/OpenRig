@@ -261,6 +261,7 @@ mod project_dirty;
 mod project_display_name;
 mod project_load_normalize;
 mod project_name_edit;
+mod project_open;
 mod project_ops;
 mod project_ops_recents;
 mod project_path;

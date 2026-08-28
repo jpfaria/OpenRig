@@ -27,7 +27,7 @@ use application::command::{Command, ProjectCommand};
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::{
-    canonical_project_path, create_new_project_session, load_project_session, project_display_name,
+    canonical_project_path, create_new_project_session, project_display_name,
     project_session_snapshot, project_title_for_path, recent_project_items,
     register_recent_project, resolve_project_config_path, set_project_dirty,
 };
@@ -118,82 +118,31 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 return;
             };
             log::info!("opening project file: {:?}", path);
-            match load_project_session(&path, &resolve_project_config_path(&path)) {
-                Ok(session) => {
-                    let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    let title =
-                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
-                    let display_name = project_display_name(&session.project.borrow());
-                    stop_the_previous_rig(&project_session);
-                    // #903: opening restores this project's recorded loops, which
-                    // ride on LoadProject and need a store to land in — so the
-                    // runtime seam is wired up first, and only after the previous
-                    // rig is stopped, or they would land in the controller that is
-                    // about to be dropped.
-                    runtime_attach.to_session(&session);
-                    // #436 E: abrir projeto é negócio → ProjectCommand::LoadProject
-                    // no dispatcher da sessão (MCP/MIDI, observável via
-                    // Event::ProjectLoaded). O load de arquivo + swap de
-                    // sessão/runtime é adapter-side (precedente SaveProject).
-                    {
-                        let project = session.project.borrow().clone();
-                        if let Err(e) = session.dispatcher.dispatch(Command::Project(
-                            ProjectCommand::LoadProject {
-                                project,
-                                path: canonical_path.clone(),
-                            },
-                        )) {
-                            log::warn!("[open-project] Command::LoadProject falhou: {e}");
-                        }
-                    }
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project.borrow(),
-                        &input_chain_devices.borrow(),
-                        &output_chain_devices.borrow(),
-                        &[],
-                    );
-                    // #808: populate the DI output select from the real bindings
-                    // now, or it stays empty until the chain is first enabled.
-                    crate::di_output_options::apply_di_outputs_to_rows(
-                        &project_chains,
-                        &session.project.borrow(),
-                        &session.io_bindings.borrow(),
-                    );
-                    // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
-                    // anything can dispatch against it — a runtime-control command issued before
-                    // the first chain sync must still reach the audio.
-                    let snapshot = project_session_snapshot(&session).ok();
-                    *project_session.borrow_mut() = Some(session);
+            let opened = crate::project_open::open_project_at(
+                &crate::project_open::OpenProjectCtx {
+                    app_config: &app_config,
+                    recent_projects: &recent_projects,
+                    project_session: &project_session,
+                    project_chains: &project_chains,
+                    runtime_attach: &runtime_attach,
+                    saved_project_snapshot: &saved_project_snapshot,
+                    input_chain_devices: &input_chain_devices.borrow(),
+                    output_chain_devices: &output_chain_devices.borrow(),
+                    search: window.get_recent_project_search().as_str(),
+                },
+                &path,
+            );
+            // #693/#731: the config write runs on the persist worker (the GUI
+            // thread never waits on disk) and the path is bound at dispatch time.
+            {
+                let snapshot = app_config.borrow().clone();
+                application::app_config_persist::persist_app_config_snapshot(snapshot);
+            }
+            match opened {
+                Ok(opened) => {
+                    let title = opened.title;
+                    let canonical_path = opened.canonical_path;
                     crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
-                    *saved_project_snapshot.borrow_mut() = snapshot;
-                    register_recent_project(
-                        &mut app_config.borrow_mut(),
-                        &canonical_path,
-                        &display_name,
-                    );
-                    // #436 (sweep): registrar recente é negócio → Command
-                    // no dispatcher (MCP/MIDI, observável). save_app_config
-                    // abaixo é adapter-side (precedente SaveProject).
-                    if let Some(s) = project_session.borrow().as_ref() {
-                        let _ = s.dispatcher.dispatch(Command::Project(
-                            ProjectCommand::RegisterRecentProject {
-                                path: canonical_path.clone(),
-                                name: display_name.clone(),
-                            },
-                        ));
-                    }
-                    {
-                        // #693: config write runs on the persist worker — the
-                        // GUI thread never waits on disk.
-                        let snapshot = app_config.borrow().clone();
-                        // #731: bind the config path at dispatch time.
-                        application::app_config_persist::persist_app_config_snapshot(snapshot);
-                    }
-                    recent_projects.set_vec(recent_project_items(
-                        &app_config.borrow().recent_projects,
-                        window.get_recent_project_search().as_str(),
-                    ));
                     set_project_dirty(&window, &project_dirty, false);
                     clear_status(&window, &toast_timer);
                     window.set_project_title(title.into());

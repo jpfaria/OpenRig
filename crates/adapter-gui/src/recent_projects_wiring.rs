@@ -93,7 +93,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             };
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             let result = crate::recent_project_open::open_recent(
-                &crate::recent_project_open::OpenRecentCtx {
+                &crate::project_open::OpenProjectCtx {
                     app_config: &app_config,
                     recent_projects: &recent_projects,
                     project_session: &project_session,

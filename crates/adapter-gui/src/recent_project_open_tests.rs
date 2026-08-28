@@ -6,7 +6,8 @@
 //! session, and one that fails to load NOW is flagged so the user can clean it
 //! up instead of clicking a dead row forever.
 
-use super::{open_recent, OpenRecentCtx, OpenRecentError};
+use super::{open_recent, OpenRecentError};
+use crate::project_open::OpenProjectCtx;
 use crate::runtime_analyzers::AnalyzerSessions;
 use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
@@ -85,9 +86,9 @@ impl Harness {
         }
     }
 
-    fn open(&self, index: usize) -> Result<super::OpenedRecent, OpenRecentError> {
+    fn open(&self, index: usize) -> Result<crate::project_open::OpenedProject, OpenRecentError> {
         open_recent(
-            &OpenRecentCtx {
+            &OpenProjectCtx {
                 app_config: &self.app_config,
                 recent_projects: &self.recent_projects,
                 project_session: &self.project_session,
