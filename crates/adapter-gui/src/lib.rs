@@ -35,6 +35,7 @@ mod block_picker_wiring;
 #[cfg(test)]
 #[path = "block_stream_read_tests.rs"]
 mod block_stream_read_tests;
+mod block_toggle;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
 pub mod chain_binding_choices;

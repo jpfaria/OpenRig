@@ -123,54 +123,42 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
+            if project_session.borrow().is_none() {
                 set_status_error(
                     &window,
                     &toast_timer,
                     &rust_i18n::t!("error-no-project-loaded"),
                 );
                 return;
-            };
-            // Resolve real block index and IDs (read-only) before dispatching.
-            let (block_index, chain_id, block_id) = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(chain_index as usize) else {
+            }
+            let toggled = match crate::block_toggle::toggle_block_at_row(
+                &project_session,
+                chain_index as usize,
+                ui_block_index as usize,
+                &project_chains,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            ) {
+                Ok(toggled) => toggled,
+                Err(crate::block_toggle::ToggleBlockError::NoSuchChain) => {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
-                };
-                // Convert UI index to real block index from current chain state
-                let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize);
-                log::info!(
-                    "on_toggle_chain_block_enabled: chain_index={}, ui_index={}, real_index={}",
-                    chain_index,
-                    ui_block_index,
-                    block_index
-                );
-                let Some(block) = chain.blocks.get(block_index) else {
+                }
+                Err(crate::block_toggle::ToggleBlockError::NoSuchBlock) => {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-block"));
                     return;
-                };
-                (block_index, chain.id.clone(), block.id.clone())
+                }
+                Err(crate::block_toggle::ToggleBlockError::Failed(message)) => {
+                    set_status_error(&window, &toast_timer, &message);
+                    return;
+                }
+                Err(crate::block_toggle::ToggleBlockError::NoProject) => return,
             };
-            if let Err(error) =
-                session
-                    .dispatcher
-                    .dispatch(Command::Block(BlockCommand::ToggleBlockEnabled {
-                        chain: chain_id.clone(),
-                        block: block_id.clone(),
-                    }))
-            {
-                set_status_error(&window, &toast_timer, &error.to_string());
+            let block_index = toggled.block_index;
+            let new_enabled = toggled.enabled;
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
                 return;
-            }
-            let new_enabled = {
-                let proj = session.project.borrow();
-                proj.chains
-                    .get(chain_index as usize)
-                    .and_then(|c| c.blocks.get(block_index))
-                    .map(|b| b.enabled)
-                    .unwrap_or(false)
             };
             // Keep block_editor_draft in sync to prevent stale persist from reverting
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
@@ -182,16 +170,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
             }
             // Keep inline drawer UI in sync
             crate::BlockEditorBridge::get(&window).set_block_drawer_enabled(new_enabled);
-            // #127: the runtime already knows — `ToggleBlockEnabled` applied the
-            // live toggle from the dispatcher (through `RuntimeControl`), so a
-            // failure came back out of the dispatch above.
-            replace_project_chains(
-                &project_chains,
-                &session.project.borrow(),
-                &input_chain_devices.borrow(),
-                &output_chain_devices.borrow(),
-                &[],
-            );
             let selected = SelectedBlock {
                 chain_index: chain_index as usize,
                 block_index,
