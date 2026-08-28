@@ -13,7 +13,6 @@
 //! Stays out of `lib.rs` so launcher tweaks don't collide with other UI work.
 
 use std::cell::RefCell;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 use rfd::FileDialog;
@@ -29,7 +28,7 @@ use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::{
     canonical_project_path, create_new_project_session, project_display_name,
     project_session_snapshot, project_title_for_path, recent_project_items,
-    register_recent_project, resolve_project_config_path, set_project_dirty,
+    register_recent_project, set_project_dirty,
 };
 use crate::project_view::replace_project_chains;
 use crate::runtime_lifecycle::RuntimeAttach;
@@ -309,27 +308,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 else {
                     return;
                 };
-                session.project_path = Some(path.clone());
-                session.config_path = Some(resolve_project_config_path(&path));
-                session.presets_path = path
-                    .parent()
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("presets");
-                // #555: re-attach the new paths on Save As so the
-                // dispatcher writes to the right files.
-                session.dispatcher.attach_project_path(path.clone());
-                session
-                    .dispatcher
-                    .attach_config_path(session.config_path.clone());
-                session
-                    .dispatcher
-                    .attach_presets_path(session.presets_path.clone());
-                // #127: the runtime control mirrors the session's paths (it
-                // hands them to the sync helpers), so re-attach it here too —
-                // otherwise a cold start after Save As would restore the
-                // project's loops from the OLD path.
-                runtime_attach.to_session(session);
+                crate::project_save_as::bind_project_path(session, path.clone(), &runtime_attach);
                 path
             };
             // #323/#127: the recorded loops are exported as wav sidecars by the

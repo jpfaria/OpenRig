@@ -266,6 +266,7 @@ mod project_ops;
 mod project_ops_recents;
 mod project_path;
 mod project_paths_resolve;
+mod project_save_as;
 mod project_session_load;
 mod project_title;
 mod recent_projects;
