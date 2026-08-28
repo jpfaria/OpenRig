@@ -99,6 +99,8 @@ mod param_tabs_inline;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod plugin_info_panel;
+mod preset_load;
+mod preset_picker_files;
 mod preset_save;
 mod preset_save_wiring;
 mod project_file_dialog_wiring;
@@ -164,7 +166,7 @@ pub use cli::{
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.
-pub(crate) use chain_block_helpers::{assign_new_block_ids, ui_index_to_real_block_index};
+pub(crate) use chain_block_helpers::ui_index_to_real_block_index;
 pub use live_sync_plan::{plan_live_sync, LiveSyncAction};
 
 mod defaults;
