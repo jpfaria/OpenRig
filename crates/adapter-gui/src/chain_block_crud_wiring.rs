@@ -17,15 +17,12 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Timer, VecModel};
 
-use application::command::{BlockCommand, Command};
 use domain::AudioDeviceDescriptor;
 
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{replace_project_chains, set_selected_block};
-use crate::runtime_sync_policy::request_chain_sync;
+use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, BlockWindow, ProjectSession, SelectedBlock};
-use crate::ui_index_to_real_block_index;
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
     ProjectChainItem,
@@ -207,71 +204,39 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, &rust_i18n::t!("error-no-project-loaded"));
-                return;
-            };
-            // Compute real indices and resolve block_id; the dispatcher handles the actual move.
-            let (chain_id, block_id, insert_at) = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(chain_index as usize) else {
-                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                    return;
-                };
-                // Both from_index and before_index are in UI space — convert to real indices.
-                let from_index = ui_index_to_real_block_index(chain, ui_from_index as usize) as i32;
-                let real_before =
-                    ui_index_to_real_block_index(chain, ui_before_index as usize) as i32;
-                log::info!(
-                    "[reorder_chain_block] chain_index={}, ui_from={} → real_from={}, ui_before={} → real_before={}",
-                    chain_index,
-                    ui_from_index,
-                    from_index,
-                    ui_before_index,
-                    real_before
+            if project_session.borrow().is_none() {
+                set_status_error(
+                    &window,
+                    &toast_timer,
+                    &rust_i18n::t!("error-no-project-loaded"),
                 );
-                let block_count = chain.blocks.len() as i32;
-                if from_index < 0 || from_index >= block_count {
-                    return;
-                }
-                if real_before == from_index || real_before == from_index + 1 {
-                    return;
-                }
-                let block_id = chain.blocks[from_index as usize].id.clone();
-                // Compute the post-removal insert position (same logic as before, but without
-                // actually mutating — the dispatcher will do the mutation).
-                let mut normalized_before = real_before;
-                if normalized_before > from_index {
-                    normalized_before -= 1;
-                }
-                // blocks.len() - 1 because we'll have removed one block before inserting.
-                let insert_at =
-                    normalized_before.clamp(0, block_count - 1) as usize;
-                (chain.id.clone(), block_id, insert_at)
-            };
-            // Dispatch BlockCommand::MoveBlock — mutates project via shared Rc.
-            if let Err(error) = session.dispatcher.dispatch(Command::Block(
-                BlockCommand::MoveBlock {
-                    chain: chain_id.clone(),
-                    block: block_id,
-                    new_position: insert_at,
-                },
-            )) {
-                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
-            if let Err(error) = request_chain_sync(session, &chain_id) {
-                set_status_error(&window, &toast_timer, &error.to_string());
-                return;
-            }
-            replace_project_chains(
+            // Compute real indices and resolve block_id; the dispatcher handles the actual move.
+            match crate::block_reorder::reorder_block(
+                &project_session,
+                chain_index as usize,
+                ui_from_index as usize,
+                ui_before_index as usize,
                 &project_chains,
-                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-            &[]
-            );
+            ) {
+                Ok(_) => {}
+                Err(crate::block_reorder::ReorderBlockError::NoSuchChain) => {
+                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
+                    return;
+                }
+                Err(crate::block_reorder::ReorderBlockError::Failed(message)) => {
+                    set_status_error(&window, &toast_timer, &message);
+                    return;
+                }
+                Err(_) => return,
+            }
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
             // Close editor and clear all state — avoids stale index references
             block_editor_persist_timer.stop();
             *selected_block.borrow_mut() = None;

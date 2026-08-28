@@ -32,6 +32,7 @@ pub mod block_panel_dimensions;
 mod block_parameter_extras;
 mod block_parameter_wiring;
 mod block_picker_wiring;
+mod block_reorder;
 #[cfg(test)]
 #[path = "block_stream_read_tests.rs"]
 mod block_stream_read_tests;
