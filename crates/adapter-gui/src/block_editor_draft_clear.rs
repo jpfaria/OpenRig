@@ -32,6 +32,12 @@ pub(crate) struct BlockEditorModels {
 /// the user just cancelled.
 pub(crate) fn clear_block_editor(models: &BlockEditorModels, persist_timer: &Timer) {
     persist_timer.stop();
+    clear_block_editor_models(models);
+}
+
+/// The same clear for a caller that holds no persist timer — the chains screen
+/// clearing its selection, where no edit was ever armed to be written back.
+pub(crate) fn clear_block_editor_models(models: &BlockEditorModels) {
     *models.block_editor_draft.borrow_mut() = None;
     models.block_model_options.set_vec(Vec::new());
     models.filtered_block_model_options.set_vec(Vec::new());

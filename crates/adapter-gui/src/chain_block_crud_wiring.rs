@@ -90,14 +90,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                 return;
             };
             *selected_block.borrow_mut() = None;
-            *block_editor_draft.borrow_mut() = None;
-            block_model_options.set_vec(Vec::new());
-            filtered_block_model_options.set_vec(Vec::new());
-            block_model_option_labels.set_vec(Vec::new());
-            block_parameter_items.set_vec(Vec::new());
-            multi_slider_points.set_vec(Vec::new());
-            curve_editor_points.set_vec(Vec::new());
-            eq_band_curves.set_vec(Vec::new());
+            crate::block_editor_draft_clear::clear_block_editor_models(
+                &crate::block_editor_draft_clear::BlockEditorModels {
+                    block_editor_draft: block_editor_draft.clone(),
+                    block_model_options: block_model_options.clone(),
+                    filtered_block_model_options: filtered_block_model_options.clone(),
+                    block_model_option_labels: block_model_option_labels.clone(),
+                    block_parameter_items: block_parameter_items.clone(),
+                    multi_slider_points: multi_slider_points.clone(),
+                    curve_editor_points: curve_editor_points.clone(),
+                    eq_band_curves: eq_band_curves.clone(),
+                },
+            );
             crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
             set_selected_block(&window, None, None);
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);

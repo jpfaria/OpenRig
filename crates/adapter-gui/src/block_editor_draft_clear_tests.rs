@@ -134,3 +134,15 @@ fn closing_a_drawer_that_was_never_opened_is_safe() {
     super::close_block_drawer(&models, &Timer::default(), &selected, &inline);
     assert!(selected.borrow().is_none());
 }
+
+#[test]
+fn clearing_without_a_persist_timer_empties_the_same_models() {
+    // The chains screen clears its selection with no edit ever armed, so it
+    // holds no timer — the models still have to come out empty.
+    let models = populated();
+    super::clear_block_editor_models(&models);
+    assert!(models.block_editor_draft.borrow().is_none());
+    assert_eq!(models.block_model_options.row_count(), 0);
+    assert_eq!(models.block_parameter_items.row_count(), 0);
+    assert_eq!(models.eq_band_curves.row_count(), 0);
+}
