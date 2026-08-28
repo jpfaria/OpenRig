@@ -86,14 +86,14 @@ pub(crate) fn drawn_by_eq_widget(items: &[BlockParameterItem]) -> bool {
     items.iter().any(|it| it.widget_kind.is_empty())
 }
 
+/// The tab labels a block publishes: empty when it needs no tab bar at all.
+/// The one place that decides it, so the editor window and the compact row
+/// never disagree about whether a block has tabs.
 /// The tab labels to publish for a fresh parameter list, plus the same list
-/// tagged for its first tab. An EQ-widget block gets no labels at all and shows
-/// every grid-owned row at once.
-pub(crate) fn groups_and_rows(
-    full_items: &[BlockParameterItem],
-) -> (Vec<String>, Vec<BlockParameterItem>) {
+/// tagged for its first tab.
+pub(crate) fn tab_groups(full_items: &[BlockParameterItem]) -> Vec<String> {
     if drawn_by_eq_widget(full_items) {
-        return (Vec::new(), retag_all(full_items));
+        return Vec::new();
     }
     let groupable: Vec<BlockParameterItem> = full_items
         .iter()
@@ -101,10 +101,47 @@ pub(crate) fn groups_and_rows(
         .cloned()
         .collect();
     let groups = parameter_groups(&groupable);
-    let active = groups
-        .first()
-        .map(String::as_str)
-        .unwrap_or(DEFAULT_PARAM_GROUP);
+    // One tab to pick from picks nothing.
+    if groups.len() <= 1 {
+        return Vec::new();
+    }
+    // A tab has to earn its 40px, and what earns it is the grouping itself,
+    // never a parameter count (#915). A group of one knob is a label, not a
+    // tab: a native amp's ten knobs are spread over seven groups, five of them
+    // a single knob — an amp's front panel cut into slivers, not divided — so
+    // it is drawn whole. But one loose knob does not condemn a real grouping: a
+    // NAM package declares its capture axes as parameters and some ship a
+    // single axis (`channel`), which sits beside the Amp / Noise Gate / EQ
+    // modules of two-to-four knobs each. So the grouping divides the block when
+    // the one-knob groups are outnumbered by the real ones. Above one panel
+    // there is no choice: a tab bar beats a knob the window cannot show.
+    let loose = groups
+        .iter()
+        .filter(|g| groupable.iter().filter(|it| group_label(it) == *g).count() == 1)
+        .count();
+    if loose * 2 < groups.len()
+        || groupable.len() > crate::block_panel_dimensions::ONE_PANEL_CAPACITY
+    {
+        return groups;
+    }
+    Vec::new()
+}
+
+pub(crate) fn groups_and_rows(
+    full_items: &[BlockParameterItem],
+) -> (Vec<String>, Vec<BlockParameterItem>) {
+    let groups = tab_groups(full_items);
+    let Some(active) = groups.first() else {
+        return (Vec::new(), retag_all(full_items));
+    };
     let rows = retag_for_group(full_items, active);
     (groups, rows)
 }
+
+#[cfg(test)]
+#[path = "drawn_whole_tests.rs"]
+mod drawn_whole_tests;
+
+#[cfg(test)]
+#[path = "tab_worthy_groups_tests.rs"]
+mod tab_worthy_tests;

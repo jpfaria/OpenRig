@@ -71,10 +71,32 @@ fn adding_a_block_opens_the_tabbed_editor_in_add_mode() {
     };
     let (win, _timer) = create_and_wire(weak, new_block_ctx()).unwrap();
 
-    // The #780 parameter tabs must be built for a NEW block, just like edit.
+    // The #780 parameter tab state must be built for a NEW block exactly as the
+    // edit path builds it. Since #915 a block that fits one panel publishes no
+    // tab labels, so the invariant is the equality with the edit path, not a
+    // count: what ADD publishes is what EDIT publishes for the same model.
+    let published: Vec<String> = win
+        .get_block_parameter_groups()
+        .iter()
+        .map(|g| g.to_string())
+        .collect();
+    let (expected, _) = crate::param_tab_grouping::groups_and_rows(
+        &crate::block_editor::block_parameter_items_for_model(
+            "gain",
+            "tube_saturation",
+            &project::param::ParameterSet::default(),
+        ),
+    );
+    assert_eq!(
+        published, expected,
+        "the ADD flow must build the same tab state the EDIT flow builds"
+    );
     assert!(
-        win.get_block_parameter_groups().row_count() > 1,
-        "a newly added grouped block must show its parameter tabs"
+        crate::BlockEditorBridge::get(&win)
+            .get_block_parameter_items()
+            .iter()
+            .all(|it| it.tab_slot >= 0),
+        "tube saturation fits one panel, so every parameter is drawn at once (#915)"
     );
     // New block => add mode, not edit mode (no delete, confirm = add).
     assert!(

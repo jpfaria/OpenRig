@@ -48,7 +48,8 @@ export component CompactBlockParamCell inherits Rectangle {
 
     // ── Numeric knob/stepper/slider ──
     if root.param.widget_kind == "stepper" || root.param.widget_kind == "slider" || root.param.widget_kind == "knob" : PanelKnob {
-        x: 2px; y: 28px;
+        // Centred on the cell, like the label above it (#915).
+        x: (parent.width - 38px) / 2; y: 28px;
         width: 38px; height: 52px;
         value: root.param.numeric_value;
         min-val: root.param.numeric_min;
