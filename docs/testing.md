@@ -62,10 +62,44 @@ shrinks.** Adding to it means writing the reason here first.
 | Layer | Why no test reaches it | The way off the list |
 |---|---|---|
 | `stream_builder_input.rs`, `stream_builder_output.rs` | Building a cpal stream needs a real `cpal::Device`; `ResolvedInputDevice`/`ResolvedOutputDevice` carry the device itself, so there is nothing to fake. | They ARE exercised — by the real-hardware battery below (`OPENRIG_HW_TESTS=1`), which does not run in CI and emits no coverage. A fake-host seam would move them back in scope. |
-| `desktop_app*.rs`, `block_parameter_*.rs`, `settings/paths_{apply,seed}.rs`, `device_refresh_list.rs` | Their body is callback registration on an `AppWindow`, and the repo's law keeps `AppWindow` out of tests. | The `looper_commands` pattern: the closure body becomes a pure function the wiring only calls, and that function gets the test. Then delete the entry. |
+| `desktop_app*.rs`, `block_parameter_*.rs`, `settings/paths_seed.rs` | What is left in them is callback registration and window setters, and the repo's law keeps `AppWindow` out of tests. | The `looper_commands` pattern: the closure body becomes a pure function the wiring only calls, and that function gets the test. Then delete the entry. |
 
 Everything else stays in the target. A new file that "cannot be tested" is a
 design answer, not a coverage exemption — split the logic out of the wiring.
+
+**The list has already shrunk once.** `settings/paths_apply.rs` and
+`device_refresh_list.rs` were on it and came off: the first through a config-path
+seam (`apply_*_path_at`), the second because the enumeration answers on any
+machine, with or without interfaces. That is the expected direction of travel.
+
+### Extracting logic out of a callback
+
+The sweep that emptied those files follows one shape, and it is the shape to
+reuse:
+
+1. The closure keeps only what a WINDOW does — hide, show, set a property,
+   paint a toast.
+2. Everything else moves to a file named after what it does
+   (`chain_draft_save`, `preset_load`, `block_reorder`), taking the plain
+   handles it needs (`Rc<RefCell<Option<ProjectSession>>>`, a `VecModel`) and
+   returning a result the callback renders.
+3. That function gets the test.
+
+Two things make this work in practice, both learned the hard way:
+
+- **`VecModel` and `ProjectSession` build fine without a window.** Most of the
+  "untestable GUI layer" was never about Slint — it was about logic living
+  inside a closure.
+- **Never let an extracted function write shared state a test has no business
+  touching.** Anything that reaches `config.yaml` takes an explicit path
+  (`save_io_bindings_at`, `apply_*_override_at`), and the production entry
+  point is that same function called with the real path — so the test drives
+  the SAME body against a temp file (#701).
+
+Two functions doing the same job in two files is a duplicate to collapse, not
+two tests to write: the chain-editor save, the analyzer dispatch helper, the DI
+loop row actions, the block parameter edits and the project open each had a
+copy per call site and now have one tested body.
 
 ## Convenções
 

@@ -29,6 +29,11 @@ ignore:
   # is `window.on_x(...)` registration is unreachable by construction. The way
   # off this list is the `looper_commands` pattern: the closure body becomes a
   # pure function the wiring only calls, and THAT function gets the test.
+  #
+  # #913 walked this list once already: `settings/paths_apply.rs` and
+  # `device_refresh_list.rs` came OFF it that way, and every file left here has
+  # had its logic pulled out into a tested module — what remains in them really
+  # is registration and window setters.
   - "crates/adapter-gui/src/desktop_app.rs"
   - "crates/adapter-gui/src/desktop_app_language.rs"
   - "crates/adapter-gui/src/desktop_app_mcp.rs"
@@ -37,9 +42,7 @@ ignore:
   - "crates/adapter-gui/src/desktop_app_windows.rs"
   - "crates/adapter-gui/src/block_parameter_extras.rs"
   - "crates/adapter-gui/src/block_parameter_wiring.rs"
-  - "crates/adapter-gui/src/settings/paths_apply.rs"
   - "crates/adapter-gui/src/settings/paths_seed.rs"
-  - "crates/adapter-gui/src/device_refresh_list.rs"
 
   # ── Test code itself ──────────────────────────────────────────────────────
   - "crates/**/*_tests.rs"
