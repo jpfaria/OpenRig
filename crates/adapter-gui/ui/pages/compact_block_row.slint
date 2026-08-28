@@ -210,7 +210,8 @@ export component CompactBlockRow inherits Rectangle {
             }
 
             PanelKnob {
-                x: 2px; y: 28px;
+                // Centred on the cell, like the label above it (#915).
+                x: (parent.width - 42px) / 2; y: 28px;
                 width: 42px; height: 60px;
                 value: knob.value;
                 min-val: knob.min_val;
