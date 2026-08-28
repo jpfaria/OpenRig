@@ -154,4 +154,8 @@ pub(crate) fn apply_preset_filter(
 
 #[cfg(test)]
 #[path = "chain_preset_bank_tests.rs"]
-mod tests;
+mod bank_tests;
+
+#[cfg(test)]
+#[path = "chain_preset_picker_tests.rs"]
+mod picker_tests;

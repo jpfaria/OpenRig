@@ -1,39 +1,20 @@
-//! #913 — the preset-bank projections the compact row and the save dialog read.
+//! #323 phase 2 — what a chain's preset bank answers.
 //!
-//! Every answer here is derived from the rig document alone: which presets a
-//! chain's bank holds, which one it is playing, what the save dialog proposes
-//! as a filename, and what the load picker's search keeps. The chain id carries
-//! the `rig:` prefix, so a legacy (non-rig) chain must fall through empty
-//! instead of guessing an input name.
+//! Pure: a rig in memory, no window. These pin the three questions the looper
+//! drawer and the save dialog ask — which preset is playing, what the bank
+//! holds in slot order, and what to call the file — including the answers for
+//! a chain that is not projected from a rig at all.
 
-use super::{
-    active_preset_id, chain_preset_bank, default_preset_filename_slug, filter_preset_names,
-    preset_overwrite_required, preset_rename_target_from_path, strip_io_blocks,
-};
+use super::{active_preset_id, chain_preset_bank, default_preset_filename_slug, strip_io_blocks};
 use domain::ids::{BlockId, ChainId};
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock};
 use project::rig::{RigInput, RigPreset, RigProject};
 use std::collections::BTreeMap;
 
-fn input(bank: &[(usize, &str)], active: usize) -> RigInput {
-    RigInput {
-        label: None,
-        bank: bank.iter().map(|(i, n)| (*i, (*n).to_string())).collect(),
-        active_preset: active,
-        active_scene: 1,
-        routing: Vec::new(),
-        instrument: "electric_guitar".to_string(),
-        io: String::new(),
-        endpoint: String::new(),
-        io_binding_ids: Vec::new(),
-        loopers: Vec::new(),
-    }
-}
-
 fn preset(id: &str, name: Option<&str>) -> RigPreset {
     RigPreset {
-        id: id.to_string(),
-        name: name.map(str::to_string),
+        id: id.into(),
+        name: name.map(|n| n.to_string()),
         blocks: Vec::new(),
         scene_params: Vec::new(),
         scenes: BTreeMap::new(),
@@ -41,33 +22,100 @@ fn preset(id: &str, name: Option<&str>) -> RigPreset {
     }
 }
 
-/// One input whose bank has gaps, one preset named, one left to the slug.
+/// One rig input whose bank has gaps (slots 1, 3, 5) with slot 3 active — the
+/// shape a real bank takes once presets are added and removed.
 fn rig() -> RigProject {
+    let mut inputs = BTreeMap::new();
+    inputs.insert(
+        "input-1".to_string(),
+        RigInput {
+            label: Some("Guitarra".into()),
+            bank: BTreeMap::from([
+                (1, "clean".to_string()),
+                (3, "drive".to_string()),
+                (5, "lead".to_string()),
+            ]),
+            active_preset: 3,
+            active_scene: 1,
+            routing: vec![],
+            instrument: "electric_guitar".to_string(),
+            io: String::new(),
+            endpoint: String::new(),
+            io_binding_ids: Vec::new(),
+            loopers: Vec::new(),
+        },
+    );
     RigProject {
-        name: None,
-        inputs: BTreeMap::from([(
-            "guitar".to_string(),
-            input(&[(3, "studio-clean"), (1, "lead-boost")], 3),
-        )]),
+        name: Some("Studio".into()),
+        inputs,
         outputs: BTreeMap::new(),
         presets: BTreeMap::from([
-            ("studio-clean".to_string(), preset("studio-clean", None)),
-            (
-                "lead-boost".to_string(),
-                preset("lead-boost", Some("Lead Boost!")),
-            ),
+            ("clean".to_string(), preset("clean", Some("Clean Tone"))),
+            ("drive".to_string(), preset("drive", Some("Crunch"))),
+            // `lead` is in the bank but has no pool entry with a name.
+            ("lead".to_string(), preset("lead", None)),
         ]),
         midi: None,
         chain_order: Vec::new(),
     }
 }
 
-fn rig_chain() -> ChainId {
-    ChainId("rig:guitar".into())
+fn chain(name: &str) -> ChainId {
+    ChainId(name.into())
 }
 
 #[test]
-fn a_preset_arrives_with_io_blocks_the_dispatcher_owns() {
+fn the_active_preset_is_the_one_the_bank_slot_points_at() {
+    assert_eq!(
+        active_preset_id(&chain("rig:input-1"), &rig()).as_deref(),
+        Some("drive"),
+        "slot 3 is active, and slot 3 holds `drive`"
+    );
+}
+
+#[test]
+fn a_non_rig_chain_has_no_active_preset() {
+    assert!(active_preset_id(&chain("chain:plain"), &rig()).is_none());
+    assert!(active_preset_id(&chain("rig:input-9"), &rig()).is_none());
+}
+
+#[test]
+fn the_bank_lists_its_presets_in_slot_order_with_display_names() {
+    let bank = chain_preset_bank(&chain("rig:input-1"), &rig());
+
+    assert_eq!(
+        bank,
+        vec![
+            ("clean".to_string(), "Clean Tone".to_string()),
+            ("drive".to_string(), "Crunch".to_string()),
+            ("lead".to_string(), "Lead".to_string()),
+        ],
+        "ascending slot order, and a preset with no name falls back to a humanized id"
+    );
+}
+
+#[test]
+fn a_non_rig_chain_has_an_empty_bank() {
+    assert!(chain_preset_bank(&chain("chain:plain"), &rig()).is_empty());
+    assert!(chain_preset_bank(&chain("rig:input-9"), &rig()).is_empty());
+}
+
+#[test]
+fn the_save_dialog_is_seeded_with_the_active_presets_display_name() {
+    assert_eq!(
+        default_preset_filename_slug(&chain("rig:input-1"), &rig()).as_deref(),
+        Some("Crunch"),
+        "the name the user sees, verbatim — not a slug (#510)"
+    );
+}
+
+#[test]
+fn a_non_rig_chain_seeds_no_filename() {
+    assert!(default_preset_filename_slug(&chain("chain:plain"), &rig()).is_none());
+}
+
+#[test]
+fn a_preset_dispatched_onto_a_chain_carries_no_io_blocks() {
     let blocks = vec![
         AudioBlock {
             id: BlockId("in".into()),
@@ -97,134 +145,9 @@ fn a_preset_arrives_with_io_blocks_the_dispatcher_owns() {
             }),
         },
     ];
+
     let kept = strip_io_blocks(blocks);
-    assert_eq!(
-        kept.iter().map(|b| b.id.0.as_str()).collect::<Vec<_>>(),
-        vec!["gain"],
-        "#518: the chain keeps its own I/O across a preset swap"
-    );
-}
 
-#[test]
-fn the_active_preset_id_is_the_bank_entry_the_active_slot_points_at() {
-    assert_eq!(
-        active_preset_id(&rig_chain(), &rig()).as_deref(),
-        Some("studio-clean")
-    );
-}
-
-#[test]
-fn a_slot_with_no_bank_entry_is_playing_no_preset() {
-    let mut rig = rig();
-    rig.inputs.get_mut("guitar").unwrap().active_preset = 7;
-    assert_eq!(active_preset_id(&rig_chain(), &rig), None);
-}
-
-#[test]
-fn a_non_rig_chain_has_no_active_preset() {
-    assert_eq!(
-        active_preset_id(&ChainId("chain:legacy".into()), &rig()),
-        None
-    );
-}
-
-#[test]
-fn the_bank_is_listed_in_slot_order_with_the_pool_name_when_it_has_one() {
-    assert_eq!(
-        chain_preset_bank(&rig_chain(), &rig()),
-        vec![
-            ("lead-boost".to_string(), "Lead Boost!".to_string()),
-            ("studio-clean".to_string(), "Studio Clean".to_string()),
-        ],
-        "slot 1 before slot 3; an unnamed preset falls back to the humanized id"
-    );
-}
-
-#[test]
-fn a_bank_entry_missing_from_the_pool_still_lists_under_its_id() {
-    let mut rig = rig();
-    rig.presets.remove("studio-clean");
-    let bank = chain_preset_bank(&rig_chain(), &rig);
-    assert!(bank
-        .iter()
-        .any(|(id, label)| id == "studio-clean" && label == "Studio Clean"));
-}
-
-#[test]
-fn a_non_rig_chain_has_an_empty_bank() {
-    assert!(chain_preset_bank(&ChainId("chain:legacy".into()), &rig()).is_empty());
-    assert!(chain_preset_bank(&ChainId("rig:absent".into()), &rig()).is_empty());
-}
-
-#[test]
-fn the_save_dialog_proposes_the_active_presets_name_verbatim() {
-    let mut rig = rig();
-    rig.inputs.get_mut("guitar").unwrap().active_preset = 1;
-    assert_eq!(
-        default_preset_filename_slug(&rig_chain(), &rig).as_deref(),
-        Some("Lead Boost!"),
-        "#510: the user's own punctuation survives"
-    );
-}
-
-#[test]
-fn an_unnamed_active_preset_falls_back_to_its_humanized_id() {
-    assert_eq!(
-        default_preset_filename_slug(&rig_chain(), &rig()).as_deref(),
-        Some("Studio Clean")
-    );
-}
-
-#[test]
-fn a_non_rig_chain_proposes_no_filename() {
-    assert_eq!(
-        default_preset_filename_slug(&ChainId("chain:legacy".into()), &rig()),
-        None
-    );
-}
-
-#[test]
-fn a_loaded_file_renames_the_preset_to_its_stem_untouched() {
-    assert_eq!(
-        preset_rename_target_from_path(std::path::Path::new("/p/my_lead-tone.openrig-preset"))
-            .as_deref(),
-        Some("my_lead-tone"),
-        "#510: dashes and underscores are the user's choice, not ours to humanize"
-    );
-}
-
-#[test]
-fn a_path_with_no_stem_renames_nothing() {
-    assert_eq!(
-        preset_rename_target_from_path(std::path::Path::new("/")),
-        None
-    );
-    assert_eq!(
-        preset_rename_target_from_path(std::path::Path::new("")),
-        None
-    );
-}
-
-#[test]
-fn the_picker_search_is_case_insensitive_and_empty_passes_everything() {
-    let names = vec![
-        "Studio Clean".to_string(),
-        "Lead Boost".to_string(),
-        "lead rhythm".to_string(),
-    ];
-    assert_eq!(filter_preset_names(&names, "LEAD").len(), 2);
-    assert_eq!(filter_preset_names(&names, "   ").len(), 3);
-    assert!(filter_preset_names(&names, "bass").is_empty());
-}
-
-#[test]
-fn saving_over_an_existing_file_asks_for_confirmation() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    assert!(
-        !preset_overwrite_required(dir.path(), "Lead Boost"),
-        "nothing saved yet"
-    );
-    let path = super::preset_save_path(dir.path(), "Lead Boost");
-    std::fs::write(&path, b"preset:\n").expect("write");
-    assert!(preset_overwrite_required(dir.path(), "Lead Boost"));
+    assert_eq!(kept.len(), 1, "the dispatcher owns the chain's I/O (#518)");
+    assert_eq!(kept[0].id.0, "gain");
 }

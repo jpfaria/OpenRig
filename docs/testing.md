@@ -48,8 +48,9 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
 - **CI**: `.github/workflows/test.yml` — informativo, sem gate
 - **Patch coverage antes do push**: `./scripts/patch-coverage.sh [base]` — reproduz
   localmente o número que `codecov/patch` reporta no PR (`cargo llvm-cov --lcov`
-  cruzado com `git diff --unified=0 <base>...HEAD`). Reaproveite um relatório com
-  `LCOV=path/to/lcov.info ./scripts/patch-coverage.sh` — o rebuild instrumentado é caro.
+  cruzado com `git diff --unified=0 <base>...HEAD`), respeitando o `ignore:` do
+  `codecov.yml`. O relatório é reaproveitado enquanto a árvore não muda (`--fresh`
+  força de novo); `--files` lista o que ainda falta; `PATCH_COV_OFF=1` pula.
 
 ### What is deliberately outside the coverage target (#913)
 

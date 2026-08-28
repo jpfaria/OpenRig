@@ -88,3 +88,7 @@ pub(crate) fn default_instrument() -> String {
 #[cfg(test)]
 #[path = "default_models_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "default_models_families_tests.rs"]
+mod families_tests;

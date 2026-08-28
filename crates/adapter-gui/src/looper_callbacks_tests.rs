@@ -158,10 +158,7 @@ fn a_fresh_recording_on_a_rig_chain_is_linked_to_the_active_preset() {
     );
     session.project.borrow_mut().chains[0]
         .loopers
-        .push(project::chain::LooperConfig {
-            uid: 1,
-            ..Default::default()
-        });
+        .push(project::looper::LooperConfig::new(1));
     let live: Rc<dyn LiveSource> = Rc::new(NoLoopers);
 
     link_active_preset_on_fresh_record(&session, &live, &ChainId("rig:guitar".into()), 1);

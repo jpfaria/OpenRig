@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Unit test for scripts/lib/patch_coverage.py — the diff × lcov intersection
-# that reproduces codecov/patch. Runs offline: a hand-written lcov + a
-# hand-written diff, no cargo, no network.
+# Unit test for scripts/lib/patch-coverage.py — the diff × lcov intersection
+# that reproduces codecov/patch, and the codecov.yml ignore list it honours.
+# Runs offline: a hand-written lcov + a hand-written diff, no cargo, no network.
 set -uo pipefail
 
 cd "$(dirname "$0")/../.."
+ROOT="$PWD"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail=0
@@ -22,61 +23,68 @@ check() {
 }
 
 cat > "$TMP/lcov.info" <<LCOV
-SF:$PWD/crates/demo/src/covered.rs
+SF:$ROOT/crates/demo/src/covered.rs
 DA:10,3
 DA:11,1
 end_of_record
-SF:$PWD/crates/demo/src/missed.rs
+SF:$ROOT/crates/demo/src/missed.rs
 DA:20,0
 DA:21,0
 end_of_record
-SF:$PWD/crates/adapter-gui/src/desktop_app.rs
+SF:$ROOT/crates/adapter-gui/src/desktop_app.rs
 DA:5,0
 end_of_record
 LCOV
 
-# Added lines 10-11 are instrumented and hit; the comment on 12 is not
-# instrumented at all, so it must not count either way.
-diff_all() {
-  cat <<DIFF
---- a/crates/demo/src/covered.rs
+# The script reads the diff from git, so drive its scoring directly with a
+# stub `git diff` on PATH — the intersection is what is under test, not git.
+mkdir -p "$TMP/bin"
+cat > "$TMP/bin/git" <<'STUB'
+#!/usr/bin/env bash
+if [ "$1" = "rev-parse" ]; then
+  echo "$FAKE_ROOT"
+  exit 0
+fi
+if [ "$1" = "diff" ]; then
+  cat "$FAKE_DIFF"
+  exit 0
+fi
+exit 0
+STUB
+chmod +x "$TMP/bin/git"
+
+cat > "$TMP/scored.diff" <<DIFF
 +++ b/crates/demo/src/covered.rs
 @@ -9,0 +10,3 @@
-+let a = 1;
-+let b = 2;
-+// a comment carries no instrumentation
---- a/crates/demo/src/missed.rs
 +++ b/crates/demo/src/missed.rs
 @@ -19,0 +20,2 @@
-+let c = 3;
-+let d = 4;
 DIFF
+
+cat > "$TMP/ignored.diff" <<DIFF
++++ b/crates/adapter-gui/src/desktop_app.rs
+@@ -4,0 +5,1 @@
+DIFF
+
+run() {
+  FAKE_ROOT="$ROOT" FAKE_DIFF="$1" PATH="$TMP/bin:$PATH" \
+    python3 "$ROOT/scripts/lib/patch-coverage.py" "$TMP/lcov.info" fake-base "${2:-}"
 }
 
-out="$(diff_all | PATCH_TARGET=50 python3 scripts/lib/patch_coverage.py "$TMP/lcov.info")"
-check "counts only instrumented added lines" "2/4 added lines" "$out"
-check "names the file that missed" "crates/demo/src/missed.rs" "$out"
-if [[ "$out" == *"covered.rs"* ]]; then
+out="$(run "$TMP/scored.diff")"
+check "counts only instrumented added lines" "2/4 lines hit" "$out"
+check "reports the percentage" "50.00%" "$out"
+
+listed="$(run "$TMP/scored.diff" --files)"
+check "--files names the file that missed" "crates/demo/src/missed.rs" "$listed"
+if [[ "$listed" == *"covered.rs"* ]]; then
   echo "FAIL — a fully covered file must not be listed"; fail=1
 else
   echo "ok   — a fully covered file is not listed"
 fi
 
-diff_all | PATCH_TARGET=90 python3 scripts/lib/patch_coverage.py "$TMP/lcov.info" >/dev/null
-[[ $? -eq 1 ]] && echo "ok   — below target exits 1" || { echo "FAIL — below target must exit 1"; fail=1; }
-
-diff_all | PATCH_TARGET=10 python3 scripts/lib/patch_coverage.py "$TMP/lcov.info" >/dev/null
-[[ $? -eq 0 ]] && echo "ok   — at or above target exits 0" || { echo "FAIL — above target must exit 0"; fail=1; }
-
-# An ignored file's added lines are dropped before scoring — desktop_app.rs is
-# on codecov.yml's list, so a 0-hit line there must not lower the number.
-ignored_out="$(cat <<DIFF | python3 scripts/lib/patch_coverage.py "$TMP/lcov.info"
---- a/crates/adapter-gui/src/desktop_app.rs
-+++ b/crates/adapter-gui/src/desktop_app.rs
-@@ -4,0 +5,1 @@
-+window.on_thing(|| {});
-DIFF
-)"
-check "an ignored file is not scored" "nothing to score" "$ignored_out"
+# desktop_app.rs is on codecov.yml's ignore list: its uncovered added line must
+# not drag the number down, because the PR check does not count it either.
+ignored_out="$(run "$TMP/ignored.diff")"
+check "an ignored file is not scored" "0/0 lines hit" "$ignored_out"
 
 exit $fail
