@@ -73,10 +73,10 @@ mod compact_view_refresh;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
+mod di_loop_actions;
 /// #614: wires on_di_loop_choose_file (uses rfd — separate from chain_row_wiring
 /// which is forbidden from importing rfd by issue #511).
 mod di_loop_chooser_wiring;
-mod di_loop_file_pick;
 /// #614: pure source-list builder + string→DiLoopSource mapper for the
 /// chain-tile DI loop ComboBox (Task 7).
 pub mod di_loop_ui_sources;

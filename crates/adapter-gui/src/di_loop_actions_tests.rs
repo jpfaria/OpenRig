@@ -1,11 +1,11 @@
-//! #913 — pointing a chain's DI loop at a chosen file.
+//! #913 — the DI-loop row actions.
 //!
-//! The index comes from the chain tile the user touched, so a stale one must
-//! resolve to "nothing to do" rather than pointing some other chain at the
-//! file. And with no project open the pick is simply dropped — the popup can
-//! still be on screen while the project closes under it.
+//! Every one of them starts by turning a ROW INDEX into a chain identity, so a
+//! stale index must resolve to "nothing to do" rather than acting on whatever
+//! chain now sits in that slot. With no project open the action is dropped —
+//! the popup can still be on screen while the project closes under it.
 
-use super::apply_di_loop_file;
+use super::{apply_di_loop_file, chain_id_at, play_di_loop, select_di_loop_source, stop_di_loop};
 use crate::state::ProjectSession;
 use domain::ids::ChainId;
 use project::chain::Chain;
@@ -122,4 +122,67 @@ fn a_file_that_is_no_longer_there_is_reported_instead_of_silently_selected() {
     let gone = PathBuf::from("/nonexistent/openrig-913/gone.wav");
     let err = apply_di_loop_file(&session, 0, gone).expect_err("a missing file must be refused");
     assert!(err.contains("not found"), "unexpected message: {err}");
+}
+
+// ── The other three buttons on the same row ───────────────────────────────
+
+#[test]
+fn the_row_index_resolves_to_that_rows_chain() {
+    let session = session(vec![chain("chain:0"), chain("chain:1")]);
+    assert_eq!(chain_id_at(&session, 1), Some(ChainId("chain:1".into())));
+    assert_eq!(chain_id_at(&session, 0), Some(ChainId("chain:0".into())));
+}
+
+#[test]
+fn a_stale_row_index_resolves_to_no_chain() {
+    let session = session(vec![chain("chain:0")]);
+    assert_eq!(
+        chain_id_at(&session, 4),
+        None,
+        "acting on whatever shifted into that slot is the bug this prevents"
+    );
+}
+
+#[test]
+fn with_no_project_open_no_row_resolves() {
+    let none: Rc<RefCell<Option<ProjectSession>>> = Rc::new(RefCell::new(None));
+    assert_eq!(chain_id_at(&none, 0), None);
+}
+
+#[test]
+fn play_and_stop_reach_the_rows_chain() {
+    let session = session(vec![chain("chain:0"), chain("chain:1")]);
+    assert_eq!(play_di_loop(&session, 1), Ok(true));
+    assert_eq!(stop_di_loop(&session, 1), Ok(true));
+}
+
+#[test]
+fn play_and_stop_on_a_stale_row_do_nothing() {
+    let session = session(vec![chain("chain:0")]);
+    assert_eq!(play_di_loop(&session, 9), Ok(false));
+    assert_eq!(stop_di_loop(&session, 9), Ok(false));
+}
+
+#[test]
+fn play_and_stop_with_no_project_open_do_nothing() {
+    let none: Rc<RefCell<Option<ProjectSession>>> = Rc::new(RefCell::new(None));
+    assert_eq!(play_di_loop(&none, 0), Ok(false));
+    assert_eq!(stop_di_loop(&none, 0), Ok(false));
+}
+
+#[test]
+fn a_label_that_names_no_bundled_loop_selects_nothing() {
+    // #661: the label of an already-loaded File parses to nothing — the
+    // dispatcher already holds it, so re-selecting must not reload it.
+    let session = session(vec![chain("chain:0")]);
+    assert_eq!(
+        select_di_loop_source(&session, 0, "some-file-the-user-loaded.wav"),
+        Ok(false)
+    );
+}
+
+#[test]
+fn selecting_on_a_stale_row_does_nothing() {
+    let session = session(vec![chain("chain:0")]);
+    assert_eq!(select_di_loop_source(&session, 9, "anything"), Ok(false));
 }

@@ -46,7 +46,7 @@ pub(crate) fn wire(
             return; // user cancelled
         };
         if let Err(err) =
-            crate::di_loop_file_pick::apply_di_loop_file(&project_session, index as usize, path)
+            crate::di_loop_actions::apply_di_loop_file(&project_session, index as usize, path)
         {
             set_status_error(&window, &toast_timer, &err);
         }
