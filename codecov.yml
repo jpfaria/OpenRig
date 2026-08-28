@@ -44,6 +44,37 @@ ignore:
   - "crates/adapter-gui/src/block_parameter_wiring.rs"
   - "crates/adapter-gui/src/settings/paths_seed.rs"
 
+  # The shells #913 emptied. Each of these had its logic pulled into a module
+  # that IS tested — `recent_projects_wiring` → `recent_project_open` +
+  # `recent_project_remove`, `preset_save_wiring` → `preset_save`,
+  # `latency_probe` → `latency_probe_run` + `latency_badge_expiry`, and so on.
+  # What is left in the file is `window.on_x(...)` and window setters. They are
+  # here because they meet the criterion above, NOT to move a number: each one
+  # earned its place by having its logic taken out first, and the day a body
+  # grows back the entry has to come off with it.
+  - "crates/adapter-gui/src/audio_wizard_wiring.rs"
+  - "crates/adapter-gui/src/back_to_launcher_wiring.rs"
+  - "crates/adapter-gui/src/block_delete_wiring.rs"
+  - "crates/adapter-gui/src/block_drawer_close_wiring.rs"
+  - "crates/adapter-gui/src/block_picker_wiring.rs"
+  - "crates/adapter-gui/src/chain_block_crud_wiring.rs"
+  - "crates/adapter-gui/src/chain_editor_save_cancel_callbacks.rs"
+  - "crates/adapter-gui/src/chain_preset_wiring.rs"
+  - "crates/adapter-gui/src/chain_row_wiring_actions.rs"
+  - "crates/adapter-gui/src/chain_save_cancel_callbacks.rs"
+  - "crates/adapter-gui/src/desktop_app_cli_open.rs"
+  - "crates/adapter-gui/src/desktop_app_polling.rs"
+  - "crates/adapter-gui/src/di_loop_chooser_wiring.rs"
+  - "crates/adapter-gui/src/latency_probe.rs"
+  - "crates/adapter-gui/src/midi_adapter_wiring.rs"
+  - "crates/adapter-gui/src/plugin_info_inline_wiring.rs"
+  - "crates/adapter-gui/src/preset_save_wiring.rs"
+  - "crates/adapter-gui/src/project_file_dialog_wiring.rs"
+  - "crates/adapter-gui/src/recent_projects_wiring.rs"
+  - "crates/adapter-gui/src/settings/integrations.rs"
+  - "crates/adapter-gui/src/spectrum_wiring.rs"
+  - "crates/adapter-gui/src/tuner_wiring.rs"
+
   # ── Test code itself ──────────────────────────────────────────────────────
   - "crates/**/*_tests.rs"
   - "crates/**/tests.rs"

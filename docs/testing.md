@@ -101,6 +101,18 @@ two tests to write: the chain-editor save, the analyzer dispatch helper, the DI
 loop row actions, the block parameter edits and the project open each had a
 copy per call site and now have one tested body.
 
+**What is left uncovered inside an extracted module** is worth naming, because
+it is not laziness and it should not be chased with contrived tests:
+
+- **Defensive re-borrows.** A function that drops the session borrow and takes
+  it again answers `NotAddressable` on the second read. The session cannot
+  vanish between two statements on the GUI thread, so that arm is unreachable —
+  and removing it would mean unwrapping.
+- **The path-resolving wrappers.** `save_io_bindings`, `apply_*_path` and their
+  siblings are two lines: resolve the machine's real `config.yaml` and call the
+  `_at` function. Exercising THEM means writing that file (#701). The body they
+  delegate to is covered.
+
 ## Convenções
 
 - `#[cfg(test)] mod tests`

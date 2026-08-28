@@ -229,3 +229,20 @@ fn an_option_pick_on_a_draft_still_being_added_commits_nothing() {
         Err(ApplyParamError::NotAddressable)
     );
 }
+
+#[test]
+fn setting_a_parameter_to_the_value_it_already_has_still_counts_as_a_change() {
+    // Observed, not endorsed: the dispatcher emits `BlockParameterChanged`
+    // even when the value did not move, so a knob dragged back to where it
+    // started still triggers a runtime resync and a row republish. This layer's
+    // `Ok(false)` path — "accepted but nothing changed" — is therefore never
+    // taken today. Pinned so that if the dispatcher starts comparing, this
+    // test says so instead of the behaviour changing unnoticed.
+    let session = session(vec![block("gain")]);
+    let draft = draft(Some(0));
+    apply(&session, &draft, "level", ParamValue::Number(0.5)).expect("first set");
+    assert_eq!(
+        apply(&session, &draft, "level", ParamValue::Number(0.5)),
+        Ok(true)
+    );
+}
