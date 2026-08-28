@@ -27,6 +27,13 @@ pub(crate) enum ParamValue {
     Number(f64),
     Text(String),
     Bool(bool),
+    /// A pick from a list. Both halves travel: the string is what the project
+    /// stores, the index is what the widget shows, and a command carrying only
+    /// one of them leaves the other surface out of step.
+    Option {
+        value: String,
+        index: usize,
+    },
 }
 
 /// Why the edit was not committed.
@@ -104,6 +111,15 @@ pub(crate) fn apply_block_parameter(
             path: path.to_string(),
             value,
         }),
+        ParamValue::Option { value, index } => {
+            Command::Block(BlockCommand::SelectBlockParameterOption {
+                chain: chain_id.clone(),
+                block: block_id,
+                path: path.to_string(),
+                value,
+                index,
+            })
+        }
     };
     let changed = {
         let borrowed = project_session.borrow();

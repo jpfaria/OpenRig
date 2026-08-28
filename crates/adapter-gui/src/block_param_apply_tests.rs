@@ -189,3 +189,43 @@ fn the_dispatcher_validates_text_and_bool_paths_but_not_number_paths() {
         }
     }
 }
+
+#[test]
+fn an_option_pick_carries_both_the_value_and_the_index() {
+    // The project stores the string, the widget shows the index. A command
+    // carrying only one of them leaves the other surface out of step.
+    let session = session(vec![block("gain")]);
+    let result = apply(
+        &session,
+        &draft(Some(0)),
+        "no_such_select",
+        ParamValue::Option {
+            value: "warm".into(),
+            index: 2,
+        },
+    );
+    match result {
+        Err(ApplyParamError::Failed(message)) => assert!(
+            message.contains("no_such_select"),
+            "the refusal must name the parameter: {message}"
+        ),
+        other => panic!("expected the unknown select to be refused, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_option_pick_on_a_draft_still_being_added_commits_nothing() {
+    let session = session(vec![block("gain")]);
+    assert_eq!(
+        apply(
+            &session,
+            &draft(None),
+            "mode",
+            ParamValue::Option {
+                value: "warm".into(),
+                index: 0,
+            }
+        ),
+        Err(ApplyParamError::NotAddressable)
+    );
+}
