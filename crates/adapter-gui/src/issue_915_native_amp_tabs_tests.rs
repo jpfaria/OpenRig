@@ -1,8 +1,10 @@
-//! #915 — the block editor of a native amp: the tab bar must actually filter
-//! the grid. The curated `knob_layout` overlays are drawn by loop index and
-//! ignore the active tab, so while they were published every tab drew the same
-//! knobs (POWER listed GAIN and the EQ knobs) and `input` / `bright` / `output`
-//! — absent from the curated layout — had no control at all.
+//! #915 — the block editor of a native amp. Its ten parameters are one front
+//! panel: no tab bar, every knob drawn at once. Two things used to break that.
+//! The curated `knob_layout` overlays are drawn in layout order and cover only
+//! seven of the ten parameters, so `input` / `bright` / `output` had no control
+//! at all; and the schema's seven groups were rendered as seven tabs, five of
+//! them holding a single knob, which turned an amp's panel into a filing
+//! cabinet.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -20,20 +22,20 @@ fn empty_session() -> Rc<RefCell<Option<ProjectSession>>> {
     Rc::new(RefCell::new(Some(session)))
 }
 
-fn native_amp_ctx() -> BlockEditorWindowSetupCtx {
-    let seeded = application::block_factory::default_params_for_model("amp", "blackface_clean")
+fn native_ctx(effect_type: &str, model_id: &str) -> BlockEditorWindowSetupCtx {
+    let seeded = application::block_factory::default_params_for_model(effect_type, model_id)
         .unwrap_or_default();
     BlockEditorWindowSetupCtx {
         chain_index: 0,
         block_index: None,
         before_index: 0,
         instrument: "electric_guitar".to_string(),
-        effect_type: "amp".to_string(),
-        model_id: "blackface_clean".to_string(),
+        effect_type: effect_type.to_string(),
+        model_id: model_id.to_string(),
         enabled: true,
         editor_data: BlockEditorData {
-            effect_type: "amp".to_string(),
-            model_id: "blackface_clean".to_string(),
+            effect_type: effect_type.to_string(),
+            model_id: model_id.to_string(),
             params: seeded,
             enabled: true,
             is_select: false,
@@ -57,7 +59,7 @@ fn native_amp_ctx() -> BlockEditorWindowSetupCtx {
 }
 
 /// The rows the grid actually draws: `tab_slot >= 0` is exactly the condition
-/// `BlockParamGrid` renders on when the block has tabs.
+/// `BlockParamGrid` renders on.
 fn drawn_rows(win: &crate::BlockEditorWindow) -> Vec<String> {
     crate::BlockEditorBridge::get(win)
         .get_block_parameter_items()
@@ -67,60 +69,52 @@ fn drawn_rows(win: &crate::BlockEditorWindow) -> Vec<String> {
         .collect()
 }
 
-fn groups(win: &crate::BlockEditorWindow) -> Vec<String> {
-    win.get_block_parameter_groups()
-        .iter()
-        .map(|g| g.to_string())
-        .collect()
-}
-
 #[test]
-fn clicking_a_native_amp_tab_shows_only_that_tabs_knobs() {
+fn a_native_amp_editor_is_one_panel_with_every_knob() {
     i_slint_backend_testing::init_no_event_loop();
     let weak = {
         let w = crate::AppWindow::new().unwrap();
         w.as_weak()
     };
-    let (win, _timer) = create_and_wire(weak, native_amp_ctx()).unwrap();
+    let (win, _timer) = create_and_wire(weak, native_ctx("amp", "blackface_clean")).unwrap();
 
-    // The curated overlays ignore the tab bar, so a tabbed block must publish
-    // none — otherwise the grid draws them and the tabs filter nothing.
+    assert_eq!(
+        win.get_block_parameter_groups().row_count(),
+        0,
+        "ten knobs fit the panel — no tab bar"
+    );
+    // The curated overlays ignore everything but their own order, and cover
+    // only seven of the ten parameters, so a block whose layout is incomplete
+    // must not publish them.
     assert_eq!(
         crate::BlockEditorBridge::get(&win)
             .get_block_knob_overlays()
             .row_count(),
         0,
-        "a native amp has tabs, so it must not publish curated knob overlays"
     );
-
-    let groups = groups(&win);
-    assert_eq!(
-        groups,
-        vec!["Input", "Amp", "EQ", "Power", "Switches", "Cab", "Output"],
-    );
-    assert_eq!(drawn_rows(&win), vec!["input"], "the editor opens on tab 1");
-
-    // Click POWER — the same call the tab bar's `select(i)` makes.
-    let power = groups.iter().position(|g| g == "Power").unwrap() as i32;
-    win.invoke_select_parameter_group(power);
-    assert_eq!(win.get_active_parameter_group(), power);
     assert_eq!(
         drawn_rows(&win),
-        vec!["master", "sag"],
-        "POWER must show the power knobs only — not GAIN and the EQ knobs (#915)"
+        vec![
+            "input", "gain", "bass", "middle", "treble", "master", "bright", "sag", "room_mix",
+            "output",
+        ],
+        "every parameter is on the panel — `input`, `bright` and `output` had no control before"
     );
+}
 
-    // Every other tab draws its own group, and `bright` / `output` — which the
-    // curated layout omitted entirely — are now reachable.
-    for (group, expected) in [
-        ("EQ", vec!["bass", "middle", "treble"]),
-        ("Amp", vec!["gain"]),
-        ("Cab", vec!["room_mix"]),
-        ("Switches", vec!["bright"]),
-        ("Output", vec!["output"]),
-    ] {
-        let i = groups.iter().position(|g| g == group).unwrap() as i32;
-        win.invoke_select_parameter_group(i);
-        assert_eq!(drawn_rows(&win), expected, "tab {group}");
-    }
+#[test]
+fn a_native_preamp_editor_is_one_panel_with_every_knob() {
+    i_slint_backend_testing::init_no_event_loop();
+    let weak = {
+        let w = crate::AppWindow::new().unwrap();
+        w.as_weak()
+    };
+    let (win, _timer) = create_and_wire(weak, native_ctx("preamp", "american_clean")).unwrap();
+
+    assert_eq!(win.get_block_parameter_groups().row_count(), 0);
+    assert_eq!(
+        drawn_rows(&win).len(),
+        11,
+        "the preamp draws all eleven of its parameters at once"
+    );
 }

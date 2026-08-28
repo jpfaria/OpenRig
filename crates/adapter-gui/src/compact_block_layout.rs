@@ -142,3 +142,7 @@ pub(crate) fn slot_y(heights: &[f32], slot: usize) -> f32 {
 #[cfg(test)]
 #[path = "compact_block_layout_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "compact_knob_alignment_tests.rs"]
+mod knob_alignment_tests;

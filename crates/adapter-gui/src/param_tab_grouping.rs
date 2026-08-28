@@ -86,14 +86,14 @@ pub(crate) fn drawn_by_eq_widget(items: &[BlockParameterItem]) -> bool {
     items.iter().any(|it| it.widget_kind.is_empty())
 }
 
+/// The tab labels a block publishes: empty when it needs no tab bar at all.
+/// The one place that decides it, so the editor window and the compact row
+/// never disagree about whether a block has tabs.
 /// The tab labels to publish for a fresh parameter list, plus the same list
-/// tagged for its first tab. An EQ-widget block gets no labels at all and shows
-/// every grid-owned row at once.
-pub(crate) fn groups_and_rows(
-    full_items: &[BlockParameterItem],
-) -> (Vec<String>, Vec<BlockParameterItem>) {
+/// tagged for its first tab.
+pub(crate) fn tab_groups(full_items: &[BlockParameterItem]) -> Vec<String> {
     if drawn_by_eq_widget(full_items) {
-        return (Vec::new(), retag_all(full_items));
+        return Vec::new();
     }
     let groupable: Vec<BlockParameterItem> = full_items
         .iter()
@@ -101,10 +101,28 @@ pub(crate) fn groups_and_rows(
         .cloned()
         .collect();
     let groups = parameter_groups(&groupable);
-    let active = groups
-        .first()
-        .map(String::as_str)
-        .unwrap_or(DEFAULT_PARAM_GROUP);
+    // Tabs are for a plugin the panel cannot show at once (#915), and a single
+    // group is not a bar either — one tab to pick from picks nothing. Below
+    // that the block is drawn whole, groups and all: the schema keeps grouping
+    // the parameters (it orders them), we just do not spend a tab bar
+    // splitting what already fits.
+    if groups.len() <= 1 || groupable.len() <= crate::block_panel_dimensions::ONE_PANEL_CAPACITY {
+        return Vec::new();
+    }
+    groups
+}
+
+pub(crate) fn groups_and_rows(
+    full_items: &[BlockParameterItem],
+) -> (Vec<String>, Vec<BlockParameterItem>) {
+    let groups = tab_groups(full_items);
+    let Some(active) = groups.first() else {
+        return (Vec::new(), retag_all(full_items));
+    };
     let rows = retag_for_group(full_items, active);
     (groups, rows)
 }
+
+#[cfg(test)]
+#[path = "one_screen_panel_tests.rs"]
+mod one_screen_tests;
