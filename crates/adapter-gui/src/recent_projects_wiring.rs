@@ -19,7 +19,6 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Timer, VecModel};
 
-use application::command::{Command, ProjectCommand};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
@@ -216,31 +215,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             let Some(index) = pending.borrow_mut().take() else {
                 return;
             };
-            let mut config = app_config.borrow_mut();
-            if index < config.recent_projects.len() {
-                // #436 F: remover recente é negócio → Command no
-                // dispatcher compartilhado (MCP/MIDI, observável via
-                // Event::RecentProjectRemoved) quando há sessão. A
-                // mutação/persistência do app-config + render abaixo é
-                // adapter-side (precedente SaveProject).
-                if let Some(session) = project_session.borrow().as_ref() {
-                    if let Err(e) = session.dispatcher.dispatch(Command::Project(
-                        ProjectCommand::RemoveRecentProject { index },
-                    )) {
-                        log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
-                    }
-                }
-                config.recent_projects.remove(index);
-                {
-                    // #693: write on the persist worker.
-                    let snapshot = config.clone();
-                    // #731: bind the config path at dispatch time.
-                    application::app_config_persist::persist_app_config_snapshot(snapshot);
-                }
-                recent_projects.set_vec(recent_project_items(
-                    &config.recent_projects,
-                    window.get_recent_project_search().as_str(),
-                ));
+            let removed = crate::recent_project_remove::remove_recent(
+                &project_session,
+                &app_config,
+                &recent_projects,
+                index,
+                window.get_recent_project_search().as_str(),
+            );
+            if removed {
+                // #693/#731: the config write runs on the persist worker and
+                // the path is bound at dispatch time.
+                let snapshot = app_config.borrow().clone();
+                application::app_config_persist::persist_app_config_snapshot(snapshot);
             }
         });
     }

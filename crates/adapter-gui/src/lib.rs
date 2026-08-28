@@ -110,6 +110,7 @@ mod project_file_dialog_wiring;
 mod project_settings_wiring;
 mod recent_project_label;
 mod recent_project_open;
+mod recent_project_remove;
 mod recent_projects_wiring;
 mod runtime_analyzers;
 mod runtime_devices;
