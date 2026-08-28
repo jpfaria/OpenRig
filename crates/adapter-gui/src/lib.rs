@@ -99,6 +99,7 @@ mod param_tabs_inline;
 mod plugin_info;
 mod plugin_info_inline_wiring;
 mod plugin_info_panel;
+mod preset_save;
 mod preset_save_wiring;
 mod project_file_dialog_wiring;
 mod project_settings_wiring;
