@@ -1,4 +1,4 @@
-//! Responsibility: picks the rate and buffer jackd starts an unconfigured card with.
+//! Responsibility: picks the stream values jackd starts an unconfigured card with.
 //!
 //! Split out of `device_settings` (#913). A card the user HAS configured brings
 //! its own values and they stand — including the Orange Pi's tuned low-latency
@@ -6,6 +6,11 @@
 //! a card nobody configured, and the buffer half of it is a hard-won number:
 //! #479, a USB class-compliant interface on a generic (non-RT) desktop kernel
 //! cannot sustain 64 frames — it xruns continuously and the sound is unusable.
+
+//! Only jackd consumes these, so on macOS/Windows the module is dead code —
+//! but the values are pinned by tests that run everywhere, which is the point:
+//! the #479 minimum must not be edited from a Mac without the guard firing.
+#![cfg_attr(not(all(target_os = "linux", feature = "jack")), allow(dead_code))]
 
 use project::device::DeviceSettings;
 
