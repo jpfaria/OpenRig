@@ -26,11 +26,9 @@ use application::command::{Command, ProjectCommand};
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::{
-    canonical_project_path, create_new_project_session, project_display_name,
-    project_session_snapshot, project_title_for_path, recent_project_items,
-    register_recent_project, set_project_dirty,
+    canonical_project_path, project_display_name, project_session_snapshot, project_title_for_path,
+    recent_project_items, register_recent_project, set_project_dirty,
 };
-use crate::project_view::replace_project_chains;
 use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::{ProjectPaths, ProjectSession};
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
@@ -214,41 +212,17 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                 return;
             }
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-            stop_the_previous_rig(&project_session);
-            let session = create_new_project_session(&project_paths.default_config_path);
-            // #436 E: criar projeto é negócio → ProjectCommand::CreateProject no
-            // dispatcher da sessão (MCP/MIDI, observável via
-            // Event::ProjectCreated). O build da sessão é adapter-side
-            // (precedente SaveProject).
-            {
-                let project = session.project.borrow().clone();
-                if let Err(e) = session
-                    .dispatcher
-                    .dispatch(Command::Project(ProjectCommand::CreateProject { project }))
-                {
-                    log::warn!("[new-project] Command::CreateProject falhou: {e}");
-                }
-            }
-            let _ =
-                session
-                    .dispatcher
-                    .dispatch(Command::Project(ProjectCommand::UpdateProjectName {
-                        name: name.clone(),
-                    }));
-            replace_project_chains(
+            crate::project_create::create_project(
+                &name,
+                &project_paths.default_config_path,
+                &project_session,
                 &project_chains,
-                &session.project.borrow(),
+                &runtime_attach,
+                &saved_project_snapshot,
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
             );
-            // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
-            // anything can dispatch against it — a runtime-control command issued before
-            // the first chain sync must still reach the audio.
-            runtime_attach.to_session(&session);
-            *project_session.borrow_mut() = Some(session);
             crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
-            *saved_project_snapshot.borrow_mut() = None;
             clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, true);
             window.set_project_title(name.into());
