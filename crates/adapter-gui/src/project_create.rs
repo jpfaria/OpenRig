@@ -1,4 +1,4 @@
-//! Responsibility: builds a new, unsaved project into this session.
+//! Responsibility: builds a fresh project into this session.
 //!
 //! Split out of `project_file_dialog_wiring` (#913). Switching the view is
 //! screen work; the sequence is not. The previous rig stops first, the audio

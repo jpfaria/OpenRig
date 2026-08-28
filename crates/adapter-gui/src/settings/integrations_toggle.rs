@@ -1,4 +1,4 @@
-//! Responsibility: records an integrations toggle in memory and on the bus.
+//! Responsibility: records the integrations toggle the user flipped.
 //!
 //! Split out of `settings::integrations` (#913). Painting the switch and the
 //! direct-persist fallback are the caller's; this is the part that must not be
