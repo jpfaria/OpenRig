@@ -18,14 +18,10 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Model, Timer, VecModel};
 
-use application::command::{ChainCommand, Command};
 use domain::AudioDeviceDescriptor;
 
-use crate::chain_editor::chain_from_draft;
 use crate::helpers::{clear_status, set_status_error, set_status_warning};
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::replace_project_chains;
-use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{ChainDraft, ProjectSession};
 use crate::{AppWindow, ProjectChainItem};
 
@@ -70,15 +66,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
+            if project_session.borrow().is_none() {
                 set_status_error(
                     &window,
                     &toast_timer,
                     &rust_i18n::t!("error-no-project-loaded"),
                 );
                 return;
-            };
+            }
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
@@ -90,52 +85,32 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
                     return;
                 }
             };
-            // #716: the chain's I/O comes from its selected bindings.
-            if draft.io_binding_ids.is_empty() {
-                set_status_warning(&window, &toast_timer, &rust_i18n::t!("warn-select-binding"));
-                return;
-            }
-            let editing_index = draft.editing_index;
-            log::debug!(
-                "[save_chain] editing_index={:?}, draft.instrument='{}'",
-                editing_index,
-                draft.instrument
-            );
-            let existing_chain =
-                editing_index.and_then(|index| session.project.borrow().chains.get(index).cloned());
-            // #716: the chain carries only effects + io_binding_ids — I/O is
-            // never materialized into its blocks (the engine resolves it from
-            // the bindings transiently at runtime).
-            let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            // #716: per-block channel-conflict validation moved to runtime
-            // activation; the chain no longer embeds device endpoints, so
-            // there is nothing device-level to validate at save time.
-            log::info!(
-                "=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
-                chain.id.0,
-                chain.description,
-                chain.instrument,
-                editing_index
-            );
-            let chain_id = chain.id.clone();
-            if let Err(error) = session
-                .dispatcher
-                .dispatch(Command::Chain(ChainCommand::SaveChain { chain }))
-            {
-                set_status_error(&window, &toast_timer, &error.to_string());
-                return;
-            }
-            if let Err(error) = request_chain_sync(session, &chain_id) {
-                set_status_error(&window, &toast_timer, &error.to_string());
-                return;
-            }
-            replace_project_chains(
+            let chain_id = match crate::chain_draft_save::save_drafted_chain(
+                &project_session,
+                &draft,
                 &project_chains,
-                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
-            );
+            ) {
+                Ok(chain_id) => chain_id,
+                Err(crate::chain_draft_save::SaveChainError::NoBindingSelected) => {
+                    set_status_warning(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("warn-select-binding"),
+                    );
+                    return;
+                }
+                Err(crate::chain_draft_save::SaveChainError::Failed(message)) => {
+                    set_status_error(&window, &toast_timer, &message);
+                    return;
+                }
+            };
+            log::info!("=== CHAIN SAVED: id='{}' ===", chain_id.0);
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
             // The chains screen has its own preset/scene combobox model
             // (chain_rig_nav) — replace_project_chains alone leaves it
             // stale, so the new chain shows "Chain 1" with an empty
