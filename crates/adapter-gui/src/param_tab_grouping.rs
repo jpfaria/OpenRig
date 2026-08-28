@@ -101,15 +101,25 @@ pub(crate) fn tab_groups(full_items: &[BlockParameterItem]) -> Vec<String> {
         .cloned()
         .collect();
     let groups = parameter_groups(&groupable);
-    // Tabs are for a plugin the panel cannot show at once (#915), and a single
-    // group is not a bar either — one tab to pick from picks nothing. Below
-    // that the block is drawn whole, groups and all: the schema keeps grouping
-    // the parameters (it orders them), we just do not spend a tab bar
-    // splitting what already fits.
-    if groups.len() <= 1 || groupable.len() <= crate::block_panel_dimensions::ONE_PANEL_CAPACITY {
+    // One tab to pick from picks nothing.
+    if groups.len() <= 1 {
         return Vec::new();
     }
-    groups
+    // A tab has to earn its 40px, and what earns it is the grouping itself,
+    // never a parameter count (#915). A NAM capture's Amp / Noise Gate / EQ are
+    // three modules of two-to-four knobs each: real structure, real tabs. A
+    // native amp's ten knobs are spread over seven groups, five of them a
+    // single knob — that is an amp's front panel cut into slivers, not a
+    // division of it, so it is drawn whole. Above one panel there is no choice:
+    // a tab bar beats a knob the window cannot show.
+    let groups_the_block_apart = groups
+        .iter()
+        .all(|g| groupable.iter().filter(|it| group_label(it) == g).count() > 1);
+    if groups_the_block_apart || groupable.len() > crate::block_panel_dimensions::ONE_PANEL_CAPACITY
+    {
+        return groups;
+    }
+    Vec::new()
 }
 
 pub(crate) fn groups_and_rows(
@@ -124,5 +134,9 @@ pub(crate) fn groups_and_rows(
 }
 
 #[cfg(test)]
-#[path = "one_screen_panel_tests.rs"]
-mod one_screen_tests;
+#[path = "drawn_whole_tests.rs"]
+mod drawn_whole_tests;
+
+#[cfg(test)]
+#[path = "tab_worthy_groups_tests.rs"]
+mod tab_worthy_tests;

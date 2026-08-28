@@ -118,3 +118,27 @@ fn a_native_preamp_editor_is_one_panel_with_every_knob() {
         "the preamp draws all eleven of its parameters at once"
     );
 }
+
+/// The NAM editor window keeps its module tabs — the regression the amp fix
+/// nearly took with it.
+#[test]
+fn a_nam_editor_window_keeps_its_module_tabs() {
+    i_slint_backend_testing::init_no_event_loop();
+    let weak = {
+        let w = crate::AppWindow::new().unwrap();
+        w.as_weak()
+    };
+    let (win, _timer) = create_and_wire(weak, native_ctx("nam", "neural_amp_modeler")).unwrap();
+
+    let groups: Vec<String> = win
+        .get_block_parameter_groups()
+        .iter()
+        .map(|g| g.to_string())
+        .collect();
+    assert_eq!(groups, vec!["Main", "Amp", "Noise Gate", "EQ"]);
+    assert_eq!(
+        drawn_rows(&win).len(),
+        2,
+        "the window opens on the first tab and draws its two rows"
+    );
+}
