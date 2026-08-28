@@ -45,24 +45,11 @@ fn a_tabbed_block_draws_the_active_group_only() {
     );
 }
 
-/// The compact chain row reads the same rule, so a block drawn whole in the
-/// editor is drawn whole there too — it used to derive its own groups.
-#[test]
-fn a_compact_row_of_a_native_amp_draws_every_knob() {
+fn project_with(effect_type: &str, model: &str) -> project::project::Project {
     use domain::ids::{BlockId, ChainId};
     use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
-    use slint::Model;
 
-    let block = AudioBlock {
-        id: BlockId("amp-1".into()),
-        enabled: true,
-        kind: AudioBlockKind::Core(CoreBlock {
-            effect_type: "amp".to_string(),
-            model: "blackface_clean".to_string(),
-            params: ParameterSet::default(),
-        }),
-    };
-    let project = project::project::Project {
+    project::project::Project {
         name: None,
         device_settings: Vec::new(),
         chains: vec![project::chain::Chain {
@@ -72,23 +59,70 @@ fn a_compact_row_of_a_native_amp_draws_every_knob() {
             enabled: true,
             volume: 100.0,
             io_binding_ids: vec![],
-            blocks: vec![block],
+            blocks: vec![AudioBlock {
+                id: BlockId("b-1".into()),
+                enabled: true,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    effect_type: effect_type.to_string(),
+                    model: model.to_string(),
+                    params: ParameterSet::default(),
+                }),
+            }],
             di_output: None,
             loopers: vec![],
         }],
         midi: None,
-    };
+    }
+}
 
-    let rows = crate::compact_block_view::build_compact_blocks(&project, 0, &[]);
+fn compact_cells(rows: &[crate::CompactBlockItem]) -> usize {
+    use slint::Model;
+    rows[0]
+        .parameter_lines
+        .iter()
+        .map(|line| line.cells.row_count())
+        .sum()
+}
+
+/// The compact chain row reads the same rule, so a block drawn whole in the
+/// editor is drawn whole there too — it used to derive its own groups.
+#[test]
+fn a_compact_row_of_a_native_amp_draws_every_knob() {
+    use slint::Model;
+
+    let rows = crate::compact_block_view::build_compact_blocks(
+        &project_with("amp", "blackface_clean"),
+        0,
+        &[],
+    );
     assert_eq!(
         rows[0].parameter_groups.row_count(),
         0,
         "the amp's compact row shows no tab bar either"
     );
-    let drawn: usize = rows[0]
-        .parameter_lines
+    assert_eq!(compact_cells(&rows), 10, "every parameter is on the strip");
+}
+
+/// And a block that DOES have tabs shows one group at a time in the strip,
+/// exactly as the editor does.
+#[test]
+fn a_compact_row_of_a_tabbed_block_draws_the_active_group_only() {
+    use slint::Model;
+
+    let rows = crate::compact_block_view::build_compact_blocks(
+        &project_with("wah", "cry_classic"),
+        0,
+        &[],
+    );
+    let groups: Vec<String> = rows[0]
+        .parameter_groups
         .iter()
-        .map(|line| line.cells.row_count())
-        .sum();
-    assert_eq!(drawn, 10, "every parameter is on the strip");
+        .map(|g| g.to_string())
+        .collect();
+    assert_eq!(groups, vec!["Wah", "Output"]);
+    assert_eq!(
+        compact_cells(&rows),
+        2,
+        "the strip draws the active tab's parameters only"
+    );
 }
