@@ -281,6 +281,7 @@ mod block_editor_draft;
 mod block_icon;
 mod block_picker_items;
 mod block_window;
+mod boot_decisions;
 mod chain_block_item;
 mod chain_draft;
 mod chain_draft_edits;
