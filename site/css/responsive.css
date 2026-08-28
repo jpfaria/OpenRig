@@ -8,3 +8,13 @@
   .scroll-hint{display:none}
   .band-media::after{background:linear-gradient(to top,rgba(5,7,11,.96) 12%,rgba(5,7,11,.55) 70%)}
 }
+
+/* Very small phones (~320px): the multi-column strips and the wide CTA
+   still forced the page wider than the screen. */
+@media(max-width:520px){
+  .stats{grid-template-columns:1fr 1fr}
+  .stat{padding:26px 18px}
+  .gearstats{grid-template-columns:1fr 1fr}
+  .btn{white-space:normal;text-align:center}
+  .btn-lg{padding:16px 22px}
+}
