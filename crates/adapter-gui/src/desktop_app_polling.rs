@@ -59,22 +59,14 @@ pub(crate) fn start(
                 let Some(win) = weak_window.upgrade() else {
                     return;
                 };
-                // Issue #672: apply any off-thread chain rebuilds finished by the
-                // control worker — swaps the live runtime in on the frontend tick
-                // so the heavy build never blocked the UI.
-                control_for_errors.apply_finished_rebuilds();
-                // Issue #778: run any VST3 teardown the control worker deferred to
-                // the main thread (dropping a plugin off-main crashes).
-                project::vst3_editor::drain_deferred_vst3_teardowns();
-                // A draining read: whatever this takes, nobody else will see.
-                let Some(errors) = live_for_errors.block_errors() else {
-                    return;
-                };
-                if let Some(first) = errors.first() {
+                if let Some(message) = crate::block_error_tick::error_tick(
+                    live_for_errors.as_ref(),
+                    control_for_errors.as_ref(),
+                ) {
                     set_status_error(
                         &win,
                         &toast_timer_for_errors,
-                        rust_i18n::t!("status-plugin-error", msg = first.message).as_ref(),
+                        rust_i18n::t!("status-plugin-error", msg = message).as_ref(),
                     );
                 }
             },
