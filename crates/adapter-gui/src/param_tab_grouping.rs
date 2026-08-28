@@ -106,16 +106,21 @@ pub(crate) fn tab_groups(full_items: &[BlockParameterItem]) -> Vec<String> {
         return Vec::new();
     }
     // A tab has to earn its 40px, and what earns it is the grouping itself,
-    // never a parameter count (#915). A NAM capture's Amp / Noise Gate / EQ are
-    // three modules of two-to-four knobs each: real structure, real tabs. A
-    // native amp's ten knobs are spread over seven groups, five of them a
-    // single knob — that is an amp's front panel cut into slivers, not a
-    // division of it, so it is drawn whole. Above one panel there is no choice:
-    // a tab bar beats a knob the window cannot show.
-    let groups_the_block_apart = groups
+    // never a parameter count (#915). A group of one knob is a label, not a
+    // tab: a native amp's ten knobs are spread over seven groups, five of them
+    // a single knob — an amp's front panel cut into slivers, not divided — so
+    // it is drawn whole. But one loose knob does not condemn a real grouping: a
+    // NAM package declares its capture axes as parameters and some ship a
+    // single axis (`channel`), which sits beside the Amp / Noise Gate / EQ
+    // modules of two-to-four knobs each. So the grouping divides the block when
+    // the one-knob groups are outnumbered by the real ones. Above one panel
+    // there is no choice: a tab bar beats a knob the window cannot show.
+    let loose = groups
         .iter()
-        .all(|g| groupable.iter().filter(|it| group_label(it) == g).count() > 1);
-    if groups_the_block_apart || groupable.len() > crate::block_panel_dimensions::ONE_PANEL_CAPACITY
+        .filter(|g| groupable.iter().filter(|it| group_label(it) == *g).count() == 1)
+        .count();
+    if loose * 2 < groups.len()
+        || groupable.len() > crate::block_panel_dimensions::ONE_PANEL_CAPACITY
     {
         return groups;
     }
