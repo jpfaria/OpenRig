@@ -16,7 +16,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use application::command::{Command, SettingsCommand};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
@@ -72,26 +71,12 @@ pub(crate) fn wire(
     {
         let project_session = project_session.clone();
         crate::SettingsBridge::get(window).on_refresh_devices(move || {
-            dispatch_refresh(&project_session);
+            crate::device_refresh_dispatch::dispatch_refresh(&project_session);
             refresh_now(false);
         });
     }
     crate::SettingsBridge::get(project_settings_window).on_refresh_devices(move || {
-        dispatch_refresh(&project_session);
+        crate::device_refresh_dispatch::dispatch_refresh(&project_session);
         refresh_now(true);
     });
-}
-
-/// Record the refresh on the command bus so every observer sees it. A
-/// session-less window (launcher) still refreshes — the enumeration does
-/// not depend on a project.
-fn dispatch_refresh(project_session: &Rc<RefCell<Option<ProjectSession>>>) {
-    if let Some(session) = project_session.borrow().as_ref() {
-        if let Err(e) = session
-            .dispatcher
-            .dispatch(Command::Settings(SettingsCommand::RefreshAudioDevices))
-        {
-            log::warn!("refresh devices: {e}");
-        }
-    }
 }

@@ -84,17 +84,14 @@ fn make_handler(
         if let (Some(w), Some(s)) = (weak.upgrade(), weak_settings.upgrade()) {
             set_on_both(&w, &s, enabled);
         }
-        // Keep the shared boot snapshot in sync — without this, the next
-        // wholesale `save_app_config(app_config.borrow())` (recent
-        // projects, project open) overwrites the value we persist below.
-        set_in_snapshot(&mut app_config.borrow_mut(), enabled);
-
-        if let Some(session) = session.borrow().as_ref() {
-            // Dispatch persists (handle_set_*_enabled) + emits the event.
-            if let Err(e) = session.dispatcher.dispatch(make_command(enabled)) {
-                log::warn!("[integrations] subsystem toggle dispatch failed: {e}");
-            }
-        } else {
+        let on_the_bus = super::integrations_toggle::record_toggle(
+            &session,
+            &app_config,
+            &set_in_snapshot,
+            &make_command,
+            enabled,
+        );
+        if !on_the_bus {
             // Launcher: no dispatcher → persist directly (same fallback as
             // the language selector).
             application::persist_worker::run(move || persist(enabled));

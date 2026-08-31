@@ -22,6 +22,7 @@ insert-error-select-send: "选择发送设备和通道。"
 warn-add-input: "至少添加一个输入。"
 warn-add-output: "至少添加一个输出。"
 
+status-wizard-select-input: "请先选择至少一个输入再继续。"
 status-audio-disconnected: "音频设备已断开 — 正在重新连接..."
 status-audio-reconnected: "音频设备已重新连接"
 status-audio-starting: "正在启动音频..."

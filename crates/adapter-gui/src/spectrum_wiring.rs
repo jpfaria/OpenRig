@@ -154,7 +154,7 @@ fn dispatch_close_commands(project_session: &Rc<RefCell<Option<ProjectSession>>>
     // mutating runtime state silently. #127: the same dispatch also stops the
     // analyzer and releases its taps.
     for cmd in spectrum_close_commands() {
-        dispatch(project_session, cmd);
+        crate::session_dispatch::dispatch_detached(project_session, "spectrum", cmd);
     }
 }
 
@@ -172,8 +172,9 @@ fn wire_power(
         // dispatcher, which builds or tears down the FFT session through
         // `RuntimeControl::set_spectrum_running`. The bars arrive through the
         // sink, whoever asked for them.
-        dispatch(
+        crate::session_dispatch::dispatch_detached(
             &project_session,
+            "spectrum",
             Command::Selection(SelectionCommand::SetSpectrumEnabled { enabled }),
         );
         // Always reflect the new enabled state on the UI even if no session
@@ -194,19 +195,4 @@ fn wire_power(
 
 fn empty_rows_model() -> ModelRc<SpectrumRow> {
     ModelRc::from(Rc::new(VecModel::from(Vec::<SpectrumRow>::new())))
-}
-
-/// Clone the dispatcher handle out FIRST: dispatching applies the runtime
-/// effect, and that must not run while the session cell is still borrowed.
-fn dispatch(project_session: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
-    let dispatcher = project_session
-        .borrow()
-        .as_ref()
-        .map(|s| s.dispatcher.clone());
-    let Some(dispatcher) = dispatcher else {
-        return;
-    };
-    if let Err(e) = dispatcher.dispatch(cmd) {
-        log::warn!("[spectrum] command failed: {e}");
-    }
 }

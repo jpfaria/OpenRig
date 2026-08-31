@@ -22,6 +22,7 @@ insert-error-select-send: "Selecciona dispositivo y canales de envío."
 warn-add-input: "Añade al menos una entrada."
 warn-add-output: "Añade al menos una salida."
 
+status-wizard-select-input: "Selecciona al menos una entrada antes de continuar."
 status-audio-disconnected: "Dispositivo de audio desconectado — reconectando..."
 status-audio-reconnected: "Dispositivo de audio reconectado"
 status-audio-starting: "Iniciando audio..."

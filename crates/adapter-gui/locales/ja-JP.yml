@@ -22,6 +22,7 @@ insert-error-select-send: "センド用のデバイスとチャンネルを選�
 warn-add-input: "少なくとも1つの入力を追加してください。"
 warn-add-output: "少なくとも1つの出力を追加してください。"
 
+status-wizard-select-input: "続行する前に入力を1つ以上選択してください。"
 status-audio-disconnected: "オーディオデバイスが切断されました — 再接続中..."
 status-audio-reconnected: "オーディオデバイスが再接続されました"
 status-audio-starting: "オーディオを開始しています..."
@@ -87,6 +88,10 @@ tone-doctor-no-di: "先に DI ソースを選択してください"
 warn-select-binding: "このチェーンに少なくとも1つの I/O バインディングを選択してください"
 tone-doctor-analyze: "分析"
 tone-doctor-no-signal: "DI を再生するかチェーンを有効化"
+tone-doctor-genre: "ジャンル"
+tone-doctor-genre-default: "デフォルト"
+tone-doctor-genre-search: "ジャンルを検索…"
+tone-doctor-genre-none: "ジャンルなし"
 
 # --- #14 metronome timbre names (the knob's other labels are note values)
 label-metronome-timbre-click: "クリック"

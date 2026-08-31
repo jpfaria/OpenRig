@@ -29,3 +29,7 @@ pub(crate) unsafe extern "C" fn urid_map_callback(handle: *mut c_void, uri: *con
     let uri_str = unsafe { CStr::from_ptr(uri) }.to_str().unwrap_or("");
     map.map(uri_str)
 }
+
+#[cfg(test)]
+#[path = "host_urid_tests.rs"]
+mod tests;

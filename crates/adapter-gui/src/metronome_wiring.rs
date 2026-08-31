@@ -271,10 +271,7 @@ pub(crate) fn start_lamp_timer(ctx: &MetronomeCtx) {
 /// The metronome state the dispatcher owns. `None` with no project open —
 /// there is no dispatcher to ask.
 pub(crate) fn snapshot(ctx: &MetronomeCtx) -> Option<MetronomeSnapshot> {
-    ctx.project_session
-        .borrow()
-        .as_ref()
-        .map(|session| session.dispatcher.metronome_snapshot())
+    crate::metronome_read::metronome_snapshot(&ctx.project_session)
 }
 
 /// Re-read the project's endpoints, keeping the select's cache in step.

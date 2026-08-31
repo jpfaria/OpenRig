@@ -22,6 +22,7 @@ insert-error-select-send: "Sélectionnez l'appareil et les canaux d'envoi."
 warn-add-input: "Ajoutez au moins une entrée."
 warn-add-output: "Ajoutez au moins une sortie."
 
+status-wizard-select-input: "Sélectionnez au moins une entrée avant de continuer."
 status-audio-disconnected: "Périphérique audio déconnecté — reconnexion..."
 status-audio-reconnected: "Périphérique audio reconnecté"
 status-audio-starting: "Démarrage audio..."
@@ -87,6 +88,10 @@ tone-doctor-no-di: "Sélectionnez d'abord une source DI"
 warn-select-binding: "Sélectionnez au moins une liaison d'E/S pour cette chaîne"
 tone-doctor-analyze: "Analyser"
 tone-doctor-no-signal: "Lancez un DI ou activez la chaîne"
+tone-doctor-genre: "Genre"
+tone-doctor-genre-default: "Par défaut"
+tone-doctor-genre-search: "Rechercher un genre…"
+tone-doctor-genre-none: "Aucun genre"
 
 # --- #14 metronome timbre names (the knob's other labels are note values)
 label-metronome-timbre-click: "Clic"

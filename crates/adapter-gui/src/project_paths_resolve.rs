@@ -17,3 +17,7 @@ pub(crate) fn resolve_project_paths() -> ProjectPaths {
         }),
     }
 }
+
+#[cfg(test)]
+#[path = "project_paths_resolve_tests.rs"]
+mod tests;

@@ -22,8 +22,6 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
-use application::command::{BlockCommand, Command};
-use application::event::Event;
 use domain::AudioDeviceDescriptor;
 
 use crate::block_editor::{
@@ -33,8 +31,6 @@ use crate::block_editor::{
 use crate::eq::{compute_eq_curves, eq_viz_sample_rate};
 use crate::helpers::log_gui_message;
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::replace_project_chains;
-use crate::runtime_sync_policy::request_chain_sync;
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{AppWindow, BlockModelPickerItem, BlockParameterItem, ProjectChainItem};
 
@@ -89,9 +85,8 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                 let Some(window) = weak_window.upgrade() else {
                     return;
                 };
-                // Parse the text value — adapter (UI) concern; kept here.
-                let normalized = value_text.replace(',', ".");
-                let Ok(value) = normalized.parse::<f64>() else {
+                let Some(value) = crate::block_param_apply::parse_number_text(value_text.as_str())
+                else {
                     log_gui_message("block-drawer.number-text", "Valor numérico inválido.");
                     return;
                 };
@@ -99,81 +94,29 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                 set_block_parameter_number(&block_parameter_items, path.as_str(), value as f32);
                 crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
-                // Only dispatch if editing an existing block (draft.block_index.is_some()).
-                let (chain_index, block_index) = {
-                    let draft_borrow = block_editor_draft.borrow();
-                    let Some(draft) = draft_borrow.as_ref() else {
+                match crate::block_param_apply::apply_block_parameter(
+                    &project_session,
+                    &block_editor_draft,
+                    path.as_str(),
+                    crate::block_param_apply::ParamValue::Number(value),
+                    &project_chains,
+                    &input_chain_devices.borrow(),
+                    &output_chain_devices.borrow(),
+                ) {
+                    Ok(true) => {}
+                    Ok(false) => return,
+                    Err(crate::block_param_apply::ApplyParamError::NotAddressable) => return,
+                    Err(crate::block_param_apply::ApplyParamError::Failed(message)) => {
+                        log::error!("[adapter-gui] block-drawer.number-text: {message}");
+                        crate::BlockEditorBridge::get(&window)
+                            .set_block_drawer_status_message(message.into());
                         return;
-                    };
-                    let Some(bi) = draft.block_index else {
-                        return;
-                    };
-                    (draft.chain_index, bi)
-                };
-
-                // Resolve chain_id / block_id from project indices.
-                let (chain_id, block_id) = {
-                    let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else {
-                        return;
-                    };
-                    let proj = session.project.borrow();
-                    let Some(chain) = proj.chains.get(chain_index) else {
-                        return;
-                    };
-                    let Some(block) = chain.blocks.get(block_index) else {
-                        return;
-                    };
-                    (chain.id.clone(), block.id.clone())
-                };
-
-                // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
-                let dispatch_ok = {
-                    let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else {
-                        return;
-                    };
-                    match session.dispatcher.dispatch(Command::Block(
-                        BlockCommand::SetBlockParameterNumber {
-                            chain: chain_id.clone(),
-                            block: block_id,
-                            path: path.to_string(),
-                            value,
-                        },
-                    )) {
-                        Ok(events) => events
-                            .into_iter()
-                            .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
-                        Err(e) => {
-                            log::error!("[adapter-gui] block-drawer.number-text dispatch: {e}");
-                            crate::BlockEditorBridge::get(&window)
-                                .set_block_drawer_status_message(e.to_string().into());
-                            return;
-                        }
                     }
-                };
-                if !dispatch_ok {
-                    return;
                 }
-
-                // Sync audio runtime + refresh UI + mark dirty.
                 let mut session_borrow = project_session.borrow_mut();
                 let Some(session) = session_borrow.as_mut() else {
                     return;
                 };
-                if let Err(e) = request_chain_sync(session, &chain_id) {
-                    log::error!("[adapter-gui] block-drawer.number-text runtime sync: {e}");
-                    crate::BlockEditorBridge::get(&window)
-                        .set_block_drawer_status_message(e.to_string().into());
-                    return;
-                }
-                replace_project_chains(
-                    &project_chains,
-                    &session.project.borrow(),
-                    &input_chain_devices.borrow(),
-                    &output_chain_devices.borrow(),
-                    &[],
-                );
                 sync_project_dirty(
                     &window,
                     session,
@@ -270,81 +213,29 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             set_block_parameter_text(&block_parameter_items, path.as_str(), value.as_str());
             crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
-            // Only dispatch if editing an existing block.
-            let (chain_index, block_index) = {
-                let draft_borrow = block_editor_draft.borrow();
-                let Some(draft) = draft_borrow.as_ref() else {
+            match crate::block_param_apply::apply_block_parameter(
+                &project_session,
+                &block_editor_draft,
+                path.as_str(),
+                crate::block_param_apply::ParamValue::Text(value.to_string()),
+                &project_chains,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            ) {
+                Ok(true) => {}
+                Ok(false) => return,
+                Err(crate::block_param_apply::ApplyParamError::NotAddressable) => return,
+                Err(crate::block_param_apply::ApplyParamError::Failed(message)) => {
+                    log::error!("[adapter-gui] block-drawer.text: {message}");
+                    crate::BlockEditorBridge::get(&window)
+                        .set_block_drawer_status_message(message.into());
                     return;
-                };
-                let Some(bi) = draft.block_index else {
-                    return;
-                };
-                (draft.chain_index, bi)
-            };
-
-            // Resolve chain_id / block_id from project indices.
-            let (chain_id, block_id) = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(chain_index) else {
-                    return;
-                };
-                let Some(block) = chain.blocks.get(block_index) else {
-                    return;
-                };
-                (chain.id.clone(), block.id.clone())
-            };
-
-            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
-            let dispatch_ok = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                match session.dispatcher.dispatch(Command::Block(
-                    BlockCommand::SetBlockParameterText {
-                        chain: chain_id.clone(),
-                        block: block_id,
-                        path: path.to_string(),
-                        value: value.to_string(),
-                    },
-                )) {
-                    Ok(events) => events
-                        .into_iter()
-                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
-                    Err(e) => {
-                        log::error!("[adapter-gui] block-drawer.text dispatch: {e}");
-                        crate::BlockEditorBridge::get(&window)
-                            .set_block_drawer_status_message(e.to_string().into());
-                        return;
-                    }
                 }
-            };
-            if !dispatch_ok {
-                return;
             }
-
-            // Sync audio runtime + refresh UI + mark dirty.
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) = request_chain_sync(session, &chain_id) {
-                log::error!("[adapter-gui] block-drawer.text runtime sync: {e}");
-                crate::BlockEditorBridge::get(&window)
-                    .set_block_drawer_status_message(e.to_string().into());
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &session.project.borrow(),
-                &input_chain_devices.borrow(),
-                &output_chain_devices.borrow(),
-                &[],
-            );
             sync_project_dirty(
                 &window,
                 session,
@@ -373,81 +264,29 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             set_block_parameter_bool(&block_parameter_items, path.as_str(), value);
             crate::BlockEditorBridge::get(&window).set_block_drawer_status_message("".into());
 
-            // Only dispatch if editing an existing block.
-            let (chain_index, block_index) = {
-                let draft_borrow = block_editor_draft.borrow();
-                let Some(draft) = draft_borrow.as_ref() else {
+            match crate::block_param_apply::apply_block_parameter(
+                &project_session,
+                &block_editor_draft,
+                path.as_str(),
+                crate::block_param_apply::ParamValue::Bool(value),
+                &project_chains,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            ) {
+                Ok(true) => {}
+                Ok(false) => return,
+                Err(crate::block_param_apply::ApplyParamError::NotAddressable) => return,
+                Err(crate::block_param_apply::ApplyParamError::Failed(message)) => {
+                    log::error!("[adapter-gui] block-drawer.bool: {message}");
+                    crate::BlockEditorBridge::get(&window)
+                        .set_block_drawer_status_message(message.into());
                     return;
-                };
-                let Some(bi) = draft.block_index else {
-                    return;
-                };
-                (draft.chain_index, bi)
-            };
-
-            // Resolve chain_id / block_id from project indices.
-            let (chain_id, block_id) = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(chain_index) else {
-                    return;
-                };
-                let Some(block) = chain.blocks.get(block_index) else {
-                    return;
-                };
-                (chain.id.clone(), block.id.clone())
-            };
-
-            // Dispatch — mutates project via the shared Rc<RefCell<Project>>.
-            let dispatch_ok = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                match session.dispatcher.dispatch(Command::Block(
-                    BlockCommand::SetBlockParameterBool {
-                        chain: chain_id.clone(),
-                        block: block_id,
-                        path: path.to_string(),
-                        value,
-                    },
-                )) {
-                    Ok(events) => events
-                        .into_iter()
-                        .any(|e| matches!(e, Event::BlockParameterChanged { .. })),
-                    Err(e) => {
-                        log::error!("[adapter-gui] block-drawer.bool dispatch: {e}");
-                        crate::BlockEditorBridge::get(&window)
-                            .set_block_drawer_status_message(e.to_string().into());
-                        return;
-                    }
                 }
-            };
-            if !dispatch_ok {
-                return;
             }
-
-            // Sync audio runtime + refresh UI + mark dirty.
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            if let Err(e) = request_chain_sync(session, &chain_id) {
-                log::error!("[adapter-gui] block-drawer.bool runtime sync: {e}");
-                crate::BlockEditorBridge::get(&window)
-                    .set_block_drawer_status_message(e.to_string().into());
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &session.project.borrow(),
-                &input_chain_devices.borrow(),
-                &output_chain_devices.borrow(),
-                &[],
-            );
             sync_project_dirty(
                 &window,
                 session,

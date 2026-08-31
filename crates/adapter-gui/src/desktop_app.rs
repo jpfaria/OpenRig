@@ -41,8 +41,7 @@ pub fn run_desktop_app(
     crate::ui_watchdog::spawn();
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
-    let needs_audio_settings =
-        context.capabilities.can_select_audio_device && !settings.is_complete();
+    let needs_audio_settings = crate::boot_decisions::needs_audio_settings(&context, &settings);
     let project_paths = resolve_project_paths();
     let loaded_config = load_and_sync_app_config()?;
     let resolved_paths = infra_filesystem::resolve_asset_paths(loaded_config.paths.clone());
@@ -57,11 +56,7 @@ pub fn run_desktop_app(
             let _ = infra_cpal::list_output_device_descriptors();
         })
         .ok();
-    let vst3_sample_rate = settings
-        .input_devices
-        .first()
-        .map(|d| d.sample_rate)
-        .unwrap_or(48_000) as f64;
+    let vst3_sample_rate = crate::boot_decisions::vst3_sample_rate(&settings);
     crate::desktop_app_catalog::load(&project_paths, vst3_sample_rate);
     let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));

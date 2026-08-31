@@ -9,28 +9,36 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+mod audio_health_tick;
+mod audio_wizard_step;
 mod audio_wizard_wiring;
 mod back_to_launcher_wiring;
 mod bank_scene_render;
 mod bank_scene_session;
 mod block_choose_type_callback;
+mod block_delete;
 mod block_delete_wiring;
 mod block_drawer_close_wiring;
 mod block_drawer_save_delete_wiring;
+mod block_editor_draft_clear;
 pub mod block_editor_param_tabs;
 mod block_editor_window_delete;
 mod block_editor_window_lifecycle;
 mod block_editor_window_params;
 mod block_editor_window_setup;
+mod block_error_tick;
 mod block_insert_callbacks;
 mod block_model_search_wiring;
 pub mod block_panel_dimensions;
+mod block_param_apply;
 mod block_parameter_extras;
 mod block_parameter_wiring;
 mod block_picker_wiring;
+mod block_reorder;
 #[cfg(test)]
 #[path = "block_stream_read_tests.rs"]
 mod block_stream_read_tests;
+mod block_toggle;
 /// #614: compact chain view callbacks — also exposes public play/stop helpers
 /// for integration tests (`compact_chain_di_loop_play`, `compact_chain_di_loop_stop`).
 pub mod chain_binding_choices;
@@ -69,6 +77,7 @@ mod compact_view_refresh;
 mod device_refresh_apply;
 mod device_refresh_wiring;
 mod device_settings_wiring;
+mod di_loop_actions;
 /// #614: wires on_di_loop_choose_file (uses rfd — separate from chain_row_wiring
 /// which is forbidden from importing rfd by issue #511).
 mod di_loop_chooser_wiring;
@@ -93,9 +102,16 @@ mod param_tab_grouping;
 mod param_tabs_inline;
 mod plugin_info;
 mod plugin_info_inline_wiring;
+mod plugin_info_panel;
+mod preset_load;
+mod preset_picker_files;
+mod preset_save;
 mod preset_save_wiring;
 mod project_file_dialog_wiring;
 mod project_settings_wiring;
+mod recent_project_label;
+mod recent_project_open;
+mod recent_project_remove;
 mod recent_projects_wiring;
 mod runtime_analyzers;
 mod runtime_devices;
@@ -113,7 +129,8 @@ mod runtime_teardown;
 mod select_chain_block_callback;
 mod select_chain_callback;
 mod selection_highlight;
-pub(crate) mod settings;
+pub(crate) mod session_dispatch;
+mod settings;
 pub mod tone_doctor_compact_wiring;
 pub mod tone_doctor_wiring;
 /// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
@@ -130,6 +147,7 @@ mod mcp_query_resolver;
 mod metronome_controls_wiring;
 mod metronome_events;
 mod metronome_outputs;
+mod metronome_read;
 mod metronome_view;
 mod metronome_vocabulary;
 mod metronome_wiring;
@@ -143,6 +161,7 @@ mod tuner_session;
 mod tuner_wiring;
 pub mod ui_stall;
 mod ui_watchdog;
+mod virtual_key_text;
 mod virtual_keyboard_wiring;
 pub use bank_scene_render::{render as render_bank_scene, BankNavRow};
 pub use bank_scene_session::{BankSceneEffect, BankSceneEvent, BankSceneState, InputNav};
@@ -153,7 +172,7 @@ pub use cli::{
 };
 // #743: the live-sync planner is public so its decision (no device-IO resolve
 // on a disable) is guarded by an integration test.
-pub(crate) use chain_block_helpers::{assign_new_block_ids, ui_index_to_real_block_index};
+pub(crate) use chain_block_helpers::ui_index_to_real_block_index;
 pub use live_sync_plan::{plan_live_sync, LiveSyncAction};
 
 mod defaults;
@@ -169,6 +188,7 @@ mod block_editor_values;
 mod chain_editor;
 mod curated_knob_overlays;
 mod default_io_binding;
+mod device_refresh_dispatch;
 mod device_refresh_list;
 mod device_rows;
 mod device_selection_items;
@@ -186,7 +206,9 @@ mod issue_819_retire_persistent_window_tests;
 #[cfg(test)]
 #[path = "issue_85_stream_rows_tests.rs"]
 mod issue_85_stream_rows_tests;
+mod latency_badge_expiry;
 mod latency_probe;
+mod latency_probe_run;
 mod live_source_block_stream;
 mod live_source_chain_rate;
 mod live_source_chain_row;
@@ -212,6 +234,7 @@ mod meter_wiring_poll;
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
 pub mod midi_profile_wiring;
+mod midi_selection_mirror;
 pub use midi_profile_wiring::start_midi_profiles;
 mod app_config_load;
 mod gui_device_settings;
@@ -238,13 +261,18 @@ mod model_search_wiring;
 mod no_infra_cpal_in_wiring_tests;
 mod port_wiring;
 mod preset_search;
+mod project_close_session;
+mod project_create;
 mod project_dirty;
 mod project_display_name;
 mod project_load_normalize;
+mod project_name_edit;
+mod project_open;
 mod project_ops;
 mod project_ops_recents;
 mod project_path;
 mod project_paths_resolve;
+mod project_save_as;
 mod project_session_load;
 mod project_title;
 mod recent_projects;
@@ -257,10 +285,15 @@ mod block_editor_draft;
 mod block_icon;
 mod block_picker_items;
 mod block_window;
+mod boot_decisions;
 mod chain_block_item;
 mod chain_draft;
+mod chain_draft_edits;
+mod chain_draft_save;
 mod chain_endpoint_labels;
 mod chain_io_labels;
+mod chain_selection;
+mod cli_project_open;
 mod insertion_slots;
 mod io_binding_models;
 mod project_chains_refresh;

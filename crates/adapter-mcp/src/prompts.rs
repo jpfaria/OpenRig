@@ -53,3 +53,7 @@ pub fn get(name: &str) -> Option<GetPromptResult> {
         .with_description(s.description)
     })
 }
+
+#[cfg(test)]
+#[path = "prompts_tests.rs"]
+mod tests;

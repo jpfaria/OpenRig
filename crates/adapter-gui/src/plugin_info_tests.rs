@@ -84,3 +84,53 @@ fn metadata_file_deserialize_empty_plugins() {
     let file: super::MetadataFile = serde_yaml::from_str(yaml).unwrap();
     assert!(file.plugins.is_empty());
 }
+
+// ── #913: the lookup paths themselves, not just the DTOs ──────────────────
+
+/// The lookups read `asset_paths()`, which panics until startup has set it.
+/// Defaults point at directories that do not exist in a test run, so every
+/// lookup below takes the "not found" path — which is what we assert.
+fn asset_paths_ready() {
+    infra_filesystem::init_asset_paths(infra_filesystem::AssetPaths::default());
+}
+
+#[test]
+fn an_unknown_model_has_no_metadata_rather_than_a_placeholder() {
+    asset_paths_ready();
+    let meta = plugin_metadata("en-US", "no_such_model_913");
+    assert!(meta.description.is_empty());
+    assert!(meta.license.is_empty());
+    assert!(meta.homepage.is_empty());
+}
+
+#[test]
+fn an_unknown_language_falls_back_to_empty_metadata_not_a_panic() {
+    asset_paths_ready();
+    let meta = plugin_metadata("xx-YY", "no_such_model_913");
+    assert!(meta.description.is_empty());
+}
+
+#[test]
+fn the_metadata_cache_answers_the_same_way_on_the_second_call() {
+    asset_paths_ready();
+    // The YAML is read at most once per language; a second lookup must not
+    // change the answer (a cache that stored the miss as a hit would).
+    let first = plugin_metadata("en-US", "no_such_model_913");
+    let second = plugin_metadata("en-US", "no_such_model_913");
+    assert_eq!(first.description, second.description);
+    assert_eq!(first.license, second.license);
+}
+
+#[test]
+fn an_unknown_model_has_no_screenshot_so_the_caller_draws_the_placeholder() {
+    asset_paths_ready();
+    assert!(super::screenshot_png("gain", "no_such_model_913").is_none());
+    assert!(super::screenshot_png("", "no_such_model_913").is_none());
+}
+
+#[test]
+fn an_empty_homepage_opens_nothing() {
+    // The guard is the whole point: without it an empty field would hand
+    // the OS an empty URL and pop a browser window on the user's desktop.
+    super::open_homepage("");
+}

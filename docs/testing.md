@@ -46,6 +46,72 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
 - **Ferramenta**: `cargo-llvm-cov` (instalar com `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`)
 - **Script local**: `scripts/coverage.sh` — gera relatório HTML em `coverage/`
 - **CI**: `.github/workflows/test.yml` — informativo, sem gate
+- **Patch coverage antes do push**: `./scripts/patch-coverage.sh [base]` — reproduz
+  localmente o número que `codecov/patch` reporta no PR (`cargo llvm-cov --lcov`
+  cruzado com `git diff --unified=0 <base>...HEAD`), respeitando o `ignore:` do
+  `codecov.yml`. O relatório é reaproveitado enquanto a árvore não muda (`--fresh`
+  força de novo); `--files` lista o que ainda falta; `PATCH_COV_OFF=1` pula.
+
+### What is deliberately outside the coverage target (#913)
+
+Two layers cannot be reached by a test as they stand. They are listed in
+`codecov.yml` under `ignore:` so they stop dragging every release PR's patch
+score down for a reason nobody can act on. **That list is a debt list: it only
+shrinks.** Adding to it means writing the reason here first.
+
+| Layer | Why no test reaches it | The way off the list |
+|---|---|---|
+| `stream_builder_input.rs`, `stream_builder_output.rs` | Building a cpal stream needs a real `cpal::Device`; `ResolvedInputDevice`/`ResolvedOutputDevice` carry the device itself, so there is nothing to fake. | They ARE exercised — by the real-hardware battery below (`OPENRIG_HW_TESTS=1`), which does not run in CI and emits no coverage. A fake-host seam would move them back in scope. |
+| `desktop_app*.rs`, `block_parameter_*.rs`, `settings/paths_seed.rs` | What is left in them is callback registration and window setters, and the repo's law keeps `AppWindow` out of tests. | The `looper_commands` pattern: the closure body becomes a pure function the wiring only calls, and that function gets the test. Then delete the entry. |
+
+Everything else stays in the target. A new file that "cannot be tested" is a
+design answer, not a coverage exemption — split the logic out of the wiring.
+
+**The list has already shrunk once.** `settings/paths_apply.rs` and
+`device_refresh_list.rs` were on it and came off: the first through a config-path
+seam (`apply_*_path_at`), the second because the enumeration answers on any
+machine, with or without interfaces. That is the expected direction of travel.
+
+### Extracting logic out of a callback
+
+The sweep that emptied those files follows one shape, and it is the shape to
+reuse:
+
+1. The closure keeps only what a WINDOW does — hide, show, set a property,
+   paint a toast.
+2. Everything else moves to a file named after what it does
+   (`chain_draft_save`, `preset_load`, `block_reorder`), taking the plain
+   handles it needs (`Rc<RefCell<Option<ProjectSession>>>`, a `VecModel`) and
+   returning a result the callback renders.
+3. That function gets the test.
+
+Two things make this work in practice, both learned the hard way:
+
+- **`VecModel` and `ProjectSession` build fine without a window.** Most of the
+  "untestable GUI layer" was never about Slint — it was about logic living
+  inside a closure.
+- **Never let an extracted function write shared state a test has no business
+  touching.** Anything that reaches `config.yaml` takes an explicit path
+  (`save_io_bindings_at`, `apply_*_override_at`), and the production entry
+  point is that same function called with the real path — so the test drives
+  the SAME body against a temp file (#701).
+
+Two functions doing the same job in two files is a duplicate to collapse, not
+two tests to write: the chain-editor save, the analyzer dispatch helper, the DI
+loop row actions, the block parameter edits and the project open each had a
+copy per call site and now have one tested body.
+
+**What is left uncovered inside an extracted module** is worth naming, because
+it is not laziness and it should not be chased with contrived tests:
+
+- **Defensive re-borrows.** A function that drops the session borrow and takes
+  it again answers `NotAddressable` on the second read. The session cannot
+  vanish between two statements on the GUI thread, so that arm is unreachable —
+  and removing it would mean unwrapping.
+- **The path-resolving wrappers.** `save_io_bindings`, `apply_*_path` and their
+  siblings are two lines: resolve the machine's real `config.yaml` and call the
+  `_at` function. Exercising THEM means writing that file (#701). The body they
+  delegate to is covered.
 
 ## Convenções
 

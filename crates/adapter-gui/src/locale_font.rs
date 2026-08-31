@@ -36,3 +36,7 @@ pub fn font_for_persisted_runtime() -> &'static str {
     let locale = locale_for_runtime(persisted.as_deref());
     font_family_for_locale(&locale)
 }
+
+#[cfg(test)]
+#[path = "locale_font_tests.rs"]
+mod tests;

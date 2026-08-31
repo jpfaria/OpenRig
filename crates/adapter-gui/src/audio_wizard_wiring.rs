@@ -9,7 +9,6 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Timer, VecModel};
 
-use crate::audio_devices::selected_device_settings;
 use crate::helpers::{clear_status, set_status_error, set_status_warning};
 use crate::{AppWindow, DeviceSelectionItem};
 
@@ -32,20 +31,20 @@ pub(crate) fn wire(window: &AppWindow, ctx: AudioWizardCtx) {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            match selected_device_settings(&input_devices, "input") {
-                Ok(devices) if !devices.is_empty() => {
+            match crate::audio_wizard_step::next_step(&input_devices) {
+                crate::audio_wizard_step::WizardStep::Advance => {
                     clear_status(&window, &toast_timer);
                     window.set_wizard_step(1);
                 }
-                Ok(_) => {
+                crate::audio_wizard_step::WizardStep::NeedsAnInput => {
                     set_status_warning(
                         &window,
                         &toast_timer,
-                        "Selecione pelo menos um input antes de continuar.",
+                        &rust_i18n::t!("status-wizard-select-input"),
                     );
                 }
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
+                crate::audio_wizard_step::WizardStep::Invalid(message) => {
+                    set_status_error(&window, &toast_timer, &message);
                 }
             }
         });

@@ -16,13 +16,11 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Timer, VecModel};
 
 use domain::AudioDeviceDescriptor;
-use project::project::Project;
 
 use crate::helpers::clear_status;
+use crate::project_close_session::close_session;
 use crate::project_ops::set_project_dirty;
-use crate::project_view::replace_project_chains;
 use crate::state::ProjectSession;
-use application::command::{Command, ProjectCommand};
 
 use crate::{AppWindow, ChainEditorWindow, ProjectChainItem, ProjectSettingsWindow};
 
@@ -74,27 +72,12 @@ pub(crate) fn wire(
         // tears the audio down itself — dropping the session below is still
         // adapter-side (the SaveProject precedent). Hiding windows is screen
         // logic.
-        if let Some(session) = project_session.borrow().as_ref() {
-            if let Err(e) = session
-                .dispatcher
-                .dispatch(Command::Project(ProjectCommand::CloseProject))
-            {
-                log::warn!("[back-to-launcher] Command::CloseProject falhou: {e}");
-            }
-        }
-        *project_session.borrow_mut() = None;
-        *saved_project_snapshot.borrow_mut() = None;
-        replace_project_chains(
+        close_session(
+            &project_session,
             &project_chains,
-            &Project {
-                name: None,
-                device_settings: Vec::new(),
-                chains: Vec::new(),
-                midi: None,
-            },
+            &saved_project_snapshot,
             &input_chain_devices.borrow(),
             &output_chain_devices.borrow(),
-            &[],
         );
         clear_status(&window, &toast_timer);
         set_project_dirty(&window, &project_dirty, false);

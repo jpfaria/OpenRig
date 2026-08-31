@@ -155,41 +155,20 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
+            if project_session.borrow().is_none() {
                 set_status_error(
                     &window,
                     &toast_timer,
                     &rust_i18n::t!("error-no-project-loaded"),
                 );
                 return;
-            };
-            let chain_id = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            // Bundled id → Bundled source; the file label of an already-loaded
-            // File (#661) → no-op (dispatcher already holds it). Sentinel is
-            // routed to choose-file by the ComboBox, never here.
-            let bundled_ids = crate::di_loop_ui_sources::bundled_di_loop_ids();
-            let bundled_refs: Vec<&str> = bundled_ids.iter().map(|s| s.as_str()).collect();
-            let Some(source) =
-                crate::di_loop_ui_sources::parse_di_loop_source(&source_str, &bundled_refs)
-            else {
-                return;
-            };
-            let cmds = crate::di_loop_wiring::di_loop_commands(
-                chain_id,
-                crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
-            );
-            for cmd in cmds {
-                if let Err(err) = session.dispatcher.dispatch(cmd) {
-                    set_status_error(&window, &toast_timer, &err.to_string());
-                    return;
-                }
+            }
+            if let Err(err) = crate::di_loop_actions::select_di_loop_source(
+                &project_session,
+                index as usize,
+                &source_str,
+            ) {
+                set_status_error(&window, &toast_timer, &err);
             }
         });
     }
@@ -205,18 +184,7 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
     {
         let project_session = project_session.clone();
         window.on_di_loop_play(move |index| {
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            let chain_id = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            crate::di_loop_wiring::play_chain_di_loop(session.dispatcher.as_ref(), &chain_id);
+            let _ = crate::di_loop_actions::play_di_loop(&project_session, index as usize);
         });
     }
 
@@ -226,18 +194,7 @@ pub(crate) fn wire_di_loop(window: &AppWindow, ctx: &ChainRowCtx) {
     {
         let project_session = project_session.clone();
         window.on_di_loop_stop(move |index| {
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            let chain_id = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            crate::di_loop_wiring::stop_chain_di_loop(session.dispatcher.as_ref(), &chain_id);
+            let _ = crate::di_loop_actions::stop_di_loop(&project_session, index as usize);
         });
     }
 }

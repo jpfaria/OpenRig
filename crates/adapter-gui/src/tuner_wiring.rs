@@ -162,7 +162,7 @@ fn dispatch_close_commands(project_session: &Rc<RefCell<Option<ProjectSession>>>
     // adapter mutating runtime state silently. #127: the same dispatch also
     // STOPS the analyzer and releases its taps.
     for cmd in tuner_close_commands() {
-        dispatch(project_session, cmd);
+        crate::session_dispatch::dispatch_detached(project_session, "tuner", cmd);
     }
 }
 
@@ -227,8 +227,9 @@ fn wire_power(
         // `RuntimeControl::set_tuner_running`. The rows land on the windows
         // through the sink `install_row_sink` registered, so a footswitch and
         // an MCP client light the same tuner this button does.
-        dispatch(
+        crate::session_dispatch::dispatch_detached(
             &project_session,
+            "tuner",
             Command::Selection(SelectionCommand::SetTunerEnabled { enabled }),
         );
         // Powering on auto-engages mute so the user can tune silently without
@@ -263,23 +264,9 @@ fn empty_rows_model() -> ModelRc<TunerRow> {
 /// this is the ONLY way the tuner touches the audio: the handler owns both the
 /// recorded state and the runtime effect.
 fn dispatch_mute(project_session: &Rc<RefCell<Option<ProjectSession>>>, muted: bool) {
-    dispatch(
+    crate::session_dispatch::dispatch_detached(
         project_session,
+        "tuner",
         Command::Selection(SelectionCommand::SetOutputMuted { muted }),
     );
-}
-
-/// Clone the dispatcher handle out FIRST: dispatching applies the runtime
-/// effect, and that must not run while the session cell is still borrowed.
-fn dispatch(project_session: &Rc<RefCell<Option<ProjectSession>>>, cmd: Command) {
-    let dispatcher = project_session
-        .borrow()
-        .as_ref()
-        .map(|s| s.dispatcher.clone());
-    let Some(dispatcher) = dispatcher else {
-        return;
-    };
-    if let Err(e) = dispatcher.dispatch(cmd) {
-        log::warn!("[tuner] command failed: {e}");
-    }
 }

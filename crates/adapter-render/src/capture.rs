@@ -142,3 +142,7 @@ fn interleaved_to_stereo(samples: &[f32], channels: usize) -> Vec<[f32; 2]> {
         n => samples.chunks_exact(n).map(|c| [c[0], c[1]]).collect(),
     }
 }
+
+#[cfg(test)]
+#[path = "capture_tests.rs"]
+mod tests;

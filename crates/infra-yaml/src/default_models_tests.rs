@@ -1,127 +1,81 @@
-//! The model a block family falls back to when the document omits it.
+//! #913 — the model a block family falls back to when the document omits it.
 //!
-//! A legacy or hand-written `.openrig` can leave `model:` out of a block. The
-//! loader then asks the block's crate for its first supported model — so what
-//! matters is that every family whose crate HAS models answers with one of
-//! them. A fallback naming something unsupported would load a project the app
-//! cannot build a runtime for.
-//!
-//! Families whose crate exposes NO model are skipped here on purpose: their
-//! `default_*_model()` panics on its own `expect`, so a document that omits
-//! `model:` on such a block takes the app down as it loads. That is a real
-//! defect, reported on #913 — asserting the panic here would freeze it as
-//! intended behaviour.
+//! Each default is the FIRST entry of its crate's `supported_models()`, so a
+//! document that names a family but no model still deserializes into something
+//! the registry can build. What must hold: the answer is never empty, and it is
+//! a model the family actually supports — a stale literal here would load a
+//! project into a model the build path then rejects.
 
 use super::*;
 
-type Fallback = fn() -> String;
-
-/// (family label, the models that family supports, its fallback)
-fn families() -> Vec<(&'static str, &'static [&'static str], Fallback)> {
-    vec![
-        (
-            "delay",
-            block_delay::supported_models(),
-            default_delay_model as Fallback,
-        ),
-        ("nam", block_nam::supported_models(), default_nam_model),
-        (
-            "preamp",
-            block_preamp::supported_models(),
-            default_preamp_model,
-        ),
-        ("amp", block_amp::supported_models(), default_amp_model),
-        (
-            "full_rig",
-            block_full_rig::supported_models(),
-            default_full_rig_model,
-        ),
-        ("cab", block_cab::supported_models(), default_cab_model),
-        ("body", block_body::supported_models(), default_body_model),
-        ("drive", block_gain::supported_models(), default_drive_model),
-        (
-            "reverb",
-            block_reverb::supported_models(),
-            default_reverb_model,
-        ),
-        (
-            "utility",
-            block_util::supported_models(),
-            default_utility_model,
-        ),
-        (
-            "dynamics",
-            block_dyn::supported_models(),
-            default_dynamics_model,
-        ),
-        (
-            "filter",
-            block_filter::supported_models(),
-            default_filter_model,
-        ),
-        ("ir", block_ir::supported_models(), default_ir_model),
-        ("wah", block_wah::supported_models(), default_wah_model),
-        (
-            "modulation",
-            block_mod::supported_models(),
-            default_modulation_model,
-        ),
-        (
-            "pitch",
-            block_pitch::supported_models(),
-            default_pitch_model,
-        ),
-    ]
-}
-
-/// The families that can actually answer — the ones with a model to fall back to.
-fn answerable() -> Vec<(&'static str, &'static [&'static str], Fallback)> {
-    families()
-        .into_iter()
-        .filter(|(_, supported, _)| !supported.is_empty())
-        .collect()
-}
-
-#[test]
-fn every_family_that_has_models_falls_back_to_one_of_them() {
-    let checked = answerable();
-    assert!(
-        checked.len() >= 10,
-        "the block catalog should not have shrunk to {} families",
-        checked.len()
+fn assert_is_first_supported(actual: String, supported: &[&str]) {
+    assert_eq!(
+        actual,
+        supported.first().copied().unwrap_or_default(),
+        "the default is the family's first supported model"
     );
-    for (family, supported, fallback) in checked {
-        let model = fallback();
-        assert!(
-            supported.contains(&model.as_str()),
-            "the {family} fallback '{model}' is not one of that crate's models: {supported:?}"
-        );
-    }
 }
 
 #[test]
-fn the_fallback_is_the_crates_first_model_so_it_is_stable() {
-    for (family, supported, fallback) in answerable() {
-        assert_eq!(
-            Some(fallback().as_str()),
-            supported.first().copied(),
-            "{family} must fall back to its crate's FIRST model — otherwise reordering \
-             the catalog silently changes what a document without `model:` loads"
-        );
-    }
+fn every_block_family_defaults_to_its_first_supported_model() {
+    assert_is_first_supported(default_delay_model(), &block_delay::supported_models());
+    assert_is_first_supported(default_nam_model(), &block_nam::supported_models());
+    assert_is_first_supported(default_preamp_model(), &block_preamp::supported_models());
+    assert_is_first_supported(default_amp_model(), &block_amp::supported_models());
+    assert_is_first_supported(
+        default_full_rig_model(),
+        &block_full_rig::supported_models(),
+    );
+    assert_is_first_supported(default_cab_model(), &block_cab::supported_models());
+    assert_is_first_supported(default_body_model(), &block_body::supported_models());
+    assert_is_first_supported(default_drive_model(), &block_gain::supported_models());
+    assert_is_first_supported(default_reverb_model(), &block_reverb::supported_models());
+    assert_is_first_supported(default_utility_model(), &block_util::supported_models());
+    assert_is_first_supported(default_dynamics_model(), &block_dyn::supported_models());
+    assert_is_first_supported(default_filter_model(), &block_filter::supported_models());
+    assert_is_first_supported(default_ir_model(), &block_ir::supported_models());
+    assert_is_first_supported(default_wah_model(), &block_wah::supported_models());
+    assert_is_first_supported(default_modulation_model(), &block_mod::supported_models());
+    assert_is_first_supported(default_pitch_model(), &block_pitch::supported_models());
 }
 
 #[test]
-fn no_answerable_family_falls_back_to_an_empty_name() {
-    for (family, _, fallback) in answerable() {
-        assert!(
-            !fallback().is_empty(),
-            "{family} has an empty fallback model"
-        );
-    }
+fn a_family_with_no_registered_model_defaults_to_an_empty_one_instead_of_panicking() {
+    // `block-full-rig` ships zero models. Before #913 the default asserted the
+    // family was non-empty, so a document carrying `type: full_rig` with no
+    // `model:` aborted the load instead of being reported as an unsupported
+    // model.
+    assert!(block_full_rig::supported_models().is_empty());
+    assert_eq!(default_full_rig_model(), "");
 }
 
 #[test]
-fn a_block_with_no_instrument_is_an_electric_guitar() {
-    assert_eq!(default_instrument(), "electric_guitar");
+fn a_full_rig_block_without_a_model_loads_with_the_block_dropped() {
+    let yaml = r#"
+chains:
+  - description: rig without a model
+    blocks:
+      - type: full_rig
+        enabled: true
+"#;
+    let dto: crate::ProjectYaml = serde_yaml::from_str(yaml).expect("the document must parse");
+    let project = dto
+        .into_project()
+        .expect("the rest of the document survives one unbuildable block");
+    assert_eq!(project.chains.len(), 1);
+    assert!(
+        project.chains[0].blocks.is_empty(),
+        "the empty model resolves to no definition, so the block is dropped — not a panic"
+    );
+}
+
+#[test]
+fn a_block_is_enabled_unless_the_document_says_otherwise() {
+    assert!(default_enabled());
+}
+
+#[test]
+fn an_input_defaults_to_the_shared_instrument_constant() {
+    assert_eq!(default_instrument(), block_core::DEFAULT_INSTRUMENT);
+    assert!(!default_instrument().is_empty());
 }

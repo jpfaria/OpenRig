@@ -123,3 +123,7 @@ pub(crate) fn build_chain_stream_signature_multi(
         outputs: output_sigs,
     }
 }
+
+#[cfg(test)]
+#[path = "stream_signature_tests.rs"]
+mod tests;

@@ -75,19 +75,10 @@ pub(crate) fn wire(window: Weak<AppWindow>, ctx: ChainRigNavCtx, arg: MidiMapArg
             // so MIDI slots that read "active chain / active block"
             // see what the user has selected. Cheap clone — the
             // struct is a handful of `Option<String>` + bools.
-            {
-                let session_borrow = ctx.project_session.borrow();
-                if let Some(session) = session_borrow.as_ref() {
-                    let src = session.dispatcher.selection_state();
-                    let snapshot = match src.read() {
-                        Ok(g) => g.clone(),
-                        Err(_) => return,
-                    };
-                    if let Ok(mut dst) = daemon_selection_for_timer.write() {
-                        *dst = snapshot;
-                    }
-                }
-            }
+            crate::midi_selection_mirror::mirror_selection(
+                &ctx.project_session,
+                &daemon_selection_for_timer,
+            );
             // Drain on the Slint thread, then drop the session borrow
             // before refreshing (apply_events_to_ui re-borrows it).
             let events = {

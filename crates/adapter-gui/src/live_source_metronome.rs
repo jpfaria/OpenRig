@@ -34,3 +34,7 @@ pub(crate) fn metronome_live_source(
         runtime: Rc::clone(runtime),
     })
 }
+
+#[cfg(test)]
+#[path = "live_source_metronome_tests.rs"]
+mod tests;
