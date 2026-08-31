@@ -1,6 +1,6 @@
 nav{position:fixed;inset:0 0 auto 0;z-index:60;padding:18px 0;transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
 nav.solid{background:rgba(5,7,11,.86);backdrop-filter:blur(20px) saturate(1.4);border-bottom-color:var(--line)}
-nav .wrap{display:flex;align-items:center;gap:34px}
+nav .wrap{display:flex;align-items:center;gap:clamp(14px,2.4vw,34px)}
 /* One lockup file, cropped tight and drawn to the proportions the app's launcher uses,
    so the mark and the wordmark can never drift apart at any size. */
 .brand{display:block;margin-right:auto}
@@ -13,4 +13,7 @@ nav .wrap{display:flex;align-items:center;gap:34px}
 nav .lang-switch{display:flex;gap:10px}
 nav .lang-switch button{font:inherit;font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--mute);background:none;border:none;cursor:pointer;padding:0}
 nav .lang-switch button:hover,nav .lang-switch button.on{color:#fff}
+/* Between 900 and 1100 the eight links, the language switch and the CTA stop fitting
+   on one row — the longer Spanish labels ran the Download button off the screen. */
+@media(max-width:1100px){.nav-links{font-size:12px;gap:clamp(10px,1.3vw,18px)}}
 @media(max-width:900px){.nav-gh,nav .lang-switch{display:none}}

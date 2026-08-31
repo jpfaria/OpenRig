@@ -43,7 +43,10 @@
 .hero-support:hover{background:rgba(255,158,61,.2);transform:translateY(-2px)}
 .hero-support span{display:block;font-family:var(--display);font-size:clamp(24px,2.1vw,32px);letter-spacing:.04em;text-transform:uppercase;color:var(--amber)}
 .hero-support i{display:block;font-style:normal;font-size:12.5px;letter-spacing:.05em;color:var(--soft);margin-top:5px}
-/* Below 1001px the card is hidden, so the CTA row carries the ask instead. */
+/* One ask at a time: the card owns the corner on desktop, the CTA button owns it below. */
+@media(max-width:1000px){.hero-support{display:none}}
 @media(min-width:1001px){.btn-support{display:none}
   /* the sponsor card occupies that corner — the scroll hint would sit on top of it */
-  .scroll-hint{display:none}}
+  .scroll-hint{display:none}
+  /* keep the CTA row clear of the card: the longer notes ran underneath it */
+  .hero-cta{padding-right:calc(min(25vw,318px) + 44px)}}

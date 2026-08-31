@@ -33,6 +33,8 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
    ```
 
    A ativa é a MAIOR versão sem tag. Errei isso na #881: cortei e ia abrir PR pra `release/v0.3.0` com `v0.3.0` já taggeada e mergeada na `main`, enquanto a ativa era a `release/v0.4.0`.
+   **Exceção — mudança que toca só `site/`: direto na `main`.** O Pages publica de `main` (`.github/workflows/pages.yml`, `paths: site/**`), então passar pela release e pela `develop` só atrasa a publicação. Clona `main`, commita e dá push na `main` — sem branch de issue, sem PR. Vale só enquanto o diff for exclusivamente `site/` (mais a doc da própria regra).
+
 4. **Mergear a release ativa antes de qualquer trabalho**: `git merge -X theirs origin/release/vX.Y.Z`.
 5. Commits em inglês, sem `Co-Authored-By`, foco no "why".
 6. **NUNCA `Closes #N` ou `Fixes #N`** em commits — GitHub auto-fecha.
