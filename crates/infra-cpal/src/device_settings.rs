@@ -60,17 +60,8 @@ pub fn start_jack_in_background(
                 let matched = device_settings
                     .iter()
                     .find(|s| s.device_id.0 == card.device_id);
-                let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
-                // Unconfigured-device fallback only. A USB class-compliant
-                // interface on a generic (non-RT) desktop kernel cannot
-                // sustain 64 frames — it xruns continuously and the sound
-                // is unusable garbage (#479). 256 is the safe minimum for
-                // USB audio. This does NOT change configured setups: the
-                // Orange Pi (and any saved gui-settings.yaml) carries an
-                // explicit buffer so `matched` is Some and this fallback
-                // is never reached — its tuned low-latency value stands,
-                // so the latency invariant is not regressed there.
-                let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(256);
+                let (sample_rate, buffer_size) =
+                    crate::jack_device_defaults::stream_values_for(matched);
                 let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
                 let realtime = matched.map(|s| s.realtime).unwrap_or(true);
                 let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);

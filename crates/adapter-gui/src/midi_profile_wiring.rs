@@ -56,3 +56,7 @@ pub fn start_midi_profiles(
     );
     adapter_midi::spawn_with_profiles_from(&factory, &user, bridge, selection, learn)
 }
+
+#[cfg(test)]
+#[path = "midi_profile_wiring_tests.rs"]
+mod tests;

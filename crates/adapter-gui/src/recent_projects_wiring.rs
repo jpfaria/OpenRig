@@ -15,24 +15,16 @@
 //! Stays out of `lib.rs` so launcher tweaks don't collide with other UI work.
 
 use std::cell::RefCell;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Timer, VecModel};
 
-use application::command::{Command, ProjectCommand};
 use domain::AudioDeviceDescriptor;
 use infra_filesystem::AppConfig;
 
 use crate::audio_devices::ensure_devices_loaded;
 use crate::helpers::{clear_status, set_status_error};
-use crate::project_file_dialog_wiring::stop_the_previous_rig;
-use crate::project_ops::{
-    canonical_project_path, load_project_session, mark_recent_project_invalid,
-    project_display_name, project_session_snapshot, project_title_for_path, recent_project_items,
-    register_recent_project, resolve_project_config_path, set_project_dirty,
-};
-use crate::project_view::replace_project_chains;
+use crate::project_ops::{recent_project_items, set_project_dirty};
 use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
@@ -99,162 +91,80 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
                 return;
             };
             ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-            let Some(recent) = app_config
-                .borrow()
-                .recent_projects
-                .get(index as usize)
-                .cloned()
-            else {
-                set_status_error(
-                    &window,
-                    &toast_timer,
-                    &rust_i18n::t!("error-invalid-recent-project"),
-                );
-                return;
-            };
-            if !recent.is_valid {
-                set_status_error(
-                    &window,
-                    &toast_timer,
-                    &recent.invalid_reason.unwrap_or_else(|| {
-                        rust_i18n::t!("error-invalid-recent-project").to_string()
-                    }),
-                );
-                return;
+            let result = crate::recent_project_open::open_recent(
+                &crate::project_open::OpenProjectCtx {
+                    app_config: &app_config,
+                    recent_projects: &recent_projects,
+                    project_session: &project_session,
+                    project_chains: &project_chains,
+                    runtime_attach: &runtime_attach,
+                    saved_project_snapshot: &saved_project_snapshot,
+                    input_chain_devices: &input_chain_devices.borrow(),
+                    output_chain_devices: &output_chain_devices.borrow(),
+                    search: window.get_recent_project_search().as_str(),
+                },
+                index as usize,
+            );
+            // #693/#731: the config write runs on the persist worker (the GUI
+            // thread never waits on disk) and the path is bound at dispatch
+            // time. Either outcome above changed the in-memory snapshot.
+            {
+                let snapshot = app_config.borrow().clone();
+                application::app_config_persist::persist_app_config_snapshot(snapshot);
             }
-            let path = PathBuf::from(&recent.project_path);
-            match load_project_session(&path, &resolve_project_config_path(&path)) {
-                Ok(session) => {
-                    let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    let title =
-                        project_title_for_path(Some(&canonical_path), &session.project.borrow());
-                    let display_name = project_display_name(&session.project.borrow());
-                    stop_the_previous_rig(&project_session);
-                    // #903: opening restores this project's recorded loops, which
-                    // ride on LoadProject and need a store to land in — so the
-                    // runtime seam is wired up first, and only after the previous
-                    // rig is stopped, or they would land in the controller that is
-                    // about to be dropped.
-                    runtime_attach.to_session(&session);
-                    // #436 E: abrir recente é negócio → ProjectCommand::LoadProject
-                    // no dispatcher da sessão (MCP/MIDI, observável via
-                    // Event::ProjectLoaded). Load+swap é adapter-side
-                    // (precedente SaveProject).
-                    {
-                        let project = session.project.borrow().clone();
-                        if let Err(e) = session.dispatcher.dispatch(Command::Project(
-                            ProjectCommand::LoadProject {
-                                project,
-                                path: canonical_path.clone(),
-                            },
-                        )) {
-                            log::warn!("[open-recent] Command::LoadProject falhou: {e}");
-                        }
-                    }
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project.borrow(),
-                        &input_chain_devices.borrow(),
-                        &output_chain_devices.borrow(),
-                        &[],
+            let opened = match result {
+                Ok(opened) => opened,
+                Err(crate::recent_project_open::OpenRecentError::AlreadyInvalid(reason)) => {
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        &reason.unwrap_or_else(|| {
+                            rust_i18n::t!("error-invalid-recent-project").to_string()
+                        }),
                     );
-                    // #808: the open flow built rows with an empty binding
-                    // registry, so the DI output select was empty until the
-                    // chain was first enabled. Populate it from the real
-                    // bindings now — for every chain, active or not.
-                    crate::di_output_options::apply_di_outputs_to_rows(
-                        &project_chains,
-                        &session.project.borrow(),
-                        &session.io_bindings.borrow(),
-                    );
-                    // #127: hand this session's dispatcher the frontend's audio runtime BEFORE
-                    // anything can dispatch against it — a runtime-control command issued before
-                    // the first chain sync must still reach the audio.
-                    let snapshot = project_session_snapshot(&session).ok();
-                    *project_session.borrow_mut() = Some(session);
-                    crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
-                    *saved_project_snapshot.borrow_mut() = snapshot;
-                    register_recent_project(
-                        &mut app_config.borrow_mut(),
-                        &canonical_path,
-                        &display_name,
-                    );
-                    // #436 (sweep): registrar recente via Command.
-                    if let Some(s) = project_session.borrow().as_ref() {
-                        let _ = s.dispatcher.dispatch(Command::Project(
-                            ProjectCommand::RegisterRecentProject {
-                                path: canonical_path.clone(),
-                                name: display_name.clone(),
-                            },
-                        ));
-                    }
-                    {
-                        // #693: config write runs on the persist worker — the
-                        // GUI thread never waits on disk.
-                        let snapshot = app_config.borrow().clone();
-                        // #731: bind the config path at dispatch time.
-                        application::app_config_persist::persist_app_config_snapshot(snapshot);
-                    }
-                    recent_projects.set_vec(recent_project_items(
-                        &app_config.borrow().recent_projects,
-                        window.get_recent_project_search().as_str(),
-                    ));
-                    set_project_dirty(&window, &project_dirty, false);
-                    clear_status(&window, &toast_timer);
-                    window.set_project_title(title.into());
-                    window.set_project_name_draft(
-                        project_session
-                            .borrow()
-                            .as_ref()
-                            .and_then(|session| session.project.borrow().name.clone())
-                            .unwrap_or_default()
-                            .into(),
-                    );
-                    window.set_project_path_label(
-                        rust_i18n::t!(
-                            "status-project-path-prefix",
-                            path = canonical_path.display()
-                        )
-                        .to_string()
-                        .into(),
-                    );
-                    window.set_show_project_launcher(false);
-                    window.set_show_project_chains(true);
-                    window.set_show_chain_editor(false);
-                    window.set_show_settings(false);
+                    return;
                 }
-                Err(error) => {
-                    let reason = error.to_string();
-                    mark_recent_project_invalid(&mut app_config.borrow_mut(), &path, &reason);
-                    // #436 (sweep): invalidar recente via Command (quando
-                    // há sessão; open falhou, pode não haver). Persist
-                    // abaixo é adapter-side (precedente SaveProject).
-                    if let Some(s) = project_session.borrow().as_ref() {
-                        let _ = s.dispatcher.dispatch(Command::Project(
-                            ProjectCommand::MarkRecentProjectInvalid {
-                                path: path.clone(),
-                                reason,
-                            },
-                        ));
-                    }
-                    {
-                        // #693: config write runs on the persist worker — the
-                        // GUI thread never waits on disk.
-                        let snapshot = app_config.borrow().clone();
-                        // #731: bind the config path at dispatch time.
-                        application::app_config_persist::persist_app_config_snapshot(snapshot);
-                    }
-                    recent_projects.set_vec(recent_project_items(
-                        &app_config.borrow().recent_projects,
-                        window.get_recent_project_search().as_str(),
-                    ));
+                Err(crate::recent_project_open::OpenRecentError::LoadFailed) => {
                     set_status_error(
                         &window,
                         &toast_timer,
                         &rust_i18n::t!("error-invalid-recent-project-detail"),
                     );
+                    return;
                 }
-            }
+                Err(crate::recent_project_open::OpenRecentError::NoSuchEntry) => {
+                    set_status_error(
+                        &window,
+                        &toast_timer,
+                        &rust_i18n::t!("error-invalid-recent-project"),
+                    );
+                    return;
+                }
+            };
+            crate::chain_rig_nav_wiring::refresh_from_session(&window, &project_session);
+            set_project_dirty(&window, &project_dirty, false);
+            clear_status(&window, &toast_timer);
+            window.set_project_title(opened.title.into());
+            window.set_project_name_draft(
+                project_session
+                    .borrow()
+                    .as_ref()
+                    .and_then(|session| session.project.borrow().name.clone())
+                    .unwrap_or_default()
+                    .into(),
+            );
+            window.set_project_path_label(
+                rust_i18n::t!(
+                    "status-project-path-prefix",
+                    path = opened.canonical_path.display()
+                )
+                .to_string()
+                .into(),
+            );
+            window.set_show_project_launcher(false);
+            window.set_show_project_chains(true);
+            window.set_show_chain_editor(false);
+            window.set_show_settings(false);
         });
     }
     // Issue #360: remove-recent now opens an in-window overlay before
@@ -274,15 +184,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             let Some(entry) = config.recent_projects.get(idx) else {
                 return;
             };
-            let display_name = if entry.project_name.is_empty() {
-                std::path::Path::new(&entry.project_path)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| entry.project_path.clone())
-            } else {
-                entry.project_name.clone()
-            };
+            let display_name = crate::recent_project_label::confirm_removal_label(entry);
             *pending.borrow_mut() = Some(idx);
             crate::OverlayBridge::get(&window)
                 .set_confirm_delete_recent_project_name(display_name.into());
@@ -313,31 +215,18 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             let Some(index) = pending.borrow_mut().take() else {
                 return;
             };
-            let mut config = app_config.borrow_mut();
-            if index < config.recent_projects.len() {
-                // #436 F: remover recente é negócio → Command no
-                // dispatcher compartilhado (MCP/MIDI, observável via
-                // Event::RecentProjectRemoved) quando há sessão. A
-                // mutação/persistência do app-config + render abaixo é
-                // adapter-side (precedente SaveProject).
-                if let Some(session) = project_session.borrow().as_ref() {
-                    if let Err(e) = session.dispatcher.dispatch(Command::Project(
-                        ProjectCommand::RemoveRecentProject { index },
-                    )) {
-                        log::warn!("[recent] Command::RemoveRecentProject falhou: {e}");
-                    }
-                }
-                config.recent_projects.remove(index);
-                {
-                    // #693: write on the persist worker.
-                    let snapshot = config.clone();
-                    // #731: bind the config path at dispatch time.
-                    application::app_config_persist::persist_app_config_snapshot(snapshot);
-                }
-                recent_projects.set_vec(recent_project_items(
-                    &config.recent_projects,
-                    window.get_recent_project_search().as_str(),
-                ));
+            let removed = crate::recent_project_remove::remove_recent(
+                &project_session,
+                &app_config,
+                &recent_projects,
+                index,
+                window.get_recent_project_search().as_str(),
+            );
+            if removed {
+                // #693/#731: the config write runs on the persist worker and
+                // the path is bound at dispatch time.
+                let snapshot = app_config.borrow().clone();
+                application::app_config_persist::persist_app_config_snapshot(snapshot);
             }
         });
     }

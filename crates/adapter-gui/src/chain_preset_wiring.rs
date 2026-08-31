@@ -20,15 +20,11 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
-use application::command::{ChainCommand, Command, SelectionCommand};
+use application::command::{ChainCommand, Command};
 use domain::AudioDeviceDescriptor;
-use project::chain::Chain;
 
-use crate::assign_new_block_ids;
 use crate::helpers::{clear_status, set_status_error, set_status_info};
-use crate::project_ops::{load_preset_file, sync_project_dirty};
-use crate::project_view::replace_project_chains;
-use crate::runtime_sync_policy::request_chain_sync;
+use crate::project_ops::sync_project_dirty;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectChainItem};
 // `chain_preset_wiring_tests.rs` hangs off this module and reaches the bank
@@ -37,10 +33,12 @@ use crate::{AppWindow, ProjectChainItem};
 pub(crate) use crate::chain_preset_bank::filter_preset_names;
 pub(crate) use crate::chain_preset_bank::{
     active_preset_id, apply_preset_filter, chain_preset_bank, default_preset_filename_slug,
-    preset_overwrite_required, preset_rename_target_from_path, strip_io_blocks,
+    preset_overwrite_required,
 };
 #[cfg(test)]
 pub(crate) use crate::chain_preset_bank::{preset_filename, preset_save_path};
+#[cfg(test)]
+pub(crate) use crate::chain_preset_bank::{preset_rename_target_from_path, strip_io_blocks};
 
 pub(crate) struct ChainPresetCtx {
     pub project_session: Rc<RefCell<Option<ProjectSession>>>,
@@ -102,29 +100,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             // the bundled presets are visible. Desktop previously used a
             // native FileDialog with no list — selection now flows
             // through on_preset_picker_confirm for both modes (#479).
-            let mut full: Vec<(String, PathBuf)> = Vec::new();
-            if let Ok(entries) = std::fs::read_dir(&session.presets_path) {
-                let mut sorted: Vec<_> = entries
-                    .filter_map(|e| e.ok())
-                    .filter(|e| {
-                        e.path()
-                            .extension()
-                            .map(|x| x == "yaml" || x == "yml")
-                            .unwrap_or(false)
-                    })
-                    .collect();
-                sorted.sort_by_key(|e| e.file_name());
-                for entry in sorted {
-                    let path = entry.path();
-                    let name = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("")
-                        .replace('_', " ");
-                    full.push((name, path));
-                }
-            }
-            *preset_full_list.borrow_mut() = full;
+            *preset_full_list.borrow_mut() =
+                crate::preset_picker_files::scan_preset_files(&session.presets_path);
             // Issue #510: reset the search field every time the picker
             // opens so a stale query from a previous open doesn't hide
             // half the presets.
@@ -174,95 +151,40 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             };
             let path = path.clone();
             drop(files);
+            let chain_index = crate::OverlayBridge::get(&window).get_preset_picker_chain_index();
+            match crate::preset_load::load_preset_onto_chain(
+                &project_session,
+                chain_index as usize,
+                &path,
+                &project_chains,
+                &input_chain_devices.borrow(),
+                &output_chain_devices.borrow(),
+            ) {
+                Ok(_) => {}
+                Err(crate::preset_load::PresetLoadError::Gone) => return,
+                Err(crate::preset_load::PresetLoadError::Unreadable(message))
+                | Err(crate::preset_load::PresetLoadError::Failed(message)) => {
+                    set_status_error(&window, &toast_timer, &message);
+                    return;
+                }
+            }
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            let chain_index = crate::OverlayBridge::get(&window).get_preset_picker_chain_index();
-            match load_preset_file(&path) {
-                Ok(preset) => {
-                    // Hand the dispatcher I/O-stripped blocks (issue #518):
-                    // it is the dispatcher's job to preserve the chain's
-                    // existing Input/Output across the swap. Wrapping I/O
-                    // here too would land two of each on the chain.
-                    let preset_instrument = preset.instrument.clone();
-                    let dispatch_result = {
-                        let proj = session.project.borrow();
-                        if let Some(chain) = proj.chains.get(chain_index as usize) {
-                            let chain_id = chain.id.clone();
-                            let stripped = strip_io_blocks(preset.blocks);
-                            // Assign fresh IDs via a temporary chain struct.
-                            let mut tmp_chain = Chain {
-                                id: chain_id.clone(),
-                                description: None,
-                                instrument: String::new(),
-                                enabled: false,
-                                volume: 100.0,
-                                io_binding_ids: vec![],
-                                blocks: stripped,
-                                di_output: None,
-                                loopers: vec![],
-                            };
-                            assign_new_block_ids(&mut tmp_chain);
-                            Some((chain_id, tmp_chain.blocks))
-                        } else {
-                            None
-                        }
-                    };
-                    if let Some((chain_id, preset_blocks)) = dispatch_result {
-                        if let Err(error) = session.dispatcher.dispatch(Command::Chain(
-                            ChainCommand::LoadChainPreset {
-                                chain: chain_id.clone(),
-                                preset_instrument,
-                                preset_blocks,
-                            },
-                        )) {
-                            set_status_error(&window, &toast_timer, &error.to_string());
-                            return;
-                        }
-                        // Issue #510: round-trip contract — the active
-                        // preset's display name follows the loaded file's
-                        // stem verbatim so the combobox reflects exactly
-                        // what the user picked.
-                        if let Some(name) = preset_rename_target_from_path(&path) {
-                            if let Err(e) = session.dispatcher.dispatch(Command::Selection(
-                                SelectionCommand::RenameRigPreset {
-                                    chain: chain_id.clone(),
-                                    name,
-                                },
-                            )) {
-                                log::warn!("[preset] Command::RenameRigPreset falhou: {e}");
-                            }
-                        }
-                        if let Err(error) = request_chain_sync(session, &chain_id) {
-                            set_status_error(&window, &toast_timer, &error.to_string());
-                            return;
-                        }
-                        replace_project_chains(
-                            &project_chains,
-                            &session.project.borrow(),
-                            &input_chain_devices.borrow(),
-                            &output_chain_devices.borrow(),
-                            &[],
-                        );
-                        // Issue #510 bug fix: the chain preset combobox
-                        // is fed by `chain-rig-nav`, not by `project_chains`.
-                        // Without this refresh, `SelectionCommand::RenameRigPreset`
-                        // updates the rig in memory but the visible combo
-                        // keeps the old label.
-                        crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
-                        sync_project_dirty(
-                            &window,
-                            session,
-                            &saved_project_snapshot,
-                            &project_dirty,
-                            auto_save,
-                        );
-                        clear_status(&window, &toast_timer);
-                    }
-                }
-                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
-            }
+            // Issue #510 bug fix: the chain preset combobox is fed by
+            // `chain-rig-nav`, not by `project_chains`. Without this refresh,
+            // `SelectionCommand::RenameRigPreset` updates the rig in memory but
+            // the visible combo keeps the old label.
+            crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
+            sync_project_dirty(
+                &window,
+                session,
+                &saved_project_snapshot,
+                &project_dirty,
+                auto_save,
+            );
+            clear_status(&window, &toast_timer);
         });
     }
     {

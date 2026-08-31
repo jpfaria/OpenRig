@@ -46,7 +46,12 @@ fn integrations_wiring_syncs_the_in_memory_app_config_snapshot() {
     // stale boot value the next time any project op fires. The fix mirrors
     // `settings::audio`: mutate `app_config.borrow_mut()` so the snapshot
     // carries the new value.
-    let src = read_src("settings/integrations.rs");
+    //
+    // #913: the mirror moved into `settings::integrations_toggle`, where it is
+    // now asserted BEHAVIOURALLY (`the_shared_snapshot_is_mirrored_so_a_later_\
+    // wholesale_save_cannot_undo_it`). This source check follows it there and
+    // stays as the cheap guard against the mirror being dropped again.
+    let src = read_src("settings/integrations_toggle.rs");
     assert!(
         src.contains("app_config") && src.contains("borrow_mut"),
         "issue #712: the toggle must also update the shared in-memory \

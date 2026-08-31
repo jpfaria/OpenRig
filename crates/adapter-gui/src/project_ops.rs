@@ -17,7 +17,7 @@ pub(crate) use crate::project_paths_resolve::resolve_project_paths;
 #[cfg(test)]
 pub(crate) use crate::project_session_load::load_rig_and_project;
 pub(crate) use crate::project_session_load::{
-    create_new_project_session, load_preset_file, load_project_session, open_cli_project,
+    create_new_project_session, load_project_session, open_cli_project,
 };
 pub(crate) use crate::project_title::project_title_for_path;
 

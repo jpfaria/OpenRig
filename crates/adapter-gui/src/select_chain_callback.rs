@@ -39,21 +39,7 @@ pub(crate) fn wire(
             );
             return;
         };
-        let chain_id = {
-            let proj = session.project.borrow();
-            match proj.chains.get(chain_index as usize) {
-                Some(c) => c.id.clone(),
-                None => {
-                    set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
-                    return;
-                }
-            }
-        };
-        match session
-            .dispatcher
-            .dispatch(application::command::Command::Selection(
-                application::command::SelectionCommand::SelectActiveChain { chain: chain_id },
-            )) {
+        match crate::chain_selection::select_chain(session, chain_index as usize) {
             Ok(_) => {
                 // Reflect the selection markers from the dispatcher-owned
                 // SelectionState (single source of truth, shared with MIDI).

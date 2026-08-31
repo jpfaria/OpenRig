@@ -20,12 +20,9 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global};
 
-use project::catalog::{model_brand, model_display_name, model_type_label};
-
 use crate::helpers::system_language;
 use crate::plugin_info;
-use crate::project_view::load_screenshot_image;
-use crate::{AppWindow, PluginInfoData};
+use crate::AppWindow;
 
 pub(crate) fn wire(window: &AppWindow) {
     let homepage_store: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
@@ -37,29 +34,13 @@ pub(crate) fn wire(window: &AppWindow) {
             let Some(window) = weak.upgrade() else {
                 return;
             };
-            let effect_type = effect_type.to_string();
-            let model_id = model_id.to_string();
-
-            let display_name = model_display_name(&effect_type, &model_id);
-            let brand = model_brand(&effect_type, &model_id);
-            let type_label = model_type_label(&effect_type, &model_id);
-            let lang = system_language();
-            let meta = plugin_info::plugin_metadata(&lang, &model_id);
-            let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
-
-            *homepage_store.borrow_mut() = meta.homepage.clone();
-
-            crate::OverlayBridge::get(&window).set_plugin_info_data(PluginInfoData {
-                screenshot: screenshot_img,
-                has_screenshot,
-                plugin_name: display_name.into(),
-                brand: brand.into(),
-                type_label: type_label.into(),
-                description: meta.description.into(),
-                license: meta.license.into(),
-                homepage: meta.homepage.clone().into(),
-                has_homepage: !meta.homepage.is_empty(),
-            });
+            let (data, homepage) = crate::plugin_info_panel::build_plugin_info(
+                effect_type.as_str(),
+                model_id.as_str(),
+                &system_language(),
+            );
+            *homepage_store.borrow_mut() = homepage;
+            crate::OverlayBridge::get(&window).set_plugin_info_data(data);
             crate::OverlayBridge::get(&window).set_plugin_info_visible(true);
         });
     }

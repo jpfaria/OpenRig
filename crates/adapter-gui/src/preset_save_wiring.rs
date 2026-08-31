@@ -18,31 +18,19 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, Timer};
 
-use application::command::{ChainCommand, Command, SelectionCommand};
 use domain::ids::ChainId;
-use project::chain::Chain;
 
-use crate::chain_preset_wiring::{default_preset_filename_slug, preset_overwrite_required};
+use crate::chain_preset_wiring::preset_overwrite_required;
 use crate::helpers::{set_status_error, set_status_info};
 use crate::state::ProjectSession;
 use crate::AppWindow;
-
-/// State carried across the in-window save flow: the user opens the
-/// save overlay, optionally hits the overwrite confirm, and only then
-/// commits. The chain clone is captured at open time so a later
-/// project mutation can't slip into the saved file. Issue #510.
-struct PendingSave {
-    chain_id: ChainId,
-    chain_clone: Chain,
-    default_name: String,
-}
 
 pub(crate) fn wire(
     window: &AppWindow,
     project_session: Rc<RefCell<Option<ProjectSession>>>,
     toast_timer: Rc<Timer>,
 ) {
-    let pending_save: Rc<RefCell<Option<PendingSave>>> = Rc::new(RefCell::new(None));
+    let pending_save: crate::preset_save::PendingSaveCell = Rc::new(RefCell::new(None));
 
     {
         let weak_window = window.as_weak();
@@ -62,31 +50,14 @@ pub(crate) fn wire(
                 );
                 return;
             };
-            let (chain_desc, chain_clone, chain_id) = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(index as usize) else {
-                    drop(proj);
+            let pending = match crate::preset_save::pending_save_for(session, index as usize) {
+                Ok(pending) => pending,
+                Err(_) => {
                     set_status_error(&window, &toast_timer, &rust_i18n::t!("error-invalid-chain"));
                     return;
-                };
-                (
-                    chain
-                        .description
-                        .clone()
-                        .unwrap_or_else(|| format!("chain_{}", index + 1)),
-                    chain.clone(),
-                    chain.id.clone(),
-                )
+                }
             };
-            // Issue #518: name source = the active preset's name, not
-            // the chain's title (which is `input.label` after #436).
-            // Issue #510: pass the name through verbatim — no slug.
-            let preset_name = session
-                .rig
-                .as_ref()
-                .and_then(|r| default_preset_filename_slug(&chain_id, &r.borrow()));
-            let default_name = preset_name.unwrap_or_else(|| chain_desc.clone());
-
+            let default_name = pending.default_name.clone();
             if window.get_touch_optimized() {
                 // Kiosk: auto-save to presets dir, no dialog.
                 // (Directory creation is handled inside the
@@ -95,8 +66,7 @@ pub(crate) fn wire(
                 perform_preset_save(
                     &window,
                     session,
-                    &chain_id,
-                    &chain_clone,
+                    &pending.chain_id,
                     &default_name,
                     &toast_timer,
                 );
@@ -108,11 +78,7 @@ pub(crate) fn wire(
                 // chain id is what `SelectionCommand::RenameRigPreset` keys on
                 // so the active preset's display name follows the
                 // typed name end-to-end.
-                *pending_save.borrow_mut() = Some(PendingSave {
-                    chain_id,
-                    chain_clone,
-                    default_name: default_name.clone(),
-                });
+                *pending_save.borrow_mut() = Some(pending);
                 crate::OverlayBridge::get(&window)
                     .set_preset_save_default_name(default_name.clone().into());
                 crate::OverlayBridge::get(&window).set_preset_save_name_input(default_name.into());
@@ -138,23 +104,11 @@ pub(crate) fn wire(
             };
             // Peek without taking so the pending state survives if we
             // need to bounce to the overwrite-confirm overlay.
-            let (chain_id, chain_clone, default_name) = {
-                let pending = pending_save.borrow();
-                let Some(pending) = pending.as_ref() else {
-                    log::warn!("[preset-save] dropped: no pending save state");
-                    return;
-                };
-                (
-                    pending.chain_id.clone(),
-                    pending.chain_clone.clone(),
-                    pending.default_name.clone(),
-                )
+            let Some(pending) = pending_save.borrow().clone() else {
+                log::warn!("[preset-save] dropped: no pending save state");
+                return;
             };
-            let chosen = if name.trim().is_empty() {
-                default_name
-            } else {
-                name.trim().to_string()
-            };
+            let chosen = crate::preset_save::chosen_name(name.as_str(), &pending.default_name);
             if preset_overwrite_required(&session.presets_path, &chosen) {
                 crate::OverlayBridge::get(&window)
                     .set_preset_save_overwrite_name(chosen.clone().into());
@@ -162,14 +116,7 @@ pub(crate) fn wire(
                 crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(true);
                 return;
             }
-            perform_preset_save(
-                &window,
-                session,
-                &chain_id,
-                &chain_clone,
-                &chosen,
-                &toast_timer,
-            );
+            perform_preset_save(&window, session, &pending.chain_id, &chosen, &toast_timer);
             *pending_save.borrow_mut() = None;
             crate::OverlayBridge::get(&window).set_show_preset_save(false);
         });
@@ -193,14 +140,7 @@ pub(crate) fn wire(
             let chosen = crate::OverlayBridge::get(&window)
                 .get_preset_save_overwrite_name()
                 .to_string();
-            perform_preset_save(
-                &window,
-                session,
-                &pending.chain_id,
-                &pending.chain_clone,
-                &chosen,
-                &toast_timer,
-            );
+            perform_preset_save(&window, session, &pending.chain_id, &chosen, &toast_timer);
             crate::OverlayBridge::get(&window).set_show_preset_save_overwrite(false);
             crate::OverlayBridge::get(&window).set_show_preset_save(false);
         });
@@ -237,38 +177,16 @@ fn perform_preset_save(
     window: &AppWindow,
     session: &mut ProjectSession,
     chain_id: &ChainId,
-    _chain_clone: &Chain,
     name: &str,
     toast_timer: &Rc<Timer>,
 ) {
-    // #555: the YAML write and the `create_dir_all` used to happen
-    // here in the adapter. They now live inside the dispatcher
-    // handler for `ChainCommand::SaveChainPreset`, so MCP/MIDI/gRPC
-    // clients produce the same on-disk effect as the GUI.
-    match session
-        .dispatcher
-        .dispatch(Command::Chain(ChainCommand::SaveChainPreset {
-            chain: chain_id.clone(),
-            name: name.to_string(),
-        })) {
-        Ok(_) => {
-            // Mirror the load flow: rename the active preset to the
-            // chosen name and refresh the chain-rig-nav so the
-            // combobox in the chain title reflects the new label
-            // immediately.
-            if let Err(e) =
-                session
-                    .dispatcher
-                    .dispatch(Command::Selection(SelectionCommand::RenameRigPreset {
-                        chain: chain_id.clone(),
-                        name: name.to_string(),
-                    }))
-            {
-                log::warn!("[preset-save] Command::RenameRigPreset failed: {e}");
-            }
+    match crate::preset_save::commit_preset_save(session, chain_id, name) {
+        Ok(()) => {
+            // Mirror the load flow: refresh the chain-rig-nav so the combobox
+            // in the chain title shows the new label immediately.
             crate::chain_rig_nav_wiring::refresh_chain_rig_nav(window, session);
             set_status_info(window, toast_timer, &rust_i18n::t!("status-preset-saved"));
         }
-        Err(error) => set_status_error(window, toast_timer, &error.to_string()),
+        Err(error) => set_status_error(window, toast_timer, &error),
     }
 }

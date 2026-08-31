@@ -93,3 +93,7 @@ impl UiRuntimeContext {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod tests;

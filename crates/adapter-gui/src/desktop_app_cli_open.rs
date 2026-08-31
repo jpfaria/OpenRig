@@ -14,14 +14,9 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use application::command::{Command, ProjectCommand};
 use slint::VecModel;
 
-use crate::project_ops::{
-    canonical_project_path, open_cli_project, project_display_name, project_session_snapshot,
-    project_title_for_path, recent_project_items, register_recent_project, set_project_dirty,
-};
-use crate::project_view::replace_project_chains;
+use crate::project_ops::set_project_dirty;
 use crate::state::ProjectSession;
 use crate::{AppWindow, ProjectChainItem, RecentProjectItem};
 
@@ -44,68 +39,37 @@ pub(crate) fn try_auto_open(
     let Some(cli_path) = cli_project_path else {
         return;
     };
-    match open_cli_project(cli_path) {
-        Ok(session) => {
-            let canonical_path = canonical_project_path(cli_path).unwrap_or(cli_path.clone());
-            let title = project_title_for_path(Some(&canonical_path), &session.project.borrow());
-            let display_name = project_display_name(&session.project.borrow());
-            replace_project_chains(
-                project_chains,
-                &session.project.borrow(),
-                &input_chain_devices.borrow(),
-                &output_chain_devices.borrow(),
-                &[],
-            );
-            // #808: populate the DI output select from the real bindings now, or
-            // it stays empty until the chain is first enabled.
-            crate::di_output_options::apply_di_outputs_to_rows(
-                project_chains,
-                &session.project.borrow(),
-                &session.io_bindings.borrow(),
-            );
-            let snapshot = project_session_snapshot(&session).ok();
-            *project_session.borrow_mut() = Some(session);
-            crate::chain_rig_nav_wiring::refresh_from_session(window, project_session);
-            *saved_project_snapshot.borrow_mut() = snapshot;
-            register_recent_project(&mut app_config.borrow_mut(), &canonical_path, &display_name);
-            // #436 (sweep): registrar recente via Command (startup CLI).
-            if let Some(s) = project_session.borrow().as_ref() {
-                let _ = s.dispatcher.dispatch(Command::Project(
-                    ProjectCommand::RegisterRecentProject {
-                        path: canonical_path.clone(),
-                        name: display_name.clone(),
-                    },
-                ));
-            }
-            {
-                // #693: config write runs on the persist worker — the
-                // GUI thread never waits on disk.
-                let snapshot = app_config.borrow().clone();
-                // #731: bind the config path at dispatch time.
-                application::app_config_persist::persist_app_config_snapshot(snapshot);
-            }
-            recent_projects.set_vec(recent_project_items(
-                &app_config.borrow().recent_projects,
-                "",
-            ));
-            set_project_dirty(window, project_dirty, false);
-            window.set_project_title(title.into());
-            window.set_project_path_label(
-                rust_i18n::t!(
-                    "status-project-path-prefix",
-                    path = canonical_path.display()
-                )
-                .to_string()
-                .into(),
-            );
-            window.set_show_project_launcher(false);
-            window.set_show_project_setup(false);
-            window.set_show_project_chains(true);
-            window.set_skip_launcher(true);
-            log::info!("CLI: opened {:?}", canonical_path);
-        }
-        Err(e) => {
-            log::error!("CLI project open failed, falling back to launcher: {e}");
-        }
+    let Some(opened) = crate::cli_project_open::load_cli_project(
+        cli_path,
+        project_session,
+        project_chains,
+        &input_chain_devices.borrow(),
+        &output_chain_devices.borrow(),
+        saved_project_snapshot,
+        app_config,
+        recent_projects,
+    ) else {
+        return;
+    };
+    {
+        // #693: the config write runs on the persist worker — the GUI thread
+        // never waits on disk. #731: the config path is bound at dispatch time.
+        let snapshot = app_config.borrow().clone();
+        application::app_config_persist::persist_app_config_snapshot(snapshot);
     }
+    crate::chain_rig_nav_wiring::refresh_from_session(window, project_session);
+    set_project_dirty(window, project_dirty, false);
+    window.set_project_title(opened.title.into());
+    window.set_project_path_label(
+        rust_i18n::t!(
+            "status-project-path-prefix",
+            path = opened.canonical_path.display()
+        )
+        .to_string()
+        .into(),
+    );
+    window.set_show_project_launcher(false);
+    window.set_show_project_setup(false);
+    window.set_show_project_chains(true);
+    window.set_skip_launcher(true);
 }

@@ -15,12 +15,7 @@ pub(crate) fn wire(window: &AppWindow) {
         let Some(win) = weak_window.upgrade() else {
             return;
         };
-        let text: slint::SharedString = match label.as_str() {
-            "⌫" => slint::platform::Key::Backspace.into(),
-            "⏎" => slint::platform::Key::Return.into(),
-            "⎵" => " ".into(),
-            s => s.into(),
-        };
+        let text = crate::virtual_key_text::key_text_for_label(label.as_str());
         win.window()
             .dispatch_event(slint::platform::WindowEvent::KeyPressed { text: text.clone() });
         win.window()

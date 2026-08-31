@@ -14,9 +14,8 @@ use project::catalog::supported_block_type;
 use project::project::Project;
 
 use crate::block_editor::{
-    block_editor_data, block_parameter_items_for_editor, build_knob_overlays, parameter_groups,
+    block_editor_data, block_parameter_items_for_editor, build_knob_overlays,
 };
-use crate::block_editor_param_items::DEFAULT_PARAM_GROUP;
 use crate::block_editor_param_tabs::retag_for_group;
 use crate::compact_block_layout::{
     assign_overlay_lines, assign_strip_lines, row_height_px, row_y_offsets,
@@ -26,7 +25,7 @@ use crate::eq::{build_curve_editor_points, build_multi_slider_points};
 use crate::project_view::block_model_picker_items;
 use crate::{
     BlockKnobOverlay, BlockModelPickerItem, BlockParameterItem, CompactBlockItem,
-    CompactOverlayLine, CompactParamLine, SELECT_SELECTED_BLOCK_ID,
+    CompactOverlayLine, CompactParamLine,
 };
 
 /// Group the laid-out cells by their `strip_line` — Slint cannot filter inside a
@@ -63,12 +62,7 @@ fn overlay_lines(overlays: &[BlockKnobOverlay], lines: i32) -> Vec<CompactOverla
 /// model-picker row is pinned to every tab, so it is never a group of its own
 /// (same rule as the detached editor, #780).
 fn compact_parameter_groups(params: &[BlockParameterItem]) -> Vec<String> {
-    let groupable: Vec<BlockParameterItem> = params
-        .iter()
-        .filter(|it| it.path.as_str() != SELECT_SELECTED_BLOCK_ID)
-        .cloned()
-        .collect();
-    parameter_groups(&groupable)
+    crate::param_tab_grouping::tab_groups(params)
 }
 
 /// The name the user gave an E/S, falling back to its id.
@@ -259,11 +253,12 @@ pub(crate) fn build_compact_blocks(
             let mut params = block_parameter_items_for_editor(&editor_data);
             let groups = compact_parameter_groups(&params);
             let active_index = active_group_index(&block.id.0, &groups);
-            let active = groups
-                .get(active_index)
-                .map(String::as_str)
-                .unwrap_or(DEFAULT_PARAM_GROUP);
-            params = retag_for_group(&params, active);
+            // No tab bar (#915) → the whole strip is drawn, exactly as the
+            // editor draws the whole panel.
+            params = match groups.get(active_index) {
+                Some(active) => retag_for_group(&params, active),
+                None => crate::param_tab_grouping::retag_all(&params),
+            };
             let strip_lines = assign_strip_lines(&mut params);
 
             let knob_layout = project::catalog::model_knob_layout(&effect_type, &model_id);

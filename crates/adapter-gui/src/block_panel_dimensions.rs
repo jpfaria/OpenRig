@@ -25,6 +25,12 @@ pub const HORIZONTAL_MARGIN_PX: f32 = 68.0;
 /// strip).
 pub const MAX_COLS: usize = 6;
 
+/// How many parameters the panel shows at once before a tab bar earns its
+/// 40px (#915): two wrapped rows. A block that fits this is drawn whole — an
+/// amp's front panel is one panel, not seven tabs holding one knob each — and
+/// only a plugin with more parameters than this is split by its groups.
+pub const ONE_PANEL_CAPACITY: usize = MAX_COLS * 2;
+
 /// Vertical spacing between rows. Strictly greater than item height so
 /// wrapped rows have breathing room.
 pub const ROW_STRIDE_PX: f32 = 100.0;

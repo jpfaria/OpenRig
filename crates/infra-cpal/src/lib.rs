@@ -109,6 +109,7 @@ pub use device_cache::{
 pub use device_enum::list_devices;
 
 mod device_settings;
+mod jack_device_defaults;
 pub use device_settings::apply_device_settings;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_settings::start_jack_in_background;

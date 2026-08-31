@@ -30,3 +30,7 @@ pub(crate) fn load(project_paths: &ProjectPaths, vst3_sample_rate: f64) {
         project::vst3_editor::init_vst3_catalog(vst3_sample_rate, &[bundled_root, user_root]);
     });
 }
+
+#[cfg(test)]
+#[path = "desktop_app_catalog_tests.rs"]
+mod tests;

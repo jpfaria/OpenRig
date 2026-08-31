@@ -8,9 +8,11 @@ not after CI says no.
 usage: patch-coverage.py <lcov.info> <base-ref> [--files]
 """
 import collections
+import os
 import re
 import subprocess
 import sys
+from fnmatch import fnmatch
 
 
 def repo_root():
@@ -37,6 +39,31 @@ def added_lines(base):
     return out
 
 
+def ignored_globs(root):
+    """The `ignore:` globs from codecov.yml, so the number here matches the
+    one codecov reports rather than counting files the PR check skips.
+
+    Hand-parsed: the key is a flat list of quoted globs and pulling in PyYAML
+    for it would be a build dependency.
+    """
+    path = os.path.join(root, "codecov.yml")
+    if not os.path.exists(path):
+        return []
+    globs, in_ignore = [], False
+    for line in open(path):
+        stripped = line.strip()
+        if stripped.startswith("ignore:"):
+            in_ignore = True
+            continue
+        if in_ignore:
+            if stripped.startswith("- "):
+                globs.append(stripped[2:].strip().strip("\"'"))
+                continue
+            if stripped and not stripped.startswith("#"):
+                break
+    return globs
+
+
 def lcov_hits(lcov, root):
     """{path: {line: hit count}} with repo-relative paths"""
     out = collections.defaultdict(dict)
@@ -59,9 +86,13 @@ def main():
     lcov, base = sys.argv[1], sys.argv[2]
     show_files = "--files" in sys.argv
 
-    hits = lcov_hits(lcov, repo_root())
+    root = repo_root()
+    hits = lcov_hits(lcov, root)
+    skip = ignored_globs(root)
     rows, total_hit, total = [], 0, 0
     for path, lines in added_lines(base).items():
+        if any(fnmatch(path, glob) for glob in skip):
+            continue  # codecov ignores it, so neither does this number
         covered = hits.get(path)
         if not covered:
             continue  # not instrumented: not Rust, or no coverage data

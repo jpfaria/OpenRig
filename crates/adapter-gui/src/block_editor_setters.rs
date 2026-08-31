@@ -93,3 +93,7 @@ pub(crate) fn set_block_parameter_option(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "block_editor_setters_tests.rs"]
+mod tests;

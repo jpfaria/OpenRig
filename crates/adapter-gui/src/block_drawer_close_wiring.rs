@@ -49,17 +49,21 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerCloseCtx) {
         let Some(window) = weak_window.upgrade() else {
             return;
         };
-        block_editor_persist_timer.stop();
-        *inline_stream_timer.borrow_mut() = None;
-        *selected_block.borrow_mut() = None;
-        *block_editor_draft.borrow_mut() = None;
-        block_model_options.set_vec(Vec::new());
-        filtered_block_model_options.set_vec(Vec::new());
-        block_model_option_labels.set_vec(Vec::new());
-        block_parameter_items.set_vec(Vec::new());
-        multi_slider_points.set_vec(Vec::new());
-        curve_editor_points.set_vec(Vec::new());
-        eq_band_curves.set_vec(Vec::new());
+        crate::block_editor_draft_clear::close_block_drawer(
+            &crate::block_editor_draft_clear::BlockEditorModels {
+                block_editor_draft: block_editor_draft.clone(),
+                block_model_options: block_model_options.clone(),
+                filtered_block_model_options: filtered_block_model_options.clone(),
+                block_model_option_labels: block_model_option_labels.clone(),
+                block_parameter_items: block_parameter_items.clone(),
+                multi_slider_points: multi_slider_points.clone(),
+                curve_editor_points: curve_editor_points.clone(),
+                eq_band_curves: eq_band_curves.clone(),
+            },
+            &block_editor_persist_timer,
+            &selected_block,
+            &inline_stream_timer,
+        );
         crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
         crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(-1);
         crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(-1);

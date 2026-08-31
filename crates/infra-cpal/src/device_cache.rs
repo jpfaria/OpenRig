@@ -246,3 +246,7 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     };
     Ok(devices)
 }
+
+#[cfg(test)]
+#[path = "device_cache_tests.rs"]
+mod tests;

@@ -12,7 +12,6 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global};
 
-use crate::chain_editor::instrument_index_to_string;
 use crate::state::ChainDraft;
 use crate::{AppWindow, ChainEditorWindow};
 
@@ -33,8 +32,7 @@ pub(crate) fn wire(
             let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
-            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                draft.name = value.to_string();
+            if crate::chain_draft_edits::record_chain_name(&chain_draft, value.as_str()) {
                 crate::ChainEditorBridge::get(&window).set_chain_draft_name(value.clone());
                 chain_window.set_chain_name(value);
             }
@@ -44,21 +42,7 @@ pub(crate) fn wire(
     {
         let chain_draft = chain_draft.clone();
         editor_window.on_select_instrument(move |index| {
-            let instrument = instrument_index_to_string(index).to_string();
-            log::debug!(
-                "[select_instrument] index={}, instrument='{}'",
-                index,
-                instrument
-            );
-            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                draft.instrument = instrument;
-                log::debug!(
-                    "[select_instrument] draft updated to '{}'",
-                    draft.instrument
-                );
-            } else {
-                log::warn!("[select_instrument] no draft to update!");
-            }
+            crate::chain_draft_edits::record_chain_instrument(&chain_draft, index);
         });
     }
 }

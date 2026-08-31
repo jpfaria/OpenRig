@@ -11,13 +11,11 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Global, SharedString, Timer, VecModel};
 
-use application::command::{BlockCommand, Command};
 use domain::AudioDeviceDescriptor;
 
-use crate::helpers::{clear_status, log_gui_message, set_status_error};
+use crate::helpers::{clear_status, set_status_error};
 use crate::project_ops::sync_project_dirty;
-use crate::project_view::{replace_project_chains, set_selected_block};
-use crate::runtime_sync_policy::request_chain_sync;
+use crate::project_view::set_selected_block;
 use crate::state::{BlockEditorDraft, ProjectSession, SelectedBlock};
 use crate::{
     AppWindow, BlockModelPickerItem, BlockParameterItem, CurveEditorPoint, MultiSliderPoint,
@@ -74,66 +72,30 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
             let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
-            let Some(block_index) = draft.block_index else {
-                return;
-            };
-            log::info!(
-                "on_delete_block: chain_index={}, block_index={}, effect_type='{}', model_id='{}'",
-                draft.chain_index,
-                block_index,
-                draft.effect_type,
-                draft.model_id
-            );
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                log_gui_message("block-drawer.delete", "Nenhum projeto carregado.");
-                return;
-            };
-            // Resolve chain_id and block_id before dispatching.
-            let (chain_id, block_id) = {
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(draft.chain_index) else {
-                    log_gui_message("block-drawer.delete", "Chain inválida.");
-                    return;
-                };
-                let Some(block) = chain.blocks.get(block_index) else {
-                    log_gui_message("block-drawer.delete", "Block inválido.");
-                    return;
-                };
-                (chain.id.clone(), block.id.clone())
-            };
-            // Dispatch BlockCommand::RemoveBlock — mutates project via shared Rc.
-            if let Err(error) =
-                session
-                    .dispatcher
-                    .dispatch(Command::Block(BlockCommand::RemoveBlock {
-                        chain: chain_id.clone(),
-                        block: block_id,
-                    }))
-            {
-                log::error!("[adapter-gui] block-drawer.delete dispatch: {error}");
-                set_status_error(&window, &toast_timer, &error.to_string());
-                return;
-            }
-            if let Err(error) = request_chain_sync(session, &chain_id) {
-                log::error!("[adapter-gui] block-drawer.delete: {error}");
-                set_status_error(&window, &toast_timer, &error.to_string());
-                return;
-            }
-            replace_project_chains(
+            match crate::block_delete::delete_drafted_block(
+                &project_session,
+                &draft,
                 &project_chains,
-                &session.project.borrow(),
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
-                &[],
-            );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            ) {
+                Ok(()) => {}
+                Err(crate::block_delete::DeleteBlockError::Failed(message)) => {
+                    log::error!("[adapter-gui] block-drawer.delete: {message}");
+                    set_status_error(&window, &toast_timer, &message);
+                    return;
+                }
+                Err(_) => return,
+            }
+            if let Some(session) = project_session.borrow_mut().as_mut() {
+                sync_project_dirty(
+                    &window,
+                    session,
+                    &saved_project_snapshot,
+                    &project_dirty,
+                    auto_save,
+                );
+            }
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
