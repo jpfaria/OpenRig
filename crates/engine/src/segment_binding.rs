@@ -1,4 +1,4 @@
-//! Responsibility: says which E/S a resolved head entry was resolved from.
+//! Responsibility: says which binding a resolved head entry came from.
 
 use crate::runtime_endpoints::BindingIo;
 

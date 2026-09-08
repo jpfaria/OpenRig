@@ -1,4 +1,4 @@
-//! Responsibility: names the E/S each stream reads from and writes to.
+//! Responsibility: names the binding on both sides of each stream.
 
 use domain::io_binding::IoBinding;
 use project::binding_discovery::{resolve_chain_ports, PortDirection};
@@ -71,7 +71,9 @@ pub fn chain_stream_io_labels(chain: &Chain, registry: &[IoBinding]) -> Vec<Stre
                 .iter()
                 .find(|(_, ret, _)| same_input(ret, &segment.input))
                 .map(|(id, _, _)| id.clone())
-                .or_else(|| binding_of_raw_input(&by_binding, segment.entry_group).map(str::to_string))
+                .or_else(|| {
+                    binding_of_raw_input(&by_binding, segment.entry_group).map(str::to_string)
+                })
                 .or_else(|| ports.input_owner(&segment.input));
             StreamIoLabels {
                 input: input_id.map(|id| name(&id)).unwrap_or_default(),
@@ -98,7 +100,10 @@ fn same_output(a: &OutputEntry, b: &OutputEntry) -> bool {
 }
 
 /// `(binding id, return entry, send entry)` of every enabled, bound insert.
-fn insert_bindings(chain: &Chain, registry: &[IoBinding]) -> Vec<(String, InputEntry, OutputEntry)> {
+fn insert_bindings(
+    chain: &Chain,
+    registry: &[IoBinding],
+) -> Vec<(String, InputEntry, OutputEntry)> {
     chain
         .blocks
         .iter()

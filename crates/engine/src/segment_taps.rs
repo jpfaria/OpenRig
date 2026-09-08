@@ -19,4 +19,3 @@ pub(crate) fn taps_for_segment(
         })
         .collect()
 }
-

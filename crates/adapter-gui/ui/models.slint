@@ -38,6 +38,9 @@ export struct BlockParamSummaryEntry {
 export struct StreamMeter {
     in_dbfs: float,
     out_dbfs: float,
+    // #928: the E/S the stream reads from / writes to, named on its row.
+    in_label: string,
+    out_label: string,
 }
 
 export struct ChainBlockItem {

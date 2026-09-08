@@ -246,7 +246,9 @@ fn segments_without_inserts(
             // first output and the second output had no pipeline at all.
             if entry == 0 && out_offset >= tail {
                 let raw_idx = entry_groups.get(in_idx).copied().unwrap_or(in_idx);
-                if let (Some(a), Some(b)) = (binding_of_raw_input(&by_binding, raw_idx), out_binding) {
+                if let (Some(a), Some(b)) =
+                    (binding_of_raw_input(&by_binding, raw_idx), out_binding)
+                {
                     if a != b {
                         continue;
                     }

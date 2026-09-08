@@ -103,6 +103,8 @@ pub(crate) fn replace_project_chains(
                 di_meter: crate::StreamMeter {
                     in_dbfs: engine::output_meter::SILENT_DBFS,
                     out_dbfs: engine::output_meter::SILENT_DBFS,
+                    in_label: Default::default(),
+                    out_label: Default::default(),
                 },
                 // #771: the DI panel's output select — the chain's bound
                 // output endpoints + the persisted pick.
@@ -146,10 +148,19 @@ pub(crate) fn replace_project_chains(
                         0
                     };
                     let model: Rc<VecModel<crate::StreamMeter>> = Rc::new(VecModel::default());
-                    for _ in 0..stream_count {
+                    // #928: the rows are named from the first paint, before
+                    // the meter timer fills a single reading.
+                    let labels = crate::meter_wiring::project_stream_labels(chain, io_bindings);
+                    for i in 0..stream_count {
+                        let (in_label, out_label) = labels
+                            .get(i)
+                            .map(|l| (l.input.as_str().into(), l.output.as_str().into()))
+                            .unwrap_or_default();
                         model.push(crate::StreamMeter {
                             in_dbfs: engine::output_meter::SILENT_DBFS,
                             out_dbfs: engine::output_meter::SILENT_DBFS,
+                            in_label,
+                            out_label,
                         });
                     }
                     ModelRc::from(model)
