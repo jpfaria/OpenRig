@@ -262,13 +262,18 @@ per input (invariant #4) and sums at the backend per physical output endpoint;
 only the **source** of the device endpoints moved (binding, not block
 `entries` — which are removed). Resolution happens off the audio thread.
 
-**Input-conflict rule (activation).** Two or more ACTIVE inputs may not share
-the same `(device, channel)` — within a chain AND globally across active
-chains; same device on different channels is fine; outputs may be shared (many
-inputs may feed one output). `input_port_conflict` / `input_conflicting_chains`
-(`runtime_endpoints.rs`) detect it; `ProjectRuntimeController::sync_project`
-refuses to activate a conflicting chain (first wins). The rig path enforces the
-same via `tap_conflict` (`rig_runtime.rs`).
+**Input-conflict rule (activation).** Two ACTIVE chains may not share the same
+`(device, channel)`; same device on different channels is fine; outputs may be
+shared (many inputs may feed one output). The rule is between CHAINS: one chain
+may read one capture point through several of its own E/S (one guitar, two
+outputs — the owner's GUITARRA 1 MAIN + SYN5050 on input ch 0, #924); that is
+two isolated pipelines the backend feeds from the same tap, not a conflict.
+`input_conflicting_chains` (`runtime_endpoints.rs`) detects it;
+`ProjectRuntimeController::sync_project` refuses to activate a conflicting chain
+(first wins). The rig path enforces the same via `tap_conflict`
+(`rig_runtime.rs`), and the #833 command guard (`conflicting_input_channel`)
+compares across chains too — the three detectors must keep agreeing, or a chain
+plays after an enable and goes silent on the next project-wide rebuild (#924).
 
 **The rule is enforced at the command bus too (#833).** The runtime skip above
 is silent: the project could still hold two "enabled" chains on one capture
