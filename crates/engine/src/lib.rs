@@ -60,6 +60,7 @@ pub mod runtime_load;
 mod runtime_looper_api;
 mod runtime_mid_output_tap;
 mod runtime_output_process;
+pub mod runtime_output_route_stats;
 pub mod runtime_probe;
 mod runtime_process_segment;
 mod runtime_processor_model;

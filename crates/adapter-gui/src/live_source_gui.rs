@@ -9,6 +9,7 @@ use std::rc::Rc;
 use application::live_source::{ChainMeterReading, LiveSource, MetronomeReading};
 use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
+use application::query_output_routes::{rows_for_chain, OutputRouteReading};
 use domain::ids::ChainId;
 use domain::io_binding::IoBinding;
 use engine::LooperStatus;
@@ -57,6 +58,22 @@ impl LiveSource for GuiLiveSource<'_> {
                         in_dbfs: row.meter_in_dbfs,
                         out_dbfs: row.meter_out_dbfs,
                     })
+                })
+                .collect(),
+        )
+    }
+
+    /// #923: straight from the live controller, one row per output route of
+    /// every per-input runtime. No controller ⇒ not hosted.
+    fn output_routes(&self) -> Option<Vec<OutputRouteReading>> {
+        let runtime = self.runtime.borrow();
+        let controller = runtime.as_ref()?;
+        Some(
+            self.project
+                .chains
+                .iter()
+                .flat_map(|chain| {
+                    rows_for_chain(&chain.id.0, controller.chain_output_route_stats(&chain.id))
                 })
                 .collect(),
         )

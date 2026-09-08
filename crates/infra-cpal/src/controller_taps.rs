@@ -284,6 +284,23 @@ impl ProjectRuntimeController {
             .sum()
     }
 
+    /// #923: every output route of every per-input runtime of this chain, as
+    /// its device stream saw it — `(group, routes)` in group order. Plain
+    /// atomic reads off the audio thread; each read resets the routes' peaks.
+    pub fn chain_output_route_stats(
+        &self,
+        chain_id: &ChainId,
+    ) -> Vec<(
+        usize,
+        Vec<engine::runtime_output_route_stats::OutputRouteStats>,
+    )> {
+        self.runtime_graph
+            .runtimes_with_groups_for(chain_id)
+            .into_iter()
+            .map(|(group, runtime)| (group, runtime.take_output_route_stats()))
+            .collect()
+    }
+
     /// Worst per-callback load (elapsed/period) across this chain's runtimes
     /// since the last reset (issue #670). 1.0 == exactly at the deadline,
     /// > 1.0 == the callback overran. Read off the audio thread.

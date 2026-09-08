@@ -17,6 +17,8 @@ fn every_query_kind() -> Vec<QueryKind> {
         QueryKind::TunerReadings,
         QueryKind::SpectrumReadings,
         QueryKind::DiLoopState,
+        QueryKind::OutputRoutes,
+        QueryKind::MetronomeState,
         QueryKind::ChainLatency {
             chain: ChainId("rig:input-1".into()),
         },

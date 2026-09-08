@@ -301,3 +301,28 @@ fn chain_xrun_count_is_zero_for_unknown_chain() {
         "unknown chain has no runtime, so no xruns"
     );
 }
+
+// ── Issue #923: per-output-route stream accounting for `openrig://routes` ──
+
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn chain_output_route_stats_lists_every_route_of_every_group() {
+    let chain_id = ChainId("chain:923:routes".into());
+    let (controller, runtime_arc) = controller_with_active_chain(&chain_id);
+    let groups = controller.chain_output_route_stats(&chain_id);
+    assert_eq!(groups.len(), 1, "one per-input runtime");
+    let (group, routes) = &groups[0];
+    assert_eq!(*group, 0);
+    assert_eq!(routes.len(), runtime_arc.take_output_route_stats().len());
+    assert!(routes.iter().all(|r| r.callbacks == 0));
+}
+
+#[test]
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn chain_output_route_stats_is_empty_for_unknown_chain() {
+    let chain_id = ChainId("chain:923:known".into());
+    let (controller, _rt) = controller_with_active_chain(&chain_id);
+    assert!(controller
+        .chain_output_route_stats(&ChainId("nope".into()))
+        .is_empty());
+}
