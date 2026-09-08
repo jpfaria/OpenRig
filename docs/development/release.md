@@ -120,10 +120,17 @@ Expected: the release is public and not a draft, the milestone is `closed`
 
 ## 8. Open the next cycle
 
+**The version follows what the cycle carries, not the calendar.** A cycle
+opened for a bug is a PATCH (`vX.Y.Z+1`); it becomes a MINOR (`vX.Y+1.0`)
+only when a feature lands in it. Open it as a patch by default — a bugfix
+must never start a `vX.Y+1.0` cycle (#921 was cut as `v0.5.0` after `v0.4.1`
+and had to be re-cut as `v0.4.2`). Rename the branch and the milestone the
+day a feature enters.
+
 ```bash
 DEV=$(gh api repos/jpfaria/OpenRig/git/ref/heads/develop --jq '.object.sha')
-gh api -X POST repos/jpfaria/OpenRig/git/refs -f ref="refs/heads/release/vX.Y+1.0" -f sha="$DEV"
-gh api -X POST repos/jpfaria/OpenRig/milestones -f title="vX.Y+1.0" -f state="open"
+gh api -X POST repos/jpfaria/OpenRig/git/refs -f ref="refs/heads/release/vX.Y.Z+1" -f sha="$DEV"
+gh api -X POST repos/jpfaria/OpenRig/milestones -f title="vX.Y.Z+1" -f state="open"
 ```
 
 Cut it **after** `commit-version-bump` has landed on `develop`, or merge

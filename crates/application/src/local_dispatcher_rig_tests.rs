@@ -548,3 +548,79 @@ fn add_scene_on_a_switch_to_b_then_save_keeps_b_at_one_scene() {
         "after add-scene-on-A → switch-to-B → save, preset B must still have a single scene"
     );
 }
+
+// ── Issue #921: a scene's bypass of an Insert must reach the chain ──
+
+fn insert(id: &str) -> AudioBlock {
+    AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind: AudioBlockKind::Insert(project::block::InsertBlock {
+            model: "external_loop".into(),
+            io: "fx".into(),
+        }),
+    }
+}
+
+/// The SYN2-in-one-scene / all-in-OpenRig-in-the-other layout: scene 1 runs
+/// the external loop with the NAM amp off, scene 2 bypasses the loop and turns
+/// the amp on. `Core`/`Nam` followed the scene; the `Insert` kept its stale
+/// `enabled` because the port merge cloned the current chain's insert whole.
+#[test]
+fn apply_rig_nav_scene_applies_the_scene_bypass_to_an_insert() {
+    let r = {
+        let mut r = rig();
+        let preset = r.presets.get_mut("p1").unwrap();
+        preset.blocks = vec![core("gate"), insert("syn2"), core("amp")];
+        preset.scenes.insert(1, project::rig::RigScene::default());
+        preset.scenes.insert(
+            2,
+            project::rig::RigScene {
+                label: None,
+                bypass: BTreeMap::from([("syn2".to_string(), true)]),
+                params: BTreeMap::new(),
+                volume: None,
+            },
+        );
+        r
+    };
+    let rig = Rc::new(RefCell::new(r));
+    let project = Rc::new(RefCell::new(engine::rig_runtime::rig_to_legacy_project(
+        &rig.borrow(),
+        &std::collections::BTreeSet::new(),
+    )));
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    dispatcher.attach_rig(Rc::clone(&rig));
+
+    let insert_enabled = |p: &project::project::Project| {
+        p.chains[0]
+            .blocks
+            .iter()
+            .find(|b| b.id.0 == "syn2")
+            .expect("insert projected")
+            .enabled
+    };
+    assert!(insert_enabled(&project.borrow()), "scene 1: loop on");
+
+    dispatcher
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::Scene(2),
+        }))
+        .expect("dispatch ok");
+    assert!(
+        !insert_enabled(&project.borrow()),
+        "#921: scene 2 bypasses the insert — the projected chain must show it off"
+    );
+
+    dispatcher
+        .dispatch(Command::Selection(SelectionCommand::ApplyRigNav {
+            chain: ChainId("rig:in".into()),
+            kind: RigNavKind::Scene(1),
+        }))
+        .expect("dispatch ok");
+    assert!(
+        insert_enabled(&project.borrow()),
+        "#921: back on scene 1 the insert comes back on"
+    );
+}
