@@ -29,7 +29,8 @@ use domain::io_binding::IoBinding;
 use crate::runtime_endpoints::{
     insert_is_bound, resolve_chain_io_by_binding, InputEntry, OutputEntry,
 };
-pub(crate) use crate::segment_taps::{binding_of_input, binding_of_output, taps_for_segment};
+pub(crate) use crate::segment_binding::{binding_of_raw_input, binding_of_route};
+pub(crate) use crate::segment_taps::taps_for_segment;
 pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentTap};
 
 /// Split a chain into segments at enabled Insert block boundaries.
@@ -225,10 +226,10 @@ fn segments_without_inserts(
     outputs.dedup_by_key(|&mut (route, _)| route);
 
     for (out_entry_idx, out_offset) in outputs {
-        let Some(out_entry) = effective_outs.get(out_entry_idx) else {
+        if effective_outs.get(out_entry_idx).is_none() {
             continue;
-        };
-        let out_binding = binding_of_output(&by_binding, out_entry);
+        }
+        let out_binding = binding_of_route(&by_binding, out_entry_idx);
         for (in_idx, input) in effective_ins.iter().take(input_count).enumerate() {
             let entry = entry_offsets.get(in_idx).copied().unwrap_or(0);
             // An output BEFORE this input is not downstream of it — no pair.
@@ -239,8 +240,13 @@ fn segments_without_inserts(
             // (the TEYUN in must not exit the SCARLET out). A mid port is a
             // different animal: the user dropped it INSIDE this chain, so it
             // pairs by position, not by binding (#85).
+            // #928: "its own binding" is the one the entry was resolved FROM,
+            // by position — matching by capture point took the second of two
+            // E/S reading one channel for the first, so both streams fed the
+            // first output and the second output had no pipeline at all.
             if entry == 0 && out_offset >= tail {
-                if let (Some(a), Some(b)) = (binding_of_input(&by_binding, input), out_binding) {
+                let raw_idx = entry_groups.get(in_idx).copied().unwrap_or(in_idx);
+                if let (Some(a), Some(b)) = (binding_of_raw_input(&by_binding, raw_idx), out_binding) {
                     if a != b {
                         continue;
                     }
