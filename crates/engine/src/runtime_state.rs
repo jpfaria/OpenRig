@@ -149,6 +149,13 @@ pub(crate) struct OutputRoutingState {
     /// below 48), and then the producer resamples into this route or its
     /// elastic buffer starves ~8 % of the time — the crackle.
     pub(crate) sample_rate: f32,
+    /// #923: output callbacks served on this route since it was built —
+    /// whether the device stream that owns it ever pulled. Fed by
+    /// `process_output_f32`, read by [`crate::runtime_output_route_stats`].
+    pub(crate) callbacks: std::sync::atomic::AtomicU64,
+    /// #923: the loudest |sample| popped since the last read, as `f32` bits
+    /// (non-negative floats order like their bits, so `fetch_max` works).
+    pub(crate) peak_bits: std::sync::atomic::AtomicU32,
 }
 
 pub(crate) enum RuntimeProcessor {

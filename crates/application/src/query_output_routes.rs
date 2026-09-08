@@ -1,0 +1,43 @@
+//! Responsibility: reports what each output route's device stream pulled.
+//!
+//! #923: the per-chain meters say what each segment produced; this read says
+//! whether the device stream owning each output ROUTE ever ran, how many
+//! times, how often it found the cushion empty, and the loudest sample it
+//! carried since the previous read. Served on the frontend that hosts the
+//! runtime (`openrig://routes` over MCP), the documented empty shape
+//! elsewhere.
+
+use serde::Serialize;
+
+/// One output route of one per-input runtime, as its device stream saw it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct OutputRouteReading {
+    pub chain: String,
+    /// The per-input runtime (cpal input group) that owns the route.
+    pub group: usize,
+    /// Position among that runtime's routes — the stream's `output_index`.
+    pub route: usize,
+    /// Device channels the route writes.
+    pub channels: Vec<usize>,
+    /// Output callbacks served since the route was built.
+    pub callbacks: u64,
+    /// Empty pops since the route was built.
+    pub underruns: u64,
+    /// Loudest |sample| popped since the previous read, in dBFS.
+    pub peak_dbfs: f32,
+}
+
+#[derive(Serialize)]
+struct RoutesPayload<'a> {
+    hosted: bool,
+    rows: &'a [OutputRouteReading],
+}
+
+pub fn output_routes_json(hosted: bool, rows: &[OutputRouteReading]) -> String {
+    serde_json::to_string(&RoutesPayload { hosted, rows })
+        .unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
+}
+
+#[cfg(test)]
+#[path = "query_output_routes_tests.rs"]
+mod tests;

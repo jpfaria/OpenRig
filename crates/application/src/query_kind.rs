@@ -100,4 +100,12 @@ pub enum QueryKind {
     /// to see the tempo it is running at and the beat it is on. Serialized by
     /// [`crate::read`].
     MetronomeState,
+    /// #923: what each output ROUTE's device stream pulled — callbacks
+    /// served, empty pops, and the loudest sample since the previous read,
+    /// per (chain, runtime group, route). The per-chain meters say what a
+    /// segment produced; this says whether the stream owning a route ever
+    /// ran and what it carried. Runtime-coupled, so the frontend serves it.
+    /// Serialized by [`crate::query_output_routes::output_routes_json`];
+    /// MCP serves it as `openrig://routes`.
+    OutputRoutes,
 }
