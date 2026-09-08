@@ -105,23 +105,28 @@ pub fn disable_conflicting_chains(project: &mut Project, registry: &[IoBinding])
 /// taps `(device, channel)`. First chain wins; the conflicting ones are
 /// returned (skip them at activation). Disabled chains are ignored. Output taps
 /// are never considered (many inputs may feed one output). #716, invariant #4.
+///
+/// The rule is between CHAINS. A chain that reads one capture point through
+/// several of its own E/S (one guitar, two outputs — #924) is two isolated
+/// pipelines the backend feeds from the same tap, not a conflict; treating it
+/// as one skipped the chain on every project-wide rebuild while the per-chain
+/// enable let it play.
 pub fn input_conflicting_chains<'a>(
     chains: impl IntoIterator<Item = &'a Chain>,
     registry: &[IoBinding],
 ) -> Vec<ChainId> {
-    let mut claimed: Vec<InputEntry> = Vec::new();
+    let mut claimed: Vec<(String, usize)> = Vec::new();
     let mut skipped = Vec::new();
     for chain in chains {
         if !chain.enabled {
             continue;
         }
         let (inputs, _) = resolve_chain_io(chain, registry);
-        let mut combined = claimed.clone();
-        combined.extend(inputs.iter().cloned());
-        if input_port_conflict(&combined).is_some() {
+        let wanted = input_taps(&inputs);
+        if wanted.iter().any(|tap| claimed.contains(tap)) {
             skipped.push(chain.id.clone());
         } else {
-            claimed.extend(inputs);
+            claimed.extend(wanted);
         }
     }
     skipped

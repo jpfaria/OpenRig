@@ -1,5 +1,6 @@
-//! #716 model A: two or more ACTIVE inputs may not share the same
-//! `(device, channel)` — within a chain AND globally across active chains.
+//! #716 model A: two ACTIVE chains may not share the same `(device, channel)`
+//! (`input_port_conflict` is the raw tap detector; the chain rule in
+//! `input_conflicting_chains` compares across chains only — #924).
 //! Output may be shared (many inputs may feed one output). This pins the pure
 //! detector the activation path uses; `None` = safe to activate.
 
