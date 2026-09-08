@@ -12,11 +12,11 @@ use anyhow::Result;
 pub enum LiveSyncAction {
     /// The chain is gone from the project: drop it from the live graph.
     Remove,
-    /// The chain is present but disabled: pause it (drain → silence) in O(1).
+    /// The chain is present but disabled: kill every stream it owns (#929).
     /// No device-IO resolve — that synchronous CoreAudio query (hundreds of ms
     /// per device) would stall the GUI while the live output starves into a
     /// feedback howl (#743). A disable never re-binds, so the check is moot.
-    Pause,
+    SwitchOff,
     /// The chain is present and enabled: (re)activate it. `io_changed` is the
     /// re-bind check — only an enable consults it.
     Enable { io_changed: bool },
@@ -35,7 +35,7 @@ pub fn plan_live_sync(
         return Ok(LiveSyncAction::Remove);
     }
     if !chain_enabled {
-        return Ok(LiveSyncAction::Pause);
+        return Ok(LiveSyncAction::SwitchOff);
     }
     Ok(LiveSyncAction::Enable {
         io_changed: io_changed()?,

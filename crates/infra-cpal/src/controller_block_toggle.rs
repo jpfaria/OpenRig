@@ -8,11 +8,8 @@
 //! click-safe `FadeState` transitions on the live `BlockRuntimeNode`
 //! (see `engine::runtime::set_block_enabled`).
 //!
-//! `ChainCommand::ToggleChainEnabled` used to drop the runtime entirely on
-//! disable and rebuild from scratch on the next enable. `pause_chain`
-//! keeps the runtime alive and just flips `set_draining()`; resume is
-//! the matching `clear_draining()` — both O(1), no NAM reload, no CPAL
-//! touch.
+//! (The per-chain pause of #522 lived here too; since #929 switching a chain
+//! off kills every stream it owns — `kill_chain_streams` on the controller.)
 //!
 //! Lives in its own file to keep `controller.rs` within the 600-LOC cap.
 
@@ -66,35 +63,5 @@ impl ProjectRuntimeController {
         self.set_block_enabled(&chain.id, block_id, enabled)?;
         self.rearm_di_stream_after_rebuild(chain);
         Ok(())
-    }
-
-    /// Pause a chain without dropping its runtime: `set_draining()` makes
-    /// every audio callback short-circuit to silence, but the CPAL
-    /// streams stay open and the `Arc<ChainRuntimeState>` stays in
-    /// `runtime_graph` so the next enable resumes in O(1) via
-    /// `upsert_chain`'s fast-path branch. No-op if the chain has no
-    /// live runtime yet.
-    ///
-    /// Issue #545 — a chain with multiple input groups (one runtime per
-    /// physical input device, see #350 Phase 3) needs every group
-    /// drained. The previous implementation called
-    /// `runtime_for_chain`, which is documented as "returns the first
-    /// runtime" and left the other groups processing. That kept the
-    /// stream taps publishing and the audio thread spending CPU, which
-    /// the user observes as the chain looking alive after toggling
-    /// off. Fan over `runtimes_for` so every group flips.
-    pub fn pause_chain(&self, chain_id: &ChainId) {
-        let runtimes = self.runtime_graph.runtimes_for(chain_id);
-        if runtimes.is_empty() {
-            return;
-        }
-        log::info!(
-            "pausing chain '{}' across {} input group(s) (keep streams alive)",
-            chain_id.0,
-            runtimes.len(),
-        );
-        for runtime in &runtimes {
-            runtime.set_draining();
-        }
     }
 }

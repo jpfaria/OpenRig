@@ -80,7 +80,9 @@ pub use build_request::{build_chain_runtime, BuildRequest};
 mod slot_processing;
 pub use slot_processing::{build_chain_slots, process_input_buffer, process_output_buffer};
 
+mod chain_stream_registry;
 mod controller;
+pub use chain_stream_registry::{ChainStreamRegistry, OwnedStreams};
 pub use controller::ProjectRuntimeController;
 mod controller_block_toggle;
 mod controller_chain_activation;
@@ -227,6 +229,9 @@ mod controller_global_transport;
 // so gate the whole module the same way to avoid orphaned helpers/imports.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 mod controller_pause_chain_tests;
+#[cfg(test)]
+#[path = "controller_disable_kills_streams_tests.rs"]
+mod controller_disable_kills_streams_tests;
 #[cfg(test)]
 mod controller_per_stream_input_tap_tests;
 // `tests` exercises the CPAL stream path (stream_config/chain_resolve helpers),

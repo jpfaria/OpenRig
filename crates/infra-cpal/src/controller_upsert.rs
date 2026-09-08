@@ -46,34 +46,15 @@ impl ProjectRuntimeController {
             chain.enabled
         );
         if !chain.enabled {
-            // #522 pause (O(1) re-enable); #808 still re-render an armed DI.
-            self.pause_chain(&chain.id);
+            // #929 (owner's rule): off = every stream the chain owns dies, open
+            // or still building — nothing may land later and play a chain the
+            // screen shows as off. The #522 pause (streams kept alive, drained
+            // to silence) left activations in flight untouched, and they
+            // opened streams five seconds after the switch-off. #808: a
+            // monitored DI is a pipeline of its own and still re-renders.
+            self.kill_chain_streams(&chain.id);
             self.rearm_di_stream_after_rebuild(chain);
             return Ok(());
-        }
-        // Issue #522: fast-path resume of a paused chain — clear draining
-        // and return; no CPAL queries, no NAM reload, no graph rebuild.
-        //
-        // Issue #545: fan over every input-group runtime, not just the
-        // first. The previous `runtime_for_chain` call only touched
-        // group 0, so chains with multiple physical input devices
-        // stayed half-muted after toggle-on. Mirrors the fan-out in
-        // `pause_chain`.
-        if self.active_chains.contains_key(&chain.id) {
-            let runtimes = self.runtime_graph.runtimes_for(&chain.id);
-            if let Some(first) = runtimes.first() {
-                if first.is_draining() {
-                    log::info!(
-                        "resuming paused chain '{}' across {} input group(s) (fast path)",
-                        chain.id.0,
-                        runtimes.len(),
-                    );
-                    for runtime in &runtimes {
-                        runtime.clear_draining();
-                    }
-                    return Ok(());
-                }
-            }
         }
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -213,6 +194,13 @@ impl ProjectRuntimeController {
                 &di_cells,
                 self.stream_generation,
             )?;
+            // #929: the index knows what this chain owns from now on.
+            self.streams.streams_built(
+                &chain.id,
+                self.stream_generation,
+                active._input_streams.len(),
+                active._output_streams.len(),
+            );
             self.active_chains.insert(chain.id.clone(), active);
             // #771: an armed DI re-renders against the fresh streams.
             self.rearm_di_stream_after_rebuild(chain);
