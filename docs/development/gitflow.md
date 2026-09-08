@@ -21,7 +21,7 @@ Issue → Branch (da release/vX.Y.Z ativa) → Commits → PR → Review/Merge
 
 1. **Issue primeiro.** `gh issue list --search` antes de criar (evita duplicata). NUNCA criar issue sem pedido explícito do usuário.
 2. **Nome de branch: `feature/issue-{N}` ou `bugfix/issue-{N}`** — sem sufixo descritivo. Antes de criar: `git fetch && git branch -a | grep issue-{N}`.
-3. **A partir da `release/vX.Y.Z` ativa atualizada**: `git fetch && git checkout release/vX.Y.Z && git pull`. Não existe release ativa ainda? Corta da `develop`: `git checkout develop && git pull && git checkout -b release/vX.Y.Z && git push -u origin release/vX.Y.Z`.
+3. **A partir da `release/vX.Y.Z` ativa atualizada**: `git fetch && git checkout release/vX.Y.Z && git pull`. Não existe release ativa ainda? Corta da `develop`: `git checkout develop && git pull && git checkout -b release/vX.Y.Z && git push -u origin release/vX.Y.Z`. **A versão segue o que a release carrega:** bug abre PATCH (`vX.Y.Z+1`), feature abre MINOR (`vX.Y+1.0`) — nunca abrir `vX.Y+1.0` pra corrigir um bug (#921: cortei `v0.5.0` depois da `v0.4.1` e tive que recortar como `v0.4.2`). Ver `release.md` §8.
 
    **Ativa = a release que AINDA NÃO foi finalizada.** Uma release finalizada tem a tag `vX.Y.Z` criada e já foi mergeada na `main` — trabalhar nela (ou abrir PR pra ela) entrega código que nunca sai, porque aquela versão já foi publicada. Existir a branch `release/vX.Y.Z` não significa nada: as antigas ficam no remote. A `develop` estar na versão X.Y.Z também não — o bump acontece quando a release é cortada. **Checagem obrigatória antes de cortar branch e antes de `gh pr create`:**
 
