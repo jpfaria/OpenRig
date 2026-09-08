@@ -9,7 +9,7 @@ use std::rc::Rc;
 use application::live_source::{ChainMeterReading, LiveSource, MetronomeReading};
 use application::query_analyzers::{SpectrumReading, TunerReading};
 use application::query_di::DiLoopReading;
-use application::query_output_routes::OutputRouteReading;
+use application::query_output_routes::{rows_for_chain, OutputRouteReading};
 use domain::ids::ChainId;
 use domain::io_binding::IoBinding;
 use engine::LooperStatus;
@@ -73,20 +73,7 @@ impl LiveSource for GuiLiveSource<'_> {
                 .chains
                 .iter()
                 .flat_map(|chain| {
-                    controller
-                        .chain_output_route_stats(&chain.id)
-                        .into_iter()
-                        .flat_map(move |(group, routes)| {
-                            routes.into_iter().map(move |r| OutputRouteReading {
-                                chain: chain.id.0.clone(),
-                                group,
-                                route: r.route,
-                                channels: r.channels,
-                                callbacks: r.callbacks,
-                                underruns: r.underruns,
-                                peak_dbfs: r.peak_dbfs,
-                            })
-                        })
+                    rows_for_chain(&chain.id.0, controller.chain_output_route_stats(&chain.id))
                 })
                 .collect(),
         )

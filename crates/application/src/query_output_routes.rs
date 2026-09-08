@@ -7,6 +7,7 @@
 //! runtime (`openrig://routes` over MCP), the documented empty shape
 //! elsewhere.
 
+use engine::runtime_output_route_stats::OutputRouteStats;
 use serde::Serialize;
 
 /// One output route of one per-input runtime, as its device stream saw it.
@@ -31,6 +32,28 @@ pub struct OutputRouteReading {
 struct RoutesPayload<'a> {
     hosted: bool,
     rows: &'a [OutputRouteReading],
+}
+
+/// One chain's runtime groups, flattened into the rows `openrig://routes`
+/// lists: group order, then route order — the same order the streams pop in.
+pub fn rows_for_chain(
+    chain: &str,
+    groups: Vec<(usize, Vec<OutputRouteStats>)>,
+) -> Vec<OutputRouteReading> {
+    groups
+        .into_iter()
+        .flat_map(|(group, routes)| {
+            routes.into_iter().map(move |r| OutputRouteReading {
+                chain: chain.to_string(),
+                group,
+                route: r.route,
+                channels: r.channels,
+                callbacks: r.callbacks,
+                underruns: r.underruns,
+                peak_dbfs: r.peak_dbfs,
+            })
+        })
+        .collect()
 }
 
 pub fn output_routes_json(hosted: bool, rows: &[OutputRouteReading]) -> String {
