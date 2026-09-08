@@ -114,6 +114,7 @@ impl CommandBridge {
             | QueryKind::TunerReadings
             | QueryKind::SpectrumReadings
             | QueryKind::DiLoopState
+            | QueryKind::OutputRoutes
             | QueryKind::MetronomeState
             | QueryKind::ChainLatency { .. }
             | QueryKind::ChainToneReport { .. } => None,

@@ -395,5 +395,7 @@ pub(crate) fn build_output_routing_state(
         output_mixdown: ChainOutputMixdown::Average,
         buffer,
         sample_rate,
+        callbacks: AtomicU64::new(0),
+        peak_bits: std::sync::atomic::AtomicU32::new(0),
     }
 }

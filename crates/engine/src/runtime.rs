@@ -485,3 +485,11 @@ mod looper_runtime;
 #[cfg(test)]
 #[path = "issue_903_looper_playback_insert_tests.rs"]
 mod issue_903_looper_playback_insert;
+
+#[cfg(test)]
+#[path = "issue_923_insert_tail_routes_tests.rs"]
+mod issue_923_insert_tail_routes;
+
+#[cfg(test)]
+#[path = "runtime_output_route_stats_tests.rs"]
+mod runtime_output_route_stats_tests;

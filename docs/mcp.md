@@ -77,6 +77,14 @@ follow-up.
     `SetSpectrumEnabled`.
   - `openrig://di` (#829) — per-chain DI loop state: `playing`, the
     playback `in_dbfs` / `out_dbfs`, and the loaded `source` (JSON).
+  - `openrig://routes` (#923) — per-output-route stream accounting: one
+    row per (chain, runtime `group`, `route`) with the device `channels`,
+    the output `callbacks` served, the elastic `underruns`, and the
+    `peak_dbfs` popped since the previous read (JSON). The per-chain
+    meters say what a segment produced; this says whether the device
+    stream owning a route ever ran and what it carried — a route with
+    callbacks and level that is inaudible was lost after the engine.
+    `hosted: false` with no rows when no runtime is up.
   - `openrig://metronome` (#127) — the click: the settings the dispatcher
     owns (`bpm`, `beats_per_bar`, `subdivision`, `timbre`, `volume`,
     `count_in`, `output`) plus `running` and the live beat position

@@ -50,12 +50,16 @@ pub fn process_output_f32(
     // unaffected (tanh transparent below 0.95), so k01–k04 stay green.
     let volume_ratio = runtime.volume_pct() / 100.0;
     let num_frames = out.len() / output_total_channels;
+    // #923: the loudest frame this callback pulled, so the route can say
+    // whether its stream ran and what it carried.
+    let mut peak = 0.0_f32;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
         let mut processed = route.buffer.pop();
         if volume_ratio != 1.0 {
             processed = processed.scaled(volume_ratio);
         }
+        peak = peak.max(processed.peak_abs());
         write_output_frame(
             processed,
             &route.output_channels,
@@ -63,6 +67,7 @@ pub fn process_output_f32(
             route.output_mixdown,
         );
     }
+    route.record_callback(peak);
 
     // Output mute: silence the entire output stage when toggled by any
     // consumer (e.g. the Tuner window). Single atomic load — cheap.

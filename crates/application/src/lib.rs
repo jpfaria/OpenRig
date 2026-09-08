@@ -80,6 +80,7 @@ pub mod query_ids;
 pub mod query_kind;
 pub mod query_latency;
 pub mod query_loopers;
+pub mod query_output_routes;
 pub mod query_paths;
 pub mod query_plugins;
 pub mod query_presets;
