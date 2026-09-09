@@ -4,6 +4,7 @@ use crate::meter_math::apply_chain_volume_db;
 use crate::meter_taps::StreamMeterReading;
 
 use engine::output_meter::SILENT_DBFS;
+use engine::stream_io_labels::StreamIoLabels;
 
 /// Build the per-chain `stream_meters` row payload the GUI must show.
 ///
@@ -27,6 +28,7 @@ use engine::output_meter::SILENT_DBFS;
 pub fn rebuild_stream_meters_row(
     engine_readings: &[StreamMeterReading],
     project_input_count: usize,
+    labels: &[StreamIoLabels],
     chain_volume: f32,
     enabled: bool,
 ) -> Vec<crate::StreamMeter> {
@@ -37,15 +39,26 @@ pub fn rebuild_stream_meters_row(
     }
     let len = project_input_count.max(1);
     (0..len)
-        .map(|i| match engine_readings.get(i) {
-            Some(r) => crate::StreamMeter {
-                in_dbfs: r.in_dbfs,
-                out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
-            },
-            None => crate::StreamMeter {
-                in_dbfs: SILENT_DBFS,
-                out_dbfs: SILENT_DBFS,
-            },
+        .map(|i| {
+            // #928: the row names its E/S even before the engine fills it.
+            let (in_label, out_label) = labels
+                .get(i)
+                .map(|l| (l.input.as_str().into(), l.output.as_str().into()))
+                .unwrap_or_default();
+            match engine_readings.get(i) {
+                Some(r) => crate::StreamMeter {
+                    in_dbfs: r.in_dbfs,
+                    out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
+                    in_label,
+                    out_label,
+                },
+                None => crate::StreamMeter {
+                    in_dbfs: SILENT_DBFS,
+                    out_dbfs: SILENT_DBFS,
+                    in_label,
+                    out_label,
+                },
+            }
         })
         .collect()
 }

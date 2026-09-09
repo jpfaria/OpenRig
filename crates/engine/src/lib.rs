@@ -26,6 +26,9 @@ mod insert_endpoints;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
 mod issue_85_stream_per_pair_tests;
+#[cfg(test)]
+#[path = "issue_928_two_bindings_one_tap_pairing_tests.rs"]
+mod issue_928_two_bindings_one_tap_pairing_tests;
 pub mod loop_edit;
 pub mod loop_pcm;
 pub mod looper;
@@ -71,9 +74,11 @@ mod runtime_state_taps;
 mod runtime_stream_query;
 mod runtime_taps_lifecycle;
 mod runtime_taps_subscribe;
+mod segment_binding;
 mod segment_taps;
 mod segment_types;
 pub mod spsc;
+pub mod stream_io_labels;
 pub mod stream_tap;
 pub mod tone_doctor;
 pub mod tone_doctor_fix;

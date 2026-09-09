@@ -6,9 +6,12 @@
 //! so MIDI/MCP/GUI all share one path and the UI carries no business
 //! logic. No audio code; pure model + the proven `engine` projection.
 
-use anyhow::{anyhow, Result};
+use std::collections::HashMap;
 
-use project::block::AudioBlock;
+use anyhow::{anyhow, Result};
+use domain::ids::BlockId;
+
+use project::block::{AudioBlock, AudioBlockKind};
 use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
 use project::rig_sync::sync_synthetic_into_rig;
 
@@ -159,11 +162,24 @@ pub(crate) fn merge_preserved_ports(
     // for the next rebuilt effect dropped the loop and shifted every block
     // after it up by one.
     let is_port = |b: &AudioBlock| b.kind.is_routing();
+    // #921: the slot is the chain's, but the scene decides whether the loop
+    // is in it — the rebuilt insert with the same id carries the
+    // scene-applied `enabled`, and cloning the current one whole kept the
+    // state from before the switch.
+    let scene_enabled: HashMap<BlockId, bool> = rebuilt
+        .iter()
+        .filter(|b| matches!(b.kind, AudioBlockKind::Insert(_)))
+        .map(|b| (b.id.clone(), b.enabled))
+        .collect();
     let mut effects = rebuilt.into_iter().filter(|b| !is_port(b));
     let mut merged = Vec::with_capacity(current.len());
     for block in current {
         if is_port(block) {
-            merged.push(block.clone());
+            let mut port = block.clone();
+            if let Some(&enabled) = scene_enabled.get(&block.id) {
+                port.enabled = enabled;
+            }
+            merged.push(port);
         } else if let Some(effect) = effects.next() {
             merged.push(effect);
         }

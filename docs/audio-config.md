@@ -386,6 +386,16 @@ writes its block kind, not a scene override. `RigProject::validate` judges a
 port against the chains that actually **play that preset**: an E/S another chain
 carries is an aux send, not a duplicate.
 
+**Preset/scene switch.** The rig-nav rebuild (`merge_preserved_ports`) walks the
+CURRENT chain and keeps every port — `Input`, `Output` and `Insert` (#881) — at
+its own slot, feeding the rebuilt effects into the slots between them; a
+scene's `bypass` on an `Insert` still reaches the chain, because the merged
+insert takes `enabled` from the rebuilt (scene-applied) block with the same id
+(#921). Only the slot, E/S and endpoint come from the current chain — cloning
+the insert whole left the loop in whatever state it had before the switch while
+`Core`/`Nam` blocks followed the scene, so a scene could never take the
+external amp out of the loop.
+
 **Metering.** The chain row draws one INPUT/OUTPUT pair per STREAM
 (`meter_wiring::project_stream_count` → `engine::runtime_graph::chain_stream_count`),
 which is also the unit the runtime indexes its per-stream taps by — so a mid

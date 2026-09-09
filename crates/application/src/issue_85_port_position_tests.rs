@@ -99,3 +99,55 @@ fn an_insert_keeps_its_position_across_a_preset_switch() {
          preset switch must not consume its slot and drop it"
     );
 }
+
+fn insert_enabled(id: &str, enabled: bool) -> AudioBlock {
+    AudioBlock {
+        enabled,
+        ..insert(id)
+    }
+}
+
+/// #921 — a scene's `bypass` on an `Insert` reaches the chain. The merge keeps
+/// the insert's SLOT from the current chain (#881), but the rebuilt block with
+/// the same id already carries the scene-applied `enabled`; cloning the
+/// current insert whole threw that away, so the loop kept whatever state it
+/// had before the switch while every other block followed the scene.
+#[test]
+fn an_insert_takes_the_scene_enabled_from_the_rebuilt_block() {
+    let current = vec![effect("drive"), insert_enabled("loop", true), effect("amp")];
+    let rebuilt = vec![
+        effect("drive"),
+        insert_enabled("loop", false),
+        effect("amp"),
+    ];
+
+    let merged = merge_preserved_ports(&current, rebuilt);
+    let ids: Vec<&str> = merged.iter().map(|b| b.id.0.as_str()).collect();
+
+    assert_eq!(ids, vec!["drive", "loop", "amp"], "slot preserved");
+    assert!(
+        !merged[1].enabled,
+        "#921: the scene bypasses the insert — the merged chain must carry \
+         enabled=false, not the stale enabled=true from before the switch"
+    );
+}
+
+/// #921 — and back: a scene that does NOT bypass the insert re-enables it
+/// even when the user had toggled it off by hand in the previous scene.
+#[test]
+fn an_insert_re_enabled_by_the_scene_comes_back_on() {
+    let current = vec![
+        effect("drive"),
+        insert_enabled("loop", false),
+        effect("amp"),
+    ];
+    let rebuilt = vec![effect("drive"), insert_enabled("loop", true), effect("amp")];
+
+    let merged = merge_preserved_ports(&current, rebuilt);
+
+    assert!(
+        merged[1].enabled,
+        "#921: the scene leaves the insert on — the manual off from the \
+         previous scene must not survive the switch"
+    );
+}
