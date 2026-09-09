@@ -98,6 +98,9 @@ impl ProjectRuntimeController {
         });
         self.pending_activations
             .push((chain.id.clone(), chain.clone(), rx));
+        // #929: the build in flight is owned by the chain from now on — a
+        // switch-off before it lands cancels it.
+        self.streams.activation_started(&chain.id);
         // #808: re-render the monitored DI from the edited config now (no-op when
         // nothing is armed), decoupled from the guitar build landing.
         self.rearm_di_stream_after_rebuild(chain);

@@ -56,6 +56,8 @@ impl ProjectRuntimeController {
         };
         let rx = self.worker.submit(move || build_chain_runtime(&request));
         self.pending_rebuilds.push((chain.id.clone(), rx));
+        // #929: a live rebuild in flight is owned by the chain too.
+        self.streams.rebuild_started(&chain.id);
     }
 
     /// Issue #672 — apply any finished off-thread rebuilds (call on the frontend
@@ -71,6 +73,7 @@ impl ProjectRuntimeController {
         for (chain_id, rx) in std::mem::take(&mut self.pending_rebuilds) {
             match rx.try_recv() {
                 Ok(Ok(runtimes)) => {
+                    self.streams.rebuild_settled(&chain_id);
                     // Issue #703: publish each per-entry runtime into ITS
                     // OWN (chain, group) slot. Publishing a single runtime
                     // into group 0 (the old shape) would leave sibling
@@ -101,6 +104,7 @@ impl ProjectRuntimeController {
                     }
                 }
                 Ok(Err(e)) => {
+                    self.streams.rebuild_settled(&chain_id);
                     log::error!("chain '{}' off-thread rebuild failed: {e}", chain_id.0);
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => still_pending.push((chain_id, rx)),
@@ -118,6 +122,17 @@ impl ProjectRuntimeController {
         for (chain_id, chain, rx) in std::mem::take(&mut self.pending_activations) {
             match rx.try_recv() {
                 Ok(Ok((runtimes, resolved))) => {
+                    self.streams.activation_settled(&chain_id);
+                    // #929: a chain switched off owns nothing — a build that
+                    // somehow still reaches here must not open streams for it.
+                    if self.streams.owned(&chain_id).is_none() {
+                        log::warn!(
+                            "chain '{}' activation landed after the chain was switched off — dropped",
+                            chain_id.0
+                        );
+                        let _ = self.worker.submit(move || drop(runtimes));
+                        continue;
+                    }
                     // Issue #703: install every per-entry runtime — a
                     // single-device chain may own N isolated runtimes (one
                     // per input entry) all fed by the one device stream.
@@ -161,6 +176,12 @@ impl ProjectRuntimeController {
                         self.stream_generation,
                     ) {
                         Ok(active) => {
+                            self.streams.streams_built(
+                                &chain_id,
+                                self.stream_generation,
+                                active._input_streams.len(),
+                                active._output_streams.len(),
+                            );
                             self.active_chains.insert(chain_id, active);
                             // #771: an armed DI re-renders against the fresh
                             // streams (output index/rate/dest may have moved).
@@ -173,7 +194,10 @@ impl ProjectRuntimeController {
                         }
                     }
                 }
-                Ok(Err(e)) => log::error!("chain '{}' activation build failed: {e}", chain_id.0),
+                Ok(Err(e)) => {
+                    self.streams.activation_settled(&chain_id);
+                    log::error!("chain '{}' activation build failed: {e}", chain_id.0)
+                }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
                     still_activating.push((chain_id, chain, rx))
                 }

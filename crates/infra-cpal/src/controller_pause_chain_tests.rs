@@ -1,18 +1,13 @@
-//! Issue #522 — fast-path for `ChainCommand::ToggleChainEnabled`.
+//! Switching a chain off — the #522 fast path, superseded by #929.
 //!
-//! The legacy behaviour: `upsert_chain` with `chain.enabled = false`
-//! calls `remove_chain`, which drops the `Arc<ChainRuntimeState>` and
-//! tears the CPAL input/output streams down. Re-enabling the chain then
-//! has to walk the full rebuild path: device validation, NAM model
-//! loads, segment + route reassembly, fresh CPAL streams. End-to-end
-//! that is the ~1-second hitch the user observes on every chain
-//! enable/disable toggle.
-//!
-//! The fast path swaps `remove_chain` for `pause_chain`: the runtime
-//! stays in `active_chains`, the CPAL streams stay open, and the audio
-//! callbacks short-circuit on `is_draining()` to emit silence with zero
-//! processor work. Re-enabling resumes the same Arc by clearing the
-//! draining flag — no rebuild, no NAM reload, no CPAL touch.
+//! #522 swapped `remove_chain` for a pause: the runtime stayed in
+//! `active_chains`, the CPAL streams stayed open draining to silence, and
+//! re-enabling cleared the flag in O(1). That pause never touched the
+//! activations still building, so they landed seconds after the switch-off
+//! and opened streams for a chain the screen showed as off (#929). The
+//! owner's rule now: off = every stream the chain owns dies, open or in
+//! flight; on = a fresh cold activation. These tests pin that contract for
+//! the doors #522 and #545 covered (single and multi-input-group chains).
 
 use std::sync::Arc;
 
@@ -92,6 +87,7 @@ fn controller_with_active_chain(
         worker: crate::ControlWorker::new(),
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
+        streams: Default::default(),
         stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: Vec::new(),
@@ -114,13 +110,12 @@ fn controller_with_active_chain(
 
 #[test]
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn upsert_chain_disabled_pauses_runtime_without_removing() {
-    let chain_id = ChainId("chain:522:pause".into());
+fn upsert_chain_disabled_kills_runtime_and_streams() {
+    let chain_id = ChainId("chain:929:off".into());
     let (mut controller, runtime_arc) = controller_with_active_chain(&chain_id);
     let project = empty_project();
 
     assert!(controller.active_chains.contains_key(&chain_id));
-    assert!(!runtime_arc.is_draining());
 
     let disabled = empty_chain(&chain_id.0, false);
     controller
@@ -128,80 +123,60 @@ fn upsert_chain_disabled_pauses_runtime_without_removing() {
         .expect("upsert with enabled=false must succeed");
 
     assert!(
-        controller.active_chains.contains_key(&chain_id),
-        "disabling a chain must NOT drop its runtime/streams — device stays \
-         open so the next enable can resume the same `Arc<ChainRuntimeState>` \
-         without rebuilding (issue #522)"
+        !controller.active_chains.contains_key(&chain_id),
+        "#929: switching a chain off drops its runtime and streams — nothing \
+         of the chain stays open to play behind an off switch"
     );
     assert!(
         runtime_arc.is_draining(),
-        "disabled chain must be paused via set_draining so the audio \
-         callbacks emit silence with zero processor work"
+        "the dropped runtime is drained first so the last callbacks emit silence"
+    );
+    assert!(
+        controller.runtime_graph.runtimes_for(&chain_id).is_empty(),
+        "no runtime survives in the graph"
     );
 }
 
 #[test]
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn upsert_chain_enabled_resumes_paused_runtime_without_rebuilding() {
-    let chain_id = ChainId("chain:522:resume".into());
-    let (mut controller, runtime_arc) = controller_with_active_chain(&chain_id);
+fn upsert_chain_enabled_after_off_is_a_fresh_activation() {
+    let chain_id = ChainId("chain:929:on-again".into());
+    let (mut controller, _runtime_arc) = controller_with_active_chain(&chain_id);
     let project = empty_project();
 
-    // Pause it first.
     let disabled = empty_chain(&chain_id.0, false);
     controller
         .upsert_chain(&project, &disabled)
         .expect("disable succeeds");
-    assert!(runtime_arc.is_draining());
+    assert!(controller.active_chains.is_empty());
 
-    // Now re-enable. The runtime Arc must be reused (same pointer) and
-    // the draining flag must clear so the audio callbacks resume.
-    let runtime_addr_before = Arc::as_ptr(&runtime_arc) as usize;
+    // Re-enable: with nothing live, the controller schedules a cold
+    // activation — the build runs off-thread and the chain becomes owned
+    // again through the index, never by resuming a paused runtime.
     let enabled = empty_chain(&chain_id.0, true);
-    controller
-        .upsert_chain(&project, &enabled)
-        .expect("re-enable must succeed without rebuild");
-
-    let stored = controller
-        .runtime_graph
-        .chains
-        .get(&(chain_id.clone(), 0))
-        .expect("runtime stays under the same key on resume")
-        .clone();
-    assert_eq!(
-        Arc::as_ptr(&stored) as usize,
-        runtime_addr_before,
-        "re-enable must reuse the SAME ChainRuntimeState Arc — rebuilding \
-         would reload every NAM model and rebuild every block processor"
-    );
+    let scheduled = controller
+        .schedule_chain_activation(&project, &enabled)
+        .expect("scheduling the activation succeeds");
     assert!(
-        !runtime_arc.is_draining(),
-        "resume must clear set_draining so the audio thread processes again"
+        scheduled,
+        "a chain with no live streams is activated from scratch"
+    );
+    assert_eq!(controller.pending_activations.len(), 1);
+    assert!(
+        controller.streams.owns(&chain_id),
+        "the index owns the build in flight"
     );
 }
 
-/// Issue #545 — `pause_chain` / fast-path resume both call
-/// `runtime_for_chain`, which only returns the FIRST runtime of a
-/// chain (see the comment in `runtime_graph::runtime_for_chain`:
-/// "Multi-input fan-out for these call sites is Phase 3 (#350)"). On
-/// a chain with multiple input groups (one per physical input
-/// device), only group 0 actually flips — the other groups keep
-/// processing, which is why the user observes the tap/meter still
-/// moving and CPU staying at the running-chain baseline after
-/// toggling the chain off.
-///
-/// Two paired contracts are pinned here: pause must drain every
-/// runtime, and the resume fast-path must clear draining on every
-/// runtime. Otherwise either edge leaves some groups out of sync.
+/// Issue #545 kept: a chain with several input groups (one runtime per
+/// physical input device, #350 Phase 3) must go down as a whole — every group,
+/// not only the first `runtime_for_chain` returns.
 #[test]
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn pause_chain_drains_every_input_group_runtime() {
+fn switching_off_kills_every_input_group_runtime() {
     let chain_id = ChainId("chain:545:multi-input".into());
     let (mut controller, group0) = controller_with_active_chain(&chain_id);
 
-    // Add a second runtime under group 1 — same chain, second physical
-    // input device. Mirrors what the runtime_graph holds when a chain
-    // has two `InputBlock` entries.
     let chain = empty_chain(&chain_id.0, true);
     let group1 = Arc::new(
         engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
@@ -212,68 +187,17 @@ fn pause_chain_drains_every_input_group_runtime() {
         .chains
         .insert((chain_id.clone(), 1), Arc::clone(&group1));
 
-    assert!(!group0.is_draining());
-    assert!(!group1.is_draining());
-
-    controller.pause_chain(&chain_id);
-
-    assert!(
-        group0.is_draining(),
-        "pause_chain must drain group 0 (currently passes — it is the only \
-         runtime `runtime_for_chain` returns)"
-    );
-    assert!(
-        group1.is_draining(),
-        "REGRESSION: pause_chain failed to drain group 1 runtime — only the \
-         first input group is touched. The user observes the chain looking \
-         alive (tap moving, CPU not dropping) because the other input \
-         groups keep processing."
-    );
-}
-
-/// Issue #545 — symmetric counterpart of the pause test. After the
-/// pause fix lands, re-enabling the chain must also clear draining on
-/// every group, not just the first. Otherwise the cab path on the
-/// second physical input stays muted after toggle-on, even though the
-/// engine ran the resume.
-#[test]
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn upsert_chain_enabled_resumes_every_input_group_runtime() {
-    let chain_id = ChainId("chain:545:multi-input:resume".into());
-    let (mut controller, group0) = controller_with_active_chain(&chain_id);
-
-    let chain = empty_chain(&chain_id.0, true);
-    let group1 = Arc::new(
-        engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024], &[])
-            .expect("group-1 runtime should build"),
-    );
+    let disabled = empty_chain(&chain_id.0, false);
     controller
-        .runtime_graph
-        .chains
-        .insert((chain_id.clone(), 1), Arc::clone(&group1));
-
-    // Pause both groups first (the fixed pause_chain does the fan-out).
-    controller.pause_chain(&chain_id);
-    assert!(group0.is_draining());
-    assert!(group1.is_draining());
-
-    // Now re-enable via the same fast-path the controller takes on
-    // `ChainCommand::ToggleChainEnabled { enabled: true }`.
-    let project = empty_project();
-    let enabled = empty_chain(&chain_id.0, true);
-    controller
-        .upsert_chain(&project, &enabled)
-        .expect("re-enable must succeed");
+        .upsert_chain(&empty_project(), &disabled)
+        .expect("disable succeeds");
 
     assert!(
-        !group0.is_draining(),
-        "resume must clear draining on group 0"
+        controller.runtime_graph.runtimes_for(&chain_id).is_empty(),
+        "REGRESSION: a group survived the switch-off — the user sees the chain \
+         alive (tap moving, CPU not dropping) with the switch off"
     );
-    assert!(
-        !group1.is_draining(),
-        "REGRESSION: resume only cleared group 0; group 1 stayed draining \
-         and its audio stays silent after toggle-on."
-    );
+    assert!(group0.is_draining(), "group 0 drained on the way out");
 }
 
 // ── Issue #670: per-chain xrun count accessor for the GUI overload meter ──

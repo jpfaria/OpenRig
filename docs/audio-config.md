@@ -443,6 +443,18 @@ chain enquanto o app roda. **NÃO É serializado no `project.yaml`** —
 chains carregam sempre como desabilitadas e o usuário decide quais
 ativar. `ChainYaml.enabled` tem `skip_serializing` por isso.
 
+**Desligar uma chain mata TODOS os streams dela (#929).** O controller mantém
+um índice em memória chain → streams (`ChainStreamRegistry`: streams abertos +
+ativações e rebuilds ainda em construção). `upsert_chain` com `enabled: false`
+chama `kill_chain_streams`, que lê o índice e derruba tudo — streams, runtimes,
+slots e os receivers das builds em voo — em vez de pausar (#522 mantinha os
+streams abertos drenando pra silêncio, mas não tocava nas ativações em voo, e
+elas pousavam segundos depois abrindo streams novos pra uma chain que a tela
+mostrava desligada: som com tudo desligado). Uma build que ainda assim chegue
+pra uma chain fora do índice é descartada. Religar é sempre uma ativação fria.
+O DI e os loopers são pipelines próprios (#717/#323) e só vão embora com
+`remove_chain`.
+
 Um channel de um device físico só pode estar habilitado em **uma**
 chain por vez. Habilitar a segunda **falha com erro** (#833) — o comando
 é recusado e a chain segue desabilitada; ver a "Input-conflict rule"
