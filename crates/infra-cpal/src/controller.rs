@@ -84,6 +84,9 @@ pub struct ProjectRuntimeController {
     /// value plays them at the wrong speed (#669). Defaults to 48000 until the
     /// first chain is built.
     pub(crate) sample_rate: u32,
+    /// #929: the index chain → streams it owns (open streams + builds in
+    /// flight). Switching a chain off kills everything listed here.
+    pub(crate) streams: crate::chain_stream_registry::ChainStreamRegistry,
     /// Model A (#716): the per-machine I/O binding registry. Device endpoints
     /// for every chain resolve from this (via
     /// [`engine::runtime_endpoints::resolve_chain_io`]), never from block
@@ -164,6 +167,7 @@ impl ProjectRuntimeController {
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
+            streams: Default::default(),
             sample_rate,
             io_bindings: Vec::new(),
             di_streams: RefCell::new(HashMap::new()),
@@ -207,6 +211,7 @@ impl ProjectRuntimeController {
             worker: ControlWorker::new(),
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
+            streams: Default::default(),
             // Updated to the real device rate by `upsert_chain_with_resolved`
             // as each chain is built below (#669).
             sample_rate: 48_000,
@@ -260,8 +265,21 @@ impl ProjectRuntimeController {
     // `schedule_chain_activation` (issue #672 cold activation + #808 DI re-arm)
     // lives in `controller_chain_activation.rs` (line-cap split).
 
-    pub fn remove_chain(&mut self, chain_id: &ChainId) {
-        log::info!("removing chain '{}' from runtime", chain_id.0);
+    /// #929: kill EVERYTHING the chain owns — its open streams and every
+    /// build still in flight — so nothing lands afterwards and plays a chain
+    /// that is off. What the chain owned is read off the index (`streams`),
+    /// which is emptied here; the DI and looper bookkeeping stay (they are
+    /// pipelines of their own, #717/#323) and go only with `remove_chain`.
+    pub fn kill_chain_streams(&mut self, chain_id: &ChainId) {
+        let owned = self.streams.forget(chain_id).unwrap_or_default();
+        log::info!(
+            "killing chain '{}' streams: {} input(s), {} output(s), {} activation(s) and {} rebuild(s) in flight",
+            chain_id.0,
+            owned.input_streams,
+            owned.output_streams,
+            owned.activations_in_flight,
+            owned.rebuilds_in_flight,
+        );
         if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
             runtime.set_draining();
             std::thread::sleep(std::time::Duration::from_millis(50));
@@ -279,6 +297,11 @@ impl ProjectRuntimeController {
         // The slots the dropped streams were reading. Keeping them alive holds
         // the old runtime and lets a later publish resurrect it.
         self.chain_slots.retain(|(id, _), _| id != chain_id);
+    }
+
+    pub fn remove_chain(&mut self, chain_id: &ChainId) {
+        log::info!("removing chain '{}' from runtime", chain_id.0);
+        self.kill_chain_streams(chain_id);
         // #771: never leak a parked render buffer past its chain.
         self.drop_di_state_for_chain(chain_id);
         // #323: drop the looper stream bookkeeping too.
@@ -289,6 +312,7 @@ impl ProjectRuntimeController {
         log::info!("stopping project runtime controller");
         self.active_chains.clear();
         self.runtime_graph.chains.clear();
+        self.streams.clear();
         // NOTE: supervisor.client_count is NOT decremented here. The
         // supervisor's register_client / unregister_client API is unused on
         // this call path — ordered teardown is driven by the caller via

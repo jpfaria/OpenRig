@@ -92,10 +92,10 @@ impl ProjectRuntimeController {
                 self.runtime_graph.remove_chain(&chain_id);
             }
 
-            // #716 (invariant #4): two or more ACTIVE inputs may not share the
-            // same device+channel. Refuse to bring up a chain whose input tap
-            // is already claimed by an earlier enabled chain (first wins);
-            // within-chain duplicates are caught too. Output may be shared.
+            // #716 (invariant #4): two ACTIVE chains may not share the same
+            // device+channel. Refuse to bring up a chain whose input tap is
+            // already claimed by an earlier enabled chain (first wins). A
+            // chain's own E/S may share a tap (#924). Output may be shared.
             let input_conflicts = engine::runtime_endpoints::input_conflicting_chains(
                 project.chains.iter(),
                 &self.io_bindings,

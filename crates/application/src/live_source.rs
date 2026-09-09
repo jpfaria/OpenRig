@@ -28,6 +28,7 @@ use engine::LooperStatus;
 use crate::looper_edit::LoopEditReading;
 use crate::query_analyzers::{SpectrumReading, TunerReading};
 use crate::query_di::DiLoopReading;
+use crate::query_output_routes::OutputRouteReading;
 
 /// #14/#127: where the click is in the bar, and whether it is sounding.
 ///
@@ -118,6 +119,12 @@ pub trait LiveSource {
     }
 
     fn spectrum(&self) -> Option<Vec<SpectrumReading>> {
+        None
+    }
+
+    /// #923: every output route of every live runtime, as its device stream
+    /// saw it. `None` ⇒ this frontend hosts no audio runtime.
+    fn output_routes(&self) -> Option<Vec<OutputRouteReading>> {
         None
     }
 

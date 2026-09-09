@@ -81,6 +81,7 @@ pub fn resolve(kind: &QueryKind, ctx: &ReadContext<'_>) -> Result<String, String
         QueryKind::TunerReadings => Ok(tuner_readings(ctx)),
         QueryKind::SpectrumReadings => Ok(spectrum_readings(ctx)),
         QueryKind::DiLoopState => Ok(di_loop_state(ctx)),
+        QueryKind::OutputRoutes => Ok(output_routes(ctx)),
         QueryKind::ChainLoopers { chain } => chain_loopers(ctx, chain),
         QueryKind::ChainLatency { chain } => crate::query_latency::chain_latency_report(
             ctx.project,
@@ -225,6 +226,16 @@ fn di_loop_state(ctx: &ReadContext<'_>) -> String {
         })
         .collect();
     crate::query_di::di_loop_state_json(&rows)
+}
+
+/// #923: the rows are the live runtime's own — a route exists only while its
+/// stream does — so an unhosted frontend answers `hosted: false` and no rows
+/// rather than inventing routes from the project.
+fn output_routes(ctx: &ReadContext<'_>) -> String {
+    match ctx.live.output_routes() {
+        Some(rows) => crate::query_output_routes::output_routes_json(true, &rows),
+        None => crate::query_output_routes::output_routes_json(false, &[]),
+    }
 }
 
 /// The chain's PERSISTED loopers merged with whatever live transport state

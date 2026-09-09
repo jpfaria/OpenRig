@@ -51,6 +51,7 @@ fn all_kinds() -> Vec<QueryKind> {
         },
         QueryKind::ChainToneReport { chain },
         QueryKind::MetronomeState,
+        QueryKind::OutputRoutes,
     ]
 }
 
@@ -58,7 +59,7 @@ fn all_kinds() -> Vec<QueryKind> {
 /// arm in `match_all_kinds` (exhaustive match) AND a new entry here (fixed
 /// array length), and `all_kinds_covers_every_variant` then fails until
 /// `all_kinds` lists it too — the loop below cannot silently skip a kind.
-const KIND_NAMES: [&str; 20] = [
+const KIND_NAMES: [&str; 21] = [
     "ProjectYaml",
     "Devices",
     "Ids",
@@ -79,6 +80,7 @@ const KIND_NAMES: [&str; 20] = [
     "ChainQualityReport",
     "ChainToneReport",
     "MetronomeState",
+    "OutputRoutes",
 ];
 
 fn match_all_kinds(kind: &QueryKind) -> &'static str {
@@ -103,6 +105,7 @@ fn match_all_kinds(kind: &QueryKind) -> &'static str {
         QueryKind::ChainQualityReport { .. } => "ChainQualityReport",
         QueryKind::ChainToneReport { .. } => "ChainToneReport",
         QueryKind::MetronomeState => "MetronomeState",
+        QueryKind::OutputRoutes => "OutputRoutes",
     }
 }
 
@@ -317,6 +320,37 @@ fn a_hosting_frontend_returns_the_same_shape_with_live_values() {
     assert_eq!(hosted.lines().count(), empty.lines().count());
     assert_eq!(hosted.split('\t').count(), empty.split('\t').count());
     assert!(hosted.starts_with("guitar\t-12.0\t-6.0"), "{hosted}");
+}
+
+#[test]
+fn hosted_output_routes_report_the_frontend_rows() {
+    struct RoutesOnly;
+    impl LiveSource for RoutesOnly {
+        fn output_routes(&self) -> Option<Vec<crate::query_output_routes::OutputRouteReading>> {
+            Some(vec![crate::query_output_routes::OutputRouteReading {
+                chain: "guitar".into(),
+                group: 0,
+                route: 1,
+                channels: vec![16, 17],
+                callbacks: 42,
+                underruns: 0,
+                peak_dbfs: -20.5,
+            }])
+        }
+    }
+    let routes = resolve_hosted_by(&RoutesOnly, QueryKind::OutputRoutes).expect("hosted");
+    assert!(
+        routes.starts_with(r#"{"hosted":true,"rows":[{"#),
+        "{routes}"
+    );
+    assert!(routes.contains(r#""route":1"#), "{routes}");
+    assert!(routes.contains(r#""channels":[16,17]"#), "{routes}");
+}
+
+#[test]
+fn unhosted_output_routes_report_not_hosted_with_no_rows() {
+    let routes = resolve_empty(QueryKind::OutputRoutes);
+    assert_eq!(routes, r#"{"hosted":false,"rows":[]}"#);
 }
 
 #[test]

@@ -410,10 +410,10 @@ pub(crate) fn sync_live_chain_runtime(
             })?;
             match action {
                 LiveSyncAction::Remove => runtime.remove_chain(chain_id),
-                LiveSyncAction::Pause => {
-                    // upsert_chain's !enabled path pauses (keeps streams alive,
-                    // drains to silence) in O(1) — no device queries.
-                    let chain = chain.expect("Pause implies the chain is present");
+                LiveSyncAction::SwitchOff => {
+                    // upsert_chain's !enabled path kills every stream the chain
+                    // owns, open or still building (#929) — no device queries.
+                    let chain = chain.expect("SwitchOff implies the chain is present");
                     runtime.upsert_chain(&proj, chain)?;
                 }
                 LiveSyncAction::Enable { io_changed } => {

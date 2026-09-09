@@ -31,6 +31,15 @@ impl AudioFrame {
             AudioFrame::Stereo([l, r]) => AudioFrame::Stereo([l * k, r * k]),
         }
     }
+
+    /// Loudest |sample| across the frame's channels.
+    #[inline(always)]
+    pub(crate) fn peak_abs(self) -> f32 {
+        match self {
+            AudioFrame::Mono(s) => s.abs(),
+            AudioFrame::Stereo([l, r]) => l.abs().max(r.abs()),
+        }
+    }
 }
 
 #[inline(always)]

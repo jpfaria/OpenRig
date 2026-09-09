@@ -16,6 +16,8 @@ pub fn di_meter_from_peaks(peaks: Option<(f32, f32)>, playing: bool) -> crate::S
     crate::StreamMeter {
         in_dbfs: linear_to_dbfs(in_peak),
         out_dbfs: linear_to_dbfs(out_peak),
+        in_label: Default::default(),
+        out_label: Default::default(),
     }
 }
 

@@ -206,6 +206,9 @@ mod issue_819_retire_persistent_window_tests;
 #[cfg(test)]
 #[path = "issue_85_stream_rows_tests.rs"]
 mod issue_85_stream_rows_tests;
+#[cfg(test)]
+#[path = "issue_928_stream_row_labels_tests.rs"]
+mod issue_928_stream_row_labels_tests;
 mod latency_badge_expiry;
 mod latency_probe;
 mod latency_probe_run;
@@ -226,6 +229,7 @@ mod looper_view;
 mod looper_vocabulary;
 mod meter_invalidation;
 mod meter_math;
+mod meter_row_labels;
 mod meter_rows;
 mod meter_taps;
 mod meter_wiring;

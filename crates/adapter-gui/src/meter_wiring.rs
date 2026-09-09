@@ -6,6 +6,7 @@
 pub use crate::meter_invalidation::{detect_invalidations, project_stream_count};
 pub use crate::meter_math::apply_chain_volume_db;
 pub(crate) use crate::meter_math::chain_overloaded;
+pub use crate::meter_row_labels::project_stream_labels;
 pub use crate::meter_rows::rebuild_stream_meters_row;
 pub(crate) use crate::meter_taps::METER_POLL_TICK_MS;
 pub use crate::meter_taps::{

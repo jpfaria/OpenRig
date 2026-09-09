@@ -210,6 +210,8 @@ fn refresh_chain_meter_row(
         .map(|(_, streams)| streams.clone())
         .unwrap_or_default();
     let project_streams = project_stream_count(&project.chains[idx], &session.io_bindings.borrow());
+    // #928: the E/S names ride the same rows, from the same segment map.
+    let stream_labels = project_stream_labels(&project.chains[idx], &session.io_bindings.borrow());
     // #750: a disabled chain renders no per-stream rows. The timer
     // still visits it (a stale tap may report a tick after toggle-off),
     // so the `enabled` flag — not just the resolved count — gates the
@@ -217,6 +219,7 @@ fn refresh_chain_meter_row(
     let per_stream_rows: Vec<crate::StreamMeter> = rebuild_stream_meters_row(
         &engine_streams,
         project_streams,
+        &stream_labels,
         chain_volume,
         project.chains[idx].enabled,
     );
@@ -224,7 +227,10 @@ fn refresh_chain_meter_row(
         let current = row.stream_meters.iter().collect::<Vec<_>>();
         current.len() != per_stream_rows.len()
             || current.iter().zip(&per_stream_rows).any(|(a, b)| {
-                (a.in_dbfs - b.in_dbfs).abs() > 0.05 || (a.out_dbfs - b.out_dbfs).abs() > 0.05
+                (a.in_dbfs - b.in_dbfs).abs() > 0.05
+                    || (a.out_dbfs - b.out_dbfs).abs() > 0.05
+                    || a.in_label != b.in_label
+                    || a.out_label != b.out_label
             })
     };
     let aggregate_changed =
@@ -247,6 +253,8 @@ fn refresh_chain_meter_row(
         out_dbfs: di
             .as_ref()
             .map_or(engine::output_meter::SILENT_DBFS, |d| d.out_dbfs),
+        in_label: Default::default(),
+        out_label: Default::default(),
     };
     let di_meter_changed = (row.di_meter.in_dbfs - di_meter_now.in_dbfs).abs() > 0.05
         || (row.di_meter.out_dbfs - di_meter_now.out_dbfs).abs() > 0.05;
@@ -402,23 +410,14 @@ fn refresh_chain_meter_row(
                 .filter(|vm| vm.row_count() == per_stream_rows.len())
                 .map(|vm| {
                     for (i, r) in per_stream_rows.iter().enumerate() {
-                        vm.set_row_data(
-                            i,
-                            crate::StreamMeter {
-                                in_dbfs: r.in_dbfs,
-                                out_dbfs: r.out_dbfs,
-                            },
-                        );
+                        vm.set_row_data(i, r.clone());
                     }
                 })
                 .is_some();
             if !reused {
                 let model = std::rc::Rc::new(slint::VecModel::default());
                 for r in &per_stream_rows {
-                    model.push(crate::StreamMeter {
-                        in_dbfs: r.in_dbfs,
-                        out_dbfs: r.out_dbfs,
-                    });
+                    model.push(r.clone());
                 }
                 row.stream_meters = slint::ModelRc::from(model);
             }
