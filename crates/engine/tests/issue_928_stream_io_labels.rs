@@ -71,27 +71,48 @@ fn registry() -> Vec<IoBinding> {
     vec![
         binding("guitarra-1", "GUITARRA 1 - MAIN", &[0], &[0, 1]),
         binding("guitarra-1-5050", "GUITARRA 1 - SYN5050", &[0], &[16, 17]),
-        binding("syn2-main", "SYN-2 (Re-amp 1 -> MAIN OUT)", &[17, 18], &[10]),
+        binding(
+            "syn2-main",
+            "SYN-2 (Re-amp 1 -> MAIN OUT)",
+            &[17, 18],
+            &[10],
+        ),
     ]
 }
 
 fn pairs(labels: &[engine::stream_io_labels::StreamIoLabels]) -> Vec<(String, String)> {
-    labels.iter().map(|l| (l.input.clone(), l.output.clone())).collect()
+    labels
+        .iter()
+        .map(|l| (l.input.clone(), l.output.clone()))
+        .collect()
 }
 
 #[test]
 fn two_bindings_on_one_input_name_their_own_row() {
     let registry = registry();
-    let chain = chain(&["guitarra-1", "guitarra-1-5050"], vec![effect("gate"), insert("syn2", "syn2-main", false)]);
+    let chain = chain(
+        &["guitarra-1", "guitarra-1-5050"],
+        vec![effect("gate"), insert("syn2", "syn2-main", false)],
+    );
 
     let labels = chain_stream_io_labels(&chain, &registry);
 
-    assert_eq!(labels.len(), chain_stream_count(&chain, &registry), "one label per stream");
+    assert_eq!(
+        labels.len(),
+        chain_stream_count(&chain, &registry),
+        "one label per stream"
+    );
     assert_eq!(
         pairs(&labels),
         vec![
-            ("GUITARRA 1 - MAIN".to_string(), "GUITARRA 1 - MAIN".to_string()),
-            ("GUITARRA 1 - SYN5050".to_string(), "GUITARRA 1 - SYN5050".to_string()),
+            (
+                "GUITARRA 1 - MAIN".to_string(),
+                "GUITARRA 1 - MAIN".to_string()
+            ),
+            (
+                "GUITARRA 1 - SYN5050".to_string(),
+                "GUITARRA 1 - SYN5050".to_string()
+            ),
         ],
         "#928: both rows read ch 0 — the E/S the row belongs to is the one whose output it feeds"
     );
@@ -100,11 +121,22 @@ fn two_bindings_on_one_input_name_their_own_row() {
 #[test]
 fn an_enabled_insert_names_the_loop_on_the_rows_it_splits() {
     let registry = registry();
-    let chain = chain(&["guitarra-1", "guitarra-1-5050"], vec![effect("gate"), insert("syn2", "syn2-main", true), effect("delay")]);
+    let chain = chain(
+        &["guitarra-1", "guitarra-1-5050"],
+        vec![
+            effect("gate"),
+            insert("syn2", "syn2-main", true),
+            effect("delay"),
+        ],
+    );
 
     let labels = chain_stream_io_labels(&chain, &registry);
 
-    assert_eq!(labels.len(), chain_stream_count(&chain, &registry), "one label per stream");
+    assert_eq!(
+        labels.len(),
+        chain_stream_count(&chain, &registry),
+        "one label per stream"
+    );
     assert_eq!(
         pairs(&labels),
         vec![
@@ -126,6 +158,9 @@ fn a_single_binding_chain_names_it_on_both_sides() {
 
     assert_eq!(
         pairs(&chain_stream_io_labels(&chain, &registry)),
-        vec![("GUITARRA 1 - MAIN".to_string(), "GUITARRA 1 - MAIN".to_string())]
+        vec![(
+            "GUITARRA 1 - MAIN".to_string(),
+            "GUITARRA 1 - MAIN".to_string()
+        )]
     );
 }

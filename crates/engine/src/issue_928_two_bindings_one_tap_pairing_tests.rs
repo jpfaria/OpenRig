@@ -106,7 +106,10 @@ fn pairing(chain: &Chain, registry: &[IoBinding]) -> Vec<(usize, Vec<Vec<usize>>
 #[test]
 fn each_binding_on_the_shared_tap_feeds_its_own_output() {
     let registry = registry();
-    let chain = chain(&["main", "syn5050"], vec![effect("gate"), insert("syn2", false)]);
+    let chain = chain(
+        &["main", "syn5050"],
+        vec![effect("gate"), insert("syn2", false)],
+    );
 
     assert_eq!(
         pairing(&chain, &registry),
