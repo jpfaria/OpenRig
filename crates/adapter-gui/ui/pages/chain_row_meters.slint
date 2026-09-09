@@ -107,19 +107,22 @@ export component ChainRowMeters inherits Rectangle {
         // ── INPUT (left): label + bar + dB text ──
         Rectangle {
             x: 60px; y: 0px;
-            width: 220px; height: 16px;
+            width: 316px; height: 16px;
+            // #928: the row names the E/S it reads from; a row the project
+            // could not name falls back to the bare direction.
             Text {
                 x: 0px; y: 0px;
-                width: 44px; height: parent.height;
-                text: "INPUT";
+                width: 140px; height: parent.height;
+                text: stream.in_label == "" ? "INPUT" : stream.in_label;
                 font-size: 8px;
                 font-weight: 700;
                 color: #9ca3af;
+                overflow: elide;
                 horizontal-alignment: right;
                 vertical-alignment: center;
             }
             Rectangle {
-                x: 48px; y: 2px;
+                x: 144px; y: 2px;
                 width: 130px; height: 12px;
                 border-width: 1px;
                 border-color: stream.in_dbfs > 0.0 ? #f87171 : #2a313a;
@@ -143,7 +146,7 @@ export component ChainRowMeters inherits Rectangle {
                 }
             }
             Text {
-                x: 182px; y: 0px;
+                x: 278px; y: 0px;
                 width: 36px; height: parent.height;
                 text: stream.in_dbfs <= -119.0
                     ? "—"
@@ -161,20 +164,21 @@ export component ChainRowMeters inherits Rectangle {
 
         // ── OUTPUT (right): label + bar + dB text ──
         Rectangle {
-            x: parent.width - 240px; y: 0px;
-            width: 230px; height: 16px;
+            x: parent.width - 336px; y: 0px;
+            width: 326px; height: 16px;
             Text {
                 x: 0px; y: 0px;
-                width: 50px; height: parent.height;
-                text: "OUTPUT";
+                width: 140px; height: parent.height;
+                text: stream.out_label == "" ? "OUTPUT" : stream.out_label;
                 font-size: 8px;
                 font-weight: 700;
                 color: #9ca3af;
+                overflow: elide;
                 horizontal-alignment: right;
                 vertical-alignment: center;
             }
             Rectangle {
-                x: 54px; y: 2px;
+                x: 150px; y: 2px;
                 width: 130px; height: 12px;
                 border-width: 1px;
                 border-color: stream.out_dbfs > 0.0 ? #f87171 : #2a313a;
@@ -198,7 +202,7 @@ export component ChainRowMeters inherits Rectangle {
                 }
             }
             Text {
-                x: 188px; y: 0px;
+                x: 284px; y: 0px;
                 width: 40px; height: parent.height;
                 text: stream.out_dbfs <= -119.0
                     ? "—"

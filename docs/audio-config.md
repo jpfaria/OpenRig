@@ -386,6 +386,16 @@ writes its block kind, not a scene override. `RigProject::validate` judges a
 port against the chains that actually **play that preset**: an E/S another chain
 carries is an aux send, not a duplicate.
 
+**Preset/scene switch.** The rig-nav rebuild (`merge_preserved_ports`) walks the
+CURRENT chain and keeps every port — `Input`, `Output` and `Insert` (#881) — at
+its own slot, feeding the rebuilt effects into the slots between them; a
+scene's `bypass` on an `Insert` still reaches the chain, because the merged
+insert takes `enabled` from the rebuilt (scene-applied) block with the same id
+(#921). Only the slot, E/S and endpoint come from the current chain — cloning
+the insert whole left the loop in whatever state it had before the switch while
+`Core`/`Nam` blocks followed the scene, so a scene could never take the
+external amp out of the loop.
+
 **Metering.** The chain row draws one INPUT/OUTPUT pair per STREAM
 (`meter_wiring::project_stream_count` → `engine::runtime_graph::chain_stream_count`),
 which is also the unit the runtime indexes its per-stream taps by — so a mid
@@ -432,6 +442,18 @@ macOS live path); the Linux/JACK backend is untouched.
 chain enquanto o app roda. **NÃO É serializado no `project.yaml`** —
 chains carregam sempre como desabilitadas e o usuário decide quais
 ativar. `ChainYaml.enabled` tem `skip_serializing` por isso.
+
+**Desligar uma chain mata TODOS os streams dela (#929).** O controller mantém
+um índice em memória chain → streams (`ChainStreamRegistry`: streams abertos +
+ativações e rebuilds ainda em construção). `upsert_chain` com `enabled: false`
+chama `kill_chain_streams`, que lê o índice e derruba tudo — streams, runtimes,
+slots e os receivers das builds em voo — em vez de pausar (#522 mantinha os
+streams abertos drenando pra silêncio, mas não tocava nas ativações em voo, e
+elas pousavam segundos depois abrindo streams novos pra uma chain que a tela
+mostrava desligada: som com tudo desligado). Uma build que ainda assim chegue
+pra uma chain fora do índice é descartada. Religar é sempre uma ativação fria.
+O DI e os loopers são pipelines próprios (#717/#323) e só vão embora com
+`remove_chain`.
 
 Um channel de um device físico só pode estar habilitado em **uma**
 chain por vez. Habilitar a segunda **falha com erro** (#833) — o comando

@@ -29,8 +29,8 @@ fn disabling_a_chain_pauses_without_resolving_device_io() {
     .expect("planning a disable must not error");
 
     assert!(
-        matches!(action, LiveSyncAction::Pause),
-        "disabling a present chain must plan a Pause"
+        matches!(action, LiveSyncAction::SwitchOff),
+        "disabling a present chain must plan a SwitchOff (#929: kill its streams)"
     );
     assert!(
         !resolved.get(),
