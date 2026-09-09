@@ -227,11 +227,11 @@ mod looper_transport_scope;
 mod controller_global_transport;
 // Every test here is `#[cfg(not(all(linux, jack)))]` (CPAL pause/enable path),
 // so gate the whole module the same way to avoid orphaned helpers/imports.
-#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
-mod controller_pause_chain_tests;
 #[cfg(test)]
 #[path = "controller_disable_kills_streams_tests.rs"]
 mod controller_disable_kills_streams_tests;
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+mod controller_pause_chain_tests;
 #[cfg(test)]
 mod controller_per_stream_input_tap_tests;
 // `tests` exercises the CPAL stream path (stream_config/chain_resolve helpers),

@@ -42,8 +42,14 @@ fn every_row_carries_the_names_of_its_bindings() {
     assert_eq!(
         names,
         vec![
-            ("GUITARRA 1 - MAIN".to_string(), "GUITARRA 1 - MAIN".to_string()),
-            ("GUITARRA 1 - SYN5050".to_string(), "GUITARRA 1 - SYN5050".to_string()),
+            (
+                "GUITARRA 1 - MAIN".to_string(),
+                "GUITARRA 1 - MAIN".to_string()
+            ),
+            (
+                "GUITARRA 1 - SYN5050".to_string(),
+                "GUITARRA 1 - SYN5050".to_string()
+            ),
         ],
         "#928: the row names the E/S it reads from and writes to"
     );
