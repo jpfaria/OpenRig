@@ -455,6 +455,14 @@ pra uma chain fora do índice é descartada. Religar é sempre uma ativação fr
 O DI e os loopers são pipelines próprios (#717/#323) e só vão embora com
 `remove_chain`.
 
+**Switching the last chain off never waits for a build in flight (#934).**
+With nothing left running the frontend drops the controller, and with it the
+`ControlWorker`. Its drop closes the job queue and detaches the thread; it never
+joins it. Joining parked the GUI for the whole build still running (CoreAudio
+device resolve + NAM/IR load — seconds on a real rig) whenever the switch-off
+landed while the chain's activation or a live rebuild was still building: the
+freeze on toggle-off. A result nobody waits for is discarded on the worker.
+
 Um channel de um device físico só pode estar habilitado em **uma**
 chain por vez. Habilitar a segunda **falha com erro** (#833) — o comando
 é recusado e a chain segue desabilitada; ver a "Input-conflict rule"
