@@ -110,12 +110,14 @@ impl StereoProcessor for PingPongDelay {
         let [in_l, in_r] = input;
         let l_delayed = self.left_line.read();
         let r_delayed = self.right_line.read();
-        // Cross-feedback: each input enters the OPPOSITE line, and each line's
-        // output recirculates into the other — so the echo bounces L↔R.
+        // The input is summed to mid and enters ONE line only; each line's
+        // output recirculates into the other, so the echo bounces R→L→R.
+        // Feeding each input into its own line kept a centred (mono guitar)
+        // source centred forever — L == R on every echo (#938).
+        let mid = 0.5 * (in_l + in_r);
         self.right_line
-            .write(in_l + l_delayed * self.params.feedback);
-        self.left_line
-            .write(in_r + r_delayed * self.params.feedback);
+            .write(mid + l_delayed * self.params.feedback);
+        self.left_line.write(r_delayed * self.params.feedback);
         [
             mix_dry_wet(in_l, l_delayed, self.params.mix),
             mix_dry_wet(in_r, r_delayed, self.params.mix),

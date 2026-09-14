@@ -87,6 +87,62 @@ fn ping_pong_outputs_finite_values() {
     }
 }
 
+// --- Issue #938: a mono guitar (L == R) must still bounce between the sides ---
+
+/// Feed a centred (L == R) impulse, return (left_channel, right_channel).
+fn render_centred_impulse(delay: &mut PingPongDelay, len: usize) -> (Vec<f32>, Vec<f32>) {
+    let mut left = Vec::with_capacity(len);
+    let mut right = Vec::with_capacity(len);
+    for i in 0..len {
+        let frame = if i == 0 { [1.0, 1.0] } else { [0.0, 0.0] };
+        let [l, r] = delay.process_frame(frame);
+        left.push(l);
+        right.push(r);
+    }
+    (left, right)
+}
+
+fn energy(samples: &[f32]) -> f32 {
+    samples.iter().map(|s| s * s).sum()
+}
+
+#[test]
+fn ping_pong_mono_source_first_echo_lands_on_one_side_only() {
+    let time_ms = 100.0;
+    let d = (time_ms * 0.001 * SR) as usize;
+    let mut delay = ping_pong(time_ms, 0.6, 1.0);
+
+    let (left, right) = render_centred_impulse(&mut delay, 20_000);
+
+    let win = 600usize;
+    let l1 = energy(&left[d - win..d + win]);
+    let r1 = energy(&right[d - win..d + win]);
+    let (loud, quiet) = if l1 > r1 { (l1, r1) } else { (r1, l1) };
+    assert!(
+        loud > 0.0 && loud > quiet * 8.0,
+        "a centred source must echo on ONE side first, not both: L={l1:.4} R={r1:.4}"
+    );
+}
+
+#[test]
+fn ping_pong_mono_source_second_echo_switches_side() {
+    let time_ms = 100.0;
+    let d = (time_ms * 0.001 * SR) as usize;
+    let mut delay = ping_pong(time_ms, 0.6, 1.0);
+
+    let (left, right) = render_centred_impulse(&mut delay, 20_000);
+
+    let win = 600usize;
+    let first_left = energy(&left[d - win..d + win]) > energy(&right[d - win..d + win]);
+    let second = 2 * d;
+    let second_left =
+        energy(&left[second - win..second + win]) > energy(&right[second - win..second + win]);
+    assert_ne!(
+        first_left, second_left,
+        "echoes of a centred source must alternate sides"
+    );
+}
+
 #[test]
 fn ping_pong_silence_output_is_finite() {
     let mut delay = PingPongDelay::new(PingPongParams::default(), 44100.0);

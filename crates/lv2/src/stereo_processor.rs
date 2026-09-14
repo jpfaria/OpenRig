@@ -10,11 +10,16 @@ const MAX_BLOCK_SIZE: usize = 4096;
 /// Must meet rsz:minimumSize from plugin TTL (Dragonfly requires 2048).
 const ATOM_BUF_SIZE: usize = 4096;
 
-/// Stereo audio processor wrapping a loaded LV2 plugin with 2-in/2-out audio.
+/// Stereo audio processor wrapping a loaded LV2 plugin with two audio
+/// outputs and one or two audio inputs.
 ///
-/// Unlike `Lv2Processor` (mono), this connects separate L/R buffers.
+/// Unlike `Lv2Processor` (mono), this connects separate L/R output buffers.
+/// A 1-in/2-out plugin is fed the mid of the stereo frame on its single
+/// input — connecting both of its outputs to one buffer (the mono path)
+/// kept only the last one written and printed L == R (#938).
 pub struct StereoLv2Processor {
     plugin: Lv2Plugin,
+    mono_input: bool,
     in_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
     in_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
     out_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
@@ -74,11 +79,15 @@ impl StereoLv2Processor {
         atom_ports: &[usize],
         extra_out_ports: &[usize],
     ) -> Self {
-        assert!(audio_in_ports.len() == 2, "stereo requires 2 audio inputs");
+        assert!(
+            matches!(audio_in_ports.len(), 1 | 2),
+            "stereo requires 1 or 2 audio inputs"
+        );
         assert!(
             audio_out_ports.len() == 2,
             "stereo requires 2 audio outputs"
         );
+        let mono_input = audio_in_ports.len() == 1;
 
         let mut in_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut in_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
@@ -109,10 +118,12 @@ impl StereoLv2Processor {
                 audio_in_ports[0] as u32,
                 in_buf_l.as_mut_ptr() as *mut c_void,
             );
-            plugin.connect_port(
-                audio_in_ports[1] as u32,
-                in_buf_r.as_mut_ptr() as *mut c_void,
-            );
+            if !mono_input {
+                plugin.connect_port(
+                    audio_in_ports[1] as u32,
+                    in_buf_r.as_mut_ptr() as *mut c_void,
+                );
+            }
             plugin.connect_port(
                 audio_out_ports[0] as u32,
                 out_buf_l.as_mut_ptr() as *mut c_void,
@@ -134,6 +145,7 @@ impl StereoLv2Processor {
 
         Self {
             plugin,
+            mono_input,
             in_buf_l,
             in_buf_r,
             out_buf_l,
@@ -149,12 +161,20 @@ impl StereoLv2Processor {
             self.control_values[control_index] = value;
         }
     }
+
+    fn load_input(&mut self, i: usize, frame: [f32; 2]) {
+        if self.mono_input {
+            self.in_buf_l[i] = 0.5 * (frame[0] + frame[1]);
+        } else {
+            self.in_buf_l[i] = frame[0];
+            self.in_buf_r[i] = frame[1];
+        }
+    }
 }
 
 impl StereoProcessor for StereoLv2Processor {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        self.in_buf_l[0] = input[0];
-        self.in_buf_r[0] = input[1];
+        self.load_input(0, input);
         self.plugin.run(1);
         [self.out_buf_l[0], self.out_buf_r[0]]
     }
@@ -163,8 +183,7 @@ impl StereoProcessor for StereoLv2Processor {
         let len = buffer.len().min(MAX_BLOCK_SIZE);
 
         for (i, frame) in buffer[..len].iter().enumerate() {
-            self.in_buf_l[i] = frame[0];
-            self.in_buf_r[i] = frame[1];
+            self.load_input(i, *frame);
         }
 
         self.plugin.run(len as u32);

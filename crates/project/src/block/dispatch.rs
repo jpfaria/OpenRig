@@ -87,11 +87,7 @@ fn schema_from_disk_package(
         effect_type: effect_type.to_string(),
         model: package.manifest.id.clone(),
         display_name: package.manifest.display_name.clone(),
-        // Streams are ALWAYS stereo internally (CLAUDE.md invariant #5).
-        // Mono-native plugins (NAM, IR, LV2 1in/1out) run as DualMono:
-        // one instance per channel. Forcing MonoOnly here would make
-        // the engine downmix to mono, violating the stereo invariant.
-        audio_mode: block_core::ModelAudioMode::DualMono,
+        audio_mode: super::disk_audio_mode::disk_package_audio_mode(package),
         parameters,
     })
 }
@@ -166,12 +162,12 @@ fn schema_for_block_model_legacy(
         EFFECT_TYPE_PITCH => pitch_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_MODULATION => modulation_model_schema(model).map_err(|error| error.to_string()),
         x if x == block_core::EFFECT_TYPE_VST3 => {
-            let entry = vst3_host::find_vst3_plugin(model)
+            let entry = crate::block::vst3_model_id::vst3_catalog_entry(model)
                 .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
             // #780: light scan leaves entry.info.params empty; synthesise the
             // schema from the plugin's real parameters (knob / toggle / select
             // per step_count). See `block::vst3_schema`.
-            let parameters = crate::block::vst3_schema::vst3_parameters(model);
+            let parameters = crate::block::vst3_schema::vst3_parameters(entry.model_id);
             Ok(ModelParameterSchema {
                 effect_type: block_core::EFFECT_TYPE_VST3.to_string(),
                 model: model.to_string(),
