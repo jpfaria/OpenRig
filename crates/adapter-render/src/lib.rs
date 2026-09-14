@@ -15,6 +15,7 @@
 //!   capture to `args.input` (so subsequent runs reuse it via file mode
 //!   without making you play again), then push through the chain.
 
+pub mod bootstrap;
 pub mod capture;
 mod channel_layout_convert;
 pub mod cli;

@@ -37,8 +37,11 @@ follow-up.
   `render_chain` (`Command::RenderChain`, #576) — an offline render that
   applies a chain/preset YAML to a WAV and writes the processed output
   WAV via the same `adapter-render` call site as `openrig-render`. Paths
-  are local to the host; live capture stays in the binary. See
-  `docs/render.md`. Also includes `refresh_audio_devices`
+  are local to the host; live capture stays in the binary. The tool call
+  returns when the render finishes: `RenderCompleted` once the WAV exists,
+  or the render error (#938 — the bridge runs it off the frontend, so the
+  GUI tick never waits; before, the reply was an immediate `[]` and a
+  failure was never reported). See `docs/render.md`. Also includes `refresh_audio_devices`
   (`Command::RefreshAudioDevices`, #829) — re-enumerate the interfaces
   after a USB hot-swap without touching the GUI — and the Tone Doctor
   pair (#791): `diagnose_chain_tone`
@@ -103,6 +106,9 @@ follow-up.
   - `openrig://chains/{chain}/presets` — chain preset bank (JSON).
   - `openrig://plugins` — full plugin catalog (JSON).
   - `openrig://plugins/{id}` — single plugin entry by manifest id (JSON).
+    A VST3 package's manifest id (`vst3_room_reverb`) is also a valid
+    `vst3` block model — it resolves to the catalog entry scanned from the
+    package's bundle (#938).
   - `openrig://plugins/search/{query}` — case-insensitive substring
     search across `id` / `display_name` / `brand` (JSON).
   - `openrig://plugins/{id}/params` — catalog-level parameter schema

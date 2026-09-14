@@ -150,7 +150,10 @@ Builder e `audio_mode` precisam bater. Misturar = SIGSEGV ou desperdício de CPU
 | Plugin é... | Builder | `ModelAudioMode` |
 |---|---|---|
 | 1 in / 1 out | `lv2::build_lv2_processor*` com `[in], [out]` | `DualMono` ou `MonoOnly` |
-| 1 in / 2 out | `lv2::build_lv2_processor*` com `[in], [L, R]` | `MonoToStereo` |
+| 1 in / 2 out | `lv2::build_stereo_lv2_processor*` com `[in], [L, R]` (entrada recebe o mid L/R) | `MonoToStereo` |
 | 2 in / 2 out | `lv2::build_stereo_lv2_processor*` | `TrueStereo` |
+| 2 in / 1 out (sidechain) | `lv2::build_lv2_processor*` | `DualMono` |
 
 Sintoma clássico: 4 portas declarado `DualMono` → 2 portas dangling → SIGSEGV no primeiro write. Confirmar port count via TTL antes de escolher.
+
+Disk packages (`backend: lv2`) não declaram o modo à mão: `project::block::disk_audio_mode` lê as portas de áudio do TTL e aplica esta tabela (#938). Antes disso todo pacote LV2 rodava `DualMono`, e um 2in/2out saía com L == R numa guitarra mono.

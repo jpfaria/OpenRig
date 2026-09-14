@@ -12,9 +12,11 @@
 
 pub mod audio_block_methods;
 pub mod core_block_methods;
+mod disk_audio_mode;
 pub mod dispatch;
 mod grid_schema;
 mod ir_schema;
+mod lv2_bundle_ports;
 mod lv2_schema;
 pub mod manifest_labels;
 pub mod methods;
@@ -23,6 +25,7 @@ pub mod param_writer;
 pub mod port_duplication;
 pub mod select_block_methods;
 pub mod types;
+pub mod vst3_model_id;
 pub mod vst3_schema;
 
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};
