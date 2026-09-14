@@ -52,7 +52,9 @@ Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o 
 
 **Após `git push` numa branch do agente, a resposta no chat para o usuário DEVE conter — no mesmo turno, sem ser pedido — dois blocos:**
 
-1. **Comandos git literais** que o usuário copia/cola na pasta principal pra puxar a branch. Sempre os três: `git fetch && git checkout <branch> && git pull`. Mesmo que já tenha sido dito em push anterior — o usuário trabalha com vários agents em paralelo e não consegue lembrar qual branch é qual.
+1. **DOIS comandos literais, cada um no seu bloco de código, sempre os dois** — o usuário escolhe de onde rodar, e escolhe na hora:
+   - **Pasta principal** (puxar a branch e rodar pelo RustRover): `git fetch && git checkout <branch> && git pull`. Sempre os três, mesmo que já tenha sido dito em push anterior — o usuário trabalha com vários agents em paralelo e não consegue lembrar qual branch é qual.
+   - **Pasta solver** (rodar direto no clone do agente, reaproveitando o build que o agente já fez): `cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp`. Sem `--release` (é o build que já existe no workspace do agente). Faltou este bloco = handoff incompleto, mesmo com o de cima perfeito.
 2. **Checklist do que validar**, numerado, em pt-BR, ação por ação (UI flow, comando CLI, cenário de áudio). Inclui:
    - Golden path (o caminho feliz que a feature implementa).
    - Edge case que motivou a issue (o bug reproduzível ou o comportamento antigo a ser comparado).
@@ -74,8 +76,11 @@ Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o 
 ```
 ✅ Push <hash> em <branch>.
 
-   Atualizar:
+   Pasta principal:
    git fetch && git checkout feature/issue-N && git pull
+
+   Pasta solver:
+   cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp
 
    Validar:
    1. Abrir tela Chains, clicar [load preset] → picker mostra a lista

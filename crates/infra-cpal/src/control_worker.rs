@@ -24,8 +24,11 @@ type Job = Box<dyn FnOnce() + Send + 'static>;
 /// Owns the dedicated control-plane worker thread.
 ///
 /// Dropping the `ControlWorker` closes the job queue; the worker drains any
-/// already-enqueued jobs and then exits, and the drop joins it so no build
-/// outlives the controller.
+/// already-enqueued jobs and then exits ON ITS OWN. The drop never joins it:
+/// the controller is dropped on the frontend thread when the last chain is
+/// switched off, and a build still in flight (device resolve + NAM/IR load,
+/// seconds on a real rig) would park the GUI for its whole duration (#934).
+/// A result nobody waits for is simply discarded on the worker.
 pub struct ControlWorker {
     tx: Option<Sender<Job>>,
     handle: Option<JoinHandle<()>>,
@@ -82,10 +85,10 @@ impl Default for ControlWorker {
 
 impl Drop for ControlWorker {
     fn drop(&mut self) {
-        // Close the queue so the worker loop ends, then join it.
+        // Close the queue so the worker loop ends once it drains. Detach the
+        // thread instead of joining it: the frontend must never wait for a
+        // build in flight (#934).
         self.tx = None;
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
+        drop(self.handle.take());
     }
 }
