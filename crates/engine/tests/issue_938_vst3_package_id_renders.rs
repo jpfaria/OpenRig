@@ -76,7 +76,8 @@ fn vst3_block_named_by_its_package_id_renders_in_stereo() {
     let source: Vec<[f32; 2]> = (0..(SR as usize))
         .map(|n| {
             let age = (n % 24_000) as f32 / SR;
-            let s = 0.3 * (2.0 * std::f32::consts::PI * 220.0 * n as f32 / SR).sin()
+            let s = 0.3
+                * (2.0 * std::f32::consts::PI * 220.0 * n as f32 / SR).sin()
                 * (-age * 12.0).exp();
             [s, s]
         })
