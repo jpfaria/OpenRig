@@ -28,7 +28,7 @@ Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. S
 
 **Toda vez que eu terminar algo que precisa da validação do usuário (ouvido, visual, hardware, comportamento em app real), eu ESCREVO um checklist — no chat E na issue (`gh issue comment`) — sem ele pedir.** É obrigatório, é a única lista permitida no chat, e o formato é sempre:
 
-1. **DOIS comandos primeiro, cada um no seu bloco de código, sempre os dois:** pasta principal — `git fetch && git checkout {tipo}/issue-N && git pull`; pasta solver — `cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp` (roda no clone do agente, reaproveitando o build que já existe lá). Faltou um dos dois = checklist incompleto.
+1. **DOIS comandos primeiro, cada um no seu bloco de código, sempre os dois:** pasta principal — `git fetch && git checkout {tipo}/issue-N && git pull`; pasta solver — `cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp` (roda no clone do agente, reaproveitando o build que já existe lá). Faltou um dos dois = checklist incompleto. **Antes de entregar o comando do solver, a pasta `plugins` do clone TEM que apontar pro repo de plugins** (`ln -s <plugins_path> .solvers/issue-N/plugins`, ver `docs/development/gitflow.md` → "Workspace isolado"): sem isso o app do solver abre com zero plugins e toda validação de plugin falha à toa (#938).
 2. Itens ENUMERADOS em checkbox — `1. [ ]`, `2. [ ]`, … — um por linha, curtos, cada um UMA coisa a validar.
 3. **Só o que ELE precisa validar** — nunca os testes/build que eu já rodei (isso é meu, já está verde).
 
