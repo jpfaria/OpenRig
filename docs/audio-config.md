@@ -463,6 +463,19 @@ device resolve + NAM/IR load — seconds on a real rig) whenever the switch-off
 landed while the chain's activation or a live rebuild was still building: the
 freeze on toggle-off. A result nobody waits for is discarded on the worker.
 
+**A chain runtime is freed on the control worker, never on the frontend thread
+(#934).** The owner's `sample` of the hung app showed the GUI thread inside the
+LV2 `cleanup` of TAL-Filter-2 (a JUCE plugin): `kill_chain_streams` released the
+last reference to the runtime on the frontend thread. A JUCE plugin created on
+the control worker waits, on cleanup, for the message thread it was created on
+— run that cleanup on the GUI thread and it waits forever. So every door that
+lets go of a runtime (switch-off, `remove_chain`, the device-settings sync,
+`stop`, the controller's own `Drop`) silences it, closes the streams, lets the
+dsp workers exit, gathers everything still holding it (graph entries, live slots,
+builds that already landed in a pending channel) and hands the bundle to the
+worker, which drops it — the same rule the live rebuild already followed for a
+superseded runtime. Pinned by `controller_drop_nonblocking_tests.rs`.
+
 Um channel de um device físico só pode estar habilitado em **uma**
 chain por vez. Habilitar a segunda **falha com erro** (#833) — o comando
 é recusado e a chain segue desabilitada; ver a "Input-conflict rule"
