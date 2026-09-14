@@ -29,8 +29,14 @@ pub(crate) fn off_frontend_job(cmd: &Command) -> Option<Job> {
         }) => {
             let (chain_path, input_path, output_path) =
                 (chain_path.clone(), input_path.clone(), output_path.clone());
-            let (start_s, end_s, sample_rate_hz, block_size, bit_depth, tail_ms) =
-                (*start_s, *end_s, *sample_rate_hz, *block_size, *bit_depth, *tail_ms);
+            let (start_s, end_s, sample_rate_hz, block_size, bit_depth, tail_ms) = (
+                *start_s,
+                *end_s,
+                *sample_rate_hz,
+                *block_size,
+                *bit_depth,
+                *tail_ms,
+            );
             Some(Box::new(move || {
                 crate::render_handler::precheck(bit_depth, &input_path)
                     .map_err(|e| e.to_string())?;

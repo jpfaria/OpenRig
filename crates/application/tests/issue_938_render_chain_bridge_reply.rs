@@ -101,8 +101,8 @@ fn bridge_render_reply_carries_completion_after_the_wav_exists() {
     let output = dir.join("out.wav");
     write_silent_wav_48k(&input, 4_800);
 
-    let events = submit_and_wait(render_cmd(&chain, &input, &output))
-        .expect("a valid render must reply Ok");
+    let events =
+        submit_and_wait(render_cmd(&chain, &input, &output)).expect("a valid render must reply Ok");
 
     assert!(
         events
@@ -110,10 +110,7 @@ fn bridge_render_reply_carries_completion_after_the_wav_exists() {
             .any(|e| matches!(e, Event::RenderCompleted { .. })),
         "the transport must receive RenderCompleted, got {events:?}"
     );
-    assert!(
-        output.exists(),
-        "the WAV must exist when the reply arrives"
-    );
+    assert!(output.exists(), "the WAV must exist when the reply arrives");
 }
 
 #[test]

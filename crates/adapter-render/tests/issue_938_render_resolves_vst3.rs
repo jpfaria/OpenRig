@@ -37,7 +37,10 @@ fn render_builds_a_vst3_block() {
         eprintln!("[#938 VST3] OPENRIG_TEST_VST3_DIR not set — skipping");
         return;
     };
-    let plugins_root = vst3_dir.parent().expect("vst3 dir has a parent").to_path_buf();
+    let plugins_root = vst3_dir
+        .parent()
+        .expect("vst3 dir has a parent")
+        .to_path_buf();
     init_plugin_catalogs(&[plugins_root], 48_000);
 
     let dir = std::env::temp_dir().join(format!("openrig-938-render-vst3-{}", std::process::id()));
