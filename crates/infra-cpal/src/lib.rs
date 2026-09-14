@@ -230,6 +230,9 @@ mod controller_global_transport;
 #[cfg(test)]
 #[path = "controller_disable_kills_streams_tests.rs"]
 mod controller_disable_kills_streams_tests;
+#[cfg(test)]
+#[path = "controller_drop_nonblocking_tests.rs"]
+mod controller_drop_nonblocking_tests;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 mod controller_pause_chain_tests;
 #[cfg(test)]

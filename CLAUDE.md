@@ -28,15 +28,15 @@ Antes de mandar a mensagem: se tem 3+ frases ou qualquer tabela/header, corta. S
 
 **Toda vez que eu terminar algo que precisa da validação do usuário (ouvido, visual, hardware, comportamento em app real), eu ESCREVO um checklist — no chat E na issue (`gh issue comment`) — sem ele pedir.** É obrigatório, é a única lista permitida no chat, e o formato é sempre:
 
-1. O comando de atualização primeiro, num bloco de código: `git fetch && git checkout {tipo}/issue-N && git pull`.
+1. **DOIS comandos primeiro, cada um no seu bloco de código, sempre os dois:** pasta principal — `git fetch && git checkout {tipo}/issue-N && git pull`; pasta solver — `cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp` (roda no clone do agente, reaproveitando o build que já existe lá). Faltou um dos dois = checklist incompleto.
 2. Itens ENUMERADOS em checkbox — `1. [ ]`, `2. [ ]`, … — um por linha, curtos, cada um UMA coisa a validar.
 3. **Só o que ELE precisa validar** — nunca os testes/build que eu já rodei (isso é meu, já está verde).
 
 O mesmo checklist vai no `gh issue comment` da issue. Sem prosa em volta: o comando + os checkboxes, nada mais.
 
-**Why:** ele precisa do checklist toda entrega e cansou de pedir; sem o comando de checkout + os checkboxes ele não consegue puxar e validar rápido. Uma resposta de "9 frases" NÃO é checklist — checkbox é checkbox.
+**Why:** ele precisa do checklist toda entrega e cansou de pedir; sem os dois comandos + os checkboxes ele não consegue puxar e validar rápido — e ele escolhe na hora se valida pela pasta principal (RustRover) ou direto no solver (#934: entregue só o comando da pasta principal, ele teve que pedir o outro). Uma resposta de "9 frases" NÃO é checklist — checkbox é checkbox.
 
-**How to apply:** terminou algo que depende da validação dele → antes de responder, montar o bloco (comando + `- [ ]`), colar no chat e mandar `gh issue comment` com o mesmo. Se não precisa de validação dele (pergunta, diagnóstico, WIP), não força checklist.
+**How to apply:** terminou algo que depende da validação dele → antes de responder, montar o bloco (os dois comandos + `- [ ]`), colar no chat e mandar `gh issue comment` com o mesmo. Se não precisa de validação dele (pergunta, diagnóstico, WIP), não força checklist.
 
 ## LEI ZERO — PERGUNTA CURTA E OBJETIVA, SEMPRE
 

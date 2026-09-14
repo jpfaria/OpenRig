@@ -84,12 +84,9 @@ impl ProjectRuntimeController {
                 .collect::<Vec<_>>();
             for chain_id in removed_chain_ids {
                 log::info!("removing chain '{}' from runtime", chain_id.0);
-                if let Some(runtime) = self.runtime_graph.runtime_for_chain(&chain_id) {
-                    runtime.set_draining();
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                }
-                self.active_chains.remove(&chain_id);
-                self.runtime_graph.remove_chain(&chain_id);
+                // #934: same door as a switch-off — the runtime is freed on
+                // the worker, never on this thread.
+                self.kill_chain_streams(&chain_id);
             }
 
             // #716 (invariant #4): two ACTIVE chains may not share the same
