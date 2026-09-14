@@ -280,23 +280,64 @@ impl ProjectRuntimeController {
             owned.activations_in_flight,
             owned.rebuilds_in_flight,
         );
-        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
+        // Silence first, then close the device streams — their callbacks stop
+        // with them. The drain sleep comes AFTER the close so the dsp workers
+        // behind the input streams (polling their stop flag) have exited and
+        // let go of their slot handle before the runtime is handed over.
+        for runtime in self.runtime_graph.runtimes_for(chain_id) {
             runtime.set_draining();
-            std::thread::sleep(std::time::Duration::from_millis(50));
         }
         self.active_chains.remove(chain_id);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        // #934: the runtime dies on the control worker, never on this (the
+        // frontend) thread. A plugin built on the worker — the JUCE LV2s —
+        // waits on cleanup for the thread it was created on; run that cleanup
+        // here and the GUI waits forever (the owner's TAL-Filter-2 freeze).
+        // Everything that still holds the runtime is gathered BEFORE this
+        // thread lets go of its own references, so the last one is released
+        // on the worker: the graph entries, the slots the streams were
+        // reading, and a build that already landed in a pending channel.
+        let mut runtimes = self.runtime_graph.runtimes_for(chain_id);
         self.runtime_graph.remove_chain(chain_id);
+        let dead_slots: Vec<_> = self
+            .chain_slots
+            .keys()
+            .filter(|(id, _)| id == chain_id)
+            .cloned()
+            .collect();
+        let slots: Vec<_> = dead_slots
+            .iter()
+            .filter_map(|key| self.chain_slots.remove(key))
+            .collect();
         // #881: a build that was already in flight for this chain must not land
         // afterwards. It would republish a runtime into the slots (and, for an
         // activation, open a second set of streams) behind the caller's back —
         // two graphs processing the same input, which is heard as a doubled,
         // delayed signal until the project is reopened. Dropping the receivers
-        // cancels them; the worker's result is discarded when it arrives.
-        self.pending_activations.retain(|(id, _, _)| id != chain_id);
-        self.pending_rebuilds.retain(|(id, _)| id != chain_id);
-        // The slots the dropped streams were reading. Keeping them alive holds
-        // the old runtime and lets a later publish resurrect it.
-        self.chain_slots.retain(|(id, _), _| id != chain_id);
+        // cancels them; a result that arrives later is discarded on the worker
+        // (the send fails there), and one that already arrived goes with the
+        // rest of the chain to the worker.
+        let (cancelled_activations, kept): (Vec<_>, Vec<_>) =
+            std::mem::take(&mut self.pending_activations)
+                .into_iter()
+                .partition(|(id, _, _)| id == chain_id);
+        self.pending_activations = kept;
+        for (_, _, rx) in cancelled_activations {
+            if let Ok(Ok((landed, _))) = rx.try_recv() {
+                runtimes.extend(landed.into_iter().map(|(_, rt)| rt));
+            }
+        }
+        let (cancelled_rebuilds, kept): (Vec<_>, Vec<_>) =
+            std::mem::take(&mut self.pending_rebuilds)
+                .into_iter()
+                .partition(|(id, _)| id == chain_id);
+        self.pending_rebuilds = kept;
+        for (_, rx) in cancelled_rebuilds {
+            if let Ok(Ok(landed)) = rx.try_recv() {
+                runtimes.extend(landed.into_iter().map(|(_, rt)| rt));
+            }
+        }
+        let _ = self.worker.submit(move || drop((runtimes, slots)));
     }
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
@@ -308,10 +349,27 @@ impl ProjectRuntimeController {
         self.forget_chain_looper_streams(chain_id);
     }
 
+    /// #934: the whole rig's runtimes leave through the worker as well —
+    /// stopping the rig or closing the project drops the controller on the
+    /// frontend thread, and every chain runtime (and its plugins) with it.
+    fn hand_runtimes_to_worker(&mut self) {
+        let runtimes: Vec<_> = self
+            .runtime_graph
+            .chains
+            .drain()
+            .map(|(_, rt)| rt)
+            .collect();
+        let slots: Vec<_> = self.chain_slots.drain().map(|(_, slot)| slot).collect();
+        if runtimes.is_empty() && slots.is_empty() {
+            return;
+        }
+        let _ = self.worker.submit(move || drop((runtimes, slots)));
+    }
+
     pub fn stop(&mut self) {
         log::info!("stopping project runtime controller");
         self.active_chains.clear();
-        self.runtime_graph.chains.clear();
+        self.hand_runtimes_to_worker();
         self.streams.clear();
         // NOTE: supervisor.client_count is NOT decremented here. The
         // supervisor's register_client / unregister_client API is unused on
@@ -356,5 +414,23 @@ impl ProjectRuntimeController {
         if let Some(rt) = runtime {
             rt.clear_draining();
         }
+    }
+}
+
+impl Drop for ProjectRuntimeController {
+    /// #934: the frontend thread drops the controller (rig stopped, project
+    /// closed, last chain switched off) — the chain runtimes must not die
+    /// with it here. Same dance as `kill_chain_streams`: silence, close the
+    /// streams, let the dsp workers exit, then hand what is left to the
+    /// worker, which outlives this drop and frees it off the frontend.
+    fn drop(&mut self) {
+        for runtime in self.runtime_graph.chains.values() {
+            runtime.set_draining();
+        }
+        if !self.active_chains.is_empty() {
+            self.active_chains.clear();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        self.hand_runtimes_to_worker();
     }
 }
