@@ -177,7 +177,7 @@ pub fn build_from_package(
         // (an internal sidechain, which is what the plugin does with its own
         // sidechain switch off). Refusing the shape bypassed the block, so the
         // owner's compressor never ran.
-        (1, 1) | (1, 2) | (2, 1) => build_mono_input(
+        (1, 1) | (2, 1) => build_mono_input(
             &lib_str,
             &plugin_uri,
             sr,
@@ -186,7 +186,7 @@ pub fn build_from_package(
             layout,
             &package.manifest.id,
         )?,
-        (2, 2) => build_stereo_input(
+        (1, 2) | (2, 2) => build_stereo_input(
             &lib_str,
             &plugin_uri,
             sr,

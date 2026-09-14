@@ -286,11 +286,11 @@ pub(crate) fn build_core_block_runtime_node(
             )?,
         )),
         x if x == block_core::EFFECT_TYPE_VST3 => {
-            let entry = vst3_host::find_vst3_plugin(model)
+            let entry = project::block::vst3_model_id::vst3_catalog_entry(model)
                 .ok_or_else(|| anyhow!("VST3 plugin '{}' not found in catalog", model))?;
             let bundle_path = entry.info.bundle_path.clone();
             // Resolve UID lazily if not available from moduleinfo.json.
-            let uid = vst3_host::resolve_uid_for_model(model)
+            let uid = vst3_host::resolve_uid_for_model(entry.model_id)
                 .map_err(|e| anyhow!("VST3 UID resolution failed for '{}': {}", model, e))?;
             // Convert stored params (path="p{id}") to VST3 normalized pairs.
             // Each value maps by widget type — knob(Float %)/toggle(Bool)/
@@ -326,7 +326,7 @@ pub(crate) fn build_core_block_runtime_node(
             .map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
             let param_channel = vst3_host::register_vst3_gui_context(
                 &block.id.0,
-                model,
+                entry.model_id,
                 plugin.controller_clone(),
                 plugin.library_arc(),
             );

@@ -8,6 +8,14 @@ processed result to an output WAV. No GUI, no MCP, no MIDI. Same
 chain rendered offline is byte-identical to what the live rig would
 emit for the same input samples.
 
+Before loading the chain the binary fills the same model catalogs the GUI
+does (`adapter_render::bootstrap::init_plugin_catalogs`): native models,
+disk packages under the plugins roots, and the VST3 bundles in them. The
+VST3 scan was missing until #938, so every VST3 block failed with "not
+found in catalog". A VST3 block may name the plugin by its catalog id
+(`vst3:{bundle}:{class}`) or by the package id `openrig://plugins` lists
+(`vst3_room_reverb`).
+
 Built for the audio-validation pipeline (`openrig-tone-analyzer` skill,
 OpenRig-claude#8): you record a DI once, the renderer applies whatever
 chain we built, the analyzer compares the result to the original song.

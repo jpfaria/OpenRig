@@ -13,6 +13,7 @@ pub mod app_config_persist;
 pub mod audio_taps;
 pub mod block_factory;
 pub mod bridge;
+mod bridge_off_frontend;
 pub mod chain_factory;
 pub mod command;
 pub mod command_schema;
