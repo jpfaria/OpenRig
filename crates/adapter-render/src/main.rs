@@ -17,12 +17,6 @@ fn main() -> ExitCode {
         }
     };
 
-    // Populate the model registries before loading the chain. Mirrors the
-    // GUI bootstrap in adapter-gui::desktop_app — without this, disk-package
-    // models (NAM captures, IR cabs, LV2 plugins) aren't visible to the
-    // schema lookup, and the preset loader silently drops every block that
-    // references one. Issue #552.
-    engine::native_registry::register_all_natives();
     // Same `config.yaml` lookup the GUI uses (CWD-first so dev runs see the
     // checked-in `plugins_root`; falls back to the bundled data root, which
     // is where the .app/.deb/.msi installers drop their config next to the
@@ -38,7 +32,7 @@ fn main() -> ExitCode {
         }
     };
     let user_root = plugin_loader::plugins_root_from_config(&config_path);
-    plugin_loader::registry::init_many(&[bundled_root, user_root]);
+    adapter_render::bootstrap::init_plugin_catalogs(&[bundled_root, user_root], args.sample_rate_hz);
 
     match render(&args) {
         Ok(summary) => {

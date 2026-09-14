@@ -33,9 +33,15 @@ pub struct CommandBridge {
 
 impl CommandBridge {
     /// Queue a command. Returns a oneshot receiver that resolves once the
-    /// frontend drains and dispatches it. Never blocks.
+    /// frontend drains and dispatches it — or, for a command that needs no
+    /// project state (`RenderChain`), once it finishes on its own task (#938).
+    /// Never blocks.
     pub fn submit(&self, cmd: Command) -> oneshot::Receiver<DispatchOutcome> {
         let (reply, rx) = oneshot::channel();
+        if let Some(job) = crate::bridge_off_frontend::off_frontend_job(&cmd) {
+            crate::bridge_off_frontend::spawn_with_reply(job, reply);
+            return rx;
+        }
         // If the frontend is gone the receiver simply never resolves; the
         // transport layer applies its own request timeout.
         let _ = self.tx.send(BridgeRequest { cmd, reply });

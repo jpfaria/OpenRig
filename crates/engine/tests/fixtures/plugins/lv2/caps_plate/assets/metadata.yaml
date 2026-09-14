@@ -1,0 +1,9 @@
+i18n:
+  en-US:
+    description: CAPS Plate — plate reverb with warm, dense tail.
+    license: GPL-2.0
+    homepage: http://quitte.de/dsp/caps.html
+  pt-BR:
+    description: CAPS Plate — reverb de placa com cauda densa e quente.
+    license: GPL-2.0
+    homepage: http://quitte.de/dsp/caps.html

@@ -95,6 +95,16 @@ cd .solvers/issue-{N} && git fetch origin
 # branch existe? checkout. não existe? checkout release/vX.Y.Z && pull && checkout -b feature/issue-{N}
 ```
 
+**Sempre apontar a pasta de plugins ao montar o workspace.** `plugins` fica fora da cópia (e do git) e o clone não tem `config.yaml`, então um app aberto de `.solvers/issue-{N}` (`cargo run -p adapter-gui`, `openrig-render`) carrega **zero** pacotes de plugin e nenhum VST3 do repo de plugins — qualquer validação que envolva NAM/IR/LV2/VST3 dá "not found" e parece bug do código (#938). Logo depois de montar:
+
+```bash
+# plugins_path = o valor de `paths.plugins_path` do config do sistema (openrig://paths)
+ln -s <plugins_path> .solvers/issue-{N}/plugins
+echo "/plugins" >> .solvers/issue-{N}/.git/info/exclude   # o link não aparece no git status
+```
+
+Conferir no log de abertura do app: `plugin catalog ready: … (N native, M disk package(s))` com `M > 0`.
+
 Depois do merge, a entrega só termina com os três passos — nenhum deles é automático:
 
 1. **Fechar a issue** com o milestone atribuído antes (ver [Fechar issue](#fechar-issue)) — o merge numa `release/vX.Y.Z` não fecha nada sozinho.
