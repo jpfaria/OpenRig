@@ -140,8 +140,8 @@ asks for them by activating both; we don't second-guess.
 5. The Phase 2 parser will reject unknown slots and malformed shapes
    at load time, before the profile ever ships.
 
-There's a forthcoming `openrig-midi-profile-builder` skill in the
-`openrig` plugin (Phase 8) that walks you through this interactively.
+The `openrig:midi-profile-builder` skill in the
+`openrig` plugin walks you through this interactively.
 
 ## Currently shipped profiles
 
