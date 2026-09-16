@@ -162,11 +162,11 @@ Layout there:
 .claude-plugin/plugin.json        # plugin manifest
 .claude-plugin/marketplace.json   # marketplace entry (source ".")
 .mcp.json                         # declares the MCP server (http://127.0.0.1:4123)
-skills/openrig-tone-builder/      # end-user skill, bundled with the plugin
+skills/tone-builder/              # end-user skill, bundled with the plugin
 ```
 
 Installing the plugin auto-wires the MCP server (via `.mcp.json`) and ships
-the `openrig-tone-builder` skill — no manual client config.
+the `openrig:tone-builder` skill — no manual client config.
 
 ### Claude Code
 
@@ -178,7 +178,7 @@ the `openrig-tone-builder` skill — no manual client config.
 Then start OpenRig with the server on: `openrig --mcp`. The plugin's
 `.mcp.json` points the client at `http://127.0.0.1:4123`; the client lists one
 tool per `Command`, the `openrig://*` resources listed in the
-[Surface](#surface) section, and the prompts. The `openrig-tone-builder` skill activates when you ask for an
+[Surface](#surface) section, and the prompts. The `openrig:tone-builder` skill activates when you ask for an
 artist/song tone and drives the rig through the tools.
 
 ### Claude Desktop
