@@ -35,6 +35,21 @@ pub fn export_chain_loops(runtime: &Runtime, chain: &Chain) -> Option<Vec<(u64, 
     )
 }
 
+/// #948: the mixdown of every loop of `chain` sounding right now, for the Tone
+/// Doctor — the body of `RuntimeControl::playing_chain_loops`.
+pub(crate) fn playing_chain_loops(runtime: &Runtime, chain: &Chain) -> Vec<Arc<LoopPcm>> {
+    let borrow = runtime.borrow();
+    let Some(controller) = borrow.as_ref() else {
+        return Vec::new();
+    };
+    let rate = controller.sample_rate();
+    controller
+        .playing_looper_takes(&chain.id)
+        .into_iter()
+        .map(|pcm| Arc::new(LoopPcm::new(pcm, rate)))
+        .collect()
+}
+
 /// #323: the restore as runtime creation asks for it — every path that brings a
 /// controller up calls this, and a project that was never saved to disk has no
 /// sidecar wavs to give back.

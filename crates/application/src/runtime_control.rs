@@ -412,6 +412,15 @@ pub trait RuntimeControl {
         None
     }
 
+    /// #948: the mixdown of every loop of `chain` that is SOUNDING right now —
+    /// the Tone Doctor's second source, after the live guitars. Same handle
+    /// rule as [`Self::export_chain_loops`]: the samples are shared, not copied.
+    /// Empty when no loop plays or no looper store is hosted.
+    fn playing_chain_loops(&self, chain: &Chain) -> Vec<Arc<LoopPcm>> {
+        let _ = chain;
+        Vec::new()
+    }
+
     // ── the frontend's own tick (#127, Task 15) ─────────────────────────
     //
     // The two doors below are the exception to "a `RuntimeControl` method is

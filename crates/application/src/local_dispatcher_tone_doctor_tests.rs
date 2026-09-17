@@ -288,3 +288,94 @@ fn diagnosing_without_any_signal_source_errors() {
         "the error must say there is no signal to analyse: {err}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// #948: the source order is live guitars → looper → DI, first one sounding.
+// ─────────────────────────────────────────────────────────────────────────
+
+fn silence() -> Vec<[f32; 2]> {
+    vec![[0.0f32; 2]; SR as usize]
+}
+
+fn attach_live(d: &LocalDispatcher, frames: fn() -> Vec<[f32; 2]>) {
+    d.attach_tone_doctor_input(Box::new(move |_chain, _seconds| {
+        Some(Box::new(move || Some((frames(), SR))))
+    }));
+}
+
+/// A runtime whose only playing loop carries `frames` (interleaved stereo).
+struct PlayingLoop(fn() -> Vec<[f32; 2]>);
+
+impl crate::runtime_control::RuntimeControl for PlayingLoop {
+    fn playing_chain_loops(&self, _chain: &Chain) -> Vec<std::sync::Arc<engine::LoopPcm>> {
+        let interleaved: Vec<f32> = (self.0)().into_iter().flatten().collect();
+        vec![std::sync::Arc::new(engine::LoopPcm::new(
+            interleaved,
+            SR as u32,
+        ))]
+    }
+}
+
+fn attach_looper(d: &LocalDispatcher, frames: fn() -> Vec<[f32; 2]>) {
+    d.attach_runtime_control(Rc::new(PlayingLoop(frames)));
+}
+
+fn load_di(d: &LocalDispatcher, frames: fn() -> Vec<[f32; 2]>) {
+    let mono: Vec<f32> = frames().into_iter().map(|f| f[0]).collect();
+    d.di_loop_state.borrow_mut().insert(
+        ChainId("chain:1".into()),
+        (
+            crate::di_loader::DiLoopSource::Bundled("test".into()),
+            std::sync::Arc::new(engine::DiPcm::new(mono, SR as u32, 1)),
+        ),
+    );
+}
+
+fn run_state(d: &LocalDispatcher) -> String {
+    let chain = ChainId("chain:1".into());
+    d.dispatch(Command::ToneDoctor(ToneDoctorCommand::DiagnoseChainTone {
+        chain: chain.clone(),
+        genre: None,
+        seconds: None,
+    }))
+    .expect("DiagnoseChainTone dispatches");
+    drain(&d);
+    d.tone_report_json(&chain)
+}
+
+#[test]
+fn a_playing_loop_is_analysed_when_the_guitars_are_silent() {
+    let (d, _project) = dispatcher_with_chain();
+    attach_live(&d, silence);
+    attach_looper(&d, sine);
+    let state = run_state(&d);
+    assert!(
+        state.contains("\"state\":\"ok\""),
+        "#948: the looper is playing, so the doctor must analyse it: {state}"
+    );
+}
+
+#[test]
+fn a_sounding_guitar_wins_over_a_loaded_di() {
+    let (d, _project) = dispatcher_with_chain();
+    attach_live(&d, sine);
+    load_di(&d, silence);
+    let state = run_state(&d);
+    assert!(
+        state.contains("\"state\":\"ok\""),
+        "#948: guitars come before the DI — the silent DI must not be analysed: {state}"
+    );
+}
+
+#[test]
+fn a_loaded_di_is_analysed_when_nothing_else_sounds() {
+    let (d, _project) = dispatcher_with_chain();
+    attach_live(&d, silence);
+    attach_looper(&d, silence);
+    load_di(&d, sine);
+    let state = run_state(&d);
+    assert!(
+        state.contains("\"state\":\"ok\""),
+        "#948: with silent guitars and loops the DI is next: {state}"
+    );
+}

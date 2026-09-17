@@ -218,3 +218,27 @@ fn a_loop_belongs_to_one_chain_only() {
         "a loop belongs to the chain it was created on"
     );
 }
+
+/// #948: the Tone Doctor reads the loops that are SOUNDING — a stopped loop is
+/// not what the player hears, so it is not a source.
+#[test]
+fn only_a_playing_loop_hands_its_take_to_the_tone_doctor() {
+    let chain = chain_with_looper("doctor");
+    let c = controller_for(&chain, &registry());
+    assert!(c.playing_looper_takes(&chain.id).is_empty(), "no loop yet");
+
+    record_and_close(&c, &chain);
+    let takes = c.playing_looper_takes(&chain.id);
+    assert_eq!(takes.len(), 1, "the playing loop is offered");
+    assert_eq!(
+        Some(&takes[0]),
+        c.export_chain_looper(&chain.id, UID).as_ref(),
+        "as the mixdown that plays"
+    );
+
+    c.looper_stop(&chain.id, UID);
+    assert!(
+        c.playing_looper_takes(&chain.id).is_empty(),
+        "a stopped loop is not a source"
+    );
+}

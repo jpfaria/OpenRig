@@ -99,6 +99,8 @@ pub mod snapshot;
 /// #791: the Tone Doctor's verdict as transport-agnostic data + the commands
 /// that apply its measured fix.
 pub mod tone_doctor_report;
+/// #948: which signal the Tone Doctor analyses, and how it is assembled.
+pub mod tone_doctor_source;
 mod tool_names;
 
 pub use selection_state::SelectionState;
