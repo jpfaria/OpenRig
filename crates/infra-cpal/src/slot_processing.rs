@@ -69,11 +69,17 @@ pub(crate) fn slots_for_output_stream(
     slots: &[(usize, LiveRuntimeSlot)],
     output_devices_by_input_cpal: &[Vec<String>],
     output_device_id: &str,
+    output_index: usize,
 ) -> Vec<LiveRuntimeSlot> {
     slots
         .iter()
         .filter(|(group, slot)| {
-            let cpal = slot.load().input_cpal_index().unwrap_or(*group);
+            let runtime = slot.load();
+            // #947: a runtime that writes nothing to this output is not its stream.
+            if !runtime.writes_output(output_index) {
+                return false;
+            }
+            let cpal = runtime.input_cpal_index().unwrap_or(*group);
             match output_devices_by_input_cpal.get(cpal) {
                 Some(devs) => devs.iter().any(|d| d == output_device_id),
                 None => true,
@@ -115,6 +121,10 @@ pub fn process_output_buffer(
     }
     process_output_f32_mixed(loaded, output_index, out, output_total_channels, scratch);
 }
+
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+#[path = "issue_947_output_stream_route_owner_tests.rs"]
+mod issue_947_output_stream_route_owner_tests;
 
 // `slots_for_output_stream` is cfg'd out under Linux+JACK (#755); gate its tests
 // the same way so the crate compiles there (JACK routes in its own supervisor).
@@ -179,7 +189,7 @@ mod issue_743_output_rate_isolation_tests {
             vec!["outD".to_string()],
         ];
         for dev in ["outA", "outB", "outC", "outD"] {
-            let mixed = slots_for_output_stream(&slots, &map, dev);
+            let mixed = slots_for_output_stream(&slots, &map, dev, 0);
             assert_eq!(
                 mixed.len(),
                 1,
@@ -195,6 +205,6 @@ mod issue_743_output_rate_isolation_tests {
         // rate, the legitimate backend sum, not cross-stream leakage.
         let slots: Vec<(usize, LiveRuntimeSlot)> = vec![(0, pipe(48_000.0)), (1, pipe(48_000.0))];
         let map = vec![vec!["shared".to_string()], vec!["shared".to_string()]];
-        assert_eq!(slots_for_output_stream(&slots, &map, "shared").len(), 2);
+        assert_eq!(slots_for_output_stream(&slots, &map, "shared", 0).len(), 2);
     }
 }

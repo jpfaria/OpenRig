@@ -155,6 +155,9 @@ fn two_input_blocks_must_not_share_output_routes_arc() {
                 "runtimes #{i} and #{j} share output_routes Vec Arc — violates isolation invariant"
             );
             for (k, (route0, route1)) in r0.iter().zip(r1.iter()).enumerate() {
+                let (Some(route0), Some(route1)) = (route0, route1) else {
+                    continue;
+                };
                 assert!(
                     !Arc::ptr_eq(route0, route1),
                     "runtimes #{i}/#{j} share OutputRoutingState Arc at index {k}"
@@ -234,9 +237,11 @@ fn each_output_route_buffer_has_exactly_one_producer() {
         .iter()
         .flat_map(|r| {
             let routes = r.output_routes.load_full();
-            (0..routes.len())
-                .map(|i| {
-                    let r = routes[i].clone();
+            routes
+                .iter()
+                .flatten()
+                .map(|route| {
+                    let r = route.clone();
                     let p: *const _ = &r.buffer;
                     p
                 })

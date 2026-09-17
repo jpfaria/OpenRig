@@ -36,9 +36,12 @@ pub struct ChainRuntimeState {
     /// Written once at graph assembly, before the state is shared.
     pub(crate) owned_entry: Option<(usize, usize)>,
     pub(crate) processing: Mutex<ChainProcessingState>,
-    /// Per-route output state. Swapped atomically on chain rebuild so the
-    /// RT callback sees a fresh snapshot without taking any lock.
-    pub(crate) output_routes: ArcSwap<Vec<Arc<OutputRoutingState>>>,
+    /// Per-route output state, indexed by the chain's output entry. `None`
+    /// where this runtime writes no segment to that output (#947: the other
+    /// binding's output on a multi-binding chain) — no buffer exists there.
+    /// Swapped atomically on chain rebuild so the RT callback sees a fresh
+    /// snapshot without taking any lock.
+    pub(crate) output_routes: ArcSwap<Vec<Option<Arc<OutputRoutingState>>>>,
     /// Stream handles published by block processors, polled by UI thread.
     pub(crate) stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
     /// Errors posted by the audio thread, drained by the UI thread.
@@ -189,6 +192,13 @@ impl ChainRuntimeState {
     /// `None` for whole-chain runtimes (probe, offline render, JACK).
     pub fn input_cpal_index(&self) -> Option<usize> {
         self.owned_entry.map(|(_, cpal_idx)| cpal_idx)
+    }
+
+    /// #947: whether this runtime writes the chain output `output_index` —
+    /// only then does it own a route there, and only then may that output's
+    /// stream hold it.
+    pub fn writes_output(&self, output_index: usize) -> bool {
+        matches!(self.output_routes.load().get(output_index), Some(Some(_)))
     }
 
     /// Signal the audio callback to stop processing blocks.

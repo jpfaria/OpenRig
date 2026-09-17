@@ -93,6 +93,7 @@ pub fn build_routed_di_runtime(
         let routes = runtime.output_routes.load();
         let route = routes
             .get(output_index)
+            .and_then(Option::as_ref)
             .ok_or_else(|| anyhow!("chain has no output route {output_index}"))?;
         let left = route.output_channels.first().copied().unwrap_or(0);
         let right = route.output_channels.get(1).copied().unwrap_or(left);

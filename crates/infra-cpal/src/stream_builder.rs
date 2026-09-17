@@ -112,6 +112,7 @@ pub(crate) fn build_chain_streams(
             &slots,
             &resolved.output_devices_by_input_cpal,
             &resolved_output.device_id,
+            j,
         );
         // #808: chain output NEVER drains the DI cell — the DI has its OWN
         // isolated stream (invariant #4; the shared cell was the "picotando").

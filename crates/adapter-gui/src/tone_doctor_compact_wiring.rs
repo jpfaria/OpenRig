@@ -7,66 +7,23 @@
 //! this issue). The verdict comes back as `Event::ChainToneDiagnosed` on the
 //! frontend drain and lands on the panel via `tone_doctor_events`.
 //!
-//! Signal source, gated (the user's rule "a DI must be running OR the chain
-//! must be active"): the dispatcher prefers the chain's loaded DI loop and
-//! falls back to the live input this module registers. Neither → the command
-//! errors and the panel says there is nothing to analyse. The measurement is
+//! Signal source (#948, the owner's order): the dispatcher analyses the first
+//! one sounding of the live guitars (summed), the playing loops, then the loaded
+//! DI loop. None of them → the command errors and the panel says there is
+//! nothing to analyse. The measurement is
 //! ALWAYS the chain output (the whole tone); the user picks the window length
 //! (N seconds) in the panel.
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 
-use application::audio_taps::{AudioTap, AudioTaps, TapPoint};
+use application::audio_taps::AudioTaps;
 use application::command::{Command, ToneDoctorCommand};
 use slint::{ComponentHandle, Weak};
 
 use crate::helpers::set_status_error;
 use crate::state::ProjectSession;
 use crate::{AppWindow, CompactChainViewWindow, ToneDoctorState};
-
-/// Record up to `seconds` of the mono input tap, broadcast to stereo frames.
-/// Polls the lock-free subscription; the player should be playing during the
-/// window.
-fn record(tap: Arc<dyn AudioTap>, sr: f32, seconds: usize) -> Vec<[f32; 2]> {
-    let target = seconds * sr as usize;
-    let mut mono: Vec<f32> = Vec::with_capacity(target);
-    let start = Instant::now();
-    let deadline = Duration::from_secs(seconds as u64 + 2);
-    while mono.len() < target && start.elapsed() < deadline {
-        let want = target - mono.len();
-        if tap.drain_channel(0, want, &mut mono) == 0 {
-            std::thread::sleep(Duration::from_millis(15));
-        }
-    }
-    mono.into_iter().map(|s| [s, s]).collect()
-}
-
-/// Give the dispatcher a way to capture this machine's live input, so a chain
-/// with no DI is diagnosable from any transport, not just from the GUI.
-/// Subscribing happens on the calling thread; only the fill blocks — which is
-/// why the subscription (not the authority that issues it) is what crosses
-/// into the `Send` capture closure.
-fn attach_live_input(session: &ProjectSession, taps: &Rc<dyn AudioTaps>) {
-    let taps = Rc::clone(taps);
-    session
-        .dispatcher
-        .attach_tone_doctor_input(Box::new(move |chain_id, seconds| {
-            let sr = taps.live_sample_rate();
-            let tap = taps.subscribe(
-                &TapPoint::StreamInput {
-                    chain: chain_id.clone(),
-                    stream: 0,
-                },
-                seconds * sr as usize,
-            )?;
-            Some(Box::new(move || {
-                Some((record(tap, sr as f32, seconds), sr as f32))
-            }))
-        }));
-}
 
 /// Genres from the calibrated table matching `query` (case-insensitive
 /// substring; empty/blank = all), in table order. Public for testing.
@@ -123,12 +80,6 @@ fn start_run(st: &ToneDoctorState, session: &ProjectSession, chain_index: i32) {
     let genre = st.get_tone_genre();
     let genre = (!genre.is_empty()).then(|| genre.to_string());
 
-    // Which source the dispatcher will use, for the panel's label.
-    let has_di = session
-        .dispatcher
-        .di_loop_source_for_chain(&chain)
-        .is_some();
-    st.set_source_kind(if has_di { "di".into() } else { "live".into() });
     st.set_running(true);
 
     match session
@@ -234,7 +185,7 @@ pub(crate) fn wire(
             };
             // Re-registered per run so a device change (new runtime) is picked
             // up without restarting the app.
-            attach_live_input(session, &taps);
+            crate::tone_doctor_live_input::attach_live_input(session, &taps);
             start_run(&st, session, chain_index);
         });
     }
@@ -284,7 +235,7 @@ pub(crate) fn wire_main(
                 st.set_running(false);
                 return;
             };
-            attach_live_input(session, &taps);
+            crate::tone_doctor_live_input::attach_live_input(session, &taps);
             start_run(&st, session, ci);
         });
     }

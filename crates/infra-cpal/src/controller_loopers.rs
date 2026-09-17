@@ -226,6 +226,22 @@ impl ProjectRuntimeController {
         self.looper_store.borrow().edit_history_depth(chain_id, uid)
     }
 
+    /// #948: the recorded mixdown (interleaved stereo, at [`Self::sample_rate`])
+    /// of every loop of `chain_id` that is sounding right now — what the Tone
+    /// Doctor analyses when the guitars are silent.
+    pub fn playing_looper_takes(&self, chain_id: &ChainId) -> Vec<Vec<f32>> {
+        self.chain_looper_statuses(chain_id)
+            .into_iter()
+            .filter(|status| {
+                matches!(
+                    status.state,
+                    LooperState::Playing | LooperState::Overdubbing
+                )
+            })
+            .filter_map(|status| self.export_chain_looper(chain_id, status.uid))
+            .collect()
+    }
+
     /// Whether the loop is currently sounding — the `PlayStop` toggle reads this.
     pub fn looper_is_playing(&self, chain_id: &ChainId, uid: u64) -> bool {
         matches!(

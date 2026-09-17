@@ -211,17 +211,21 @@ fn update_chain_runtime_state_impl(
     // endpoint (or an explicit queue reset) still gets a fresh route.
     let rebuild_has_convolution = crate::elastic_prime::chain_has_convolution(chain);
     let old_output_routes = runtime.output_routes.load();
-    let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
+    let new_output_routes: Vec<Option<Arc<OutputRoutingState>>> = effective_outs
         .iter()
         .enumerate()
         .map(|(route_idx, o)| {
+            // #947: a route exists only for an output this runtime writes.
+            if !crate::runtime_graph_assemble::route_is_written(&segments, route_idx) {
+                return None;
+            }
+            let old_route = old_output_routes.get(route_idx).and_then(Option::as_ref);
             let base = target_for_route(elastic_targets, route_idx);
             let lockstep_target =
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
             // #85: keep the route on its own device's rate across a rebuild —
             // the old route knows it, and a rebuild never changes a device.
-            let route_rate = old_output_routes
-                .get(route_idx)
+            let route_rate = old_route
                 .map(|old| old.sample_rate)
                 .unwrap_or_else(|| runtime.sample_rate());
             // …and keep its DEEPER cushion too. Rebuilding a cross-rate route
@@ -234,12 +238,12 @@ fn update_chain_runtime_state_impl(
                 runtime.sample_rate(),
             );
             if !reset_output_queue {
-                if let Some(old) = old_output_routes.get(route_idx) {
+                if let Some(old) = old_route {
                     if old.output_channels == o.channels
                         && old.buffer.layout() == output_entry_layout(o)
                         && old.buffer.target_level() == target
                     {
-                        return Arc::clone(old);
+                        return Some(Arc::clone(old));
                     }
                 }
             }
@@ -256,10 +260,10 @@ fn update_chain_runtime_state_impl(
                 prime = prime.max(target - lockstep_target);
             }
             let fresh = build_output_routing_state(o, target, prime, route_rate);
-            if let Some(old) = old_output_routes.get(route_idx) {
+            if let Some(old) = old_route {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
             }
-            Arc::new(fresh)
+            Some(Arc::new(fresh))
         })
         .collect();
 
@@ -346,7 +350,9 @@ fn update_chain_runtime_state_impl(
     if !reset_output_queue {
         let old_routes = runtime.output_routes.load();
         for (new_route, old_route) in new_output_routes.iter().zip(old_routes.iter()) {
-            new_route.buffer.seed_last_frame_from(&old_route.buffer);
+            if let (Some(new_route), Some(old_route)) = (new_route, old_route) {
+                new_route.buffer.seed_last_frame_from(&old_route.buffer);
+            }
         }
     }
     runtime.output_routes.store(Arc::new(new_output_routes));
