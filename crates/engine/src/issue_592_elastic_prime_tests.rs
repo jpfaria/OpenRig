@@ -87,7 +87,11 @@ fn chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
 fn first_output_buffer_len(chain: &Chain, buffer: usize) -> usize {
     let rt =
         build_chain_runtime_state(chain, SR, &[buffer], &registry()).expect("chain runtime builds");
-    rt.output_routes.load()[0].buffer.len()
+    rt.output_routes.load()[0]
+        .as_ref()
+        .expect("route 0")
+        .buffer
+        .len()
 }
 
 #[test]
@@ -135,17 +139,25 @@ fn ir_chain_rebuild_preserves_cushion_without_repriming() {
         build_chain_runtime_state(&conv_chain, SR, &[64], &registry()).expect("initial build"),
     );
     // Drain part of the initial prime so "preserved" and "re-primed" differ.
-    let before_route = &rt.output_routes.load()[0];
+    let before_route = rt.output_routes.load()[0].clone().expect("route 0");
     for _ in 0..100 {
         let _ = before_route.buffer.pop();
     }
-    let before_edit = rt.output_routes.load()[0].buffer.len();
+    let before_edit = rt.output_routes.load()[0]
+        .as_ref()
+        .expect("route 0")
+        .buffer
+        .len();
     assert!(
         before_edit > 0,
         "test setup: drained prime should remain > 0"
     );
     update_chain_runtime_state(&rt, &conv_chain, SR, false, &[64], &registry()).expect("rebuild");
-    let after_edit = rt.output_routes.load()[0].buffer.len();
+    let after_edit = rt.output_routes.load()[0]
+        .as_ref()
+        .expect("route 0")
+        .buffer
+        .len();
     assert_eq!(
         after_edit, before_edit,
         "a rebuild/edit must PRESERVE the output buffer exactly — no re-prime \

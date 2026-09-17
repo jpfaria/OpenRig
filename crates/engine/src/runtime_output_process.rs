@@ -33,9 +33,10 @@ pub fn process_output_f32(
 
     // Snapshot the current routes via ArcSwap — no lock on the RT thread.
     let routes = runtime.output_routes.load();
+    // #947: no route here = this runtime does not write that output.
     let route = match routes.get(output_index) {
-        Some(r) => r,
-        None => {
+        Some(Some(r)) => r,
+        _ => {
             out.fill(0.0);
             return;
         }

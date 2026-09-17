@@ -52,6 +52,7 @@ impl ChainRuntimeState {
             .load()
             .iter()
             .enumerate()
+            .filter_map(|(route, state)| state.as_ref().map(|state| (route, state)))
             .map(|(route, state)| {
                 let peak = f32::from_bits(state.peak_bits.swap(0, Ordering::Relaxed));
                 OutputRouteStats {

@@ -635,6 +635,17 @@ Settings live in **system** config (`config.yaml`), per ADR 0003; `enabled` is n
 
 On the Linux JACK build the dedicated cpal stream is `cfg`-guarded off, matching how `build_di_output_stream` handles the same case.
 
+## One output route per stream (#947)
+
+A chain on several bindings builds one runtime per binding. Each runtime owns
+an output route **only for the outputs its own segments write** — never for
+another binding's output — and each output device stream holds only the
+runtimes that write that output. Before #947 every runtime carried a route for
+every chain output; with two guitars on one interface, each output stream
+popped the other guitar's never-written route empty on every frame, which
+counted millions of underruns and lit the chain's overload LED as soon as it
+started.
+
 ## Multi-rate streams (#736)
 
 Two interfaces running at **different sample rates at the same time, in the
