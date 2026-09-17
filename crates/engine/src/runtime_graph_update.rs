@@ -233,9 +233,11 @@ fn update_chain_runtime_state_impl(
                 route_rate,
                 runtime.sample_rate(),
             );
+            let fed = crate::runtime_graph_assemble::route_is_fed(&segments, route_idx);
             if !reset_output_queue {
                 if let Some(old) = old_output_routes.get(route_idx) {
-                    if old.output_channels == o.channels
+                    if old.fed == fed
+                        && old.output_channels == o.channels
                         && old.buffer.layout() == output_entry_layout(o)
                         && old.buffer.target_level() == target
                     {
@@ -255,7 +257,7 @@ fn update_chain_runtime_state_impl(
                 // The cross-rate depth only helps if it is actually filled.
                 prime = prime.max(target - lockstep_target);
             }
-            let fresh = build_output_routing_state(o, target, prime, route_rate);
+            let fresh = build_output_routing_state(o, target, prime, route_rate, fed);
             if let Some(old) = old_output_routes.get(route_idx) {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
             }

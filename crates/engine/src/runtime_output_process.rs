@@ -33,9 +33,11 @@ pub fn process_output_f32(
 
     // Snapshot the current routes via ArcSwap — no lock on the RT thread.
     let routes = runtime.output_routes.load();
+    // #947: a route this runtime never writes is not its stream — popping it
+    // would only count an underrun per frame.
     let route = match routes.get(output_index) {
-        Some(r) => r,
-        None => {
+        Some(r) if r.fed => r,
+        _ => {
             out.fill(0.0);
             return;
         }

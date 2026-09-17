@@ -166,6 +166,7 @@ pub(crate) fn assemble_chain_runtime_state(
             target,
             prime_frames,
             route_rate,
+            route_is_fed(segments, route_idx),
         )));
     }
 
@@ -376,11 +377,24 @@ pub(crate) fn output_entry_layout(output: &OutputEntry) -> AudioChannelLayout {
     }
 }
 
+/// #947: whether any of these segments writes route `route_idx` — at its tail
+/// or through a mid `Output` tap.
+pub(crate) fn route_is_fed(segments: &[ChainSegment], route_idx: usize) -> bool {
+    segments.iter().any(|segment| {
+        segment.output_route_indices.contains(&route_idx)
+            || segment
+                .mid_output_taps
+                .iter()
+                .any(|tap| tap.route_idx == route_idx)
+    })
+}
+
 pub(crate) fn build_output_routing_state(
     output: &OutputEntry,
     elastic_target: usize,
     prime_frames: usize,
     sample_rate: f32,
+    fed: bool,
 ) -> OutputRoutingState {
     let output_layout = output_entry_layout(output);
     let buffer = ElasticBuffer::new(elastic_target, output_layout);
@@ -395,6 +409,7 @@ pub(crate) fn build_output_routing_state(
         output_mixdown: ChainOutputMixdown::Average,
         buffer,
         sample_rate,
+        fed,
         callbacks: AtomicU64::new(0),
         peak_bits: std::sync::atomic::AtomicU32::new(0),
     }
