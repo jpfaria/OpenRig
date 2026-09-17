@@ -293,7 +293,7 @@ pub fn process_input_f32(
     // Snapshot current output routes via ArcSwap — no lock.
     let routes = runtime.output_routes.load();
     for route_idx in scratch.mixed_per_route.keys() {
-        if let Some(arc) = routes.get(*route_idx) {
+        if let Some(Some(arc)) = routes.get(*route_idx) {
             scratch.route_arcs.push((*route_idx, Arc::clone(arc)));
         }
     }
