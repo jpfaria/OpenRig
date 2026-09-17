@@ -177,6 +177,9 @@ fn same_device_runtimes_must_not_share_output_routes_arc() {
                 "same-device runtimes #{i} and #{j} share output_routes Vec Arc"
             );
             for (k, (route0, route1)) in r0.iter().zip(r1.iter()).enumerate() {
+                let (Some(route0), Some(route1)) = (route0, route1) else {
+                    continue;
+                };
                 assert!(
                     !Arc::ptr_eq(route0, route1),
                     "same-device runtimes #{i}/#{j} share OutputRoutingState Arc at index {k}"

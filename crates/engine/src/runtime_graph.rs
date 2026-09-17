@@ -420,3 +420,7 @@ mod issue_736_per_binding_rate_tests;
 #[cfg(test)]
 #[path = "issue_592_elastic_prime_tests.rs"]
 mod issue_592_elastic_prime_tests;
+
+#[cfg(test)]
+#[path = "issue_947_routes_owned_by_their_stream_tests.rs"]
+mod issue_947_routes_owned_by_their_stream_tests;

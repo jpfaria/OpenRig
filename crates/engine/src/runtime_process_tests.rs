@@ -17,7 +17,7 @@ fn process_input_limits_buffered_output_frames() {
     process_input_f32(&runtime, 0, &input, 1);
 
     let routes = runtime.output_routes.load();
-    assert!(routes[0].buffer.len() <= DEFAULT_ELASTIC_TARGET * 2);
+    assert!(routes[0].as_ref().expect("route 0").buffer.len() <= DEFAULT_ELASTIC_TARGET * 2);
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn process_output_drains_buffered_frames() {
 
     assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
     let routes = runtime.output_routes.load();
-    assert_eq!(routes[0].buffer.len(), 0);
+    assert_eq!(routes[0].as_ref().expect("route 0").buffer.len(), 0);
 }
 
 #[test]

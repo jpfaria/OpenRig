@@ -137,8 +137,14 @@ pub(crate) fn assemble_chain_runtime_state(
         }
     }
 
-    let mut output_routes: Vec<Arc<OutputRoutingState>> = Vec::with_capacity(eff_outputs.len());
+    let mut output_routes: Vec<Option<Arc<OutputRoutingState>>> =
+        Vec::with_capacity(eff_outputs.len());
     for (route_idx, output) in eff_outputs.iter().enumerate() {
+        // #947: a route exists only for an output these segments write.
+        if !route_is_written(segments, route_idx) {
+            output_routes.push(None);
+            continue;
+        }
         let base = target_for_route(elastic_targets, route_idx);
         let target = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
         let prime_frames =
@@ -161,13 +167,12 @@ pub(crate) fn assemble_chain_runtime_state(
         } else {
             (target, prime_frames)
         };
-        output_routes.push(Arc::new(build_output_routing_state(
+        output_routes.push(Some(Arc::new(build_output_routing_state(
             output,
             target,
             prime_frames,
             route_rate,
-            route_is_fed(segments, route_idx),
-        )));
+        ))));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -379,7 +384,7 @@ pub(crate) fn output_entry_layout(output: &OutputEntry) -> AudioChannelLayout {
 
 /// #947: whether any of these segments writes route `route_idx` — at its tail
 /// or through a mid `Output` tap.
-pub(crate) fn route_is_fed(segments: &[ChainSegment], route_idx: usize) -> bool {
+pub(crate) fn route_is_written(segments: &[ChainSegment], route_idx: usize) -> bool {
     segments.iter().any(|segment| {
         segment.output_route_indices.contains(&route_idx)
             || segment
@@ -394,7 +399,6 @@ pub(crate) fn build_output_routing_state(
     elastic_target: usize,
     prime_frames: usize,
     sample_rate: f32,
-    fed: bool,
 ) -> OutputRoutingState {
     let output_layout = output_entry_layout(output);
     let buffer = ElasticBuffer::new(elastic_target, output_layout);
@@ -409,7 +413,6 @@ pub(crate) fn build_output_routing_state(
         output_mixdown: ChainOutputMixdown::Average,
         buffer,
         sample_rate,
-        fed,
         callbacks: AtomicU64::new(0),
         peak_bits: std::sync::atomic::AtomicU32::new(0),
     }

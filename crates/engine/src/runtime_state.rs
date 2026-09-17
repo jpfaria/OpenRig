@@ -149,11 +149,6 @@ pub(crate) struct OutputRoutingState {
     /// below 48), and then the producer resamples into this route or its
     /// elastic buffer starves ~8 % of the time — the crackle.
     pub(crate) sample_rate: f32,
-    /// #947: whether any segment of THIS runtime writes this route. A chain on
-    /// several bindings gives every per-binding runtime a route for each chain
-    /// output, but a runtime only feeds its own binding's; the output callback
-    /// skips an unfed route instead of popping it empty on every frame.
-    pub(crate) fed: bool,
     /// #923: output callbacks served on this route since it was built —
     /// whether the device stream that owns it ever pulled. Fed by
     /// `process_output_f32`, read by [`crate::runtime_output_route_stats`].

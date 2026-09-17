@@ -96,6 +96,7 @@ impl ChainRuntimeState {
         self.output_routes
             .load()
             .iter()
+            .flatten()
             .map(|route| route.buffer.underrun_count())
             .sum()
     }
