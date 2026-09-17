@@ -38,7 +38,7 @@ component EditorButton inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
         text: root.label;
-        font-size: 13px;
+        font-size: Theme.min-font;
         color: root.enabled ? Theme.palette.text-primary : Theme.palette.text-muted;
     }
 
@@ -92,7 +92,7 @@ export component LooperEditorOverlay inherits Rectangle {
                 Text {
                     text: @tr("looper-editor-title");
                     color: Theme.palette.text-primary;
-                    font-size: 15px;
+                    font-size: Theme.min-font;
                     font-weight: 700;
                 }
 
@@ -103,7 +103,7 @@ export component LooperEditorOverlay inherits Rectangle {
                     vertical-alignment: center;
                     text: LooperEditor.length-label;
                     color: Theme.palette.text-muted;
-                    font-size: 12px;
+                    font-size: Theme.min-font;
                 }
             }
 
@@ -198,7 +198,7 @@ export component LooperEditorOverlay inherits Rectangle {
                 color: LooperEditor.status-code == 2
                     ? #ffb454
                     : Theme.palette.text-muted;
-                font-size: 12px;
+                font-size: Theme.min-font;
             }
         }
     }

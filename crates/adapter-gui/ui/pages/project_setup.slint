@@ -24,7 +24,7 @@ component SetupButton inherits Rectangle {
         color: #f4f7fb;
         horizontal-alignment: center;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 600;
     }
 
@@ -56,7 +56,7 @@ component NameInput inherits Rectangle {
         text: @tr("placeholder-project-name-example");
         color: #555d6a;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
     }
 
     input := TextInput {
@@ -68,7 +68,7 @@ component NameInput inherits Rectangle {
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         edited => {
             root.text = self.text;
             root.changed(self.text);
@@ -165,7 +165,7 @@ export component ProjectSetupPage inherits Rectangle {
             text: @tr("label-project-name");
             color: #8d95a2;
             vertical-alignment: center;
-            font-size: 12px;
+            font-size: 18px;
             font-weight: 600;
         }
 
@@ -195,7 +195,7 @@ export component ProjectSetupPage inherits Rectangle {
             text: root.status-message;
             color: #ff6b6b;
             vertical-alignment: center;
-            font-size: 11px;
+            font-size: 18px;
         }
 
         // Buttons

@@ -23,7 +23,7 @@ component LauncherButton inherits Rectangle {
         color: #f4f7fb;
         horizontal-alignment: center;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 600;
     }
 
@@ -76,7 +76,7 @@ component IconLauncherButton inherits Rectangle {
             height: parent.height;
             text: root.tooltip;
             color: #eef2f8;
-            font-size: 10px;
+            font-size: 18px;
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -123,7 +123,7 @@ component RecentProjectRow inherits Rectangle {
         height: 24px;
         text: root.title;
         color: #f1f4f8;
-        font-size: 14px;
+        font-size: 18px;
         font-weight: 600;
         vertical-alignment: center;
     }
@@ -135,7 +135,7 @@ component RecentProjectRow inherits Rectangle {
         height: 18px;
         text: root.subtitle;
         color: #8d95a2;
-        font-size: 12px;
+        font-size: 18px;
         vertical-alignment: center;
     }
 
@@ -185,7 +185,7 @@ component SearchField inherits Rectangle {
         text: @tr("placeholder-search-projects");
         color: #858d99;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
     }
 
     TextInput {
@@ -197,7 +197,7 @@ component SearchField inherits Rectangle {
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         edited => {
             root.text = self.text;
             root.changed(self.text);
@@ -313,7 +313,7 @@ export component ProjectLauncherPage inherits Rectangle {
         height: 20px;
         text: "v" + root.app-version;
         color: #4a5060;
-        font-size: 10px;
+        font-size: 18px;
         horizontal-alignment: right;
         vertical-alignment: center;
     }

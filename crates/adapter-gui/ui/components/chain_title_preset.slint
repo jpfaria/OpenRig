@@ -63,7 +63,7 @@ component SceneBtn inherits Rectangle {
         height: parent.height;
         text: root.idx;
         color: root.active ? #ffffff : #aeb6c2;
-        font-size: 14px;
+        font-size: Theme.min-font;
         font-weight: 800;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -160,7 +160,7 @@ export component ChainTitlePreset inherits Rectangle {
                 height: parent.height;
                 text: root.title;
                 color: title-ta.has-hover ? #ffffff : #f1f4f8;
-                font-size: 14px;
+                font-size: Theme.min-font;
                 font-weight: 600;
                 vertical-alignment: center;
             }
@@ -279,7 +279,7 @@ export component ChainTitlePreset inherits Rectangle {
                 Text {
                     text: @tr("Rename preset");
                     color: #8a94a2;
-                    font-size: 12px;
+                    font-size: Theme.min-font;
                 }
                 Rectangle {
                     height: 32px;
@@ -294,7 +294,7 @@ export component ChainTitlePreset inherits Rectangle {
                         height: parent.height;
                         text <=> root.rename-draft;
                         single-line: true;
-                        font-size: 14px;
+                        font-size: Theme.min-font;
                         color: #f1f4f8;
                         vertical-alignment: center;
                         accepted => {
@@ -316,7 +316,7 @@ export component ChainTitlePreset inherits Rectangle {
                         Text {
                             text: @tr("Cancel");
                             color: #c5cbd6;
-                            font-size: 12px;
+                            font-size: Theme.min-font;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -337,7 +337,7 @@ export component ChainTitlePreset inherits Rectangle {
                         Text {
                             text: @tr("OK");
                             color: #ffffff;
-                            font-size: 12px;
+                            font-size: Theme.min-font;
                             font-weight: 700;
                             horizontal-alignment: center;
                             vertical-alignment: center;

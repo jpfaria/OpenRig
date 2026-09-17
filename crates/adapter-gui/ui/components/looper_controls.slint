@@ -63,7 +63,7 @@ export component LooperSlider inherits Rectangle {
         vertical-alignment: center;
         text: root.label;
         color: Theme.palette.text-muted;
-        font-size: 12px;
+        font-size: Theme.min-font;
     }
 
     track := Rectangle {
@@ -125,7 +125,7 @@ export component LooperSlider inherits Rectangle {
         horizontal-alignment: right;
         text: root.value + "%";
         color: Theme.palette.text-secondary;
-        font-size: 12px;
+        font-size: Theme.min-font;
     }
 
     accessible-role: slider;
@@ -152,7 +152,7 @@ export component LooperSegmented inherits Rectangle {
         vertical-alignment: center;
         text: root.label;
         color: Theme.palette.text-muted;
-        font-size: 12px;
+        font-size: Theme.min-font;
     }
 
     HorizontalLayout {
@@ -171,7 +171,7 @@ export component LooperSegmented inherits Rectangle {
                 color: index == root.selected-index
                     ? Theme.palette.text-primary
                     : Theme.palette.text-muted;
-                font-size: 12px;
+                font-size: Theme.min-font;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }

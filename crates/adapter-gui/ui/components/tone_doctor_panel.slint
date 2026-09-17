@@ -25,12 +25,12 @@ component MeasureRow inherits Rectangle {
     Text {
         x: 0; y: 0; text: root.name;
         color: root.over ? #ff6b6b : #7fe0a8;
-        font-size: 12px; font-weight: 800;
+        font-size: 18px; font-weight: 800;
     }
     Text {
         x: parent.width - 110px; y: 0; width: 110px;
         horizontal-alignment: right; text: root.value-text;
-        color: #eef2f8; font-size: 12px; font-weight: 700;
+        color: #eef2f8; font-size: 18px; font-weight: 700;
     }
     track := Rectangle {
         x: 0; y: 20px; width: parent.width; height: 11px;
@@ -60,7 +60,7 @@ component SecondsChip inherits Rectangle {
         horizontal-alignment: center; vertical-alignment: center;
         text: "\{root.value}s";
         color: root.selected ? #dfe6f2 : #8a94a2;
-        font-size: 12px; font-weight: 700;
+        font-size: 18px; font-weight: 700;
     }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.picked(root.value); } }
 }
@@ -107,13 +107,13 @@ export component ToneDoctorPanel inherits Rectangle {
     }
     Text {
         x: 38px; y: 12px; height: 18px; text: @tr("tone-doctor-title");
-        color: #f1f4f8; font-size: 15px; font-weight: 700; vertical-alignment: center;
+        color: #f1f4f8; font-size: 18px; font-weight: 700; vertical-alignment: center;
     }
 
     // ── seconds selector ───────────────────────────────────────────────────
     Text {
         x: 12px; y: 42px; height: 26px; text: @tr("tone-doctor-analyze");
-        color: #8a94a2; font-size: 11px; font-weight: 700; vertical-alignment: center;
+        color: #8a94a2; font-size: 18px; font-weight: 700; vertical-alignment: center;
     }
     HorizontalLayout {
         x: 116px; y: 42px; width: 232px; height: 26px; spacing: 6px;
@@ -127,7 +127,7 @@ export component ToneDoctorPanel inherits Rectangle {
     // Picks the calibrated limits the doctor judges against; "" = defaults.
     Text {
         x: 12px; y: 78px; height: 38px; text: @tr("tone-doctor-genre");
-        color: #8a94a2; font-size: 11px; font-weight: 700; vertical-alignment: center;
+        color: #8a94a2; font-size: 18px; font-weight: 700; vertical-alignment: center;
     }
     Select {
         x: 116px; y: 76px; width: 232px;
@@ -137,7 +137,7 @@ export component ToneDoctorPanel inherits Rectangle {
         placeholder: @tr("tone-doctor-genre-default");
         search-placeholder: @tr("tone-doctor-genre-search");
         empty-text: @tr("tone-doctor-genre-none");
-        field-font-size: 13px; field-font-weight: 700;
+        field-font-size: 18px; field-font-weight: 700;
         popup-width: 232px;
         picked(key) => { ToneDoctorState.tone-genre = key; }
         opened => { ToneDoctorState.genre-query(""); }
@@ -161,7 +161,7 @@ export component ToneDoctorPanel inherits Rectangle {
                   : root.has-result ? @tr("tone-doctor-rerun")
                   : @tr("tone-doctor-diagnose");
             color: !root.can-diagnose ? #6b7686 : root.running ? #8a94a2 : #dfe6f2;
-            font-size: !root.can-diagnose ? 12px : 14px; font-weight: 700;
+            font-size: 18px; font-weight: 700;
         }
         diag-ta := TouchArea {
             mouse-cursor: (root.can-diagnose && !root.running) ? pointer : default;
@@ -204,11 +204,11 @@ export component ToneDoctorPanel inherits Rectangle {
             x: 34px; y: 6px; width: parent.width - 46px; height: parent.height - 12px; spacing: 1px;
             Text {
                 text: root.symptom-text; color: root.light-color;
-                font-size: 13px; font-weight: 700; vertical-alignment: center; overflow: elide;
+                font-size: 18px; font-weight: 700; vertical-alignment: center; overflow: elide;
             }
             Text {
                 text: root.culprit-label; color: #aab4c2;
-                font-size: 11px; vertical-alignment: center; overflow: elide;
+                font-size: 18px; vertical-alignment: center; overflow: elide;
             }
         }
     }
@@ -219,11 +219,11 @@ export component ToneDoctorPanel inherits Rectangle {
         border-radius: 6px; background: #0a0d12; border-width: 1px; border-color: #2b3340;
         Text {
             x: 12px; y: 10px; width: parent.width - 24px; height: 16px;
-            text: @tr("tone-doctor-suggestion"); color: #8a94a2; font-size: 11px; font-weight: 700;
+            text: @tr("tone-doctor-suggestion"); color: #8a94a2; font-size: 18px; font-weight: 700;
         }
         Text {
             x: 12px; y: 28px; width: parent.width - 96px; height: 24px;
-            text: root.suggestion-text; color: #f1f4f8; font-size: 15px; font-weight: 700;
+            text: root.suggestion-text; color: #f1f4f8; font-size: 18px; font-weight: 700;
             vertical-alignment: center; overflow: elide;
         }
         Rectangle {
@@ -233,7 +233,7 @@ export component ToneDoctorPanel inherits Rectangle {
             Text {
                 width: parent.width; height: parent.height;
                 horizontal-alignment: center; vertical-alignment: center;
-                text: @tr("tone-doctor-apply"); color: #06110b; font-size: 13px; font-weight: 700;
+                text: @tr("tone-doctor-apply"); color: #06110b; font-size: 18px; font-weight: 700;
             }
             apply-ta := TouchArea { mouse-cursor: pointer; clicked => { root.apply-suggestion(); } }
             accessible-role: button;

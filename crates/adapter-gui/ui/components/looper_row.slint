@@ -137,7 +137,7 @@ export component LooperRow inherits Rectangle {
                 : root.looper.state_code == 4 ? @tr("looper-state-stopped")
                 : @tr("looper-state-empty");
             color: root.state-color;
-            font-size: 12px;
+            font-size: Theme.min-font;
             font-weight: 600;
             overflow: elide;
         }
@@ -151,7 +151,7 @@ export component LooperRow inherits Rectangle {
             horizontal-alignment: right;
             text: root.looper.time_label;
             color: Theme.palette.text-muted;
-            font-size: 12px;
+            font-size: Theme.min-font;
         }
 
         Rectangle {
@@ -229,7 +229,7 @@ export component LooperRow inherits Rectangle {
                 vertical-alignment: center;
                 text: @tr("looper-preset");
                 color: Theme.palette.text-muted;
-                font-size: 12px;
+                font-size: Theme.min-font;
             }
 
             Rectangle {
@@ -256,7 +256,7 @@ export component LooperRow inherits Rectangle {
                     color: root.looper.preset_index > 0
                         ? Theme.palette.text-primary
                         : Theme.palette.text-muted;
-                    font-size: 12px;
+                    font-size: Theme.min-font;
                     overflow: elide;
                 }
 
@@ -268,7 +268,7 @@ export component LooperRow inherits Rectangle {
                     horizontal-alignment: center;
                     text: "▸";
                     color: Theme.palette.text-muted;
-                    font-size: 11px;
+                    font-size: Theme.min-font;
                 }
 
                 preset-ta := TouchArea {
@@ -317,7 +317,7 @@ export component LooperRow inherits Rectangle {
                     color: root.looper.reverse
                         ? Theme.palette.text-primary
                         : Theme.palette.text-muted;
-                    font-size: 12px;
+                    font-size: Theme.min-font;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }

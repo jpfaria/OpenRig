@@ -73,7 +73,7 @@ component ChannelPickerRow inherits Rectangle {
             color: root.channel.available
                 ? (root.channel.selected ? #fafafa : #a1a1aa)
                 : #52525b;
-            font-size: 14px;
+            font-size: 18px;
             font-weight: root.channel.selected ? 600 : 400;
             vertical-alignment: center;
             overflow: elide;
@@ -125,7 +125,7 @@ export component ChannelPicker inherits Rectangle {
             Text {
                 text: @tr("label-channels-selected");
                 color: #71717a;
-                font-size: 12px;
+                font-size: 18px;
                 vertical-alignment: center;
             }
             for ch in root.channels : Rectangle {
@@ -146,7 +146,7 @@ export component ChannelPicker inherits Rectangle {
                         Text {
                             text: ch.label;
                             color: #60a5fa;
-                            font-size: 12px;
+                            font-size: 18px;
                             font-weight: 600;
                             vertical-alignment: center;
                         }
@@ -159,7 +159,7 @@ export component ChannelPicker inherits Rectangle {
             Text {
                 text: @tr("label-channels-total", root.channels.length);
                 color: #52525b;
-                font-size: 12px;
+                font-size: 18px;
                 vertical-alignment: center;
             }
         }
@@ -168,7 +168,7 @@ export component ChannelPicker inherits Rectangle {
             height: root.list-height;
             text: root.empty-hint;
             color: #52525b;
-            font-size: 12px;
+            font-size: 18px;
             vertical-alignment: center;
         }
 

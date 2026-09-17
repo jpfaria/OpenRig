@@ -39,7 +39,8 @@ export component BlockStreamMiniDisplay inherits Rectangle {
                 x: 0; y: 2px; width: parent.width; height: 12px;
                 text: entry.key;
                 color: #506070;
-                font-size: 7px; font-weight: 700; letter-spacing: 1px;
+                font-size: 18px;
+                font-weight: 700; letter-spacing: 1px;
                 horizontal-alignment: center;
             }
 
@@ -47,7 +48,7 @@ export component BlockStreamMiniDisplay inherits Rectangle {
                 x: 0; y: 14px; width: parent.width; height: parent.height - 32px;
                 text: entry.text;
                 color: entry.value > 0.5 ? #29df85 : root.panel-text;
-                font-size: entry.text.character-count <= 3 ? 28px : 14px;
+                font-size: entry.text.character-count <= 3 ? 28px : 18px;
                 font-weight: 900;
                 horizontal-alignment: center;
                 vertical-alignment: center;

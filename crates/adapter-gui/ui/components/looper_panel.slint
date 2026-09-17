@@ -78,7 +78,7 @@ export component LooperPanelView inherits Rectangle {
         y: 14px;
         text: @tr("looper-panel-title");
         color: Theme.palette.text-primary;
-        font-size: 15px;
+        font-size: Theme.min-font;
         font-weight: 700;
     }
 
@@ -133,7 +133,7 @@ export component LooperPanelView inherits Rectangle {
             vertical-alignment: center;
             text: @tr("looper-add");
             color: #dbe4ff;
-            font-size: 12px;
+            font-size: Theme.min-font;
             font-weight: 600;
         }
 
@@ -159,7 +159,7 @@ export component LooperPanelView inherits Rectangle {
         Text {
             text: @tr("looper-empty-title");
             color: Theme.palette.text-secondary;
-            font-size: 13px;
+            font-size: Theme.min-font;
             font-weight: 600;
             horizontal-alignment: center;
         }
@@ -167,7 +167,7 @@ export component LooperPanelView inherits Rectangle {
         Text {
             text: @tr("looper-empty-hint");
             color: Theme.palette.text-muted;
-            font-size: 12px;
+            font-size: Theme.min-font;
             horizontal-alignment: center;
             wrap: word-wrap;
         }

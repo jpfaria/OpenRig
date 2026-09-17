@@ -287,7 +287,7 @@ export component TouchMain inherits Rectangle {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(num); }
                     }
-                    Text { text: num; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: num; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 1: QWERTY (lowercase/uppercase based on shift)
@@ -301,7 +301,7 @@ export component TouchMain inherits Rectangle {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
                     }
-                    Text { text: key; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: key; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 2: ASDFGHJKL
@@ -315,7 +315,7 @@ export component TouchMain inherits Rectangle {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
                     }
-                    Text { text: key; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: key; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 3: Shift + ZXCVBNM + Backspace
@@ -330,7 +330,7 @@ export component TouchMain inherits Rectangle {
                         mouse-cursor: pointer;
                         clicked => { root.kb-shift = !root.kb-shift; }
                     }
-                    Text { text: "⇧"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "⇧"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 for key in root.kb-row3 : Rectangle {
                     horizontal-stretch: 1;
@@ -340,7 +340,7 @@ export component TouchMain inherits Rectangle {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
                     }
-                    Text { text: key; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: key; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 // Backspace key
                 Rectangle {
@@ -351,7 +351,7 @@ export component TouchMain inherits Rectangle {
                         mouse-cursor: pointer;
                         clicked => { root.virtual-key-pressed("⌫"); }
                     }
-                    Text { text: "⌫"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "⌫"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
             // Row 4: - . ⎵ ⏎
@@ -362,14 +362,14 @@ export component TouchMain inherits Rectangle {
                     border-radius: 4px;
                     background: dash-area.has-hover ? #3c7ded : #2d2e32;
                     dash-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("-"); } }
-                    Text { text: "-"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "-"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle {
                     horizontal-stretch: 1;
                     border-radius: 4px;
                     background: dot-area.has-hover ? #3c7ded : #2d2e32;
                     dot-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("."); } }
-                    Text { text: "."; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "."; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle {
                     horizontal-stretch: 4;
@@ -383,7 +383,7 @@ export component TouchMain inherits Rectangle {
                     border-radius: 4px;
                     background: enter-area.has-hover ? #4a88f0 : #3c7ded;
                     enter-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("⏎"); } }
-                    Text { text: "⏎"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "⏎"; font-size: Theme.min-font; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
                 }
             }
         }

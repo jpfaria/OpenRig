@@ -83,7 +83,7 @@ export component DiLoopPanel inherits Rectangle {
             height: parent.height;
             text: root.selected-source;
             color: #f1f4f8;
-            font-size: 15px;
+            font-size: Theme.min-font;
             font-weight: 700;
             vertical-alignment: center;
             overflow: elide;
@@ -134,7 +134,7 @@ export component DiLoopPanel inherits Rectangle {
             height: parent.height;
             text: root.selected-output;
             color: #f1f4f8;
-            font-size: 15px;
+            font-size: Theme.min-font;
             font-weight: 700;
             vertical-alignment: center;
             overflow: elide;
@@ -216,7 +216,7 @@ export component DiLoopPanel inherits Rectangle {
                 height: parent.height;
                 text: src;
                 color: #f1f4f8;
-                font-size: 15px;
+                font-size: Theme.min-font;
                 font-weight: i == root.selected-index ? 800 : 600;
                 vertical-alignment: center;
                 overflow: elide;
@@ -261,7 +261,7 @@ export component DiLoopPanel inherits Rectangle {
                 height: parent.height;
                 text: out;
                 color: #f1f4f8;
-                font-size: 15px;
+                font-size: Theme.min-font;
                 font-weight: i == root.output-selected-index ? 800 : 600;
                 vertical-alignment: center;
                 overflow: elide;

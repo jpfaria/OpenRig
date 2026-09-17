@@ -46,7 +46,7 @@ component ChannelCheck inherits Rectangle {
         height: parent.height;
         text: root.channel.label;
         color: root.channel.selected ? #edf2f9 : #8a95a5;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: root.channel.selected ? 600 : 400;
         vertical-alignment: center;
         overflow: elide;
@@ -95,7 +95,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
         Text {
             text: @tr("label-endpoint-device");
             color: #8a92a3;
-            font-size: 13px;
+            font-size: 18px;
             width: 70px;
             vertical-alignment: center;
         }
@@ -115,7 +115,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
         Text {
             text: @tr("label-endpoint-mode");
             color: #8a92a3;
-            font-size: 13px;
+            font-size: 18px;
             width: 50px;
             horizontal-alignment: right;
             vertical-alignment: center;
@@ -138,7 +138,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
         Text {
             text: @tr("label-endpoint-channels");
             color: #8a92a3;
-            font-size: 13px;
+            font-size: 18px;
             width: 70px;
             vertical-alignment: center;
         }
@@ -172,7 +172,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
                 Text {
                     text: @tr("btn-add-endpoint");
                     color: root.can-add ? #ffffff : #3d4450;
-                    font-size: 13px;
+                    font-size: 18px;
                     font-weight: 600;
                     vertical-alignment: center;
                 }

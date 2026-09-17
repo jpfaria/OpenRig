@@ -21,7 +21,7 @@ component FooterButton inherits Rectangle {
         color: #f4f7fb;
         horizontal-alignment: center;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 700;
     }
 
@@ -50,7 +50,7 @@ component FieldBox inherits Rectangle {
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         edited => {
             root.changed(self.text);
         }
@@ -111,7 +111,7 @@ export component ChainEditorPage inherits Rectangle {
         height: 16px;
         text: @tr("label-name");
         color: #7a8694;
-        font-size: 11px;
+        font-size: 18px;
     }
 
     FieldBox {
@@ -138,7 +138,7 @@ export component ChainEditorPage inherits Rectangle {
         height: 16px;
         text: @tr("label-instrument");
         color: #7a8694;
-        font-size: 11px;
+        font-size: 18px;
     }
 
     Rectangle {
@@ -184,7 +184,7 @@ export component ChainEditorPage inherits Rectangle {
                 color: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
                 horizontal-alignment: center;
                 vertical-alignment: center;
-                font-size: 9px;
+                font-size: 18px;
                 font-weight: 600;
             }
 
@@ -218,7 +218,7 @@ export component ChainEditorPage inherits Rectangle {
         height: 16px;
         text: @tr("label-chain-io-bindings");
         color: #7a8694;
-        font-size: 11px;
+        font-size: 18px;
     }
 
     if root.bindings.length == 0 : Text {
@@ -228,7 +228,7 @@ export component ChainEditorPage inherits Rectangle {
         height: 20px;
         text: @tr("empty-no-bindings-for-chain");
         color: #5a6270;
-        font-size: 12px;
+        font-size: 18px;
         wrap: word-wrap;
     }
 
@@ -274,7 +274,7 @@ export component ChainEditorPage inherits Rectangle {
                         horizontal-stretch: 1;
                         text: choice.name;
                         color: choice.selected ? #f4f7fb : #c4ccd6;
-                        font-size: 14px;
+                        font-size: 18px;
                         font-weight: choice.selected ? 600 : 500;
                         vertical-alignment: center;
                         overflow: elide;
@@ -305,7 +305,7 @@ export component ChainEditorPage inherits Rectangle {
         height: 38px;
         text: root.status-message;
         color: #8db9ff;
-        font-size: 12px;
+        font-size: 18px;
         vertical-alignment: center;
     }
 

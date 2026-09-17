@@ -29,7 +29,7 @@ export component ToolbarButton inherits Rectangle {
         color: #f4f7fb;
         horizontal-alignment: center;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 600;
     }
 
@@ -58,7 +58,7 @@ export component ParamFieldBox inherits Rectangle {
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         edited => {
             root.text = self.text;
             root.changed(self.text);
@@ -99,7 +99,7 @@ export component BlockValueStepper inherits Rectangle {
         height: 18px;
         text: root.label;
         color: #eef2f8;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 800;
     }
 
@@ -158,7 +158,7 @@ export component BlockValueStepper inherits Rectangle {
                 height: 18px;
                 text: root.value-text;
                 color: #f5f7fb;
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: 800;
                 single-line: true;
                 horizontal-alignment: center;
@@ -173,7 +173,7 @@ export component BlockValueStepper inherits Rectangle {
                 height: 12px;
                 text: root.unit-text;
                 color: #aab4c3;
-                font-size: 9px;
+                font-size: 18px;
                 font-weight: 700;
                 horizontal-alignment: center;
             }
@@ -232,7 +232,7 @@ export component BlockValueSlider inherits Rectangle {
         height: 18px;
         text: root.label;
         color: #eef2f8;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 800;
     }
 
@@ -296,7 +296,7 @@ export component BlockValueSlider inherits Rectangle {
             height: 18px;
             text: root.value-text;
             color: #f5f7fb;
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 800;
             single-line: true;
             horizontal-alignment: center;
@@ -310,7 +310,7 @@ export component BlockValueSlider inherits Rectangle {
             height: 12px;
             text: root.unit-text;
             color: #aab4c3;
-            font-size: 9px;
+            font-size: 18px;
             font-weight: 700;
             horizontal-alignment: center;
         }
@@ -344,7 +344,7 @@ export component BlockFootswitch inherits Rectangle {
             height: parent.height;
             text: root.label;
             color: root.active ? #ecfff4 : #c4ccd8;
-            font-size: 13px;
+            font-size: 18px;
             font-weight: 800;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -382,7 +382,7 @@ export component BlockTypeCard inherits Rectangle {
         height: 14px;
         text: root.item.label;
         color: #f3f6fb;
-        font-size: 10px;
+        font-size: 18px;
         font-weight: 900;
         vertical-alignment: center;
     }

@@ -324,7 +324,7 @@ export component BlockPanelEditor inherits Rectangle {
                 x: 0; y: 0; width: parent.width; height: 12px;
                 text: entry.key;
                 color: #506070;
-                font-size: 7px; font-weight: 700; letter-spacing: 1.5px;
+                font-size: 18px; font-weight: 700; letter-spacing: 1.5px;
                 horizontal-alignment: center;
             }
 
@@ -332,7 +332,7 @@ export component BlockPanelEditor inherits Rectangle {
                 x: 0; y: 12px; width: parent.width; height: parent.height - 24px;
                 text: entry.text;
                 color: entry.value > 0.5 ? #29df85 : #f3f6fb;
-                font-size: entry.text.character-count <= 3 ? 28px : 14px;
+                font-size: entry.text.character-count <= 3 ? 28px : 18px;
                 font-weight: 900;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -392,7 +392,7 @@ export component BlockPanelEditor inherits Rectangle {
                 height: 9px;
                 text: db-label.label;
                 color: #ffffff40;
-                font-size: 7px;
+                font-size: 18px;
                 horizontal-alignment: left;
             }
         }
@@ -442,7 +442,7 @@ export component BlockPanelEditor inherits Rectangle {
                 height: 13px;
                 text: entry.text;
                 color: #ffffff55;
-                font-size: 7px;
+                font-size: 18px;
                 horizontal-alignment: center;
                 overflow: elide;
             }
