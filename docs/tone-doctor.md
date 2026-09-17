@@ -144,10 +144,13 @@ sits in a group that is switched off.
 The diagnosis and its fix are `Command`s, not GUI behaviour:
 
 - `ToneDoctorCommand::DiagnoseChainTone { chain, genre, seconds }` — picks the
-  signal (the chain's loaded DI loop when there is one, otherwise the live input
-  the adapter registered via `LocalDispatcher::attach_tone_doctor_input`), runs
-  the ablation off-thread, and lands `Event::ChainToneDiagnosed { chain, report }`
-  through `poll_async_results`. With neither source the command errors instead of
+  signal in the owner's order (#948), taking the first one **sounding**: the live
+  guitars (every input stream of the chain, summed; registered via
+  `LocalDispatcher::attach_tone_doctor_input`), then the playing loops (summed and
+  repeated over the window; `RuntimeControl::playing_chain_loops`), then the loaded DI loop.
+  "Sounding" is the same -60 dBFS floor below. It runs the ablation off-thread
+  and lands `Event::ChainToneDiagnosed { chain, report }` through
+  `poll_async_results`. With no source at all the command errors instead of
   guessing. The dispatcher caches the verdict per chain.
   A window whose RMS sits under -60 dBFS is rejected with "no usable signal"
   instead of being diagnosed: a silent stretch scores every descriptor at zero

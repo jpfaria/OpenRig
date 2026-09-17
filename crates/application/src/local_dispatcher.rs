@@ -127,7 +127,7 @@ pub struct LocalDispatcher {
     /// way to learn a run failed.
     pub(crate) tone_doctor_runs: RefCell<HashMap<ChainId, ToneRun>>,
     /// #791: the adapter's live-input source for the doctor. `None` until
-    /// attached — a chain with a loaded DI is diagnosable without it.
+    /// attached — a playing loop or a loaded DI is diagnosable without it.
     pub(crate) tone_doctor_input: RefCell<Option<ToneDoctorInput>>,
     /// #127: the effective per-machine I/O binding registry, SHARED with the
     /// frontend (`Rc`, same allocation — the `attach_rig` pattern). The CRUD

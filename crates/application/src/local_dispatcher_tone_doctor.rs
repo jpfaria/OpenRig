@@ -1,10 +1,11 @@
 //! Responsibility: handles the tone doctor commands.
 //! #791 — `ToneDoctorCommand::DiagnoseChainTone` / `ApplyToneDoctorFix`.
 //!
-//! The doctor's signal is the chain's own: the DI loop when one is loaded,
-//! otherwise whatever live input the adapter registered via
-//! [`LocalDispatcher::attach_tone_doctor_input`]. Picking the source here — not
-//! in a frontend — is what makes the verdict identical for GUI, MCP and gRPC.
+//! The doctor's signal is the chain's own, in the owner's order (#948): the live
+//! guitars the adapter registered via [`LocalDispatcher::attach_tone_doctor_input`],
+//! then the playing loops (through the attached `RuntimeControl`), then
+//! the loaded DI loop — the first one sounding. Picking the source here — not in
+//! a frontend — is what makes the verdict identical for GUI, MCP and gRPC.
 //!
 //! The diagnosis re-renders the chain once per block (and reloads NAM captures
 //! from disk), so it runs on its own task and lands through
@@ -22,6 +23,7 @@ use crate::dispatcher::CommandDispatcher;
 use crate::event::Event;
 use crate::local_dispatcher::{AsyncDone, LocalDispatcher};
 use crate::tone_doctor_report::{diagnose, fix_commands, ToneRun, DIAGNOSE_BLOCK};
+use crate::tone_doctor_source::{pick_signal, playing_loops_window};
 
 /// How much signal to analyse when the caller does not say.
 const DEFAULT_ANALYZE_SECONDS: u32 = 5;
@@ -43,25 +45,28 @@ impl LocalDispatcher {
                 let seconds = seconds.unwrap_or(DEFAULT_ANALYZE_SECONDS).max(1) as usize;
                 let limits = ProfileTable::embedded().limits_for(genre.as_deref());
 
-                // The DI is the reproducible source and wins when present; the
-                // live tap is what the player hears when it is not.
-                let capture = match self.di_loop_for_chain(&chain) {
-                    Some(di) => {
-                        let capture: crate::local_dispatcher::ToneDoctorCapture =
-                            Box::new(move || Some((di.stereo_frames(), di.src_sr() as f32)));
-                        Some(capture)
-                    }
-                    None => self
-                        .tone_doctor_input
-                        .borrow()
-                        .as_ref()
-                        .and_then(|provider| provider(&chain, seconds)),
-                };
-                let Some(capture) = capture else {
+                // #948: guitars → looper → DI. The live window fills on the
+                // task; the loops and the DI are already in memory.
+                let live = self
+                    .tone_doctor_input
+                    .borrow()
+                    .as_ref()
+                    .and_then(|provider| provider(&chain, seconds));
+                let looper = self
+                    .runtime_control()
+                    .map(|runtime| runtime.playing_chain_loops(&chain_def))
+                    .and_then(|loops| playing_loops_window(&loops, seconds));
+                let di = self.di_loop_for_chain(&chain);
+                if live.is_none() && looper.is_none() && di.is_none() {
                     return Err(anyhow!(
                         "no signal to analyse for chain '{}': load a DI loop or enable the chain",
                         chain.0
                     ));
+                }
+                let capture = move || {
+                    let live = live.and_then(|capture| capture());
+                    let di = di.map(|di| (di.stereo_frames(), di.src_sr() as f32));
+                    pick_signal(vec![live, looper, di])
                 };
 
                 // Accepted: a reader must be able to tell "working on it" from

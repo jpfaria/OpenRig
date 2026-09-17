@@ -35,7 +35,9 @@ pub use crate::looper_commands::{
     transport_may_start_audio, undo_edit,
 };
 pub use crate::looper_restore::export_chain_loops;
-pub(crate) use crate::looper_restore::{reconcile_chain_loopers, restore_project_loops};
+pub(crate) use crate::looper_restore::{
+    playing_chain_loops, reconcile_chain_loopers, restore_project_loops,
+};
 
 // The test modules hang off this path and reach these through `super::`.
 #[cfg(test)]
@@ -56,6 +58,10 @@ mod tests_826;
 #[cfg(test)]
 #[path = "runtime_loopers_903_tests.rs"]
 mod tests_903;
+
+#[cfg(test)]
+#[path = "runtime_loopers_948_tests.rs"]
+mod tests_948;
 
 #[cfg(test)]
 #[path = "looper_global_transport_tests.rs"]
