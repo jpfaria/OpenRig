@@ -307,6 +307,7 @@ mod project_view_assets;
 mod project_view_tooltips;
 mod state;
 mod tone_doctor_events;
+mod tone_doctor_live_input;
 mod ui_state;
 slint::include_modules!();
 #[cfg(test)]

@@ -232,6 +232,13 @@ fn culprit_label(chain: &Chain, culprit: Option<usize>) -> String {
         .unwrap_or_default()
 }
 
+/// Whether `input` carries a tone to judge — the same floor the diagnosis
+/// rejects a window by, so a source is skipped for exactly the reason it would
+/// fail (#948).
+pub(crate) fn has_usable_signal(input: &[[f32; 2]]) -> bool {
+    rms_dbfs(input) >= SIGNAL_FLOOR_DBFS
+}
+
 /// Level of the analysed window, both channels together. `-inf` reads as a very
 /// low number, which is what the floor check wants.
 fn rms_dbfs(input: &[[f32; 2]]) -> f32 {

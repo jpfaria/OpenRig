@@ -270,6 +270,10 @@ impl RuntimeControl for GuiRuntimeControl {
     fn export_chain_loops(&self, chain: &Chain) -> Option<Vec<(u64, Arc<LoopPcm>)>> {
         runtime_loopers::export_chain_loops(&self.runtime, chain)
     }
+
+    fn playing_chain_loops(&self, chain: &Chain) -> Vec<Arc<LoopPcm>> {
+        runtime_loopers::playing_chain_loops(&self.runtime, chain)
+    }
 }
 
 /// #127: the ONE capability a project-open path needs from the audio runtime —
