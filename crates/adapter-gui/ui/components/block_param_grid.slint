@@ -1,4 +1,5 @@
 // Responsibility: lays the block parameters out in a grid.
+import { Theme } from "../theme.slint";
 import { PanelKnob } from "panel_knob.slint";
 import { BlockPanelParameterItem } from "block_panel_parameter_item.slint";
 import { BlockKnobOverlay, BlockParameterItem } from "../models.slint";
@@ -64,11 +65,11 @@ export component BlockParamGrid inherits ScrollView {
         height: 90px;
 
         Text {
-            x: 0; y: 0; width: parent.width; height: 14px;
+            x: 0; y: 0; width: parent.width; height: 22px;
             text: knob.label;
             color: root.panel-text;
             font-family: "Bebas Neue";
-            font-size: 10px;
+            font-size: Theme.knob-caption-font;
             letter-spacing: 1.5px;
             horizontal-alignment: center;
             overflow: elide;

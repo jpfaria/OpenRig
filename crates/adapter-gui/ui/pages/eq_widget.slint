@@ -32,8 +32,9 @@ component EqBandSlider inherits Rectangle {
         : 0.5;
 
     // Layout slots
-    private property <length> top-h: root.tight ? 0px : 16px;
-    private property <length> bottom-h: root.tight ? 0px : 14px;
+    // #954: 22px slots — the 18px readout / frequency label need them.
+    private property <length> top-h: root.tight ? 0px : 22px;
+    private property <length> bottom-h: root.tight ? 0px : 22px;
     private property <length> track-pad: 6px;
     private property <length> track-y: root.top-h + root.track-pad;
     private property <length> track-h: root.height - root.top-h - root.bottom-h - 2 * root.track-pad;
@@ -55,10 +56,11 @@ component EqBandSlider inherits Rectangle {
                 : Math.round(root.shown-val * 10) / 10;
         color: Math.abs(root.shown-val) < 0.05 ? #6a7185 : #e8edf5;
         font-family: "Bebas Neue";
-        font-size: 11px;
+        font-size: 18px;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
+        overflow: elide;
     }
 
     // ── Track (recessed look: dark base + 1px highlight at top) ──
@@ -126,10 +128,11 @@ component EqBandSlider inherits Rectangle {
         text: root.freq-label;
         color: #828a99;
         font-family: "Bebas Neue";
-        font-size: 9px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: 0.5px;
         horizontal-alignment: center;
+        vertical-alignment: center;
         overflow: elide;
     }
 

@@ -50,7 +50,7 @@ export component ModelSelectWithSearch inherits Rectangle {
             : root.selected-model.display_name;
 
     private property <length> badge-reserve:
-        root.selected-model.type_label == "" ? 0px : 56px;
+        root.selected-model.type_label == "" ? 0px : badge.width + 14px;
 
     Text {
         x: 12px;
@@ -65,10 +65,13 @@ export component ModelSelectWithSearch inherits Rectangle {
         overflow: elide;
     }
 
-    if root.selected-model.type_label != "" : Rectangle {
-        x: parent.width - 22px - 48px;
+    // Always present (hidden when empty) so the label can reserve its width;
+    // the badge follows its text ("NATIVE" no longer fits 42px at 18px).
+    badge := Rectangle {
+        visible: root.selected-model.type_label != "";
+        x: parent.width - 28px - self.width;
         y: (parent.height - 22px) / 2;
-        width: 42px;
+        width: max(42px, badge-text.preferred-width + 10px);
         height: 22px;
         border-radius: 3px;
         background: root.selected-model.type_label == "NATIVE" ? #0d2a0d
@@ -85,7 +88,7 @@ export component ModelSelectWithSearch inherits Rectangle {
             : root.selected-model.type_label == "LV2" ? #1a886b
             : #883300;
 
-        Text {
+        badge-text := Text {
             width: parent.width;
             height: parent.height;
             text: root.selected-model.type_label;
@@ -95,7 +98,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                 : root.selected-model.type_label == "IR" ? #aa44ff
                 : root.selected-model.type_label == "LV2" ? #44ddaa
                 : #ff8833;
-            font-size: 10px;
+            font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.5px;
             vertical-alignment: center;
@@ -110,7 +113,7 @@ export component ModelSelectWithSearch inherits Rectangle {
         height: parent.height;
         text: @tr("▼");
         color: #ffffff;
-        font-size: 14px;
+        font-size: 18px;
         vertical-alignment: center;
         horizontal-alignment: center;
     }
@@ -230,7 +233,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                 height: 36px;
                 text: @tr("status-no-models-found");
                 color: #6a6a82;
-                font-size: 16px;
+                font-size: 18px;
                 vertical-alignment: center;
                 horizontal-alignment: center;
             }
@@ -264,7 +267,9 @@ export component ModelSelectWithSearch inherits Rectangle {
                     Text {
                         x: 12px;
                         y: 0;
-                        width: parent.width - 70px;
+                        width: model.type_label == ""
+                            ? parent.width - 70px
+                            : row-badge.x - 4px - 12px;
                         height: parent.height;
                         text: row-has-brand
                             ? model.brand + " " + model.display_name
@@ -277,10 +282,13 @@ export component ModelSelectWithSearch inherits Rectangle {
                         overflow: elide;
                     }
 
-                    if model.type_label != "" : Rectangle {
-                        x: parent.width - 54px;
+                    // Follows its text; always present so the name can
+                    // stop short of it.
+                    row-badge := Rectangle {
+                        visible: model.type_label != "";
+                        x: parent.width - 12px - self.width;
                         y: (parent.height - 22px) / 2;
-                        width: 42px;
+                        width: max(42px, row-badge-text.preferred-width + 10px);
                         height: 22px;
                         border-radius: 3px;
                         background: model.type_label == "NATIVE" ? #0d2a0d
@@ -297,7 +305,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                             : model.type_label == "LV2" ? #1a886b
                             : #883300;
 
-                        Text {
+                        row-badge-text := Text {
                             width: parent.width;
                             height: parent.height;
                             text: model.type_label;
@@ -307,7 +315,7 @@ export component ModelSelectWithSearch inherits Rectangle {
                                 : model.type_label == "IR" ? #aa44ff
                                 : model.type_label == "LV2" ? #44ddaa
                                 : #ff8833;
-                            font-size: 10px;
+                            font-size: 18px;
                             font-weight: 800;
                             letter-spacing: 0.5px;
                             vertical-alignment: center;

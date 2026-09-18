@@ -28,6 +28,12 @@ export component BlockPanelHeader inherits Rectangle {
 
     background: #06060c;
 
+    // The type label and the badge size from their (translated) text, so the
+    // picker between them takes what is left instead of covering them (#954).
+    private property <length> picker-x: Math.max(100px, type-label-text.x + type-label-text.width + 8px);
+    private property <length> badge-w: root.type-label == "" ? 0px : Math.max(root.badge-width, badge-text.preferred-width + 16px);
+    private property <length> picker-w: root.width - root.picker-x - root.badge-w - (root.edit-mode ? 80px : 48px);
+
     // Block type icon (left)
     Image {
         x: 10px;
@@ -40,13 +46,13 @@ export component BlockPanelHeader inherits Rectangle {
     }
 
     // Block type label (left, after icon)
-    Text {
+    type-label-text := Text {
         x: 38px; y: 0;
-        width: 60px;
+        width: self.preferred-width;
         height: parent.height;
         text: root.block-type-label;
         color: #f1f4f8;
-        font-size: 10px;
+        font-size: 18px;
         font-weight: 900;
         vertical-alignment: center;
         letter-spacing: 1.5px;
@@ -56,9 +62,9 @@ export component BlockPanelHeader inherits Rectangle {
     // generic NAM/IR file-loader blocks (#608) — they have no catalog
     // model to pick; the loaded model name is shown as a static label.
     if root.show-model-picker : ModelSelectWithSearch {
-        x: 100px;
+        x: root.picker-x;
         y: (parent.height - 40px) / 2;
-        width: parent.width - 100px - root.badge-width - (root.edit-mode ? 80px : 48px);
+        width: root.picker-w;
         filtered-models: root.filtered-models;
         selected-model: root.selected-model;
         search-text <=> root.search-text;
@@ -67,13 +73,13 @@ export component BlockPanelHeader inherits Rectangle {
     }
 
     if !root.show-model-picker : Text {
-        x: 100px;
+        x: root.picker-x;
         y: 0;
-        width: parent.width - 100px - root.badge-width - (root.edit-mode ? 80px : 48px);
+        width: root.picker-w;
         height: parent.height;
         text: root.selected-model.display_name;
         color: #f1f4f8;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 700;
         vertical-alignment: center;
         horizontal-alignment: left;
@@ -81,11 +87,12 @@ export component BlockPanelHeader inherits Rectangle {
     }
 
     // Type badge
-    if root.type-label != "" : Rectangle {
-        x: parent.width - root.badge-width - (root.edit-mode ? 72px : 40px);
-        y: (parent.height - 22px) / 2;
-        width: root.badge-width;
-        height: 22px;
+    Rectangle {
+        visible: root.type-label != "";
+        x: parent.width - root.badge-w - (root.edit-mode ? 72px : 40px);
+        y: (parent.height - 24px) / 2;
+        width: root.badge-w;
+        height: 24px;
         border-radius: 4px;
         background: root.type-label == "NATIVE" ? #0d2a0d
             : root.type-label == "NAM/A2" ? #2e260d
@@ -97,7 +104,7 @@ export component BlockPanelHeader inherits Rectangle {
             : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #1a4488
             : #883300;
 
-        Text {
+        badge-text := Text {
             x: 8px; y: 0;
             width: parent.width - 16px;
             height: parent.height;
@@ -106,7 +113,7 @@ export component BlockPanelHeader inherits Rectangle {
                 : root.type-label == "NAM/A2" ? #ffcc44
                 : (root.type-label == "NAM" || root.type-label == "NAM/A1") ? #4499ff
                 : #ff8833;
-            font-size: 9px;
+            font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.8px;
             vertical-alignment: center;

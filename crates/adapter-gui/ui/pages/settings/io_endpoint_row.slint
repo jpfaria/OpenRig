@@ -26,7 +26,7 @@ export component IoEndpointRow inherits Rectangle {
             horizontal-stretch: 1;
             text: root.endpoint.name;
             color: #dde3ec;
-            font-size: 13px;
+            font-size: 18px;
             vertical-alignment: center;
             overflow: elide;
         }
@@ -36,20 +36,20 @@ export component IoEndpointRow inherits Rectangle {
         Text {
             text: root.endpoint.device_label;
             color: #8a92a3;
-            font-size: 12px;
+            font-size: 18px;
             vertical-alignment: center;
             overflow: elide;
         }
         Text {
             text: @tr("label-channels-prefix");
             color: #5a6472;
-            font-size: 12px;
+            font-size: 18px;
             vertical-alignment: center;
         }
         Text {
             text: root.endpoint.channels_label;
             color: #8a92a3;
-            font-size: 12px;
+            font-size: 18px;
             vertical-alignment: center;
             // #880: a many-channel endpoint must not push the row's actions out.
             overflow: elide;
@@ -58,7 +58,7 @@ export component IoEndpointRow inherits Rectangle {
         Text {
             text: root.endpoint.mode;
             color: #5a6472;
-            font-size: 12px;
+            font-size: 18px;
             vertical-alignment: center;
         }
 

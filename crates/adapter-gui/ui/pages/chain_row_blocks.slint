@@ -302,9 +302,10 @@ export component ChainRowBlocks inherits Rectangle {
     }
 
     if root.chain.latency_ms > 0 : Rectangle {
-        x: root.out-chip-x + 4px;
+        x: min(root.out-chip-x + 4px, parent.width - self.width);
         y: root.out-chip-y - 12px;
-        width: 64px;
+        // #954: the badge follows its two labels.
+        width: lat-lbl.preferred-width + lat-ms.preferred-width + 14px;
         height: 22px;
         border-radius: 4px;
         background: root.chain.latency_ms < 10.0 ? #4ade8018
@@ -315,31 +316,31 @@ export component ChainRowBlocks inherits Rectangle {
                     : root.chain.latency_ms < 20.0 ? #facc1555
                     : #f8717155;
 
-        Text {
-            x: 0px;
-            y: 2px;
-            width: 26px;
+        lat-lbl := Text {
+            x: 5px;
+            y: 0px;
+            width: self.preferred-width;
             height: parent.height;
             text: @tr("label-lat");
             color: root.chain.latency_ms < 10.0 ? #4ade8099
                  : root.chain.latency_ms < 20.0 ? #facc1599
                  : #f8717199;
-            font-size: 8px;
+            font-size: 18px;
             font-weight: 700;
             horizontal-alignment: right;
             vertical-alignment: center;
         }
 
-        Text {
-            x: 29px;
+        lat-ms := Text {
+            x: lat-lbl.x + lat-lbl.width + 4px;
             y: 0px;
-            width: parent.width - 30px;
+            width: self.preferred-width;
             height: parent.height;
             text: Math.round(root.chain.latency_ms) + "ms";
             color: root.chain.latency_ms < 10.0 ? #4ade80
                  : root.chain.latency_ms < 20.0 ? #facc15
                  : #f87171;
-            font-size: 10px;
+            font-size: 18px;
             font-weight: 600;
             horizontal-alignment: left;
             vertical-alignment: center;
@@ -371,7 +372,7 @@ export component ChainRowBlocks inherits Rectangle {
                 height: parent.height;
                 text: @tr("label-input");
                 color: #edf2f9;
-                font-size: 12px;
+                font-size: 18px;
                 font-weight: 800;
                 vertical-alignment: center;
             }
@@ -384,7 +385,7 @@ export component ChainRowBlocks inherits Rectangle {
             height: parent.height - 42px;
             text: root.chain.input_tooltip;
             color: #dfe6f0;
-            font-size: 11px;
+            font-size: 18px;
             font-weight: 700;
             wrap: word-wrap;
             horizontal-alignment: left;
@@ -417,7 +418,7 @@ export component ChainRowBlocks inherits Rectangle {
                 height: parent.height;
                 text: @tr("label-output");
                 color: #edf2f9;
-                font-size: 12px;
+                font-size: 18px;
                 font-weight: 800;
                 vertical-alignment: center;
             }
@@ -430,7 +431,7 @@ export component ChainRowBlocks inherits Rectangle {
             height: parent.height - 42px;
             text: root.chain.output_tooltip;
             color: #dfe6f0;
-            font-size: 11px;
+            font-size: 18px;
             font-weight: 700;
             wrap: word-wrap;
             horizontal-alignment: left;
