@@ -87,6 +87,13 @@ impl AudioTaps for GuiAudioTaps {
             .map_or(0, |rt| rt.stream_count(chain))
     }
 
+    fn runtime_identity(&self, chain: &ChainId) -> u64 {
+        self.runtime
+            .borrow()
+            .as_ref()
+            .map_or(0, |rt| rt.runtime_identity(chain))
+    }
+
     /// Resolve the tap point against the runtime that owns THAT stream.
     ///
     /// The controller's dispatch does the (global stream index → per-input

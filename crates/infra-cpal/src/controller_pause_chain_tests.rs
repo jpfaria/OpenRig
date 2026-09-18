@@ -65,6 +65,7 @@ fn controller_with_active_chain(
     active_chains.insert(
         chain_id.clone(),
         ActiveChainRuntime {
+            resolved: None,
             structure: Vec::new(),
             generation: 0,
             stream_signature: ChainStreamSignature {

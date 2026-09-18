@@ -177,9 +177,26 @@ pub struct ChainRuntimeState {
     /// beep in `process_input_f32` reads this instead of assuming 48000, so
     /// the 1 kHz tone is synthesized at the true device rate.
     pub(crate) sample_rate: f32,
+    /// #957: unique per built runtime, so a consumer holding taps can tell a
+    /// replaced runtime from the one it subscribed on even when the stream
+    /// count is the same. Set once at construction.
+    pub(crate) instance_id: u64,
+}
+
+/// A fresh [`ChainRuntimeState::instance_id`]. Starts at 1 so 0 stays free
+/// for "no runtime".
+pub(crate) fn next_runtime_instance_id() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
 impl ChainRuntimeState {
+    /// This runtime's identity, unique among every runtime built in the
+    /// process (#957).
+    pub fn instance_id(&self) -> u64 {
+        self.instance_id
+    }
+
     /// The sample rate (Hz) this runtime runs at, captured at build time.
     pub fn sample_rate(&self) -> f32 {
         self.sample_rate

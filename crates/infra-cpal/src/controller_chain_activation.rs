@@ -73,18 +73,30 @@ impl ProjectRuntimeController {
         // #693: validation + device resolution are CoreAudio property
         // queries costing hundreds of ms — they run on the control worker
         // together with the heavy build, never on the calling thread.
+        // #957: same I/O and device settings → start from the live config and
+        // skip the CoreAudio round-trip (seconds per preset switch).
+        let live_config = self.reusable_live_config(project, chain)?;
         let project_for_build = project.clone();
         let chain_for_build = chain.clone();
         let registry_for_build = self.io_bindings.clone();
         let rx = self.worker.submit(move || {
-            let host = get_host();
-            validate_chain_channels_against_devices(host, &chain_for_build, &registry_for_build)?;
-            let resolved = resolve_chain_audio_config(
-                host,
-                &project_for_build,
-                &chain_for_build,
-                &registry_for_build,
-            )?;
+            let resolved = match live_config {
+                Some(resolved) => resolved,
+                None => {
+                    let host = get_host();
+                    validate_chain_channels_against_devices(
+                        host,
+                        &chain_for_build,
+                        &registry_for_build,
+                    )?;
+                    resolve_chain_audio_config(
+                        host,
+                        &project_for_build,
+                        &chain_for_build,
+                        &registry_for_build,
+                    )?
+                }
+            };
             let elastic_targets =
                 compute_elastic_targets_for_chain(&chain_for_build, &resolved, &registry_for_build);
             let request = BuildRequest {

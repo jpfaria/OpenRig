@@ -93,6 +93,8 @@ mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_rebuild_queue;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod live_io_reuse;
 mod controller_sync;
 mod controller_taps;
 mod controller_upsert;
@@ -237,6 +239,10 @@ mod controller_drop_nonblocking_tests;
 mod controller_pause_chain_tests;
 #[cfg(test)]
 mod controller_per_stream_input_tap_tests;
+#[cfg(test)]
+mod controller_runtime_identity_tests;
+#[cfg(test)]
+mod issue_957_preset_switch_reuses_io_tests;
 // `tests` exercises the CPAL stream path (stream_config/chain_resolve helpers),
 // all cfg'd out under Linux+JACK (#755) — gate the tests the same way.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
