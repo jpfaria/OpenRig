@@ -136,6 +136,7 @@ fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
     active_chains.insert(
         chain_id.clone(),
         ActiveChainRuntime {
+            resolved: None,
             structure: Vec::new(),
             generation: 0,
             // A signature that MATCHES the binding registry, so the live edit

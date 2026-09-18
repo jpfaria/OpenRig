@@ -129,6 +129,7 @@ fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
     controller.active_chains.insert(
         chain_id.clone(),
         super::active_runtime::ActiveChainRuntime {
+            resolved: None,
             structure: Vec::new(),
             generation: 0,
             stream_signature: super::resolved::ChainStreamSignature {
@@ -237,6 +238,7 @@ fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio
     active_chains.insert(
         chain_id.clone(),
         super::active_runtime::ActiveChainRuntime {
+            resolved: None,
             structure: Vec::new(),
             generation: 0,
             stream_signature: super::resolved::ChainStreamSignature {

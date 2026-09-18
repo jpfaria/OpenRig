@@ -14,6 +14,7 @@ pub(crate) use crate::stream_signature_types::{
 };
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub(crate) struct ResolvedChainAudioConfig {
     pub(crate) inputs: Vec<ResolvedInputDevice>,
     pub(crate) outputs: Vec<ResolvedOutputDevice>,

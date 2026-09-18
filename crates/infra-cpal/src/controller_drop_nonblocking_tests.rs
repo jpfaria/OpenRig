@@ -126,6 +126,7 @@ fn switching_a_chain_off_frees_its_runtime_on_the_worker_not_on_the_caller() {
     controller.active_chains.insert(
         chain_id.clone(),
         ActiveChainRuntime {
+            resolved: None,
             structure: Vec::new(),
             generation: 1,
             stream_signature: ChainStreamSignature {
