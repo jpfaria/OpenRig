@@ -34,9 +34,10 @@ export component ChainActionIcon inherits Rectangle {
     // Tooltip below the icon — anything above is covered by the project
     // header, which paints last over the chain content. Issue #329.
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -26px;
+        // Sized from the translated tooltip, centred under the icon (#954).
+        width: action-tip.preferred-width + 12px;
+        x: (root.width - self.width) / 2;
         y: 28px;
-        width: 76px;
         height: 24px;
         background: #11141ad9;
         border-width: 1px;
@@ -44,7 +45,7 @@ export component ChainActionIcon inherits Rectangle {
         border-radius: 4px;
         z: 50;
 
-        Text {
+        action-tip := Text {
             x: 6px;
             y: 0px;
             width: parent.width - 12px;
@@ -90,9 +91,9 @@ export component ChainEndpointChip inherits Rectangle {
     // Label
     Text {
         x: 4px;
-        y: 54px;
+        y: 50px;
         width: parent.width - 8px;
-        height: 16px;
+        height: 22px;
         text: root.label;
         color: hover-area.has-hover ? #d0e4f8 : #8aaac8;
         font-size: 18px;
@@ -154,9 +155,9 @@ export component ChainPowerToggle inherits Rectangle {
 
     // Tooltip below — anything above is covered by the project header (#329).
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -24px;
+        width: power-tip.preferred-width + 12px;
+        x: (root.width - self.width) / 2;
         y: 32px;
-        width: 76px;
         height: 24px;
         background: #11141ad9;
         border-width: 1px;
@@ -164,7 +165,7 @@ export component ChainPowerToggle inherits Rectangle {
         border-radius: 4px;
         z: 50;
 
-        Text {
+        power-tip := Text {
             x: 6px;
             y: 0px;
             width: parent.width - 12px;
@@ -222,9 +223,9 @@ export component HeaderIconAction inherits Rectangle {
     // Tooltip below — header icons sit at the top of the page, tooltip
     // above would be clipped by the window edge (#329).
     if action-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -30px;
+        width: header-tip.preferred-width + 12px;
+        x: (root.width - self.width) / 2;
         y: 28px;
-        width: 84px;
         height: 24px;
         background: #11141ad9;
         border-width: 1px;
@@ -232,7 +233,7 @@ export component HeaderIconAction inherits Rectangle {
         border-radius: 4px;
         z: 50;
 
-        Text {
+        header-tip := Text {
             x: 6px;
             y: 0px;
             width: parent.width - 12px;
@@ -274,7 +275,8 @@ export component ChainVolumeControl inherits Rectangle {
     track := Rectangle {
         x: 22px;
         y: 10px;
-        width: 110px;
+        // Leaves room for a "200%" readout at 18px (#954).
+        width: 86px;
         height: 4px;
         background: #2a3140;
         border-radius: 2px;
@@ -340,9 +342,9 @@ export component ChainVolumeControl inherits Rectangle {
     }
 
     Text {
-        x: 138px;
+        x: 114px;
         y: 0px;
-        width: 30px;
+        width: 54px;
         height: 24px;
         text: root.volume + "%";
         color: drag-area.has-hover ? #ffffff : #8a94a2;

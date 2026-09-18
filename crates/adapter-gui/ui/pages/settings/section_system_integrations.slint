@@ -21,15 +21,16 @@ export component SectionSystemIntegrations inherits Rectangle {
         spacing: 12px;
 
         // ── MIDI adapter row ──
+        // Row grows with the wrapped description instead of eliding it.
         Rectangle {
-            height: 56px;
+            height: max(56px, midi-info.preferred-height + 16px);
             background: #1d2025;
             border-radius: 8px;
             border-width: 1px;
             border-color: SettingsBridge.midi-enabled ? #2f4a6a : #2a2f38;
             animate border-color { duration: 200ms; }
 
-            VerticalLayout {
+            midi-info := VerticalLayout {
                 x: 16px;
                 width: parent.width - 16px - 56px;
                 alignment: center;
@@ -44,7 +45,7 @@ export component SectionSystemIntegrations inherits Rectangle {
                     text: @tr("desc-midi-enabled");
                     color: #8a92a3;
                     font-size: 18px;
-                    overflow: elide;
+                    wrap: word-wrap;
                 }
             }
 
@@ -76,14 +77,14 @@ export component SectionSystemIntegrations inherits Rectangle {
 
         // ── MCP server row ──
         Rectangle {
-            height: 56px;
+            height: max(56px, mcp-info.preferred-height + 16px);
             background: #1d2025;
             border-radius: 8px;
             border-width: 1px;
             border-color: SettingsBridge.mcp-enabled ? #2f4a6a : #2a2f38;
             animate border-color { duration: 200ms; }
 
-            VerticalLayout {
+            mcp-info := VerticalLayout {
                 x: 16px;
                 width: parent.width - 16px - 56px;
                 alignment: center;
@@ -98,7 +99,7 @@ export component SectionSystemIntegrations inherits Rectangle {
                     text: @tr("desc-mcp-enabled");
                     color: #8a92a3;
                     font-size: 18px;
-                    overflow: elide;
+                    wrap: word-wrap;
                 }
             }
 

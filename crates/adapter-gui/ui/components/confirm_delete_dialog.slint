@@ -14,14 +14,15 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: min(root.width * 0.7, 400px);
-        height: 170px;
+        // Grows with its (translated, wrapped) content (#954).
+        height: dialog-content.preferred-height;
         background: #1e1f22;
         border-radius: 10px;
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: 4px;
         drop-shadow-color: #000000c0;
 
-        VerticalLayout {
+        dialog-content := VerticalLayout {
             padding: 20px;
             spacing: 12px;
             Text {
@@ -30,6 +31,7 @@ export component ConfirmDeleteBlockDialog inherits Rectangle {
                 color: #ffffff;
                 font-weight: 700;
                 horizontal-alignment: center;
+                wrap: word-wrap;
             }
             Text {
                 // Slint @tr supports `{}` placeholders. The msgid is the

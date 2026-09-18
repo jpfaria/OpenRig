@@ -18,8 +18,9 @@ component EditorButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    min-width: 78px;
-    height: 34px;
+    // Follows the (translated) label so it is never cut.
+    min-width: max(78px, lbl.preferred-width + 16px);
+    height: max(34px, lbl.preferred-height + 8px);
     border-radius: 8px;
     border-width: 1px;
     border-color: root.enabled ? Theme.palette.secondary-border : Theme.palette.border;
@@ -32,7 +33,7 @@ component EditorButton inherits Rectangle {
     accessible-enabled: root.enabled;
     accessible-action-default => { root.clicked(); }
 
-    Text {
+    lbl := Text {
         width: parent.width;
         height: parent.height;
         horizontal-alignment: center;
@@ -74,14 +75,16 @@ export component LooperEditorOverlay inherits Rectangle {
     if LooperEditor.open : Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
-        width: min(root.width - 80px, 760px);
-        height: 282px;
+        // Widens for longer (translated) button labels, within the window.
+        width: min(root.width - 80px, max(760px, buttons.min-width + 32px));
+        // Grows with its content (the status line may wrap).
+        height: editor-col.preferred-height;
         background: #1e1f22;
         border-radius: 12px;
         border-width: 1px;
         border-color: Theme.palette.border-strong;
 
-        VerticalLayout {
+        editor-col := VerticalLayout {
             padding: 16px;
             spacing: 12px;
             alignment: start;
@@ -116,7 +119,7 @@ export component LooperEditorOverlay inherits Rectangle {
                 sel-end <=> LooperEditor.sel-end;
             }
 
-            HorizontalLayout {
+            buttons := HorizontalLayout {
                 spacing: 8px;
 
                 // The one-button answer: no selection needed, it finds the
@@ -191,7 +194,8 @@ export component LooperEditorOverlay inherits Rectangle {
             // The outcome of the last edit — the answer to "I pressed it and
             // nothing happened".
             Text {
-                height: 16px;
+                min-height: 22px;
+                wrap: word-wrap;
                 text: LooperEditor.status-code == 1 ? @tr("looper-editor-no-change")
                     : LooperEditor.status-code == 2 ? @tr("looper-editor-refused")
                     : "";

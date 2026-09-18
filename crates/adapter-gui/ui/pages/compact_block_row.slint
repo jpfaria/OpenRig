@@ -87,26 +87,29 @@ export component CompactBlockRow inherits Rectangle {
     }
 
     // ── 3. Block type label ──
-    Text {
+    type-lbl := Text {
         // #881: 4px clear of the 32px icon box (66..98) — the I/O icons are
         // full-bleed sprites, so a label starting at 96 ran into them.
+        // #954: the label follows its text (capped) and the model selector
+        // starts after it, keeping its right edge at 418px.
         x: 102px;
-        y: (root.header-height - 18px) / 2;
-        width: 50px;
-        height: 18px;
+        y: (root.header-height - 22px) / 2;
+        width: min(self.preferred-width, 150px);
+        height: 22px;
         text: root.block-data.display-label;
         color: root.block-data.panel-text;
         font-size: 18px;
         font-weight: 900;
         letter-spacing: 1.5px;
         vertical-alignment: center;
+        overflow: elide;
     }
 
     // ── 4. Model selector with embedded search (after type label) ──
     ModelSelectWithSearch {
-        x: 158px;
+        x: max(158px, type-lbl.x + type-lbl.width + 6px);
         y: (root.header-height - 40px) / 2;
-        width: 260px;
+        width: 418px - self.x;
         popup-height: 320px;
         external-popup: true;
         filtered-models: root.block-data.filtered-models;
@@ -200,7 +203,7 @@ export component CompactBlockRow inherits Rectangle {
             height: 90px;
 
             Text {
-                x: 0; y: 0; width: parent.width; height: 12px;
+                x: 0; y: 0; width: parent.width; height: 22px;
                 text: knob.label;
                 color: root.block-data.panel-text;
                 font-family: "Bebas Neue";

@@ -7,7 +7,8 @@ export component PortEditorFooterButton inherits Rectangle {
     in property <bool> primary: false;
     callback clicked();
 
-    width: 96px;
+    // #954: the button follows its translated label.
+    width: max(96px, lbl.preferred-width + 24px);
     height: 36px;
     background: root.primary ? #188cff : #2a2f38;
     border-width: 1px;
@@ -17,7 +18,7 @@ export component PortEditorFooterButton inherits Rectangle {
     accessible-label: root.label;
     accessible-action-default => { root.clicked(); }
 
-    Text {
+    lbl := Text {
         width: parent.width;
         height: parent.height;
         text: root.label;

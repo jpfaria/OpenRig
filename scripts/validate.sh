@@ -30,6 +30,7 @@
 set -uo pipefail
 
 MIN_FONT_PX=18
+MIN_TEXT_BOX_PX=22   # an 18px glyph plus its line gap
 RUST_MAX_LINES=600
 SLINT_MAX_LINES=500
 
@@ -332,6 +333,25 @@ if [ -n "$SLINT_FILES" ]; then
     else
       ok "$(basename "$file"): no text under ${MIN_FONT_PX}px"
     fi
+    # A Text box sized for the old small fonts cuts the glyphs of the new
+    # ones: its own literal height must fit MIN_TEXT_BOX_PX.
+    short_boxes=$(awk -v min="$MIN_TEXT_BOX_PX" '
+      {
+        line = $0
+        sub(/\/\/.*/, "", line)
+        if (match(line, /(^|[^A-Za-z0-9_-])Text[ \t]*\{/)) { text_depth[++n] = depth + 1 }
+        if (n > 0 && depth == text_depth[n] && match(line, /(^|[^A-Za-z-])height[ \t]*:[ \t]*[0-9]+px[ \t]*;/)) {
+          value = substr(line, RSTART, RLENGTH)
+          gsub(/[^0-9]/, "", value)
+          if (value + 0 < min) print NR
+        }
+        opens = gsub(/\{/, "{", line); closes = gsub(/\}/, "}", line)
+        depth += opens - closes
+        while (n > 0 && depth < text_depth[n]) n--
+      }' "$file")
+    for hit in $short_boxes; do
+      fail "$(basename "$file"):$hit — Text box shorter than its text (< ${MIN_TEXT_BOX_PX}px); size it from the text (#954)"
+    done
   done
 fi
 

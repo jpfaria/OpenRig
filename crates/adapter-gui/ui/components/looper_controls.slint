@@ -52,13 +52,21 @@ export component LooperSlider inherits Rectangle {
     in property <string> label;
     in-out property <int> value;
     callback value-changed(int);
+    // The label column width shared with sibling rows (so tracks line up);
+    // the column still grows to fit this row's own (translated) label.
+    in property <length> label-width: 74px;
+    out property <length> label-natural: label-text.preferred-width;
 
-    height: 28px;
+    // The label and value columns follow their (translated) text.
+    private property <length> label-w: max(root.label-width, root.label-natural);
+    private property <length> value-w: max(38px, value-text.preferred-width);
 
-    Text {
+    height: max(28px, label-text.preferred-height);
+
+    label-text := Text {
         x: 0;
         y: 0;
-        width: 74px;
+        width: root.label-w;
         height: parent.height;
         vertical-alignment: center;
         text: root.label;
@@ -67,9 +75,9 @@ export component LooperSlider inherits Rectangle {
     }
 
     track := Rectangle {
-        x: 80px;
+        x: root.label-w + 6px;
         y: parent.height / 2 - 2px;
-        width: parent.width - 80px - 44px;
+        width: parent.width - root.label-w - 6px - root.value-w - 6px;
         height: 4px;
         border-radius: 2px;
         background: #2a3140;
@@ -116,10 +124,10 @@ export component LooperSlider inherits Rectangle {
         }
     }
 
-    Text {
-        x: parent.width - 38px;
+    value-text := Text {
+        x: parent.width - root.value-w;
         y: 0;
-        width: 38px;
+        width: root.value-w;
         height: parent.height;
         vertical-alignment: center;
         horizontal-alignment: right;
@@ -141,13 +149,20 @@ export component LooperSegmented inherits Rectangle {
     in property <int> selected-index;
     in property <string> label;
     callback picked(int);
+    // The label column width shared with sibling rows (so columns line up);
+    // the column still grows to fit this row's own (translated) label.
+    in property <length> label-width: 74px;
+    out property <length> label-natural: label-text.preferred-width;
 
-    height: 28px;
+    // The label column follows its (translated) text.
+    private property <length> label-w: max(root.label-width, root.label-natural);
 
-    Text {
+    height: max(28px, label-text.preferred-height);
+
+    label-text := Text {
         x: 0;
         y: 0;
-        width: 74px;
+        width: root.label-w;
         height: parent.height;
         vertical-alignment: center;
         text: root.label;
@@ -156,8 +171,8 @@ export component LooperSegmented inherits Rectangle {
     }
 
     HorizontalLayout {
-        x: 80px;
-        width: parent.width - 80px;
+        x: root.label-w + 6px;
+        width: parent.width - root.label-w - 6px;
         spacing: 6px;
 
         for option[index] in root.options: Rectangle {

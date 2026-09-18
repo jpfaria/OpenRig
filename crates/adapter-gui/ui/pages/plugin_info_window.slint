@@ -92,7 +92,7 @@ export component PluginInfoPanel inherits Rectangle {
                 }
 
                 if root.type-label != "" : Rectangle {
-                    height: 20px;
+                    height: max(22px, type-badge-text.preferred-height + 4px);
                     width: type-badge-text.preferred-width + 12px;
                     border-radius: 4px;
                     background: root.type-label == "LV2" ? #1a2a1a
@@ -103,6 +103,7 @@ export component PluginInfoPanel inherits Rectangle {
 
                     type-badge-text := Text {
                         x: 6px;
+                        height: parent.height;
                         text: root.type-label;
                         font-size: 18px;
                         font-weight: 600;

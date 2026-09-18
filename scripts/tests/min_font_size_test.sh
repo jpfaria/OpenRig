@@ -62,11 +62,24 @@ write_slint "$token" "font-size: Theme.min-font;"
 out="$(run_on "${token#"$REPO_ROOT"/}")"
 echo "$out" | grep -q "minimum font size" && fail "the token must be accepted (got: $out)" || pass "Theme.min-font is accepted"
 
+short="$FIXTURES/short.slint"
+write_slint "$short" "font-size: 18px; height: 14px;"
+out="$(run_on "${short#"$REPO_ROOT"/}")"
+echo "$out" | grep -q "shorter than its text" && pass "an 18px Text in a 14px box is rejected" || fail "an 18px Text in a 14px box must be rejected (got: $out)"
+
+tall="$FIXTURES/tall.slint"
+write_slint "$tall" "font-size: 18px; height: 22px;"
+out="$(run_on "${tall#"$REPO_ROOT"/}")"
+echo "$out" | grep -q "shorter than its text" && fail "an 18px Text in a 22px box must be accepted (got: $out)" || pass "an 18px Text in a 22px box is accepted"
+
 # The whole app, not just the fixtures: no .slint of ours may fall below the floor.
 out="$( cd "$REPO_ROOT" && VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates/adapter-gui/ui 2>&1 )"
 echo "$out" | grep -q "minimum font size" \
   && fail "the app still has text under 18px" \
   || pass "no text under 18px in the app"
+echo "$out" | grep -q "shorter than its text" \
+  && fail "the app still has text boxes shorter than their text" \
+  || pass "no text box in the app is shorter than its text"
 
 [ "$FAILURES" -eq 0 ] && echo "all ok" || echo "$FAILURES failure(s)"
 exit "$FAILURES"

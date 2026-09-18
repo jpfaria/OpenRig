@@ -163,6 +163,7 @@ export component ChainTitlePreset inherits Rectangle {
                 font-size: Theme.min-font;
                 font-weight: 600;
                 vertical-alignment: center;
+                overflow: elide;
             }
             title-ta := TouchArea {
                 mouse-cursor: root.fullscreen ? default : pointer;
@@ -264,7 +265,8 @@ export component ChainTitlePreset inherits Rectangle {
         x: 240px;
         y: 44px;
         width: 280px;
-        height: 116px;
+        // Follows its content so 18px text never clips (#954).
+        height: rename-box.preferred-height;
         close-policy: close-on-click-outside;
         Rectangle {
             width: 100%;
@@ -273,7 +275,7 @@ export component ChainTitlePreset inherits Rectangle {
             border-width: 1px;
             border-color: #2b3340;
             border-radius: 6px;
-            VerticalLayout {
+            rename-box := VerticalLayout {
                 padding: 10px;
                 spacing: 8px;
                 Text {
@@ -307,13 +309,13 @@ export component ChainTitlePreset inherits Rectangle {
                     spacing: 8px;
                     alignment: end;
                     Rectangle {
-                        width: 70px;
-                        height: 26px;
+                        width: Math.max(70px, cancel-label.preferred-width + 20px);
+                        height: 30px;
                         background: cancel-ta.has-hover ? #1f242c : transparent;
                         border-width: 1px;
                         border-color: #2b3340;
                         border-radius: 4px;
-                        Text {
+                        cancel-label := Text {
                             text: @tr("Cancel");
                             color: #c5cbd6;
                             font-size: Theme.min-font;
@@ -328,13 +330,13 @@ export component ChainTitlePreset inherits Rectangle {
                         }
                     }
                     Rectangle {
-                        width: 70px;
-                        height: 26px;
+                        width: Math.max(70px, ok-label.preferred-width + 20px);
+                        height: 30px;
                         background: ok-ta.has-hover
                             ? Theme.palette.accent-end
                             : Theme.palette.accent-start;
                         border-radius: 4px;
-                        Text {
+                        ok-label := Text {
                             text: @tr("OK");
                             color: #ffffff;
                             font-size: Theme.min-font;

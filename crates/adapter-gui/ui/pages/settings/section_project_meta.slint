@@ -12,6 +12,9 @@ import { SettingsBridge } from "../../settings_globals.slint";
 export component SectionProjectMeta inherits Rectangle {
     callback save-project();
 
+    // Shared label column: at least 80px, wider when a translation needs it.
+    private property <length> label-width: max(80px, name-label.preferred-width, file-label.preferred-width);
+
     background: transparent;
 
     VerticalLayout {
@@ -21,19 +24,20 @@ export component SectionProjectMeta inherits Rectangle {
         HorizontalLayout {
             spacing: 8px;
             alignment: start;
-            height: 32px;
-            Text {
+            min-height: 32px;
+            name-label := Text {
                 text: @tr("label-name");
                 color: #cfd5e0;
                 font-size: 18px;
-                width: 80px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             // Focus-ring wrapper: provides visible 2px bright-blue border on
             // focus per ui-ux-pro-max HIGH-severity focus ring rule.
             Rectangle {
                 horizontal-stretch: 1;
-                height: 28px;
+                // Tall enough for the LineEdit at 18px (its own min height).
+                height: max(28px, name-edit.min-height);
                 border-radius: 8px;
                 border-width: name-edit.has-focus ? 2px : 1px;
                 border-color: name-edit.has-focus ? #45a7ff : #2a2f38;
@@ -49,15 +53,16 @@ export component SectionProjectMeta inherits Rectangle {
             }
         }
 
+        // Grows with the wrapped file path instead of clipping its 2nd line.
         HorizontalLayout {
             spacing: 8px;
             alignment: start;
-            height: 28px;
-            Text {
+            min-height: 28px;
+            file-label := Text {
                 text: @tr("label-file");
                 color: #cfd5e0;
                 font-size: 18px;
-                width: 80px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {

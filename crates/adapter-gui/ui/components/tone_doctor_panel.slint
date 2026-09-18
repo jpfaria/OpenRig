@@ -21,19 +21,19 @@ component MeasureRow inherits Rectangle {
     in property <string> value-text;
     private property <float> track-frac: min(root.value / max(root.limit * 2.0, 0.0001), 1.0);
     private property <bool> over: root.value > root.limit;
-    height: 40px;
+    height: 46px;
     Text {
-        x: 0; y: 0; text: root.name;
+        x: 0; y: 0; height: 22px; text: root.name;
         color: root.over ? #ff6b6b : #7fe0a8;
-        font-size: 18px; font-weight: 800;
+        font-size: 18px; font-weight: 800; vertical-alignment: center;
     }
     Text {
-        x: parent.width - 110px; y: 0; width: 110px;
-        horizontal-alignment: right; text: root.value-text;
-        color: #eef2f8; font-size: 18px; font-weight: 700;
+        x: parent.width - 150px; y: 0; width: 150px; height: 22px;
+        horizontal-alignment: right; vertical-alignment: center; text: root.value-text;
+        color: #eef2f8; font-size: 18px; font-weight: 700; overflow: elide;
     }
     track := Rectangle {
-        x: 0; y: 20px; width: parent.width; height: 11px;
+        x: 0; y: 28px; width: parent.width; height: 11px;
         border-radius: 5px; background: #0a0d12;
         border-width: 1px; border-color: #2b3340; clip: true;
         Rectangle {
@@ -42,7 +42,7 @@ component MeasureRow inherits Rectangle {
         }
     }
     Rectangle {
-        x: track.width * 0.5 - 1px; y: 16px; width: 2px; height: 19px; background: #cbd3df;
+        x: track.width * 0.5 - 1px; y: 24px; width: 2px; height: 19px; background: #cbd3df;
     }
 }
 
@@ -93,8 +93,12 @@ export component ToneDoctorPanel inherits Rectangle {
         : root.symptom-level == 1 ? #f5a623
         : #3ecf8e;
 
+    // Label column of the seconds/genre rows follows the translated labels,
+    // capped so the four 44px chips (194px) always fit beside it.
+    private property <length> label-col: min(max(analyze-lbl.preferred-width, genre-lbl.preferred-width) + 12px, 142px);
+
     width: 360px;
-    height: root.has-result ? (root.has-suggestion ? 504px : 440px) : 196px;
+    height: root.has-result ? (root.has-suggestion ? 512px : 440px) : 196px;
     border-radius: 8px;
     background: #11141af2;
     border-width: 1px; border-color: #3b4250;
@@ -106,17 +110,18 @@ export component ToneDoctorPanel inherits Rectangle {
         source: @image-url("../assets/stethoscope.svg"); colorize: #8aa0ff;
     }
     Text {
-        x: 38px; y: 12px; height: 18px; text: @tr("tone-doctor-title");
+        x: 38px; y: 10px; height: 22px; text: @tr("tone-doctor-title");
         color: #f1f4f8; font-size: 18px; font-weight: 700; vertical-alignment: center;
     }
 
     // ── seconds selector ───────────────────────────────────────────────────
-    Text {
-        x: 12px; y: 42px; height: 26px; text: @tr("tone-doctor-analyze");
-        color: #8a94a2; font-size: 18px; font-weight: 700; vertical-alignment: center;
+    analyze-lbl := Text {
+        x: 12px; y: 42px; width: root.label-col - 12px; height: 26px; text: @tr("tone-doctor-analyze");
+        color: #8a94a2; font-size: 18px; font-weight: 700; vertical-alignment: center; overflow: elide;
     }
     HorizontalLayout {
-        x: 116px; y: 42px; width: 232px; height: 26px; spacing: 6px;
+        x: 12px + root.label-col; y: 42px; width: 336px - root.label-col; height: 26px; spacing: 6px;
+        alignment: start;
         SecondsChip { value: 5; selected: root.analyze-seconds == 5; picked(v) => { root.seconds-picked(v); } }
         SecondsChip { value: 10; selected: root.analyze-seconds == 10; picked(v) => { root.seconds-picked(v); } }
         SecondsChip { value: 20; selected: root.analyze-seconds == 20; picked(v) => { root.seconds-picked(v); } }
@@ -125,12 +130,12 @@ export component ToneDoctorPanel inherits Rectangle {
 
     // ── genre selector (#809) ──────────────────────────────────────────────
     // Picks the calibrated limits the doctor judges against; "" = defaults.
-    Text {
-        x: 12px; y: 78px; height: 38px; text: @tr("tone-doctor-genre");
-        color: #8a94a2; font-size: 18px; font-weight: 700; vertical-alignment: center;
+    genre-lbl := Text {
+        x: 12px; y: 78px; width: root.label-col - 12px; height: 38px; text: @tr("tone-doctor-genre");
+        color: #8a94a2; font-size: 18px; font-weight: 700; vertical-alignment: center; overflow: elide;
     }
     Select {
-        x: 116px; y: 76px; width: 232px;
+        x: 12px + root.label-col; y: 76px; width: 336px - root.label-col;
         options: ToneDoctorState.genre-options;
         active-key: ToneDoctorState.tone-genre;
         field-label: ToneDoctorState.tone-genre;
@@ -161,7 +166,7 @@ export component ToneDoctorPanel inherits Rectangle {
                   : root.has-result ? @tr("tone-doctor-rerun")
                   : @tr("tone-doctor-diagnose");
             color: !root.can-diagnose ? #6b7686 : root.running ? #8a94a2 : #dfe6f2;
-            font-size: 18px; font-weight: 700;
+            font-size: 18px; font-weight: 700; overflow: elide;
         }
         diag-ta := TouchArea {
             mouse-cursor: (root.can-diagnose && !root.running) ? pointer : default;
@@ -194,7 +199,7 @@ export component ToneDoctorPanel inherits Rectangle {
 
     // ── verdict + culprit ──────────────────────────────────────────────────
     if root.has-result : Rectangle {
-        x: 12px; y: 348px; width: 336px; height: 44px;
+        x: 12px; y: 370px; width: 336px; height: 58px;
         border-radius: 6px; background: #0a0d12; border-width: 1px; border-color: #2b3340;
         Rectangle {
             x: 12px; y: parent.height / 2 - 6px; width: 12px; height: 12px;
@@ -203,10 +208,12 @@ export component ToneDoctorPanel inherits Rectangle {
         VerticalLayout {
             x: 34px; y: 6px; width: parent.width - 46px; height: parent.height - 12px; spacing: 1px;
             Text {
+                height: 22px;
                 text: root.symptom-text; color: root.light-color;
                 font-size: 18px; font-weight: 700; vertical-alignment: center; overflow: elide;
             }
             Text {
+                height: 22px;
                 text: root.culprit-label; color: #aab4c2;
                 font-size: 18px; vertical-alignment: center; overflow: elide;
             }
@@ -215,25 +222,28 @@ export component ToneDoctorPanel inherits Rectangle {
 
     // ── measured fix + apply ───────────────────────────────────────────────
     if root.has-result && root.has-suggestion : Rectangle {
-        x: 12px; y: 400px; width: 336px; height: 64px;
+        x: 12px; y: 436px; width: 336px; height: 64px;
         border-radius: 6px; background: #0a0d12; border-width: 1px; border-color: #2b3340;
         Text {
-            x: 12px; y: 10px; width: parent.width - 24px; height: 16px;
+            x: 12px; y: 8px; width: parent.width - apply-btn.width - 36px; height: 22px;
             text: @tr("tone-doctor-suggestion"); color: #8a94a2; font-size: 18px; font-weight: 700;
+            vertical-alignment: center; overflow: elide;
         }
         Text {
-            x: 12px; y: 28px; width: parent.width - 96px; height: 24px;
+            x: 12px; y: 32px; width: parent.width - apply-btn.width - 36px; height: 24px;
             text: root.suggestion-text; color: #f1f4f8; font-size: 18px; font-weight: 700;
             vertical-alignment: center; overflow: elide;
         }
-        Rectangle {
-            x: parent.width - 84px; y: 16px; width: 72px; height: 32px; border-radius: 6px;
+        apply-btn := Rectangle {
+            x: parent.width - self.width - 12px; y: 16px;
+            width: min(max(72px, apply-lbl.preferred-width + 20px), 150px); height: 32px; border-radius: 6px;
             background: apply-ta.has-hover ? #3ecf8e : #2f9e6e;
             animate background { duration: 150ms; }
-            Text {
+            apply-lbl := Text {
                 width: parent.width; height: parent.height;
                 horizontal-alignment: center; vertical-alignment: center;
                 text: @tr("tone-doctor-apply"); color: #06110b; font-size: 18px; font-weight: 700;
+                overflow: elide;
             }
             apply-ta := TouchArea { mouse-cursor: pointer; clicked => { root.apply-suggestion(); } }
             accessible-role: button;

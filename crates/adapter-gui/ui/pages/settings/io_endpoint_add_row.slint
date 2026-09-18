@@ -16,7 +16,8 @@ component ChannelCheck inherits Rectangle {
     callback toggled(bool);
 
     height: 44px;
-    width: 96px;
+    // Wide enough for the translated "Channel N" label (never elided).
+    width: max(96px, channel-label.preferred-width + 36px);
     background: transparent;
 
     Rectangle {
@@ -39,7 +40,7 @@ component ChannelCheck inherits Rectangle {
         }
     }
 
-    Text {
+    channel-label := Text {
         x: 28px;
         y: 0px;
         width: parent.width - 28px;
@@ -96,7 +97,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
             text: @tr("label-endpoint-device");
             color: #8a92a3;
             font-size: 18px;
-            width: 70px;
+            min-width: 70px;
             vertical-alignment: center;
         }
 
@@ -116,7 +117,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
             text: @tr("label-endpoint-mode");
             color: #8a92a3;
             font-size: 18px;
-            width: 50px;
+            min-width: 50px;
             horizontal-alignment: right;
             vertical-alignment: center;
         }
@@ -139,7 +140,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
             text: @tr("label-endpoint-channels");
             color: #8a92a3;
             font-size: 18px;
-            width: 70px;
+            min-width: 70px;
             vertical-alignment: center;
         }
         for channel[index] in root.channel-options : ChannelCheck {
@@ -152,13 +153,14 @@ export component IoEndpointAddRow inherits VerticalLayout {
     HorizontalLayout {
         alignment: start;
         Rectangle {
-            width: 150px;
+            // Grows with the translated label (icon + gap + text + padding).
+            width: max(150px, add-content.preferred-width + 32px);
             height: 40px;
             background: root.can-add ? #188cff : #1e2229;
             border-radius: 8px;
             animate background { duration: 150ms; }
 
-            HorizontalLayout {
+            add-content := HorizontalLayout {
                 alignment: center;
                 spacing: 8px;
                 padding: 0px;

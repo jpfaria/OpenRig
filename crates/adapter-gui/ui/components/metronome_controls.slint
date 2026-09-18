@@ -55,12 +55,13 @@ export component ControlCell inherits Rectangle {
     in property <string> caption;
     in property <string> value;
 
-    width: 96px;
+    // Widens for a longer (translated) caption or value.
+    width: max(96px, caption-text.preferred-width, value-text.preferred-width);
     height: 108px;
 
-    Text {
+    caption-text := Text {
         x: 0; y: 0;
-        width: parent.width; height: 14px;
+        width: parent.width; height: 22px;
         text: root.caption;
         color: #7c8798;
         font-family: "Bebas Neue";
@@ -71,9 +72,9 @@ export component ControlCell inherits Rectangle {
 
     @children
 
-    Text {
-        x: 0; y: parent.height - 18px;
-        width: parent.width; height: 16px;
+    value-text := Text {
+        x: 0; y: parent.height - 22px;
+        width: parent.width; height: 22px;
         text: root.value;
         color: #d8e0ec;
         font-family: "Bebas Neue";
@@ -90,12 +91,13 @@ export component VintageToggle inherits Rectangle {
     in property <bool> active;
     callback toggled();
 
-    width: 76px;
-    height: 52px;
+    // Follows the (translated) label; the switch sits below it.
+    width: max(76px, label-text.preferred-width);
+    height: label-text.height + 34px;
 
-    Text {
+    label-text := Text {
         x: 0; y: 0;
-        width: parent.width; height: 12px;
+        width: parent.width; height: max(22px, self.preferred-height);
         text: root.label;
         color: root.active ? #d8b268 : #8a95a5;
         font-family: "Bebas Neue";
@@ -106,7 +108,7 @@ export component VintageToggle inherits Rectangle {
 
     // Toggle sprite (26×34 per frame, two frames stacked horizontally).
     Rectangle {
-        x: 7px; y: 16px;
+        x: 7px; y: label-text.height;
         width: 26px; height: 34px;
         clip: true;
         Image {
@@ -126,7 +128,7 @@ export component VintageToggle inherits Rectangle {
 
     // Red LED to the right of the toggle, lit when on.
     Rectangle {
-        x: 40px; y: 26px;
+        x: 40px; y: label-text.height + 10px;
         width: 14px; height: 14px;
         clip: true;
         Image {

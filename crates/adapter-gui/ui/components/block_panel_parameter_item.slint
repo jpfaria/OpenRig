@@ -23,7 +23,7 @@ export component BlockPanelParameterItem inherits Rectangle {
     // Label
     Text {
         x: 0; y: 0; width: parent.width;
-        height: 14px;
+        height: 22px;
         text: root.param.label;
         color: root.panel-text;
         font-family: "Bebas Neue";
@@ -36,15 +36,17 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── Enum ≤4 options (selector knob + inline labels) ──
     if root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 : Rectangle {
-        x: 0; y: 14px;
-        width: parent.width; height: 76px;
+        x: 0; y: 22px;
+        width: parent.width; height: 68px;
         background: transparent;
 
+        // Labels are 22px tall (#954); the lower ones sit beside the knob's
+        // lower half so the stack still fits the 90px cell.
         property <length> ks: 36px;
         property <length> cx: self.width / 2;
         property <length> top-row: 0px;
-        property <length> knob-y: 14px;
-        property <length> bot-row: self.knob-y + self.ks + 2px;
+        property <length> knob-y: 22px;
+        property <length> bot-row: self.knob-y + self.ks - 12px;
         property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
         property <int> n: root.param.option_labels.length;
         property <int> sel: root.param.selected_option_index;
@@ -63,7 +65,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         Text {
             visible: parent.n >= 2;
             x: 0; y: parent.bot-row;
-            width: parent.lw; height: 14px;
+            width: parent.lw; height: 22px;
             text: root.param.option_labels.length > 0 ? root.param.option_labels[0] : "";
             color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
             font-size: 18px;
@@ -74,7 +76,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         TouchArea {
             visible: parent.n >= 2;
             x: 0; y: parent.bot-row;
-            width: parent.lw; height: 14px;
+            width: parent.lw; height: 22px;
             mouse-cursor: pointer;
             clicked => { root.select-option(root.param.path, 0); }
         }
@@ -83,7 +85,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         Text {
             visible: parent.n >= 2;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
-            width: parent.lw; height: 14px;
+            width: parent.lw; height: 22px;
             text: parent.n == 2 ? (root.param.option_labels.length > 1 ? root.param.option_labels[1] : "")
                 : parent.n == 3 ? (root.param.option_labels.length > 2 ? root.param.option_labels[2] : "")
                 : (root.param.option_labels.length > 3 ? root.param.option_labels[3] : "");
@@ -97,7 +99,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         TouchArea {
             visible: parent.n >= 2;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
-            width: parent.lw; height: 14px;
+            width: parent.lw; height: 22px;
             mouse-cursor: pointer;
             clicked => { root.select-option(root.param.path, parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3); }
         }
@@ -106,7 +108,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         Text {
             visible: parent.n == 3;
             x: parent.cx - 55px; y: parent.top-row;
-            width: 110px; height: 14px;
+            width: 110px; height: 22px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
             color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
             font-size: 18px;
@@ -116,7 +118,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
         TouchArea {
             visible: parent.n == 3;
-            x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
+            x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 22px;
             mouse-cursor: pointer;
             clicked => { root.select-option(root.param.path, 1); }
         }
@@ -125,7 +127,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         Text {
             visible: parent.n == 4;
             x: 0; y: parent.top-row;
-            width: parent.lw; height: 14px;
+            width: parent.lw; height: 22px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
             color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
             font-size: 18px;
@@ -135,7 +137,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
         TouchArea {
             visible: parent.n == 4;
-            x: 0; y: parent.top-row; width: parent.lw; height: 14px;
+            x: 0; y: parent.top-row; width: parent.lw; height: 22px;
             mouse-cursor: pointer;
             clicked => { root.select-option(root.param.path, 1); }
         }
@@ -144,7 +146,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         Text {
             visible: parent.n == 4;
             x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
-            width: parent.lw; height: 14px;
+            width: parent.lw; height: 22px;
             text: root.param.option_labels.length > 2 ? root.param.option_labels[2] : "";
             color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
             font-size: 18px;
@@ -154,7 +156,7 @@ export component BlockPanelParameterItem inherits Rectangle {
         }
         TouchArea {
             visible: parent.n == 4;
-            x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
+            x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 22px;
             mouse-cursor: pointer;
             clicked => { root.select-option(root.param.path, 2); }
         }
@@ -260,7 +262,7 @@ export component BlockPanelParameterItem inherits Rectangle {
 
     // ── File picker (widget_kind == "path") ──
     if root.param.widget_kind == "path" : Rectangle {
-        x: 4px; y: 20px;
+        x: 4px; y: 24px;
         width: parent.width - 8px;
         height: 32px;
         border-radius: 6px;

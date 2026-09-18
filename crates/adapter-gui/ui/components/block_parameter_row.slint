@@ -22,6 +22,7 @@ export component BlockParameterRow inherits Rectangle {
         : root.item.widget_kind == "stepper" ? 78px
         : 84px;
     background: transparent;
+    private property <length> unit-w: Math.max(42px, unit-label.preferred-width + 12px);
 
     if root.item.widget_kind != "bool"
         && root.item.widget_kind != "stepper"
@@ -29,8 +30,9 @@ export component BlockParameterRow inherits Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
-        height: 18px;
+        height: 22px;
         text: root.item.label;
+        overflow: elide;
         color: #eef2f8;
         font-size: 18px;
         font-weight: 650;
@@ -62,7 +64,7 @@ export component BlockParameterRow inherits Rectangle {
     if root.item.widget_kind == "text" : ParamFieldBox {
         x: 0px;
         y: 28px;
-        width: root.item.unit_text == "" ? parent.width : parent.width - 54px;
+        width: root.item.unit_text == "" ? parent.width : parent.width - root.unit-w - 12px;
         height: 34px;
         text: root.item.value_text;
         changed(value) => {
@@ -147,17 +149,19 @@ export component BlockParameterRow inherits Rectangle {
         }
     }
 
-    if root.item.widget_kind == "text" && root.item.unit_text != "" : Rectangle {
-        x: parent.width - 42px;
-        y: 35px;
-        width: 42px;
-        height: 20px;
+    // The unit box follows its text (#954); always present so the field can size from it.
+    Rectangle {
+        visible: root.item.widget_kind == "text" && root.item.unit_text != "";
+        x: parent.width - root.unit-w;
+        y: 33px;
+        width: root.unit-w;
+        height: 24px;
         background: transparent;
         border-width: 1px;
         border-color: #465063;
         border-radius: 3px;
 
-        Text {
+        unit-label := Text {
             x: 0px;
             y: 0px;
             width: parent.width;

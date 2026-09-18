@@ -14,6 +14,10 @@ import { Button } from "std-widgets.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 
 export component SectionSystemPaths inherits Rectangle {
+    // Shared label column: at least 140px, wider when a translation needs it.
+    private property <length> label-width: max(140px, presets-label.preferred-width,
+        plugins-label.preferred-width, evaluations-label.preferred-width, catalog-label.preferred-width);
+
     background: transparent;
 
     VerticalLayout {
@@ -25,11 +29,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            presets-label := Text {
                 text: @tr("label-presets-path");
                 color: #cfd5e0;
                 font-size: 18px;
-                width: 140px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {
@@ -57,11 +61,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            plugins-label := Text {
                 text: @tr("label-plugins-path");
                 color: #cfd5e0;
                 font-size: 18px;
-                width: 140px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {
@@ -89,11 +93,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            evaluations-label := Text {
                 text: @tr("label-evaluations-path");
                 color: #cfd5e0;
                 font-size: 18px;
-                width: 140px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {
@@ -121,11 +125,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            catalog-label := Text {
                 text: @tr("label-plugin-catalog");
                 color: #cfd5e0;
                 font-size: 18px;
-                width: 140px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {

@@ -46,17 +46,20 @@ export component PanelSlider inherits Rectangle {
     }
 
     // ── Value box below fader ──
+    // Only when the caller leaves room under the sprite; the box then grows to
+    // the 18px value text (never less than 22px tall) instead of cutting it.
     Rectangle {
-        x: (root.width - root.fw * 0.95) / 2;
+        visible: root.height > root.fh + 3px;
+        x: (root.width - self.width) / 2;
         y: root.fh + 2px;
-        width: root.fw * 0.95;
-        height: root.height - root.fh - 3px;
+        width: max(root.fw * 0.95, value-text.preferred-width + 4px);
+        height: max(22px, root.height - root.fh - 3px);
         border-radius: 3px;
         background: #0c0a12;
         border-width: 1px;
         border-color: #2a2832;
 
-        Text {
+        value-text := Text {
             width: parent.width;
             height: parent.height;
             text: root.step >= 1.0

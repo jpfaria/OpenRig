@@ -16,25 +16,32 @@ export component CompactStreamMeters inherits Rectangle {
     in property <StreamMeter> di-meter;
     in property <bool> di-playing: false;
 
+    // Row geometry sized for 18px text (#954): a row shorter than its label
+    // makes an elided Text render nothing. The host reserves `row-pitch` per row.
+    out property <length> row-pitch: 28px;
+    private property <length> row-h: 24px;
+    private property <length> bar-y: (root.row-h - 12px) / 2;
+    private property <length> db-w: 64px;
+
     background: transparent;
 
     // #717: the DI row (one row above the chain's stream rows).
     if root.di-playing : di-row := Rectangle {
         x: 0px;
-        y: parent.height - 22px - root.stream-meters.length * 22px;
+        y: parent.height - root.row-pitch - root.stream-meters.length * root.row-pitch;
         width: parent.width;
-        height: 16px;
+        height: root.row-h;
 
         Rectangle {
-            x: 60px; y: 0px; width: 220px; height: 16px;
-            Text {
-                x: 0px; y: 0px; width: 44px; height: parent.height;
+            x: 60px; y: 0px; width: di-in-bar.x + 134px + root.db-w; height: parent.height;
+            di-in-label := Text {
+                x: 0px; y: 0px; width: Math.max(44px, self.preferred-width); height: parent.height;
                 text: "DI";
                 font-size: 18px; font-weight: 800; color: #6e8aff;
                 horizontal-alignment: right; vertical-alignment: center;
             }
-            Rectangle {
-                x: 48px; y: 2px; width: 130px; height: 12px;
+            di-in-bar := Rectangle {
+                x: di-in-label.width + 4px; y: root.bar-y; width: 130px; height: 12px;
                 border-width: 1px;
                 border-color: root.di-meter.in_dbfs > 0.0 ? #f87171 : #6e8aff66;
                 border-radius: 2px;
@@ -48,7 +55,7 @@ export component CompactStreamMeters inherits Rectangle {
                 }
             }
             Text {
-                x: 182px; y: 0px; width: 36px; height: parent.height;
+                x: di-in-bar.x + 134px; y: 0px; width: root.db-w; height: parent.height;
                 text: root.di-meter.in_dbfs <= -119.0 ? "—" : Math.round(root.di-meter.in_dbfs) + " dB";
                 font-size: 18px; font-weight: 700;
                 color: root.di-meter.in_dbfs <= -119.0 ? #6b7280
@@ -58,15 +65,16 @@ export component CompactStreamMeters inherits Rectangle {
             }
         }
         Rectangle {
-            x: parent.width - 240px; y: 0px; width: 230px; height: 16px;
-            Text {
-                x: 0px; y: 0px; width: 50px; height: parent.height;
+            width: di-out-bar.x + 134px + root.db-w;
+            x: parent.width - self.width - 10px; y: 0px; height: parent.height;
+            di-out-label := Text {
+                x: 0px; y: 0px; width: Math.max(50px, self.preferred-width); height: parent.height;
                 text: "DI OUT";
                 font-size: 18px; font-weight: 800; color: #6e8aff;
                 horizontal-alignment: right; vertical-alignment: center;
             }
-            Rectangle {
-                x: 54px; y: 2px; width: 130px; height: 12px;
+            di-out-bar := Rectangle {
+                x: di-out-label.width + 4px; y: root.bar-y; width: 130px; height: 12px;
                 border-width: 1px;
                 border-color: root.di-meter.out_dbfs > 0.0 ? #f87171 : #6e8aff66;
                 border-radius: 2px;
@@ -80,7 +88,7 @@ export component CompactStreamMeters inherits Rectangle {
                 }
             }
             Text {
-                x: 188px; y: 0px; width: 40px; height: parent.height;
+                x: di-out-bar.x + 134px; y: 0px; width: root.db-w; height: parent.height;
                 text: root.di-meter.out_dbfs <= -119.0 ? "—" : Math.round(root.di-meter.out_dbfs) + " dB";
                 font-size: 18px; font-weight: 700;
                 color: root.di-meter.out_dbfs <= -119.0 ? #6b7280
@@ -97,14 +105,14 @@ export component CompactStreamMeters inherits Rectangle {
     // `meter-out-dbfs` pair so old wiring keeps working.
     for stream[i] in root.stream-meters: Rectangle {
         x: 0px;
-        y: parent.height - 22px
-            - (root.stream-meters.length - 1 - i) * 22px;
+        y: parent.height - root.row-pitch
+            - (root.stream-meters.length - 1 - i) * root.row-pitch;
         width: parent.width;
-        height: 16px;
+        height: root.row-h;
 
         Rectangle {
             x: 60px; y: 0px;
-            width: 316px; height: 16px;
+            width: 278px + root.db-w; height: parent.height;
             // #928: the row names the E/S it reads from; a row the project
             // could not name falls back to the bare direction.
             Text {
@@ -118,7 +126,7 @@ export component CompactStreamMeters inherits Rectangle {
                 vertical-alignment: center;
             }
             Rectangle {
-                x: 144px; y: 2px;
+                x: 144px; y: root.bar-y;
                 width: 130px; height: 12px;
                 border-width: 1px;
                 border-color: stream.in_dbfs > 0.0 ? #f87171 : #2a313a;
@@ -143,7 +151,7 @@ export component CompactStreamMeters inherits Rectangle {
             }
             Text {
                 x: 278px; y: 0px;
-                width: 36px; height: parent.height;
+                width: root.db-w; height: parent.height;
                 text: stream.in_dbfs <= -119.0
                     ? "—"
                     : Math.round(stream.in_dbfs) + " dB";
@@ -158,8 +166,8 @@ export component CompactStreamMeters inherits Rectangle {
         }
 
         Rectangle {
-            x: parent.width - 336px; y: 0px;
-            width: 326px; height: 16px;
+            width: 284px + root.db-w;
+            x: parent.width - self.width - 10px; y: 0px; height: parent.height;
             Text {
                 x: 0px; y: 0px;
                 width: 140px; height: parent.height;
@@ -171,7 +179,7 @@ export component CompactStreamMeters inherits Rectangle {
                 vertical-alignment: center;
             }
             Rectangle {
-                x: 150px; y: 2px;
+                x: 150px; y: root.bar-y;
                 width: 130px; height: 12px;
                 border-width: 1px;
                 border-color: stream.out_dbfs > 0.0 ? #f87171 : #2a313a;
@@ -196,7 +204,7 @@ export component CompactStreamMeters inherits Rectangle {
             }
             Text {
                 x: 284px; y: 0px;
-                width: 40px; height: parent.height;
+                width: root.db-w; height: parent.height;
                 text: stream.out_dbfs <= -119.0
                     ? "—"
                     : Math.round(stream.out_dbfs) + " dB";
@@ -216,20 +224,20 @@ export component CompactStreamMeters inherits Rectangle {
     // to per-stream meters still shows something at the footer.
     if root.stream-meters.length == 0 : Rectangle {
         x: 60px;
-        y: parent.height - 22px;
-        width: 220px;
-        height: 16px;
-        Text {
+        y: parent.height - root.row-pitch;
+        width: in-bar.x + 134px + root.db-w;
+        height: root.row-h;
+        in-label := Text {
             x: 0; y: 0;
-            width: 44px; height: parent.height;
+            width: Math.max(44px, self.preferred-width); height: parent.height;
             text: "INPUT";
             font-size: 18px; font-weight: 700;
             color: #9ca3af;
             horizontal-alignment: right;
             vertical-alignment: center;
         }
-        Rectangle {
-            x: 48px; y: 2px;
+        in-bar := Rectangle {
+            x: in-label.width + 4px; y: root.bar-y;
             width: 130px; height: 12px;
             border-width: 1px;
             border-color: root.meter-in-dbfs > 0.0 ? #f87171 : #2a313a;
@@ -253,8 +261,8 @@ export component CompactStreamMeters inherits Rectangle {
             }
         }
         Text {
-            x: 182px; y: 0;
-            width: 36px; height: parent.height;
+            x: in-bar.x + 134px; y: 0;
+            width: root.db-w; height: parent.height;
             text: root.meter-in-dbfs <= -119.0
                 ? "—"
                 : Math.round(root.meter-in-dbfs) + " dB";
@@ -268,21 +276,21 @@ export component CompactStreamMeters inherits Rectangle {
         }
     }
     if root.stream-meters.length == 0 : Rectangle {
-        x: parent.width - 240px;
-        y: parent.height - 22px;
-        width: 230px;
-        height: 16px;
-        Text {
+        width: out-bar.x + 134px + root.db-w;
+        x: parent.width - self.width - 10px;
+        y: parent.height - root.row-pitch;
+        height: root.row-h;
+        out-label := Text {
             x: 0; y: 0;
-            width: 50px; height: parent.height;
+            width: Math.max(50px, self.preferred-width); height: parent.height;
             text: "OUTPUT";
             font-size: 18px; font-weight: 700;
             color: #9ca3af;
             horizontal-alignment: right;
             vertical-alignment: center;
         }
-        Rectangle {
-            x: 54px; y: 2px;
+        out-bar := Rectangle {
+            x: out-label.width + 4px; y: root.bar-y;
             width: 130px; height: 12px;
             border-width: 1px;
             border-color: root.meter-out-dbfs > 0.0 ? #f87171 : #2a313a;
@@ -306,8 +314,8 @@ export component CompactStreamMeters inherits Rectangle {
             }
         }
         Text {
-            x: 188px; y: 0;
-            width: 40px; height: parent.height;
+            x: out-bar.x + 134px; y: 0;
+            width: root.db-w; height: parent.height;
             text: root.meter-out-dbfs <= -119.0
                 ? "—"
                 : Math.round(root.meter-out-dbfs) + " dB";

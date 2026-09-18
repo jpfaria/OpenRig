@@ -32,8 +32,9 @@ component EqBandSlider inherits Rectangle {
         : 0.5;
 
     // Layout slots
-    private property <length> top-h: root.tight ? 0px : 16px;
-    private property <length> bottom-h: root.tight ? 0px : 14px;
+    // #954: 22px slots — the 18px readout / frequency label need them.
+    private property <length> top-h: root.tight ? 0px : 22px;
+    private property <length> bottom-h: root.tight ? 0px : 22px;
     private property <length> track-pad: 6px;
     private property <length> track-y: root.top-h + root.track-pad;
     private property <length> track-h: root.height - root.top-h - root.bottom-h - 2 * root.track-pad;
@@ -59,6 +60,7 @@ component EqBandSlider inherits Rectangle {
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
+        overflow: elide;
     }
 
     // ── Track (recessed look: dark base + 1px highlight at top) ──
@@ -130,6 +132,7 @@ component EqBandSlider inherits Rectangle {
         font-weight: 600;
         letter-spacing: 0.5px;
         horizontal-alignment: center;
+        vertical-alignment: center;
         overflow: elide;
     }
 

@@ -34,6 +34,9 @@ component NavRow inherits Rectangle {
     callback clicked();
 
     height: 36px;
+    // The row asks for its label's full width so the sidebar grows to fit
+    // the longest translated section name instead of eliding it.
+    min-width: nav-label.preferred-width + 24px;
     background: root.selected
         ? #22272f
         : (ta.has-hover ? #1e2229 : transparent);
@@ -48,7 +51,7 @@ component NavRow inherits Rectangle {
         background: #188cff;
     }
 
-    Text {
+    nav-label := Text {
         x: 16px;
         y: 0px;
         width: parent.width - 24px;
@@ -115,7 +118,8 @@ export component SettingsPage inherits Rectangle {
 
         // ── Sidebar ───────────────────────────────────────────────
         Rectangle {
-            width: 200px;
+            min-width: 200px;
+            horizontal-stretch: 0;
             background: #1a1d22;
 
             VerticalLayout {

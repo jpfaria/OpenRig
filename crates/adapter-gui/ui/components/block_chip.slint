@@ -46,9 +46,9 @@ export component BlockChip inherits Rectangle {
     property <float> drag-origin-y: 0;
     // The type label sits above the artwork with a clear gap (#954); at rest
     // the artwork fills what is left down to the LED.
-    property <length> type-label-height: 20px;
+    property <length> type-label-height: 22px;
     property <length> art-rest-y: root.type-label-height + 6px;
-    property <length> art-rest-height: 70px;
+    property <length> art-rest-height: 68px;
 
     width: 100px;
     height: 100px;
@@ -88,6 +88,7 @@ export component BlockChip inherits Rectangle {
         letter-spacing: 1px;
         horizontal-alignment: center;
         vertical-alignment: center;
+        overflow: elide;
         opacity: (root.dragging || root.chain-dragging) ? 0.0 : 1.0;
         animate opacity { duration: 120ms; easing: ease-out; }
     }

@@ -144,12 +144,12 @@ export component CompactChainViewPage inherits Rectangle {
         remove-chain(ci) => { root.remove-chain(ci); }
     }
 
-    // Footer reservation: one 22 px row per stream meter (multi-input
+    // Footer reservation: one meter row pitch per stream meter (multi-input
     // chains stack), minimum one row so the IN/OUT pair always fits.
     property <int> meter-row-count:
         (root.stream-meters.length > 0 ? root.stream-meters.length : 1)
         + (root.di-loop-playing ? 1 : 0);
-    property <length> meter-footer-height: root.meter-row-count * 22px + 6px;
+    property <length> meter-footer-height: root.meter-row-count * meters.row-pitch + 6px;
 
     // Block rows with insert slots between them
     Flickable {
@@ -179,10 +179,12 @@ export component CompactChainViewPage inherits Rectangle {
                 border-radius: 1px;
                 opacity: insert0-ta.has-hover ? 1.0 : 0.0;
             }
+            // #954: the "+" pill is 22px tall for its 18px glyph; it spills
+            // below the 12px slot (the Flickable clips anything above y 0).
             Rectangle {
                 x: (parent.width - 24px) / 2; y: 0;
-                width: 24px; height: 12px;
-                border-radius: 6px;
+                width: 24px; height: 22px;
+                border-radius: 11px;
                 background: #3366cc;
                 opacity: insert0-ta.has-hover ? 1.0 : 0.0;
 
@@ -313,10 +315,11 @@ export component CompactChainViewPage inherits Rectangle {
                 border-radius: 1px;
                 opacity: insert-ta.has-hover ? 1.0 : 0.0;
             }
+            // #954: 22px pill centred on the 12px slot.
             Rectangle {
-                x: (parent.width - 24px) / 2; y: 0;
-                width: 24px; height: 12px;
-                border-radius: 6px;
+                x: (parent.width - 24px) / 2; y: (parent.height - 22px) / 2;
+                width: 24px; height: 22px;
+                border-radius: 11px;
                 background: #3366cc;
                 opacity: insert-ta.has-hover ? 1.0 : 0.0;
 
@@ -411,7 +414,7 @@ export component CompactChainViewPage inherits Rectangle {
 
     // ── Footer: per-stream IN / OUT peak meter rows (#496 / #559) ─────
     // Extracted to `compact_stream_meters.slint` (file-size cap).
-    CompactStreamMeters {
+    meters := CompactStreamMeters {
         x: 0; y: 0; width: 100%; height: 100%;
         stream-meters: root.stream-meters;
         meter-in-dbfs: root.meter-in-dbfs;

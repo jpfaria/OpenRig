@@ -5,7 +5,8 @@ component SetupButton inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    width: 120px;
+    // #954: the button follows its translated label.
+    width: max(120px, lbl.preferred-width + 24px);
     height: 36px;
     background: root.enabled
         ? (primary ? #188cff : #2f3339)
@@ -17,7 +18,7 @@ component SetupButton inherits Rectangle {
     border-radius: 6px;
     opacity: root.enabled ? 1.0 : 0.5;
 
-    Text {
+    lbl := Text {
         width: parent.width;
         height: parent.height;
         text: root.label;
@@ -159,9 +160,9 @@ export component ProjectSetupPage inherits Rectangle {
 
         Text {
             x: 28px;
-            y: 76px;
-            width: 120px;
-            height: 20px;
+            y: 74px;
+            width: parent.width - 56px;
+            height: 22px;
             text: @tr("label-project-name");
             color: #8d95a2;
             vertical-alignment: center;
@@ -189,25 +190,26 @@ export component ProjectSetupPage inherits Rectangle {
 
         if root.status-message != "" : Text {
             x: 28px;
-            y: 148px;
+            y: 144px;
             width: parent.width - 56px;
-            height: 18px;
+            height: 22px;
             text: root.status-message;
             color: #ff6b6b;
             vertical-alignment: center;
             font-size: 18px;
+            overflow: elide;
         }
 
         // Buttons
         SetupButton {
-            x: parent.width - 28px - 120px - 8px - 120px;
+            x: create-btn.x - 8px - self.width;
             y: 168px;
             label: @tr("btn-cancel");
             clicked => { root.cancel(); }
         }
 
-        SetupButton {
-            x: parent.width - 28px - 120px;
+        create-btn := SetupButton {
+            x: parent.width - 28px - self.width;
             y: 168px;
             label: @tr("btn-create-project");
             primary: true;

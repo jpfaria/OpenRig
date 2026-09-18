@@ -126,8 +126,8 @@ export component LooperRow inherits Rectangle {
         Text {
             x: 14px;
             y: 0;
-            width: parent.width - 14px - 104px;
-            height: 20px;
+            width: parent.width - 14px - time-text.width - 4px;
+            height: 22px;
             vertical-alignment: center;
             // The label is picked here so every state string lives in the
             // Slint catalog — the Rust side ships a code, not a sentence.
@@ -142,11 +142,12 @@ export component LooperRow inherits Rectangle {
             overflow: elide;
         }
 
-        Text {
-            x: parent.width - 100px;
+        // Width follows the time text so "0:00 / 0:00" is never cut.
+        time-text := Text {
+            x: parent.width - self.width;
             y: 0;
-            width: 100px;
-            height: 20px;
+            width: max(100px, self.preferred-width);
+            height: 22px;
             vertical-alignment: center;
             horizontal-alignment: right;
             text: root.looper.time_label;
@@ -156,7 +157,7 @@ export component LooperRow inherits Rectangle {
 
         Rectangle {
             x: 0;
-            y: 23px;
+            y: 26px;
             width: parent.width;
             height: 4px;
             border-radius: 2px;
@@ -203,14 +204,16 @@ export component LooperRow inherits Rectangle {
             background: Theme.palette.border;
         }
 
-        LooperSegmented {
+        in-seg := LooperSegmented {
+            label-width: preset-label.width;
             label: @tr("looper-input");
             options: root.input-options;
             selected-index: root.looper.input_index;
             picked(i) => { root.input-picked(i); }
         }
 
-        LooperSegmented {
+        out-seg := LooperSegmented {
+            label-width: preset-label.width;
             label: @tr("looper-output");
             options: root.output-options;
             selected-index: root.looper.output_index;
@@ -222,9 +225,13 @@ export component LooperRow inherits Rectangle {
         preset-btn := Rectangle {
             height: 28px;
 
-            Text {
+            // The drawer's label column: fits the widest (translated) label
+            // of every drawer row, which all share it so their controls align.
+            preset-label := Text {
                 x: 0;
-                width: 74px;
+                width: max(74px, self.preferred-width, in-seg.label-natural,
+                    out-seg.label-natural, level-slider.label-natural,
+                    decay-slider.label-natural, speed-seg.label-natural);
                 height: parent.height;
                 vertical-alignment: center;
                 text: @tr("looper-preset");
@@ -233,8 +240,8 @@ export component LooperRow inherits Rectangle {
             }
 
             Rectangle {
-                x: 80px;
-                width: parent.width - 80px;
+                x: preset-label.width + 6px;
+                width: parent.width - preset-label.width - 6px;
                 height: parent.height;
                 border-radius: 6px;
                 border-width: 1px;
@@ -282,13 +289,15 @@ export component LooperRow inherits Rectangle {
             }
         }
 
-        LooperSlider {
+        level-slider := LooperSlider {
+            label-width: preset-label.width;
             label: @tr("looper-level");
             value: root.looper.mix;
             value-changed(v) => { root.mix-changed(v); }
         }
 
-        LooperSlider {
+        decay-slider := LooperSlider {
+            label-width: preset-label.width;
             label: @tr("looper-decay");
             value: root.looper.decay;
             value-changed(v) => { root.decay-changed(v); }
@@ -298,7 +307,8 @@ export component LooperRow inherits Rectangle {
             height: 28px;
             spacing: 12px;
 
-            LooperSegmented {
+            speed-seg := LooperSegmented {
+                label-width: preset-label.width;
                 label: @tr("looper-speed");
                 options: ["½×", "1×", "2×"];
                 selected-index: root.looper.speed_index;
@@ -306,13 +316,14 @@ export component LooperRow inherits Rectangle {
             }
 
             Rectangle {
-                width: 132px;
+                // Follows the (translated) label.
+                width: max(132px, reverse-label.preferred-width + 20px);
                 border-radius: 6px;
                 border-width: 1px;
                 border-color: root.looper.reverse ? #6e8aff : Theme.palette.border;
                 background: root.looper.reverse ? #6e8aff28 : transparent;
 
-                Text {
+                reverse-label := Text {
                     text: @tr("looper-reverse");
                     color: root.looper.reverse
                         ? Theme.palette.text-primary

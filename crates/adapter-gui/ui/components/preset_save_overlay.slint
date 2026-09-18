@@ -21,7 +21,7 @@ export component PresetSaveOverlay inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: min(root.width * 0.7, 420px);
-        height: 200px;
+        height: max(200px, save-col.preferred-height);
         background: #1e1f22;
         border-radius: 10px;
         drop-shadow-blur: 16px;
@@ -32,7 +32,7 @@ export component PresetSaveOverlay inherits Rectangle {
         // LineEdit waits for an extra click before accepting keys.
         init => { name-edit.focus(); }
 
-        VerticalLayout {
+        save-col := VerticalLayout {
             padding: 20px;
             spacing: 12px;
             Text {
@@ -106,14 +106,15 @@ export component PresetOverwriteOverlay inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: min(root.width * 0.7, 420px);
-        height: 170px;
+        // Grows with the (wrapped) message.
+        height: max(170px, overwrite-col.preferred-height);
         background: #1e1f22;
         border-radius: 10px;
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: 4px;
         drop-shadow-color: #000000c0;
 
-        VerticalLayout {
+        overwrite-col := VerticalLayout {
             padding: 20px;
             spacing: 12px;
             Text {
@@ -128,8 +129,7 @@ export component PresetOverwriteOverlay inherits Rectangle {
                 font-size: 18px;
                 color: #aaaaaa;
                 horizontal-alignment: center;
-                overflow: elide;
-                wrap: no-wrap;
+                wrap: word-wrap;
             }
             HorizontalLayout {
                 spacing: 8px;

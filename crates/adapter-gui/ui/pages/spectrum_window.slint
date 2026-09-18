@@ -39,7 +39,9 @@ component PowerFootSwitch inherits Rectangle {
 component SpectrumCard inherits Rectangle {
     in property <SpectrumRow> data;
 
-    height: 132px;
+    // Tall enough for an 18px label on top and 18px decade labels below
+    // (22px lines each) without clipping either against the bars.
+    height: 140px;
     border-radius: 8px;
     background: @linear-gradient(180deg, #14181f 0%, #0e1116 100%);
     border-width: 1px;
@@ -52,7 +54,7 @@ component SpectrumCard inherits Rectangle {
     Text {
         x: 14px; y: 8px;
         width: parent.width - 32px;
-        height: 14px;
+        height: 22px;
         text: root.data.label;
         color: #c5cdd9;
         font-family: "Bebas Neue";
@@ -63,8 +65,8 @@ component SpectrumCard inherits Rectangle {
 
     // Inactive state ribbon
     if !root.data.active : Text {
-        x: 0; y: parent.height / 2 - 6px;
-        width: parent.width; height: 14px;
+        x: 0; y: parent.height / 2 - 11px;
+        width: parent.width; height: 22px;
         text: @tr("—");
         color: #2a3340;
         font-family: "Bebas Neue";
@@ -80,7 +82,7 @@ component SpectrumCard inherits Rectangle {
         x: 12px;
         y: 30px;
         width: parent.width - 24px;
-        height: parent.height - 50px;
+        height: parent.height - 56px;
 
         // 63 bars + 62 gaps. Bar stride derives from the available width.
         property <length> bar-stride: parent.width / 63;
@@ -111,38 +113,39 @@ component SpectrumCard inherits Rectangle {
     // (matches `feature_dsp::spectrum_fft::BAND_LABELS`).
     Rectangle {
         x: 12px;
-        y: parent.height - 18px;
+        y: parent.height - 24px;
         width: parent.width - 24px;
-        height: 14px;
+        height: 22px;
 
         property <length> bar-stride: parent.width / 63;
 
         Text {
-            x: 0 * parent.bar-stride; y: 0; width: 20px;
+            x: 0 * parent.bar-stride; y: 0; width: self.preferred-width; height: parent.height;
             text: @tr("20"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
         Text {
-            x: 14 * parent.bar-stride - 6px; y: 0; width: 20px;
+            x: 14 * parent.bar-stride - 6px; y: 0; width: self.preferred-width; height: parent.height;
             text: @tr("100"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
         Text {
-            x: 34 * parent.bar-stride - 6px; y: 0; width: 20px;
+            x: 34 * parent.bar-stride - 6px; y: 0; width: self.preferred-width; height: parent.height;
             text: @tr("1k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
         Text {
-            x: 54 * parent.bar-stride - 6px; y: 0; width: 20px;
+            x: min(54 * parent.bar-stride - 6px, label-20k.x - self.width - 4px); y: 0; width: self.preferred-width; height: parent.height;
             text: @tr("10k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
         }
-        Text {
-            x: 60 * parent.bar-stride - 4px; y: 0; width: 20px;
+        label-20k := Text {
+            // Kept inside the card's right edge (the card clips).
+            x: min(60 * parent.bar-stride - 4px, parent.width - self.width); y: 0; width: self.preferred-width; height: parent.height;
             text: @tr("20k"); color: #4a525e;
             font-family: "Bebas Neue"; font-size: 18px;
             letter-spacing: 0.8px;
@@ -190,7 +193,7 @@ export component SpectrumPanel inherits Rectangle {
 
         Text {
             x: 110px; y: 0;
-            width: 140px; height: parent.height;
+            width: self.preferred-width; height: parent.height;
             text: @tr("label-spectrum");
             color: #e5ebf2;
             font-family: "Bebas Neue";
@@ -240,14 +243,16 @@ export component SpectrumPanel inherits Rectangle {
             letter-spacing: 2.4px;
             horizontal-alignment: center;
         }
+        // Wraps (and grows) instead of running off a narrow window.
         Text {
-            x: 0; y: parent.height / 2 - 4px;
-            width: parent.width; height: 20px;
+            x: 16px; y: parent.height / 2 - 4px;
+            width: parent.width - 32px; height: self.preferred-height;
             text: @tr("status-spectrum-empty-help");
             color: #4a525e;
             font-family: "Inter";
             font-size: 18px;
             horizontal-alignment: center;
+            wrap: word-wrap;
         }
     }
 
@@ -256,11 +261,11 @@ export component SpectrumPanel inherits Rectangle {
         x: 16px; y: 88px;
         width: parent.width - 32px;
         height: parent.height - 104px;
-        viewport-height: root.spectrum-rows.length * 144px;
+        viewport-height: root.spectrum-rows.length * 152px;
 
         for row[index] in root.spectrum-rows : SpectrumCard {
             x: 0;
-            y: index * 144px;
+            y: index * 152px;
             width: parent.width - 8px;
             data: row;
         }

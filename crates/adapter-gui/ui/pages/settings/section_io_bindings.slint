@@ -142,12 +142,13 @@ component FieldRow inherits HorizontalLayout {
     // one-line fields keep it centred against the control.
     in property <bool> label-top: false;
     spacing: 16px;
+    // Label column grows with the translated label (e.g. "Périphérique").
     Rectangle {
-        width: 92px;
+        width: max(92px, field-label.preferred-width);
         VerticalLayout {
             alignment: root.label-top ? start : center;
             padding-top: root.label-top ? 9px : 0px;
-            Text { text: root.label; color: #a1a1aa; font-size: 18px; }
+            field-label := Text { text: root.label; color: #a1a1aa; font-size: 18px; }
         }
     }
     @children
@@ -204,7 +205,7 @@ export component SectionSystemIoBindings inherits Rectangle {
                 text: @tr("help-io-bindings");
                 color: #a1a1aa; font-size: 18px; vertical-alignment: center; wrap: word-wrap;
             }
-            Rectangle { width: 138px; VerticalLayout { alignment: center;
+            Rectangle { width: new-binding-btn.preferred-width; VerticalLayout { alignment: center;
                 new-binding-btn := PrimaryButton { text: @tr("btn-new-binding"); clicked => { root.expanded-binding-id = SettingsBridge.create-io-binding(""); } } } }
         }
 
@@ -216,10 +217,11 @@ export component SectionSystemIoBindings inherits Rectangle {
         }
 
         if SettingsBridge.io-bindings.length == 0 : Rectangle {
-            height: 96px; background: #16161a; border-radius: 10px; border-width: 1px; border-color: #27272a;
-            VerticalLayout { alignment: center; spacing: 4px;
-                Text { text: @tr("empty-no-bindings"); color: #d4d4d8; font-size: 18px; font-weight: 600; horizontal-alignment: center; }
-                Text { text: @tr("empty-no-bindings-hint"); color: #71717a; font-size: 18px; horizontal-alignment: center; } }
+            // Grows with the (wrapped) hint instead of clipping it.
+            min-height: 96px; background: #16161a; border-radius: 10px; border-width: 1px; border-color: #27272a;
+            VerticalLayout { alignment: center; spacing: 4px; padding: 16px;
+                Text { text: @tr("empty-no-bindings"); color: #d4d4d8; font-size: 18px; font-weight: 600; horizontal-alignment: center; wrap: word-wrap; }
+                Text { text: @tr("empty-no-bindings-hint"); color: #71717a; font-size: 18px; horizontal-alignment: center; wrap: word-wrap; } }
         }
 
         for binding[bi] in SettingsBridge.io-bindings : Rectangle {

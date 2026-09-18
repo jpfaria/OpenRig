@@ -48,13 +48,14 @@ component MuteSwitch inherits Rectangle {
     callback toggled();
 
     width: 50px;
-    height: 52px;
+    height: 58px;
     opacity: root.enabled ? 1.0 : 0.35;
 
-    // Label aligned over the toggle sprite only — not the toggle+LED row.
+    // Label centred over the toggle sprite only — not the toggle+LED row.
+    // Sized from the text so the 18px label is never cut.
     Text {
-        x: 4px; y: 0;
-        width: 26px; height: 12px;
+        x: 4px + (26px - self.width) / 2; y: 0;
+        width: self.preferred-width; height: 22px;
         text: @tr("label-mute");
         color: root.active ? #ff7878 : #8a95a5;
         font-family: "Bebas Neue";
@@ -65,7 +66,7 @@ component MuteSwitch inherits Rectangle {
 
     // Toggle sprite — left side of the row below the label.
     Rectangle {
-        x: 4px; y: 16px;
+        x: 4px; y: 24px;
         width: 26px; height: 34px;
         clip: true;
         Image {
@@ -89,7 +90,7 @@ component MuteSwitch inherits Rectangle {
 
     // Red LED on the right of the toggle, vertically centered with it.
     Rectangle {
-        x: 36px; y: 26px;
+        x: 36px; y: 34px;
         width: 14px; height: 14px;
         clip: true;
         Image {
@@ -148,7 +149,7 @@ component TunerCard inherits Rectangle {
     Text {
         x: 14px; y: 8px;
         width: parent.width - 130px;
-        height: 14px;
+        height: 22px;
         text: root.data.label;
         color: #2a1f0a;
         font-family: "Bebas Neue";
@@ -159,8 +160,8 @@ component TunerCard inherits Rectangle {
 
     // Hz readout (top-right)
     Text {
-        x: parent.width - 110px; y: 8px;
-        width: 96px; height: 14px;
+        x: parent.width - 14px - self.width; y: 8px;
+        width: max(96px, self.preferred-width); height: 22px;
         text: root.data.active && root.data.frequency > 0.0
             ? Math.round(root.data.frequency * 100) / 100 + " Hz"
             : "----- Hz";
@@ -248,7 +249,7 @@ component TunerCard inherits Rectangle {
         x: parent.width - 220px;
         y: 56px;
         width: 200px;
-        height: 16px;
+        height: 22px;
         text: root.data.active
             ? (root.data.cents >= 0
                 ? "+" + Math.round(root.data.cents) + " ¢"
@@ -308,7 +309,7 @@ export component TunerPanel inherits Rectangle {
 
         Text {
             x: 110px; y: 0;
-            width: 80px; height: parent.height;
+            width: self.preferred-width; height: parent.height;
             text: @tr("label-tuner");
             color: #e5ebf2;
             font-family: "Bebas Neue";
@@ -368,14 +369,16 @@ export component TunerPanel inherits Rectangle {
             letter-spacing: 2.4px;
             horizontal-alignment: center;
         }
+        // Wraps (and grows) instead of running off a narrow window.
         Text {
-            x: 0; y: parent.height / 2 - 4px;
-            width: parent.width; height: 20px;
+            x: 16px; y: parent.height / 2 - 4px;
+            width: parent.width - 32px; height: self.preferred-height;
             text: @tr("status-tuner-empty-help");
             color: #4a525e;
             font-family: "Inter";
             font-size: 18px;
             horizontal-alignment: center;
+            wrap: word-wrap;
         }
     }
 
