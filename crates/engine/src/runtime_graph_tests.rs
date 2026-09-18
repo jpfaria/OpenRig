@@ -591,3 +591,17 @@ fn a_return_on_the_input_device_rides_that_devices_stream() {
          input stream — a private index is a stream that is never opened"
     );
 }
+
+#[test]
+fn every_built_runtime_has_its_own_instance_id() {
+    // #957: a preset switch installs fresh runtimes with the same stream
+    // count; the meter tells them apart from the replaced ones by this id.
+    let chain = tuner_track("chain:0", Vec::new());
+    let a = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
+    let b = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]).unwrap();
+    assert_ne!(
+        a.instance_id(),
+        b.instance_id(),
+        "two builds of the same chain are two runtimes and must not share an identity"
+    );
+}

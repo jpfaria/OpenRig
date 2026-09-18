@@ -237,6 +237,8 @@ mod controller_drop_nonblocking_tests;
 mod controller_pause_chain_tests;
 #[cfg(test)]
 mod controller_per_stream_input_tap_tests;
+#[cfg(test)]
+mod controller_runtime_identity_tests;
 // `tests` exercises the CPAL stream path (stream_config/chain_resolve helpers),
 // all cfg'd out under Linux+JACK (#755) — gate the tests the same way.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

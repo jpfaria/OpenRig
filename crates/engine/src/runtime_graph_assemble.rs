@@ -246,6 +246,7 @@ pub(crate) fn assemble_chain_runtime_state(
         // Issue #723 — remember the real build rate so the live probe beep
         // is synthesized at the device rate, never a hardcoded 48000.
         sample_rate,
+        instance_id: crate::runtime_chain_state::next_runtime_instance_id(),
     })
 }
 
