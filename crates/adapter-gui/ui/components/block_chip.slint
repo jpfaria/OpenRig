@@ -44,6 +44,11 @@ export component BlockChip inherits Rectangle {
     property <bool> drag-origin-set: false;
     property <float> drag-origin-x: 0;
     property <float> drag-origin-y: 0;
+    // The type label sits above the artwork with a clear gap (#954); at rest
+    // the artwork fills what is left down to the LED.
+    property <length> type-label-height: 20px;
+    property <length> art-rest-y: root.type-label-height + 6px;
+    property <length> art-rest-height: 70px;
 
     width: 100px;
     height: 100px;
@@ -75,7 +80,7 @@ export component BlockChip inherits Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
-        height: 14px;
+        height: root.type-label-height;
         text: root.block-type-label;
         color: root.unavailable ? root.unavailable-tint : root.block.enabled ? root.accent-color : #5c6678;
         font-size: 18px;
@@ -93,9 +98,9 @@ export component BlockChip inherits Rectangle {
     // LED. Animated so the change feels intentional, not a teleport.
     if root.block.has-thumbnail : Image {
         x: 0px;
-        y: hover-area.has-hover ? 4px : 14px;
+        y: hover-area.has-hover ? 4px : root.art-rest-y;
         width: parent.width;
-        height: hover-area.has-hover ? 90px : 78px;
+        height: hover-area.has-hover ? 90px : root.art-rest-height;
         source: root.block.thumbnail;
         image-fit: contain;
         animate y { duration: 120ms; easing: ease-out; }
@@ -104,9 +109,9 @@ export component BlockChip inherits Rectangle {
 
     if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
-        y: hover-area.has-hover ? 4px : 14px;
+        y: hover-area.has-hover ? 4px : root.art-rest-y;
         width: parent.width;
-        height: hover-area.has-hover ? 90px : 78px;
+        height: hover-area.has-hover ? 90px : root.art-rest-height;
         icon-kind: root.block.icon-kind;
         tint: root.unavailable ? root.unavailable-tint : root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
         animate y { duration: 120ms; easing: ease-out; }
