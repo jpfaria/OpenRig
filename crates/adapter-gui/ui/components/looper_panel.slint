@@ -53,7 +53,7 @@ export component LooperPanelView inherits Rectangle {
 
     width: 600px;
     height: 56px
-        + (root.is-empty ? 92px : root.loopers.length * (root.row-height + 8px))
+        + (root.is-empty ? empty-col.preferred-height + 20px : root.loopers.length * (root.row-height + 8px))
         + (root.expanded-uid >= 0 ? root.drawer-extra : 0px)
         + 12px;
     border-radius: 10px;
@@ -86,7 +86,7 @@ export component LooperPanelView inherits Rectangle {
     // Left of ADD LOOPER, in the header, because they act on the panel — not
     // on any one row.
     play-all-btn := LooperIconButton {
-        x: parent.width - 202px;
+        x: add-button.x - 86px;
         y: 12px;
         icon: @image-url("../assets/play.svg");
         label: @tr("looper-play-all");
@@ -96,7 +96,7 @@ export component LooperPanelView inherits Rectangle {
     }
 
     stop-all-btn := LooperIconButton {
-        x: parent.width - 164px;
+        x: add-button.x - 44px;
         y: 12px;
         icon: @image-url("../assets/stop.svg");
         label: @tr("looper-stop-all");
@@ -106,9 +106,10 @@ export component LooperPanelView inherits Rectangle {
     }
 
     add-button := Rectangle {
-        x: parent.width - 122px;
+        // Sized by its label so a longer translation never gets cut (#954).
+        x: parent.width - self.width - 14px;
         y: 12px;
-        width: 108px;
+        width: add-label.preferred-width + 44px;
         height: 32px;
         border-radius: 8px;
         opacity: root.can-add ? 1.0 : 0.4;
@@ -126,9 +127,8 @@ export component LooperPanelView inherits Rectangle {
             colorize: #a8c0ff;
         }
 
-        Text {
+        add-label := Text {
             x: 32px;
-            width: 66px;
             height: parent.height;
             vertical-alignment: center;
             text: @tr("looper-add");
@@ -150,10 +150,14 @@ export component LooperPanelView inherits Rectangle {
     }
 
     // ── empty state ─────────────────────────────────────────────────────
-    if root.is-empty : VerticalLayout {
+    // Always in the tree (not an `if`) so the panel height can follow the
+    // wrapped hint's real height instead of a fixed guess (#954).
+    empty-col := VerticalLayout {
+        visible: root.is-empty;
         x: 14px;
         y: 60px;
         width: parent.width - 28px;
+        height: self.preferred-height;
         spacing: 6px;
 
         Text {
