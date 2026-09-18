@@ -141,3 +141,15 @@ fn a_starved_route_reports_its_underruns() {
     assert!(stats[0].underruns > 0, "route 0 drained empty");
     assert_eq!(stats[1].underruns, 0, "route 1 was never popped");
 }
+
+#[test]
+fn each_route_reports_the_frames_queued_in_its_own_cushion() {
+    let rt = two_route_runtime();
+    feed(&rt, 2);
+    let mut out = vec![0.0_f32; FRAMES * DEVICE_CHANNELS];
+    process_output_f32(&rt, 1, &mut out, DEVICE_CHANNELS);
+    let stats = rt.take_output_route_stats();
+    assert_eq!(stats[0].fill_frames, 2 * FRAMES, "route 0 was never popped");
+    assert_eq!(stats[1].fill_frames, FRAMES, "route 1 popped one period");
+    assert_eq!(stats[0].latency_trims, 0);
+}

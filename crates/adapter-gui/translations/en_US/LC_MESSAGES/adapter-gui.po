@@ -971,3 +971,6 @@ msgstr "Port"
 #: crates/adapter-gui/ui/touch_main.slint:407
 msgid "⌨"
 msgstr "⌨"
+
+msgid "btn-update-to {}"
+msgstr "Update to v{}"

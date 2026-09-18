@@ -429,7 +429,8 @@ can satisfy them or trip them.
 ## Assets
 
 ```
-assets/brands/{marshall,vox,native}/logo.svg   ← logos worldvectorlogo (Marshall: fill="currentColor"; Vox: #53ad99 + #d99346)
+assets/brands/{brand}/logo.{svg,png}           ← one per catalog brand id; single-colour on transparent, tinted by BrandLogo (colorize) — only Vox keeps its colours
+                                                 every folder must be mapped in ui/components/brand_logo.slint (pinned by tests/issue_956_brand_logos_wired.rs)
 assets/amps/{brand}/{model}/controls.svg       ← painel completo (não criar panel.svg separado)
 assets/amps/{brand}/{model}/component.yaml     ← caminhos de assets + svg_cx/cy
 ```
