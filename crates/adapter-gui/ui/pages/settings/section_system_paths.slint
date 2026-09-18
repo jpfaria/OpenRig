@@ -14,6 +14,10 @@ import { Button } from "std-widgets.slint";
 import { SettingsBridge } from "../../settings_globals.slint";
 
 export component SectionSystemPaths inherits Rectangle {
+    // Shared label column: at least 140px, wider when a translation needs it.
+    private property <length> label-width: max(140px, presets-label.preferred-width,
+        plugins-label.preferred-width, evaluations-label.preferred-width, catalog-label.preferred-width);
+
     background: transparent;
 
     VerticalLayout {
@@ -25,11 +29,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            presets-label := Text {
                 text: @tr("label-presets-path");
                 color: #cfd5e0;
-                font-size: 16px;
-                width: 140px;
+                font-size: 18px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {
@@ -37,7 +41,7 @@ export component SectionSystemPaths inherits Rectangle {
                     ? @tr("placeholder-default-path")
                     : SettingsBridge.presets-path;
                 color: SettingsBridge.presets-path == "" ? #8a92a3 : #dde3ec;
-                font-size: 14px;
+                font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
                 overflow: elide;
@@ -57,11 +61,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            plugins-label := Text {
                 text: @tr("label-plugins-path");
                 color: #cfd5e0;
-                font-size: 16px;
-                width: 140px;
+                font-size: 18px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {
@@ -69,7 +73,7 @@ export component SectionSystemPaths inherits Rectangle {
                     ? @tr("placeholder-default-path")
                     : SettingsBridge.plugins-path;
                 color: SettingsBridge.plugins-path == "" ? #8a92a3 : #dde3ec;
-                font-size: 14px;
+                font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
                 overflow: elide;
@@ -89,11 +93,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            evaluations-label := Text {
                 text: @tr("label-evaluations-path");
                 color: #cfd5e0;
-                font-size: 16px;
-                width: 140px;
+                font-size: 18px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {
@@ -101,7 +105,7 @@ export component SectionSystemPaths inherits Rectangle {
                     ? @tr("placeholder-default-path")
                     : SettingsBridge.evaluations-path;
                 color: SettingsBridge.evaluations-path == "" ? #8a92a3 : #dde3ec;
-                font-size: 14px;
+                font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
                 overflow: elide;
@@ -121,11 +125,11 @@ export component SectionSystemPaths inherits Rectangle {
             spacing: 8px;
             alignment: start;
             height: 32px;
-            Text {
+            catalog-label := Text {
                 text: @tr("label-plugin-catalog");
                 color: #cfd5e0;
-                font-size: 16px;
-                width: 140px;
+                font-size: 18px;
+                width: root.label-width;
                 vertical-alignment: center;
             }
             Text {
@@ -133,7 +137,7 @@ export component SectionSystemPaths inherits Rectangle {
                     ? @tr("status-plugin-catalog-idle")
                     : SettingsBridge.plugin-catalog-status;
                 color: SettingsBridge.plugin-catalog-status == "" ? #8a92a3 : #dde3ec;
-                font-size: 14px;
+                font-size: 18px;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
                 overflow: elide;

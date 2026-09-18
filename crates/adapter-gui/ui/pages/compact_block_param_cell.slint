@@ -1,4 +1,5 @@
 // Responsibility: renders one parameter cell of the compact view.
+import { Theme } from "../theme.slint";
 import { BlockParameterItem } from "../models.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
@@ -35,11 +36,11 @@ export component CompactBlockParamCell inherits Rectangle {
         x: 0;
         y: 0;
         width: parent.width;
-        height: 14px;
+        height: 22px;
         text: root.param.label;
         color: root.panel-text;
         font-family: "Bebas Neue";
-        font-size: 10px;
+        font-size: Theme.knob-caption-font;
         font-weight: 700;
         letter-spacing: 1.5px;
         horizontal-alignment: center;
@@ -61,14 +62,14 @@ export component CompactBlockParamCell inherits Rectangle {
 
     // ── Enum ≤4 options (selector knob + inline labels) ──
     if root.param.widget_kind == "enum" && root.param.option_labels.length <= 4 : Rectangle {
-        x: 0; y: 14px;
-        width: parent.width; height: 76px;
+        x: 0; y: 22px;
+        width: parent.width; height: 68px;
         background: transparent;
 
         property <length> ks: 38px;
         property <length> cx: self.width / 2;
-        property <length> top-row: 4px;
-        property <length> knob-y: 16px;
+        property <length> top-row: 0px;
+        property <length> knob-y: 14px;
         property <length> bot-row: self.knob-y + self.ks + 2px;
         property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
         property <int> n: root.param.option_labels.length;
@@ -91,7 +92,7 @@ export component CompactBlockParamCell inherits Rectangle {
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 0 ? root.param.option_labels[0] : "";
             color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-            font-size: 11px;
+            font-size: Theme.knob-option-font;
             font-weight: 0 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -114,7 +115,7 @@ export component CompactBlockParamCell inherits Rectangle {
                 : (root.param.option_labels.length > 3 ? root.param.option_labels[3] : "");
             color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
                 ? #ffaa44 : parent.tc.with-alpha(0.7);
-            font-size: 11px;
+            font-size: Theme.knob-option-font;
             font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
@@ -134,7 +135,7 @@ export component CompactBlockParamCell inherits Rectangle {
             width: 110px; height: 14px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
             color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-            font-size: 11px;
+            font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: center;
             overflow: elide;
@@ -153,7 +154,7 @@ export component CompactBlockParamCell inherits Rectangle {
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 1 ? root.param.option_labels[1] : "";
             color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-            font-size: 11px;
+            font-size: Theme.knob-option-font;
             font-weight: 1 == parent.sel ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -172,7 +173,7 @@ export component CompactBlockParamCell inherits Rectangle {
             width: parent.lw; height: 14px;
             text: root.param.option_labels.length > 2 ? root.param.option_labels[2] : "";
             color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
-            font-size: 11px;
+            font-size: Theme.knob-option-font;
             font-weight: 2 == parent.sel ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
@@ -187,7 +188,7 @@ export component CompactBlockParamCell inherits Rectangle {
 
     // ── Enum 5+ options (dropdown) ──
     if root.param.widget_kind == "enum" && root.param.option_labels.length > 4 : Rectangle {
-        x: 0; y: 14px;
+        x: 0; y: 22px;
         width: parent.width; height: 28px;
         background: #060610;
         border-width: 1px; border-color: #252538; border-radius: 5px;
@@ -196,12 +197,12 @@ export component CompactBlockParamCell inherits Rectangle {
             x: 8px; width: parent.width - 24px; height: parent.height;
             text: root.param.selected_option_index >= 0 && root.param.selected_option_index < root.param.option_labels.length
                 ? root.param.option_labels[root.param.selected_option_index] : "";
-            color: #d8e0ff; font-size: 11px; font-weight: 600;
+            color: #d8e0ff; font-size: 18px; font-weight: 600;
             vertical-alignment: center; overflow: elide;
         }
         Text {
             x: parent.width - 18px; width: 14px; height: parent.height;
-            text: @tr("\u{25BC}"); color: #ffffff; font-size: 9px;
+            text: @tr("\u{25BC}"); color: #ffffff; font-size: 18px;
             vertical-alignment: center; horizontal-alignment: center;
         }
         dd-ta2 := TouchArea { mouse-cursor: pointer; clicked => { dd-popup2.show(); } }
@@ -225,7 +226,7 @@ export component CompactBlockParamCell inherits Rectangle {
                             x: 8px; width: parent.width - 16px; height: parent.height;
                             text: option;
                             color: oi == root.param.selected_option_index ? #7788ff : #b0bce0;
-                            font-size: 11px; font-weight: oi == root.param.selected_option_index ? 600 : 400;
+                            font-size: 18px; font-weight: oi == root.param.selected_option_index ? 600 : 400;
                             vertical-alignment: center; overflow: elide;
                         }
                         opt-ta := TouchArea {

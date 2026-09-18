@@ -9,23 +9,24 @@ export component Toast inherits Rectangle {
     visible: root.message != "";
 
     x: (root.container-width - self.width) / 2;
-    y: root.container-height - 60px;
+    // Bottom edge stays 20px above the container; grows upward as it wraps.
+    y: root.container-height - 20px - self.height;
     width: Math.min(root.container-width - 40px, 500px);
-    height: 40px;
+    height: max(40px, msg.preferred-height + 16px);
     border-radius: 8px;
     background: root.level == "error" ? #dc2626cc
              : root.level == "warning" ? #d97706cc
              : #2563ebcc;
 
-    Text {
+    msg := Text {
         width: parent.width - 24px;
         height: parent.height;
         x: 12px;
         text: root.message;
         color: #ffffff;
-        font-size: 12px;
+        font-size: 18px;
         font-weight: 600;
         vertical-alignment: center;
-        overflow: elide;
+        wrap: word-wrap;
     }
 }

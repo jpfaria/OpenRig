@@ -197,6 +197,7 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
 struct RecordingTapApi {
     stream_count: usize,
     hosted: bool,
+    runtime_identity: u64,
     stream_input_calls: std::cell::RefCell<Vec<usize>>, // stream_index
     stream_calls: std::cell::RefCell<Vec<usize>>,       // stream_index
 }
@@ -218,6 +219,9 @@ impl application::audio_taps::AudioTaps for RecordingTapApi {
     }
     fn stream_count(&self, _cid: &domain::ids::ChainId) -> usize {
         self.stream_count
+    }
+    fn runtime_identity(&self, _cid: &domain::ids::ChainId) -> u64 {
+        self.runtime_identity
     }
     fn subscribe(
         &self,
@@ -340,4 +344,66 @@ fn chain_not_overloaded_when_xrun_count_is_stable() {
 fn chain_not_overloaded_when_counter_was_reset() {
     // reset_load_stats zeroed the counter between polls — not a new overrun.
     assert!(!super::chain_overloaded(13, 0));
+}
+
+// ── Issue #957: preset switch on a live chain freezes the meters ─────────
+
+#[test]
+fn replaced_runtime_with_same_stream_count_invalidates_the_chain() {
+    // A preset switch is a structural edit: the project gets the new blocks at
+    // once, but the fresh runtimes are built off-thread and installed a few
+    // ticks later (#881). The tick right after the switch re-subscribes on the
+    // OLD runtime (block ids changed); when the new one lands, the stream count
+    // is the same, so without the runtime identity nothing re-subscribes and
+    // the meter keeps reading rings nobody fills — the graph stops.
+    use project::block::{AudioBlock, AudioBlockKind, CoreBlock};
+    use project::chain::Chain;
+    use project::param::ParameterSet;
+    let chain = Chain {
+        id: domain::ids::ChainId("c1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec![],
+        blocks: vec![AudioBlock {
+            id: domain::ids::BlockId("b2".into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                effect_type: "gain".into(),
+                model: "volume".into(),
+                params: ParameterSet::default(),
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+    };
+    let mut last_sig = std::collections::HashMap::new();
+    let old_runtime = RecordingTapApi {
+        stream_count: 2,
+        hosted: true,
+        runtime_identity: 1,
+        ..Default::default()
+    };
+    let _ = crate::meter_wiring::detect_invalidations(
+        std::slice::from_ref(&chain),
+        &old_runtime,
+        &mut last_sig,
+    );
+    let new_runtime = RecordingTapApi {
+        stream_count: 2,
+        hosted: true,
+        runtime_identity: 2,
+        ..Default::default()
+    };
+    let invalidated = crate::meter_wiring::detect_invalidations(
+        std::slice::from_ref(&chain),
+        &new_runtime,
+        &mut last_sig,
+    );
+    assert_eq!(
+        invalidated,
+        vec![chain.id.clone()],
+        "the chain's runtimes were replaced: its meters must re-subscribe"
+    );
 }

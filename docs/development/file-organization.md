@@ -61,6 +61,14 @@ Todo arquivo de produção declara sua responsabilidade na primeira dúzia de li
 - `.rs` de teste: **sem cap** — é a única exceção de tamanho do repo, e `validate.sh` nem mede
 - `lib.rs` / `mod.rs`: só re-exports, < 100 LOC
 
+## Fonte mínima na UI (#954)
+
+Nenhum texto do app pode ser menor que **18px** — o tamanho do próprio select de preset, o piso de
+legibilidade. O valor mora uma vez em `Theme.min-font` (`crates/adapter-gui/ui/theme.slint`); use o
+token em vez de repetir o número. **Única exceção, decidida pelo dono:** o texto em volta de um knob — a legenda (`Theme.knob-caption-font`, 12px) e as posições não numéricas de um seletor (`Theme.knob-option-font`, 10px), que vivem na célula apertada do knob. O check 6 do `validate.sh` reprova qualquer `font-size` com
+literal abaixo do piso nos nossos `.slint` (o vendored `ui/modules/**` fica fora, só fornece ícones),
+e `scripts/tests/min_font_size_test.sh` cobre o check.
+
 ### Catraca do débito (#873)
 
 `validate.sh` mantém `DEBT_FILES` com o LOC de referência de cada arquivo de produção que já nasceu acima do cap. A lista é catraca, não anistia:

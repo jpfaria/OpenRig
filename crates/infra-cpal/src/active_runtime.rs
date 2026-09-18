@@ -19,7 +19,7 @@
 use anyhow::{anyhow, bail, Result};
 use cpal::Stream;
 
-use crate::resolved::ChainStreamSignature;
+use crate::resolved::{ChainStreamSignature, ResolvedChainAudioConfig};
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 use std::sync::Arc;
@@ -54,6 +54,13 @@ pub(crate) struct ActiveChainRuntime {
         allow(dead_code)
     )]
     pub(crate) generation: u64,
+    /// #957: the device config these streams were resolved against. A
+    /// structural edit that leaves the I/O and the device settings alone
+    /// builds its new streams from this instead of asking CoreAudio again —
+    /// that query is what made every preset switch take seconds. `None` on
+    /// the JACK path, which resolves from the JACK graph.
+    #[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+    pub(crate) resolved: Option<ResolvedChainAudioConfig>,
     pub(crate) _input_streams: Vec<Stream>,
     pub(crate) _output_streams: Vec<Stream>,
     #[cfg(all(target_os = "linux", feature = "jack"))]

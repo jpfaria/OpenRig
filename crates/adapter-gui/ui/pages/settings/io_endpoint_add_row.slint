@@ -16,7 +16,8 @@ component ChannelCheck inherits Rectangle {
     callback toggled(bool);
 
     height: 44px;
-    width: 96px;
+    // Wide enough for the translated "Channel N" label (never elided).
+    width: max(96px, channel-label.preferred-width + 36px);
     background: transparent;
 
     Rectangle {
@@ -39,14 +40,14 @@ component ChannelCheck inherits Rectangle {
         }
     }
 
-    Text {
+    channel-label := Text {
         x: 28px;
         y: 0px;
         width: parent.width - 28px;
         height: parent.height;
         text: root.channel.label;
         color: root.channel.selected ? #edf2f9 : #8a95a5;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: root.channel.selected ? 600 : 400;
         vertical-alignment: center;
         overflow: elide;
@@ -95,8 +96,8 @@ export component IoEndpointAddRow inherits VerticalLayout {
         Text {
             text: @tr("label-endpoint-device");
             color: #8a92a3;
-            font-size: 13px;
-            width: 70px;
+            font-size: 18px;
+            min-width: 70px;
             vertical-alignment: center;
         }
 
@@ -115,8 +116,8 @@ export component IoEndpointAddRow inherits VerticalLayout {
         Text {
             text: @tr("label-endpoint-mode");
             color: #8a92a3;
-            font-size: 13px;
-            width: 50px;
+            font-size: 18px;
+            min-width: 50px;
             horizontal-alignment: right;
             vertical-alignment: center;
         }
@@ -138,8 +139,8 @@ export component IoEndpointAddRow inherits VerticalLayout {
         Text {
             text: @tr("label-endpoint-channels");
             color: #8a92a3;
-            font-size: 13px;
-            width: 70px;
+            font-size: 18px;
+            min-width: 70px;
             vertical-alignment: center;
         }
         for channel[index] in root.channel-options : ChannelCheck {
@@ -152,13 +153,14 @@ export component IoEndpointAddRow inherits VerticalLayout {
     HorizontalLayout {
         alignment: start;
         Rectangle {
-            width: 150px;
+            // Grows with the translated label (icon + gap + text + padding).
+            width: max(150px, add-content.preferred-width + 32px);
             height: 40px;
             background: root.can-add ? #188cff : #1e2229;
             border-radius: 8px;
             animate background { duration: 150ms; }
 
-            HorizontalLayout {
+            add-content := HorizontalLayout {
                 alignment: center;
                 spacing: 8px;
                 padding: 0px;
@@ -172,7 +174,7 @@ export component IoEndpointAddRow inherits VerticalLayout {
                 Text {
                     text: @tr("btn-add-endpoint");
                     color: root.can-add ? #ffffff : #3d4450;
-                    font-size: 13px;
+                    font-size: 18px;
                     font-weight: 600;
                     vertical-alignment: center;
                 }

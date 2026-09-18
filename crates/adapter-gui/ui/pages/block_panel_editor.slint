@@ -321,18 +321,19 @@ export component BlockPanelEditor inherits Rectangle {
             background: transparent;
 
             Text {
-                x: 0; y: 0; width: parent.width; height: 12px;
+                x: 0; y: 0; width: parent.width; height: 22px;
                 text: entry.key;
                 color: #506070;
-                font-size: 7px; font-weight: 700; letter-spacing: 1.5px;
-                horizontal-alignment: center;
+                font-size: 18px; font-weight: 700; letter-spacing: 1.5px;
+                horizontal-alignment: center; vertical-alignment: center;
+                overflow: elide;
             }
 
             Text {
-                x: 0; y: 12px; width: parent.width; height: parent.height - 24px;
+                x: 0; y: 22px; width: parent.width; height: parent.height - 34px;
                 text: entry.text;
                 color: entry.value > 0.5 ? #29df85 : #f3f6fb;
-                font-size: entry.text.character-count <= 3 ? 28px : 14px;
+                font-size: entry.text.character-count <= 3 ? 28px : 18px;
                 font-weight: 900;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -372,7 +373,8 @@ export component BlockPanelEditor inherits Rectangle {
         clip: true;
 
         // dB grid lines: 0, -20, -40, -60 dBFS
-        // normalization: value = (db + 80) / 80  →  grid-y = (parent.height - 14px) * (1 - norm)
+        // normalization: value = (db + 80) / 80  →  grid-y = (parent.height - 24px) * (1 - norm)
+        // #954: the 18px dB label sits just below its line (22px tall).
         for db-label[gi] in [
             { label: "0", norm: 1.0 },
             { label: "-20", norm: 0.75 },
@@ -380,19 +382,20 @@ export component BlockPanelEditor inherits Rectangle {
             { label: "-60", norm: 0.25 },
         ] : Rectangle {
             x: 0;
-            y: (parent.height - 14px) * (1.0 - db-label.norm);
+            y: (parent.height - 24px) * (1.0 - db-label.norm);
             width: parent.width;
             height: 1px;
             background: #ffffff18;
 
             Text {
                 x: 2px;
-                y: -9px;
-                width: 26px;
-                height: 9px;
+                y: 1px;
+                width: 40px;
+                height: 22px;
+                vertical-alignment: center;
                 text: db-label.label;
                 color: #ffffff40;
-                font-size: 7px;
+                font-size: 18px;
                 horizontal-alignment: left;
             }
         }
@@ -400,7 +403,7 @@ export component BlockPanelEditor inherits Rectangle {
         for entry[ei] in BlockEditorBridge.block-stream-data.entries : Rectangle {
             property <length> bar-slot-w: parent.width / BlockEditorBridge.block-stream-data.entries.length;
             // usable-h: bar area above frequency labels
-            property <length> usable-h: parent.height - 14px;
+            property <length> usable-h: parent.height - 24px;
             x: ei * self.bar-slot-w;
             y: 0;
             width: self.bar-slot-w;
@@ -437,12 +440,13 @@ export component BlockPanelEditor inherits Rectangle {
             // Frequency label at bottom
             Text {
                 x: 0;
-                y: parent.height - 13px;
+                y: parent.height - 23px;
                 width: parent.width;
-                height: 13px;
+                height: 22px;
+                vertical-alignment: center;
                 text: entry.text;
                 color: #ffffff55;
-                font-size: 7px;
+                font-size: 18px;
                 horizontal-alignment: center;
                 overflow: elide;
             }

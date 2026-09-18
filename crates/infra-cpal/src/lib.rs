@@ -101,6 +101,8 @@ mod device_enum;
 mod di_playback;
 mod di_stream;
 mod di_stream_worker;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod live_io_reuse;
 pub mod looper_store;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_cache::jack_is_running;
@@ -237,6 +239,10 @@ mod controller_drop_nonblocking_tests;
 mod controller_pause_chain_tests;
 #[cfg(test)]
 mod controller_per_stream_input_tap_tests;
+#[cfg(test)]
+mod controller_runtime_identity_tests;
+#[cfg(test)]
+mod issue_957_preset_switch_reuses_io_tests;
 // `tests` exercises the CPAL stream path (stream_config/chain_resolve helpers),
 // all cfg'd out under Linux+JACK (#755) — gate the tests the same way.
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

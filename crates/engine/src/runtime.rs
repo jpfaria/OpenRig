@@ -493,3 +493,7 @@ mod issue_923_insert_tail_routes;
 #[cfg(test)]
 #[path = "runtime_output_route_stats_tests.rs"]
 mod runtime_output_route_stats_tests;
+
+#[cfg(test)]
+#[path = "issue_953_route_latency_drift_tests.rs"]
+mod issue_953_route_latency_drift;

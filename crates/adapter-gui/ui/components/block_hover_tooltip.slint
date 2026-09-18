@@ -14,7 +14,7 @@ export component BlockHoverTooltip inherits Rectangle {
     in property <length> chip-height;
     in property <length> container-width;
 
-    property <length> row-height: 18px;
+    property <length> row-height: 24px;
     property <length> header-h: 36px;
     property <length> body-padding: 8px;
     property <int> entry-count: root.block.param_entries.length;
@@ -64,9 +64,9 @@ export component BlockHoverTooltip inherits Rectangle {
     // Backend pill (NATIVE blue / NAM brown / IR purple / LV2 green).
     Rectangle {
         x: 10px;
-        y: 10px;
+        y: 7px;
         width: backend-text.preferred-width + 14px;
-        height: 16px;
+        height: 22px;
         border-radius: 3px;
         background:
             root.block.backend_label == "NATIVE" ? #1f6feb
@@ -81,7 +81,7 @@ export component BlockHoverTooltip inherits Rectangle {
             height: parent.height;
             text: root.block.backend_label;
             color: #ffffff;
-            font-size: 9px;
+            font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.6px;
             vertical-alignment: center;
@@ -99,7 +99,7 @@ export component BlockHoverTooltip inherits Rectangle {
             ? ""
             : root.block.brand;
         color: #8fa0b6;
-        font-size: 10px;
+        font-size: 18px;
         font-weight: 800;
         letter-spacing: 0.6px;
         vertical-alignment: center;
@@ -114,7 +114,7 @@ export component BlockHoverTooltip inherits Rectangle {
         height: 36px;
         text: root.block.display_name;
         color: #f4f7fb;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 700;
         vertical-alignment: center;
         overflow: elide;
@@ -134,19 +134,19 @@ export component BlockHoverTooltip inherits Rectangle {
     // referencing parent.width inside a `for` loop returned 0.
     for entry[i] in root.block.param_entries : Rectangle {
         x: 0px;
-        y: 36px + 8px + i * 18px;
+        y: 36px + 8px + i * root.row-height;
         width: 320px;
-        height: 18px;
+        height: root.row-height;
         background: transparent;
 
         Text {
             x: 12px;
             y: 0px;
             width: 140px;
-            height: 18px;
+            height: parent.height;
             text: entry.label;
             color: #8fa0b6;
-            font-size: 10px;
+            font-size: 18px;
             font-weight: 700;
             letter-spacing: 0.4px;
             vertical-alignment: center;
@@ -157,14 +157,14 @@ export component BlockHoverTooltip inherits Rectangle {
             x: 156px;
             y: 0px;
             width: 152px;
-            height: 18px;
+            height: parent.height;
             spacing: 4px;
             alignment: end;
 
             Text {
                 text: entry.value;
                 color: #f4f7fb;
-                font-size: 11px;
+                font-size: 18px;
                 font-weight: 700;
                 vertical-alignment: center;
             }
@@ -172,7 +172,7 @@ export component BlockHoverTooltip inherits Rectangle {
             Text {
                 text: entry.unit;
                 color: #8fa0b6;
-                font-size: 10px;
+                font-size: 18px;
                 font-weight: 600;
                 vertical-alignment: center;
             }

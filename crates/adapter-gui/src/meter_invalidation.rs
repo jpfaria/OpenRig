@@ -26,7 +26,15 @@ pub fn detect_invalidations(
     }
     let mut invalidate = Vec::new();
     for c in chains.iter() {
-        let sig = timer_chain_signature(c, taps.stream_count(&c.id));
+        // #957: the runtimes' identity rides along — a preset switch replaces
+        // them with the same stream count, and only this tells the swap apart.
+        let sig = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            timer_chain_signature(c, taps.stream_count(&c.id)).hash(&mut h);
+            taps.runtime_identity(&c.id).hash(&mut h);
+            h.finish()
+        };
         if last_signature.get(&c.id).copied() != Some(sig) {
             invalidate.push(c.id.clone());
             last_signature.insert(c.id.clone(), sig);

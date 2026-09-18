@@ -54,9 +54,14 @@ pub fn process_output_f32(
     // #923: the loudest frame this callback pulled, so the route can say
     // whether its stream ran and what it carried.
     let mut peak = 0.0_f32;
-    for frame in out.chunks_mut(output_total_channels).take(num_frames) {
+    let fade = route.buffer.begin_callback(num_frames);
+    for (i, frame) in out
+        .chunks_mut(output_total_channels)
+        .take(num_frames)
+        .enumerate()
+    {
         frame.fill(0.0);
-        let mut processed = route.buffer.pop();
+        let mut processed = fade.blend(i, route.buffer.pop());
         if volume_ratio != 1.0 {
             processed = processed.scaled(volume_ratio);
         }

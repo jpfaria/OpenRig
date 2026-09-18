@@ -13,14 +13,15 @@ export component ToolbarButton inherits Rectangle {
     in property <bool> primary: false;
     callback clicked();
 
-    width: primary ? 140px : 116px;
+    // Grows with its translated label (#954); the old widths stay the minimum.
+    width: Math.max(primary ? 140px : 116px, label-text.preferred-width + 24px);
     height: 40px;
     background: primary ? #188cff : #2f3339;
     border-width: 1px;
     border-color: primary ? #45a7ff : #4c515b;
     border-radius: 4px;
 
-    Text {
+    label-text := Text {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -29,7 +30,7 @@ export component ToolbarButton inherits Rectangle {
         color: #f4f7fb;
         horizontal-alignment: center;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 600;
     }
 
@@ -58,7 +59,7 @@ export component ParamFieldBox inherits Rectangle {
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         edited => {
             root.text = self.text;
             root.changed(self.text);
@@ -89,25 +90,27 @@ export component BlockValueStepper inherits Rectangle {
     }
 
     width: 320px;
-    height: 58px;
+    height: 72px;
     background: transparent;
 
     Text {
         x: 0px;
         y: 0px;
         width: parent.width;
-        height: 18px;
+        height: 22px;
         text: root.label;
         color: #eef2f8;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 800;
+        overflow: elide;
     }
 
+    // Tall enough for the value line plus the unit line at 18px (#954).
     Rectangle {
         x: 0px;
         y: 24px;
         width: parent.width;
-        height: 34px;
+        height: 48px;
         background: #1b2028;
         border-width: 1px;
         border-color: #414956;
@@ -153,12 +156,12 @@ export component BlockValueStepper inherits Rectangle {
 
             TextInput {
                 x: 8px;
-                y: 1px;
+                y: root.unit-text != "" ? 2px : 0px;
                 width: parent.width - 16px;
-                height: 18px;
+                height: root.unit-text != "" ? 22px : parent.height;
                 text: root.value-text;
                 color: #f5f7fb;
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: 800;
                 single-line: true;
                 horizontal-alignment: center;
@@ -168,14 +171,16 @@ export component BlockValueStepper inherits Rectangle {
 
             if root.unit-text != "" : Text {
                 x: 0px;
-                y: 18px;
+                y: 24px;
                 width: parent.width;
-                height: 12px;
+                height: 22px;
                 text: root.unit-text;
                 color: #aab4c3;
-                font-size: 9px;
+                font-size: 18px;
                 font-weight: 700;
                 horizontal-alignment: center;
+                vertical-alignment: center;
+                overflow: elide;
             }
         }
 
@@ -229,16 +234,17 @@ export component BlockValueSlider inherits Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
-        height: 18px;
+        height: 22px;
         text: root.label;
         color: #eef2f8;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 800;
+        overflow: elide;
     }
 
     Rectangle {
         x: 0px;
-        y: 34px;
+        y: 44px;
         width: parent.width - 112px;
         height: 8px;
         background: #3a404b;
@@ -280,10 +286,11 @@ export component BlockValueSlider inherits Rectangle {
     }
 
     Rectangle {
+        // Below the label, tall enough for value + unit at 18px (#954).
         x: parent.width - 92px;
-        y: 18px;
+        y: 24px;
         width: 92px;
-        height: 40px;
+        height: 48px;
         background: #1b2028;
         border-width: 1px;
         border-color: #414956;
@@ -291,28 +298,31 @@ export component BlockValueSlider inherits Rectangle {
 
         TextInput {
             x: 8px;
-            y: 4px;
+            y: root.unit-text != "" ? 2px : 0px;
             width: parent.width - 16px;
-            height: 18px;
+            height: root.unit-text != "" ? 22px : parent.height;
             text: root.value-text;
             color: #f5f7fb;
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 800;
             single-line: true;
             horizontal-alignment: center;
+            vertical-alignment: center;
             edited => { root.text-changed(self.text); }
         }
 
         if root.unit-text != "" : Text {
-            x: 0px;
-            y: 21px;
-            width: parent.width;
-            height: 12px;
+            x: 4px;
+            y: 24px;
+            width: parent.width - 8px;
+            height: 22px;
             text: root.unit-text;
             color: #aab4c3;
-            font-size: 9px;
+            font-size: 18px;
             font-weight: 700;
             horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
         }
     }
 }
@@ -323,28 +333,29 @@ export component BlockFootswitch inherits Rectangle {
     in property <bool> active: false;
     callback toggled(bool);
 
-    width: 160px;
+    // Grows with its translated label (#954); 160px stays the minimum.
+    width: Math.max(160px, footswitch-label.preferred-width + 24px);
     height: 42px;
     background: transparent;
 
     Rectangle {
         x: 0px;
         y: 0px;
-        width: 160px;
+        width: parent.width;
         height: 42px;
         background: root.active ? #1d4d35 : #1b2028;
         border-width: 1px;
         border-color: root.active ? #29df85 : #414956;
         border-radius: 6px;
 
-        Text {
+        footswitch-label := Text {
             x: 0px;
             y: 0px;
             width: parent.width;
             height: parent.height;
             text: root.label;
             color: root.active ? #ecfff4 : #c4ccd8;
-            font-size: 13px;
+            font-size: 18px;
             font-weight: 800;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -377,31 +388,33 @@ export component BlockTypeCard inherits Rectangle {
 
     Text {
         x: 8px;
-        y: 5px;
+        y: 2px;
         width: parent.width - 16px;
-        height: 14px;
+        height: 22px;
         text: root.item.label;
         color: #f3f6fb;
-        font-size: 10px;
+        font-size: 18px;
         font-weight: 900;
         vertical-alignment: center;
+        overflow: elide;
     }
 
+    // Icon sits below the 22px label (#954).
     if root.item.icon-kind == "vst3" : Image {
-        x: 14px;
-        y: 20px;
-        width: 60px;
-        height: 60px;
+        x: 16px;
+        y: 26px;
+        width: 56px;
+        height: 56px;
         source: @image-url("../assets/vst3-logo.svg");
         image-fit: contain;
         colorize: root.accent-color;
     }
 
     if root.item.icon-kind != "vst3" : Image {
-        x: 14px;
-        y: 20px;
-        width: 60px;
-        height: 60px;
+        x: 16px;
+        y: 26px;
+        width: 56px;
+        height: 56px;
         source: root.item.icon-kind == "input"        ? @image-url("../assets/input.svg")
             : root.item.icon-kind == "output"         ? @image-url("../assets/output.svg")
             : root.item.icon-kind == "insert"         ? @image-url("../assets/insert_loop.svg")

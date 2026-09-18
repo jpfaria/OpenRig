@@ -43,7 +43,7 @@ component OutputField inherits Rectangle {
         height: parent.height;
         text: root.label != "" ? root.label : @tr("placeholder-metronome-output");
         color: root.label != "" ? #f1f4f8 : #6a6a82;
-        font-size: 14px;
+        font-size: 18px;
         font-weight: 600;
         vertical-alignment: center;
         overflow: elide;
@@ -79,7 +79,7 @@ component OutputRow inherits Rectangle {
         height: parent.height;
         text: root.label;
         color: #f1f4f8;
-        font-size: 15px;
+        font-size: 18px;
         font-weight: root.active ? 700 : 500;
         vertical-alignment: center;
         overflow: elide;
@@ -212,11 +212,11 @@ export component MetronomePanel inherits Rectangle {
         Text {
             x: 0; y: 122px;
             width: parent.width;
-            height: 18px;
+            height: 22px;
             text: @tr("label-bpm");
             color: #5a4a1a;
             font-family: "Bebas Neue";
-            font-size: 14px;
+            font-size: 18px;
             letter-spacing: 4.0px;
             horizontal-alignment: center;
         }
@@ -235,11 +235,11 @@ export component MetronomePanel inherits Rectangle {
 
         if MetronomeBridge.counting-in : Text {
             x: 16px; y: 46px;
-            width: 90px; height: 26px;
+            width: self.preferred-width; height: 26px;
             text: @tr("label-count-in");
             color: #7a3a0a;
             font-family: "Bebas Neue";
-            font-size: 15px;
+            font-size: 18px;
             letter-spacing: 2.0px;
             horizontal-alignment: left;
         }
@@ -339,16 +339,17 @@ export component MetronomePanel inherits Rectangle {
         width: parent.width - 32px;
         height: 52px;
 
-        VintageToggle {
+        count-in-toggle := VintageToggle {
             x: 0; y: 0;
             label: @tr("label-count-in");
             active: MetronomeBridge.count-in;
             toggled => { MetronomeBridge.set-count-in(!MetronomeBridge.count-in); }
         }
 
+        // #954: starts after the toggle, whose width follows its label.
         OutputField {
-            x: 88px; y: 7px;
-            width: parent.width - 88px;
+            x: count-in-toggle.width + 12px; y: 7px;
+            width: parent.width - self.x;
             label: MetronomeBridge.output-label;
             open => {
                 MetronomeBridge.output-opened();
@@ -382,11 +383,11 @@ export component MetronomePanel inherits Rectangle {
 
             Text {
                 x: 16px; y: 14px;
-                width: parent.width - 32px; height: 20px;
+                width: parent.width - 32px; height: 22px;
                 text: @tr("label-metronome-output");
                 color: #93a1b7;
                 font-family: "Bebas Neue";
-                font-size: 14px;
+                font-size: 18px;
                 letter-spacing: 2.0px;
             }
 
@@ -394,7 +395,7 @@ export component MetronomePanel inherits Rectangle {
                 x: 0; y: 0; width: parent.width; height: parent.height;
                 text: @tr("status-no-outputs");
                 color: #6a6a82;
-                font-size: 14px;
+                font-size: 18px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
@@ -422,7 +423,7 @@ export component MetronomePanel inherits Rectangle {
 export component MetronomeWindow inherits Window {
     icon: @image-url("../assets/openrig-logomark.svg");
     default-font-family: "Bebas Neue";
-    default-font-size: 13px;
+    default-font-size: 18px;
     title: @tr("title-window-metronome");
     min-width: 480px;
     min-height: 500px;

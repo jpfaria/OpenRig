@@ -258,6 +258,22 @@ impl ProjectRuntimeController {
             .sum()
     }
 
+    /// Identity of the runtimes this chain runs right now (#957): changes
+    /// whenever any of them is replaced — a preset switch installs fresh ones
+    /// with the same stream count. 0 when the chain has no runtime.
+    pub fn runtime_identity(&self, chain_id: &ChainId) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let runtimes = self.runtime_graph.runtimes_with_groups_for(chain_id);
+        if runtimes.is_empty() {
+            return 0;
+        }
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for (group, runtime) in &runtimes {
+            (*group, runtime.instance_id()).hash(&mut h);
+        }
+        h.finish()
+    }
+
     /// Total audio-thread deadline overruns (xruns) counted across this
     /// chain's per-input runtimes (issue #670). Read by the GUI meter timer
     /// (~30 Hz) to drive the per-chain overload indicator, and exposed via

@@ -78,88 +78,76 @@ component AudioDeviceRow inherits Rectangle {
     Text {
         x: 32px;
         y: 0px;
-        width: parent.width - 32px - (root.device.selected ? 420px : 0px);
+        width: (root.device.selected ? controls.x - 4px : parent.width) - 32px;
         height: parent.height;
         text: root.device.name;
         color: root.device.selected ? #edf2f9 : #8a95a5;
-        font-size: 16px;
+        font-size: 18px;
         font-weight: root.device.selected ? 600 : 400;
         vertical-alignment: center;
         overflow: elide;
     }
 
-    if root.device.selected : Text {
-        x: parent.width - 424px;
+    // Hz / Buffer / Bits controls, right-aligned. Laid out (not placed at
+    // fixed x) so each label takes its real 18px width and nothing overlaps.
+    // Always present (visible:) so the name and hit region can read its x.
+    controls := Rectangle {
+        visible: root.device.selected;
+        x: parent.width - 40px - self.width;
         y: 0px;
-        width: 26px;
+        width: controls-row.preferred-width;
         height: parent.height;
-        text: @tr("label-hz");
-        color: #6b7786;
-        font-size: 14px;
-        font-weight: 600;
-        vertical-alignment: center;
-        horizontal-alignment: right;
-    }
 
-    if root.device.selected : ComboBox {
-        x: parent.width - 394px;
-        y: 8px;
-        width: 100px;
-        height: 32px;
-        model: root.sample-rate-options;
-        current-index: root.sample-rate-index(root.device.sample_rate_text);
-        selected(value) => { root.sample-rate-selected(value); }
-    }
+        controls-row := HorizontalLayout {
+            spacing: 6px;
+            padding-top: 8px;
+            padding-bottom: 8px;
 
-    if root.device.selected : Text {
-        x: parent.width - 288px;
-        y: 0px;
-        width: 32px;
-        height: parent.height;
-        text: @tr("label-buffer");
-        color: #6b7786;
-        font-size: 14px;
-        font-weight: 600;
-        vertical-alignment: center;
-        horizontal-alignment: right;
-    }
-
-    if root.device.selected : ComboBox {
-        x: parent.width - 252px;
-        y: 8px;
-        width: 100px;
-        height: 32px;
-        model: root.buffer-size-options;
-        current-index: root.buffer-size-index(root.device.buffer_size_text);
-        selected(value) => { root.buffer-size-selected(value); }
-    }
-
-    if root.device.selected : Text {
-        x: parent.width - 146px;
-        y: 0px;
-        width: 26px;
-        height: parent.height;
-        text: @tr("label-bits");
-        color: #6b7786;
-        font-size: 14px;
-        font-weight: 600;
-        vertical-alignment: center;
-        horizontal-alignment: right;
-    }
-
-    if root.device.selected : ComboBox {
-        x: parent.width - 116px;
-        y: 8px;
-        width: 76px;
-        height: 32px;
-        model: root.bit-depth-options;
-        current-index: root.bit-depth-index(root.device.bit_depth_text);
-        selected(value) => { root.bit-depth-selected(value); }
+            Text {
+                text: @tr("label-hz");
+                color: #6b7786;
+                font-size: 18px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            ComboBox {
+                width: 100px;
+                model: root.sample-rate-options;
+                current-index: root.sample-rate-index(root.device.sample_rate_text);
+                selected(value) => { root.sample-rate-selected(value); }
+            }
+            Text {
+                text: @tr("label-buffer");
+                color: #6b7786;
+                font-size: 18px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            ComboBox {
+                width: 100px;
+                model: root.buffer-size-options;
+                current-index: root.buffer-size-index(root.device.buffer_size_text);
+                selected(value) => { root.buffer-size-selected(value); }
+            }
+            Text {
+                text: @tr("label-bits");
+                color: #6b7786;
+                font-size: 18px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            ComboBox {
+                width: 76px;
+                model: root.bit-depth-options;
+                current-index: root.bit-depth-index(root.device.bit_depth_text);
+                selected(value) => { root.bit-depth-selected(value); }
+            }
+        }
     }
 
     // #581: width must shrink when the device is selected so the toggle
     // hit region stops before the Hz/Buffer/Bits controls (the "Hz"
-    // label starts at `parent.width - 424px`). A fixed `width: 300px`
+    // label starts at `controls.x`). A fixed `width: 300px`
     // overlapped the sample-rate ComboBox (`x: parent.width - 394px`)
     // whenever the row was narrower than ~694px, stealing its clicks
     // and deselecting the device when the user tried to open the
@@ -167,7 +155,7 @@ component AudioDeviceRow inherits Rectangle {
     TouchArea {
         x: 0px;
         y: 0px;
-        width: root.device.selected ? parent.width - 424px : parent.width;
+        width: root.device.selected ? controls.x : parent.width;
         height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.toggled(!root.device.selected); }

@@ -174,6 +174,7 @@ pub(crate) fn build_active_chain_runtime(
                 stream_signature,
                 structure,
                 generation,
+                resolved: None,
                 _input_streams: Vec::new(),
                 _output_streams: Vec::new(),
                 _jack_client: Some(jack_client),
@@ -192,6 +193,7 @@ pub(crate) fn build_active_chain_runtime(
             stream_signature,
             structure,
             generation,
+            resolved: None,
             _input_streams: Vec::new(),
             _output_streams: Vec::new(),
             _jack_client: None,
@@ -201,6 +203,7 @@ pub(crate) fn build_active_chain_runtime(
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
+        let live_config = resolved.clone();
         let (input_streams, output_streams) =
             build_chain_streams(chain_id, resolved, slots, di_cells)?;
         for stream in &input_streams {
@@ -219,6 +222,7 @@ pub(crate) fn build_active_chain_runtime(
             stream_signature,
             structure,
             generation,
+            resolved: Some(live_config),
             _input_streams: input_streams,
             _output_streams: output_streams,
         })

@@ -1,0 +1,22 @@
+// Responsibility: places the offered update button beside the running version label.
+import { AppUpdate } from "app_update_globals.slint";
+import { UpdateButton } from "update_button.slint";
+
+export component AppVersionBadge inherits HorizontalLayout {
+    in property <string> version;
+
+    spacing: 10px;
+    alignment: end;
+
+    Text {
+        text: "v" + root.version;
+        color: #4a5060;
+        font-size: 18px;
+        vertical-alignment: center;
+    }
+
+    if AppUpdate.latest-version != "" : UpdateButton {
+        latest-version: AppUpdate.latest-version;
+        clicked => { AppUpdate.install-update(); }
+    }
+}

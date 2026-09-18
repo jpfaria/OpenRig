@@ -62,7 +62,7 @@ export component ChainPortEditorPage inherits Rectangle {
             Text {
                 text: root.is-input ? @tr("title-section-configure-input") : @tr("title-section-configure-output");
                 color: #edf2f9;
-                font-size: 15px;
+                font-size: 18px;
                 font-weight: 800;
                 vertical-alignment: center;
                 horizontal-stretch: 1;
@@ -112,7 +112,7 @@ export component ChainPortEditorPage inherits Rectangle {
             Text {
                 text: @tr("label-io-binding");
                 color: #8c96a6;
-                font-size: 12px;
+                font-size: 18px;
                 font-weight: 700;
             }
 
@@ -125,7 +125,7 @@ export component ChainPortEditorPage inherits Rectangle {
             Text {
                 text: @tr("label-io-endpoint");
                 color: #8c96a6;
-                font-size: 12px;
+                font-size: 18px;
                 font-weight: 700;
             }
 
@@ -138,7 +138,7 @@ export component ChainPortEditorPage inherits Rectangle {
             if root.show-endpoint-warning : Text {
                 text: @tr("msg-pick-io-endpoint");
                 color: #ff9f43;
-                font-size: 12px;
+                font-size: 18px;
                 wrap: word-wrap;
             }
         }

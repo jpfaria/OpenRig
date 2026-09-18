@@ -74,6 +74,7 @@ export component CompactModelSelectOverlay inherits Rectangle {
             color: #6a6a82;
             font-size: 18px;
             vertical-alignment: center;
+            overflow: elide;
         }
 
         if root.search-text != "" : TouchArea {
@@ -99,13 +100,14 @@ export component CompactModelSelectOverlay inherits Rectangle {
     }
 
     if root.filtered-models.length == 0 : Text {
-        x: 0;
+        x: 12px;
         y: 58px;
-        width: parent.width;
-        height: 36px;
+        width: parent.width - 24px;
+        height: 60px;
         text: @tr("status-no-models-found");
+        wrap: word-wrap;
         color: #6a6a82;
-        font-size: 16px;
+        font-size: 18px;
         vertical-alignment: center;
         horizontal-alignment: center;
     }
@@ -136,7 +138,7 @@ export component CompactModelSelectOverlay inherits Rectangle {
             Text {
                 x: 12px;
                 y: 0;
-                width: parent.width - 70px;
+                width: parent.width - 12px - (model.type_label == "" ? 12px : type-badge.width + 24px);
                 height: parent.height;
                 text: row-has-brand
                     ? model.brand + " " + model.display_name
@@ -149,11 +151,14 @@ export component CompactModelSelectOverlay inherits Rectangle {
                 overflow: elide;
             }
 
-            if model.type_label != "" : Rectangle {
-                x: parent.width - 54px;
-                y: (parent.height - 22px) / 2;
-                width: 42px;
-                height: 22px;
+            // The badge follows its label (#954): "NATIVE" at 18px is wider
+            // than the old fixed 42px.
+            type-badge := Rectangle {
+                visible: model.type_label != "";
+                width: Math.max(42px, type-text.preferred-width + 12px);
+                x: parent.width - self.width - 12px;
+                y: (parent.height - 24px) / 2;
+                height: 24px;
                 border-radius: 3px;
                 background: model.type_label == "NATIVE" ? #0d2a0d
                     : model.type_label == "NAM/A2" ? #2e260d
@@ -169,7 +174,7 @@ export component CompactModelSelectOverlay inherits Rectangle {
                     : model.type_label == "LV2" ? #1a886b
                     : #883300;
 
-                Text {
+                type-text := Text {
                     width: parent.width;
                     height: parent.height;
                     text: model.type_label;
@@ -179,7 +184,7 @@ export component CompactModelSelectOverlay inherits Rectangle {
                         : model.type_label == "IR" ? #aa44ff
                         : model.type_label == "LV2" ? #44ddaa
                         : #ff8833;
-                    font-size: 10px;
+                    font-size: 18px;
                     font-weight: 800;
                     letter-spacing: 0.5px;
                     vertical-alignment: center;

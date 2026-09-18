@@ -436,6 +436,17 @@ late callback WAS damage (CoreAudio dropped input), hence the old
 semantics, which the non-F32 inline paths keep. F32 input path only (the
 macOS live path); the Linux/JACK backend is untouched.
 
+Stuck latency after an output stall (#953): a route on the chain's own
+clock never drains a cushion that grew, so an output stream that misses a
+few periods while the producer keeps pushing used to keep that extra
+latency forever — and play behind its sibling routes (Main and FRFR a few
+ms apart = the "doubled" sound). Each route's `ElasticBuffer` now watches
+its lowest fill per ~186 ms window; the lowest floor of an underrun-free
+window is the level the route proved it can hold, and a floor more than
+32 frames above it is discarded at the next callback with a 32-frame
+crossfade. Steady state never trims (bit-identical output).
+`openrig://routes` reports `fill_frames` and `latency_trims` per route.
+
 ### Chain enabled é runtime, não persistência
 
 `Chain.enabled` é estado de memória — o usuário liga / desliga uma

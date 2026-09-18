@@ -134,6 +134,16 @@ pub trait AudioTaps {
         0
     }
 
+    /// Identity of the runtimes this chain runs right now: changes whenever
+    /// they are replaced, even when the stream count stays the same (#957: a
+    /// preset switch rebuilds the chain with fresh runtimes, and a handle
+    /// opened on the replaced ones never fills again). 0 when nothing is
+    /// hosted.
+    fn runtime_identity(&self, chain: &ChainId) -> u64 {
+        let _ = chain;
+        0
+    }
+
     /// Open a subscription on `point`, sized `capacity_per_channel`.
     ///
     /// `None` ⇒ that stream is not there to tap (no runtime, index out of
