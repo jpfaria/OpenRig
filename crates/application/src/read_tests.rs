@@ -335,6 +335,8 @@ fn hosted_output_routes_report_the_frontend_rows() {
                 callbacks: 42,
                 underruns: 0,
                 peak_dbfs: -20.5,
+                fill_frames: 0,
+                latency_trims: 0,
             }])
         }
     }

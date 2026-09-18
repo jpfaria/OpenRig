@@ -31,6 +31,12 @@ pub struct OutputRouteStats {
     /// Loudest |sample| popped since the previous read, in dBFS;
     /// [`SILENT_DBFS`] when nothing was popped.
     pub peak_dbfs: f32,
+    /// #953: frames queued in the route's cushion right now — its latency
+    /// beyond the device buffer. Sibling routes of one runtime that disagree
+    /// here play the same signal apart.
+    pub fill_frames: usize,
+    /// #953: times the route shed latency a stalled stream left behind.
+    pub latency_trims: u64,
 }
 
 impl OutputRoutingState {
@@ -65,6 +71,8 @@ impl ChainRuntimeState {
                     } else {
                         SILENT_DBFS
                     },
+                    fill_frames: state.buffer.len(),
+                    latency_trims: state.buffer.latency_trims(),
                 }
             })
             .collect()

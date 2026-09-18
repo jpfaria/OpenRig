@@ -7,6 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use block_core::AudioChannelLayout;
 
 use crate::audio_frame::{silent_frame, AudioFrame};
+use crate::elastic_drift_guard::DriftGuard;
+use crate::elastic_skip_fade::{SkipFade, FADE_FRAMES};
 use crate::spsc::SpscRing;
 
 /// Floor for the elastic buffer target. Below this the buffer cannot absorb
@@ -58,6 +60,8 @@ pub(crate) struct ElasticBuffer {
     /// apart from a CPU deadline overrun (xrun): a single light chain at
     /// buffer 64 crackling with near-zero xruns points here, not at CPU.
     underrun_count: AtomicU64,
+    /// #953: sheds latency a stalled output stream left in the ring.
+    drift: DriftGuard,
 }
 
 impl ElasticBuffer {
@@ -69,6 +73,7 @@ impl ElasticBuffer {
             layout,
             last_frame_bits: AtomicU64::new(frame_to_bits(init)),
             underrun_count: AtomicU64::new(0),
+            drift: DriftGuard::new(),
         }
     }
 
@@ -106,6 +111,31 @@ impl ElasticBuffer {
                 silent_frame(self.layout)
             }
         }
+    }
+
+    /// #953: consumer side, once per output callback before its `frames`
+    /// pops. Discards latency a stall left stuck in the ring and returns the
+    /// crossfade the callback applies to its first pops.
+    #[inline]
+    pub(crate) fn begin_callback(&self, frames: usize) -> SkipFade {
+        let mut fade = SkipFade::none();
+        let skip = self
+            .drift
+            .observe(self.ring.len(), frames, self.underrun_count());
+        for n in 0..skip {
+            let Some(frame) = self.ring.pop() else {
+                break;
+            };
+            if n < FADE_FRAMES {
+                fade.hold(frame);
+            }
+        }
+        fade
+    }
+
+    /// #953: times this route shed stuck latency since it was built.
+    pub(crate) fn latency_trims(&self) -> u64 {
+        self.drift.trims()
     }
 
     /// Pre-fill the buffer with `frames` silent frames so it starts at a

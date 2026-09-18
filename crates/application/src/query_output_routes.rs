@@ -26,6 +26,10 @@ pub struct OutputRouteReading {
     pub underruns: u64,
     /// Loudest |sample| popped since the previous read, in dBFS.
     pub peak_dbfs: f32,
+    /// #953: frames queued in the route's cushion right now.
+    pub fill_frames: usize,
+    /// #953: times the route shed latency a stalled stream left behind.
+    pub latency_trims: u64,
 }
 
 #[derive(Serialize)]
@@ -51,6 +55,8 @@ pub fn rows_for_chain(
                 callbacks: r.callbacks,
                 underruns: r.underruns,
                 peak_dbfs: r.peak_dbfs,
+                fill_frames: r.fill_frames,
+                latency_trims: r.latency_trims,
             })
         })
         .collect()

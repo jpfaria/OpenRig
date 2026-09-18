@@ -83,7 +83,10 @@ follow-up.
   - `openrig://routes` (#923) — per-output-route stream accounting: one
     row per (chain, runtime `group`, `route`) with the device `channels`,
     the output `callbacks` served, the elastic `underruns`, and the
-    `peak_dbfs` popped since the previous read (JSON). The per-chain
+    `peak_dbfs` popped since the previous read, plus `fill_frames` (the
+    frames queued in the route's cushion now — sibling routes that
+    disagree play the same signal apart) and `latency_trims` (#953: times
+    the route shed latency a stalled output stream left behind) (JSON). The per-chain
     meters say what a segment produced; this says whether the device
     stream owning a route ever ran and what it carried — a route with
     callbacks and level that is inaudible was lost after the engine.
