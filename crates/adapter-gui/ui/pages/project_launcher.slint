@@ -7,14 +7,15 @@ component LauncherButton inherits Rectangle {
     in property <bool> primary: false;
     callback clicked();
 
-    width: primary ? 156px : 150px;
+    // #954: the button follows its translated label.
+    width: max(primary ? 156px : 150px, lbl.preferred-width + 24px);
     height: 40px;
     background: primary ? #188cff : #2f3339;
     border-width: 1px;
     border-color: primary ? #45a7ff : #4c515b;
     border-radius: 4px;
 
-    Text {
+    lbl := Text {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -23,7 +24,7 @@ component LauncherButton inherits Rectangle {
         color: #f4f7fb;
         horizontal-alignment: center;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 600;
     }
 
@@ -58,10 +59,11 @@ component IconLauncherButton inherits Rectangle {
     }
 
     // Tooltip below — launcher header sits at the top of the page (#329).
+    // #954: the tooltip follows its translated text, centred under the button.
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -18px;
+        x: (root.width - self.width) / 2;
         y: 44px;
-        width: 76px;
+        width: max(76px, tip-lbl.preferred-width + 12px);
         height: 24px;
         background: #11141ad9;
         border-width: 1px;
@@ -69,14 +71,14 @@ component IconLauncherButton inherits Rectangle {
         border-radius: 4px;
         z: 50;
 
-        Text {
+        tip-lbl := Text {
             x: 6px;
             y: 0px;
             width: parent.width - 12px;
             height: parent.height;
             text: root.tooltip;
             color: #eef2f8;
-            font-size: 10px;
+            font-size: 18px;
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -123,20 +125,22 @@ component RecentProjectRow inherits Rectangle {
         height: 24px;
         text: root.title;
         color: #f1f4f8;
-        font-size: 14px;
+        font-size: 18px;
         font-weight: 600;
         vertical-alignment: center;
+        overflow: elide;
     }
 
     Text {
         x: 46px;
         y: 38px;
         width: parent.width - 148px;
-        height: 18px;
+        height: 22px;
         text: root.subtitle;
         color: #8d95a2;
-        font-size: 12px;
+        font-size: 18px;
         vertical-alignment: center;
+        overflow: elide;
     }
 
     Image {
@@ -185,7 +189,7 @@ component SearchField inherits Rectangle {
         text: @tr("placeholder-search-projects");
         color: #858d99;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
     }
 
     TextInput {
@@ -197,7 +201,7 @@ component SearchField inherits Rectangle {
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
-        font-size: 13px;
+        font-size: 18px;
         edited => {
             root.text = self.text;
             root.changed(self.text);
@@ -282,15 +286,15 @@ export component ProjectLauncherPage inherits Rectangle {
         }
 
         IconLauncherButton {
-            x: parent.width - 268px;
+            x: new-btn.x - 16px - self.width;
             y: 6px;
             icon: @image-url("../assets/open-file.svg");
             tooltip: @tr("tooltip-open-project");
             clicked => { root.open-project-file(); }
         }
 
-        LauncherButton {
-            x: parent.width - 212px;
+        new-btn := LauncherButton {
+            x: parent.width - 56px - self.width;
             y: 6px;
             label: @tr("btn-new-project");
             primary: true;
@@ -308,12 +312,12 @@ export component ProjectLauncherPage inherits Rectangle {
 
     if root.app-version != "" : Text {
         x: 0px;
-        y: parent.height - 20px;
+        y: parent.height - 22px;
         width: parent.width - 16px;
-        height: 20px;
+        height: 22px;
         text: "v" + root.app-version;
         color: #4a5060;
-        font-size: 10px;
+        font-size: 18px;
         horizontal-alignment: right;
         vertical-alignment: center;
     }

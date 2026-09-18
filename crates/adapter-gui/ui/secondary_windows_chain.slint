@@ -7,7 +7,7 @@ import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, ChainPortEditorPa
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     default-font-family: Locale.font-family;
-    default-font-size: 13px;
+    default-font-size: 18px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
@@ -58,7 +58,7 @@ export component ProjectSettingsWindow inherits Window {
 export component ChainEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     default-font-family: Locale.font-family;
-    default-font-size: 13px;
+    default-font-size: 18px;
     in property <string> editor-title;
     in property <string> editor-save-label;
     in-out property <string> chain-name;
@@ -99,7 +99,7 @@ export component ChainEditorWindow inherits Window {
 export component ChainInsertWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     default-font-family: Locale.font-family;
-    default-font-size: 13px;
+    default-font-size: 18px;
 
     in property <[string]> binding-options;
     in-out property <int> selected-binding-index;
@@ -141,7 +141,7 @@ export component ChainInsertWindow inherits Window {
 export component ChainPortWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     default-font-family: Locale.font-family;
-    default-font-size: 13px;
+    default-font-size: 18px;
 
     in property <bool> is-input;
     in property <[string]> binding-options;

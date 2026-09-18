@@ -79,20 +79,20 @@ export component PluginInfoPanel inherits Rectangle {
 
                 if root.brand != "" : Text {
                     text: root.brand;
-                    font-size: 12px;
+                    font-size: 18px;
                     color: #8888aa;
                     vertical-alignment: center;
                 }
 
                 if root.brand != "" && root.type-label != "" : Text {
                     text: @tr("·");
-                    font-size: 12px;
+                    font-size: 18px;
                     color: #555566;
                     vertical-alignment: center;
                 }
 
                 if root.type-label != "" : Rectangle {
-                    height: 20px;
+                    height: max(22px, type-badge-text.preferred-height + 4px);
                     width: type-badge-text.preferred-width + 12px;
                     border-radius: 4px;
                     background: root.type-label == "LV2" ? #1a2a1a
@@ -103,8 +103,9 @@ export component PluginInfoPanel inherits Rectangle {
 
                     type-badge-text := Text {
                         x: 6px;
+                        height: parent.height;
                         text: root.type-label;
-                        font-size: 10px;
+                        font-size: 18px;
                         font-weight: 600;
                         color: root.type-label == "LV2" ? #44cc44
                             : root.type-label == "NAM/A2" ? #ffcc44
@@ -124,14 +125,14 @@ export component PluginInfoPanel inherits Rectangle {
                 spacing: 4px;
                 Text {
                     text: @tr("label-description");
-                    font-size: 10px;
+                    font-size: 18px;
                     font-weight: 600;
                     color: #555566;
                     letter-spacing: 1px;
                 }
                 Text {
                     text: root.description;
-                    font-size: 13px;
+                    font-size: 18px;
                     color: #a0a0b8;
                     wrap: word-wrap;
                 }
@@ -143,13 +144,13 @@ export component PluginInfoPanel inherits Rectangle {
                 alignment: start;
                 Text {
                     text: @tr("label-license");
-                    font-size: 12px;
+                    font-size: 18px;
                     color: #555566;
                     vertical-alignment: center;
                 }
                 Text {
                     text: root.license;
-                    font-size: 12px;
+                    font-size: 18px;
                     color: #7a7a9a;
                     vertical-alignment: center;
                 }
@@ -170,13 +171,13 @@ export component PluginInfoPanel inherits Rectangle {
 
                     Text {
                         text: @tr("↗");
-                        font-size: 14px;
+                        font-size: 18px;
                         color: #22C55E;
                         vertical-alignment: center;
                     }
                     Text {
                         text: @tr("btn-open-homepage");
-                        font-size: 13px;
+                        font-size: 18px;
                         color: #22C55E;
                         vertical-alignment: center;
                     }

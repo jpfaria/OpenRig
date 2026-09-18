@@ -21,13 +21,16 @@
 #   3. Rust formatting (cargo fmt --check)
 #   4. Rust linting   (cargo clippy -D warnings)
 #   5. Slint compilation (cargo check -p adapter-gui)
-#   6. Inline test modules — production .rs files must not contain
+#   6. Minimum font size — no .slint of ours may draw text below MIN_FONT_PX.
+#   7. Inline test modules — production .rs files must not contain
 #      `#[cfg(test)] mod tests {`. Tests live in <module>_tests.rs.
 #
 # Exit: 0 = pass, 1 = violations found
 
 set -uo pipefail
 
+MIN_FONT_PX=18
+MIN_TEXT_BOX_PX=22   # an 18px glyph plus its line gap
 RUST_MAX_LINES=600
 SLINT_MAX_LINES=500
 
@@ -295,13 +298,78 @@ if [ -z "${VALIDATE_STATIC_ONLY:-}" ] && $SLINT_CHANGED; then
   fi
 fi
 
-# ─── 6. INLINE TEST MODULES ─────────────────────────────────────────────────
+# ─── 6. MINIMUM FONT SIZE (#954) ────────────────────────────────────────────
+# Nothing may render smaller than the preset select's own text. Any px literal
+# on a font-size line below MIN_FONT_PX is unreadable and fails here; use
+# Theme.min-font instead of repeating the number.
+SLINT_FILES=$(echo "$FILES" | tr ' ' '\n' | grep '\.slint$' | grep -v '/modules/' | grep -v '^$' || true)
+if [ -n "$SLINT_FILES" ]; then
+  echo ""
+  echo -e "${BOLD}── 6. Minimum Font Size ──${NC}"
+  for file in $SLINT_FILES; do
+    [ -f "$file" ] || continue
+    offenders=$(grep -nE 'font-size[^:]*:[^;]*[0-9]+px' "$file" \
+      | awk -v min="$MIN_FONT_PX" '
+          {
+            rest = $0
+            # Read only what each font-size binding itself declares, so a px on
+            # another property of the same line (letter-spacing, width) is not
+            # mistaken for text that is too small.
+            while (match(rest, /font-size[^:]*:/)) {
+              rest = substr(rest, RSTART + RLENGTH)
+              value = rest
+              if (index(value, ";") > 0) value = substr(value, 1, index(value, ";") - 1)
+              while (match(value, /[0-9]+px/)) {
+                px = substr(value, RSTART, RLENGTH - 2) + 0
+                if (px < min) { print; next }
+                value = substr(value, RSTART + RLENGTH)
+              }
+            }
+          }' || true)
+    if [ -n "$offenders" ]; then
+      while IFS= read -r hit; do
+        fail "$(basename "$file"):${hit%%:*} — below the ${MIN_FONT_PX}px minimum font size; use Theme.min-font (#954)"
+      done <<< "$offenders"
+    else
+      ok "$(basename "$file"): no text under ${MIN_FONT_PX}px"
+    fi
+    # A Text box sized for the old small fonts cuts the glyphs of the new
+    # ones: its own literal height must fit MIN_TEXT_BOX_PX. Text on a
+    # Theme.knob-* font (the owner's only exception to the floor) keeps the
+    # knob cell's tight boxes, so it is judged at the end of its block.
+    short_boxes=$(awk -v min="$MIN_TEXT_BOX_PX" '
+      {
+        line = $0
+        sub(/\/\/.*/, "", line)
+        if (match(line, /(^|[^A-Za-z0-9_-])Text[ \t]*\{/)) { text_depth[++n] = depth + 1; short[n] = ""; knob[n] = 0 }
+        if (n > 0 && depth == text_depth[n]) {
+          if (line ~ /font-size[ \t]*:[^;]*Theme\.knob-/) knob[n] = 1
+          if (match(line, /(^|[^A-Za-z-])height[ \t]*:[ \t]*[0-9]+px[ \t]*;/)) {
+            value = substr(line, RSTART, RLENGTH)
+            gsub(/[^0-9]/, "", value)
+            if (value + 0 < min) short[n] = short[n] " " NR
+          }
+        }
+        opens = gsub(/\{/, "{", line); closes = gsub(/\}/, "}", line)
+        depth += opens - closes
+        while (n > 0 && depth < text_depth[n]) {
+          if (!knob[n] && short[n] != "") print short[n]
+          n--
+        }
+      }' "$file")
+    for hit in $short_boxes; do
+      fail "$(basename "$file"):$hit — Text box shorter than its text (< ${MIN_TEXT_BOX_PX}px); size it from the text (#954)"
+    done
+  done
+fi
+
+# ─── 7. INLINE TEST MODULES ─────────────────────────────────────────────────
 # Production .rs files must not contain `#[cfg(test)] mod tests {`. Tests
 # live in <module>_tests.rs and are wired via `#[cfg(test)] #[path = "..."]
 # mod tests;`. See issue #394.
 if [ -n "$RS_FILES" ]; then
   echo ""
-  echo -e "${BOLD}── 6. Inline Test Modules ──${NC}"
+  echo -e "${BOLD}── 7. Inline Test Modules ──${NC}"
   for file in $RS_FILES; do
     [ -f "$file" ] || continue
     case "$file" in

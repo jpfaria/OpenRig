@@ -20,7 +20,7 @@ component Badge inherits Rectangle {
     border-radius: 7px;
     HorizontalLayout {
         padding-left: 11px; padding-right: 11px;
-        Text { text: root.text; color: root.fg; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+        Text { text: root.text; color: root.fg; font-size: 18px; font-weight: 600; vertical-alignment: center; }
     }
 }
 
@@ -34,7 +34,7 @@ component EndpointRow inherits Rectangle {
     height: 44px;
     HorizontalLayout {
         spacing: 8px;
-        Text { horizontal-stretch: 1; text: root.device; color: #fafafa; font-size: 14px; font-weight: 500; vertical-alignment: center; }
+        Text { horizontal-stretch: 1; text: root.device; color: #fafafa; font-size: 18px; font-weight: 500; vertical-alignment: center; }
         Rectangle { VerticalLayout { alignment: center; Badge { text: root.channels; fg: #60a5fa; bg: #112540; } } }
         Rectangle { VerticalLayout { alignment: center; Badge { text: root.mode; fg: root.mode-fg; bg: root.mode-bg; } } }
         Rectangle { width: 8px; }
@@ -56,7 +56,7 @@ component DropDown inherits Rectangle {
     border-color: #27272a;
     HorizontalLayout {
         padding-left: 12px; padding-right: 12px; spacing: 8px;
-        Text { horizontal-stretch: 1; text: root.text; color: #e4e4e7; font-size: 14px; vertical-alignment: center; }
+        Text { horizontal-stretch: 1; text: root.text; color: #e4e4e7; font-size: 18px; vertical-alignment: center; }
         Image { width: 11px; height: 11px; y: (parent.height - self.height) / 2;
             source: @image-url("../../assets/arrow-down.svg"); colorize: #71717a; }
     }
@@ -77,7 +77,7 @@ component Segmented inherits Rectangle {
             horizontal-stretch: 1;
             background: i == root.current ? #2f80ff : transparent;
             border-radius: 6px;
-            Text { text: opt; color: i == root.current ? #ffffff : #a1a1aa; font-size: 13px;
+            Text { text: opt; color: i == root.current ? #ffffff : #a1a1aa; font-size: 18px;
                 font-weight: i == root.current ? 600 : 500; horizontal-alignment: center; vertical-alignment: center; }
         }
     }
@@ -106,7 +106,7 @@ component MockChannelRow inherits Rectangle {
             }
         }
         Text { horizontal-stretch: 1; text: root.n; color: root.on ? #fafafa : #a1a1aa;
-            font-size: 14px; vertical-alignment: center; }
+            font-size: 18px; vertical-alignment: center; }
     }
 }
 
@@ -122,12 +122,12 @@ component MockChannelPicker inherits Rectangle {
         padding: 8px; spacing: 4px;
         HorizontalLayout {
             height: 22px; padding-left: 4px; spacing: 6px;
-            Text { text: "Selecionados:"; color: #71717a; font-size: 12px; vertical-alignment: center; }
+            Text { text: "Selecionados:"; color: #71717a; font-size: 18px; vertical-alignment: center; }
             Rectangle { background: #112540; border-radius: 4px;
                 HorizontalLayout { padding-left: 6px; padding-right: 6px;
-                    Text { text: root.selected; color: #60a5fa; font-size: 12px; font-weight: 600; vertical-alignment: center; } } }
+                    Text { text: root.selected; color: #60a5fa; font-size: 18px; font-weight: 600; vertical-alignment: center; } } }
             Rectangle { horizontal-stretch: 1; }
-            Text { text: "30 canais"; color: #52525b; font-size: 12px; vertical-alignment: center; }
+            Text { text: "30 canais"; color: #52525b; font-size: 18px; vertical-alignment: center; }
         }
         ScrollView {
             height: 204px;
@@ -146,7 +146,7 @@ component PrimaryButton inherits Rectangle {
     background: #2f80ff;
     border-radius: 8px;
     HorizontalLayout { padding-left: 16px; padding-right: 16px;
-        Text { text: root.text; color: #ffffff; font-size: 14px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } }
+        Text { text: root.text; color: #ffffff; font-size: 18px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; } }
 }
 
 component GhostButton inherits Rectangle {
@@ -156,7 +156,7 @@ component GhostButton inherits Rectangle {
     border-width: 1px;
     border-color: #27272a;
     HorizontalLayout { padding-left: 16px; padding-right: 16px;
-        Text { text: root.text; color: #d4d4d8; font-size: 14px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; } }
+        Text { text: root.text; color: #d4d4d8; font-size: 18px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center; } }
 }
 
 component IconBtn inherits Rectangle {
@@ -178,7 +178,7 @@ component AddButton inherits Rectangle {
         alignment: center; spacing: 8px;
         Image { width: 13px; height: 13px; y: (parent.height - self.height) / 2;
             source: @image-url("../../assets/plus.svg"); colorize: #d4d4d8; }
-        Text { text: root.text; color: #d4d4d8; font-size: 14px; font-weight: 500; vertical-alignment: center; }
+        Text { text: root.text; color: #d4d4d8; font-size: 18px; font-weight: 500; vertical-alignment: center; }
     }
 }
 
@@ -188,7 +188,7 @@ component SectionHeader inherits HorizontalLayout {
     in property <color> tint;
     spacing: 9px;
     Rectangle { width: 8px; height: 8px; y: (parent.height - self.height) / 2; border-radius: 4px; background: root.tint; }
-    Text { text: root.text; color: #fafafa; font-size: 15px; font-weight: 600; vertical-alignment: center; }
+    Text { text: root.text; color: #fafafa; font-size: 18px; font-weight: 600; vertical-alignment: center; }
 }
 
 component FieldRow inherits HorizontalLayout {
@@ -200,7 +200,7 @@ component FieldRow inherits HorizontalLayout {
         VerticalLayout {
             alignment: root.label-top ? start : center;
             padding-top: root.label-top ? 9px : 0px;
-            Text { text: root.label; color: #a1a1aa; font-size: 14px; }
+            Text { text: root.label; color: #a1a1aa; font-size: 18px; }
         }
     }
     @children
@@ -209,7 +209,7 @@ component FieldRow inherits HorizontalLayout {
 export component Mockup inherits Window {
     title: "Ligações de E/S — shadcn";
     default-font-family: "Bebas Neue";
-    default-font-size: 14px;
+    default-font-size: 18px;
     preferred-width: 840px;
     preferred-height: 760px;
     background: #09090b;
@@ -223,7 +223,7 @@ export component Mockup inherits Window {
             VerticalLayout {
                 horizontal-stretch: 1; alignment: center; spacing: 6px;
                 Text { text: "Ligações de E/S"; color: #fafafa; font-size: 22px; font-weight: 600; }
-                Text { text: "Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."; color: #a1a1aa; font-size: 14px; }
+                Text { text: "Agrupe a entrada e a saída da mesma interface. Cada chain usa uma ligação."; color: #a1a1aa; font-size: 18px; }
             }
             Rectangle { width: 138px; VerticalLayout { alignment: center; PrimaryButton { text: "Nova ligação"; } } }
         }
@@ -239,7 +239,7 @@ export component Mockup inherits Window {
 
                 HorizontalLayout {
                     spacing: 8px;
-                    Text { text: "Guitarra"; color: #fafafa; font-size: 16px; font-weight: 600; horizontal-stretch: 1; vertical-alignment: center; }
+                    Text { text: "Guitarra"; color: #fafafa; font-size: 18px; font-weight: 600; horizontal-stretch: 1; vertical-alignment: center; }
                     IconBtn { icon: @image-url("../../assets/pencil.svg"); }
                     IconBtn { icon: @image-url("../../assets/trash.svg"); }
                 }
@@ -279,8 +279,8 @@ export component Mockup inherits Window {
                     spacing: 8px;
                     VerticalLayout {
                         horizontal-stretch: 1; alignment: center; spacing: 4px;
-                        Text { text: "Voz"; color: #fafafa; font-size: 16px; font-weight: 600; }
-                        Text { text: "1 entrada · 1 saída"; color: #a1a1aa; font-size: 13px; }
+                        Text { text: "Voz"; color: #fafafa; font-size: 18px; font-weight: 600; }
+                        Text { text: "1 entrada · 1 saída"; color: #a1a1aa; font-size: 18px; }
                     }
                     IconBtn { icon: @image-url("../../assets/pencil.svg"); }
                     IconBtn { icon: @image-url("../../assets/trash.svg"); }

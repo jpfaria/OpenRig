@@ -46,17 +46,20 @@ export component PanelKnob inherits Rectangle {
     }
 
     // ── Value box below knob ──
+    // Only when the caller leaves room under the sprite; the box then grows to
+    // the 18px value text (never less than 22px tall) instead of cutting it.
     Rectangle {
-        x: (root.width - root.ks * 0.9) / 2;
+        visible: root.height > root.ks + 4px;
+        x: (root.width - self.width) / 2;
         y: root.ks + 3px;
-        width: root.ks * 0.9;
-        height: root.height - root.ks - 4px;
+        width: max(root.ks * 0.9, value-text.preferred-width + 4px);
+        height: max(22px, root.height - root.ks - 4px);
         border-radius: 3px;
         background: #0c0a12;
         border-width: 1px;
         border-color: #2a2832;
 
-        Text {
+        value-text := Text {
             width: parent.width;
             height: parent.height;
             text: root.step >= 1.0
@@ -64,7 +67,7 @@ export component PanelKnob inherits Rectangle {
                 : Math.round(root.current-val * 10) / 10 + "";
             color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;
             font-family: "Bebas Neue";
-            font-size: 12px;
+            font-size: 18px;
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;

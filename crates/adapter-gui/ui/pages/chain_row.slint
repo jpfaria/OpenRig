@@ -95,14 +95,14 @@ export component ChainRow inherits Rectangle {
     // Add 32px of breathing room so the meters sit clearly below the
     // last row of blocks. Per-stream meter rows (one per stream) stack
     // downward from the base meter `y`: every extra stream beyond the
-    // first adds 22 px so the card grows and the rows don't bleed into
-    // the next chain card (user feedback: "tem que dar espaço").
+    // first adds one meter row pitch so the card grows and the rows don't bleed
+    // into the next chain card (user feedback: "tem que dar espaço").
     height: 106px + (root.block-row-count * 108px)
         + (root.chain.stream_meters.length > 1
-            ? (root.chain.stream_meters.length - 1) * 22px
+            ? (root.chain.stream_meters.length - 1) * meters.row-pitch
             : 0px)
         // #717: one extra row for the DI stream's own IN/OUT meter while it plays.
-        + (root.chain.di_loop_playing ? 22px : 0px);
+        + (root.chain.di_loop_playing ? meters.row-pitch : 0px);
 
     ChainRowHeader {
         x: 0px;
@@ -153,7 +153,7 @@ export component ChainRow inherits Rectangle {
         reorder-chain-block(ci, from, before) => { root.reorder-chain-block(ci, from, before); }
     }
 
-    ChainRowMeters {
+    meters := ChainRowMeters {
         x: 0px;
         y: 0px;
         width: root.width;

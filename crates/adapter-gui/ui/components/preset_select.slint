@@ -121,7 +121,7 @@ export component PresetSelect inherits Rectangle {
                     height: parent.height;
                     text <=> PresetPicker.search;
                     color: #d8e0ff;
-                    font-size: 16px;
+                    font-size: Theme.min-font;
                     horizontal-alignment: left;
                     vertical-alignment: center;
                     single-line: true;
@@ -137,7 +137,7 @@ export component PresetSelect inherits Rectangle {
                     height: parent.height;
                     text: @tr("preset-search-placeholder");
                     color: #6a6a82;
-                    font-size: 16px;
+                    font-size: Theme.min-font;
                     vertical-alignment: center;
                 }
 
@@ -170,7 +170,7 @@ export component PresetSelect inherits Rectangle {
                 height: 36px;
                 text: @tr("status-no-presets-found");
                 color: #6a6a82;
-                font-size: 15px;
+                font-size: Theme.min-font;
                 vertical-alignment: center;
                 horizontal-alignment: center;
             }
@@ -200,7 +200,7 @@ export component PresetSelect inherits Rectangle {
                         height: parent.height;
                         text: option.label;
                         color: #f1f4f8;
-                        font-size: 16px;
+                        font-size: Theme.min-font;
                         font-weight: option.slot == root.active-index ? 800 : 600;
                         vertical-alignment: center;
                         overflow: elide;

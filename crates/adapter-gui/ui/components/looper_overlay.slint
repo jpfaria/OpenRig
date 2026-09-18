@@ -109,7 +109,7 @@ export component LooperOverlay inherits Rectangle {
                 Text {
                     text: @tr("looper-preset-picker-title");
                     color: Theme.palette.text-primary;
-                    font-size: 15px;
+                    font-size: Theme.min-font;
                     font-weight: 700;
                 }
 
@@ -136,7 +136,7 @@ export component LooperOverlay inherits Rectangle {
                                 vertical-alignment: center;
                                 text: @tr("looper-preset-follow");
                                 color: Theme.palette.text-secondary;
-                                font-size: 13px;
+                                font-size: Theme.min-font;
                                 overflow: elide;
                             }
 
@@ -148,7 +148,7 @@ export component LooperOverlay inherits Rectangle {
                                 horizontal-alignment: center;
                                 text: LooperPanel.preset-picker-selected == 0 ? "✓" : "";
                                 color: #6e8aff;
-                                font-size: 14px;
+                                font-size: Theme.min-font;
                                 font-weight: 700;
                             }
 
@@ -182,7 +182,7 @@ export component LooperOverlay inherits Rectangle {
                                 vertical-alignment: center;
                                 text: option;
                                 color: Theme.palette.text-primary;
-                                font-size: 13px;
+                                font-size: Theme.min-font;
                                 overflow: elide;
                             }
 
@@ -194,7 +194,7 @@ export component LooperOverlay inherits Rectangle {
                                 horizontal-alignment: center;
                                 text: (i + 1) == LooperPanel.preset-picker-selected ? "✓" : "";
                                 color: #6e8aff;
-                                font-size: 14px;
+                                font-size: Theme.min-font;
                                 font-weight: 700;
                             }
 

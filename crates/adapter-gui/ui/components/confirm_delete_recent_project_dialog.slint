@@ -17,27 +17,29 @@ export component ConfirmDeleteRecentProjectDialog inherits Rectangle {
         x: (root.width - self.width) / 2;
         y: (root.height - self.height) / 2;
         width: min(root.width * 0.7, 400px);
-        height: 170px;
+        // Grows with its (translated, wrapped) content (#954).
+        height: dialog-content.preferred-height;
         background: #1e1f22;
         border-radius: 10px;
         drop-shadow-blur: 16px;
         drop-shadow-offset-y: 4px;
         drop-shadow-color: #000000c0;
 
-        VerticalLayout {
+        dialog-content := VerticalLayout {
             padding: 20px;
             spacing: 12px;
             Text {
                 text: @tr("title-dialog-delete-recent-project");
-                font-size: 16px;
+                font-size: 18px;
                 color: #ffffff;
                 font-weight: 700;
                 horizontal-alignment: center;
+                wrap: word-wrap;
             }
             Text {
                 // Literal pt-BR source string with `{}` placeholder.
                 text: @tr("Remover o projeto \"{}\" dos recentes?", root.project-name);
-                font-size: 13px;
+                font-size: 18px;
                 color: #aaaaaa;
                 horizontal-alignment: center;
                 overflow: elide;
@@ -56,7 +58,7 @@ export component ConfirmDeleteRecentProjectDialog inherits Rectangle {
                     }
                     Text {
                         text: @tr("btn-cancel");
-                        font-size: 13px;
+                        font-size: 18px;
                         color: #aaaaaa;
                         horizontal-alignment: center;
                         vertical-alignment: center;
@@ -73,7 +75,7 @@ export component ConfirmDeleteRecentProjectDialog inherits Rectangle {
                     }
                     Text {
                         text: @tr("btn-remove");
-                        font-size: 13px;
+                        font-size: 18px;
                         color: #ffffff;
                         font-weight: 700;
                         horizontal-alignment: center;
