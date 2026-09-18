@@ -43,6 +43,11 @@ export struct Typo {
 export global Theme {
     // The smallest text the app may draw: the preset select's own size (#954).
     out property <length> min-font: 18px;
+    // The only exceptions to min-font: text around a knob, which sit in the
+    // knob's own tight cell (#954, owner's call).
+    out property <length> knob-caption-font: 12px;
+    // Non-numeric knob positions (e.g. BLUES / JAZZ) around a selector knob.
+    out property <length> knob-option-font: 10px;
 
     in property <Palette> palette: {
         pure-black: #05070b,

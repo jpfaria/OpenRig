@@ -334,20 +334,28 @@ if [ -n "$SLINT_FILES" ]; then
       ok "$(basename "$file"): no text under ${MIN_FONT_PX}px"
     fi
     # A Text box sized for the old small fonts cuts the glyphs of the new
-    # ones: its own literal height must fit MIN_TEXT_BOX_PX.
+    # ones: its own literal height must fit MIN_TEXT_BOX_PX. Text on a
+    # Theme.knob-* font (the owner's only exception to the floor) keeps the
+    # knob cell's tight boxes, so it is judged at the end of its block.
     short_boxes=$(awk -v min="$MIN_TEXT_BOX_PX" '
       {
         line = $0
         sub(/\/\/.*/, "", line)
-        if (match(line, /(^|[^A-Za-z0-9_-])Text[ \t]*\{/)) { text_depth[++n] = depth + 1 }
-        if (n > 0 && depth == text_depth[n] && match(line, /(^|[^A-Za-z-])height[ \t]*:[ \t]*[0-9]+px[ \t]*;/)) {
-          value = substr(line, RSTART, RLENGTH)
-          gsub(/[^0-9]/, "", value)
-          if (value + 0 < min) print NR
+        if (match(line, /(^|[^A-Za-z0-9_-])Text[ \t]*\{/)) { text_depth[++n] = depth + 1; short[n] = ""; knob[n] = 0 }
+        if (n > 0 && depth == text_depth[n]) {
+          if (line ~ /font-size[ \t]*:[^;]*Theme\.knob-/) knob[n] = 1
+          if (match(line, /(^|[^A-Za-z-])height[ \t]*:[ \t]*[0-9]+px[ \t]*;/)) {
+            value = substr(line, RSTART, RLENGTH)
+            gsub(/[^0-9]/, "", value)
+            if (value + 0 < min) short[n] = short[n] " " NR
+          }
         }
         opens = gsub(/\{/, "{", line); closes = gsub(/\}/, "}", line)
         depth += opens - closes
-        while (n > 0 && depth < text_depth[n]) n--
+        while (n > 0 && depth < text_depth[n]) {
+          if (!knob[n] && short[n] != "") print short[n]
+          n--
+        }
       }' "$file")
     for hit in $short_boxes; do
       fail "$(basename "$file"):$hit — Text box shorter than its text (< ${MIN_TEXT_BOX_PX}px); size it from the text (#954)"
