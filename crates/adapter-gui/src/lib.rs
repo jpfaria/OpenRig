@@ -9,6 +9,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
 
+mod app_update;
 mod audio_health_tick;
 mod audio_wizard_step;
 mod audio_wizard_wiring;

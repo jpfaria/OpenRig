@@ -74,6 +74,8 @@ NUNCA editar código no workspace principal. Cada agent trabalha numa **cópia**
 
 Pra o usuário testar uma branch do agent, ele faz `git fetch && git checkout feature/issue-N && git pull` **na pasta principal dele**. O agent NUNCA propõe `cd .solvers/...` pro usuário — `.solvers/` é exclusivo do agent.
 
+**Montar o workspace = `scripts/solver-setup.sh <N> <branch> [release-base]`.** Clona (nunca worktree), inicializa o submódulo NAM, liga `plugins` ao `paths.plugins_path` do config, e imprime o comando absoluto de execução que vai no checklist. Re-rodar num workspace existente só completa o que falta. Os passos manuais abaixo são o que o script faz.
+
 Diretórios sempre excluídos da cópia: `target`, `.logs`, `coverage`, `deps`, `plugins`, `.solvers`.
 
 ```bash

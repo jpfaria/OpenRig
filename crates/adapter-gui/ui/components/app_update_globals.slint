@@ -1,0 +1,6 @@
+// Responsibility: carries the in-app update offer from Rust to the launcher.
+export global AppUpdate {
+    // Version of the newer GitHub release, without the `v`; empty = none offered.
+    in property <string> latest-version;
+    callback install-update();
+}
