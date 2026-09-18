@@ -7,43 +7,181 @@ export component BrandLogo inherits Image {
     in property <string> brand;
     in property <color> tint: #ffffff;
 
-    property <bool> has-logo: root.brand == "marshall"
-        || root.brand == "vox"
+    property <bool> has-logo: root.brand == "alvarez"
+        || root.brand == "ampeg"
+        || root.brand == "analogman"
+        || root.brand == "bad_cat"
+        || root.brand == "bc-rich"
+        || root.brand == "behringer"
+        || root.brand == "blackstar"
         || root.brand == "bogner"
-        || root.brand == "fender"
-        || root.brand == "ibanez"
-        || root.brand == "roland"
         || root.brand == "boss"
-        || root.brand == "taylor"
-        || root.brand == "gibson"
-        || root.brand == "martin"
-        || root.brand == "takamine"
-        || root.brand == "guild"
+        || root.brand == "breedlove"
+        || root.brand == "celestion"
         || root.brand == "collings"
-        || root.brand == "suhr"
-        || root.brand == "santa_cruz"
+        || root.brand == "cort"
+        || root.brand == "darkglass"
+        || root.brand == "death_by_audio"
+        || root.brand == "diezel"
+        || root.brand == "digitech"
+        || root.brand == "dod"
+        || root.brand == "dunlop"
+        || root.brand == "electro_harmonix"
+        || root.brand == "engl"
+        || root.brand == "evh"
+        || root.brand == "fender"
+        || root.brand == "fortin"
+        || root.brand == "framus"
+        || root.brand == "friedman"
+        || root.brand == "fulltone"
+        || root.brand == "gibson"
+        || root.brand == "godin"
+        || root.brand == "greer"
+        || root.brand == "guild"
+        || root.brand == "harley_benton"
+        || root.brand == "hiwatt"
+        || root.brand == "horizon_devices"
+        || root.brand == "hotone"
+        || root.brand == "hughes_kettner"
+        || root.brand == "ibanez"
+        || root.brand == "jet_city"
+        || root.brand == "jhs"
+        || root.brand == "keeley"
+        || root.brand == "lakewood"
+        || root.brand == "laney"
+        || root.brand == "lovepedal"
+        || root.brand == "marshall"
+        || root.brand == "martin"
+        || root.brand == "matamp"
+        || root.brand == "matchless"
+        || root.brand == "maxon"
+        || root.brand == "mcpherson"
+        || root.brand == "mesa"
         || root.brand == "morris"
-        || root.brand == "jhs";
+        || root.brand == "mxr"
+        || root.brand == "nobels"
+        || root.brand == "orange"
+        || root.brand == "ovation"
+        || root.brand == "peavey"
+        || root.brand == "prs"
+        || root.brand == "rainsong"
+        || root.brand == "randall"
+        || root.brand == "revv"
+        || root.brand == "roland"
+        || root.brand == "sadowsky"
+        || root.brand == "santa_cruz"
+        || root.brand == "soldano"
+        || root.brand == "sovtek"
+        || root.brand == "strymon"
+        || root.brand == "suhr"
+        || root.brand == "sunn"
+        || root.brand == "supro"
+        || root.brand == "synergy"
+        || root.brand == "takamine"
+        || root.brand == "tascam"
+        || root.brand == "taylor"
+        || root.brand == "tc-electronic"
+        || root.brand == "tech21"
+        || root.brand == "tone_king"
+        || root.brand == "trace_elliot"
+        || root.brand == "two_rock"
+        || root.brand == "vemuram"
+        || root.brand == "victory"
+        || root.brand == "vox"
+        || root.brand == "wampler"
+        || root.brand == "warm_audio"
+        || root.brand == "xotic"
+        || root.brand == "yamaha"
+        || root.brand == "zvex";
 
     visible: root.has-logo;
 
-    source: root.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
-        : root.brand == "vox" ? @image-url("../../../../assets/brands/vox/logo.svg")
+    source: root.brand == "alvarez" ? @image-url("../../../../assets/brands/alvarez/logo.png")
+        : root.brand == "ampeg" ? @image-url("../../../../assets/brands/ampeg/logo.svg")
+        : root.brand == "analogman" ? @image-url("../../../../assets/brands/analogman/logo.png")
+        : root.brand == "bad_cat" ? @image-url("../../../../assets/brands/bad_cat/logo.png")
+        : root.brand == "bc-rich" ? @image-url("../../../../assets/brands/bc-rich/logo.png")
+        : root.brand == "behringer" ? @image-url("../../../../assets/brands/behringer/logo.png")
+        : root.brand == "blackstar" ? @image-url("../../../../assets/brands/blackstar/logo.png")
         : root.brand == "bogner" ? @image-url("../../../../assets/brands/bogner/logo.svg")
-        : root.brand == "fender" ? @image-url("../../../../assets/brands/fender/logo.svg")
-        : root.brand == "ibanez" ? @image-url("../../../../assets/brands/ibanez/logo.svg")
-        : root.brand == "roland" ? @image-url("../../../../assets/brands/roland/logo.svg")
         : root.brand == "boss" ? @image-url("../../../../assets/brands/boss/logo.svg")
-        : root.brand == "taylor" ? @image-url("../../../../assets/brands/taylor/logo.svg")
-        : root.brand == "gibson" ? @image-url("../../../../assets/brands/gibson/logo.svg")
-        : root.brand == "martin" ? @image-url("../../../../assets/brands/martin/logo.svg")
-        : root.brand == "takamine" ? @image-url("../../../../assets/brands/takamine/logo.svg")
-        : root.brand == "guild" ? @image-url("../../../../assets/brands/guild/logo.svg")
+        : root.brand == "breedlove" ? @image-url("../../../../assets/brands/breedlove/logo.png")
+        : root.brand == "celestion" ? @image-url("../../../../assets/brands/celestion/logo.png")
         : root.brand == "collings" ? @image-url("../../../../assets/brands/collings/logo.svg")
-        : root.brand == "suhr" ? @image-url("../../../../assets/brands/suhr/logo.svg")
-        : root.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
-        : root.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
+        : root.brand == "cort" ? @image-url("../../../../assets/brands/cort/logo.png")
+        : root.brand == "darkglass" ? @image-url("../../../../assets/brands/darkglass/logo.png")
+        : root.brand == "death_by_audio" ? @image-url("../../../../assets/brands/death_by_audio/logo.png")
+        : root.brand == "diezel" ? @image-url("../../../../assets/brands/diezel/logo.png")
+        : root.brand == "digitech" ? @image-url("../../../../assets/brands/digitech/logo.png")
+        : root.brand == "dod" ? @image-url("../../../../assets/brands/dod/logo.png")
+        : root.brand == "dunlop" ? @image-url("../../../../assets/brands/dunlop/logo.png")
+        : root.brand == "electro_harmonix" ? @image-url("../../../../assets/brands/electro_harmonix/logo.png")
+        : root.brand == "engl" ? @image-url("../../../../assets/brands/engl/logo.svg")
+        : root.brand == "evh" ? @image-url("../../../../assets/brands/evh/logo.png")
+        : root.brand == "fender" ? @image-url("../../../../assets/brands/fender/logo.svg")
+        : root.brand == "fortin" ? @image-url("../../../../assets/brands/fortin/logo.png")
+        : root.brand == "framus" ? @image-url("../../../../assets/brands/framus/logo.png")
+        : root.brand == "friedman" ? @image-url("../../../../assets/brands/friedman/logo.png")
+        : root.brand == "fulltone" ? @image-url("../../../../assets/brands/fulltone/logo.png")
+        : root.brand == "gibson" ? @image-url("../../../../assets/brands/gibson/logo.svg")
+        : root.brand == "godin" ? @image-url("../../../../assets/brands/godin/logo.png")
+        : root.brand == "greer" ? @image-url("../../../../assets/brands/greer/logo.png")
+        : root.brand == "guild" ? @image-url("../../../../assets/brands/guild/logo.png")
+        : root.brand == "harley_benton" ? @image-url("../../../../assets/brands/harley_benton/logo.png")
+        : root.brand == "hiwatt" ? @image-url("../../../../assets/brands/hiwatt/logo.png")
+        : root.brand == "horizon_devices" ? @image-url("../../../../assets/brands/horizon_devices/logo.png")
+        : root.brand == "hotone" ? @image-url("../../../../assets/brands/hotone/logo.png")
+        : root.brand == "hughes_kettner" ? @image-url("../../../../assets/brands/hughes_kettner/logo.png")
+        : root.brand == "ibanez" ? @image-url("../../../../assets/brands/ibanez/logo.svg")
+        : root.brand == "jet_city" ? @image-url("../../../../assets/brands/jet_city/logo.png")
         : root.brand == "jhs" ? @image-url("../../../../assets/brands/jhs/logo.png")
+        : root.brand == "keeley" ? @image-url("../../../../assets/brands/keeley/logo.png")
+        : root.brand == "lakewood" ? @image-url("../../../../assets/brands/lakewood/logo.png")
+        : root.brand == "laney" ? @image-url("../../../../assets/brands/laney/logo.png")
+        : root.brand == "lovepedal" ? @image-url("../../../../assets/brands/lovepedal/logo.png")
+        : root.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
+        : root.brand == "martin" ? @image-url("../../../../assets/brands/martin/logo.svg")
+        : root.brand == "matamp" ? @image-url("../../../../assets/brands/matamp/logo.png")
+        : root.brand == "matchless" ? @image-url("../../../../assets/brands/matchless/logo.png")
+        : root.brand == "maxon" ? @image-url("../../../../assets/brands/maxon/logo.png")
+        : root.brand == "mcpherson" ? @image-url("../../../../assets/brands/mcpherson/logo.png")
+        : root.brand == "mesa" ? @image-url("../../../../assets/brands/mesa/logo.svg")
+        : root.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
+        : root.brand == "mxr" ? @image-url("../../../../assets/brands/mxr/logo.png")
+        : root.brand == "nobels" ? @image-url("../../../../assets/brands/nobels/logo.png")
+        : root.brand == "orange" ? @image-url("../../../../assets/brands/orange/logo.svg")
+        : root.brand == "ovation" ? @image-url("../../../../assets/brands/ovation/logo.png")
+        : root.brand == "peavey" ? @image-url("../../../../assets/brands/peavey/logo.png")
+        : root.brand == "prs" ? @image-url("../../../../assets/brands/prs/logo.png")
+        : root.brand == "rainsong" ? @image-url("../../../../assets/brands/rainsong/logo.png")
+        : root.brand == "randall" ? @image-url("../../../../assets/brands/randall/logo.png")
+        : root.brand == "revv" ? @image-url("../../../../assets/brands/revv/logo.png")
+        : root.brand == "roland" ? @image-url("../../../../assets/brands/roland/logo.svg")
+        : root.brand == "sadowsky" ? @image-url("../../../../assets/brands/sadowsky/logo.png")
+        : root.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
+        : root.brand == "soldano" ? @image-url("../../../../assets/brands/soldano/logo.png")
+        : root.brand == "sovtek" ? @image-url("../../../../assets/brands/sovtek/logo.png")
+        : root.brand == "strymon" ? @image-url("../../../../assets/brands/strymon/logo.png")
+        : root.brand == "suhr" ? @image-url("../../../../assets/brands/suhr/logo.svg")
+        : root.brand == "sunn" ? @image-url("../../../../assets/brands/sunn/logo.png")
+        : root.brand == "supro" ? @image-url("../../../../assets/brands/supro/logo.png")
+        : root.brand == "synergy" ? @image-url("../../../../assets/brands/synergy/logo.svg")
+        : root.brand == "takamine" ? @image-url("../../../../assets/brands/takamine/logo.png")
+        : root.brand == "tascam" ? @image-url("../../../../assets/brands/tascam/logo.png")
+        : root.brand == "taylor" ? @image-url("../../../../assets/brands/taylor/logo.svg")
+        : root.brand == "tc-electronic" ? @image-url("../../../../assets/brands/tc-electronic/logo.png")
+        : root.brand == "tech21" ? @image-url("../../../../assets/brands/tech21/logo.png")
+        : root.brand == "tone_king" ? @image-url("../../../../assets/brands/tone_king/logo.png")
+        : root.brand == "trace_elliot" ? @image-url("../../../../assets/brands/trace_elliot/logo.png")
+        : root.brand == "two_rock" ? @image-url("../../../../assets/brands/two_rock/logo.png")
+        : root.brand == "vemuram" ? @image-url("../../../../assets/brands/vemuram/logo.png")
+        : root.brand == "victory" ? @image-url("../../../../assets/brands/victory/logo.png")
+        : root.brand == "vox" ? @image-url("../../../../assets/brands/vox/logo.svg")
+        : root.brand == "wampler" ? @image-url("../../../../assets/brands/wampler/logo.png")
+        : root.brand == "warm_audio" ? @image-url("../../../../assets/brands/warm_audio/logo.png")
+        : root.brand == "xotic" ? @image-url("../../../../assets/brands/xotic/logo.png")
+        : root.brand == "yamaha" ? @image-url("../../../../assets/brands/yamaha/logo.png")
+        : root.brand == "zvex" ? @image-url("../../../../assets/brands/zvex/logo.png")
         : @image-url("../../../../assets/brands/marshall/logo.svg"); // fallback never shown (visible: false)
     image-fit: contain;
     colorize: root.brand == "vox" ? Colors.transparent : root.tint;
