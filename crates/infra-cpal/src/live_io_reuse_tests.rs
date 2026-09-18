@@ -21,7 +21,10 @@ fn settings(id: &str, rate: u32, buffer: u32) -> DeviceSettings {
 #[test]
 fn unchanged_settings_let_the_live_config_serve_the_next_build() {
     let live = vec![settings("quantum", 44_100, 64)];
-    let project = vec![settings("other", 48_000, 128), settings("quantum", 44_100, 64)];
+    let project = vec![
+        settings("other", 48_000, 128),
+        settings("quantum", 44_100, 64),
+    ];
     assert!(settings_still_match(&live, &["quantum".into()], &project));
 }
 

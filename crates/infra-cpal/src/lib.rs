@@ -93,8 +93,6 @@ mod controller_liveness;
 mod controller_loopers;
 mod controller_offthread_live_rebuild;
 mod controller_rebuild_queue;
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-mod live_io_reuse;
 mod controller_sync;
 mod controller_taps;
 mod controller_upsert;
@@ -103,6 +101,8 @@ mod device_enum;
 mod di_playback;
 mod di_stream;
 mod di_stream_worker;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod live_io_reuse;
 pub mod looper_store;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use device_cache::jack_is_running;

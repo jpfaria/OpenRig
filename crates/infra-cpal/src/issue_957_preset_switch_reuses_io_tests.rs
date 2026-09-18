@@ -111,7 +111,10 @@ fn live(device: &str, buffer: u32) -> (ProjectRuntimeController, Project) {
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    assert!(controller.stream_count(&chain.id) > 0, "the chain must be live first");
+    assert!(
+        controller.stream_count(&chain.id) > 0,
+        "the chain must be live first"
+    );
     (controller, project)
 }
 
