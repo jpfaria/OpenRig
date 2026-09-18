@@ -967,3 +967,6 @@ msgstr "포트"
 #: crates/adapter-gui/ui/touch_main.slint:407
 msgid "⌨"
 msgstr "⌨"
+
+msgid "btn-update-to {}"
+msgstr "v{}(으)로 업데이트"

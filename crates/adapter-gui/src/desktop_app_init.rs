@@ -53,6 +53,7 @@ pub(crate) fn populate_initial_window_state(
     output_devices: &Rc<VecModel<DeviceSelectionItem>>,
 ) -> InitialState {
     window.set_app_version(env!("CARGO_PKG_VERSION").into());
+    crate::app_update::wire_app_update(window);
     window.set_show_project_launcher(true);
     window.set_show_project_setup(false);
     window.set_show_project_chains(false);
