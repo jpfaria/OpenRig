@@ -9,6 +9,8 @@ on:
     types: [opened, reopened, synchronize]
   push:
     branches: [develop, 'release/**', main]
+  # Lets an issue branch run the suite (Windows included) before it has a PR.
+  workflow_dispatch:
 
 # One run per PR (or per branch push); cancel superseded runs.
 concurrency:
@@ -60,6 +62,68 @@ jobs:
       # (see issue #693 FIFO tests, fixed to never block the test thread).
       - name: Run tests
         run: timeout --signal=SIGKILL 1500 cargo test --workspace
+
+  # release.yml's Windows tag builds `source` scripts/lib/release-version.sh in
+  # Git Bash. A CRLF checkout breaks the function definitions, and that step
+  # had never run on Windows before #978. Seconds, so it is its own job.
+  windows-scripts:
+    name: Scripts on Windows checkout
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash helpers load on the Windows checkout
+        shell: bash
+        run: |
+          source scripts/lib/release-version.sh
+          test "$(release_version_from_tag v1.2.3)" = "1.2.3"
+
+  # Windows build + tests (#978). Nothing compiled the app for Windows between
+  # #816 (2026-07-23) and this job, and the Linux job above compiles infra-cpal
+  # with `jack` (feature unification), so the cpal/ASIO path and every
+  # cfg(windows) arm were type-checked nowhere. Same ASIO SDK + LLVM recipe as
+  # release.yml build-windows. Warnings fail the job: zero warnings holds on
+  # every target, not just the one the developer happens to run.
+  windows:
+    name: Test Suite (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      RUSTFLAGS: -D warnings
+      CARGO_INCREMENTAL: 0
+      # PDBs for the whole debug workspace do not fit the runner disk.
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: windows-test
+
+      - name: Download ASIO SDK
+        shell: pwsh
+        run: |
+          $sdk_url = "https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip"
+          Invoke-WebRequest -Uri $sdk_url -OutFile asiosdk.zip
+          Expand-Archive -Path asiosdk.zip -DestinationPath C:\asiosdk
+          $sdk_dir = (Get-ChildItem C:\asiosdk -Directory)[0].FullName
+          "CPAL_ASIO_DIR=$sdk_dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install LLVM/clang (required by ASIO bindgen)
+        run: choco install llvm -y --no-progress
+
+      - name: Build
+        run: cargo build --workspace
+
+      - name: Run tests
+        timeout-minutes: 45
+        run: cargo test --workspace
 
   # Coverage is REPORTING, not a gate. It lives in its own job with
   # continue-on-error so it can NEVER block a PR whose tests passed: the
