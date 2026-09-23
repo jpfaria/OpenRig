@@ -206,6 +206,10 @@ try {
     $stageDirAbs = (Resolve-Path $stageDir).Path
     Write-Host "    Stage ready"
 
+    # ── Every DLL a staged binary imports must ship or be part of Windows ─────
+    Write-Host "==> Checking DLL dependencies of the staged binaries..."
+    & (Join-Path $RepoRoot "scripts\lib\windows-deps-check.ps1") -StageDir $stageDirAbs
+
     # ── 4. Create .zip bundle ────────────────────────────────────────────────────
     Write-Host "==> Creating .zip..."
     $zipName = "OpenRig-${Version}-windows-x64"

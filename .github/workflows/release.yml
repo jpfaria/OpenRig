@@ -333,8 +333,10 @@ jobs:
   # --------------------------------------------------------------------------
   build-windows:
     name: Build Windows x64
-    # Temporarily disabled — macOS only for now (#816). See build-linux-x86_64.
-    if: false
+    # Builds and uploads the Windows package on dispatch and on tags (#978), but
+    # create-release still needs build-macos only: Windows assets are not
+    # published until the owner turns them back on (#816), and a failing
+    # Windows build cannot hold up the macOS release.
     needs: bundle-plugins
     runs-on: windows-latest
     steps:

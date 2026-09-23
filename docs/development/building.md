@@ -45,6 +45,9 @@ sudo dnf install cmake pkg-config alsa-lib-devel fontconfig-devel
 
 - Install Visual Studio Build Tools (C++ workload)
 - Install cmake (add to PATH)
+- Install LLVM (`choco install llvm`): the cpal `asio` feature runs bindgen, which needs libclang
+- `git submodule update --init --recursive` (the NAM core under `deps/`)
+- Optional: point `CPAL_ASIO_DIR` at an extracted ASIO SDK; without it the asio-sys build script downloads the SDK itself
 
 ## Build Targets
 

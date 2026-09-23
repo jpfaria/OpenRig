@@ -101,10 +101,12 @@ gh pr merge <PR> --repo jpfaria/OpenRig --merge
 gh run watch <run-id> --repo jpfaria/OpenRig --exit-status
 ```
 
-**Only the macOS job runs today.** Linux x86_64, Linux aarch64 and Windows x64
-carry a hard `if: false` since #816, so a release ships a single artifact,
-`OpenRig-X.Y.Z-macos-universal.dmg`. The job list showing three "skipped" builds
-is the expected state, not a failure.
+**Only the macOS artifact is published today.** Linux x86_64 and Linux aarch64
+carry a hard `if: false` since #816. Windows x64 builds again since #978 and
+uploads `openrig-windows-x64` (.zip + .msi) as a workflow artifact, but
+`create-release` needs `build-macos` only, so a release still ships a single
+asset, `OpenRig-X.Y.Z-macos-universal.dmg`, and a red Windows job does not hold
+it up. The two "skipped" Linux builds are the expected state, not a failure.
 
 ## 7. Verify the outcome
 
@@ -143,4 +145,4 @@ from, and PR'd into, `release/vX.Y+1.0`.
 | Gap | Issue |
 |---|---|
 | No quality gate / tests on PRs into `release/*` and `main` | #862 |
-| Linux and Windows release builds disabled (`if: false`) | #816 |
+| Linux release builds disabled (`if: false`); Windows builds but is not published | #816, #978 |
