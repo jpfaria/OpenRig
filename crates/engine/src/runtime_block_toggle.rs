@@ -123,23 +123,6 @@ fn apply_block_toggle(
     enabled: bool,
     runtime: &ChainRuntimeState,
 ) {
-    // #967: an insert is not a DSP node — it is the cut between two segments.
-    // Toggling it switches its bypass bridge, whose ramps crossfade the return
-    // between the gear and the dry path and fade the send. No rebuild, no
-    // stream touched. An insert with no bridge (its E/S does not resolve here)
-    // is a pass-through either way: nothing to do, and nothing to report.
-    if let Some(bridge) = processing
-        .insert_bridges
-        .iter_mut()
-        .find(|bridge| &bridge.block_id == block_id)
-    {
-        bridge.set_enabled(enabled);
-        return;
-    }
-    if processing.passive_insert_ids.contains(block_id) {
-        return;
-    }
-
     let mut touched = 0usize;
     for input_state in processing.input_states.iter_mut() {
         for node in input_state.blocks.iter_mut() {

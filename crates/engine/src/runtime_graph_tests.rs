@@ -305,40 +305,8 @@ fn split_chain_with_insert_produces_two_segments() {
     );
 }
 
-/// #967: both halves of a disabled insert must live in ONE runtime. The dry
-/// bridge sits in that runtime's processing state; were the send segment and
-/// the return segment partitioned into two runtimes (the per-input isolation
-/// of #703), each would own its own empty bridge and the bypassed loop would
-/// be silent on the rig — even though the whole-chain runtime the unit tests
-/// build plays fine.
 #[test]
-fn a_disabled_insert_keeps_both_halves_in_one_runtime() {
-    let mut chain = insert_chain();
-    chain.blocks[2].enabled = false;
-
-    let runtimes = crate::runtime_graph::build_per_input_runtime_states(
-        &chain,
-        48_000.0,
-        &std::collections::HashMap::new(),
-        &[crate::runtime_audio_frame::DEFAULT_ELASTIC_TARGET],
-        &insert_registry(),
-    )
-    .expect("the chain must build");
-
-    assert_eq!(
-        runtimes.len(),
-        1,
-        "the send and return segments of a bypassed insert share one runtime (and one bridge)"
-    );
-}
-
-/// #967: a BOUND insert splits the chain whether it is enabled or not. The
-/// split is what keeps its send and return streams open, so switching the
-/// insert off is a DSP change (the dry bridge stands in for the gear) instead
-/// of a re-bind that closes and reopens every stream the chain owns — 2–3 s of
-/// silence per footswitch press, measured on the owner's rig.
-#[test]
-fn split_chain_with_disabled_insert_keeps_the_segments() {
+fn split_chain_with_disabled_insert_produces_one_segment() {
     let mut chain = insert_chain();
     // Disable the insert block
     chain.blocks[2].enabled = false;
@@ -357,15 +325,11 @@ fn split_chain_with_disabled_insert_keeps_the_segments() {
         &insert_registry(),
     );
 
+    // Disabled insert should not split the chain
     assert_eq!(
         segments.len(),
-        2,
-        "a bound insert keeps its segments (and therefore its streams) when disabled"
-    );
-    assert_eq!(
-        (segments[0].insert_send, segments[1].insert_return),
-        (Some(0), Some(0)),
-        "the two halves must point at the same dry bridge"
+        1,
+        "disabled insert should not split the chain"
     );
 }
 

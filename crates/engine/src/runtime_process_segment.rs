@@ -97,7 +97,6 @@ pub(crate) enum SegmentFeed<'a> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_single_segment(
     input_states: &mut [InputProcessingState],
-    insert_bridges: &mut [crate::insert_bridge::InsertBridge],
     scratch: &mut InputCallbackScratch,
     seg_idx: usize,
     data: &[f32],
@@ -125,7 +124,6 @@ pub(crate) fn process_single_segment(
         split_mono_sibling_count,
         plays_di_loop: _,
         outgoing,
-        insert_return_bridge,
     } = input_state;
 
     frame_buffer.clear();
@@ -133,7 +131,6 @@ pub(crate) fn process_single_segment(
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
     }
 
-    let live_feed = matches!(feed, SegmentFeed::Live);
     match feed {
         SegmentFeed::Silence => {
             // #699: a DI loop is armed and plays in another segment — this
@@ -178,22 +175,6 @@ pub(crate) fn process_single_segment(
                 };
                 frame_buffer.push(chain_frame);
             }
-        }
-    }
-
-    // #967: this segment reads an insert RETURN. While that insert is switched
-    // off (or crossfading back), its input is blended toward the dry send
-    // signal — the send route's mix of this callback when the send segments
-    // ran in it, the parked sum otherwise. The return stream stays open and
-    // keeps driving this callback; only the content changes.
-    if live_feed {
-        if let Some(bridge) = insert_return_bridge.and_then(|i| insert_bridges.get_mut(i)) {
-            let same_callback = scratch
-                .mixed_per_route
-                .get(&bridge.send_route())
-                .filter(|frames| !frames.is_empty())
-                .map(Vec::as_slice);
-            bridge.mix_return(frame_buffer.as_mut_slice(), same_callback);
         }
     }
 

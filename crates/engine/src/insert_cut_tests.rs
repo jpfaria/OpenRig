@@ -1,6 +1,6 @@
-//! Tests for the insert-cut rule (#967).
+//! Tests for the insert topology rule (#967).
 
-use super::insert_cuts_chain;
+use super::{insert_cuts_chain, insert_owns_streams};
 use domain::ids::{BlockId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock, InsertBlock};
@@ -33,36 +33,33 @@ fn insert(io: &str, enabled: bool) -> AudioBlock {
 }
 
 #[test]
-fn an_enabled_bound_insert_cuts_the_chain() {
-    assert!(insert_cuts_chain(&insert("fx", true), &registry()));
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-#[test]
-fn a_disabled_bound_insert_still_cuts_the_chain_on_cpal() {
+fn a_bound_insert_owns_its_streams_whether_or_not_it_is_enabled() {
+    assert!(insert_owns_streams(&insert("fx", true), &registry()));
     assert!(
-        insert_cuts_chain(&insert("fx", false), &registry()),
-        "switching the loop off bypasses it in the DSP; its streams stay"
+        insert_owns_streams(&insert("fx", false), &registry()),
+        "switching the loop off must not close its send and return"
     );
 }
 
-#[cfg(all(target_os = "linux", feature = "jack"))]
 #[test]
-fn a_disabled_bound_insert_does_not_cut_the_chain_on_jack() {
+fn only_an_enabled_bound_insert_cuts_the_chain() {
+    assert!(insert_cuts_chain(&insert("fx", true), &registry()));
     assert!(
         !insert_cuts_chain(&insert("fx", false), &registry()),
-        "JACK runs one input and one route per chain — it cannot bypass a cut"
+        "a disabled insert is a pass-through, as it always was"
     );
 }
 
 #[test]
-fn an_unbound_insert_never_cuts_the_chain() {
-    assert!(!insert_cuts_chain(&insert("gone", true), &registry()));
-    assert!(!insert_cuts_chain(&insert("", false), &registry()));
+fn an_unbound_insert_owns_nothing_and_cuts_nothing() {
+    for enabled in [true, false] {
+        assert!(!insert_owns_streams(&insert("gone", enabled), &registry()));
+        assert!(!insert_cuts_chain(&insert("gone", enabled), &registry()));
+    }
 }
 
 #[test]
-fn an_effect_never_cuts_the_chain() {
+fn an_effect_is_not_an_insert() {
     let effect = AudioBlock {
         id: BlockId("gain".into()),
         enabled: true,
@@ -72,5 +69,6 @@ fn an_effect_never_cuts_the_chain() {
             params: ParameterSet::default(),
         }),
     };
+    assert!(!insert_owns_streams(&effect, &registry()));
     assert!(!insert_cuts_chain(&effect, &registry()));
 }

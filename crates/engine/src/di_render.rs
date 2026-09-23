@@ -117,16 +117,9 @@ pub fn build_routed_di_runtime(
 /// segment with no input and the loop never reaches the tail: the owner's
 /// "playing, cursor moving, no sound". Bypass them here, the same way #881
 /// bypasses an insert whose E/S does not resolve.
-///
-/// #967: clearing the block's `enabled` flag no longer removes the split — a
-/// BOUND insert splits the chain either way, so that its streams stay open
-/// while the live rig bypasses the loop through the dry bridge. This render
-/// has no streams at all, so it unbinds the insert instead: an insert with no
-/// E/S is not a boundary, which is exactly the #881 rule.
 fn bypass_inserts(chain: &mut Chain) {
     for block in &mut chain.blocks {
-        if let project::block::AudioBlockKind::Insert(insert) = &mut block.kind {
-            insert.io.clear();
+        if matches!(block.kind, project::block::AudioBlockKind::Insert(_)) {
             block.enabled = false;
         }
     }

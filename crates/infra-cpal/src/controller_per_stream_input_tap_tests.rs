@@ -154,7 +154,6 @@ fn controller_with_single_runtime(
         pending_rebuilds: Vec::new(),
         pending_activations: Vec::new(),
         streams: Default::default(),
-        toggle_replays: Default::default(),
         stream_generation: 0,
         sample_rate: 48_000,
         io_bindings: registry.to_vec(),

@@ -64,7 +64,7 @@ pub(crate) fn bound_io_signature(
     for block in chain
         .blocks
         .iter()
-        .filter(|b| engine::insert_cut::insert_cuts_chain(b, registry))
+        .filter(|b| engine::insert_cut::insert_owns_streams(b, registry))
     {
         let project::block::AudioBlockKind::Insert(insert) = &block.kind else {
             continue;
@@ -97,14 +97,12 @@ pub(crate) fn chain_structure_signature(chain: &project::chain::Chain) -> Vec<St
         .blocks
         .iter()
         .map(|b| {
-            // #967: an INSERT is routing, but its enable flag no longer decides
-            // where the chain splits — a bound insert always splits it, and
-            // switching it off bypasses the loop in the DSP. Leaving the flag
-            // in here sent every footswitch press through a full stream
-            // rebuild (2–3 s of silence, measured on the owner's rig).
-            if engine::insert_cut::INSERT_TOGGLE_IS_LIVE
-                && matches!(b.kind, project::block::AudioBlockKind::Insert(_))
-            {
+            // #967: an INSERT is routing, but its enable flag does not change
+            // the streams it owns (`engine::insert_cut`) — only the DSP cut,
+            // which a live rebuild carries. Leaving the flag in here sent every
+            // footswitch press through a full stream rebuild (2–3 s of
+            // silence, measured on the owner's rig).
+            if matches!(b.kind, project::block::AudioBlockKind::Insert(_)) {
                 format!("{}|{}", b.id.0, b.kind.model_identity())
             } else if b.kind.is_routing() {
                 format!("{}|{}|{}", b.id.0, b.kind.model_identity(), b.enabled)

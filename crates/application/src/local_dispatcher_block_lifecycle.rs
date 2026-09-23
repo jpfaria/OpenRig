@@ -16,21 +16,11 @@ impl LocalDispatcher {
     pub(crate) fn handle_block_lifecycle(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             Command::Block(BlockCommand::ToggleBlockEnabled { chain, block }) => {
-                let mut needs_rebuild = false;
+                let mut is_routing = false;
                 let new_state = self.with_block(&chain, &block, |b| {
-                    // #881: remember WHAT was toggled — a port reaches the
-                    // runtime by rebuild, not by the in-place fade below.
-                    // #967: an INSERT is the exception among routing blocks
-                    // wherever its toggle is live (`engine::insert_cut`): a
-                    // bound one always cuts the chain, so switching it bypasses
-                    // the loop through its bridge instead of re-cutting
-                    // anything, and an unbound one is a pass-through either
-                    // way. Rebuilding for it cost the owner 2–3 s of silence
-                    // per footswitch press. Where the toggle is not live
-                    // (linux+JACK) it still rebuilds, as before.
-                    let live_insert = engine::insert_cut::INSERT_TOGGLE_IS_LIVE
-                        && matches!(b.kind, project::block::AudioBlockKind::Insert(_));
-                    needs_rebuild = b.kind.is_routing() && !live_insert;
+                    // #881: remember WHAT was toggled — a routing block reaches
+                    // the runtime by rebuild, not by the in-place fade below.
+                    is_routing = b.kind.is_routing();
                     // #606: never enable a block whose model is unavailable —
                     // the user cannot activate a pedal whose pack is not
                     // installed (or is unsupported on this platform). Disabling
@@ -71,7 +61,7 @@ impl LocalDispatcher {
                     // finds no node, posts "block '…' not found in any input
                     // runtime of the chain" from the audio thread and changes
                     // nothing audible; only a rebuild re-splits the chain.
-                    Some(control) if needs_rebuild => control.sync_chain(&chain)?,
+                    Some(control) if is_routing => control.sync_chain(&chain)?,
                     Some(control) => control.set_block_enabled(&chain, &block, new_state)?,
                     // Nothing to apply it to (yet). Say the sync is owed rather
                     // than report a silent success: this used to cold-start an

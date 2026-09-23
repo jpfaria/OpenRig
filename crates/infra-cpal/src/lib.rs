@@ -65,6 +65,10 @@ mod io_topology;
 #[cfg(test)]
 #[path = "issue_881_stream_lifecycle_tests.rs"]
 mod issue_881_stream_lifecycle_tests;
+
+#[cfg(test)]
+#[path = "issue_967_insert_toggle_streams_tests.rs"]
+mod issue_967_insert_toggle_streams_tests;
 pub use io_topology::io_topology_changed;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -97,7 +101,6 @@ mod controller_offthread_live_rebuild;
 mod controller_rebuild_queue;
 mod controller_sync;
 mod controller_taps;
-mod controller_toggle_replay;
 mod controller_upsert;
 mod device_cache;
 mod device_enum;

@@ -77,45 +77,16 @@ fn an_insert_bound_to_a_missing_binding_lets_the_chain_play() {
     );
 }
 
-/// #881's rule, kept under #967's mechanism: switching an insert off must not
-/// silence the chain. What changed is HOW — the chain stays split (so the
-/// send/return streams stay open and the toggle costs nothing), and the dry
-/// bridge carries the guitar across the loop. The return endpoint is fed pure
-/// silence here, so anything audible at the tail came through the bridge.
 #[test]
-fn a_disabled_insert_bypasses_the_loop_through_the_dry_bridge() {
+fn a_disabled_insert_lets_the_chain_play() {
     let mut chain = insert_chain();
     chain.blocks[2].enabled = false;
 
-    let runtime = Arc::new(
-        build_chain_runtime_state(
-            &chain,
-            48_000.0,
-            &[DEFAULT_ELASTIC_TARGET],
-            &insert_registry(),
-        )
-        .expect("the chain must build a runtime"),
-    );
-    let guitar = vec![0.5_f32; FRAMES * CHANNELS];
-    let dead_return = vec![0.0_f32; FRAMES * CHANNELS];
-    let mut output = vec![0.0_f32; FRAMES * CHANNELS];
-    let mut peak = 0.0_f32;
-    for i in 0..256 {
-        // Both device callbacks fire, exactly as they do on the rig: the
-        // guitar's stream and the loop's return stream.
-        process_input_f32(&runtime, 0, &guitar, CHANNELS);
-        process_input_f32(&runtime, 1, &dead_return, CHANNELS);
-        output.fill(0.0);
-        process_output_f32(&runtime, 0, &mut output, CHANNELS);
-        if i >= 128 {
-            peak = peak.max(output.iter().fold(0.0_f32, |m, s| m.max(s.abs())));
-        }
-    }
+    let peak = peak_through(&chain);
 
     assert!(
         peak > 0.01,
-        "a disabled insert is a bypass, not a cut: the dry signal must cross \
-         the bridge even with a silent return — tail peak was {peak}"
+        "a disabled insert is a bypass, not a cut — tail peak was {peak}"
     );
 }
 

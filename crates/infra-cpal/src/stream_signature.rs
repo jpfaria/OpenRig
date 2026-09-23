@@ -35,7 +35,7 @@ fn resolve_chain_io_with_inserts(
     for block in chain
         .blocks
         .iter()
-        .filter(|b| engine::insert_cut::insert_cuts_chain(b, registry))
+        .filter(|b| engine::insert_cut::insert_owns_streams(b, registry))
     {
         let project::block::AudioBlockKind::Insert(insert) = &block.kind else {
             continue;

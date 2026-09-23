@@ -45,11 +45,4 @@ pub(crate) struct ChainSegment {
     /// physical device, while split-mono siblings (same raw entry) stay
     /// together so the pinned g02/g03 sum-before-limiter math holds.
     pub(crate) entry_group: usize,
-    /// #967: this segment feeds the SEND of insert number N (order of bound
-    /// inserts in the chain). It parks its dry frames in that insert's bridge
-    /// while the insert is bypassed.
-    pub(crate) insert_send: Option<usize>,
-    /// #967: this segment is fed by the RETURN of insert number N. While that
-    /// insert is bypassed it reads the bridge instead of the return endpoint.
-    pub(crate) insert_return: Option<usize>,
 }

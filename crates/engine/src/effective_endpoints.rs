@@ -75,10 +75,10 @@ pub(crate) fn effective_inputs(
     let insert_returns: Vec<InputEntry> = chain
         .blocks
         .iter()
-        // #967: the one cut rule — on cpal a BOUND insert owns its shim
-        // whether or not it is enabled (switching it off bypasses the loop in
-        // the DSP, it does not unplug the streams).
-        .filter(|b| crate::insert_cut::insert_cuts_chain(b, registry))
+        // #967: a BOUND insert owns its shim — its stream and its index —
+        // whether or not it is enabled, so switching it never renumbers the
+        // streams the chain opened. Only the cut follows the enable flag.
+        .filter(|b| crate::insert_cut::insert_owns_streams(b, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
             _ => None,
@@ -136,10 +136,10 @@ pub(crate) fn effective_outputs(
     let insert_sends: Vec<OutputEntry> = chain
         .blocks
         .iter()
-        // #967: the one cut rule — on cpal a BOUND insert owns its shim
-        // whether or not it is enabled (switching it off bypasses the loop in
-        // the DSP, it does not unplug the streams).
-        .filter(|b| crate::insert_cut::insert_cuts_chain(b, registry))
+        // #967: a BOUND insert owns its shim — its stream and its index —
+        // whether or not it is enabled, so switching it never renumbers the
+        // streams the chain opened. Only the cut follows the enable flag.
+        .filter(|b| crate::insert_cut::insert_owns_streams(b, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
             _ => None,

@@ -81,7 +81,6 @@ pub(crate) fn cushion_for_route(lockstep: usize, route_rate: f32, runtime_rate: 
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
-    bound_inserts: &[(domain::ids::BlockId, bool)],
     eff_outputs: &[OutputEntry],
     sample_rate: f32,
     device_rates: &HashMap<DeviceId, f32>,
@@ -106,7 +105,7 @@ pub(crate) fn assemble_chain_runtime_state(
             .as_mut()
             .and_then(|v| v.get_mut(seg_idx))
             .map(std::mem::take);
-        let mut input_state = build_input_processing_state(
+        let input_state = build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
@@ -117,8 +116,6 @@ pub(crate) fn assemble_chain_runtime_state(
             segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
         )?;
-        // #967: which insert bridge blends this segment's input.
-        input_state.insert_return_bridge = segment.insert_return;
         input_states.push(input_state);
     }
     mark_di_loop_pipelines(segments, &mut input_states);
@@ -207,6 +204,7 @@ pub(crate) fn assemble_chain_runtime_state(
     // and fall back to a rebuild. Computed before `input_states` moves into
     // the Mutex, mirroring `initial_stream_count`.
     let initial_bypass_block_ids = collect_bypass_block_ids(&input_states);
+    let initial_fed_inputs = crate::runtime_chain_state::fed_inputs_mask(&input_to_segments);
 
     Ok(ChainRuntimeState {
         // Whole-chain by default; `build_per_input_runtimes` stamps the
@@ -217,11 +215,6 @@ pub(crate) fn assemble_chain_runtime_state(
             input_to_segments,
             input_scratches,
             looper_bank: crate::looper_bank::LooperBank::new(looper_max_frames),
-            // #967: one bypass bridge per insert that cuts the chain. A
-            // disabled insert starts bypassed — the loop is skipped in the DSP
-            // while its send and return streams stay open.
-            insert_bridges: crate::insert_bridge::bridges_for(segments, bound_inserts),
-            passive_insert_ids: crate::insert_bridge::passive_insert_ids(chain, bound_inserts),
         }),
         output_routes: ArcSwap::from_pointee(output_routes),
         stream_handles: Mutex::new(stream_handles_map),
@@ -239,6 +232,7 @@ pub(crate) fn assemble_chain_runtime_state(
         // `set_volume_pct(100.0)` depois.
         volume_pct_bits: std::sync::atomic::AtomicU32::new(chain.volume.to_bits()),
         stream_count: std::sync::atomic::AtomicUsize::new(initial_stream_count),
+        fed_inputs: std::sync::atomic::AtomicU64::new(initial_fed_inputs),
         // Issue #580 follow-up: GUI block-toggle is queued and drained
         // on the audio thread inside its own `processing` lock,
         // removing the GUI/audio Mutex contention that caused an
@@ -346,9 +340,6 @@ pub(crate) fn build_input_processing_state(
     )?;
 
     Ok(InputProcessingState {
-        // #967: filled in by the caller, which knows this segment's insert
-        // wiring; a segment that reads no insert return keeps `None`.
-        insert_return_bridge: None,
         input_read_layout,
         processing_layout: processing_layout_channel,
         input_channels: input.channels.clone(),

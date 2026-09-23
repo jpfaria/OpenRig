@@ -294,7 +294,7 @@ pub(crate) fn resolve_chain_inputs(
     let insert_return_entries: Vec<InputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| engine::insert_cut::insert_cuts_chain(b, registry))
+        .filter(|b| engine::insert_cut::insert_owns_streams(b, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry)
                 .filter(|_| insert_send_as_output_entry(ib, registry).is_some()),
@@ -329,7 +329,7 @@ pub(crate) fn resolve_chain_outputs(
     let insert_send_entries: Vec<OutputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| engine::insert_cut::insert_cuts_chain(b, registry))
+        .filter(|b| engine::insert_cut::insert_owns_streams(b, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry)
                 .filter(|_| insert_return_as_input_entry(ib, registry).is_some()),

@@ -90,11 +90,10 @@ fn pairs(labels: &[engine::stream_io_labels::StreamIoLabels]) -> Vec<(String, St
 #[test]
 fn two_bindings_on_one_input_name_their_own_row() {
     let registry = registry();
-    // #967: this fixture used to carry a DISABLED insert to keep the chain in
-    // one piece. A bound insert now cuts the chain either way (its streams stay
-    // open, the loop is bypassed in the DSP), so the no-loop case is a chain
-    // with no insert — which is what #928's pairing is about.
-    let chain = chain(&["guitarra-1", "guitarra-1-5050"], vec![effect("gate")]);
+    let chain = chain(
+        &["guitarra-1", "guitarra-1-5050"],
+        vec![effect("gate"), insert("syn2", "syn2-main", false)],
+    );
 
     let labels = chain_stream_io_labels(&chain, &registry);
 
@@ -163,33 +162,5 @@ fn a_single_binding_chain_names_it_on_both_sides() {
             "GUITARRA 1 - MAIN".to_string(),
             "GUITARRA 1 - MAIN".to_string()
         )]
-    );
-}
-
-/// #967: a disabled insert keeps its send and return streams open (the loop is
-/// bypassed in the DSP), so the monitor must name the SAME rows it names when
-/// the insert is on — the streams did not change, only what flows in them.
-#[test]
-fn a_disabled_insert_names_the_same_rows_as_an_enabled_one() {
-    let registry = registry();
-    let blocks = |enabled| {
-        vec![
-            effect("gate"),
-            insert("syn2", "syn2-main", enabled),
-            effect("delay"),
-        ]
-    };
-    let on = chain(&["guitarra-1", "guitarra-1-5050"], blocks(true));
-    let off = chain(&["guitarra-1", "guitarra-1-5050"], blocks(false));
-
-    assert_eq!(
-        pairs(&chain_stream_io_labels(&off, &registry)),
-        pairs(&chain_stream_io_labels(&on, &registry)),
-        "switching the loop off must not rename or drop a stream row"
-    );
-    assert_eq!(
-        chain_stream_io_labels(&off, &registry).len(),
-        chain_stream_count(&off, &registry),
-        "one label per stream"
     );
 }

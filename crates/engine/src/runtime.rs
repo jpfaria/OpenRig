@@ -110,6 +110,19 @@ pub fn process_input_f32(
     if runtime.is_draining() {
         return;
     }
+    // #967: a stream this chain keeps open with nothing to process here (a
+    // disabled insert's return on its own interface) must not take the
+    // processing lock — the guitar's callback would lose `try_lock` and play a
+    // silent period. Input taps (tuner, spectrum) still read it.
+    if !runtime.input_is_fed(input_index)
+        && !runtime
+            .input_taps
+            .load()
+            .iter()
+            .any(|tap| tap.input_index == input_index)
+    {
+        return;
+    }
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
@@ -209,8 +222,6 @@ pub fn process_input_f32(
         input_to_segments,
         input_scratches,
         looper_bank,
-        insert_bridges,
-        passive_insert_ids: _,
     } = &mut *processing_guard;
 
     // #323: apply the loopers' queued transport/param ops before any segment
@@ -228,7 +239,11 @@ pub fn process_input_f32(
 
     if let Some(segments) = input_to_segments.get(input_index) {
         scratch.segment_indices.extend(segments.iter().copied());
-    } else if input_index < input_states.len() {
+    } else if input_to_segments.is_empty() && input_index < input_states.len() {
+        // Legacy shape with no map at all: one state per input. A map that
+        // simply has no entry for this input means NOTHING here reads it
+        // (#967: a disabled insert's return) — never "the state with that
+        // number", which is some guitar's split-mono sibling.
         scratch.segment_indices.push(input_index);
     }
 
@@ -260,7 +275,6 @@ pub fn process_input_f32(
         };
         process_single_segment(
             input_states,
-            insert_bridges,
             &mut scratch,
             seg_idx,
             data,
@@ -292,19 +306,6 @@ pub fn process_input_f32(
     // #323: publish the looper state for the UI and hand any retired layer
     // buffer back to the control thread (dropping happens off this thread).
     looper_bank.publish(&runtime.loopers);
-
-    // #967: every send segment of this callback has mixed into its route — park
-    // the dry sum for a return on another callback, and fade a bypassed
-    // insert's send to silence, before the routes are pushed to the devices.
-    for bridge in insert_bridges.iter_mut() {
-        if let Some(send) = scratch
-            .mixed_per_route
-            .get_mut(&bridge.send_route())
-            .filter(|frames| !frames.is_empty())
-        {
-            bridge.shape_send(send);
-        }
-    }
 
     // Snapshot current output routes via ArcSwap — no lock.
     let routes = runtime.output_routes.load();
@@ -395,8 +396,8 @@ mod rt_graph;
 mod issue_881_insert_audio;
 
 #[cfg(test)]
-#[path = "issue_967_insert_bypass_tests.rs"]
-mod issue_967_insert_bypass;
+#[path = "issue_967_insert_streams_tests.rs"]
+mod issue_967_insert_streams;
 
 #[cfg(test)]
 #[path = "runtime_integration_tests.rs"]

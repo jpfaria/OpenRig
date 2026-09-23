@@ -41,7 +41,6 @@ impl ProjectRuntimeController {
         for runtime in &runtimes {
             engine::runtime::set_block_enabled(runtime.as_ref(), block_id, enabled)?;
         }
-        self.remember_toggle_if_building(chain_id, block_id, enabled);
         Ok(())
     }
 

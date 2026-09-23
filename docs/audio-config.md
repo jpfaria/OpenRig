@@ -154,7 +154,7 @@ explícita do usuário (`crates/engine/src/runtime.rs` ~L334-339).
 
 ### Virtual DI loop (per-chain, ephemeral)
 
-A chain's DI loop plays on its **own isolated, streamed runtime** (#771) — it never replaces or rides the guitar's live input. Arming resolves the chain's persisted output choice (`Chain.di_output` → one of its bound output endpoints; absent → the main output), builds a fresh copy of the chain's block graph REDUCED to that output's binding (so the loop feeds the route the chosen output drains, #716/#699) on a `di-stream` worker, and parks a ring-backed playback on that output's cell immediately — a 75 s loop starts in milliseconds (the full pre-render tried first took minutes before the first sample). The worker steps the runtime paced by **ring backpressure**: it only produces what the output callback consumed, so the output device clock IS the DI clock — no drift by construction (the sleep-paced worker tried in #717 drifted and was reverted) — and the callback only pops frames and sums (zero allocation/locks/DSP, invariant #8). Decoding, resampling (per-output rate, #749) and all block DSP happen off the audio thread. The guitar runtime, its meters, and every other output are untouched (isolation invariant #4); a device-rate change re-arms at the new rate (#669). A live edit (a param change or a block toggle) re-renders the DI **gaplessly** (#785): the playback that is sounding keeps playing while the new render is built and pre-rolled off-thread, and the incoming worker takes the output's cell over mid-loop — at exactly the loop position the listener reaches (`DiPlayback::play_pos`, `set_di_loop_pos`) — so the edit lands with neither a silent gap nor a restart of the take. The outgoing playback is retired off the audio thread, never dropped by the callback (invariant #8). **The render never shares the callbacks' scheduling class (#903).** It used to promote itself to the same Mach time-constraint policy the chain's audio thread runs in, so the two competed for the same slots: one loop playing raised the LIVE stream's latency, and every loop stacked on raised it again (measured on the owner's rig: one render of his chain costs ~20 % of a core continuously — 4.3 s of CPU for 22 s of audio, the same in debug and release, because NAM and the IR dominate). It now runs one precedence step below the default instead, outside the real-time class entirely; the ring's backpressure and the ~100 ms pre-buffer absorb the preemption that costs. This is the isolation LAW applied to CPU time — the fix is that the pipelines stop competing, never that the render is made cheaper. The **source** choice stays runtime-only; only the **output** choice persists, inside the chain in `project.openrig` (ADR 0003).  **Insert blocks are bypassed on this runtime (#903).** An Insert splits a chain into segments whose tail is fed by the external gear's RETURN, and this runtime is stepped by an output-only worker that feeds segment 0 alone — so a bound insert left every later segment with no input and the playback reached the output as silence (the loop reported `playing` with its cursor advancing and nothing was heard). The isolated copy unbinds them, the same way an insert whose E/S does not resolve is bypassed rather than allowed to silence the chain (#881) — clearing `enabled` is not enough since #967, because a bound insert splits the chain whether it is enabled or not; the send/return itself stays live on the guitar runtime, untouched. See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details.
+A chain's DI loop plays on its **own isolated, streamed runtime** (#771) — it never replaces or rides the guitar's live input. Arming resolves the chain's persisted output choice (`Chain.di_output` → one of its bound output endpoints; absent → the main output), builds a fresh copy of the chain's block graph REDUCED to that output's binding (so the loop feeds the route the chosen output drains, #716/#699) on a `di-stream` worker, and parks a ring-backed playback on that output's cell immediately — a 75 s loop starts in milliseconds (the full pre-render tried first took minutes before the first sample). The worker steps the runtime paced by **ring backpressure**: it only produces what the output callback consumed, so the output device clock IS the DI clock — no drift by construction (the sleep-paced worker tried in #717 drifted and was reverted) — and the callback only pops frames and sums (zero allocation/locks/DSP, invariant #8). Decoding, resampling (per-output rate, #749) and all block DSP happen off the audio thread. The guitar runtime, its meters, and every other output are untouched (isolation invariant #4); a device-rate change re-arms at the new rate (#669). A live edit (a param change or a block toggle) re-renders the DI **gaplessly** (#785): the playback that is sounding keeps playing while the new render is built and pre-rolled off-thread, and the incoming worker takes the output's cell over mid-loop — at exactly the loop position the listener reaches (`DiPlayback::play_pos`, `set_di_loop_pos`) — so the edit lands with neither a silent gap nor a restart of the take. The outgoing playback is retired off the audio thread, never dropped by the callback (invariant #8). **The render never shares the callbacks' scheduling class (#903).** It used to promote itself to the same Mach time-constraint policy the chain's audio thread runs in, so the two competed for the same slots: one loop playing raised the LIVE stream's latency, and every loop stacked on raised it again (measured on the owner's rig: one render of his chain costs ~20 % of a core continuously — 4.3 s of CPU for 22 s of audio, the same in debug and release, because NAM and the IR dominate). It now runs one precedence step below the default instead, outside the real-time class entirely; the ring's backpressure and the ~100 ms pre-buffer absorb the preemption that costs. This is the isolation LAW applied to CPU time — the fix is that the pipelines stop competing, never that the render is made cheaper. The **source** choice stays runtime-only; only the **output** choice persists, inside the chain in `project.openrig` (ADR 0003).  **Insert blocks are bypassed on this runtime (#903).** An Insert splits a chain into segments whose tail is fed by the external gear's RETURN, and this runtime is stepped by an output-only worker that feeds segment 0 alone — so a bound insert left every later segment with no input and the playback reached the output as silence (the loop reported `playing` with its cursor advancing and nothing was heard). The isolated copy disables them, the same way an insert whose E/S does not resolve is bypassed rather than allowed to silence the chain (#881); the send/return itself stays live on the guitar runtime, untouched. See the **Virtual DI loop** entry under **Chains** in `docs/screens.md` for UI details.
 
 ### Per-chain looper (#323)
 
@@ -511,54 +511,47 @@ there are no separate I/O lists.
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
 
-**Switching an insert on or off never touches a stream (#967).** On every cpal
-platform a BOUND insert cuts the chain whether it is enabled or not
-(`engine::insert_cut` — the one rule the segments, the endpoint shims, the
-streams infra-cpal opens, the stream signatures, the stream labels and the
-toggle path all ask), so its send and return streams are opened with the chain
-and stay open. The switch is applied on the next audio callback by the insert's
-bypass bridge (`engine::insert_bridge`), through the lock-free block-toggle
-queue — no rebuild, no device query, no new stream, for a footswitch press, the
-enable dot, or a scene/preset whose only change is the insert:
+**Switching an insert on or off never touches a stream (#967).** The rule
+lives in `engine::insert_cut`, in two halves:
 
-- **Off:** the return segment's INPUT crossfades (raised cosine, 128 frames)
-  from the gear's answer to the dry send signal, and the send fades to silence —
-  the gear gets nothing, as it did when a disabled insert had no send stream.
-- **On:** the send comes back at once, the dry signal is kept for 1024 frames so
-  the loop's round trip can deliver the gear's first answer, then the return
-  crossfades to it — no hole while the loop warms up.
-- The dry signal is the SUM of every head feeding the send (two E/S on one
-  input, split-mono siblings), read from the send route's mix of the callback.
-  With the loop on the guitar's interface both halves run in the same device
-  callback and the dry path adds no delay; with the return on another
-  interface the sum is parked across callbacks and held to about one period, so
-  a clock difference never piles up delay. Both halves of a cut always share one
-  runtime (and so one bridge).
-- An insert whose E/S does not resolve is a pass-through either way: switching
-  it is a silent no-op. An in-place update (a VST3 chain's live edit) carries the
-  bridge's state over and applies the chain's new insert flag through the same
-  ramps; a toggle made while an off-thread build is in flight is replayed onto
-  the runtime that lands (`controller_toggle_replay`).
+- `insert_owns_streams` — a BOUND insert (both sides of its E/S resolve) owns a
+  send and a return stream whether it is enabled or not. The streams
+  infra-cpal opens, the stream signatures a live edit is compared against
+  (`bound_io_signature`, the live stream signature, `chain_structure_signature`
+  ignores an insert's enable flag), the engine's endpoint shims — route and
+  input indices — and the runtime grouping all follow it, so switching the
+  insert never renumbers, opens or closes a stream.
+- `insert_cuts_chain` — only an ENABLED bound insert cuts the chain's DSP into a
+  send segment and a return segment. A disabled one is what it always was: the
+  chain plays straight through it, every head paired with its own E/S's
+  outputs (#716), on the stereo bus. Its send route is never written (the send
+  stream carries silence) and nothing reads its return: that stream's callback
+  returns before the runtime's processing lock (`fed_inputs`), so it never
+  costs the guitar's callback a period.
+
+So a footswitch press, the enable dot, or a scene/preset whose only change is
+the insert reaches `schedule_chain_activation` as "same streams" and takes the
+off-thread DSP rebuild every live edit takes — built on the control worker,
+live within milliseconds. A chain holding a VST3 is updated in place instead
+(#779); that update looks for each block's old node in every old segment, so
+the blocks the cut moves between segments keep their processors (a VST3 is not
+re-instantiated, a delay keeps its tail). Before this, the enable flag was part
+of the chain's stream topology: disabling the insert read as a re-bind and
+every stream the chain owned was closed and reopened — 2.1 s (off) and 3.0 s
+(on) of silence measured on the owner's rig.
 
 **Switching a chain on, and hearing a rebuilt chain (#967).** A chain's
 devices are looked up by id through `infra_cpal::device_lookup`: a walk of the
 host's device list remembers every device it passes, so the next lookup of any
 of them is a single property query confirming the handle still names that id
 (an unplugged/replugged device fails it and is looked up again; a device-list
-refresh forgets everything). Every endpoint used to walk the whole list — on the
-owner's rig that was 1.8–1.9 s of every chain switch-on; switching a chain on
-now costs the stream open (~200–300 ms on the Quantum HD 8). A runtime the
-control worker rebuilt off-thread (scene/preset switch, live edit) is swapped
-in by `rebuild_install_timer` every 5 ms instead of on the 200 ms error-poll
-tick, so it is heard as soon as it is built.
-
-Linux+JACK keeps the pre-#967 behaviour (`INSERT_TOGGLE_IS_LIVE = false`): the
-JACK client drives one input and one output route per chain, so a disabled
-insert does not cut the chain there and a toggle rebuilds it. Before this, the
-enable flag was part of the chain's stream topology on every platform:
-disabling the insert removed the split, the edit read as a re-bind and every
-stream the chain owned was closed and reopened — 2.1 s (off) and 3.0 s (on) of
-silence measured on the owner's rig.
+refresh forgets everything; ASIO keeps the old walk, since holding a driver
+keeps it loaded). Every endpoint used to walk the whole list — on the owner's
+rig that was 1.8–1.9 s of every chain switch-on; switching a chain on now costs
+the stream open (~200–300 ms on the Quantum HD 8). A runtime the control worker
+rebuilt off-thread (a scene/preset switch, an insert switch, a live edit) is
+swapped in by `rebuild_install_timer` every 5 ms instead of on the 200 ms
+error-poll tick, so it is heard as soon as it is built.
 
 **A mid port is a normal block (#85).** It is a row in the chain like any effect
 — the head input and tail output are chips drawn from the bindings, not rows —

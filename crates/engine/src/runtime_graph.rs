@@ -75,6 +75,25 @@ pub struct RuntimeGraph {
     pub chains: HashMap<(ChainId, usize), Arc<ChainRuntimeState>>,
 }
 
+/// Whether the chain owns at least one insert's streams. Insert chains form a
+/// cross-cpal-index pipeline (input → insert send → insert return → output);
+/// splitting them by cpal index would sever the pipeline. Phase 1 keeps
+/// Insert chains as a single runtime (byte-identical to pre-#350); the
+/// structural per-input isolation targets the no-Insert multi-input case (the
+/// user-visible "two guitars, one chain" scenario).
+///
+/// #967: this follows the insert's STREAMS (`insert_cut::insert_owns_streams`),
+/// not its enable flag. Switching an insert is a DSP rebuild on the streams
+/// the chain already has, and the rebuilt runtimes must land in the slots
+/// those streams feed — a grouping that flipped with the switch produced a
+/// group with no slot. An insert with no E/S owns nothing and groups nothing.
+pub(crate) fn chain_owns_insert_streams(chain: &Chain, registry: &[IoBinding]) -> bool {
+    chain
+        .blocks
+        .iter()
+        .any(|b| crate::insert_cut::insert_owns_streams(b, registry))
+}
+
 /// Partition a chain's segments into per-RAW-input-entry groups (issue
 /// #703). Each group becomes one isolated `ChainRuntimeState`. The group
 /// id is the raw `InputEntry` index the segments came from: two entries
@@ -88,25 +107,14 @@ pub struct RuntimeGraph {
 /// would silence every entry but the first there. Cross-platform law —
 /// the cpal platforms' isolation gain must not change JACK behaviour.
 ///
-/// Insert chains are NOT partitioned (single group `0`): an insert cut forms
-/// a cross-cpal-index pipeline (input → send → return → output) whose halves
-/// share one runtime — splitting them would sever the pipeline, and since #967
-/// the halves also share the dry bridge a bypassed insert rides. Only a real
-/// cut counts (`insert_cut`): an insert with no E/S cuts nothing, so it no
-/// longer collapses a multi-input chain, whatever its enable flag says.
+/// Insert chains are NOT partitioned (single group `0`) — see
+/// `chain_owns_insert_streams`.
 pub(crate) fn group_segments_by_input(
+    chain: &Chain,
+    registry: &[IoBinding],
     segments: Vec<ChainSegment>,
 ) -> Vec<(usize, Vec<ChainSegment>)> {
-    // #967: the chain is cut at every BOUND insert, enabled or not, and both
-    // halves of a cut must share one runtime — the dry bridge a bypassed
-    // insert rides lives in that runtime's processing state. Deciding from the
-    // segments (not the blocks' enabled flags) keeps a bypassed insert's send
-    // and return together; partitioning them left each half with its own
-    // empty bridge and the bypassed loop silent.
-    let has_insert_cut = segments
-        .iter()
-        .any(|s| s.insert_send.is_some() || s.insert_return.is_some());
-    if has_insert_cut || segments.is_empty() {
+    if chain_owns_insert_streams(chain, registry) || segments.is_empty() {
         return vec![(0, segments)];
     }
     #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -190,10 +198,7 @@ pub(crate) fn build_per_input_runtimes(
         &eff_outputs,
         registry,
     );
-    let groups = group_segments_by_input(all_segments);
-    // #967: the bridges a bypassed insert needs, shared by every group of this
-    // chain — each group builds its own, since a runtime owns its state.
-    let bound_inserts = crate::runtime_segments::bound_insert_blocks(chain, registry);
+    let groups = group_segments_by_input(chain, registry, all_segments);
     let mut out = Vec::with_capacity(groups.len());
     for (group, segments) in groups {
         // All segments of a group share one effective input, hence one
@@ -212,7 +217,6 @@ pub(crate) fn build_per_input_runtimes(
         let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
-            &bound_inserts,
             &eff_outputs,
             group_rate,
             device_rates,
@@ -291,7 +295,7 @@ pub(crate) fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usiz
         &eff_outputs,
         registry,
     );
-    group_segments_by_input(all_segments)
+    group_segments_by_input(chain, registry, all_segments)
         .into_iter()
         .map(|(group, _segments)| group)
         .collect()
@@ -396,7 +400,6 @@ pub fn build_chain_runtime_state_with_device_rates(
     assemble_chain_runtime_state(
         chain,
         &segments,
-        &crate::runtime_segments::bound_insert_blocks(chain, registry),
         &eff_outputs,
         sample_rate,
         device_rates,
