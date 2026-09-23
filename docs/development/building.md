@@ -7,15 +7,15 @@ This guide covers how to build OpenRig from source for development and testing.
 - **Rust toolchain** (stable) -- install via [rustup.rs](https://rustup.rs)
 - **cmake** 3.16+
 - **pkg-config**
-- **Git** (with submodule support)
-- **Git LFS** (for large binary assets -- NAM captures, IRs)
+- **Git**
+- **Git LFS** (large binary assets -- NAM captures, IRs, and the vendored NeuralAmpModelerCore sources)
 
 ## Quick Build (GUI only)
 
 ```bash
+git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
-git submodule update --init --recursive
 cargo build --release -p adapter-gui
 ```
 
@@ -97,13 +97,15 @@ Two workflows:
 - **build-libs.yml** -- Builds native C++ libraries for all platforms
 - **claude.yml** -- AI-assisted code review on issue comments
 
-## Dependencies and Submodules
+## Dependencies
 
-OpenRig uses git submodules for external C/C++ dependencies (in `deps/`). Always initialize them:
-
-```bash
-git submodule update --init --recursive
-```
+OpenRig has no git submodules. The one C++ dependency the app build needs,
+NeuralAmpModelerCore (with AudioDSPTools, Eigen and nlohmann inside it), is
+vendored as `deps/NeuralAmpModelerCore.tar.gz` (Git LFS) and pinned by
+`deps/NeuralAmpModelerCore.lock`. `crates/nam/build.rs` unpacks it into
+`deps/NeuralAmpModelerCore/` (not versioned) whenever that folder is missing or
+came from another lock, so a build never touches the network (#974). Updating
+it is `python3 scripts/nam_vendor.py update` — see [deps/DEPS.md](../../deps/DEPS.md).
 
 Key workspace dependencies (Cargo.toml):
 
@@ -116,7 +118,7 @@ Key workspace dependencies (Cargo.toml):
 
 ## Git LFS
 
-Large binary assets (NAM captures, IR files) are tracked with Git LFS. Ensure LFS is installed:
+Large binary assets (NAM captures, IR files, the vendored NeuralAmpModelerCore archive) are tracked with Git LFS. Ensure LFS is installed:
 
 ```bash
 git lfs install

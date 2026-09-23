@@ -31,3 +31,8 @@ crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
 # .red-first-unlocked line is kept for the pre-plugin sentinel path.
 .dev-rules/
 .red-first-unlocked
+
+# #974: extracted by crates/nam/build.rs from deps/NeuralAmpModelerCore.tar.gz
+# (Git LFS) at the version deps/NeuralAmpModelerCore.lock pins. Never versioned.
+/deps/NeuralAmpModelerCore/
+/deps/.NeuralAmpModelerCore.extract-*/

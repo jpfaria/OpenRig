@@ -2,7 +2,8 @@
 
 | Script | Função |
 |--------|--------|
-| `scripts/solver-setup.sh <N> <branch> [release-base]` | Builds the agent workspace `.solvers/issue-N` (clone, NAM submodule, `plugins` link) and prints the absolute run command with `OPENRIG_PLUGINS_ROOT` |
+| `scripts/solver-setup.sh <N> <branch> [release-base]` | Builds the agent workspace `.solvers/issue-N` (clone, `plugins` link) and prints the absolute run command with `OPENRIG_PLUGINS_ROOT` |
+| `scripts/nam_vendor.py update` | Moves the vendored NeuralAmpModelerCore archive (`deps/NeuralAmpModelerCore.tar.gz` + `.lock`) to the newest upstream release and commits it on the current branch; offline = warning, exit 0 (#974) |
 | `scripts/build-deb-local.sh` | Cross-compila `.deb` arm64 + amd64 via Docker |
 | `scripts/build-linux-local.sh` | Build Linux (interno, chamado pelo build-deb-local.sh) |
 | `scripts/build-orange-pi-image.sh` | Imagem SD para Orange Pi |

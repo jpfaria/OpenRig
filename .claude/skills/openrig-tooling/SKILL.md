@@ -52,9 +52,11 @@ ad-hoc signs inside-out, and emits `dist/OpenRig-<ver>-macos-universal.dmg`.
   `OPENRIG_PLUGINS_DIR=<path-to>/OpenRig-plugins/plugins/source`. Find the local
   path in `config.yaml` → `paths.plugins_path`. The tree is git-LFS + multi-GB;
   point at an existing checkout, don't re-clone it for a build.
-- **Submodule:** `deps/NeuralAmpModelerCore` must be checked out
-  (`--recurse-submodules` on clone, or `git submodule update --init --recursive`)
-  or the NAM `libnam_wrapper.dylib` cmake build aborts the packager.
+- **NAM sources come from Git LFS, not a submodule (#974):** the `nam` build
+  unpacks `deps/NeuralAmpModelerCore.tar.gz` into `deps/NeuralAmpModelerCore/`.
+  A clone made without LFS has only a pointer there and the cmake build of
+  `libnam_wrapper.dylib` aborts the packager — fix with `git lfs install &&
+  git lfs pull`. `git submodule update` does nothing (there are no submodules).
 - **Signing is ad-hoc only** (`codesign --sign -`): it downgrades Gatekeeper
   from "damaged" to "unidentified developer" (right-click → Open). No Developer
   ID / notarization exists in this repo.

@@ -156,9 +156,9 @@ Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cp
 Clone the repository and build the release binary:
 
 ```bash
+git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
-git submodule update --init --recursive
 cargo build --release -p adapter-gui
 ```
 
@@ -232,10 +232,12 @@ If your distribution ships an older version, install a newer one from the [cmake
 
 Ensure that [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) are installed with the **Desktop development with C++** workload selected. Restart your terminal after installation.
 
-### Submodule errors
+### "is a Git LFS pointer" errors
 
-If the build fails due to missing submodule files, re-initialize and update all submodules:
+The build unpacks the NeuralAmpModelerCore sources from a Git LFS archive. If the
+repository was cloned without Git LFS, fetch the LFS files and build again:
 
 ```bash
-git submodule update --init --recursive
+git lfs install
+git lfs pull
 ```

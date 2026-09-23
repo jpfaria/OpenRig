@@ -141,11 +141,13 @@ Los binarios para todas las plataformas soportadas (macOS aarch64/x86_64, Linux 
 ### Compilar desde el código
 
 ```bash
+git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
-git submodule update --init --recursive
 cargo build --release -p adapter-gui
 ```
+
+Git LFS es obligatorio: también trae el código de NeuralAmpModelerCore que el build descomprime ([deps/DEPS.md](deps/DEPS.md)).
 
 Mira el [Installation Guide](docs/user-guide/installation.md) para dependencias por plataforma y troubleshooting.
 

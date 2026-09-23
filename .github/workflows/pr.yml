@@ -41,10 +41,10 @@ jobs:
       - name: Checkout PR head
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           lfs: true
           # `git archive <base>` builds the baseline from the base ref, which
-          # must exist locally — full history + submodules + LFS.
+          # must exist locally — full history + LFS (the vendored
+          # NeuralAmpModelerCore archive included, #974).
           fetch-depth: 0
 
       - name: Run quality gate (Docker image)

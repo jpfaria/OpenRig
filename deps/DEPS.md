@@ -7,7 +7,7 @@ Use `./scripts/add-dep.sh` to add new ones.
 
 | Name | Repository | Pinned Hash | Build System | Plugins |
 |------|-----------|-------------|--------------|---------|
-| NeuralAmpModelerCore | https://github.com/sdatkinson/NeuralAmpModelerCore | `1f42f88` (v0.5.4) | CMake (via `cpp/`) | nam_wrapper (NAM inference + tone stack) |
+| NeuralAmpModelerCore | https://github.com/sdatkinson/NeuralAmpModelerCore | vendored archive — see `NeuralAmpModelerCore.lock` | CMake (via `cpp/`) | nam_wrapper (NAM inference + tone stack) |
 | dragonfly-reverb | https://github.com/michaelwillis/dragonfly-reverb | `b3c15af` | DPF/Make | Hall, Plate, Room, EarlyReflections reverbs |
 | zam-plugins | https://github.com/zamaudio/zam-plugins | `6a7fd03` | DPF/Make | ZamComp, ZamDelay, ZamEQ2, ZamTube, ZamGate |
 | mod-utilities | https://github.com/mod-audio/mod-utilities | `b8a9d45` | Make | MOD gain, mixers, CV, switchboxes |
@@ -37,6 +37,30 @@ Use `./scripts/add-dep.sh` to add new ones.
 | svg-pedals-ehx | https://github.com/SVG-Effects-Pedals/EHX-SVG-Tribute-Pack | `5883f6b` | CC BY-NC-SA | EHX pedal SVGs (Memory Man, POG2, etc.) |
 | svg-pedals-ibanez | https://github.com/SVG-Effects-Pedals/Maxon-Ibanez-SVG-Tribute-Pack | `1c293b6` | CC BY-NC-SA | Ibanez/Maxon SVGs (TS-9, CS-9, FL-9, AD-9) |
 | svg-pedals-moogerfooger | https://github.com/SVG-Effects-Pedals/Moogerfooger-SVG-Tribute-Pack | `061310b` | CC BY-NC-SA | Moogerfooger SVGs (MF-101 to MF-108) |
+
+## NeuralAmpModelerCore (vendored, #974)
+
+NeuralAmpModelerCore is not a submodule. Its own submodules (Eigen on GitLab,
+AudioDSPTools) made every CI checkout depend on GitLab being up, so the whole
+tree — NAM, AudioDSPTools, both Eigen copies, nlohmann — ships as one archive:
+
+- `NeuralAmpModelerCore.tar.gz` — the tree, reproducibly packed, in Git LFS.
+- `NeuralAmpModelerCore.lock` — the upstream tag, its commit, every submodule
+  commit and the archive's sha256.
+- `NeuralAmpModelerCore/` — extracted by `crates/nam/build.rs`; never versioned.
+  The build re-extracts it when it is missing or came from another lock, and
+  never needs the network.
+
+To move to the newest upstream release:
+
+```bash
+python3 scripts/nam_vendor.py update
+```
+
+It asks upstream for its newest `vX.Y.Z` tag; when that is newer than the lock,
+it clones the tag with every submodule, repacks the archive, rewrites the lock
+and commits both on the current branch. When upstream (or GitLab) cannot be
+reached it warns and exits 0 — the vendored copy keeps building.
 
 ## Updating a dependency
 

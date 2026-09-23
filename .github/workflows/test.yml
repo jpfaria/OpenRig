@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          # #974: LFS carries the vendored NeuralAmpModelerCore archive.
           lfs: true
 
       - name: Install Rust stable
@@ -74,7 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          # #974: LFS carries the vendored NeuralAmpModelerCore archive.
           lfs: true
 
       - name: Install Rust stable

@@ -50,9 +50,8 @@ jobs:
       # to verify per-capture loudness budgets. qa_audit links against `nam`
       # from the OpenRig git dep. Since #612 `nam` no longer links a prebuilt
       # NeuralAudioCAPI LFS asset — its build.rs cmake-builds libnam_wrapper
-      # from cpp/ (NeuralAmpModelerCore submodule). The LFS materialisation
-      # below is kept for any other LFS-backed asset the git checkout still
-      # carries; it is a no-op for NAM now that nothing links an LFS binary.
+      # from cpp/ against the vendored NeuralAmpModelerCore archive, which is
+      # itself an LFS object (#974): the LFS pull below materialises it.
       - name: Configure git-lfs system filters
         run: git lfs install --system --skip-repo
       - name: Drop stale OpenRig cargo-git checkout (LFS pointers in cache)
@@ -108,9 +107,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
-          # nam crate's build.rs cmake-builds cpp/ which #includes
-          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
-          submodules: recursive
+          # nam crate's build.rs unpacks deps/NeuralAmpModelerCore.tar.gz
+          # (LFS, #974) and cmake-builds cpp/ against it.
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
@@ -177,9 +175,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
-          # nam crate's build.rs cmake-builds cpp/ which #includes
-          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
-          submodules: recursive
+          # nam crate's build.rs unpacks deps/NeuralAmpModelerCore.tar.gz
+          # (LFS, #974) and cmake-builds cpp/ against it.
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
@@ -259,9 +256,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
-          # nam crate's build.rs cmake-builds cpp/ which #includes
-          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
-          submodules: recursive
+          # nam crate's build.rs unpacks deps/NeuralAmpModelerCore.tar.gz
+          # (LFS, #974) and cmake-builds cpp/ against it.
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
@@ -341,9 +337,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
-          # nam crate's build.rs cmake-builds cpp/ which #includes
-          # deps/NeuralAmpModelerCore (+ its nested Dependencies submodules).
-          submodules: recursive
+          # nam crate's build.rs unpacks deps/NeuralAmpModelerCore.tar.gz
+          # (LFS, #974) and cmake-builds cpp/ against it.
 
       - name: Download plugin tree
         uses: actions/download-artifact@v4
