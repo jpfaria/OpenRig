@@ -540,6 +540,18 @@ enable dot, or a scene/preset whose only change is the insert:
   ramps; a toggle made while an off-thread build is in flight is replayed onto
   the runtime that lands (`controller_toggle_replay`).
 
+**Switching a chain on, and hearing a rebuilt chain (#967).** A chain's
+devices are looked up by id through `infra_cpal::device_lookup`: a walk of the
+host's device list remembers every device it passes, so the next lookup of any
+of them is a single property query confirming the handle still names that id
+(an unplugged/replugged device fails it and is looked up again; a device-list
+refresh forgets everything). Every endpoint used to walk the whole list — on the
+owner's rig that was 1.8–1.9 s of every chain switch-on; switching a chain on
+now costs the stream open (~200–300 ms on the Quantum HD 8). A runtime the
+control worker rebuilt off-thread (scene/preset switch, live edit) is swapped
+in by `rebuild_install_timer` every 5 ms instead of on the 200 ms error-poll
+tick, so it is heard as soon as it is built.
+
 Linux+JACK keeps the pre-#967 behaviour (`INSERT_TOGGLE_IS_LIVE = false`): the
 JACK client drives one input and one output route per chain, so a disabled
 insert does not cut the chain there and a toggle rebuilds it. Before this, the
