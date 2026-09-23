@@ -4,9 +4,7 @@
 //! conflict rules, expanding those entries into streams, and the insert
 //! shims (#873).
 
-pub(crate) use crate::effective_endpoints::{
-    effective_inputs, effective_outputs, insert_send_routes,
-};
+pub(crate) use crate::effective_endpoints::{effective_inputs, effective_outputs};
 pub use crate::endpoint_entry::{
     resolve_chain_io, resolve_chain_io_by_binding, BindingIo, InputEntry, OutputEntry,
 };

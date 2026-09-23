@@ -130,3 +130,130 @@ fn a_disabled_inserts_send_stream_holds_the_chain_runtime() {
         "#967: the switched-off loop's send stream must hold the chain's runtime"
     );
 }
+
+fn insert_block(enabled: bool) -> project::block::AudioBlock {
+    project::block::AudioBlock {
+        id: domain::ids::BlockId("loop".into()),
+        enabled,
+        kind: project::block::AudioBlockKind::Insert(project::block::InsertBlock {
+            model: "standard".into(),
+            io: "fx".into(),
+        }),
+    }
+}
+
+fn mono(name: &str, dev: &str, ch: usize) -> IoEndpoint {
+    IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(dev.into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    }
+}
+
+/// #967: two E/S on two interfaces with the loop OFF are two isolated
+/// runtimes. The loop's send stream (on the Scarlett) must hold neither of
+/// them — switching the loop ON regroups the chain into one pipeline and gets
+/// new streams anyway, so binding them now only puts the TEYUN runtime on a
+/// Scarlett callback.
+#[test]
+fn a_multi_runtime_chains_loop_send_holds_no_runtime_while_the_loop_is_off() {
+    let registry = vec![
+        IoBinding {
+            id: "scarlett".into(),
+            name: "SCARLETT".into(),
+            inputs: vec![mono("in", "scarlett", 0)],
+            outputs: vec![mono("out", "scarlett", 0)],
+        },
+        IoBinding {
+            id: "teyun".into(),
+            name: "TEYUN".into(),
+            inputs: vec![mono("in", "teyun", 0)],
+            outputs: vec![mono("out", "teyun", 0)],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![mono("ret", "scarlett", 3)],
+            outputs: vec![mono("snd", "scarlett", 3)],
+        },
+    ];
+    let chain = Chain {
+        id: ChainId("rig:input-2".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["scarlett".into(), "teyun".into()],
+        blocks: vec![insert_block(false)],
+        di_output: None,
+        loopers: vec![],
+    };
+    let runtimes =
+        build_per_input_runtime_states(&chain, 48_000.0, &HashMap::new(), &[], &registry)
+            .expect("the chain builds");
+    assert_eq!(runtimes.len(), 2, "loop off: one runtime per E/S");
+    let slots = build_chain_slots(&runtimes);
+    // What chain_resolve_io_map gives: every input's own outputs plus the send.
+    let map = vec![
+        vec!["scarlett".to_string()],
+        vec!["teyun".to_string(), "scarlett".to_string()],
+    ];
+    assert_eq!(
+        slots_for_output_stream(&slots, &map, "scarlett", 2).len(),
+        0,
+        "#967: the switched-off loop's send must not hold another E/S's runtime"
+    );
+}
+
+/// #967: an output-only E/S B next to A (with the guitar) and a loop: with the
+/// loop OFF only A's head plays and it pairs with A's outputs, so nothing
+/// writes B's output; with the loop ON the return feeds every tail, B's
+/// included. The switch keeps the single runtime (a DSP rebuild), so B's output
+/// stream must already hold it — opened while the loop was off, it would stay
+/// silent after the switch.
+#[test]
+fn a_tail_only_the_cut_writes_is_bound_while_the_loop_is_off() {
+    let registry = vec![
+        IoBinding {
+            id: "a".into(),
+            name: "A".into(),
+            inputs: vec![mono("in", "hd8", 0)],
+            outputs: vec![mono("out", "hd8", 0)],
+        },
+        IoBinding {
+            id: "b".into(),
+            name: "B".into(),
+            inputs: vec![],
+            outputs: vec![mono("out", "hd8", 2)],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![mono("ret", "hd8", 3)],
+            outputs: vec![mono("snd", "hd8", 3)],
+        },
+    ];
+    let chain = Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["a".into(), "b".into()],
+        blocks: vec![insert_block(false)],
+        di_output: None,
+        loopers: vec![],
+    };
+    let runtimes =
+        build_per_input_runtime_states(&chain, 48_000.0, &HashMap::new(), &[], &registry)
+            .expect("the chain builds");
+    let slots = build_chain_slots(&runtimes);
+    let map: Vec<Vec<String>> = runtimes.iter().map(|_| vec!["hd8".into()]).collect();
+    let b_out = 1;
+    assert_eq!(
+        slots_for_output_stream(&slots, &map, "hd8", b_out).len(),
+        1,
+        "#967: B's output must hold the runtime the loop's cut will write it from"
+    );
+}

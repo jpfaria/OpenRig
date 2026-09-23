@@ -115,10 +115,11 @@ pub struct ChainRuntimeState {
     /// guitar's callback (a lost `try_lock` is a silent period). Indices past
     /// 63 are treated as fed. Rewritten at build and at every in-place update.
     pub(crate) fed_inputs: std::sync::atomic::AtomicU64,
-    /// #967: route indices of the chain's insert sends. An output stream on
-    /// one of them holds this runtime even while the route is unwritten (the
-    /// insert is off): the switch ON lands in the same slot.
-    pub(crate) insert_send_routes: Vec<usize>,
+    /// #967: routes this runtime owns although it may not write them right
+    /// now (`runtime_graph::switch_owned_routes`): an output stream on one of
+    /// them holds this runtime, so an insert switch that starts writing it —
+    /// a DSP rebuild into the same slot — is heard.
+    pub(crate) switch_owned_routes: Vec<usize>,
     /// Lock-free producer/consumer queue for pending block-toggle
     /// requests (issue #580 follow-up). The GUI's
     /// `BlockCommand::ToggleBlockEnabled` handler calls `set_block_enabled`,
@@ -236,9 +237,9 @@ impl ChainRuntimeState {
     }
 
     /// Does an output stream on `output_index` belong to this runtime — it
-    /// writes the route now, or the route is one of its insert sends (#967)?
+    /// writes the route now, or an insert switch can make it write it (#967)?
     pub fn owns_output(&self, output_index: usize) -> bool {
-        self.writes_output(output_index) || self.insert_send_routes.contains(&output_index)
+        self.writes_output(output_index) || self.switch_owned_routes.contains(&output_index)
     }
 
     /// Signal the audio callback to stop processing blocks.

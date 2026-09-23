@@ -81,7 +81,7 @@ pub(crate) fn cushion_for_route(lockstep: usize, route_rate: f32, runtime_rate: 
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
-    insert_send_routes: &[usize],
+    switch_owned_routes: &[usize],
     eff_outputs: &[OutputEntry],
     sample_rate: f32,
     device_rates: &HashMap<DeviceId, f32>,
@@ -234,7 +234,7 @@ pub(crate) fn assemble_chain_runtime_state(
         volume_pct_bits: std::sync::atomic::AtomicU32::new(chain.volume.to_bits()),
         stream_count: std::sync::atomic::AtomicUsize::new(initial_stream_count),
         fed_inputs: std::sync::atomic::AtomicU64::new(initial_fed_inputs),
-        insert_send_routes: insert_send_routes.to_vec(),
+        switch_owned_routes: switch_owned_routes.to_vec(),
         // Issue #580 follow-up: GUI block-toggle is queued and drained
         // on the audio thread inside its own `processing` lock,
         // removing the GUI/audio Mutex contention that caused an

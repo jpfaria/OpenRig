@@ -84,15 +84,41 @@ pub struct RuntimeGraph {
 ///
 /// #967: only a real cut counts (`insert_cut::insert_cuts_chain`): a disabled
 /// insert — or one with no E/S — leaves every head in its own isolated
-/// runtime. For a single-E/S chain the grouping is the same either way, so an
-/// insert switch is a DSP rebuild into the slot its streams feed; where the
-/// switch changes the grouping, `chain_structure_signature` (infra-cpal) says
-/// so and the chain gets new streams.
+/// runtime. For a chain with ONE input entry (one E/S with one input endpoint —
+/// the owner's layout) the grouping is the same either way, so an insert
+/// switch is a DSP rebuild into the slot its streams feed; where the switch
+/// changes the grouping (several input entries: several E/S, an E/S with two
+/// input endpoints, a mid `Input`), `chain_structure_signature` (infra-cpal)
+/// says so and the chain gets new streams.
 pub(crate) fn chain_has_insert_cut(chain: &Chain, registry: &[IoBinding]) -> bool {
     chain
         .blocks
         .iter()
         .any(|b| crate::insert_cut::insert_cuts_chain(b, registry))
+}
+
+/// #967: the routes a runtime owns beyond the ones it writes right now. When
+/// the chain owns an insert's streams and is ONE runtime whether or not the
+/// insert cuts it, switching the insert is a DSP rebuild into that runtime's
+/// slot — and the routes the other state writes (the send, a tail only the
+/// return feeds) must already be bound to it. That is every route of the
+/// chain. A chain split into several runtimes gets new streams when the switch
+/// regroups it, so its runtimes own only what they write.
+pub(crate) fn switch_owned_routes(
+    chain: &Chain,
+    registry: &[IoBinding],
+    runtime_count: usize,
+    route_count: usize,
+) -> Vec<usize> {
+    let owns_insert_streams = chain
+        .blocks
+        .iter()
+        .any(|b| crate::insert_cut::insert_owns_streams(b, registry));
+    if owns_insert_streams && runtime_count == 1 {
+        (0..route_count).collect()
+    } else {
+        Vec::new()
+    }
 }
 
 /// Partition a chain's segments into per-RAW-input-entry groups (issue
@@ -200,6 +226,7 @@ pub(crate) fn build_per_input_runtimes(
         registry,
     );
     let groups = group_segments_by_input(chain, registry, all_segments);
+    let switch_owned = switch_owned_routes(chain, registry, groups.len(), eff_outputs.len());
     let mut out = Vec::with_capacity(groups.len());
     for (group, segments) in groups {
         // All segments of a group share one effective input, hence one
@@ -218,7 +245,7 @@ pub(crate) fn build_per_input_runtimes(
         let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
-            &crate::runtime_endpoints::insert_send_routes(chain, resolved_outputs.len(), registry),
+            &switch_owned,
             &eff_outputs,
             group_rate,
             device_rates,
@@ -402,7 +429,7 @@ pub fn build_chain_runtime_state_with_device_rates(
     assemble_chain_runtime_state(
         chain,
         &segments,
-        &crate::runtime_endpoints::insert_send_routes(chain, resolved_outputs.len(), registry),
+        &switch_owned_routes(chain, registry, 1, eff_outputs.len()),
         &eff_outputs,
         sample_rate,
         device_rates,

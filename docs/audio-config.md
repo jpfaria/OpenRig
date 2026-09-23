@@ -520,9 +520,7 @@ lives in `engine::insert_cut`, in two halves:
   (`bound_io_signature`, the live stream signature, `chain_structure_signature`
   ignores an insert's enable flag) and the engine's endpoint shims — route and
   input indices — all follow it, so switching the insert never renumbers,
-  opens or closes a stream. The send stream holds the chain's runtime even
-  while its route is unwritten (`owns_output`), so switching the insert ON is
-  heard on it.
+  opens or closes a stream.
 - `insert_cuts_chain` — only an ENABLED bound insert cuts the chain's DSP into a
   send segment and a return segment. A disabled one is what it always was: the
   chain plays straight through it, every head paired with its own E/S's
@@ -536,10 +534,14 @@ lives in `engine::insert_cut`, in two halves:
 So a footswitch press, the enable dot, or a scene/preset whose only change is
 the insert reaches `schedule_chain_activation` as "same streams" and takes the
 off-thread DSP rebuild every live edit takes — built on the control worker,
-live within milliseconds. The one exception is a chain on several E/S: its
-runtimes are one pipeline while the loop cuts it and one per E/S while it
+live within milliseconds. The one exception is a chain with several input
+entries (several E/S, an E/S with two input endpoints, a mid `Input`): its
+runtimes are one pipeline while the loop cuts it and one per entry while it
 does not, so the switch regroups them — `chain_structure_signature` carries
-the grouping and such a switch gets new streams, as before. On Linux+JACK the
+the grouping and such a switch gets new streams, as before. A chain with one
+input entry is one runtime either way and owns every one of its routes
+(`switch_owned_routes`), so a route only the loop's cut writes — its send, a
+tail only the return feeds — is already bound when the loop is switched on. On Linux+JACK the
 same edit goes through the synchronous in-place update (the JACK backend has
 no off-thread swap yet, #672). A chain holding a VST3 is updated in place instead
 (#779); that update looks for each block's old node in every old segment, so

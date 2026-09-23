@@ -114,8 +114,8 @@ pub(crate) fn chain_structure_signature(
         .chain(std::iter::once(format!(
             // #967: the runtimes the chain is split into are bound to its
             // streams; a change that regroups them (an insert switched on a
-            // multi-E/S chain) needs new streams, one that does not (a
-            // single-E/S chain) stays a DSP rebuild.
+            // chain with several input entries) needs new streams, one that
+            // does not (one input entry) stays a DSP rebuild.
             "groups|{:?}",
             engine::runtime_graph::input_group_ids(chain, registry)
         )))
