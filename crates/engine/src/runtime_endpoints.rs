@@ -8,7 +8,6 @@ pub(crate) use crate::effective_endpoints::{effective_inputs, effective_outputs}
 pub use crate::endpoint_entry::{
     resolve_chain_io, resolve_chain_io_by_binding, BindingIo, InputEntry, OutputEntry,
 };
-pub(crate) use crate::insert_endpoints::insert_is_bound;
 
 // `runtime.rs` and the test module below reach the insert shims through this
 // path, where they were defined before the split (#873).

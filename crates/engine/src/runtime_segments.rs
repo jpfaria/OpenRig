@@ -26,9 +26,7 @@ use project::chain::Chain;
 
 use domain::io_binding::IoBinding;
 
-use crate::runtime_endpoints::{
-    insert_is_bound, resolve_chain_io_by_binding, InputEntry, OutputEntry,
-};
+use crate::runtime_endpoints::{resolve_chain_io_by_binding, InputEntry, OutputEntry};
 pub(crate) use crate::segment_binding::{binding_of_raw_input, binding_of_route};
 pub(crate) use crate::segment_taps::taps_for_segment;
 pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentTap};
@@ -43,7 +41,7 @@ pub(crate) fn bound_insert_blocks(
     chain
         .blocks
         .iter()
-        .filter(|b| insert_is_bound(&b.kind, registry))
+        .filter(|b| crate::insert_cut::insert_cuts_chain(b, registry))
         .map(|b| (b.id.clone(), b.enabled))
         .collect()
 }
@@ -82,7 +80,7 @@ pub(crate) fn split_chain_into_segments(
         .blocks
         .iter()
         .enumerate()
-        .filter(|(_, b)| insert_is_bound(&b.kind, registry))
+        .filter(|(_, b)| crate::insert_cut::insert_cuts_chain(b, registry))
         .map(|(i, _)| i)
         .collect();
 

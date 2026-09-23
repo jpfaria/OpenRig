@@ -210,7 +210,7 @@ pub fn process_input_f32(
         input_scratches,
         looper_bank,
         insert_bridges,
-        insert_block_ids: _,
+        passive_insert_ids: _,
     } = &mut *processing_guard;
 
     // #323: apply the loopers' queued transport/param ops before any segment
@@ -292,6 +292,19 @@ pub fn process_input_f32(
     // #323: publish the looper state for the UI and hand any retired layer
     // buffer back to the control thread (dropping happens off this thread).
     looper_bank.publish(&runtime.loopers);
+
+    // #967: every send segment of this callback has mixed into its route — park
+    // the dry sum for a return on another callback, and fade a bypassed
+    // insert's send to silence, before the routes are pushed to the devices.
+    for bridge in insert_bridges.iter_mut() {
+        if let Some(send) = scratch
+            .mixed_per_route
+            .get_mut(&bridge.send_route())
+            .filter(|frames| !frames.is_empty())
+        {
+            bridge.shape_send(send);
+        }
+    }
 
     // Snapshot current output routes via ArcSwap — no lock.
     let routes = runtime.output_routes.load();
@@ -380,6 +393,10 @@ mod rt_graph;
 #[cfg(test)]
 #[path = "issue_881_insert_audio_tests.rs"]
 mod issue_881_insert_audio;
+
+#[cfg(test)]
+#[path = "issue_967_insert_bypass_tests.rs"]
+mod issue_967_insert_bypass;
 
 #[cfg(test)]
 #[path = "runtime_integration_tests.rs"]

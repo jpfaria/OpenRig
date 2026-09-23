@@ -56,7 +56,11 @@ fn routes(controller: &ProjectRuntimeController, chain: &ChainId) -> Vec<(usize,
     controller
         .chain_output_route_stats(chain)
         .into_iter()
-        .flat_map(|(_, stats)| stats.into_iter().map(|s| (s.route, s.channels, s.callbacks)))
+        .flat_map(|(_, stats)| {
+            stats
+                .into_iter()
+                .map(|s| (s.route, s.channels, s.callbacks))
+        })
         .collect()
 }
 
@@ -66,7 +70,11 @@ fn shape(rows: &[(usize, Vec<usize>, u64)]) -> Vec<(usize, Vec<usize>)> {
 
 /// Deliver a toggle the way the app does now: ask whether the edit needs new
 /// streams (the question whose "yes" cost 2–3 s), then flip the insert live.
-fn toggle(controller: &mut ProjectRuntimeController, project: &mut Project, enabled: bool) -> Duration {
+fn toggle(
+    controller: &mut ProjectRuntimeController,
+    project: &mut Project,
+    enabled: bool,
+) -> Duration {
     project.chains[0].blocks[1].enabled = enabled;
     let chain = project.chains[0].clone();
     let started = Instant::now();
@@ -90,6 +98,23 @@ fn switching_an_insert_keeps_every_stream_of_the_chain() {
     if !hw_tests_enabled("switching_an_insert_keeps_every_stream_of_the_chain") {
         return;
     }
+    run_toggles(true);
+}
+
+/// The chain comes up with its loop already switched OFF — a project saved
+/// that way, or a chain switched on while its insert is off. The loop's send
+/// and return must be opened all the same (the engine cuts the chain there),
+/// or the first footswitch press finds no send stream: the gear is never fed
+/// and everything after the insert goes silent.
+#[test]
+fn a_chain_started_with_its_insert_off_opens_the_loops_streams() {
+    if !hw_tests_enabled("a_chain_started_with_its_insert_off_opens_the_loops_streams") {
+        return;
+    }
+    run_toggles(false);
+}
+
+fn run_toggles(start_enabled: bool) {
     let _guard = device_guard();
     init_registry();
 
@@ -131,7 +156,7 @@ fn switching_an_insert_keeps_every_stream_of_the_chain() {
     };
     let insert = AudioBlock {
         id: BlockId(INSERT.into()),
-        enabled: true,
+        enabled: start_enabled,
         kind: AudioBlockKind::Insert(InsertBlock {
             model: "external_loop".into(),
             io: "fx".into(),
@@ -182,7 +207,7 @@ fn switching_an_insert_keeps_every_stream_of_the_chain() {
          — otherwise the checks below are vacuous (streams={streams}, routes={before:?})"
     );
 
-    for enabled in [false, true, false, true] {
+    for enabled in [!start_enabled, start_enabled, !start_enabled, start_enabled] {
         let took = toggle(&mut controller, &mut project, enabled);
         settle(&mut controller, 400);
         let after = routes(&controller, &chain_id);

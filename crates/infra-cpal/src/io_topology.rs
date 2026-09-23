@@ -61,7 +61,11 @@ pub(crate) fn bound_io_signature(
     // chain owned (2–3 s of silence on the owner's rig). Switching an insert
     // off bypasses the loop in the DSP (`engine::insert_bridge`); the streams
     // stay exactly where they are.
-    for block in chain.blocks.iter() {
+    for block in chain
+        .blocks
+        .iter()
+        .filter(|b| engine::insert_cut::insert_cuts_chain(b, registry))
+    {
         let project::block::AudioBlockKind::Insert(insert) = &block.kind else {
             continue;
         };
@@ -98,7 +102,9 @@ pub(crate) fn chain_structure_signature(chain: &project::chain::Chain) -> Vec<St
             // switching it off bypasses the loop in the DSP. Leaving the flag
             // in here sent every footswitch press through a full stream
             // rebuild (2–3 s of silence, measured on the owner's rig).
-            if matches!(b.kind, project::block::AudioBlockKind::Insert(_)) {
+            if engine::insert_cut::INSERT_TOGGLE_IS_LIVE
+                && matches!(b.kind, project::block::AudioBlockKind::Insert(_))
+            {
                 format!("{}|{}", b.id.0, b.kind.model_identity())
             } else if b.kind.is_routing() {
                 format!("{}|{}|{}", b.id.0, b.kind.model_identity(), b.enabled)

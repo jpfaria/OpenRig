@@ -152,3 +152,26 @@ fn a_shared_tap_next_to_an_insert_still_sends_both_heads_into_the_loop() {
         "with the loop on: both heads send into it, the return feeds both tails"
     );
 }
+
+/// #967: an insert whose E/S does not resolve cuts nothing, so its enable flag
+/// must not decide how the chain's runtimes are grouped either. It used to: an
+/// ENABLED unbound insert collapsed two guitars into one runtime and a disabled
+/// one split them — and since a toggle no longer rebuilds, the next rebuild
+/// regrouped a chain whose streams were built for the other shape (a guitar
+/// left with no slot, or processed twice).
+#[test]
+fn an_unbound_inserts_enable_flag_does_not_decide_the_runtime_grouping() {
+    let registry = registry();
+    let groups = |enabled| {
+        let chain = chain(
+            &["main", "syn5050"],
+            vec![effect("gate"), insert("not-on-this-machine", enabled)],
+        );
+        crate::runtime_graph::input_group_ids(&chain, &registry)
+    };
+    assert_eq!(
+        groups(true),
+        groups(false),
+        "the grouping follows the cuts, and an unbound insert makes none"
+    );
+}

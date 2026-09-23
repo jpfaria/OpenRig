@@ -87,6 +87,10 @@ pub struct ProjectRuntimeController {
     /// #929: the index chain → streams it owns (open streams + builds in
     /// flight). Switching a chain off kills everything listed here.
     pub(crate) streams: crate::chain_stream_registry::ChainStreamRegistry,
+    /// #967: block toggles made while a build of their chain was in flight —
+    /// the build was made from an older snapshot, so each is replayed onto the
+    /// runtime that lands (`controller_toggle_replay`).
+    pub(crate) toggle_replays: RefCell<Vec<(ChainId, domain::ids::BlockId, bool)>>,
     /// Model A (#716): the per-machine I/O binding registry. Device endpoints
     /// for every chain resolve from this (via
     /// [`engine::runtime_endpoints::resolve_chain_io`]), never from block
@@ -168,6 +172,7 @@ impl ProjectRuntimeController {
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
             streams: Default::default(),
+            toggle_replays: Default::default(),
             sample_rate,
             io_bindings: Vec::new(),
             di_streams: RefCell::new(HashMap::new()),
@@ -212,6 +217,7 @@ impl ProjectRuntimeController {
             pending_rebuilds: Vec::new(),
             pending_activations: Vec::new(),
             streams: Default::default(),
+            toggle_replays: Default::default(),
             // Updated to the real device rate by `upsert_chain_with_resolved`
             // as each chain is built below (#669).
             sample_rate: 48_000,

@@ -124,27 +124,19 @@ fn apply_block_toggle(
     runtime: &ChainRuntimeState,
 ) {
     // #967: an insert is not a DSP node — it is the cut between two segments.
-    // Toggling it flips its dry bridge: bypassed, the send segment parks its
-    // frames and the return segment reads them instead of the gear. No
-    // rebuild, no stream touched, and the fade below still hides the seam.
-    if let Some(bridge_idx) = processing
-        .insert_block_ids
-        .iter()
-        .position(|id| id == block_id)
+    // Toggling it switches its bypass bridge, whose ramps crossfade the return
+    // between the gear and the dry path and fade the send. No rebuild, no
+    // stream touched. An insert with no bridge (its E/S does not resolve here)
+    // is a pass-through either way: nothing to do, and nothing to report.
+    if let Some(bridge) = processing
+        .insert_bridges
+        .iter_mut()
+        .find(|bridge| &bridge.block_id == block_id)
     {
-        if let Some(bridge) = processing.insert_bridges.get_mut(bridge_idx) {
-            // Stale dry frames from an earlier bypass must not be heard when
-            // the loop is bypassed again.
-            bridge.clear();
-            bridge.bypassed = !enabled;
-        }
-        // The return segment crossfades in from its new source, so the switch
-        // between the gear and the dry path is click-safe.
-        for input_state in processing.input_states.iter_mut() {
-            if input_state.insert_return_bridge == Some(bridge_idx) {
-                input_state.fade_in_remaining = FADE_IN_FRAMES;
-            }
-        }
+        bridge.set_enabled(enabled);
+        return;
+    }
+    if processing.passive_insert_ids.contains(block_id) {
         return;
     }
 

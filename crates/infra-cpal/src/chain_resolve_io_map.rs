@@ -76,7 +76,9 @@ pub(crate) fn output_devices_by_input_cpal(
     let insert_send_devices: Vec<String> = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled)
+        // #967: the engine's one cut rule (a disabled bound insert still
+        // owns its send stream on cpal).
+        .filter(|b| engine::insert_cut::insert_cuts_chain(b, registry))
         .filter_map(|b| match &b.kind {
             project::block::AudioBlockKind::Insert(ib) => registry
                 .iter()

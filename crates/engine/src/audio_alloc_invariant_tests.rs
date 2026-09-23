@@ -332,3 +332,101 @@ pub(super) fn looper_record_overdub_and_undo_do_not_allocate() {
          handed over through the op queue — never allocated in the callback."
     );
 }
+
+/// Issue #967 — switching an insert is now done ON the audio thread (its bypass
+/// bridge crossfades the return and fades the send), so the bypassed path, the
+/// switch itself and a switch on an insert with no E/S must allocate nothing:
+/// the loop on the guitar's interface (read in place), the loop on its own
+/// interface (parked across callbacks) and the unbound pass-through.
+#[test]
+#[ignore = "CLAUDE.md invariant #8: audio callback must not allocate. \
+ Allocator wrapper changes the process allocator and is sensitive to \
+ parallel-test pressure — run serially: `cargo test -p engine \
+ --release --lib audio_alloc_invariant -- --ignored --test-threads=1`."]
+pub(super) fn insert_bypass_and_its_switches_do_not_allocate() {
+    use project::block::InsertBlock;
+
+    let endpoint = |name: &str, device: &str, channels: Vec<usize>| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(device.into()),
+        mode: ChannelMode::Stereo,
+        channels,
+    };
+    let registry = |return_device: &str| {
+        vec![
+            IoBinding {
+                id: "io".into(),
+                name: "IO".into(),
+                inputs: vec![endpoint("in0", "dev", vec![0, 1])],
+                outputs: vec![endpoint("out0", "dev", vec![0, 1])],
+            },
+            IoBinding {
+                id: "fx".into(),
+                name: "FX".into(),
+                inputs: vec![endpoint("ret", return_device, vec![2, 3])],
+                outputs: vec![endpoint("snd", "dev", vec![2, 3])],
+            },
+        ]
+    };
+    let insert_id = BlockId("issue967-insert".into());
+    let with_insert = |io: &str| {
+        let mut c = chain();
+        c.blocks.push(AudioBlock {
+            id: insert_id.clone(),
+            enabled: true,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".into(),
+                io: io.into(),
+            }),
+        });
+        c
+    };
+
+    let frames = 32_usize;
+    let channels = 4_usize;
+    let input = vec![0.5_f32; frames * channels];
+    let mut output = vec![0.0_f32; frames * channels];
+
+    for (label, io, return_device, inputs) in [
+        ("same interface", "fx", "dev", 1_usize),
+        ("own interface", "fx", "ret_dev", 2),
+        ("unbound", "not-on-this-machine", "dev", 1),
+    ] {
+        let runtime = Arc::new(
+            build_chain_runtime_state(
+                &with_insert(io),
+                48_000.0_f32,
+                &[DEFAULT_ELASTIC_TARGET],
+                &registry(return_device),
+            )
+            .expect("runtime should build"),
+        );
+        let run = |n: usize, output: &mut Vec<f32>| {
+            for _ in 0..n {
+                for index in 0..inputs {
+                    process_input_f32(&runtime, index, &input, channels);
+                }
+                for route in 0..2 {
+                    process_output_f32(&runtime, route, output, channels);
+                }
+            }
+        };
+        run(256, &mut output);
+
+        let mut allocs = 0;
+        for enabled in [false, true, false] {
+            // The toggle is QUEUED on the calling (GUI) thread; applying it and
+            // everything it ramps happens in the callbacks measured below.
+            crate::runtime::set_block_enabled(&runtime, &insert_id, enabled)
+                .expect("the toggle must queue");
+            allocs += measure_allocs(|| run(200, &mut output));
+        }
+
+        assert_eq!(
+            allocs, 0,
+            "CLAUDE.md invariant #8 broken ({label}): {allocs} heap allocations \
+             while an insert was switched and bypassed — fix at the source, \
+             never relax this assertion"
+        );
+    }
+}

@@ -95,6 +95,7 @@ mod controller_offthread_live_rebuild;
 mod controller_rebuild_queue;
 mod controller_sync;
 mod controller_taps;
+mod controller_toggle_replay;
 mod controller_upsert;
 mod device_cache;
 mod device_enum;

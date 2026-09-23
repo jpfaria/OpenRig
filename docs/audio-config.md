@@ -511,22 +511,42 @@ there are no separate I/O lists.
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
 
-**Switching an insert on or off never touches a stream (#967).** A BOUND insert
-splits the chain whether it is enabled or not, so its send and return streams
-are opened with the chain and stay open. Disabling it bypasses the loop in the
-DSP: the send segment keeps feeding the gear and also parks its dry frames in
-the insert's bridge (`engine::insert_bridge`), and the return segment reads
-those frames instead of what the gear sends back; enabling it switches the
-return segment back to the return endpoint. The flip rides the lock-free
-block-toggle queue and lands on the next audio callback with the usual 128-frame
-fade — no rebuild, no device query, no new stream, for a footswitch press, a
-scene whose `bypass` covers the insert, or the enable dot. Both halves of the
-cut stay in ONE runtime so they share the bridge. The bypassed path carries one
-callback of delay (the two halves are driven by different device callbacks,
-exactly as the cable would be). Before this, the enable flag was part of the
-chain's stream topology: disabling the insert removed the split, the edit read
-as a re-bind and every stream the chain owned was closed and reopened — 2.1 s
-(off) and 3.0 s (on) of silence measured on the owner's rig.
+**Switching an insert on or off never touches a stream (#967).** On every cpal
+platform a BOUND insert cuts the chain whether it is enabled or not
+(`engine::insert_cut` — the one rule the segments, the endpoint shims, the
+streams infra-cpal opens, the stream signatures, the stream labels and the
+toggle path all ask), so its send and return streams are opened with the chain
+and stay open. The switch is applied on the next audio callback by the insert's
+bypass bridge (`engine::insert_bridge`), through the lock-free block-toggle
+queue — no rebuild, no device query, no new stream, for a footswitch press, the
+enable dot, or a scene/preset whose only change is the insert:
+
+- **Off:** the return segment's INPUT crossfades (raised cosine, 128 frames)
+  from the gear's answer to the dry send signal, and the send fades to silence —
+  the gear gets nothing, as it did when a disabled insert had no send stream.
+- **On:** the send comes back at once, the dry signal is kept for 1024 frames so
+  the loop's round trip can deliver the gear's first answer, then the return
+  crossfades to it — no hole while the loop warms up.
+- The dry signal is the SUM of every head feeding the send (two E/S on one
+  input, split-mono siblings), read from the send route's mix of the callback.
+  With the loop on the guitar's interface both halves run in the same device
+  callback and the dry path adds no delay; with the return on another
+  interface the sum is parked across callbacks and held to about one period, so
+  a clock difference never piles up delay. Both halves of a cut always share one
+  runtime (and so one bridge).
+- An insert whose E/S does not resolve is a pass-through either way: switching
+  it is a silent no-op. An in-place update (a VST3 chain's live edit) carries the
+  bridge's state over and applies the chain's new insert flag through the same
+  ramps; a toggle made while an off-thread build is in flight is replayed onto
+  the runtime that lands (`controller_toggle_replay`).
+
+Linux+JACK keeps the pre-#967 behaviour (`INSERT_TOGGLE_IS_LIVE = false`): the
+JACK client drives one input and one output route per chain, so a disabled
+insert does not cut the chain there and a toggle rebuilds it. Before this, the
+enable flag was part of the chain's stream topology on every platform:
+disabling the insert removed the split, the edit read as a re-bind and every
+stream the chain owned was closed and reopened — 2.1 s (off) and 3.0 s (on) of
+silence measured on the owner's rig.
 
 **A mid port is a normal block (#85).** It is a row in the chain like any effect
 — the head input and tail output are chips drawn from the bindings, not rows —

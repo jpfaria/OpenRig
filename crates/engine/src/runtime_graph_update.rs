@@ -105,7 +105,7 @@ fn update_chain_runtime_state_impl(
     // A whole-chain runtime (`owned_entry == None`: probe, offline, JACK)
     // keeps every segment, exactly as before.
     let segments: Vec<ChainSegment> = match runtime.owned_entry {
-        Some((group, _)) => group_segments_by_input(chain, all_segments)
+        Some((group, _)) => group_segments_by_input(all_segments)
             .into_iter()
             .find(|(g, _)| *g == group)
             .map(|(_, segs)| segs)
@@ -187,6 +187,8 @@ fn update_chain_runtime_state_impl(
             }
         };
         let mut input_state = input_state;
+        // #967: the return segment keeps its insert's bypass bridge.
+        input_state.insert_return_bridge = segment.insert_return;
         if let Some(blocks) = tail_blocks {
             input_state.outgoing = Some(Box::new(OutgoingTail {
                 blocks,
@@ -199,6 +201,14 @@ fn update_chain_runtime_state_impl(
     // #85: keep the DI-loop marking across a live rebuild, or the mid pipeline
     // goes silent the first time the user turns a knob with the loop playing.
     crate::runtime_graph_assemble::mark_di_loop_pipelines(&segments, &mut new_input_states);
+
+    // #967: the insert bridges for the new segments, built outside the lock.
+    // They are swapped in below with the moving state of the old ones carried
+    // over, so a bypassed loop stays bypassed across a knob turn and an insert
+    // the edit switched (a scene, a preset) crossfades to its new state.
+    let bound_inserts = crate::runtime_segments::bound_insert_blocks(chain, registry);
+    let new_bridges = crate::insert_bridge::bridges_for(&segments, &bound_inserts);
+    let passive_inserts = crate::insert_bridge::passive_insert_ids(chain, &bound_inserts);
 
     // Output routes (#670): REUSE the existing route when its endpoint shape
     // is unchanged (the param-edit / block-toggle case). A fresh empty buffer
@@ -324,6 +334,8 @@ fn update_chain_runtime_state_impl(
             }
         }
         processing.input_to_segments = new_mapping;
+        crate::insert_bridge::replace_bridges(&mut processing.insert_bridges, new_bridges);
+        processing.passive_insert_ids = passive_inserts;
         // Cancel any in-flight latency probe — its beep was pushed into
         // the old queue that we're about to discard, so leaving the state
         // Fired would wait forever for a detection that will never happen.

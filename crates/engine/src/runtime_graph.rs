@@ -75,19 +75,6 @@ pub struct RuntimeGraph {
     pub chains: HashMap<(ChainId, usize), Arc<ChainRuntimeState>>,
 }
 
-/// Whether the chain has at least one enabled Insert block. Insert chains
-/// form a cross-cpal-index pipeline (input → insert send → insert return →
-/// output); splitting them by cpal index would sever the pipeline. Phase 1
-/// keeps Insert chains as a single runtime (byte-identical to pre-#350);
-/// the structural per-input isolation targets the no-Insert multi-input
-/// case (the user-visible "two guitars, one chain" scenario).
-pub(crate) fn chain_has_enabled_insert(chain: &Chain) -> bool {
-    chain
-        .blocks
-        .iter()
-        .any(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
-}
-
 /// Partition a chain's segments into per-RAW-input-entry groups (issue
 /// #703). Each group becomes one isolated `ChainRuntimeState`. The group
 /// id is the raw `InputEntry` index the segments came from: two entries
@@ -101,10 +88,13 @@ pub(crate) fn chain_has_enabled_insert(chain: &Chain) -> bool {
 /// would silence every entry but the first there. Cross-platform law —
 /// the cpal platforms' isolation gain must not change JACK behaviour.
 ///
-/// Insert chains are NOT partitioned (single group `0`) — see
-/// `chain_has_enabled_insert`.
+/// Insert chains are NOT partitioned (single group `0`): an insert cut forms
+/// a cross-cpal-index pipeline (input → send → return → output) whose halves
+/// share one runtime — splitting them would sever the pipeline, and since #967
+/// the halves also share the dry bridge a bypassed insert rides. Only a real
+/// cut counts (`insert_cut`): an insert with no E/S cuts nothing, so it no
+/// longer collapses a multi-input chain, whatever its enable flag says.
 pub(crate) fn group_segments_by_input(
-    chain: &Chain,
     segments: Vec<ChainSegment>,
 ) -> Vec<(usize, Vec<ChainSegment>)> {
     // #967: the chain is cut at every BOUND insert, enabled or not, and both
@@ -116,7 +106,7 @@ pub(crate) fn group_segments_by_input(
     let has_insert_cut = segments
         .iter()
         .any(|s| s.insert_send.is_some() || s.insert_return.is_some());
-    if chain_has_enabled_insert(chain) || has_insert_cut || segments.is_empty() {
+    if has_insert_cut || segments.is_empty() {
         return vec![(0, segments)];
     }
     #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -200,7 +190,7 @@ pub(crate) fn build_per_input_runtimes(
         &eff_outputs,
         registry,
     );
-    let groups = group_segments_by_input(chain, all_segments);
+    let groups = group_segments_by_input(all_segments);
     // #967: the bridges a bypassed insert needs, shared by every group of this
     // chain — each group builds its own, since a runtime owns its state.
     let bound_inserts = crate::runtime_segments::bound_insert_blocks(chain, registry);
@@ -301,7 +291,7 @@ pub(crate) fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usiz
         &eff_outputs,
         registry,
     );
-    group_segments_by_input(chain, all_segments)
+    group_segments_by_input(all_segments)
         .into_iter()
         .map(|(group, _segments)| group)
         .collect()

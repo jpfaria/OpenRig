@@ -22,7 +22,8 @@ use crate::stream_config::{
 };
 
 /// The chain's endpoints in STREAM order: its own bindings first, then one
-/// entry per enabled, both-sides-bound insert (send/return) — the same order
+/// entry per insert that cuts the chain (`engine::insert_cut`, #967 — on cpal
+/// every both-sides-bound insert, enabled or not) (send/return) — the same order
 /// `resolve_chain_inputs` / `resolve_chain_outputs` build their device vectors
 /// in, so a signature zipped against them lines up (#881).
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
@@ -31,7 +32,11 @@ fn resolve_chain_io_with_inserts(
     registry: &[IoBinding],
 ) -> (Vec<InputEntry>, Vec<OutputEntry>) {
     let (mut inputs, mut outputs) = resolve_chain_io(chain, registry);
-    for block in chain.blocks.iter().filter(|b| b.enabled) {
+    for block in chain
+        .blocks
+        .iter()
+        .filter(|b| engine::insert_cut::insert_cuts_chain(b, registry))
+    {
         let project::block::AudioBlockKind::Insert(insert) = &block.kind else {
             continue;
         };

@@ -69,6 +69,9 @@ impl ProjectRuntimeController {
     /// Returns the number of rebuilds applied this tick.
     pub fn poll_pending_rebuilds(&mut self) -> usize {
         let mut applied = 0;
+        // #967: chains whose build went live this tick — their toggles made
+        // during the build are replayed once the queues below are settled.
+        let mut landed = Vec::new();
         let mut still_pending = Vec::new();
         for (chain_id, rx) in std::mem::take(&mut self.pending_rebuilds) {
             match rx.try_recv() {
@@ -102,6 +105,7 @@ impl ProjectRuntimeController {
                             );
                         }
                     }
+                    landed.push(chain_id.clone());
                 }
                 Ok(Err(e)) => {
                     self.streams.rebuild_settled(&chain_id);
@@ -182,10 +186,11 @@ impl ProjectRuntimeController {
                                 active._input_streams.len(),
                                 active._output_streams.len(),
                             );
-                            self.active_chains.insert(chain_id, active);
+                            self.active_chains.insert(chain_id.clone(), active);
                             // #771: an armed DI re-renders against the fresh
                             // streams (output index/rate/dest may have moved).
                             self.rearm_di_stream_after_rebuild(&chain);
+                            landed.push(chain_id.clone());
                             applied += 1;
                         }
                         Err(e) => {
@@ -207,6 +212,9 @@ impl ProjectRuntimeController {
             }
         }
         self.pending_activations = still_activating;
+        for chain_id in &landed {
+            self.replay_toggles(chain_id);
+        }
         applied
     }
 }

@@ -342,13 +342,16 @@ fn toggling_an_insert_is_applied_in_place() {
         .dispatch(toggle("chain_a", "a_insert"))
         .expect("toggling an insert must succeed");
 
+    // linux+JACK cannot bypass a cut it did not open (`engine::insert_cut`):
+    // there the insert still reaches the runtime by rebuild, as before #967.
+    let expected = if engine::insert_cut::INSERT_TOGGLE_IS_LIVE {
+        RuntimeCall::BlockEnabled("chain_a".to_string(), "a_insert".to_string(), false)
+    } else {
+        RuntimeCall::SyncChain("chain_a".to_string())
+    };
     assert_eq!(
         *calls.borrow(),
-        vec![RuntimeCall::BlockEnabled(
-            "chain_a".to_string(),
-            "a_insert".to_string(),
-            false
-        )],
+        vec![expected],
         "a bound insert has a live bridge to flip: never rebuild the chain for it"
     );
 }

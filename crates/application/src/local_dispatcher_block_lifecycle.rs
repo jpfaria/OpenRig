@@ -20,13 +20,17 @@ impl LocalDispatcher {
                 let new_state = self.with_block(&chain, &block, |b| {
                     // #881: remember WHAT was toggled — a port reaches the
                     // runtime by rebuild, not by the in-place fade below.
-                    // #967: an INSERT is the exception among routing blocks: a
-                    // bound one always splits the chain, so switching it off
-                    // bypasses its loop through the live bridge instead of
-                    // re-splitting anything. Rebuilding for it cost the owner
-                    // 2–3 s of silence per footswitch press.
-                    needs_rebuild = b.kind.is_routing()
-                        && !matches!(b.kind, project::block::AudioBlockKind::Insert(_));
+                    // #967: an INSERT is the exception among routing blocks
+                    // wherever its toggle is live (`engine::insert_cut`): a
+                    // bound one always cuts the chain, so switching it bypasses
+                    // the loop through its bridge instead of re-cutting
+                    // anything, and an unbound one is a pass-through either
+                    // way. Rebuilding for it cost the owner 2–3 s of silence
+                    // per footswitch press. Where the toggle is not live
+                    // (linux+JACK) it still rebuilds, as before.
+                    let live_insert = engine::insert_cut::INSERT_TOGGLE_IS_LIVE
+                        && matches!(b.kind, project::block::AudioBlockKind::Insert(_));
+                    needs_rebuild = b.kind.is_routing() && !live_insert;
                     // #606: never enable a block whose model is unavailable —
                     // the user cannot activate a pedal whose pack is not
                     // installed (or is unsupported on this platform). Disabling
