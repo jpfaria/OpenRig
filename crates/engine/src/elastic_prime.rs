@@ -75,8 +75,11 @@ pub(crate) fn route_has_convolution(
         })
 }
 
-/// Output elastic-buffer capacity target. IR chains floor at one convolver
-/// partition of headroom; everyone else keeps the device-derived `base`.
+/// Cold-start cushion for a route: how much silence an IR route is primed
+/// with (and how much its ring must hold on top of the resting level).
+/// #965: this is NOT the route's resting target any more — the route rests at
+/// `base` and the drift guard sheds the prime once the route runs clean.
+/// IR routes floor at the #592 cushion; everyone else keeps `base`.
 pub(crate) fn elastic_capacity_target(base: usize, has_convolution: bool) -> usize {
     if has_convolution {
         base.max(IR_COLD_START_CUSHION_FRAMES)

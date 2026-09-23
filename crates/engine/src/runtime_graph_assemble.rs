@@ -147,9 +147,14 @@ pub(crate) fn assemble_chain_runtime_state(
         let base = target_for_route(elastic_targets, route_idx);
         let has_convolution =
             crate::elastic_prime::route_has_convolution(chain, segments, route_idx);
-        let target = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
+        // #965: the IR cushion is a cold-start PRIME, not the route's resting
+        // level. The route rests at its own target; the prime covers the
+        // convolver's first callbacks and the drift guard sheds what is left
+        // of it once the route has run a clean window.
+        let cushion = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
         let prime_frames =
-            crate::elastic_prime::elastic_prime_frames(target, is_initial_build, has_convolution);
+            crate::elastic_prime::elastic_prime_frames(cushion, is_initial_build, has_convolution);
+        let target = base;
         // #85: a route runs at ITS device's rate — usually the runtime's, but a
         // mid `Output` may point at an interface on another clock.
         let route_rate = device_rates
@@ -168,9 +173,11 @@ pub(crate) fn assemble_chain_runtime_state(
         } else {
             (target, prime_frames)
         };
+        let capacity = target.max(cushion).saturating_mul(2);
         output_routes.push(Some(Arc::new(build_output_routing_state(
             output,
             target,
+            capacity,
             prime_frames,
             route_rate,
         ))));
@@ -399,11 +406,12 @@ pub(crate) fn route_is_written(segments: &[ChainSegment], route_idx: usize) -> b
 pub(crate) fn build_output_routing_state(
     output: &OutputEntry,
     elastic_target: usize,
+    capacity_frames: usize,
     prime_frames: usize,
     sample_rate: f32,
 ) -> OutputRoutingState {
     let output_layout = output_entry_layout(output);
-    let buffer = ElasticBuffer::new(elastic_target, output_layout);
+    let buffer = ElasticBuffer::with_capacity(elastic_target, capacity_frames, output_layout);
     // Issue #592: prime the cushion (silence) only when the caller asks —
     // a cold-start IR chain at a small device buffer would otherwise
     // underrun on the convolver's per-partition FFT spike.

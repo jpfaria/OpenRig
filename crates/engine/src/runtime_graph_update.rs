@@ -222,8 +222,10 @@ fn update_chain_runtime_state_impl(
             let base = target_for_route(elastic_targets, route_idx);
             let rebuild_has_convolution =
                 crate::elastic_prime::route_has_convolution(chain, &segments, route_idx);
-            let lockstep_target =
+            // #965: the IR cushion is a cold-start prime, not the resting level.
+            let cushion =
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
+            let lockstep_target = base;
             // #85: keep the route on its own device's rate across a rebuild —
             // the old route knows it, and a rebuild never changes a device.
             let route_rate = old_route
@@ -238,11 +240,13 @@ fn update_chain_runtime_state_impl(
                 route_rate,
                 runtime.sample_rate(),
             );
+            let capacity = target.max(cushion).saturating_mul(2);
             if !reset_output_queue {
                 if let Some(old) = old_route {
                     if old.output_channels == o.channels
                         && old.buffer.layout() == output_entry_layout(o)
                         && old.buffer.target_level() == target
+                        && old.buffer.capacity() == capacity
                     {
                         return Some(Arc::clone(old));
                     }
@@ -255,12 +259,12 @@ fn update_chain_runtime_state_impl(
             // route here left the chain permanently fragile (fill ~0, every
             // scheduling wobble on a real USB interface popped the output
             // empty: the owner's random clicks after adding/swapping a cab).
-            let mut prime = if rebuild_has_convolution { target } else { 0 };
+            let mut prime = if rebuild_has_convolution { cushion } else { 0 };
             if target > lockstep_target {
                 // The cross-rate depth only helps if it is actually filled.
                 prime = prime.max(target - lockstep_target);
             }
-            let fresh = build_output_routing_state(o, target, prime, route_rate);
+            let fresh = build_output_routing_state(o, target, capacity, prime, route_rate);
             if let Some(old) = old_route {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
             }

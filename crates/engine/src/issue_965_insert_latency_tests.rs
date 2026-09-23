@@ -132,21 +132,20 @@ fn the_insert_send_gets_no_ir_cushion_when_no_ir_feeds_it() {
     );
     let tail = routes[0].as_ref().expect("route 0 is the main tail");
     assert!(
-        tail.buffer.target_level() >= 512,
-        "the tail behind the cab keeps the #592 cushion"
+        tail.buffer.len() >= 512,
+        "the tail behind the cab keeps the #592 cold-start prime"
     );
 }
 
 /// One route, no IR: the plain rig the second defect needs.
 fn plain_runtime() -> Arc<ChainRuntimeState> {
-    let runtimes = build_per_input_runtimes(
-        &chain(vec![gain("amp")]),
-        44_100.0,
-        &HashMap::new(),
-        &[TARGET],
-        &registry(),
-    )
-    .expect("the chain must build");
+    runtime_for(chain(vec![gain("amp")]))
+}
+
+fn runtime_for(owner: Chain) -> Arc<ChainRuntimeState> {
+    let runtimes =
+        build_per_input_runtimes(&owner, 44_100.0, &HashMap::new(), &[TARGET], &registry())
+            .expect("the chain must build");
     assert_eq!(runtimes.len(), 1, "one binding, one input = one runtime");
     Arc::new(runtimes.into_iter().next().unwrap().1)
 }
@@ -161,8 +160,12 @@ struct Rig {
 
 impl Rig {
     fn new() -> Self {
+        Self::with_runtime(plain_runtime())
+    }
+
+    fn with_runtime(runtime: Arc<ChainRuntimeState>) -> Self {
         Self {
-            runtime: plain_runtime(),
+            runtime,
             input: vec![0.0; FRAMES * DEVICE_CHANNELS],
             out: vec![0.0; FRAMES * DEVICE_CHANNELS],
         }
@@ -224,5 +227,27 @@ fn a_route_whose_input_ran_ahead_of_its_output_settles_back_to_its_cushion() {
         "the route kept {latency} frames of latency after its input stream ran \
          ahead of its output stream at start-up; it must settle to its own \
          cushion ({TARGET} frames) like a route whose streams started together"
+    );
+}
+
+/// Defect 3: the IR cold-start cushion (#592) is a 512-frame silence prime
+/// meant to cover the convolver's first callbacks — but it was also the
+/// route's TARGET, so the guard kept every one of those 512 frames as
+/// latency for the life of the chain: 11.6 ms at 44.1 kHz on every IR chain,
+/// insert or not. Measured live on the owner's tail route: 576 queued frames
+/// steady. The prime is for the start; once the route has proved a clean
+/// window it must rest at its own cushion like any other route.
+#[test]
+fn an_ir_chain_sheds_its_cold_start_cushion_once_it_runs_clean() {
+    let mut rig = Rig::with_runtime(runtime_for(chain(vec![cab("cab")])));
+    for _ in 0..2_000 {
+        rig.period(false);
+    }
+    let latency = rig.pulse_latency();
+    assert!(
+        latency <= TARGET + SLACK_FRAMES,
+        "the IR route still carries {latency} frames after ~3 s of clean \
+         running; the cold-start cushion must be shed down to the route's \
+         own target ({TARGET} frames) once it is no longer needed"
     );
 }

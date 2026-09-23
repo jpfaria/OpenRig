@@ -455,13 +455,24 @@ by the time the first window closed, and taking that floor as the level
 kept the full capacity as latency until the chain was switched off and on.
 Now the excess above the target is shed at the first clean window.
 
-The IR cold-start cushion (#592: a 512-frame target, primed with silence on
-the initial build) is decided per ROUTE, not per chain (#965): only a route
-written by a segment that holds a convolution block gets it. An insert
-splits the chain, and its SEND is written by the segment before the insert
-— with the cab behind the insert, the send keeps its lean target
+The IR cold-start cushion (#592: 512 frames of silence primed on the initial
+build) is decided per ROUTE, not per chain (#965): only a route written by a
+segment that holds a convolution block gets it. An insert splits the chain,
+and its SEND is written by the segment before the insert — with the cab
+behind the insert, the send keeps its lean target
 (`ELASTIC_MULTIPLIER_INSERT_SEND`) instead of paying 512 frames of loop
 latency for an IR that never feeds it.
+
+The cushion is also a PRIME, not the route's resting level (#965). It used to
+double as the elastic target, so an IR route rested at 512 frames for the
+life of the chain — 11.6 ms at 44.1 kHz on every IR chain, insert or not,
+measured live on the owner's tail route (576 queued frames steady). Now the
+ring is built with room for the prime (`ElasticBuffer::with_capacity`), the
+route's target stays the device-derived one, and the drift guard sheds what
+is left of the prime at the first clean window (~186 ms): cold start covered,
+steady state at two device buffers. A rebuild that changes the cushion posture
+(the chain gains or loses its IR) still rebuilds and re-primes the route
+(#670), because the reuse check compares the capacity as well as the target.
 
 ### Chain enabled é runtime, não persistência
 
