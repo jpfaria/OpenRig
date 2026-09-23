@@ -87,7 +87,6 @@ pub(crate) fn select_host_for_enumeration() -> &'static cpal::Host {
 /// via vendor software — project settings must be ignored for those devices.
 #[cfg(target_os = "windows")]
 pub(crate) fn is_asio_host(host: &cpal::Host) -> bool {
-    use cpal::traits::HostTrait;
     host.id() == cpal::HostId::Asio
 }
 

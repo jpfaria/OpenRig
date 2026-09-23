@@ -105,6 +105,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: windows-test
+          # A red run still compiled ~all the dependencies; keep them.
+          cache-on-failure: true
 
       - name: Download ASIO SDK
         shell: pwsh
