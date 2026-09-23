@@ -22,6 +22,8 @@ pub mod app_config;
 pub mod asset_paths;
 pub mod config_paths;
 pub mod gui_settings;
+#[cfg(any(target_os = "windows", test))]
+mod install_root;
 pub mod storage;
 
 pub use app_config::{AppConfig, RecentProjectEntry};

@@ -81,11 +81,13 @@ static ASSET_PATHS: OnceLock<AssetPaths> = OnceLock::new();
 
 /// Detect the application data root for the current installation layout.
 ///
-/// Returns the directory that contains `libs/`, `data/`, and `assets/`:
+/// Returns the directory that holds the bundled `assets/`, `plugins/` and
+/// `presets/`:
 ///
 /// - macOS `.app` bundle: `<bundle>/Contents/Resources/`
 /// - Linux deb/rpm: `/usr/share/openrig/`
-/// - Windows MSI: directory alongside the executable
+/// - Windows MSI or zip: the executable's directory, whatever the working
+///   directory is (#978)
 /// - Development fallback: current working directory
 pub fn detect_data_root() -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
@@ -111,10 +113,11 @@ pub fn detect_data_root() -> PathBuf {
         }
 
         #[cfg(target_os = "windows")]
-        if let Some(exe_dir) = exe.parent() {
-            if exe_dir.join("libs").exists() {
-                return exe_dir.to_path_buf();
-            }
+        if let Some(root) = exe
+            .parent()
+            .and_then(crate::install_root::windows_install_root)
+        {
+            return root;
         }
     }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
