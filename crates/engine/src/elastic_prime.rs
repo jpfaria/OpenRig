@@ -12,8 +12,10 @@
 //! These are pure helpers so the policy is testable in isolation from the
 //! runtime assembly.
 
-use project::block::AudioBlockKind;
+use project::block::{AudioBlock, AudioBlockKind};
 use project::chain::Chain;
+
+use crate::segment_types::ChainSegment;
 
 /// Output elastic-buffer cushion (frames) primed for IR/convolution chains
 /// on a cold start.
@@ -28,14 +30,11 @@ use project::chain::Chain;
 /// warmup jitter at small device buffers — not the (now eliminated) spike.
 pub(crate) const IR_COLD_START_CUSHION_FRAMES: usize = 512;
 
-/// Whether `chain` has an enabled convolution (IR / cab) block — the only
+/// Whether `block` is an enabled convolution (IR / cab) block — the only
 /// block kind whose per-partition FFT spike warrants the cushion.
-pub(crate) fn chain_has_convolution(chain: &Chain) -> bool {
-    chain
-        .blocks
-        .iter()
-        .filter(|b| b.enabled)
-        .any(|b| match &b.kind {
+pub(crate) fn block_is_convolution(block: &AudioBlock) -> bool {
+    block.enabled
+        && match &block.kind {
             AudioBlockKind::Core(core) => {
                 core.effect_type == block_core::EFFECT_TYPE_CAB
                     || core.effect_type == block_core::EFFECT_TYPE_IR
@@ -43,6 +42,36 @@ pub(crate) fn chain_has_convolution(chain: &Chain) -> bool {
             }
             AudioBlockKind::Nam(nam) => nam.model.starts_with("ir_"),
             _ => false,
+        }
+}
+
+/// Whether a convolution block feeds output route `route_idx`: one of the
+/// segments writing that route (at its tail or through a mid tap) holds one.
+///
+/// #965: decided per ROUTE, not per chain. An insert splits the chain, and
+/// its SEND is written by the segment BEFORE the insert; with the cab behind
+/// the insert nothing convolves into the send, and the cushion there was pure
+/// loop latency — it undid the lean send target the cpal layer computes.
+pub(crate) fn route_has_convolution(
+    chain: &Chain,
+    segments: &[ChainSegment],
+    route_idx: usize,
+) -> bool {
+    segments
+        .iter()
+        .filter(|segment| {
+            segment.output_route_indices.contains(&route_idx)
+                || segment
+                    .mid_output_taps
+                    .iter()
+                    .any(|tap| tap.route_idx == route_idx)
+        })
+        .any(|segment| {
+            segment
+                .block_indices
+                .iter()
+                .filter_map(|&idx| chain.blocks.get(idx))
+                .any(block_is_convolution)
         })
 }
 

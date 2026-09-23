@@ -447,6 +447,22 @@ window is the level the route proved it can hold, and a floor more than
 crossfade. Steady state never trims (bit-identical output).
 `openrig://routes` reports `fill_frames` and `latency_trims` per route.
 
+The level is never learned ABOVE the route's cushion target plus one
+callback buffer (#965). A chain starts its input stream before its output
+stream, and every input period before the output's first callback pushes a
+buffer nobody pops — the ring was full (its whole capacity, 2× the target)
+by the time the first window closed, and taking that floor as the level
+kept the full capacity as latency until the chain was switched off and on.
+Now the excess above the target is shed at the first clean window.
+
+The IR cold-start cushion (#592: a 512-frame target, primed with silence on
+the initial build) is decided per ROUTE, not per chain (#965): only a route
+written by a segment that holds a convolution block gets it. An insert
+splits the chain, and its SEND is written by the segment before the insert
+— with the cab behind the insert, the send keeps its lean target
+(`ELASTIC_MULTIPLIER_INSERT_SEND`) instead of paying 512 frames of loop
+latency for an IR that never feeds it.
+
 ### Chain enabled é runtime, não persistência
 
 `Chain.enabled` é estado de memória — o usuário liga / desliga uma

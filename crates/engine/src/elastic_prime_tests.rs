@@ -1,28 +1,13 @@
 //! Unit tests for the issue #592 convolution-cushion policy helpers.
 
 use super::{
-    chain_has_convolution, elastic_capacity_target, elastic_prime_frames,
+    block_is_convolution, elastic_capacity_target, elastic_prime_frames,
     IR_COLD_START_CUSHION_FRAMES,
 };
 
-use domain::ids::{BlockId, ChainId};
+use domain::ids::BlockId;
 use project::block::{AudioBlock, AudioBlockKind, CoreBlock, NamBlock};
-use project::chain::Chain;
 use project::param::ParameterSet;
-
-fn io_chain(mid: AudioBlock) -> Chain {
-    Chain {
-        id: ChainId("c".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec!["io".into()],
-        blocks: vec![mid],
-        di_output: None,
-        loopers: vec![],
-    }
-}
 
 fn core(effect_type: &str, model: &str) -> AudioBlock {
     AudioBlock {
@@ -38,27 +23,27 @@ fn core(effect_type: &str, model: &str) -> AudioBlock {
 
 #[test]
 fn detects_cab_block_as_convolution() {
-    assert!(chain_has_convolution(&io_chain(core(
+    assert!(block_is_convolution(&core(
         block_core::EFFECT_TYPE_CAB,
         "ir_marshall_4x12_v30"
-    ))));
+    )));
 }
 
 #[test]
 fn detects_ir_prefixed_model_as_convolution() {
-    assert!(chain_has_convolution(&io_chain(core("gain", "ir_weird"))));
+    assert!(block_is_convolution(&core("gain", "ir_weird")));
 }
 
 #[test]
 fn plain_gain_chain_is_not_convolution() {
-    assert!(!chain_has_convolution(&io_chain(core("gain", "fuzz_ge"))));
+    assert!(!block_is_convolution(&core("gain", "fuzz_ge")));
 }
 
 #[test]
 fn disabled_cab_does_not_count() {
-    let mut c = io_chain(core(block_core::EFFECT_TYPE_CAB, "ir_x"));
-    c.blocks[0].enabled = false;
-    assert!(!chain_has_convolution(&c));
+    let mut cab = core(block_core::EFFECT_TYPE_CAB, "ir_x");
+    cab.enabled = false;
+    assert!(!block_is_convolution(&cab));
 }
 
 #[test]
@@ -71,7 +56,7 @@ fn nam_amp_is_not_convolution() {
             params: ParameterSet::default(),
         }),
     };
-    assert!(!chain_has_convolution(&io_chain(nam)));
+    assert!(!block_is_convolution(&nam));
 }
 
 #[test]

@@ -209,7 +209,6 @@ fn update_chain_runtime_state_impl(
     // reproduced by rebuild_while_playing_keeps_the_cushion). Reusing the
     // Arc keeps both the buffered audio and the cushion. A genuinely changed
     // endpoint (or an explicit queue reset) still gets a fresh route.
-    let rebuild_has_convolution = crate::elastic_prime::chain_has_convolution(chain);
     let old_output_routes = runtime.output_routes.load();
     let new_output_routes: Vec<Option<Arc<OutputRoutingState>>> = effective_outs
         .iter()
@@ -221,6 +220,8 @@ fn update_chain_runtime_state_impl(
             }
             let old_route = old_output_routes.get(route_idx).and_then(Option::as_ref);
             let base = target_for_route(elastic_targets, route_idx);
+            let rebuild_has_convolution =
+                crate::elastic_prime::route_has_convolution(chain, &segments, route_idx);
             let lockstep_target =
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
             // #85: keep the route on its own device's rate across a rebuild —

@@ -91,7 +91,6 @@ pub(crate) fn assemble_chain_runtime_state(
     // build (existing_blocks == None). A rebuild/edit runs warm and refills
     // naturally — re-priming on every knob turn would add a silence gap.
     let is_initial_build = existing_blocks.is_none();
-    let has_convolution = crate::elastic_prime::chain_has_convolution(chain);
     let mut input_states = Vec::with_capacity(segments.len());
     for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
@@ -146,6 +145,8 @@ pub(crate) fn assemble_chain_runtime_state(
             continue;
         }
         let base = target_for_route(elastic_targets, route_idx);
+        let has_convolution =
+            crate::elastic_prime::route_has_convolution(chain, segments, route_idx);
         let target = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
         let prime_frames =
             crate::elastic_prime::elastic_prime_frames(target, is_initial_build, has_convolution);
