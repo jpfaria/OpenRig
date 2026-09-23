@@ -106,10 +106,11 @@ fn unpack(archive: &Path, staging: &Path, name: &std::ffi::OsStr) -> Result<Path
     Ok(tree)
 }
 
-/// Where the archive's LFS object lives when the checkout's own origin has no
-/// LFS store — a cargo git dependency's checkout, whose origin is cargo's bare
-/// local clone (the same fallback `release.yml` uses for OpenRig-plugins).
-const LFS_SERVER: &str = "https://github.com/jpfaria/OpenRig.git/info/lfs";
+/// The repository whose LFS store holds the archive, for a checkout whose own
+/// origin has none — a cargo git dependency's checkout, whose origin is cargo's
+/// bare local clone. Passed as the remote (not as `lfs.url`) so a user's
+/// `url.<ssh>.insteadOf` rewrite still yields a valid endpoint.
+const LFS_REPOSITORY: &str = "https://github.com/jpfaria/OpenRig.git";
 
 /// Best effort: materialize the LFS object behind `archive` (a clone made
 /// without LFS). Any failure is left to the pointer check that follows.
@@ -117,14 +118,14 @@ fn fetch_lfs_object(archive: &Path) {
     let (Some(dir), Some(name)) = (archive.parent(), archive.file_name()) else {
         return;
     };
-    let pull = |server: Option<&str>| {
+    let pull = |remote: Option<&str>| {
         let mut git = std::process::Command::new("git");
-        git.arg("-C").arg(dir);
-        if let Some(url) = server {
-            git.arg("-c").arg(format!("lfs.url={url}"));
+        git.arg("-C").arg(dir).args(["lfs", "pull"]);
+        if let Some(remote) = remote {
+            git.arg(remote);
         }
         let _ = git
-            .args(["lfs", "pull", "--include"])
+            .arg("--include")
             .arg(name)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -132,7 +133,7 @@ fn fetch_lfs_object(archive: &Path) {
     };
     pull(None);
     if is_lfs_pointer(archive) {
-        pull(Some(LFS_SERVER));
+        pull(Some(LFS_REPOSITORY));
     }
 }
 
