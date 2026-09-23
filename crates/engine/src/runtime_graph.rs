@@ -447,7 +447,8 @@ use crate::runtime_graph_assemble::assemble_chain_runtime_state;
 #[cfg(test)]
 pub(crate) use crate::runtime_graph_assemble::build_output_routing_state;
 pub use crate::runtime_graph_update::{
-    update_chain_runtime_state, update_chain_runtime_state_spillover,
+    update_chain_runtime_state, update_chain_runtime_state_at_device_rates,
+    update_chain_runtime_state_spillover,
 };
 
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]

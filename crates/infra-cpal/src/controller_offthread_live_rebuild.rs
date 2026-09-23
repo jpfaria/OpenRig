@@ -109,15 +109,13 @@ impl ProjectRuntimeController {
                 .collect();
             for group in groups {
                 if let Some(runtime) = self.runtime_graph.chains.get(&(chain.id.clone(), group)) {
-                    let group_rate = device_sample_rates
-                        .values()
-                        .next()
-                        .copied()
-                        .unwrap_or(sample_rate);
-                    engine::runtime::update_chain_runtime_state(
+                    // #967: a route the edit writes for the first time (an
+                    // insert switched on feeding a tail on another interface)
+                    // runs at its own device's rate.
+                    engine::runtime::update_chain_runtime_state_at_device_rates(
                         runtime,
                         chain,
-                        group_rate,
+                        &device_sample_rates,
                         false,
                         &elastic_targets,
                         &self.io_bindings,

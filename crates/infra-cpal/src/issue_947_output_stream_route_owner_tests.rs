@@ -194,16 +194,23 @@ fn a_multi_runtime_chains_loop_send_holds_no_runtime_while_the_loop_is_off() {
             .expect("the chain builds");
     assert_eq!(runtimes.len(), 2, "loop off: one runtime per E/S");
     let slots = build_chain_slots(&runtimes);
-    // What chain_resolve_io_map gives: every input's own outputs plus the send.
-    let map = vec![
-        vec!["scarlett".to_string()],
-        vec!["teyun".to_string(), "scarlett".to_string()],
-    ];
+    let heads = engine::runtime_endpoints::resolve_chain_io(&chain, &registry).0;
+    let map = crate::chain_resolve_io_map::output_devices_by_input_cpal(&chain, &registry, &heads);
     assert_eq!(
         slots_for_output_stream(&slots, &map, "scarlett", 2).len(),
         0,
         "#967: the switched-off loop's send must not hold another E/S's runtime"
     );
+    // Each E/S's own output holds ONLY its own runtime (#716/#947), even with
+    // every tail device listed for the chain's inputs.
+    for (route, device, owner) in [(0, "scarlett", 0), (1, "teyun", 1)] {
+        let held = slots_for_output_stream(&slots, &map, device, route);
+        assert_eq!(held.len(), 1, "output {route} holds exactly one runtime");
+        assert!(
+            Arc::ptr_eq(&held[0].load(), &runtimes[owner].1),
+            "output {route} ({device}) holds another E/S's runtime"
+        );
+    }
 }
 
 /// #967: an output-only E/S B next to A (with the guitar) and a loop: with the

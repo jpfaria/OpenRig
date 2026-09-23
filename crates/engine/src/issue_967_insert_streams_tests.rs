@@ -516,3 +516,92 @@ fn a_chain_with_no_output_never_plays_out_a_disabled_inserts_send() {
             .collect::<Vec<_>>()
     );
 }
+
+/// A VST3 chain is updated IN PLACE (#779). Switching its loop ON makes the
+/// return write a tail nothing wrote before — an output-only E/S on another
+/// interface running at another rate. That route must be built at ITS
+/// device's rate (and resampled into), not at the runtime's: at the wrong
+/// rate a 48 kHz device drains a 44.1 kHz feed and underruns without end.
+#[test]
+fn an_in_place_update_builds_a_new_tail_at_its_devices_rate() {
+    let ep = |name: &str, dev: &str, channels: Vec<usize>| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(dev.into()),
+        mode: ChannelMode::Mono,
+        channels,
+    };
+    let registry = vec![
+        IoBinding {
+            id: "a".into(),
+            name: "A".into(),
+            inputs: vec![ep("in", "scarlett", vec![0])],
+            outputs: vec![ep("out", "scarlett", vec![0])],
+        },
+        IoBinding {
+            id: "b".into(),
+            name: "B".into(),
+            inputs: vec![],
+            outputs: vec![ep("out", "teyun", vec![0])],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![ep("ret", "scarlett", vec![3])],
+            outputs: vec![ep("snd", "scarlett", vec![3])],
+        },
+    ];
+    let chain = |loop_on: bool| Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["a".into(), "b".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId(INSERT.into()),
+            enabled: loop_on,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".into(),
+                io: "fx".into(),
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+    };
+    let rates: std::collections::HashMap<DeviceId, f32> = [
+        (DeviceId("scarlett".into()), 44_100.0),
+        (DeviceId("teyun".into()), 48_000.0),
+    ]
+    .into_iter()
+    .collect();
+    let runtime = Arc::new(
+        crate::runtime_graph::build_chain_runtime_state_with_device_rates(
+            &chain(false),
+            44_100.0,
+            &rates,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("builds"),
+    );
+    assert!(!runtime.writes_output(1), "loop off: nothing writes B yet");
+
+    crate::runtime::update_chain_runtime_state_at_device_rates(
+        &runtime,
+        &chain(true),
+        &rates,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &registry,
+    )
+    .expect("the in-place update applies");
+
+    let routes = runtime.output_routes.load();
+    let b = routes[1]
+        .as_ref()
+        .expect("loop on: the return writes B's tail");
+    assert_eq!(
+        b.sample_rate, 48_000.0,
+        "#967: B's new route runs at the TEYUN's rate"
+    );
+}

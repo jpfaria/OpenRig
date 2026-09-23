@@ -43,6 +43,32 @@ pub fn update_chain_runtime_state(
         runtime,
         chain,
         sample_rate,
+        &std::collections::HashMap::new(),
+        reset_output_queue,
+        elastic_targets,
+        false,
+        registry,
+    )
+}
+
+/// [`update_chain_runtime_state`] knowing the rate of each device the chain
+/// writes (#967): a route the edit writes for the first time — the tail of an
+/// output-only E/S on another interface, which only an insert's cut feeds —
+/// runs at ITS device's rate and gets the cross-rate cushion, exactly as the
+/// initial build would give it, instead of the runtime's rate.
+pub fn update_chain_runtime_state_at_device_rates(
+    runtime: &Arc<ChainRuntimeState>,
+    chain: &Chain,
+    device_rates: &std::collections::HashMap<domain::ids::DeviceId, f32>,
+    reset_output_queue: bool,
+    elastic_targets: &[usize],
+    registry: &[IoBinding],
+) -> Result<()> {
+    update_chain_runtime_state_impl(
+        runtime,
+        chain,
+        runtime.sample_rate(),
+        device_rates,
         reset_output_queue,
         elastic_targets,
         false,
@@ -67,6 +93,7 @@ pub fn update_chain_runtime_state_spillover(
         runtime,
         chain,
         sample_rate,
+        &std::collections::HashMap::new(),
         reset_output_queue,
         elastic_targets,
         true,
@@ -79,6 +106,7 @@ fn update_chain_runtime_state_impl(
     runtime: &Arc<ChainRuntimeState>,
     chain: &Chain,
     _sample_rate: f32, // #736: kept for API compat; each runtime reads its own rate via runtime.sample_rate()
+    device_rates: &std::collections::HashMap<domain::ids::DeviceId, f32>,
     reset_output_queue: bool,
     elastic_targets: &[usize],
     spillover: bool,
@@ -239,8 +267,11 @@ fn update_chain_runtime_state_impl(
                 crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
             // #85: keep the route on its own device's rate across a rebuild —
             // the old route knows it, and a rebuild never changes a device.
+            // #967: a route this edit writes for the first time runs at its
+            // OWN device's rate when the caller knows it, like the initial build.
             let route_rate = old_route
                 .map(|old| old.sample_rate)
+                .or_else(|| device_rates.get(&o.device_id).copied())
                 .unwrap_or_else(|| runtime.sample_rate());
             // …and keep its DEEPER cushion too. Rebuilding a cross-rate route
             // with the lockstep cushion is what made "mudei a ordem e deu

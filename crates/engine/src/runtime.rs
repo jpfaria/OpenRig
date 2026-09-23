@@ -64,7 +64,8 @@ pub(crate) use crate::runtime_endpoints::{
 };
 pub use crate::runtime_graph::{
     build_chain_runtime_state, build_per_input_runtime_states, build_runtime_graph,
-    update_chain_runtime_state, update_chain_runtime_state_spillover, RuntimeGraph,
+    update_chain_runtime_state, update_chain_runtime_state_at_device_rates,
+    update_chain_runtime_state_spillover, RuntimeGraph,
 };
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
