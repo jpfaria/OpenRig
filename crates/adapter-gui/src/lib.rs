@@ -340,6 +340,7 @@ mod i18n;
 mod language_names;
 mod locale_font;
 mod locale_resolve;
+mod rebuild_install_timer;
 mod translations_dir;
 
 pub use desktop_app::run_desktop_app;

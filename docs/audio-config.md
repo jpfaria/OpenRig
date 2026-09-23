@@ -571,6 +571,59 @@ there are no separate I/O lists.
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
 
+**Switching an insert on or off never touches a stream (#967).** The rule
+lives in `engine::insert_cut`, in two halves:
+
+- `insert_owns_streams` — a BOUND insert (both sides of its E/S resolve) owns a
+  send and a return stream whether it is enabled or not. The streams
+  infra-cpal opens, the stream signatures a live edit is compared against
+  (`bound_io_signature`, the live stream signature, `chain_structure_signature`
+  ignores an insert's enable flag) and the engine's endpoint shims — route and
+  input indices — all follow it, so switching the insert never renumbers,
+  opens or closes a stream.
+- `insert_cuts_chain` — only an ENABLED bound insert cuts the chain's DSP into a
+  send segment and a return segment. A disabled one is what it always was: the
+  chain plays straight through it, every head paired with its own E/S's
+  outputs (#716), on the stereo bus, each E/S in its own isolated runtime
+  (#703). Its send route is never written (the send stream carries silence,
+  and a chain with no output of its own never plays out of it) and nothing
+  reads its return: that stream's callback returns before the runtime's
+  processing lock (`fed_inputs`), so it never costs the guitar's callback a
+  period.
+
+So a footswitch press, the enable dot, or a scene/preset whose only change is
+the insert reaches `schedule_chain_activation` as "same streams" and takes the
+off-thread DSP rebuild every live edit takes — built on the control worker,
+live within milliseconds. The one exception is a chain with several input
+entries (several E/S, an E/S with two input endpoints, a mid `Input`): its
+runtimes are one pipeline while the loop cuts it and one per entry while it
+does not, so the switch regroups them — `chain_structure_signature` carries
+the grouping and such a switch gets new streams, as before. A chain with one
+input entry is one runtime either way and owns every one of its routes
+(`switch_owned_routes`), so a route only the loop's cut writes — its send, a
+tail only the return feeds — is already bound when the loop is switched on. On Linux+JACK the
+same edit goes through the synchronous in-place update (the JACK backend has
+no off-thread swap yet, #672). A chain holding a VST3 is updated in place instead
+(#779); that update looks for each block's old node in every old segment, so
+the blocks the cut moves between segments keep their processors (a VST3 is not
+re-instantiated, a delay keeps its tail). Before this, the enable flag was part
+of the chain's stream topology: disabling the insert read as a re-bind and
+every stream the chain owned was closed and reopened — 2.1 s (off) and 3.0 s
+(on) of silence measured on the owner's rig.
+
+**Switching a chain on, and hearing a rebuilt chain (#967).** A chain's
+devices are looked up by id through `infra_cpal::device_lookup`: a walk of the
+host's device list remembers every device it passes, so the next lookup of any
+of them is a single property query confirming the handle still names that id
+(an unplugged/replugged device fails it and is looked up again; a device-list
+refresh forgets everything; ASIO keeps the old walk, since holding a driver
+keeps it loaded). Every endpoint used to walk the whole list — on the owner's
+rig that was 1.8–1.9 s of every chain switch-on; switching a chain on now costs
+the stream open (~200–300 ms on the Quantum HD 8). A runtime the control worker
+rebuilt off-thread (a scene/preset switch, an insert switch, a live edit) is
+swapped in by `rebuild_install_timer` every 5 ms instead of on the 200 ms
+error-poll tick, so it is heard as soon as it is built.
+
 **A mid port is a normal block (#85).** It is a row in the chain like any effect
 — the head input and tail output are chips drawn from the bindings, not rows —
 and it survives a project load. #716 still drops the legacy leftovers, but only

@@ -26,9 +26,7 @@ use project::chain::Chain;
 
 use domain::io_binding::IoBinding;
 
-use crate::runtime_endpoints::{
-    insert_is_bound, resolve_chain_io_by_binding, InputEntry, OutputEntry,
-};
+use crate::runtime_endpoints::{resolve_chain_io_by_binding, InputEntry, OutputEntry};
 pub(crate) use crate::segment_binding::{binding_of_raw_input, binding_of_route};
 pub(crate) use crate::segment_taps::taps_for_segment;
 pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentTap};
@@ -61,20 +59,34 @@ pub(crate) fn split_chain_into_segments(
         .blocks
         .iter()
         .enumerate()
-        .filter(|(_, b)| b.enabled && insert_is_bound(&b.kind, registry))
+        .filter(|(_, b)| crate::insert_cut::insert_cuts_chain(b, registry))
         .map(|(i, _)| i)
         .collect();
+    // #967: every insert that OWNS streams — enabled or not — keeps its return
+    // entry at the end of `effective_ins` and its send route at the end of the
+    // outputs, so switching it never renumbers the streams the chain opened.
+    // Only the entries before those returns are heads, and a cutting insert's
+    // return/send is found by its position among the stream-owning ones.
+    let stream_inserts: Vec<usize> = chain
+        .blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| crate::insert_cut::insert_owns_streams(b, registry))
+        .map(|(i, _)| i)
+        .collect();
+    let regular_input_count = effective_ins.len().saturating_sub(stream_inserts.len());
+    let heads = |v: &[usize]| v[..regular_input_count.min(v.len())].to_vec();
 
     let (tail_routes, mid_taps, resolved_output_count) = classify_output_routes(chain, registry);
 
     if insert_positions.is_empty() {
         return segments_without_inserts(
             chain,
-            effective_ins,
-            cpal_indices,
-            split_positions,
-            entry_groups,
-            _effective_outs,
+            &effective_ins[..regular_input_count],
+            &heads(cpal_indices),
+            &split_positions[..regular_input_count.min(split_positions.len())],
+            &heads(entry_groups),
+            &_effective_outs[.._effective_outs.len().saturating_sub(stream_inserts.len())],
             &tail_routes,
             &mid_taps,
             resolved_output_count,
@@ -86,7 +98,15 @@ pub(crate) fn split_chain_into_segments(
     // insert — so everything before them is a regular input. Counting Input
     // BLOCKS instead broke split-mono (#881): one mono endpoint over N channels
     // is N entries, and the walker landed on a sibling instead of the return.
-    let regular_input_count = effective_ins.len().saturating_sub(insert_positions.len());
+    let stream_order: Vec<usize> = insert_positions
+        .iter()
+        .map(|pos| {
+            stream_inserts
+                .iter()
+                .position(|p| p == pos)
+                .expect("a cutting insert owns streams")
+        })
+        .collect();
 
     segments_with_inserts(
         chain,
@@ -95,6 +115,7 @@ pub(crate) fn split_chain_into_segments(
         split_positions,
         entry_groups,
         &insert_positions,
+        &stream_order,
         regular_input_count,
         resolved_output_count,
         &tail_routes,
@@ -279,6 +300,7 @@ fn segments_with_inserts(
     split_positions: &[Option<usize>],
     entry_groups: &[usize],
     insert_positions: &[usize],
+    stream_order: &[usize],
     regular_input_count: usize,
     resolved_output_count: usize,
     tail_routes: &[usize],
@@ -288,8 +310,10 @@ fn segments_with_inserts(
     // Insert return entries start after regular inputs; the sends start after
     // EVERY resolved output (`effective_outputs` appends them last), so a
     // chain with bound tail outputs does not alias its sends onto them.
-    let mut insert_return_idx = regular_input_count;
-    let mut insert_send_idx = resolved_output_count;
+    // #967: insert k's return / send sit at its position among the
+    // stream-owning inserts, not among the cutting ones.
+    let return_idx = |k: usize| regular_input_count + stream_order[k];
+    let send_idx = |k: usize| resolved_output_count + stream_order[k];
 
     let mut segment_start: usize = 0;
     for (insert_order, &insert_pos) in insert_positions.iter().enumerate() {
@@ -310,7 +334,7 @@ fn segments_with_inserts(
         // The only end-of-segment destination is the Insert send; any
         // `Output` block inside this stretch is a mid tap that emits at its
         // own position (#85), not at the segment's end.
-        let output_indices = vec![insert_send_idx];
+        let output_indices = vec![send_idx(insert_order)];
         let taps = taps_for_segment(mid_taps, &block_indices, segment_start..insert_pos);
 
         if insert_order == 0 {
@@ -338,7 +362,7 @@ fn segments_with_inserts(
             }
         } else {
             // Subsequent segments before an insert: use previous insert's return.
-            let prev_return_idx = insert_return_idx - 1;
+            let prev_return_idx = return_idx(insert_order - 1);
             segments.push(ChainSegment {
                 input: effective_ins[prev_return_idx].clone(),
                 cpal_input_index: cpal_indices
@@ -356,8 +380,6 @@ fn segments_with_inserts(
             });
         }
 
-        insert_return_idx += 1;
-        insert_send_idx += 1;
         segment_start = insert_pos + 1;
     }
 
@@ -381,7 +403,7 @@ fn segments_with_inserts(
         last_insert_pos..chain.blocks.len(),
     );
 
-    let last_return_idx = insert_return_idx - 1;
+    let last_return_idx = return_idx(insert_positions.len() - 1);
     segments.push(ChainSegment {
         input: effective_ins[last_return_idx].clone(),
         cpal_input_index: cpal_indices

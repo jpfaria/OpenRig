@@ -63,6 +63,7 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
+    switch_owned_routes: &[usize],
     eff_outputs: &[OutputEntry],
     sample_rate: f32,
     device_rates: &HashMap<DeviceId, f32>,
@@ -170,6 +171,7 @@ pub(crate) fn assemble_chain_runtime_state(
     // and fall back to a rebuild. Computed before `input_states` moves into
     // the Mutex, mirroring `initial_stream_count`.
     let initial_bypass_block_ids = collect_bypass_block_ids(&input_states);
+    let initial_fed_inputs = crate::runtime_chain_state::fed_inputs_mask(&input_to_segments);
 
     Ok(ChainRuntimeState {
         // Whole-chain by default; `build_per_input_runtimes` stamps the
@@ -197,6 +199,8 @@ pub(crate) fn assemble_chain_runtime_state(
         // `set_volume_pct(100.0)` depois.
         volume_pct_bits: std::sync::atomic::AtomicU32::new(chain.volume.to_bits()),
         stream_count: std::sync::atomic::AtomicUsize::new(initial_stream_count),
+        fed_inputs: std::sync::atomic::AtomicU64::new(initial_fed_inputs),
+        switch_owned_routes: switch_owned_routes.to_vec(),
         // Issue #580 follow-up: GUI block-toggle is queued and drained
         // on the audio thread inside its own `processing` lock,
         // removing the GUI/audio Mutex contention that caused an
