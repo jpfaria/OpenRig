@@ -43,6 +43,32 @@ pub fn update_chain_runtime_state(
         runtime,
         chain,
         sample_rate,
+        &std::collections::HashMap::new(),
+        reset_output_queue,
+        elastic_targets,
+        false,
+        registry,
+    )
+}
+
+/// [`update_chain_runtime_state`] knowing the rate of each device the chain
+/// writes (#967): a route the edit writes for the first time — the tail of an
+/// output-only E/S on another interface, which only an insert's cut feeds —
+/// runs at ITS device's rate and gets the cross-rate cushion, exactly as the
+/// initial build would give it, instead of the runtime's rate.
+pub fn update_chain_runtime_state_at_device_rates(
+    runtime: &Arc<ChainRuntimeState>,
+    chain: &Chain,
+    device_rates: &std::collections::HashMap<domain::ids::DeviceId, f32>,
+    reset_output_queue: bool,
+    elastic_targets: &[usize],
+    registry: &[IoBinding],
+) -> Result<()> {
+    update_chain_runtime_state_impl(
+        runtime,
+        chain,
+        runtime.sample_rate(),
+        device_rates,
         reset_output_queue,
         elastic_targets,
         false,
@@ -67,6 +93,7 @@ pub fn update_chain_runtime_state_spillover(
         runtime,
         chain,
         sample_rate,
+        &std::collections::HashMap::new(),
         reset_output_queue,
         elastic_targets,
         true,
@@ -79,6 +106,7 @@ fn update_chain_runtime_state_impl(
     runtime: &Arc<ChainRuntimeState>,
     chain: &Chain,
     _sample_rate: f32, // #736: kept for API compat; each runtime reads its own rate via runtime.sample_rate()
+    device_rates: &std::collections::HashMap<domain::ids::DeviceId, f32>,
     reset_output_queue: bool,
     elastic_targets: &[usize],
     spillover: bool,
@@ -105,7 +133,7 @@ fn update_chain_runtime_state_impl(
     // A whole-chain runtime (`owned_entry == None`: probe, offline, JACK)
     // keeps every segment, exactly as before.
     let segments: Vec<ChainSegment> = match runtime.owned_entry {
-        Some((group, _)) => group_segments_by_input(chain, all_segments)
+        Some((group, _)) => group_segments_by_input(chain, registry, all_segments)
             .into_iter()
             .find(|(g, _)| *g == group)
             .map(|(_, segs)| segs)
@@ -133,10 +161,24 @@ fn update_chain_runtime_state_impl(
     // Step 2: Build new input states OUTSIDE the lock (no audio interruption)
     let mut new_input_states = Vec::with_capacity(segments.len());
     for (i, segment) in segments.iter().enumerate() {
-        let old_blocks = if i < existing_per_input.len() {
-            std::mem::take(&mut existing_per_input[i])
+        let old_blocks = if spillover {
+            if i < existing_per_input.len() {
+                std::mem::take(&mut existing_per_input[i])
+            } else {
+                Vec::new()
+            }
         } else {
-            Vec::new()
+            // #967: switching an insert moves blocks between segments (its cut
+            // comes and goes), so a block's old node is looked for in EVERY old
+            // segment — its own index first, which keeps split-mono siblings on
+            // their own nodes. Per-index only, the blocks past the cut were
+            // rebuilt: a VST3 re-instantiated, a delay's tail cut.
+            let ids: Vec<&domain::ids::BlockId> = segment
+                .block_indices
+                .iter()
+                .filter_map(|&b| chain.blocks.get(b).map(|block| &block.id))
+                .collect();
+            take_reusable_nodes(&mut existing_per_input, i, &ids)
         };
         // Spillover: build the new pipeline FRESH (no processor reuse) so it
         // fades in cleanly; keep the old blocks to ring out in parallel.
@@ -224,8 +266,11 @@ fn update_chain_runtime_state_impl(
             // and so its deeper cross-rate cushion too: a tap rebuilt at the
             // lockstep depth starved on the first bunched callback after
             // every live edit ("mudei a ordem e deu merda").
+            // #967: a route this edit writes for the first time runs at its
+            // OWN device's rate when the caller knows it, like the initial build.
             let route_rate = old_route
                 .map(|old| old.sample_rate)
+                .or_else(|| device_rates.get(&o.device_id).copied())
                 .unwrap_or_else(|| runtime.sample_rate());
             let cushion = crate::route_cushion::route_cushion(
                 target_for_route(elastic_targets, route_idx),
@@ -314,6 +359,12 @@ fn update_chain_runtime_state_impl(
                 new_mapping[segment.cpal_input_index].push(seg_idx);
             }
         }
+        // #967: publish which device callbacks have work, in the same critical
+        // section, so an idle stream never takes this lock again.
+        runtime.fed_inputs.store(
+            crate::runtime_chain_state::fed_inputs_mask(&new_mapping),
+            std::sync::atomic::Ordering::Relaxed,
+        );
         processing.input_to_segments = new_mapping;
         // Cancel any in-flight latency probe — its beep was pushed into
         // the old queue that we're about to discard, so leaving the state
@@ -327,6 +378,22 @@ fn update_chain_runtime_state_impl(
         processing
             .input_scratches
             .resize_with(new_len, InputCallbackScratch::default);
+        // #967: a route converter's phase and history belong to the route it
+        // fed. Keep it only where the route itself survives this update (the
+        // same Arc); a route built fresh — or gone — starts clean, so a few
+        // samples from before the edit are never played in front of it.
+        let old_routes = runtime.output_routes.load();
+        for scratch in processing.input_scratches.iter_mut() {
+            scratch.route_resamplers.retain(|route_idx, _| {
+                match (
+                    new_output_routes.get(*route_idx).and_then(Option::as_ref),
+                    old_routes.get(*route_idx).and_then(Option::as_ref),
+                ) {
+                    (Some(new), Some(old)) => Arc::ptr_eq(new, old),
+                    _ => false,
+                }
+            });
+        }
     }
     // Lock released — NOW the old nodes (NAM models, IR FFT states) may run
     // their multi-ms destructors without starving the audio worker (#670).
@@ -354,4 +421,27 @@ fn update_chain_runtime_state_impl(
     runtime.set_volume_pct(chain.volume);
 
     Ok(())
+}
+
+/// #967: move out of `pool` one old node per id in `ids`, looking in segment
+/// `preferred` first and then in every other old segment, in order.
+fn take_reusable_nodes(
+    pool: &mut [Vec<BlockRuntimeNode>],
+    preferred: usize,
+    ids: &[&domain::ids::BlockId],
+) -> Vec<BlockRuntimeNode> {
+    let order: Vec<usize> = std::iter::once(preferred)
+        .filter(|&p| p < pool.len())
+        .chain((0..pool.len()).filter(|&i| i != preferred))
+        .collect();
+    let mut taken = Vec::with_capacity(ids.len());
+    for id in ids {
+        for &segment in &order {
+            if let Some(pos) = pool[segment].iter().position(|node| &&node.block_id == id) {
+                taken.push(pool[segment].remove(pos));
+                break;
+            }
+        }
+    }
+    taken
 }

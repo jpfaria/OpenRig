@@ -109,15 +109,13 @@ impl ProjectRuntimeController {
                 .collect();
             for group in groups {
                 if let Some(runtime) = self.runtime_graph.chains.get(&(chain.id.clone(), group)) {
-                    let group_rate = device_sample_rates
-                        .values()
-                        .next()
-                        .copied()
-                        .unwrap_or(sample_rate);
-                    engine::runtime::update_chain_runtime_state(
+                    // #967: a route the edit writes for the first time (an
+                    // insert switched on feeding a tail on another interface)
+                    // runs at its own device's rate.
+                    engine::runtime::update_chain_runtime_state_at_device_rates(
                         runtime,
                         chain,
-                        group_rate,
+                        &device_sample_rates,
                         false,
                         &elastic_targets,
                         &self.io_bindings,
@@ -162,7 +160,7 @@ impl ProjectRuntimeController {
         let Some(active) = self.active_chains.get(&chain.id) else {
             return false; // not streaming — nothing to compare
         };
-        active.structure != crate::io_topology::chain_structure_signature(chain)
+        active.structure != crate::io_topology::chain_structure_signature(chain, &self.io_bindings)
     }
 
     /// JACK build: the live-swap path is cpal-only for now (#672).

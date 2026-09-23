@@ -108,6 +108,18 @@ pub struct ChainRuntimeState {
     /// seeing the old count just defers an extra subscription to the
     /// next tick. No synchronisation with audio-thread state needed.
     pub(crate) stream_count: AtomicUsize,
+    /// #967: bit `i` is set when device callback (cpal input) `i` feeds at
+    /// least one segment. A stream the chain keeps open but that has nothing
+    /// to process — a disabled insert's return on its own interface — returns
+    /// before the `processing` lock instead of contending for it with the
+    /// guitar's callback (a lost `try_lock` is a silent period). Indices past
+    /// 63 are treated as fed. Rewritten at build and at every in-place update.
+    pub(crate) fed_inputs: std::sync::atomic::AtomicU64,
+    /// #967: routes this runtime owns although it may not write them right
+    /// now (`runtime_graph::switch_owned_routes`): an output stream on one of
+    /// them holds this runtime, so an insert switch that starts writing it —
+    /// a DSP rebuild into the same slot — is heard.
+    pub(crate) switch_owned_routes: Vec<usize>,
     /// Lock-free producer/consumer queue for pending block-toggle
     /// requests (issue #580 follow-up). The GUI's
     /// `BlockCommand::ToggleBlockEnabled` handler calls `set_block_enabled`,
@@ -191,6 +203,12 @@ pub(crate) fn next_runtime_instance_id() -> u64 {
 }
 
 impl ChainRuntimeState {
+    /// #967: does device callback `input_index` feed any segment here?
+    pub(crate) fn input_is_fed(&self, input_index: usize) -> bool {
+        input_index >= 64
+            || self.fed_inputs.load(std::sync::atomic::Ordering::Relaxed) & (1 << input_index) != 0
+    }
+
     /// This runtime's identity, unique among every runtime built in the
     /// process (#957).
     pub fn instance_id(&self) -> u64 {
@@ -216,6 +234,12 @@ impl ChainRuntimeState {
     /// stream hold it.
     pub fn writes_output(&self, output_index: usize) -> bool {
         matches!(self.output_routes.load().get(output_index), Some(Some(_)))
+    }
+
+    /// Does an output stream on `output_index` belong to this runtime — it
+    /// writes the route now, or an insert switch can make it write it (#967)?
+    pub fn owns_output(&self, output_index: usize) -> bool {
+        self.writes_output(output_index) || self.switch_owned_routes.contains(&output_index)
     }
 
     /// Signal the audio callback to stop processing blocks.
@@ -299,4 +323,13 @@ impl ChainRuntimeState {
     pub fn di_loop_len(&self) -> Option<usize> {
         self.di_loop.load().as_ref().map(|d| d.len())
     }
+}
+
+/// #967: the `fed_inputs` mask for an `input_to_segments` map.
+pub(crate) fn fed_inputs_mask(input_to_segments: &[Vec<usize>]) -> u64 {
+    input_to_segments
+        .iter()
+        .enumerate()
+        .filter(|(i, segments)| *i < 64 && !segments.is_empty())
+        .fold(0, |mask, (i, _)| mask | (1 << i))
 }
