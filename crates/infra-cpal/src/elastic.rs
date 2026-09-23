@@ -12,11 +12,10 @@
 //!    external hardware that has its own driver buffering, so doubling
 //!    the headroom there is pure latency overhead.
 //!
-//! `compute_elastic_targets_for_chain` pairs each output in
-//! `ResolvedChainAudioConfig::outputs` with its right multiplier and
-//! returns the per-output target depths in the same order. The caller
-//! (`upsert_chain_with_resolved`) feeds them straight into
-//! `RuntimeGraph::upsert_chain`.
+//! [`elastic_targets`] pairs each output stream with its right multiplier and
+//! returns the per-output target depths in the same order; the cold build
+//! (`compute_elastic_targets_for_chain`) and the live rebuild
+//! (`elastic_targets_for_live_streams`) both go through it.
 
 use domain::io_binding::IoBinding;
 use engine::runtime::elastic_target_for_buffer;
@@ -46,48 +45,138 @@ const ELASTIC_MULTIPLIER_REGULAR: u8 = ELASTIC_MULTIPLIER;
 /// sizing for tiny device buffers.
 const ELASTIC_MULTIPLIER_INSERT_SEND: u8 = 1;
 
-/// Compute per-output elastic targets for a chain. Regular outputs use
-/// the backend's default multiplier; Insert send endpoints use a leaner
-/// multiplier to avoid doubling the round-trip latency of the external
-/// effect loop. The order of the returned Vec matches
-/// `ResolvedChainAudioConfig::outputs`, which places regular outputs
-/// first and Insert sends last (mirroring `effective_outputs`).
+/// #965, macOS: multiplier for a regular output on the SAME device as one of
+/// the chain's inputs. Every CoreAudio unit of a device runs on one HAL IO
+/// thread, input first and output 0-5 us later, every cycle (measured on the
+/// owner's Quantum HD 8 in both start orders, ~7000 cycles each). The DSP
+/// runs on the #670 worker, so such an output needs one buffer for the
+/// worker hand-off plus one of slack — exactly the insert send's cushion,
+/// which runs live from the same worker pass. An output on another device
+/// has another clock and another thread, and keeps the regular multiplier.
+#[cfg(target_os = "macos")]
+const ELASTIC_MULTIPLIER_SAME_DEVICE: u8 = 1;
+#[cfg(not(target_os = "macos"))]
+const ELASTIC_MULTIPLIER_SAME_DEVICE: u8 = ELASTIC_MULTIPLIER_REGULAR;
+
+/// One stream endpoint as the sizing sees it: which device clock it runs on
+/// and how many frames that device hands over per callback.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct StreamClock<'a> {
+    pub(crate) device_id: &'a str,
+    pub(crate) buffer_frames: u32,
+}
+
+/// Per-output elastic targets for a chain, in the order of its output
+/// streams: the regular outputs first, then one per bound Insert send.
+///
+/// #965: the ONE sizing for the cold build and the live rebuild. The live
+/// path used to size every output at the regular multiplier — sends included
+/// — so the first knob turn on an insert chain rebuilt the send (a gap in the
+/// loop) and left it a buffer deeper than a fresh chain.
+pub(crate) fn elastic_targets(
+    chain: &Chain,
+    registry: &[IoBinding],
+    inputs: &[StreamClock<'_>],
+    outputs: &[StreamClock<'_>],
+) -> Vec<usize> {
+    // #965: each route is sized from ITS producers — the input streams of the
+    // segments that write it — never from every chain input: a route fed from
+    // another clock must not get a same-clock cushion, and one stream's buffer
+    // size must not raise another stream's latency (isolation law).
+    let producers = engine::route_clock::route_producers(chain, registry);
+    // Model A (#716): the regular (non-Insert) outputs come from the resolved
+    // binding endpoints; Insert sends are appended after them in the output
+    // streams, so the count still splits the two.
+    let (_resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
+    let regular_output_count: usize = resolved_outputs.len();
+    outputs
+        .iter()
+        .enumerate()
+        .map(|(idx, out)| {
+            let single_producer = match producers.get(idx).map(Vec::as_slice) {
+                Some([only]) => Some(only.0.as_str()),
+                _ => None,
+            };
+            let multiplier = if idx >= regular_output_count {
+                ELASTIC_MULTIPLIER_INSERT_SEND
+            } else if single_producer == Some(out.device_id) {
+                ELASTIC_MULTIPLIER_SAME_DEVICE
+            } else {
+                ELASTIC_MULTIPLIER_REGULAR
+            };
+            // The producer pushes a whole input callback at once: a route
+            // rests at least one such burst deep, or its ring (2x the
+            // cushion) drops it.
+            let burst = single_producer
+                .map(|device| {
+                    inputs
+                        .iter()
+                        .filter(|input| input.device_id == device)
+                        .map(|input| input.buffer_frames as usize)
+                        .max()
+                        .unwrap_or(0)
+                })
+                .unwrap_or(0);
+            elastic_target_for_buffer(out.buffer_frames, multiplier).max(burst)
+        })
+        .collect()
+}
+
+/// [`elastic_targets`] for a chain being built from a fresh device resolve.
 pub(crate) fn compute_elastic_targets_for_chain(
     chain: &Chain,
     resolved: &ResolvedChainAudioConfig,
     registry: &[IoBinding],
 ) -> Vec<usize> {
-    // Model A (#716): the regular (non-Insert) outputs come from the resolved
-    // binding endpoints, not from block `entries`. Insert sends are appended
-    // after them in `resolved.outputs`, so the count still splits the two.
-    let (_resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
-    let regular_output_count: usize = resolved_outputs.len();
-    resolved
+    let inputs: Vec<StreamClock<'_>> = resolved
+        .stream_signature
+        .inputs
+        .iter()
+        .map(|i| StreamClock {
+            device_id: &i.device_id,
+            buffer_frames: i.buffer_size_frames,
+        })
+        .collect();
+    let outputs: Vec<StreamClock<'_>> = resolved
         .outputs
         .iter()
-        .enumerate()
-        .map(|(idx, out)| {
-            let buf = crate::resolved_output_buffer_size_frames(out);
-            let multiplier = if idx >= regular_output_count {
-                ELASTIC_MULTIPLIER_INSERT_SEND
-            } else {
-                ELASTIC_MULTIPLIER_REGULAR
-            };
-            elastic_target_for_buffer(buf, multiplier)
+        .map(|o| StreamClock {
+            device_id: &o.device_id,
+            buffer_frames: crate::resolved_output_buffer_size_frames(o),
         })
-        .collect()
+        .collect();
+    elastic_targets(chain, registry, &inputs, &outputs)
 }
 
-/// #740: per-output elastic targets for an I/O-UNCHANGED live rebuild, derived
-/// straight from the live output buffer sizes — no device resolve. Uses the
-/// regular-output multiplier (an Insert send's leaner cushion just resizes
-/// harmlessly on the next full rebuild). Lets a param/block/preset edit reuse
-/// the running stream config and rebuild the DSP off-thread instead of blocking
-/// the GUI on a CoreAudio resolve.
+/// #740: [`elastic_targets`] for an I/O-UNCHANGED live rebuild, read straight
+/// off the running streams' signature — no device resolve, so a
+/// param/block/preset edit rebuilds the DSP off-thread instead of blocking
+/// the GUI on CoreAudio.
 #[cfg(not(all(target_os = "linux", feature = "jack")))] // CPAL live-rebuild path only (#755)
-pub(crate) fn elastic_targets_from_output_buffers(output_buffer_frames: &[u32]) -> Vec<usize> {
-    output_buffer_frames
+pub(crate) fn elastic_targets_for_live_streams(
+    chain: &Chain,
+    registry: &[IoBinding],
+    signature: &crate::resolved::ChainStreamSignature,
+) -> Vec<usize> {
+    let inputs: Vec<StreamClock<'_>> = signature
+        .inputs
         .iter()
-        .map(|&buf| elastic_target_for_buffer(buf, ELASTIC_MULTIPLIER_REGULAR))
-        .collect()
+        .map(|i| StreamClock {
+            device_id: &i.device_id,
+            buffer_frames: i.buffer_size_frames,
+        })
+        .collect();
+    let outputs: Vec<StreamClock<'_>> = signature
+        .outputs
+        .iter()
+        .map(|o| StreamClock {
+            device_id: &o.device_id,
+            buffer_frames: o.buffer_size_frames,
+        })
+        .collect();
+    elastic_targets(chain, registry, &inputs, &outputs)
 }
+
+#[cfg(test)]
+#[path = "elastic_tests.rs"]
+mod tests;

@@ -519,3 +519,7 @@ mod runtime_output_route_stats_tests;
 #[cfg(test)]
 #[path = "issue_953_route_latency_drift_tests.rs"]
 mod issue_953_route_latency_drift;
+
+#[cfg(test)]
+#[path = "issue_965_insert_latency_tests.rs"]
+mod issue_965_insert_latency;

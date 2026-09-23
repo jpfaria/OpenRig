@@ -72,7 +72,7 @@ impl ProjectRuntimeController {
         // a synchronous CoreAudio resolve (the ~hundreds-ms freeze the owner felt
         // on every edit, on top of the off-thread NAM reload). The heavy DSP
         // rebuild then runs on the worker; the GUI returns immediately.
-        let (sample_rate, device_sample_rates, out_buffers) = {
+        let (sample_rate, device_sample_rates, elastic_targets) = {
             let sig = &self
                 .active_chains
                 .get(&chain.id)
@@ -84,10 +84,10 @@ impl ProjectRuntimeController {
                 .map(|i| i.sample_rate as f32)
                 .unwrap_or(48_000.0);
             let device_sample_rates = device_rates_from_signature(sig);
-            let out_buffers: Vec<u32> = sig.outputs.iter().map(|o| o.buffer_size_frames).collect();
-            (sample_rate, device_sample_rates, out_buffers)
+            let elastic_targets =
+                crate::elastic::elastic_targets_for_live_streams(chain, &self.io_bindings, sig);
+            (sample_rate, device_sample_rates, elastic_targets)
         };
-        let elastic_targets = crate::elastic::elastic_targets_from_output_buffers(&out_buffers);
         // #779: a chain containing a VST3 must NOT be rebuilt fresh off-thread.
         // A fresh build calls `createInstance` on the control worker while the
         // audio thread is inside the old instance's `process()` — a concurrent
