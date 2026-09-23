@@ -162,7 +162,7 @@ impl ProjectRuntimeController {
         let Some(active) = self.active_chains.get(&chain.id) else {
             return false; // not streaming — nothing to compare
         };
-        active.structure != crate::io_topology::chain_structure_signature(chain)
+        active.structure != crate::io_topology::chain_structure_signature(chain, &self.io_bindings)
     }
 
     /// JACK build: the live-swap path is cpal-only for now (#672).

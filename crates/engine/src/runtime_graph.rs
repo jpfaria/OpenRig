@@ -75,23 +75,24 @@ pub struct RuntimeGraph {
     pub chains: HashMap<(ChainId, usize), Arc<ChainRuntimeState>>,
 }
 
-/// Whether the chain owns at least one insert's streams. Insert chains form a
-/// cross-cpal-index pipeline (input → insert send → insert return → output);
-/// splitting them by cpal index would sever the pipeline. Phase 1 keeps
-/// Insert chains as a single runtime (byte-identical to pre-#350); the
-/// structural per-input isolation targets the no-Insert multi-input case (the
-/// user-visible "two guitars, one chain" scenario).
+/// Whether an insert cuts the chain. A cut forms a cross-cpal-index pipeline
+/// (input → insert send → insert return → output); splitting it by cpal index
+/// would sever the pipeline. Phase 1 keeps Insert chains as a single runtime
+/// (byte-identical to pre-#350); the structural per-input isolation targets
+/// the no-Insert multi-input case (the user-visible "two guitars, one chain"
+/// scenario).
 ///
-/// #967: this follows the insert's STREAMS (`insert_cut::insert_owns_streams`),
-/// not its enable flag. Switching an insert is a DSP rebuild on the streams
-/// the chain already has, and the rebuilt runtimes must land in the slots
-/// those streams feed — a grouping that flipped with the switch produced a
-/// group with no slot. An insert with no E/S owns nothing and groups nothing.
-pub(crate) fn chain_owns_insert_streams(chain: &Chain, registry: &[IoBinding]) -> bool {
+/// #967: only a real cut counts (`insert_cut::insert_cuts_chain`): a disabled
+/// insert — or one with no E/S — leaves every head in its own isolated
+/// runtime. For a single-E/S chain the grouping is the same either way, so an
+/// insert switch is a DSP rebuild into the slot its streams feed; where the
+/// switch changes the grouping, `chain_structure_signature` (infra-cpal) says
+/// so and the chain gets new streams.
+pub(crate) fn chain_has_insert_cut(chain: &Chain, registry: &[IoBinding]) -> bool {
     chain
         .blocks
         .iter()
-        .any(|b| crate::insert_cut::insert_owns_streams(b, registry))
+        .any(|b| crate::insert_cut::insert_cuts_chain(b, registry))
 }
 
 /// Partition a chain's segments into per-RAW-input-entry groups (issue
@@ -108,13 +109,13 @@ pub(crate) fn chain_owns_insert_streams(chain: &Chain, registry: &[IoBinding]) -
 /// the cpal platforms' isolation gain must not change JACK behaviour.
 ///
 /// Insert chains are NOT partitioned (single group `0`) — see
-/// `chain_owns_insert_streams`.
+/// `chain_has_insert_cut`.
 pub(crate) fn group_segments_by_input(
     chain: &Chain,
     registry: &[IoBinding],
     segments: Vec<ChainSegment>,
 ) -> Vec<(usize, Vec<ChainSegment>)> {
-    if chain_owns_insert_streams(chain, registry) || segments.is_empty() {
+    if chain_has_insert_cut(chain, registry) || segments.is_empty() {
         return vec![(0, segments)];
     }
     #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -217,6 +218,7 @@ pub(crate) fn build_per_input_runtimes(
         let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
+            &crate::runtime_endpoints::insert_send_routes(chain, resolved_outputs.len(), registry),
             &eff_outputs,
             group_rate,
             device_rates,
@@ -281,7 +283,7 @@ pub fn build_per_input_runtime_states(
 /// each edit, only to throw the runtime away. The grouping depends solely on
 /// the chain's input/output endpoints and segment split, never on the built
 /// processors, so it can be derived directly.
-pub(crate) fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
+pub fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
         effective_inputs(chain, &resolved_inputs, registry);
@@ -400,6 +402,7 @@ pub fn build_chain_runtime_state_with_device_rates(
     assemble_chain_runtime_state(
         chain,
         &segments,
+        &crate::runtime_endpoints::insert_send_routes(chain, resolved_outputs.len(), registry),
         &eff_outputs,
         sample_rate,
         device_rates,

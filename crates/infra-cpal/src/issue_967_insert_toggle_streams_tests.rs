@@ -129,6 +129,14 @@ fn tail_is_flowing(controller: &ProjectRuntimeController, chain: &ChainId) -> bo
         .any(|r| r.route == 0 && r.callbacks > 0)
 }
 
+fn send_is_drained(controller: &ProjectRuntimeController, chain: &ChainId) -> bool {
+    controller
+        .chain_output_route_stats(chain)
+        .iter()
+        .flat_map(|(_, routes)| routes.iter())
+        .any(|r| r.route == 1 && r.callbacks > 0)
+}
+
 /// The app's path for an insert switch (`sync_live_chain_runtime`): the edit
 /// needs no new streams, so it rebuilds the DSP off the audio thread; returns
 /// how long until the rebuilt runtime is live.
@@ -216,6 +224,14 @@ fn run(start_enabled: bool) {
             tail_is_flowing(&controller, &chain_id),
             "the tail keeps playing through the switch"
         );
+        if enabled {
+            assert!(
+                send_is_drained(&controller, &chain_id),
+                "#967: with the loop on, its send stream must be pulling the send \
+                 route — a send stream opened while the loop was off and never \
+                 bound to the runtime would leave the gear (and the return) silent"
+            );
+        }
     }
 }
 

@@ -31,7 +31,7 @@ pub fn io_topology_changed(
 /// included (#881).
 ///
 /// `resolve_chain_io` answers only what the chain's own bindings point at —
-/// head/tail plus mid ports. An enabled, bound `Insert` adds two more streams:
+/// head/tail plus mid ports. A bound `Insert` adds two more streams:
 /// its SEND is an output and its RETURN is an input, exactly the shims
 /// `effective_inputs` / `effective_outputs` append when the graph is built. A
 /// comparison blind to them reported "I/O unchanged" when the user added or
@@ -55,12 +55,11 @@ pub(crate) fn bound_io_signature(
         .map(|e| (e.device_id, e.channels))
         .collect();
 
-    // #967: a BOUND insert occupies its send and return whether the block is
-    // enabled or not. Counting only enabled ones made a footswitch press read
-    // as a re-bind, so a one-bit flip closed and reopened every stream the
-    // chain owned (2–3 s of silence on the owner's rig). Switching an insert
-    // off bypasses the loop in the DSP (`engine::insert_bridge`); the streams
-    // stay exactly where they are.
+    // #967: a BOUND insert owns its send and return whether the block is
+    // enabled or not (`engine::insert_cut::insert_owns_streams`). Counting only
+    // enabled ones made a footswitch press read as a re-bind, so a one-bit flip
+    // closed and reopened every stream the chain owned (2–3 s of silence on the
+    // owner's rig). Switching an insert changes only the DSP cut.
     for block in chain
         .blocks
         .iter()
@@ -69,8 +68,7 @@ pub(crate) fn bound_io_signature(
         let project::block::AudioBlockKind::Insert(insert) = &block.kind else {
             continue;
         };
-        // Both sides or nothing — the same rule the graph uses to decide
-        // whether an insert splits the chain at all.
+        // Both sides or nothing — `insert_owns_streams` already required it.
         let (Some(ret), Some(send)) = (
             crate::chain_resolve::insert_return_as_input_entry(insert, registry),
             crate::chain_resolve::insert_send_as_output_entry(insert, registry),
@@ -88,11 +86,14 @@ pub(crate) fn bound_io_signature(
 mod io_topology_tests;
 
 /// The chain's STRUCTURE as the streams see it (#881): one entry per block —
-/// its id and model identity, plus the enabled flag for routing blocks, whose
-/// on/off state decides where the chain splits and therefore how many streams
-/// it owns. Parameter values are deliberately absent: a knob turn is a DSP
-/// edit, not a new topology.
-pub(crate) fn chain_structure_signature(chain: &project::chain::Chain) -> Vec<String> {
+/// its id and model identity, plus the enabled flag for the ports (`Input` /
+/// `Output`), whose on/off state changes the streams the chain owns — and the
+/// runtime grouping those streams are bound to (#967). Parameter values are
+/// deliberately absent: a knob turn is a DSP edit, not a new topology.
+pub(crate) fn chain_structure_signature(
+    chain: &project::chain::Chain,
+    registry: &[domain::io_binding::IoBinding],
+) -> Vec<String> {
     chain
         .blocks
         .iter()
@@ -110,5 +111,13 @@ pub(crate) fn chain_structure_signature(chain: &project::chain::Chain) -> Vec<St
                 format!("{}|{}", b.id.0, b.kind.model_identity())
             }
         })
+        .chain(std::iter::once(format!(
+            // #967: the runtimes the chain is split into are bound to its
+            // streams; a change that regroups them (an insert switched on a
+            // multi-E/S chain) needs new streams, one that does not (a
+            // single-E/S chain) stays a DSP rebuild.
+            "groups|{:?}",
+            engine::runtime_graph::input_group_ids(chain, registry)
+        )))
         .collect()
 }

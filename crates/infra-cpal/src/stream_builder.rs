@@ -146,7 +146,7 @@ pub(crate) fn build_active_chain_runtime(
         resolved.sample_rate
     );
     let stream_signature = resolved.stream_signature.clone();
-    let structure = crate::io_topology::chain_structure_signature(chain);
+    let structure = crate::io_topology::chain_structure_signature(chain, registry);
 
     // On Linux with JACK: use the jack crate directly for zero-overhead audio.
     // This bypasses CPAL entirely — the JACK process callback runs in the

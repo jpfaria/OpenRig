@@ -157,3 +157,21 @@ pub(crate) fn effective_outputs(
         channels: vec![0],
     }]
 }
+
+/// #967: the route index of every insert's SEND — the entries
+/// `effective_outputs` appends after the resolved outputs, one per insert that
+/// owns streams. A switched-off insert's send route is not written, but its
+/// stream is open and must stay bound to the chain's runtime, so the switch ON
+/// (a DSP rebuild into the same slot) is heard on it.
+pub(crate) fn insert_send_routes(
+    chain: &Chain,
+    resolved_output_count: usize,
+    registry: &[IoBinding],
+) -> Vec<usize> {
+    let sends = chain
+        .blocks
+        .iter()
+        .filter(|b| crate::insert_cut::insert_owns_streams(b, registry))
+        .count();
+    (resolved_output_count..resolved_output_count + sends).collect()
+}

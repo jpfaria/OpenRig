@@ -86,7 +86,7 @@ pub(crate) fn split_chain_into_segments(
             &heads(cpal_indices),
             &split_positions[..regular_input_count.min(split_positions.len())],
             &heads(entry_groups),
-            _effective_outs,
+            &_effective_outs[.._effective_outs.len().saturating_sub(stream_inserts.len())],
             &tail_routes,
             &mid_taps,
             resolved_output_count,

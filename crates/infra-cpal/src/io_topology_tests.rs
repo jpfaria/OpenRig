@@ -175,12 +175,76 @@ fn an_inserts_enable_flag_is_not_part_of_the_chain_structure() {
         loopers: vec![],
     };
 
-    let on = super::chain_structure_signature(&chain);
+    let on = super::chain_structure_signature(&chain, &[]);
     chain.blocks[0].enabled = false;
-    let off = super::chain_structure_signature(&chain);
+    let off = super::chain_structure_signature(&chain, &[]);
 
     assert_eq!(
         on, off,
         "#967: toggling an insert must not read as a structural change"
+    );
+}
+
+/// #967: the switch is only a DSP rebuild while it keeps the chain's runtime
+/// grouping. Two E/S with a loop: off, two isolated runtimes; on, one pipeline
+/// across both heads. The streams those runtimes are bound to differ, so for
+/// such a chain the switch MUST read as a structural change (new streams) —
+/// otherwise the rebuilt runtimes land in slots that do not match them.
+#[test]
+fn a_switch_that_regroups_the_chains_runtimes_is_a_structural_change() {
+    use domain::ids::{BlockId, ChainId};
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::block::{AudioBlock, AudioBlockKind, InsertBlock};
+    use project::chain::Chain;
+
+    let ep = |name: &str, dev: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(dev.into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![
+        IoBinding {
+            id: "scarlett".into(),
+            name: "SCARLETT".into(),
+            inputs: vec![ep("in", "scarlett", 0)],
+            outputs: vec![ep("out", "scarlett", 0)],
+        },
+        IoBinding {
+            id: "teyun".into(),
+            name: "TEYUN".into(),
+            inputs: vec![ep("in", "teyun", 0)],
+            outputs: vec![ep("out", "teyun", 0)],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![ep("ret", "scarlett", 3)],
+            outputs: vec![ep("snd", "scarlett", 3)],
+        },
+    ];
+    let chain = |enabled| Chain {
+        id: ChainId("rig:input-2".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["scarlett".into(), "teyun".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId("insert".into()),
+            enabled,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".into(),
+                io: "fx".into(),
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+    };
+
+    assert_ne!(
+        super::chain_structure_signature(&chain(true), &registry),
+        super::chain_structure_signature(&chain(false), &registry),
+        "#967: this switch regroups the runtimes — it needs new streams"
     );
 }

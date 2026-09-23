@@ -152,14 +152,43 @@ fn switching_the_insert_keeps_the_route_and_input_numbering() {
     );
 }
 
-/// The runtime grouping of a chain that owns an insert's streams does not
-/// flip with the switch — the rebuilt DSP lands in the slots the streams feed.
+/// With the loop OFF nothing cuts the chain, so two E/S are two isolated
+/// runtimes (#703) — merging them because the chain merely OWNS a loop's
+/// streams left the second interface's output with no runtime and put both
+/// device callbacks on one processing lock. With the loop ON the cut is one
+/// pipeline across both heads, one runtime.
 #[test]
-fn switching_the_insert_keeps_the_runtime_grouping() {
+fn a_disabled_insert_keeps_every_head_in_its_own_runtime() {
     let registry = two_heads_registry();
     assert_eq!(
         crate::runtime_graph::input_group_ids(&two_heads_chain(false), &registry),
+        vec![0, 1],
+        "loop off: one isolated runtime per E/S"
+    );
+    assert_eq!(
         crate::runtime_graph::input_group_ids(&two_heads_chain(true), &registry),
+        vec![0],
+        "loop on: the cut is one pipeline"
+    );
+}
+
+/// A single-E/S chain — the owner's layout — is one runtime whether its loop is
+/// on or off, so the switch is a DSP rebuild into the slot its streams feed.
+#[test]
+fn a_single_head_chain_keeps_its_runtime_grouping_across_the_switch() {
+    let registry = insert_registry();
+    let chain = |enabled| {
+        let mut chain = insert_chain();
+        for block in chain.blocks.iter_mut() {
+            if block.id.0 == INSERT {
+                block.enabled = enabled;
+            }
+        }
+        chain
+    };
+    assert_eq!(
+        crate::runtime_graph::input_group_ids(&chain(false), &registry),
+        crate::runtime_graph::input_group_ids(&chain(true), &registry),
     );
 }
 
@@ -418,5 +447,72 @@ fn a_cut_after_a_disabled_insert_uses_its_own_send_and_return() {
         segments[1].input.channels,
         vec![3],
         "and comes back on B's return"
+    );
+}
+
+/// An E/S that has only an input so far (its output not added yet) plus a loop
+/// switched off: the chain has no output of its own. The loop's reserved send
+/// is NOT an output of the chain — sending the processed guitar out a loop the
+/// user switched off would feed the gear anyway.
+#[test]
+fn a_chain_with_no_output_never_plays_out_a_disabled_inserts_send() {
+    let ep = |name: &str, channels: Vec<usize>| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels,
+    };
+    let registry = vec![
+        IoBinding {
+            id: "io".into(),
+            name: "IO".into(),
+            inputs: vec![ep("in", vec![0])],
+            outputs: vec![],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![ep("ret", vec![2])],
+            outputs: vec![ep("snd", vec![2])],
+        },
+    ];
+    let chain = Chain {
+        id: ChainId("input-only".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId(INSERT.into()),
+            enabled: false,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".into(),
+                io: "fx".into(),
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+    };
+    let (ins, outs) = resolve_chain_io(&chain, &registry);
+    let (eff_in, cpal, split, groups) = effective_inputs(&chain, &ins, &registry);
+    let eff_out = effective_outputs(&chain, &outs, &registry);
+    let segments = crate::runtime_segments::split_chain_into_segments(
+        &chain, &eff_in, &cpal, &split, &groups, &eff_out, &registry,
+    );
+    let send_route = eff_out
+        .iter()
+        .position(|o| o.channels == vec![2])
+        .expect("the send is reserved");
+
+    assert!(
+        segments
+            .iter()
+            .all(|s| !s.output_route_indices.contains(&send_route)),
+        "the switched-off loop's send carries the chain: {:?}",
+        segments
+            .iter()
+            .map(|s| s.output_route_indices.clone())
+            .collect::<Vec<_>>()
     );
 }
