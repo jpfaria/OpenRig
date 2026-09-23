@@ -447,6 +447,16 @@ window is the level the route proved it can hold, and a floor more than
 crossfade. Steady state never trims (bit-identical output).
 `openrig://routes` reports `fill_frames` and `latency_trims` per route.
 
+The level is capped at the cushion the route was built for — its elastic
+target plus the period the callback pops (#969). A ring that filled before
+its output stream started popping (the input ran ahead while new streams
+came up on a scene switch) used to show "full" from the very first window,
+so full became the proven level and was never trimmed: `fill_frames: 1024`,
+`latency_trims: 0`, the chain ~23 ms late and dropping a frame per push.
+Live rebuilds reuse routes (#670), so only switching the chain off and on
+recovered it. Such a floor is now shed back to the target on the first
+window.
+
 ### Chain enabled é runtime, não persistência
 
 `Chain.enabled` é estado de memória — o usuário liga / desliga uma

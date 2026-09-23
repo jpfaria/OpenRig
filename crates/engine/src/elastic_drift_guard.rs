@@ -11,6 +11,12 @@
 //! it can hold; a later floor above it by more than the slack is latency a
 //! stall left behind, and the consumer is told to discard it.
 //!
+//! #969: the level never sits above the cushion the route was built for (its
+//! target plus the period a callback pops). A ring that filled BEFORE its
+//! output stream began popping showed "full" from the first window, full
+//! became the proven level, and the route stayed ~23 ms late and dropping
+//! frames until the chain was switched off and on.
+//!
 //! Consumer-only state (the output callback): `Relaxed` atomics, no lock, no
 //! allocation (invariant #8).
 
@@ -24,6 +30,9 @@ pub(crate) const SLACK_FRAMES: usize = 32;
 const UNKNOWN: usize = usize::MAX;
 
 pub(crate) struct DriftGuard {
+    /// Cushion the route was built for; the level is capped at it plus one
+    /// period.
+    target: usize,
     /// Frames popped in the current window.
     counted: AtomicUsize,
     /// Lowest fill seen at a callback start in the current window.
@@ -37,8 +46,16 @@ pub(crate) struct DriftGuard {
 }
 
 impl DriftGuard {
+    /// A guard with no built-for cushion: the level is whatever the route
+    /// proves.
+    #[cfg(test)]
     pub(crate) fn new() -> Self {
+        Self::for_target(UNKNOWN)
+    }
+
+    pub(crate) fn for_target(target: usize) -> Self {
         Self {
+            target,
             counted: AtomicUsize::new(0),
             floor: AtomicUsize::new(UNKNOWN),
             window_underruns: AtomicU64::new(0),
@@ -65,7 +82,10 @@ impl DriftGuard {
         if !clean {
             return 0;
         }
-        let level = self.level.load(Ordering::Relaxed);
+        let level = self
+            .level
+            .load(Ordering::Relaxed)
+            .min(self.target.saturating_add(frames));
         if floor < level {
             self.level.store(floor, Ordering::Relaxed);
             return 0;

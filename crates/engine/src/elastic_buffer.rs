@@ -73,7 +73,7 @@ impl ElasticBuffer {
             layout,
             last_frame_bits: AtomicU64::new(frame_to_bits(init)),
             underrun_count: AtomicU64::new(0),
-            drift: DriftGuard::new(),
+            drift: DriftGuard::for_target(target_level),
         }
     }
 
