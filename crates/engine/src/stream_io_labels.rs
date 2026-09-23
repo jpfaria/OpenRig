@@ -99,7 +99,8 @@ fn same_output(a: &OutputEntry, b: &OutputEntry) -> bool {
     a.device_id == b.device_id && a.channels == b.channels
 }
 
-/// `(binding id, return entry, send entry)` of every enabled, bound insert.
+/// `(binding id, return entry, send entry)` of every bound insert — enabled or
+/// not (#967: a disabled insert keeps its streams; only the DSP bypasses it).
 fn insert_bindings(
     chain: &Chain,
     registry: &[IoBinding],
@@ -107,7 +108,7 @@ fn insert_bindings(
     chain
         .blocks
         .iter()
-        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
+        .filter(|b| insert_is_bound(&b.kind, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => Some((
                 ib.io.clone(),

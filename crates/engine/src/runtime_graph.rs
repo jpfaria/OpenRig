@@ -107,7 +107,16 @@ pub(crate) fn group_segments_by_input(
     chain: &Chain,
     segments: Vec<ChainSegment>,
 ) -> Vec<(usize, Vec<ChainSegment>)> {
-    if chain_has_enabled_insert(chain) || segments.is_empty() {
+    // #967: the chain is cut at every BOUND insert, enabled or not, and both
+    // halves of a cut must share one runtime — the dry bridge a bypassed
+    // insert rides lives in that runtime's processing state. Deciding from the
+    // segments (not the blocks' enabled flags) keeps a bypassed insert's send
+    // and return together; partitioning them left each half with its own
+    // empty bridge and the bypassed loop silent.
+    let has_insert_cut = segments
+        .iter()
+        .any(|s| s.insert_send.is_some() || s.insert_return.is_some());
+    if chain_has_enabled_insert(chain) || has_insert_cut || segments.is_empty() {
         return vec![(0, segments)];
     }
     #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -192,6 +201,9 @@ pub(crate) fn build_per_input_runtimes(
         registry,
     );
     let groups = group_segments_by_input(chain, all_segments);
+    // #967: the bridges a bypassed insert needs, shared by every group of this
+    // chain — each group builds its own, since a runtime owns its state.
+    let bound_inserts = crate::runtime_segments::bound_insert_blocks(chain, registry);
     let mut out = Vec::with_capacity(groups.len());
     for (group, segments) in groups {
         // All segments of a group share one effective input, hence one
@@ -210,6 +222,7 @@ pub(crate) fn build_per_input_runtimes(
         let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
+            &bound_inserts,
             &eff_outputs,
             group_rate,
             device_rates,
@@ -393,6 +406,7 @@ pub fn build_chain_runtime_state_with_device_rates(
     assemble_chain_runtime_state(
         chain,
         &segments,
+        &crate::runtime_segments::bound_insert_blocks(chain, registry),
         &eff_outputs,
         sample_rate,
         device_rates,

@@ -24,6 +24,7 @@ mod elastic_skip_fade;
 mod endpoint_entry;
 mod input_conflicts;
 pub mod input_tap;
+mod insert_bridge;
 mod insert_endpoints;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]

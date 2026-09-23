@@ -16,11 +16,17 @@ impl LocalDispatcher {
     pub(crate) fn handle_block_lifecycle(&self, cmd: Command) -> Result<Vec<Event>> {
         match cmd {
             Command::Block(BlockCommand::ToggleBlockEnabled { chain, block }) => {
-                let mut is_routing = false;
+                let mut needs_rebuild = false;
                 let new_state = self.with_block(&chain, &block, |b| {
-                    // #881: remember WHAT was toggled — a routing block reaches
-                    // the runtime by rebuild, not by the in-place fade below.
-                    is_routing = b.kind.is_routing();
+                    // #881: remember WHAT was toggled — a port reaches the
+                    // runtime by rebuild, not by the in-place fade below.
+                    // #967: an INSERT is the exception among routing blocks: a
+                    // bound one always splits the chain, so switching it off
+                    // bypasses its loop through the live bridge instead of
+                    // re-splitting anything. Rebuilding for it cost the owner
+                    // 2–3 s of silence per footswitch press.
+                    needs_rebuild = b.kind.is_routing()
+                        && !matches!(b.kind, project::block::AudioBlockKind::Insert(_));
                     // #606: never enable a block whose model is unavailable —
                     // the user cannot activate a pedal whose pack is not
                     // installed (or is unsupported on this platform). Disabling
@@ -61,7 +67,7 @@ impl LocalDispatcher {
                     // finds no node, posts "block '…' not found in any input
                     // runtime of the chain" from the audio thread and changes
                     // nothing audible; only a rebuild re-splits the chain.
-                    Some(control) if is_routing => control.sync_chain(&chain)?,
+                    Some(control) if needs_rebuild => control.sync_chain(&chain)?,
                     Some(control) => control.set_block_enabled(&chain, &block, new_state)?,
                     // Nothing to apply it to (yet). Say the sync is owed rather
                     // than report a silent success: this used to cold-start an

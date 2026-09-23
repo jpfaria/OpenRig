@@ -325,13 +325,17 @@ fn dispatcher_with_insert() -> (LocalDispatcher, Rc<RefCell<Vec<RuntimeCall>>>) 
     (d, calls)
 }
 
-/// #881 — an `Insert` splits the chain into segments; it has no live node to
-/// fade. The #522 in-place toggle finds nothing, posts "block '…' not found in
-/// any input runtime of the chain" from the audio thread and changes nothing
-/// audible. Only a rebuild re-splits the chain, so that is what the toggle of a
-/// routing block must ask for — scoped to its own chain.
+/// #967 — an `Insert` is applied IN PLACE, like any other block.
+///
+/// #881 sent it down the rebuild road because an insert had no live node to
+/// fade: the chain was only split at ENABLED inserts, so switching one off
+/// changed how many streams the chain needed. It now has one — a bound insert
+/// always splits the chain and `engine::insert_bridge` carries the dry signal
+/// while it is bypassed — so the rebuild is pure damage. Measured on the
+/// owner's rig before this change: 2.1 s (off) and 3.0 s (on) of silence, with
+/// every stream the chain owned closed and reopened for a one-bit flip.
 #[test]
-fn toggling_an_insert_asks_for_its_chain_rebuild() {
+fn toggling_an_insert_is_applied_in_place() {
     let (dispatcher, calls) = dispatcher_with_insert();
 
     dispatcher
@@ -340,8 +344,11 @@ fn toggling_an_insert_asks_for_its_chain_rebuild() {
 
     assert_eq!(
         *calls.borrow(),
-        vec![RuntimeCall::SyncChain("chain_a".to_string())],
-        "an insert is a segment boundary: rebuild its chain, never the in-place \
-         block toggle that cannot apply it"
+        vec![RuntimeCall::BlockEnabled(
+            "chain_a".to_string(),
+            "a_insert".to_string(),
+            false
+        )],
+        "a bound insert has a live bridge to flip: never rebuild the chain for it"
     );
 }

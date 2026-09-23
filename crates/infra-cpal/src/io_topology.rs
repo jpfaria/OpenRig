@@ -55,7 +55,13 @@ pub(crate) fn bound_io_signature(
         .map(|e| (e.device_id, e.channels))
         .collect();
 
-    for block in chain.blocks.iter().filter(|b| b.enabled) {
+    // #967: a BOUND insert occupies its send and return whether the block is
+    // enabled or not. Counting only enabled ones made a footswitch press read
+    // as a re-bind, so a one-bit flip closed and reopened every stream the
+    // chain owned (2–3 s of silence on the owner's rig). Switching an insert
+    // off bypasses the loop in the DSP (`engine::insert_bridge`); the streams
+    // stay exactly where they are.
+    for block in chain.blocks.iter() {
         let project::block::AudioBlockKind::Insert(insert) = &block.kind else {
             continue;
         };
@@ -87,7 +93,14 @@ pub(crate) fn chain_structure_signature(chain: &project::chain::Chain) -> Vec<St
         .blocks
         .iter()
         .map(|b| {
-            if b.kind.is_routing() {
+            // #967: an INSERT is routing, but its enable flag no longer decides
+            // where the chain splits — a bound insert always splits it, and
+            // switching it off bypasses the loop in the DSP. Leaving the flag
+            // in here sent every footswitch press through a full stream
+            // rebuild (2–3 s of silence, measured on the owner's rig).
+            if matches!(b.kind, project::block::AudioBlockKind::Insert(_)) {
+                format!("{}|{}", b.id.0, b.kind.model_identity())
+            } else if b.kind.is_routing() {
                 format!("{}|{}|{}", b.id.0, b.kind.model_identity(), b.enabled)
             } else {
                 format!("{}|{}", b.id.0, b.kind.model_identity())

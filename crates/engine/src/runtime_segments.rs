@@ -33,7 +33,22 @@ pub(crate) use crate::segment_binding::{binding_of_raw_input, binding_of_route};
 pub(crate) use crate::segment_taps::taps_for_segment;
 pub(crate) use crate::segment_types::{ChainSegment, MidOutputTap, SegmentTap};
 
-/// Split a chain into segments at enabled Insert block boundaries.
+/// The chain's BOUND inserts, in chain order: the block id and whether the
+/// block is enabled. #967: one dry bridge is built per entry, and the flag is
+/// its initial bypass state (a disabled insert starts bypassed).
+pub(crate) fn bound_insert_blocks(
+    chain: &Chain,
+    registry: &[IoBinding],
+) -> Vec<(domain::ids::BlockId, bool)> {
+    chain
+        .blocks
+        .iter()
+        .filter(|b| insert_is_bound(&b.kind, registry))
+        .map(|b| (b.id.clone(), b.enabled))
+        .collect()
+}
+
+/// Split a chain into segments at bound Insert block boundaries.
 ///
 /// Example: `[Input, Comp, EQ, Insert, Delay, Reverb]`
 ///   - Segment 1: input=head endpoints, blocks=[Comp, EQ], outputs=[Insert send]
@@ -52,16 +67,22 @@ pub(crate) fn split_chain_into_segments(
     _effective_outs: &[OutputEntry],
     registry: &[IoBinding],
 ) -> Vec<ChainSegment> {
-    // Find positions of enabled Insert blocks in chain.blocks. Only an insert
+    // Find positions of BOUND Insert blocks in chain.blocks. Only an insert
     // whose binding resolves on BOTH sides is a boundary (#881): the send and
     // return shims are what `effective_outputs` / `effective_inputs` append, so
-    // an unbound insert has no endpoints to split at — it is bypassed and the
-    // chain flows straight through it.
+    // an unbound insert has no endpoints to split at — the chain flows straight
+    // through it.
+    //
+    // #967: the block's `enabled` flag is NOT part of this decision. A bound
+    // insert occupies its send and its return either way; switching it off
+    // bypasses the loop in the DSP (`InsertBridge`) instead of unplugging it,
+    // so a footswitch press no longer closes and reopens every stream the
+    // chain owns.
     let insert_positions: Vec<usize> = chain
         .blocks
         .iter()
         .enumerate()
-        .filter(|(_, b)| b.enabled && insert_is_bound(&b.kind, registry))
+        .filter(|(_, b)| insert_is_bound(&b.kind, registry))
         .map(|(i, _)| i)
         .collect();
 
@@ -262,6 +283,8 @@ fn segments_without_inserts(
                 mid_output_taps: Vec::new(),
                 split_mono_sibling_count: split_positions.get(in_idx).copied().unwrap_or(None),
                 entry_group: entry_groups.get(in_idx).copied().unwrap_or(in_idx),
+                insert_send: None,
+                insert_return: None,
             });
         }
     }
@@ -334,6 +357,8 @@ fn segments_with_inserts(
                     mid_output_taps: taps.clone(),
                     split_mono_sibling_count: split_positions.get(i).copied().unwrap_or(None),
                     entry_group: entry_groups.get(i).copied().unwrap_or(i),
+                    insert_send: Some(insert_order),
+                    insert_return: None,
                 });
             }
         } else {
@@ -353,6 +378,8 @@ fn segments_with_inserts(
                     .get(prev_return_idx)
                     .copied()
                     .unwrap_or(prev_return_idx),
+                insert_send: Some(insert_order),
+                insert_return: Some(insert_order - 1),
             });
         }
 
@@ -396,6 +423,8 @@ fn segments_with_inserts(
             .get(last_return_idx)
             .copied()
             .unwrap_or(last_return_idx),
+        insert_send: None,
+        insert_return: Some(insert_positions.len() - 1),
     });
 
     segments

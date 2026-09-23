@@ -16,7 +16,7 @@ use crate::insert_endpoints::{
 ///
 /// Returns `(entries, cpal_indices, split_positions, entry_groups)` — see the
 /// per-field docs below. `resolved` are the chain's input endpoints (from the
-/// binding registry); Insert-return shims are appended from the chain's enabled
+/// binding registry); Insert-return shims are appended from the chain's bound
 /// Insert blocks. The split-mono / cpal-index / group math is byte-identical to
 /// the legacy entries-based path (pinned volume invariants depend on it).
 ///
@@ -77,7 +77,10 @@ pub(crate) fn effective_inputs(
     let insert_returns: Vec<InputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
+        // #967: a BOUND insert owns its shim whether or not the block is
+        // enabled — switching it off bypasses the loop in the DSP, it does not
+        // unplug the send/return streams.
+        .filter(|b| insert_is_bound(&b.kind, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_return_as_input_entry(ib, registry),
             _ => None,
@@ -135,7 +138,10 @@ pub(crate) fn effective_outputs(
     let insert_sends: Vec<OutputEntry> = chain
         .blocks
         .iter()
-        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
+        // #967: a BOUND insert owns its shim whether or not the block is
+        // enabled — switching it off bypasses the loop in the DSP, it does not
+        // unplug the send/return streams.
+        .filter(|b| insert_is_bound(&b.kind, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
             _ => None,

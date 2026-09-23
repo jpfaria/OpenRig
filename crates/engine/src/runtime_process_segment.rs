@@ -90,6 +90,9 @@ fn mix_outgoing_tail(
 #[derive(Clone, Copy)]
 pub(crate) enum SegmentFeed<'a> {
     Live,
+    /// #967: the insert feeding this segment is bypassed — read the dry frames
+    /// its send segment parked instead of the return endpoint.
+    InsertDry,
     Loop(&'a crate::di_loop::DiLoop, usize),
     Silence,
 }
@@ -97,6 +100,7 @@ pub(crate) enum SegmentFeed<'a> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_single_segment(
     input_states: &mut [InputProcessingState],
+    insert_bridges: &mut [crate::insert_bridge::InsertBridge],
     scratch: &mut InputCallbackScratch,
     seg_idx: usize,
     data: &[f32],
@@ -124,6 +128,8 @@ pub(crate) fn process_single_segment(
         split_mono_sibling_count,
         plays_di_loop: _,
         outgoing,
+        insert_send_bridge,
+        insert_return_bridge,
     } = input_state;
 
     frame_buffer.clear();
@@ -131,7 +137,31 @@ pub(crate) fn process_single_segment(
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
     }
 
+    // #967: this segment is fed by an insert RETURN whose insert is switched
+    // off — the external loop is bypassed, so the dry frames its send segment
+    // parked stand in for what the gear would have sent back. The return
+    // stream stays open and keeps driving this callback; only the CONTENT
+    // changes, which is why the switch costs nothing.
+    let bypassed_return = insert_return_bridge
+        .and_then(|i| insert_bridges.get(i))
+        .is_some_and(|bridge| bridge.bypassed);
+    let feed = if bypassed_return {
+        SegmentFeed::InsertDry
+    } else {
+        feed
+    };
+
     match feed {
+        SegmentFeed::InsertDry => {
+            let silence = match *processing_layout {
+                AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+                AudioChannelLayout::Mono => AudioFrame::Mono(0.0),
+            };
+            if let Some(bridge) = insert_return_bridge.and_then(|i| insert_bridges.get_mut(i)) {
+                bridge.take(num_frames, silence, frame_buffer);
+            }
+            let _ = (input_read_layout, input_channels);
+        }
         SegmentFeed::Silence => {
             // #699: a DI loop is armed and plays in another segment — this
             // segment is muted for the callback (DI replaces ALL live input).
@@ -291,6 +321,17 @@ pub(crate) fn process_single_segment(
     // to keep this function's cognitive complexity in budget; `None` ⇒ it
     // is a no-op and behaviour is byte-identical to pre-#454-T5.
     mix_outgoing_tail(outgoing, frame_buffer, *processing_layout, error_queue);
+
+    // #967: this segment feeds an insert SEND. While that insert is bypassed
+    // it also parks the dry frames for the return segment, which reads them in
+    // place of the gear's answer. The send route below is written either way —
+    // the gear keeps receiving, exactly as a bypassed loop on a pedalboard
+    // does, and nothing about the stream topology changes.
+    if let Some(bridge) = insert_send_bridge.and_then(|i| insert_bridges.get_mut(i)) {
+        if bridge.bypassed {
+            bridge.park(frame_buffer.as_slice());
+        }
+    }
 
     for &route_idx in output_route_indices.iter() {
         let buf = scratch.mixed_per_route.entry(route_idx).or_default();

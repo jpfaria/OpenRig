@@ -209,6 +209,8 @@ pub fn process_input_f32(
         input_to_segments,
         input_scratches,
         looper_bank,
+        insert_bridges,
+        insert_block_ids: _,
     } = &mut *processing_guard;
 
     // #323: apply the loopers' queued transport/param ops before any segment
@@ -258,6 +260,7 @@ pub fn process_input_f32(
         };
         process_single_segment(
             input_states,
+            insert_bridges,
             &mut scratch,
             seg_idx,
             data,

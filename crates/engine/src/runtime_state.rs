@@ -77,6 +77,13 @@ pub(crate) struct InputProcessingState {
     /// #454-T5: previous pipeline decaying in parallel after a switch.
     /// `None` in steady state ⇒ behaviour byte-identical to pre-#454-T5.
     pub(crate) outgoing: Option<Box<OutgoingTail>>,
+    /// #967: index into `ChainProcessingState::insert_bridges` of the insert
+    /// whose SEND this segment feeds. While that insert is bypassed the
+    /// segment also parks its dry frames in the bridge.
+    pub(crate) insert_send_bridge: Option<usize>,
+    /// #967: index of the insert whose RETURN feeds this segment. While that
+    /// insert is bypassed the segment reads the bridge instead of the device.
+    pub(crate) insert_return_bridge: Option<usize>,
 }
 
 pub(crate) struct ChainProcessingState {
@@ -91,6 +98,14 @@ pub(crate) struct ChainProcessingState {
     /// thread already holds `&mut` to the processing state, so the slots need
     /// no lock of their own.
     pub(crate) looper_bank: crate::looper_bank::LooperBank,
+    /// #967: one dry bridge per BOUND insert, in chain order. Owned here for
+    /// the same reason as the loopers: the audio thread holds `&mut` to this
+    /// state, so both of the insert's segments reach their bridge under the
+    /// lock they already take.
+    pub(crate) insert_bridges: Vec<crate::insert_bridge::InsertBridge>,
+    /// #967: the block id of each bound insert, parallel to `insert_bridges`,
+    /// so a queued toggle finds the bridge it flips.
+    pub(crate) insert_block_ids: Vec<domain::ids::BlockId>,
 }
 
 /// Scratch buffers reused across audio callbacks for a single input_index.

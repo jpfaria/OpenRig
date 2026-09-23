@@ -70,6 +70,11 @@ const CROSS_RATE_CUSHION: usize = 3;
 /// clock, [`CROSS_RATE_CUSHION`] times that when it does not. Shared by the
 /// initial build and the live rebuild — a rebuilt tap that drops back to the
 /// lockstep depth starves on the first bunched callback (#85).
+/// #967: frames of slack in an insert's dry bridge — a few callbacks at the
+/// largest buffer we support, so the send and return callbacks can drift
+/// without the bypassed path running dry.
+const INSERT_BRIDGE_FRAMES: usize = 8192;
+
 pub(crate) fn cushion_for_route(lockstep: usize, route_rate: f32, runtime_rate: f32) -> usize {
     if (route_rate - runtime_rate).abs() >= f32::EPSILON {
         lockstep * CROSS_RATE_CUSHION
@@ -81,6 +86,7 @@ pub(crate) fn cushion_for_route(lockstep: usize, route_rate: f32, runtime_rate: 
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
+    bound_inserts: &[(domain::ids::BlockId, bool)],
     eff_outputs: &[OutputEntry],
     sample_rate: f32,
     device_rates: &HashMap<DeviceId, f32>,
@@ -105,7 +111,7 @@ pub(crate) fn assemble_chain_runtime_state(
             .as_mut()
             .and_then(|v| v.get_mut(seg_idx))
             .map(std::mem::take);
-        let input_state = build_input_processing_state(
+        let mut input_state = build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
@@ -116,6 +122,9 @@ pub(crate) fn assemble_chain_runtime_state(
             segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
         )?;
+        // #967: which insert bridge this segment parks into / reads from.
+        input_state.insert_send_bridge = segment.insert_send;
+        input_state.insert_return_bridge = segment.insert_return;
         input_states.push(input_state);
     }
     mark_di_loop_pipelines(segments, &mut input_states);
@@ -214,6 +223,16 @@ pub(crate) fn assemble_chain_runtime_state(
             input_to_segments,
             input_scratches,
             looper_bank: crate::looper_bank::LooperBank::new(looper_max_frames),
+            // #967: one dry bridge per bound insert. A disabled insert starts
+            // bypassed — the loop is skipped in the DSP while its send and
+            // return streams stay open.
+            insert_bridges: bound_inserts
+                .iter()
+                .map(|(_, enabled)| {
+                    crate::insert_bridge::InsertBridge::new(!enabled, INSERT_BRIDGE_FRAMES)
+                })
+                .collect(),
+            insert_block_ids: bound_inserts.iter().map(|(id, _)| id.clone()).collect(),
         }),
         output_routes: ArcSwap::from_pointee(output_routes),
         stream_handles: Mutex::new(stream_handles_map),
@@ -338,6 +357,10 @@ pub(crate) fn build_input_processing_state(
     )?;
 
     Ok(InputProcessingState {
+        // #967: filled in by the caller, which knows this segment's insert
+        // wiring; a segment with no insert keeps both at `None`.
+        insert_send_bridge: None,
+        insert_return_bridge: None,
         input_read_layout,
         processing_layout: processing_layout_channel,
         input_channels: input.channels.clone(),
