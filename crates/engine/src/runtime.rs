@@ -238,14 +238,11 @@ pub fn process_input_f32(
     };
     scratch.reset_for_callback();
 
+    // An input with no entry feeds nothing here (#967: a disabled insert's
+    // return) — never "the state with that number", which is some guitar's
+    // split-mono sibling. The map always has a slot per cpal index (#975).
     if let Some(segments) = input_to_segments.get(input_index) {
         scratch.segment_indices.extend(segments.iter().copied());
-    } else if input_to_segments.is_empty() && input_index < input_states.len() {
-        // Legacy shape with no map at all: one state per input. A map that
-        // simply has no entry for this input means NOTHING here reads it
-        // (#967: a disabled insert's return) — never "the state with that
-        // number", which is some guitar's split-mono sibling.
-        scratch.segment_indices.push(input_index);
     }
 
     // Process each segment, mixing into scratch.mixed_per_route.

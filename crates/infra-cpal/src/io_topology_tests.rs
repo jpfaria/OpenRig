@@ -248,3 +248,80 @@ fn a_switch_that_regroups_the_chains_runtimes_is_a_structural_change() {
         "#967: this switch regroups the runtimes — it needs new streams"
     );
 }
+
+// ── #871/#881: a mid port's enable flag IS part of the chain structure ──────
+
+/// A mid `Input` / `Output` is a port: a disabled one owns no stream
+/// (`resolve_chain_ports`, #871), so switching it changes the streams the
+/// chain needs and the structure signature must say so — otherwise the
+/// live-edit path swaps only the DSP and the port's stream is never opened
+/// (or never closed). The insert beside them is the #967 exception: its flag
+/// only moves the DSP cut. The registry is empty on purpose: nothing
+/// resolves, so the runtime-grouping row is identical in every case and a
+/// difference can only come from the port's own row.
+#[test]
+fn a_mid_ports_enable_flag_is_part_of_the_chain_structure() {
+    use domain::ids::{BlockId, ChainId};
+    use project::block::{AudioBlock, AudioBlockKind, InputBlock, InsertBlock, OutputBlock};
+    use project::chain::Chain;
+
+    let block = |id: &str, kind: AudioBlockKind| AudioBlock {
+        id: BlockId(id.into()),
+        enabled: true,
+        kind,
+    };
+    let chain = Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["main".into()],
+        blocks: vec![
+            block(
+                "mid-in",
+                AudioBlockKind::Input(InputBlock {
+                    model: "standard".into(),
+                    io: "tap".into(),
+                    endpoint: "in".into(),
+                }),
+            ),
+            block(
+                "mid-out",
+                AudioBlockKind::Output(OutputBlock {
+                    model: "standard".into(),
+                    io: "tap".into(),
+                    endpoint: "out".into(),
+                }),
+            ),
+            block(
+                "insert",
+                AudioBlockKind::Insert(InsertBlock {
+                    model: "external_loop".into(),
+                    io: "fx".into(),
+                }),
+            ),
+        ],
+        di_output: None,
+        loopers: vec![],
+    };
+    let on = super::chain_structure_signature(&chain, &[]);
+
+    for (idx, name) in [(0, "mid Input"), (1, "mid Output")] {
+        let mut toggled = chain.clone();
+        toggled.blocks[idx].enabled = false;
+        let off = super::chain_structure_signature(&toggled, &[]);
+
+        assert_eq!(
+            on.last(),
+            off.last(),
+            "precondition: with nothing resolved the runtime grouping must not \
+             move, so only the {name}'s own row can tell the two apart"
+        );
+        assert_ne!(
+            on, off,
+            "#881: switching a {name} off changes the streams the chain owns — \
+             it must read as a structural change"
+        );
+    }
+}
