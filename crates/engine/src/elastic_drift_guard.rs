@@ -19,14 +19,6 @@
 //! full by the time the first window closes. Taking that first floor as the
 //! level ratified the whole capacity as the route's latency for good.
 //!
-//! A window WITH underruns forgets the level. The route underran because its
-//! rest was too low, and the gap itself pushed it one callback higher; the
-//! level is learned again from the next clean window, at the new rest. Kept,
-//! the old level made the guard cut the route straight back down — the
-//! fragile rest again, the next underrun, the next cut: a pump of clicks and
-//! skips (#965: a fresh route swapped in by a live rebuild rests one period
-//! below its cushion, measured on the owner's Quantum).
-//!
 //! Consumer-only state (the output callback): `Relaxed` atomics, no lock, no
 //! allocation (invariant #8).
 
@@ -83,7 +75,6 @@ impl DriftGuard {
         self.counted.store(0, Ordering::Relaxed);
         let clean = self.window_underruns.swap(underruns, Ordering::Relaxed) == underruns;
         if !clean {
-            self.level.store(UNKNOWN, Ordering::Relaxed);
             return 0;
         }
         let level = self

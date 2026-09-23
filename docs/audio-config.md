@@ -371,7 +371,7 @@ things, and missing any one of them is audible:
    device taking fixed buffers at its own callback times, which the OS bunches.
    A cross-rate route gets `CROSS_RATE_CUSHION` (3×) the lockstep depth, primed
    — and the LIVE REBUILD must keep it, or the tap starves again after the first
-   block move (`cushion_for_route`, shared by build and rebuild).
+   block move (`route_cushion`, shared by build and rebuild).
 
 The rebuild also has to KNOW the rate: it derives the per-device rates from the
 live stream signature, which must include the **outputs**
@@ -453,13 +453,9 @@ stream, and every input period before the output's first callback pushes a
 buffer nobody pops — the ring was full (its whole capacity, 2× the target)
 by the time the first window closed, and taking that floor as the level
 kept the full capacity as latency until the chain was switched off and on.
-Now the excess above the target is shed at the first clean window. And a
-window WITH underruns forgets the level: the route underran because its rest
-was too low, the gap pushed it one callback higher, and the level is learned
-again at the new rest — kept, the guard cut the route straight back down to
-the fragile rest (underrun, cut, underrun: a pump of clicks). A cross-rate
-route (#85) is not guarded at all: its resampler servo owns the level, and
-the two used to fight, refill and cut, for the life of the route.
+Now the excess above the target is shed at the first clean window. A
+cross-rate route (#85) is not guarded at all: its resampler servo owns the
+level, and the two used to fight, refill and cut, for the life of the route.
 
 #### How a route's cushion is sized (#965)
 
@@ -477,16 +473,21 @@ CPU-time isolation violation — and it reverses #670; both were rejected.
   for the cold build and the live rebuild — the live path used to size
   insert sends like regular outputs, so the first knob turn rebuilt the send
   with a gap): the output device's buffer × a multiplier — ×1 for an Insert
-  send; on macOS ×1 for a regular output on the same device as one of the
-  chain's inputs; ×2 otherwise (×8 on JACK). Never less than the biggest
-  input buffer: the producer pushes a whole input callback at once, and a
-  ring of 2× a smaller cushion dropped it.
+  send; on macOS ×1 for a regular output fed only by an input on its own
+  device; ×2 otherwise (×8 on JACK). A route is sized from ITS producers —
+  the inputs of the segments that write it (`engine::route_clock::
+  route_producers`) — never from every chain input: a tail fed by an insert
+  return on another interface keeps ×2, and one stream's buffer size never
+  raises another stream's latency. Never less than its producer's buffer:
+  the producer pushes a whole input callback at once, and a ring of 2× a
+  smaller cushion dropped it.
 - **Prime** (`engine/src/route_cushion.rs`): a route fed by a convolver
   (#592, decided per route in `route_convolution.rs` — an insert's send
   before the cab and a mid tap before the cab are not fed) is born with its
   cushion already filled, exactly its target: never above it, so the guard
   never cuts it (a 512-frame prime above the target cost a skip ~186 ms
-  after every live edit and every DI render). Other routes start empty.
+  after every live edit and every DI render). A cross-rate route starts with
+  its extra depth filled (#85); other routes start empty.
 - **Another clock** (`route_clock.rs`): a route whose output device is not
   its producer's input device runs on another clock; at the same nominal
   rate the two drift and the ring slowly drains. There a convolver-fed route

@@ -45,7 +45,7 @@ mod rig_projection;
 pub mod rig_runtime;
 mod rig_runtime_normalize;
 mod rig_tap_conflict;
-mod route_clock;
+pub mod route_clock;
 mod route_convolution;
 mod route_cushion;
 pub mod runtime;

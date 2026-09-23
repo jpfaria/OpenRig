@@ -74,6 +74,7 @@ fn insert_chain() -> Chain {
     )
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
 fn signature(inputs: &[(&str, u32)], outputs: &[(&str, u32)]) -> ChainStreamSignature {
     ChainStreamSignature {
         inputs: inputs
@@ -177,5 +178,116 @@ fn a_regular_output_on_another_device_keeps_the_regular_cushion() {
     assert_eq!(
         targets[0],
         engine::runtime::elastic_target_for_buffer(64, ELASTIC_MULTIPLIER_REGULAR)
+    );
+}
+
+fn registry_with_remote_loop() -> Vec<IoBinding> {
+    let mut registry = registry();
+    registry.push(IoBinding {
+        id: "remote-loop".into(),
+        name: "Loop on another interface".into(),
+        inputs: vec![endpoint("ret", OTHER, ChannelMode::Stereo, &[0, 1])],
+        outputs: vec![endpoint("snd", OTHER, ChannelMode::Mono, &[2])],
+    });
+    registry
+}
+
+/// Final review of `f92f8f10f`: the one-buffer cushion was granted when ANY
+/// chain input shared the output's device. Guitar and Main on the Quantum,
+/// insert loop on another interface: Main is written by the segment after
+/// the insert, fed by the RETURN on the other interface's clock and HAL
+/// thread — it must keep the regular cushion.
+#[test]
+fn a_tail_fed_by_a_return_on_another_device_keeps_the_regular_cushion() {
+    let owner = chain_on(
+        "guitarra-1",
+        vec![AudioBlock {
+            id: BlockId("insert".into()),
+            enabled: true,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".into(),
+                io: "remote-loop".into(),
+            }),
+        }],
+    );
+    let targets = elastic_targets(
+        &owner,
+        &registry_with_remote_loop(),
+        &[
+            StreamClock {
+                device_id: QUANTUM,
+                buffer_frames: 64,
+            },
+            StreamClock {
+                device_id: OTHER,
+                buffer_frames: 64,
+            },
+        ],
+        &[
+            StreamClock {
+                device_id: QUANTUM,
+                buffer_frames: 64,
+            },
+            StreamClock {
+                device_id: OTHER,
+                buffer_frames: 64,
+            },
+        ],
+    );
+    assert_eq!(
+        targets[0],
+        engine::runtime::elastic_target_for_buffer(64, ELASTIC_MULTIPLIER_REGULAR),
+        "Main is fed from the other interface's clock"
+    );
+    assert_eq!(
+        targets[1],
+        engine::runtime::elastic_target_for_buffer(64, ELASTIC_MULTIPLIER_INSERT_SEND),
+        "the send keeps the lean insert cushion (it is not the same-device rule)"
+    );
+}
+
+/// Final review of `f92f8f10f` (stream isolation law): the producer-burst
+/// floor took the biggest buffer of EVERY chain input, so a second binding's
+/// interface running 512 frames raised Main's cushion on the Quantum to 512.
+/// A route is sized only by the stream that feeds it.
+#[test]
+fn a_route_is_not_sized_by_another_streams_buffer() {
+    let mut registry = registry();
+    registry.push(IoBinding {
+        id: "other-guitar".into(),
+        name: "Other guitar".into(),
+        inputs: vec![endpoint("in", OTHER, ChannelMode::Mono, &[0])],
+        outputs: vec![endpoint("out", OTHER, ChannelMode::Stereo, &[0, 1])],
+    });
+    let mut two = chain_on("guitarra-1", vec![]);
+    two.io_binding_ids.push("other-guitar".into());
+    let targets = elastic_targets(
+        &two,
+        &registry,
+        &[
+            StreamClock {
+                device_id: QUANTUM,
+                buffer_frames: 64,
+            },
+            StreamClock {
+                device_id: OTHER,
+                buffer_frames: 512,
+            },
+        ],
+        &[
+            StreamClock {
+                device_id: QUANTUM,
+                buffer_frames: 64,
+            },
+            StreamClock {
+                device_id: OTHER,
+                buffer_frames: 512,
+            },
+        ],
+    );
+    assert!(
+        targets[0] <= engine::runtime::elastic_target_for_buffer(64, ELASTIC_MULTIPLIER_REGULAR),
+        "Main on the Quantum rests at {} frames because another stream runs 512",
+        targets[0]
     );
 }

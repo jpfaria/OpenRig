@@ -76,19 +76,3 @@ fn a_route_resting_below_its_target_is_left_where_it_rests() {
     assert_eq!(windows(&guard, 128, 3, 0), 0);
     assert_eq!(guard.trims(), 0);
 }
-
-/// #965: a route can rest BELOW its designed cushion — a fresh route swapped
-/// in by an off-thread live rebuild rests one period lower (measured on the
-/// owner's Quantum: 0..64 frames after edits, 64..128 from a cold start).
-/// When it underruns once, the gap pushes it one callback higher. The guard
-/// kept the low rest it had learned and cut the route straight back — the
-/// fragile rest again, the next underrun, the next cut: a pump of clicks and
-/// skips. A window that underran forgets the level.
-#[test]
-fn a_route_that_underran_back_up_to_its_cushion_is_not_cut() {
-    let guard = DriftGuard::new(128);
-    windows(&guard, 128, 3, 0);
-    windows(&guard, 128 + PERIOD, 1, 1);
-    assert_eq!(windows(&guard, 128 + PERIOD, 3, 1), 0);
-    assert_eq!(guard.trims(), 0);
-}

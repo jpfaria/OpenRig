@@ -59,3 +59,24 @@ fn an_ir_route_keeps_the_592_cushion_only_off_its_producer_clock() {
         128
     );
 }
+
+/// Final review of `f92f8f10f`: the #592 floor must never SHRINK a cushion
+/// that is already deeper (JACK sizes routes x8: 2048 frames at 256).
+#[test]
+fn the_592_floor_never_shrinks_a_deeper_cushion() {
+    assert_eq!(
+        route_cushion(2048, 48_000.0, 48_000.0, true, false).target,
+        2048
+    );
+    assert_eq!(
+        route_cushion(
+            IR_COLD_START_CUSHION_FRAMES + 1,
+            48_000.0,
+            48_000.0,
+            true,
+            false
+        )
+        .target,
+        IR_COLD_START_CUSHION_FRAMES + 1
+    );
+}

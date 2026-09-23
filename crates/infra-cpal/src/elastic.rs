@@ -79,13 +79,11 @@ pub(crate) fn elastic_targets(
     inputs: &[StreamClock<'_>],
     outputs: &[StreamClock<'_>],
 ) -> Vec<usize> {
-    // The producer pushes a whole input callback at once: a route rests at
-    // least one such burst deep, or its ring (2x the cushion) drops it.
-    let burst = inputs
-        .iter()
-        .map(|i| i.buffer_frames as usize)
-        .max()
-        .unwrap_or(0);
+    // #965: each route is sized from ITS producers — the input streams of the
+    // segments that write it — never from every chain input: a route fed from
+    // another clock must not get a same-clock cushion, and one stream's buffer
+    // size must not raise another stream's latency (isolation law).
+    let producers = engine::route_clock::route_producers(chain, registry);
     // Model A (#716): the regular (non-Insert) outputs come from the resolved
     // binding endpoints; Insert sends are appended after them in the output
     // streams, so the count still splits the two.
@@ -95,13 +93,30 @@ pub(crate) fn elastic_targets(
         .iter()
         .enumerate()
         .map(|(idx, out)| {
+            let single_producer = match producers.get(idx).map(Vec::as_slice) {
+                Some([only]) => Some(only.0.as_str()),
+                _ => None,
+            };
             let multiplier = if idx >= regular_output_count {
                 ELASTIC_MULTIPLIER_INSERT_SEND
-            } else if inputs.iter().any(|i| i.device_id == out.device_id) {
+            } else if single_producer == Some(out.device_id) {
                 ELASTIC_MULTIPLIER_SAME_DEVICE
             } else {
                 ELASTIC_MULTIPLIER_REGULAR
             };
+            // The producer pushes a whole input callback at once: a route
+            // rests at least one such burst deep, or its ring (2x the
+            // cushion) drops it.
+            let burst = single_producer
+                .map(|device| {
+                    inputs
+                        .iter()
+                        .filter(|input| input.device_id == device)
+                        .map(|input| input.buffer_frames as usize)
+                        .max()
+                        .unwrap_or(0)
+                })
+                .unwrap_or(0);
             elastic_target_for_buffer(out.buffer_frames, multiplier).max(burst)
         })
         .collect()
