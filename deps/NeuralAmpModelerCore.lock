@@ -1,0 +1,6 @@
+tag: v0.5.4
+commit: 1f42f88535884450104b8711d7595019afa0495b
+submodule Dependencies/AudioDSPTools: 0827c6c2fc0deced568536142ea86f189e0b98a1
+submodule Dependencies/AudioDSPTools/Dependencies/eigen: 6d829e766ff1b1ab867d93631163cbc63ed5798f
+submodule Dependencies/eigen: bc3b39870ecb690a623a3f49149a358b95c5781d
+archive sha256: 3b308fd89ee008f75be856b48a91c8ed23b146230273ea5e67c74d9a9b93030a
