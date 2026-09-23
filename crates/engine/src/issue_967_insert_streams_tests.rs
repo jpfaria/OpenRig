@@ -157,6 +157,12 @@ fn switching_the_insert_keeps_the_route_and_input_numbering() {
 /// streams left the second interface's output with no runtime and put both
 /// device callbacks on one processing lock. With the loop ON the cut is one
 /// pipeline across both heads, one runtime.
+///
+/// cpal only: linux+JACK groups runtimes per DEVICE, not per input entry
+/// (#703's cfg law — the JACK-direct client binds one runtime per device), so
+/// two E/S on one interface are one runtime there whether or not a loop cuts
+/// the chain.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn a_disabled_insert_keeps_every_head_in_its_own_runtime() {
     let registry = two_heads_registry();
@@ -165,6 +171,13 @@ fn a_disabled_insert_keeps_every_head_in_its_own_runtime() {
         vec![0, 1],
         "loop off: one isolated runtime per E/S"
     );
+}
+
+/// On every platform, the loop's cut is one pipeline across every head: one
+/// runtime.
+#[test]
+fn an_enabled_insert_makes_the_heads_one_runtime() {
+    let registry = two_heads_registry();
     assert_eq!(
         crate::runtime_graph::input_group_ids(&two_heads_chain(true), &registry),
         vec![0],
