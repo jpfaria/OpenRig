@@ -25,6 +25,7 @@
 mod bundle_metadata;
 pub mod catalog;
 mod catalog_params;
+mod class_uid_match;
 pub mod discovery;
 mod host;
 pub mod host_application;

@@ -98,7 +98,7 @@ impl Vst3Plugin {
                 continue;
             }
             let bytes = tuid_to_bytes(&info.cid);
-            if &bytes == plugin_uid {
+            if crate::class_uid_match::class_uid_matches(&bytes, plugin_uid) {
                 found_tuid = Some(info.cid);
                 break;
             }
