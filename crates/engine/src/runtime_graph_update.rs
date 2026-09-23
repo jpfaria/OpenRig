@@ -387,6 +387,22 @@ fn update_chain_runtime_state_impl(
         processing
             .input_scratches
             .resize_with(new_len, InputCallbackScratch::default);
+        // #967: a route converter's phase and history belong to the route it
+        // fed. Keep it only where the route itself survives this update (the
+        // same Arc); a route built fresh — or gone — starts clean, so a few
+        // samples from before the edit are never played in front of it.
+        let old_routes = runtime.output_routes.load();
+        for scratch in processing.input_scratches.iter_mut() {
+            scratch.route_resamplers.retain(|route_idx, _| {
+                match (
+                    new_output_routes.get(*route_idx).and_then(Option::as_ref),
+                    old_routes.get(*route_idx).and_then(Option::as_ref),
+                ) {
+                    (Some(new), Some(old)) => Arc::ptr_eq(new, old),
+                    _ => false,
+                }
+            });
+        }
     }
     // Lock released — NOW the old nodes (NAM models, IR FFT states) may run
     // their multi-ms destructors without starving the audio worker (#670).

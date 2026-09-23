@@ -605,3 +605,103 @@ fn an_in_place_update_builds_a_new_tail_at_its_devices_rate() {
         "#967: B's new route runs at the TEYUN's rate"
     );
 }
+
+/// The loop on a VST3 chain switched ON, OFF and ON again: each ON builds B's
+/// cross-rate route fresh. The resampler the callback cached for the route it
+/// fed before must not survive into the new one — its history would put a few
+/// samples of the audio from when the loop went off in front of the new
+/// signal.
+#[test]
+fn a_route_rebuilt_in_place_starts_with_a_fresh_resampler() {
+    let ep = |name: &str, dev: &str, channels: Vec<usize>| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId(dev.into()),
+        mode: ChannelMode::Mono,
+        channels,
+    };
+    let registry = vec![
+        IoBinding {
+            id: "a".into(),
+            name: "A".into(),
+            inputs: vec![ep("in", "scarlett", vec![0])],
+            outputs: vec![ep("out", "scarlett", vec![0])],
+        },
+        IoBinding {
+            id: "b".into(),
+            name: "B".into(),
+            inputs: vec![],
+            outputs: vec![ep("out", "teyun", vec![0])],
+        },
+        IoBinding {
+            id: "fx".into(),
+            name: "FX".into(),
+            inputs: vec![ep("ret", "scarlett", vec![3])],
+            outputs: vec![ep("snd", "scarlett", vec![3])],
+        },
+    ];
+    let chain = |loop_on: bool| Chain {
+        id: ChainId("rig:input-1".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["a".into(), "b".into()],
+        blocks: vec![AudioBlock {
+            id: BlockId(INSERT.into()),
+            enabled: loop_on,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".into(),
+                io: "fx".into(),
+            }),
+        }],
+        di_output: None,
+        loopers: vec![],
+    };
+    let rates: std::collections::HashMap<DeviceId, f32> = [
+        (DeviceId("scarlett".into()), 44_100.0),
+        (DeviceId("teyun".into()), 48_000.0),
+    ]
+    .into_iter()
+    .collect();
+    let runtime = Arc::new(
+        crate::runtime_graph::build_chain_runtime_state_with_device_rates(
+            &chain(true),
+            44_100.0,
+            &rates,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("builds"),
+    );
+    const CHANNELS: usize = 4;
+    let play = |runtime: &Arc<ChainRuntimeState>| {
+        let input = vec![0.3_f32; FRAMES * CHANNELS];
+        for _ in 0..8 {
+            process_input_f32(runtime, 0, &input, CHANNELS);
+        }
+    };
+    play(&runtime);
+    let update = |loop_on: bool| {
+        crate::runtime::update_chain_runtime_state_at_device_rates(
+            &runtime,
+            &chain(loop_on),
+            &rates,
+            false,
+            &[DEFAULT_ELASTIC_TARGET],
+            &registry,
+        )
+        .expect("the in-place update applies");
+    };
+    update(false);
+    play(&runtime);
+    update(true);
+
+    let processing = runtime.processing.lock().expect("processing lock");
+    assert!(
+        processing
+            .input_scratches
+            .iter()
+            .all(|scratch| !scratch.route_resamplers.contains_key(&1)),
+        "#967: the rebuilt route 1 inherited the old route's resampler history"
+    );
+}
