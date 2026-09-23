@@ -35,6 +35,9 @@ pub fn find(model_id: &str) -> Option<&'static LoadedPackage> {
 /// Routing the disk case through the catalog makes the block report
 /// unavailable instead, so the caller can disable it and keep the chain
 /// playing.
+///
+/// Issue #978: a disk package also needs a binary for this platform. It stays
+/// in the catalog without one (#477), but it cannot be built here.
 pub fn model_available(
     model_id: &str,
     is_native: impl Fn(&str) -> bool,
@@ -43,7 +46,7 @@ pub fn model_available(
     if is_native(model_id) {
         native_available_on_platform(model_id)
     } else {
-        find(model_id).is_some()
+        find(model_id).is_some_and(crate::platform_support::package_runs_here)
     }
 }
 

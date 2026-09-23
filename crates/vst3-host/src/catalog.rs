@@ -65,28 +65,38 @@ pub fn init_vst3_catalog(sample_rate: f64, extra_dirs: &[PathBuf]) {
         let mut infos = scan_system_vst3(sample_rate); // sample_rate unused (light scan)
         infos.extend(scan_vst3_dirs(extra_dirs));
         log::info!("VST3 catalog: discovered {} plugins", infos.len());
-        let mut seen: HashSet<String> = HashSet::new();
-        infos
-            .into_iter()
-            .filter_map(|info| {
-                let id = make_model_id(&info);
-                if !seen.insert(id.clone()) {
-                    return None; // same bundle found in a system path and a plugins root
-                }
-                let model_id = leak(id);
-                let display_name = leak(info.name.clone());
-                let brand = leak(info.vendor.clone());
-                let category = leak(info.category.clone());
-                Some(Vst3CatalogEntry {
-                    model_id,
-                    display_name,
-                    brand,
-                    category,
-                    info,
-                })
-            })
-            .collect()
+        catalog_entries(infos)
     });
+}
+
+/// One catalog entry per discovered class, keyed by its stable model id.
+///
+/// A bundle with no binary for this platform is left out (#978): the bundled
+/// catalog VST3 packages ship macOS/Linux binaries only, and on Windows they
+/// were offered in the picker and failed when added.
+pub(crate) fn catalog_entries(infos: Vec<Vst3PluginInfo>) -> Vec<Vst3CatalogEntry> {
+    let mut seen: HashSet<String> = HashSet::new();
+    infos
+        .into_iter()
+        .filter(|info| crate::host_utils::bundle_binary_path(&info.bundle_path).is_ok())
+        .filter_map(|info| {
+            let id = make_model_id(&info);
+            if !seen.insert(id.clone()) {
+                return None; // same bundle found in a system path and a plugins root
+            }
+            let model_id = leak(id);
+            let display_name = leak(info.name.clone());
+            let brand = leak(info.vendor.clone());
+            let category = leak(info.category.clone());
+            Some(Vst3CatalogEntry {
+                model_id,
+                display_name,
+                brand,
+                category,
+                info,
+            })
+        })
+        .collect()
 }
 
 /// Return a reference to the global VST3 catalog.
@@ -123,6 +133,10 @@ pub fn vst3_model_visual(model_id: &str) -> Option<ModelVisualData> {
         available: true,
     })
 }
+
+#[cfg(test)]
+#[path = "catalog_entries_tests.rs"]
+mod catalog_entries_tests;
 
 #[cfg(test)]
 mod resolve_params_tests {

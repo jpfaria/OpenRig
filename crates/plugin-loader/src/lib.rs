@@ -20,6 +20,7 @@ pub mod manifest;
 pub mod native_runtimes;
 pub mod package;
 pub mod package_builders;
+mod platform_support;
 pub mod registry;
 mod registry_edit;
 mod registry_load;

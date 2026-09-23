@@ -14,3 +14,4 @@ crossbeam-queue = "0.3"
 
 [dev-dependencies]
 domain = { path = "../domain" }
+tempfile = "3"
