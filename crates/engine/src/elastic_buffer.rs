@@ -48,6 +48,9 @@ pub fn elastic_target_for_buffer(buffer_size_frames: u32, multiplier: u8) -> usi
 pub(crate) struct ElasticBuffer {
     ring: SpscRing<AudioFrame>,
     target_level: usize,
+    /// Frames the ring was asked to hold (#965): at least twice the target,
+    /// more when a cold-start prime bigger than the target has to fit.
+    capacity: usize,
     layout: AudioChannelLayout,
     /// Bit-packed last-pushed frame, used as the underrun fallback.
     /// Mono: `f32` bits in the low 32 bits.
@@ -62,19 +65,43 @@ pub(crate) struct ElasticBuffer {
     underrun_count: AtomicU64,
     /// #953: sheds latency a stalled output stream left in the ring.
     drift: DriftGuard,
+    /// #965: off on a route whose level the #85 resampler servo holds.
+    drift_guarded: bool,
 }
 
 impl ElasticBuffer {
+    #[cfg(test)]
     pub(crate) fn new(target_level: usize, layout: AudioChannelLayout) -> Self {
+        Self::with_capacity(target_level, target_level.saturating_mul(2), layout)
+    }
+
+    /// #965: a ring that rests at `target_level` but can hold `capacity`
+    /// frames — room for a cold-start prime deeper than the resting level,
+    /// which the drift guard sheds once the route runs clean.
+    pub(crate) fn with_capacity(
+        target_level: usize,
+        capacity: usize,
+        layout: AudioChannelLayout,
+    ) -> Self {
         let init = silent_frame(layout);
+        let capacity = capacity.max(target_level.saturating_mul(2));
         Self {
-            ring: SpscRing::new(target_level.saturating_mul(2), init),
+            ring: SpscRing::new(capacity, init),
             target_level,
+            capacity,
             layout,
             last_frame_bits: AtomicU64::new(frame_to_bits(init)),
             underrun_count: AtomicU64::new(0),
-            drift: DriftGuard::for_target(target_level),
+            drift: DriftGuard::new(target_level),
+            drift_guarded: true,
         }
+    }
+
+    /// #965: hand the route's level to the #85 resampler servo — the drift
+    /// guard no longer trims it (the two fought, refill and cut, forever).
+    pub(crate) fn owned_by_servo(mut self) -> Self {
+        self.drift_guarded = false;
+        self
     }
 
     /// Issue #670: number of underruns (empty `pop`s → silent gaps) since
@@ -119,6 +146,9 @@ impl ElasticBuffer {
     #[inline]
     pub(crate) fn begin_callback(&self, frames: usize) -> SkipFade {
         let mut fade = SkipFade::none();
+        if !self.drift_guarded {
+            return fade;
+        }
         let skip = self
             .drift
             .observe(self.ring.len(), frames, self.underrun_count());
@@ -151,9 +181,15 @@ impl ElasticBuffer {
         }
     }
 
-    /// Capacity target this buffer was built for (#670: rebuild route reuse).
+    /// Resting level this buffer was built for (#670: rebuild route reuse).
     pub(crate) fn target_level(&self) -> usize {
         self.target_level
+    }
+
+    /// Frames this buffer was built to hold (#965: rebuild route reuse — a
+    /// route whose cushion posture changed is rebuilt, and primed, fresh).
+    pub(crate) fn capacity(&self) -> usize {
+        self.capacity
     }
 
     /// Channel layout this buffer was built for (#670: rebuild route reuse).
