@@ -77,9 +77,20 @@ pub(crate) fn wire(
     crate::di_source_picker_wiring::wire_di_source_picker_search(compact_win);
     {
         let weak_main = window.as_weak();
+        let weak_compact = compact_win.as_weak();
+        let project_session = project_session.clone();
         compact_win.on_switch_chain_scene(move |s| {
-            if let Some(m) = weak_main.upgrade() {
-                m.invoke_switch_chain_scene(chain_index, s);
+            let Some(m) = weak_main.upgrade() else {
+                return;
+            };
+            m.invoke_switch_chain_scene(chain_index, s);
+            // #966: same as the preset switch above — a scene re-projects the
+            // chain's blocks (bypass and per-scene params), but this window
+            // renders its own `compact_blocks` model, which the main path
+            // never touches. Without this the tone follows the new scene
+            // while the rows keep the previous one's enabled state.
+            if let Some(cw) = weak_compact.upgrade() {
+                refresh(&cw, &project_session, chain_index);
             }
         });
     }

@@ -1,7 +1,7 @@
 //! #913 — where this session reads its config from.
 //!
 //! Three sources in order: an explicit `--config` argument, a `config.yaml` in
-//! the working directory, and the repo's own file next to the crate. Whichever
+//! the working directory, and (#968) the app's own config file. Whichever
 //! wins, the answer must always name a `config.yaml` — a resolver that returned
 //! a directory (or an empty path) would make the launcher read nothing and
 //! start with defaults, silently discarding the user's setup.
@@ -32,7 +32,7 @@ fn the_resolved_config_is_stable_across_calls() {
 }
 
 #[test]
-fn the_fallback_points_inside_the_repo_when_the_cwd_has_no_config() {
+fn the_fallback_is_an_absolute_path_when_the_cwd_has_no_config() {
     let paths = resolve_project_paths();
     let resolved = paths.default_config_path;
     let cwd_local = std::path::Path::new("config.yaml");
@@ -40,8 +40,9 @@ fn the_fallback_points_inside_the_repo_when_the_cwd_has_no_config() {
         assert_eq!(resolved, cwd_local, "a local config.yaml wins");
     } else {
         assert!(
-            resolved.components().count() > 1,
-            "with no local config the answer must be the repo path, not a bare filename: {}",
+            resolved.is_absolute(),
+            "#968: with no local config the answer is the app's own config file, \
+             an absolute per-OS path — not a bare filename: {}",
             resolved.display()
         );
     }
