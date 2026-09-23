@@ -18,6 +18,8 @@
 For headless offline rendering, see the **`openrig-render`** binary documented in [`render.md`](render.md). It is a separate executable shipped by `crates/adapter-render` — no GUI, no audio device, no MCP, no MIDI.
 
 Precedência do path: `--project <PATH>` > posicional > `OPENRIG_PROJECT_PATH`
+
+Precedência do `config.yaml` (#968): `--config <PATH>` > um `config.yaml` no diretório atual (override de desenvolvimento) > o config do app (`~/Library/Application Support/OpenRig/config.yaml` no macOS, `%APPDATA%\OpenRig\` no Windows, `~/.config/OpenRig/` no Linux) — o mesmo arquivo que a tela Settings → Paths escreve, e de onde sai o `paths.plugins_path` usado pelo catálogo de plugins.
 (last-wins entre formas CLI). O path resolvido é **validado** (`validate_project_path`):
 não existe → `project file not found: <path>`; não é arquivo →
 `project path is not a file: <path>`. Path inválido **não derruba o app** —
