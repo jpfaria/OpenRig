@@ -19,11 +19,11 @@ pub mod di_render;
 mod effective_endpoints;
 mod elastic_buffer;
 mod elastic_drift_guard;
-pub mod elastic_prime;
 mod elastic_skip_fade;
 mod endpoint_entry;
 mod input_conflicts;
 pub mod input_tap;
+pub mod insert_cut;
 mod insert_endpoints;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
@@ -46,6 +46,9 @@ mod rig_projection;
 pub mod rig_runtime;
 mod rig_runtime_normalize;
 mod rig_tap_conflict;
+pub mod route_clock;
+mod route_convolution;
+mod route_cushion;
 pub mod runtime;
 pub mod runtime_audio_frame;
 pub mod runtime_block_builders;

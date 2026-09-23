@@ -97,17 +97,23 @@ fn first_output_buffer_len(chain: &Chain, buffer: usize) -> usize {
 #[test]
 fn ir_chain_primes_output_elastic_buffer_on_initial_build() {
     // buffer 64 → without priming the output elastic buffer is empty (len
-    // 0) and the IR convolver's per-partition FFT spike underruns it on a
-    // cold start. With the fix it is primed to a real cushion (>= 256).
+    // 0) and an IR chain's cold start could underrun it. It is primed with
+    // its cushion. #965: on the producer's own clock (this registry: one
+    // device in and out) that cushion is the route's own target — 64 here.
+    // The old 512-frame floor sat above the target and the drift guard cut
+    // it ~186 ms later (a skip after every edit and DI render); the #617
+    // uniform convolver removed the spike it covered, and the real stack
+    // measured the lean cushion clean at 64 frames (cold start, a minute,
+    // live edits, a cab added live under full CPU load — see
+    // `infra-cpal/tests/issue_965_insert_on_the_owners_interface.rs`). A
+    // route on ANOTHER clock keeps the 512 cushion (`route_cushion`).
     let conv_chain = chain("issue-592-ir", vec![cab("cab")]);
     let primed = first_output_buffer_len(&conv_chain, 64);
-    assert!(
-        primed >= 256,
-        "BUG #592: a chain with a convolution (IR/cab) block must prime its \
-         output elastic buffer with a silence cushion on the initial build so \
-         cold-start at buffer 64 survives the IR FFT spike. Got len {primed} \
-         (expected >= 256). Without it, the freshly loaded IR preset \
-         underruns/distorts until a warm rebuild.",
+    assert_eq!(
+        primed, 64,
+        "BUG #592: a chain with a convolution (IR/cab) block must be born \
+         with its output cushion filled — exactly its own target on its \
+         producer's clock. Got len {primed}.",
     );
 }
 
@@ -140,7 +146,7 @@ fn ir_chain_rebuild_preserves_cushion_without_repriming() {
     );
     // Drain part of the initial prime so "preserved" and "re-primed" differ.
     let before_route = rt.output_routes.load()[0].clone().expect("route 0");
-    for _ in 0..100 {
+    for _ in 0..32 {
         let _ = before_route.buffer.pop();
     }
     let before_edit = rt.output_routes.load()[0]

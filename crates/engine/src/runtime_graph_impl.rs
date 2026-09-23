@@ -17,7 +17,7 @@ use project::chain::Chain;
 use crate::runtime::ChainRuntimeState;
 use crate::runtime_graph::{build_per_input_runtimes, input_group_ids, RuntimeGraph};
 use crate::runtime_graph_update::{
-    update_chain_runtime_state, update_chain_runtime_state_spillover,
+    update_chain_runtime_state_at_device_rates, update_chain_runtime_state_spillover,
 };
 
 impl RuntimeGraph {
@@ -146,10 +146,11 @@ impl RuntimeGraph {
                                 registry,
                             )?;
                         } else {
-                            update_chain_runtime_state(
+                            // #967: new routes at their own device's rate.
+                            update_chain_runtime_state_at_device_rates(
                                 runtime,
                                 chain,
-                                sample_rate,
+                                device_rates,
                                 reset_output_queue,
                                 elastic_targets,
                                 registry,

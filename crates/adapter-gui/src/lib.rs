@@ -258,6 +258,12 @@ mod issue_881_insert_editor_tests;
 #[cfg(test)]
 #[path = "issue_898_compact_insert_refresh_tests.rs"]
 mod issue_898_compact_insert_refresh_tests;
+#[cfg(test)]
+#[path = "issue_966_compact_scene_refresh_tests.rs"]
+mod issue_966_compact_scene_refresh_tests;
+#[cfg(test)]
+#[path = "issue_968_config_source_tests.rs"]
+mod issue_968_config_source_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;
@@ -334,6 +340,7 @@ mod i18n;
 mod language_names;
 mod locale_font;
 mod locale_resolve;
+mod rebuild_install_timer;
 mod translations_dir;
 
 pub use desktop_app::run_desktop_app;

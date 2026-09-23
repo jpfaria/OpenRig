@@ -24,6 +24,8 @@ mod jack_supervisor;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod device_config_cache;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod device_lookup;
 
 mod host;
 
@@ -63,6 +65,10 @@ mod io_topology;
 #[cfg(test)]
 #[path = "issue_881_stream_lifecycle_tests.rs"]
 mod issue_881_stream_lifecycle_tests;
+
+#[cfg(test)]
+#[path = "issue_967_insert_toggle_streams_tests.rs"]
+mod issue_967_insert_toggle_streams_tests;
 pub use io_topology::io_topology_changed;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]

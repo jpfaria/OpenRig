@@ -371,7 +371,7 @@ things, and missing any one of them is audible:
    device taking fixed buffers at its own callback times, which the OS bunches.
    A cross-rate route gets `CROSS_RATE_CUSHION` (3×) the lockstep depth, primed
    — and the LIVE REBUILD must keep it, or the tap starves again after the first
-   block move (`cushion_for_route`, shared by build and rebuild).
+   block move (`route_cushion`, shared by build and rebuild).
 
 The rebuild also has to KNOW the rate: it derives the per-device rates from the
 live stream signature, which must include the **outputs**
@@ -447,6 +447,66 @@ window is the level the route proved it can hold, and a floor more than
 crossfade. Steady state never trims (bit-identical output).
 `openrig://routes` reports `fill_frames` and `latency_trims` per route.
 
+The level is never learned ABOVE the route's cushion target plus one
+callback buffer (#965). A chain starts its input stream before its output
+stream, and every input period before the output's first callback pushes a
+buffer nobody pops — the ring was full (its whole capacity, 2× the target)
+by the time the first window closed, and taking that floor as the level
+kept the full capacity as latency until the chain was switched off and on.
+Now the excess above the target is shed at the first clean window. A
+cross-rate route (#85) is not guarded at all: its resampler servo owns the
+level, and the two used to fight, refill and cut, for the life of the route.
+The same full ring is what a scene switch left behind (#969): a structural
+switch brings up brand-new streams, the input again ran ahead, and live
+rebuilds reuse routes (#670) — measured live as `fill_frames: 1024`,
+`latency_trims: 0`, the chain late and garbled until switched off and on.
+
+#### How a route's cushion is sized (#965)
+
+Measured on the owner's Quantum HD 8 with a Swift probe (one input-only and
+one output-only AUHAL, the shape cpal opens, ~7000 cycles at 64 and 128
+frames in both start orders): **every CoreAudio unit of one device runs on
+ONE HAL IO thread, input first and output 0–5 µs later, every cycle.** The
+chain DSP runs on the #670 worker, so the output callback of a cycle can
+never see that cycle's input: one device buffer is the hand-off, and one
+more is slack. A duplex unit or inline DSP would remove the hand-off, but
+every chain on the device would then share that one thread's deadline — a
+CPU-time isolation violation — and it reverses #670; both were rejected.
+
+- **Target** (`infra-cpal/src/elastic.rs`, `elastic_targets`, ONE function
+  for the cold build and the live rebuild — the live path used to size
+  insert sends like regular outputs, so the first knob turn rebuilt the send
+  with a gap): the output device's buffer × a multiplier — ×1 for an Insert
+  send; on macOS ×1 for a regular output fed only by an input on its own
+  device; ×2 otherwise (×8 on JACK). A route is sized from ITS producers —
+  the inputs of the segments that write it (`engine::route_clock::
+  route_producers`) — never from every chain input: a tail fed by an insert
+  return on another interface keeps ×2, and one stream's buffer size never
+  raises another stream's latency. Never less than its producer's buffer:
+  the producer pushes a whole input callback at once, and a ring of 2× a
+  smaller cushion dropped it.
+- **Prime** (`engine/src/route_cushion.rs`): a route fed by a convolver
+  (#592, decided per route in `route_convolution.rs` — an insert's send
+  before the cab and a mid tap before the cab are not fed) is born with its
+  cushion already filled, exactly its target: never above it, so the guard
+  never cuts it (a 512-frame prime above the target cost a skip ~186 ms
+  after every live edit and every DI render). A cross-rate route starts with
+  its extra depth filled (#85); other routes start empty.
+- **Another clock** (`route_clock.rs`): a route whose output device is not
+  its producer's input device runs on another clock; at the same nominal
+  rate the two drift and the ring slowly drains. There a convolver-fed route
+  keeps the #592 cushion (512 frames), which is what held the #670
+  real-streams battery clean (BlackHole in, MacBook speakers out); on the
+  producer's own clock nothing drifts and the route stays lean.
+
+Result on the owner's insert chain (HD 8, 44.1 kHz / 64 frames): the send
+and the tail rest at 64–128 frames (they were 1024 each before #965);
+guitar in → insert loop → Main measured 60.5 ms before, 23.0 ms with the
+first fixes, see the issue for the final number. Real-hardware proof:
+`infra-cpal/tests/issue_965_insert_on_the_owners_interface.rs` (0 xruns /
+0 underruns on a cold start, over a minute, after live edits and after
+adding a cab live under full CPU load) and the #670 battery (unchanged, 0/0).
+
 ### Chain enabled é runtime, não persistência
 
 `Chain.enabled` é estado de memória — o usuário liga / desliga uma
@@ -510,6 +570,59 @@ there are no separate I/O lists.
   have) it is bypassed, never a segment boundary (#881).
 - Each input still spawns its own isolated parallel runtime; Output is a
   non-destructive tap; Insert splits the chain into segments (disabled = bypass).
+
+**Switching an insert on or off never touches a stream (#967).** The rule
+lives in `engine::insert_cut`, in two halves:
+
+- `insert_owns_streams` — a BOUND insert (both sides of its E/S resolve) owns a
+  send and a return stream whether it is enabled or not. The streams
+  infra-cpal opens, the stream signatures a live edit is compared against
+  (`bound_io_signature`, the live stream signature, `chain_structure_signature`
+  ignores an insert's enable flag) and the engine's endpoint shims — route and
+  input indices — all follow it, so switching the insert never renumbers,
+  opens or closes a stream.
+- `insert_cuts_chain` — only an ENABLED bound insert cuts the chain's DSP into a
+  send segment and a return segment. A disabled one is what it always was: the
+  chain plays straight through it, every head paired with its own E/S's
+  outputs (#716), on the stereo bus, each E/S in its own isolated runtime
+  (#703). Its send route is never written (the send stream carries silence,
+  and a chain with no output of its own never plays out of it) and nothing
+  reads its return: that stream's callback returns before the runtime's
+  processing lock (`fed_inputs`), so it never costs the guitar's callback a
+  period.
+
+So a footswitch press, the enable dot, or a scene/preset whose only change is
+the insert reaches `schedule_chain_activation` as "same streams" and takes the
+off-thread DSP rebuild every live edit takes — built on the control worker,
+live within milliseconds. The one exception is a chain with several input
+entries (several E/S, an E/S with two input endpoints, a mid `Input`): its
+runtimes are one pipeline while the loop cuts it and one per entry while it
+does not, so the switch regroups them — `chain_structure_signature` carries
+the grouping and such a switch gets new streams, as before. A chain with one
+input entry is one runtime either way and owns every one of its routes
+(`switch_owned_routes`), so a route only the loop's cut writes — its send, a
+tail only the return feeds — is already bound when the loop is switched on. On Linux+JACK the
+same edit goes through the synchronous in-place update (the JACK backend has
+no off-thread swap yet, #672). A chain holding a VST3 is updated in place instead
+(#779); that update looks for each block's old node in every old segment, so
+the blocks the cut moves between segments keep their processors (a VST3 is not
+re-instantiated, a delay keeps its tail). Before this, the enable flag was part
+of the chain's stream topology: disabling the insert read as a re-bind and
+every stream the chain owned was closed and reopened — 2.1 s (off) and 3.0 s
+(on) of silence measured on the owner's rig.
+
+**Switching a chain on, and hearing a rebuilt chain (#967).** A chain's
+devices are looked up by id through `infra_cpal::device_lookup`: a walk of the
+host's device list remembers every device it passes, so the next lookup of any
+of them is a single property query confirming the handle still names that id
+(an unplugged/replugged device fails it and is looked up again; a device-list
+refresh forgets everything; ASIO keeps the old walk, since holding a driver
+keeps it loaded). Every endpoint used to walk the whole list — on the owner's
+rig that was 1.8–1.9 s of every chain switch-on; switching a chain on now costs
+the stream open (~200–300 ms on the Quantum HD 8). A runtime the control worker
+rebuilt off-thread (a scene/preset switch, an insert switch, a live edit) is
+swapped in by `rebuild_install_timer` every 5 ms instead of on the 200 ms
+error-poll tick, so it is heard as soon as it is built.
 
 **A mid port is a normal block (#85).** It is a row in the chain like any effect
 — the head input and tail output are chips drawn from the bindings, not rows —

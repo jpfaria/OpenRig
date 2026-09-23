@@ -2,8 +2,8 @@
 //!
 //! The signature is zipped against the device vectors `resolve_chain_inputs` /
 //! `resolve_chain_outputs` build, so it must list the same endpoints in the
-//! same order: the chain's own bindings first, then one entry per enabled,
-//! both-sides-bound insert. #881: a signature blind to the insert read a
+//! same order: the chain's own bindings first, then one entry per
+//! both-sides-bound insert (enabled or not, #967). #881: a signature blind to the insert read a
 //! removed insert as "I/O unchanged", the streams were never rebuilt, and the
 //! orphan send stream stayed open as a second writer on the device.
 
@@ -121,14 +121,46 @@ fn an_enabled_insert_appends_its_return_and_send_after_the_chains_own_io() {
     );
 }
 
+/// #967: a BOUND insert keeps its send and return streams while it is
+/// switched off — the loop is bypassed in the DSP, not unplugged. The streams
+/// this chain opens, the signature recorded for them and the engine's segments
+/// must all agree on that, or the chain streams without the return (silence
+/// after the insert) and every later sync reads as a re-bind (a full stream
+/// rebuild — the 2–3 s the owner measured).
 #[test]
-fn a_disabled_insert_is_not_part_of_the_signature() {
+fn a_disabled_bound_insert_is_still_part_of_the_signature() {
     let registry = vec![binding("io-main", "main"), binding("io-fx", "fx")];
     let mut blocks = head_and_tail();
     blocks.push(insert_block("fx", "io-fx", false));
     let (inputs, outputs) = resolve_chain_io_with_inserts(&chain(blocks), &registry);
-    assert_eq!(inputs.len(), 1);
-    assert_eq!(outputs.len(), 1);
+    assert_eq!(
+        (inputs.len(), outputs.len()),
+        (2, 2),
+        "the disabled insert's return and send stay streams of this chain"
+    );
+}
+
+/// #967: the live signature (what the streams were opened for) and the bound
+/// signature the live-edit path compares it to must be the same for a chain
+/// whose insert is off — otherwise `chain_io_changed` answers "changed" on
+/// every sync and each one reopens every stream of the chain.
+#[test]
+fn the_live_and_bound_signatures_agree_on_a_disabled_insert() {
+    let registry = vec![binding("io-main", "main"), binding("io-fx", "fx")];
+    let mut blocks = head_and_tail();
+    blocks.push(insert_block("fx", "io-fx", false));
+    let chain = chain(blocks);
+    let (live_in, live_out) = resolve_chain_io_with_inserts(&chain, &registry);
+    let (bound_in, bound_out) = crate::io_topology::bound_io_signature(&chain, &registry);
+    let pairs_in: Vec<_> = live_in
+        .into_iter()
+        .map(|e| (e.device_id, e.channels))
+        .collect();
+    let pairs_out: Vec<_> = live_out
+        .into_iter()
+        .map(|e| (e.device_id, e.channels))
+        .collect();
+    assert_eq!((pairs_in, pairs_out), (bound_in, bound_out));
 }
 
 #[test]

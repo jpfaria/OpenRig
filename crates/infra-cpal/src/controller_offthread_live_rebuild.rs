@@ -72,7 +72,7 @@ impl ProjectRuntimeController {
         // a synchronous CoreAudio resolve (the ~hundreds-ms freeze the owner felt
         // on every edit, on top of the off-thread NAM reload). The heavy DSP
         // rebuild then runs on the worker; the GUI returns immediately.
-        let (sample_rate, device_sample_rates, out_buffers) = {
+        let (sample_rate, device_sample_rates, elastic_targets) = {
             let sig = &self
                 .active_chains
                 .get(&chain.id)
@@ -84,10 +84,10 @@ impl ProjectRuntimeController {
                 .map(|i| i.sample_rate as f32)
                 .unwrap_or(48_000.0);
             let device_sample_rates = device_rates_from_signature(sig);
-            let out_buffers: Vec<u32> = sig.outputs.iter().map(|o| o.buffer_size_frames).collect();
-            (sample_rate, device_sample_rates, out_buffers)
+            let elastic_targets =
+                crate::elastic::elastic_targets_for_live_streams(chain, &self.io_bindings, sig);
+            (sample_rate, device_sample_rates, elastic_targets)
         };
-        let elastic_targets = crate::elastic::elastic_targets_from_output_buffers(&out_buffers);
         // #779: a chain containing a VST3 must NOT be rebuilt fresh off-thread.
         // A fresh build calls `createInstance` on the control worker while the
         // audio thread is inside the old instance's `process()` — a concurrent
@@ -109,15 +109,13 @@ impl ProjectRuntimeController {
                 .collect();
             for group in groups {
                 if let Some(runtime) = self.runtime_graph.chains.get(&(chain.id.clone(), group)) {
-                    let group_rate = device_sample_rates
-                        .values()
-                        .next()
-                        .copied()
-                        .unwrap_or(sample_rate);
-                    engine::runtime::update_chain_runtime_state(
+                    // #967: a route the edit writes for the first time (an
+                    // insert switched on feeding a tail on another interface)
+                    // runs at its own device's rate.
+                    engine::runtime::update_chain_runtime_state_at_device_rates(
                         runtime,
                         chain,
-                        group_rate,
+                        &device_sample_rates,
                         false,
                         &elastic_targets,
                         &self.io_bindings,
@@ -162,7 +160,7 @@ impl ProjectRuntimeController {
         let Some(active) = self.active_chains.get(&chain.id) else {
             return false; // not streaming — nothing to compare
         };
-        active.structure != crate::io_topology::chain_structure_signature(chain)
+        active.structure != crate::io_topology::chain_structure_signature(chain, &self.io_bindings)
     }
 
     /// JACK build: the live-swap path is cpal-only for now (#672).

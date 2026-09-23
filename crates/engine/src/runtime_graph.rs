@@ -75,17 +75,50 @@ pub struct RuntimeGraph {
     pub chains: HashMap<(ChainId, usize), Arc<ChainRuntimeState>>,
 }
 
-/// Whether the chain has at least one enabled Insert block. Insert chains
-/// form a cross-cpal-index pipeline (input → insert send → insert return →
-/// output); splitting them by cpal index would sever the pipeline. Phase 1
-/// keeps Insert chains as a single runtime (byte-identical to pre-#350);
-/// the structural per-input isolation targets the no-Insert multi-input
-/// case (the user-visible "two guitars, one chain" scenario).
-pub(crate) fn chain_has_enabled_insert(chain: &Chain) -> bool {
+/// Whether an insert cuts the chain. A cut forms a cross-cpal-index pipeline
+/// (input → insert send → insert return → output); splitting it by cpal index
+/// would sever the pipeline. Phase 1 keeps Insert chains as a single runtime
+/// (byte-identical to pre-#350); the structural per-input isolation targets
+/// the no-Insert multi-input case (the user-visible "two guitars, one chain"
+/// scenario).
+///
+/// #967: only a real cut counts (`insert_cut::insert_cuts_chain`): a disabled
+/// insert — or one with no E/S — leaves every head in its own isolated
+/// runtime. For a chain with ONE input entry (one E/S with one input endpoint —
+/// the owner's layout) the grouping is the same either way, so an insert
+/// switch is a DSP rebuild into the slot its streams feed; where the switch
+/// changes the grouping (several input entries: several E/S, an E/S with two
+/// input endpoints, a mid `Input`), `chain_structure_signature` (infra-cpal)
+/// says so and the chain gets new streams.
+pub(crate) fn chain_has_insert_cut(chain: &Chain, registry: &[IoBinding]) -> bool {
     chain
         .blocks
         .iter()
-        .any(|b| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
+        .any(|b| crate::insert_cut::insert_cuts_chain(b, registry))
+}
+
+/// #967: the routes a runtime owns beyond the ones it writes right now. When
+/// the chain owns an insert's streams and is ONE runtime whether or not the
+/// insert cuts it, switching the insert is a DSP rebuild into that runtime's
+/// slot — and the routes the other state writes (the send, a tail only the
+/// return feeds) must already be bound to it. That is every route of the
+/// chain. A chain split into several runtimes gets new streams when the switch
+/// regroups it, so its runtimes own only what they write.
+pub(crate) fn switch_owned_routes(
+    chain: &Chain,
+    registry: &[IoBinding],
+    runtime_count: usize,
+    route_count: usize,
+) -> Vec<usize> {
+    let owns_insert_streams = chain
+        .blocks
+        .iter()
+        .any(|b| crate::insert_cut::insert_owns_streams(b, registry));
+    if owns_insert_streams && runtime_count == 1 {
+        (0..route_count).collect()
+    } else {
+        Vec::new()
+    }
 }
 
 /// Partition a chain's segments into per-RAW-input-entry groups (issue
@@ -102,12 +135,13 @@ pub(crate) fn chain_has_enabled_insert(chain: &Chain) -> bool {
 /// the cpal platforms' isolation gain must not change JACK behaviour.
 ///
 /// Insert chains are NOT partitioned (single group `0`) — see
-/// `chain_has_enabled_insert`.
+/// `chain_has_insert_cut`.
 pub(crate) fn group_segments_by_input(
     chain: &Chain,
+    registry: &[IoBinding],
     segments: Vec<ChainSegment>,
 ) -> Vec<(usize, Vec<ChainSegment>)> {
-    if chain_has_enabled_insert(chain) || segments.is_empty() {
+    if chain_has_insert_cut(chain, registry) || segments.is_empty() {
         return vec![(0, segments)];
     }
     #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -191,7 +225,8 @@ pub(crate) fn build_per_input_runtimes(
         &eff_outputs,
         registry,
     );
-    let groups = group_segments_by_input(chain, all_segments);
+    let groups = group_segments_by_input(chain, registry, all_segments);
+    let switch_owned = switch_owned_routes(chain, registry, groups.len(), eff_outputs.len());
     let mut out = Vec::with_capacity(groups.len());
     for (group, segments) in groups {
         // All segments of a group share one effective input, hence one
@@ -210,6 +245,7 @@ pub(crate) fn build_per_input_runtimes(
         let mut state = assemble_chain_runtime_state(
             chain,
             &segments,
+            &switch_owned,
             &eff_outputs,
             group_rate,
             device_rates,
@@ -274,7 +310,7 @@ pub fn build_per_input_runtime_states(
 /// each edit, only to throw the runtime away. The grouping depends solely on
 /// the chain's input/output endpoints and segment split, never on the built
 /// processors, so it can be derived directly.
-pub(crate) fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
+pub fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usize> {
     let (resolved_inputs, resolved_outputs) = resolve_chain_io(chain, registry);
     let (eff_inputs, eff_input_cpal_indices, eff_split_positions, eff_entry_groups) =
         effective_inputs(chain, &resolved_inputs, registry);
@@ -288,7 +324,7 @@ pub(crate) fn input_group_ids(chain: &Chain, registry: &[IoBinding]) -> Vec<usiz
         &eff_outputs,
         registry,
     );
-    group_segments_by_input(chain, all_segments)
+    group_segments_by_input(chain, registry, all_segments)
         .into_iter()
         .map(|(group, _segments)| group)
         .collect()
@@ -393,6 +429,7 @@ pub fn build_chain_runtime_state_with_device_rates(
     assemble_chain_runtime_state(
         chain,
         &segments,
+        &switch_owned_routes(chain, registry, 1, eff_outputs.len()),
         &eff_outputs,
         sample_rate,
         device_rates,
@@ -410,7 +447,8 @@ use crate::runtime_graph_assemble::assemble_chain_runtime_state;
 #[cfg(test)]
 pub(crate) use crate::runtime_graph_assemble::build_output_routing_state;
 pub use crate::runtime_graph_update::{
-    update_chain_runtime_state, update_chain_runtime_state_spillover,
+    update_chain_runtime_state, update_chain_runtime_state_at_device_rates,
+    update_chain_runtime_state_spillover,
 };
 
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
