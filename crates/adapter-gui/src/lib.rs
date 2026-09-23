@@ -261,6 +261,9 @@ mod issue_898_compact_insert_refresh_tests;
 #[cfg(test)]
 #[path = "issue_966_compact_scene_refresh_tests.rs"]
 mod issue_966_compact_scene_refresh_tests;
+#[cfg(test)]
+#[path = "issue_968_config_source_tests.rs"]
+mod issue_968_config_source_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;

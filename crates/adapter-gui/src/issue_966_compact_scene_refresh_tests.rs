@@ -28,8 +28,8 @@ use project::block::AudioBlockKind;
 
 use crate::compact_block_view::build_compact_blocks;
 use crate::project_ops::create_new_project_session;
-use crate::runtime_lifecycle::RuntimeAttach;
 use crate::runtime_analyzers::AnalyzerSessions;
+use crate::runtime_lifecycle::RuntimeAttach;
 use crate::state::ProjectSession;
 use crate::{AppWindow, CompactChainViewWindow, ProjectChainItem};
 
