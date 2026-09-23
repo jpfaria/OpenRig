@@ -210,50 +210,56 @@ fn a_multi_runtime_chains_loop_send_holds_no_runtime_while_the_loop_is_off() {
 /// loop OFF only A's head plays and it pairs with A's outputs, so nothing
 /// writes B's output; with the loop ON the return feeds every tail, B's
 /// included. The switch keeps the single runtime (a DSP rebuild), so B's output
-/// stream must already hold it — opened while the loop was off, it would stay
-/// silent after the switch.
+/// stream must hold it in BOTH states — on another interface too, which the
+/// guitar's own E/S never lists. The device map is the real one.
 #[test]
-fn a_tail_only_the_cut_writes_is_bound_while_the_loop_is_off() {
+fn a_tail_only_the_cut_writes_is_bound_on_any_interface() {
     let registry = vec![
         IoBinding {
             id: "a".into(),
             name: "A".into(),
-            inputs: vec![mono("in", "hd8", 0)],
-            outputs: vec![mono("out", "hd8", 0)],
+            inputs: vec![mono("in", "scarlett", 0)],
+            outputs: vec![mono("out", "scarlett", 0)],
         },
         IoBinding {
             id: "b".into(),
             name: "B".into(),
             inputs: vec![],
-            outputs: vec![mono("out", "hd8", 2)],
+            outputs: vec![mono("out", "teyun", 0)],
         },
         IoBinding {
             id: "fx".into(),
             name: "FX".into(),
-            inputs: vec![mono("ret", "hd8", 3)],
-            outputs: vec![mono("snd", "hd8", 3)],
+            inputs: vec![mono("ret", "scarlett", 3)],
+            outputs: vec![mono("snd", "scarlett", 3)],
         },
     ];
-    let chain = Chain {
-        id: ChainId("rig:input-1".into()),
-        description: None,
-        instrument: "electric_guitar".into(),
-        enabled: true,
-        volume: 100.0,
-        io_binding_ids: vec!["a".into(), "b".into()],
-        blocks: vec![insert_block(false)],
-        di_output: None,
-        loopers: vec![],
-    };
-    let runtimes =
-        build_per_input_runtime_states(&chain, 48_000.0, &HashMap::new(), &[], &registry)
-            .expect("the chain builds");
-    let slots = build_chain_slots(&runtimes);
-    let map: Vec<Vec<String>> = runtimes.iter().map(|_| vec!["hd8".into()]).collect();
-    let b_out = 1;
-    assert_eq!(
-        slots_for_output_stream(&slots, &map, "hd8", b_out).len(),
-        1,
-        "#967: B's output must hold the runtime the loop's cut will write it from"
-    );
+    for loop_on in [false, true] {
+        let chain = Chain {
+            id: ChainId("rig:input-1".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["a".into(), "b".into()],
+            blocks: vec![insert_block(loop_on)],
+            di_output: None,
+            loopers: vec![],
+        };
+        let runtimes =
+            build_per_input_runtime_states(&chain, 48_000.0, &HashMap::new(), &[], &registry)
+                .expect("the chain builds");
+        let slots = build_chain_slots(&runtimes);
+        let heads = engine::runtime_endpoints::resolve_chain_io(&chain, &registry).0;
+        let map =
+            crate::chain_resolve_io_map::output_devices_by_input_cpal(&chain, &registry, &heads);
+        let b_out = 1;
+        assert_eq!(
+            slots_for_output_stream(&slots, &map, "teyun", b_out).len(),
+            1,
+            "#967: B's output (TEYUN) must hold the runtime the loop's cut writes it \
+             from — loop {}",
+            if loop_on { "on" } else { "off" }
+        );
+    }
 }

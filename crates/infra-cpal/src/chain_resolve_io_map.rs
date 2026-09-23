@@ -120,5 +120,27 @@ pub(crate) fn output_devices_by_input_cpal(
             }
         }
     }
+
+    // #967: while an insert cuts the chain, its RETURN feeds every tail of the
+    // chain — an output-only E/S's too, on whatever interface it sits. A chain
+    // that owns insert streams therefore lists every tail device for its input
+    // streams, whichever state the loop is in: the switch is a DSP rebuild on
+    // the streams already open, so they must already reach the runtime. This
+    // does not widen isolation: an output stream still holds only a runtime
+    // that OWNS its route (`ChainRuntimeState::owns_output`) — a chain split
+    // into one runtime per E/S (loop off) keeps each E/S on its own outputs.
+    if chain
+        .blocks
+        .iter()
+        .any(|b| engine::insert_cut::insert_owns_streams(b, registry))
+    {
+        for devices in by_cpal.iter_mut() {
+            for device in &tail_devices {
+                if !devices.contains(device) {
+                    devices.push(device.clone());
+                }
+            }
+        }
+    }
     by_cpal
 }
