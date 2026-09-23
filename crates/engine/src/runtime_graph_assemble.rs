@@ -60,24 +60,6 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
 /// is indexed by segment position within `segments`.
 #[allow(clippy::too_many_arguments)]
-/// #85: how much deeper a cross-rate route's cushion is. Three device buffers
-/// covers the ordinary case of the OS handing a device two periods at once
-/// while the producer is still on its own clock; the extra latency lands ONLY
-/// on that tap, never on the chain's own output.
-const CROSS_RATE_CUSHION: usize = 3;
-
-/// The cushion a route needs: the lockstep one when it shares the runtime's
-/// clock, [`CROSS_RATE_CUSHION`] times that when it does not. Shared by the
-/// initial build and the live rebuild — a rebuilt tap that drops back to the
-/// lockstep depth starves on the first bunched callback (#85).
-pub(crate) fn cushion_for_route(lockstep: usize, route_rate: f32, runtime_rate: f32) -> usize {
-    if (route_rate - runtime_rate).abs() >= f32::EPSILON {
-        lockstep * CROSS_RATE_CUSHION
-    } else {
-        lockstep
-    }
-}
-
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
@@ -87,10 +69,6 @@ pub(crate) fn assemble_chain_runtime_state(
     elastic_targets: &[usize],
     mut existing_blocks: Option<Vec<Vec<BlockRuntimeNode>>>,
 ) -> anyhow::Result<ChainRuntimeState> {
-    // Issue #592: prime the output elastic cushion only on the INITIAL
-    // build (existing_blocks == None). A rebuild/edit runs warm and refills
-    // naturally — re-priming on every knob turn would add a silence gap.
-    let is_initial_build = existing_blocks.is_none();
     let mut input_states = Vec::with_capacity(segments.len());
     for (seg_idx, segment) in segments.iter().enumerate() {
         // Determine output channels for this segment's outputs (for processing layout)
@@ -144,42 +122,22 @@ pub(crate) fn assemble_chain_runtime_state(
             output_routes.push(None);
             continue;
         }
-        let base = target_for_route(elastic_targets, route_idx);
-        let has_convolution =
-            crate::elastic_prime::route_has_convolution(chain, segments, route_idx);
-        // #965: the IR cushion is a cold-start PRIME, not the route's resting
-        // level. The route rests at its own target; the prime covers the
-        // convolver's first callbacks and the drift guard sheds what is left
-        // of it once the route has run a clean window.
-        let cushion = crate::elastic_prime::elastic_capacity_target(base, has_convolution);
-        let prime_frames =
-            crate::elastic_prime::elastic_prime_frames(cushion, is_initial_build, has_convolution);
-        let target = base;
         // #85: a route runs at ITS device's rate — usually the runtime's, but a
-        // mid `Output` may point at an interface on another clock.
+        // mid `Output` may point at an interface on another clock, where it is
+        // fed in converted bursts and rests deeper (see `route_cushion`).
         let route_rate = device_rates
             .get(&output.device_id)
             .copied()
             .unwrap_or(sample_rate);
-        // A route on ANOTHER clock is fed in bursts of a converted size while
-        // its device takes fixed buffers at its own callback times, and the OS
-        // bunches those times. A cushion sized for the lockstep case hits empty
-        // on that jitter and holds the last frame — the owner hears a clean
-        // Scarlett (same clock) and a horrible TEYUN. Give the cross-rate route
-        // room to ride it, and prime it so the first seconds are covered too.
-        let deep = cushion_for_route(target, route_rate, sample_rate);
-        let (target, prime_frames) = if deep > target {
-            (deep, deep.saturating_sub(target).max(prime_frames))
-        } else {
-            (target, prime_frames)
-        };
-        let capacity = target.max(cushion).saturating_mul(2);
-        output_routes.push(Some(Arc::new(build_output_routing_state(
-            output,
-            target,
-            capacity,
-            prime_frames,
+        let cushion = crate::route_cushion::route_cushion(
+            target_for_route(elastic_targets, route_idx),
             route_rate,
+            sample_rate,
+            crate::route_convolution::route_has_convolution(chain, segments, route_idx),
+            crate::route_clock::route_on_producer_clock(segments, route_idx, &output.device_id),
+        );
+        output_routes.push(Some(Arc::new(build_output_routing_state(
+            output, cushion, route_rate,
         ))));
     }
 
@@ -405,19 +363,16 @@ pub(crate) fn route_is_written(segments: &[ChainSegment], route_idx: usize) -> b
 
 pub(crate) fn build_output_routing_state(
     output: &OutputEntry,
-    elastic_target: usize,
-    capacity_frames: usize,
-    prime_frames: usize,
+    cushion: crate::route_cushion::RouteCushion,
     sample_rate: f32,
 ) -> OutputRoutingState {
     let output_layout = output_entry_layout(output);
-    let buffer = ElasticBuffer::with_capacity(elastic_target, capacity_frames, output_layout);
-    // Issue #592: prime the cushion (silence) only when the caller asks —
-    // a cold-start IR chain at a small device buffer would otherwise
-    // underrun on the convolver's per-partition FFT spike.
-    if prime_frames > 0 {
-        buffer.prime(prime_frames);
+    let mut buffer = ElasticBuffer::with_capacity(cushion.target, cushion.capacity, output_layout);
+    if cushion.servo_owned {
+        buffer = buffer.owned_by_servo();
     }
+    // #965: a fresh route is born at its resting cushion (see `route_cushion`).
+    buffer.prime(cushion.prime);
     OutputRoutingState {
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,

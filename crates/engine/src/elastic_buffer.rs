@@ -65,6 +65,8 @@ pub(crate) struct ElasticBuffer {
     underrun_count: AtomicU64,
     /// #953: sheds latency a stalled output stream left in the ring.
     drift: DriftGuard,
+    /// #965: off on a route whose level the #85 resampler servo holds.
+    drift_guarded: bool,
 }
 
 impl ElasticBuffer {
@@ -91,7 +93,15 @@ impl ElasticBuffer {
             last_frame_bits: AtomicU64::new(frame_to_bits(init)),
             underrun_count: AtomicU64::new(0),
             drift: DriftGuard::new(target_level),
+            drift_guarded: true,
         }
+    }
+
+    /// #965: hand the route's level to the #85 resampler servo — the drift
+    /// guard no longer trims it (the two fought, refill and cut, forever).
+    pub(crate) fn owned_by_servo(mut self) -> Self {
+        self.drift_guarded = false;
+        self
     }
 
     /// Issue #670: number of underruns (empty `pop`s → silent gaps) since
@@ -136,6 +146,9 @@ impl ElasticBuffer {
     #[inline]
     pub(crate) fn begin_callback(&self, frames: usize) -> SkipFade {
         let mut fade = SkipFade::none();
+        if !self.drift_guarded {
+            return fade;
+        }
         let skip = self
             .drift
             .observe(self.ring.len(), frames, self.underrun_count());

@@ -140,9 +140,13 @@ fn build_output_routing_state_mono_single_channel() {
     };
     let state = build_output_routing_state(
         &output,
-        DEFAULT_ELASTIC_TARGET,
-        DEFAULT_ELASTIC_TARGET * 2,
-        0,
+        crate::route_cushion::route_cushion(
+            DEFAULT_ELASTIC_TARGET,
+            48_000.0,
+            48_000.0,
+            false,
+            true,
+        ),
         48_000.0,
     );
     assert_eq!(state.output_channels, vec![0]);
@@ -158,9 +162,13 @@ fn build_output_routing_state_stereo_two_channels() {
     };
     let state = build_output_routing_state(
         &output,
-        DEFAULT_ELASTIC_TARGET,
-        DEFAULT_ELASTIC_TARGET * 2,
-        0,
+        crate::route_cushion::route_cushion(
+            DEFAULT_ELASTIC_TARGET,
+            48_000.0,
+            48_000.0,
+            false,
+            true,
+        ),
         48_000.0,
     );
     assert_eq!(state.output_channels, vec![0, 1]);
@@ -176,9 +184,13 @@ fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
     };
     let _state = build_output_routing_state(
         &output,
-        DEFAULT_ELASTIC_TARGET,
-        DEFAULT_ELASTIC_TARGET * 2,
-        0,
+        crate::route_cushion::route_cushion(
+            DEFAULT_ELASTIC_TARGET,
+            48_000.0,
+            48_000.0,
+            false,
+            true,
+        ),
         48_000.0,
     );
     // Mono mode with 2 channels: layout should be Mono per the logic

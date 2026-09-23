@@ -219,52 +219,38 @@ fn update_chain_runtime_state_impl(
                 return None;
             }
             let old_route = old_output_routes.get(route_idx).and_then(Option::as_ref);
-            let base = target_for_route(elastic_targets, route_idx);
-            let rebuild_has_convolution =
-                crate::elastic_prime::route_has_convolution(chain, &segments, route_idx);
-            // #965: the IR cushion is a cold-start prime, not the resting level.
-            let cushion =
-                crate::elastic_prime::elastic_capacity_target(base, rebuild_has_convolution);
-            let lockstep_target = base;
             // #85: keep the route on its own device's rate across a rebuild —
-            // the old route knows it, and a rebuild never changes a device.
+            // the old route knows it, and a rebuild never changes a device —
+            // and so its deeper cross-rate cushion too: a tap rebuilt at the
+            // lockstep depth starved on the first bunched callback after
+            // every live edit ("mudei a ordem e deu merda").
             let route_rate = old_route
                 .map(|old| old.sample_rate)
                 .unwrap_or_else(|| runtime.sample_rate());
-            // …and keep its DEEPER cushion too. Rebuilding a cross-rate route
-            // with the lockstep cushion is what made "mudei a ordem e deu
-            // merda": the tap starved on the first bunched callback after every
-            // live edit.
-            let target = crate::runtime_graph_assemble::cushion_for_route(
-                lockstep_target,
+            let cushion = crate::route_cushion::route_cushion(
+                target_for_route(elastic_targets, route_idx),
                 route_rate,
                 runtime.sample_rate(),
+                crate::route_convolution::route_has_convolution(chain, &segments, route_idx),
+                crate::route_clock::route_on_producer_clock(&segments, route_idx, &o.device_id),
             );
-            let capacity = target.max(cushion).saturating_mul(2);
             if !reset_output_queue {
                 if let Some(old) = old_route {
                     if old.output_channels == o.channels
                         && old.buffer.layout() == output_entry_layout(o)
-                        && old.buffer.target_level() == target
-                        && old.buffer.capacity() == capacity
+                        && old.buffer.target_level() == cushion.target
+                        && old.buffer.capacity() == cushion.capacity
                     {
                         return Some(Arc::clone(old));
                     }
                 }
             }
-            // Fresh route on a rebuild. A convolution chain gets the SAME
-            // cushion the initial build would give it (#670): the reuse
-            // check above rejects exactly when the cushion posture changed —
-            // e.g. the chain GAINED its first cab/IR live — and an unprimed
-            // route here left the chain permanently fragile (fill ~0, every
-            // scheduling wobble on a real USB interface popped the output
-            // empty: the owner's random clicks after adding/swapping a cab).
-            let mut prime = if rebuild_has_convolution { cushion } else { 0 };
-            if target > lockstep_target {
-                // The cross-rate depth only helps if it is actually filled.
-                prime = prime.max(target - lockstep_target);
-            }
-            let fresh = build_output_routing_state(o, target, capacity, prime, route_rate);
+            // Fresh route on a rebuild: born at its resting cushion like any
+            // other (#965). An unprimed route here left the chain permanently
+            // fragile (#670: fill ~0, every scheduling wobble on a real USB
+            // interface popped the output empty — the owner's random clicks
+            // after adding/swapping a cab).
+            let fresh = build_output_routing_state(o, cushion, route_rate);
             if let Some(old) = old_route {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
             }

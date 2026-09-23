@@ -453,26 +453,54 @@ stream, and every input period before the output's first callback pushes a
 buffer nobody pops — the ring was full (its whole capacity, 2× the target)
 by the time the first window closed, and taking that floor as the level
 kept the full capacity as latency until the chain was switched off and on.
-Now the excess above the target is shed at the first clean window.
+Now the excess above the target is shed at the first clean window. And a
+window WITH underruns forgets the level: the route underran because its rest
+was too low, the gap pushed it one callback higher, and the level is learned
+again at the new rest — kept, the guard cut the route straight back down to
+the fragile rest (underrun, cut, underrun: a pump of clicks). A cross-rate
+route (#85) is not guarded at all: its resampler servo owns the level, and
+the two used to fight, refill and cut, for the life of the route.
 
-The IR cold-start cushion (#592: 512 frames of silence primed on the initial
-build) is decided per ROUTE, not per chain (#965): only a route written by a
-segment that holds a convolution block gets it. An insert splits the chain,
-and its SEND is written by the segment before the insert — with the cab
-behind the insert, the send keeps its lean target
-(`ELASTIC_MULTIPLIER_INSERT_SEND`) instead of paying 512 frames of loop
-latency for an IR that never feeds it.
+#### How a route's cushion is sized (#965)
 
-The cushion is also a PRIME, not the route's resting level (#965). It used to
-double as the elastic target, so an IR route rested at 512 frames for the
-life of the chain — 11.6 ms at 44.1 kHz on every IR chain, insert or not,
-measured live on the owner's tail route (576 queued frames steady). Now the
-ring is built with room for the prime (`ElasticBuffer::with_capacity`), the
-route's target stays the device-derived one, and the drift guard sheds what
-is left of the prime at the first clean window (~186 ms): cold start covered,
-steady state at two device buffers. A rebuild that changes the cushion posture
-(the chain gains or loses its IR) still rebuilds and re-primes the route
-(#670), because the reuse check compares the capacity as well as the target.
+Measured on the owner's Quantum HD 8 with a Swift probe (one input-only and
+one output-only AUHAL, the shape cpal opens, ~7000 cycles at 64 and 128
+frames in both start orders): **every CoreAudio unit of one device runs on
+ONE HAL IO thread, input first and output 0–5 µs later, every cycle.** The
+chain DSP runs on the #670 worker, so the output callback of a cycle can
+never see that cycle's input: one device buffer is the hand-off, and one
+more is slack. A duplex unit or inline DSP would remove the hand-off, but
+every chain on the device would then share that one thread's deadline — a
+CPU-time isolation violation — and it reverses #670; both were rejected.
+
+- **Target** (`infra-cpal/src/elastic.rs`, `elastic_targets`, ONE function
+  for the cold build and the live rebuild — the live path used to size
+  insert sends like regular outputs, so the first knob turn rebuilt the send
+  with a gap): the output device's buffer × a multiplier — ×1 for an Insert
+  send; on macOS ×1 for a regular output on the same device as one of the
+  chain's inputs; ×2 otherwise (×8 on JACK). Never less than the biggest
+  input buffer: the producer pushes a whole input callback at once, and a
+  ring of 2× a smaller cushion dropped it.
+- **Prime** (`engine/src/route_cushion.rs`): a route fed by a convolver
+  (#592, decided per route in `route_convolution.rs` — an insert's send
+  before the cab and a mid tap before the cab are not fed) is born with its
+  cushion already filled, exactly its target: never above it, so the guard
+  never cuts it (a 512-frame prime above the target cost a skip ~186 ms
+  after every live edit and every DI render). Other routes start empty.
+- **Another clock** (`route_clock.rs`): a route whose output device is not
+  its producer's input device runs on another clock; at the same nominal
+  rate the two drift and the ring slowly drains. There a convolver-fed route
+  keeps the #592 cushion (512 frames), which is what held the #670
+  real-streams battery clean (BlackHole in, MacBook speakers out); on the
+  producer's own clock nothing drifts and the route stays lean.
+
+Result on the owner's insert chain (HD 8, 44.1 kHz / 64 frames): the send
+and the tail rest at 64–128 frames (they were 1024 each before #965);
+guitar in → insert loop → Main measured 60.5 ms before, 23.0 ms with the
+first fixes, see the issue for the final number. Real-hardware proof:
+`infra-cpal/tests/issue_965_insert_on_the_owners_interface.rs` (0 xruns /
+0 underruns on a cold start, over a minute, after live edits and after
+adding a cab live under full CPU load) and the #670 battery (unchanged, 0/0).
 
 ### Chain enabled é runtime, não persistência
 
