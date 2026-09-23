@@ -456,6 +456,10 @@ kept the full capacity as latency until the chain was switched off and on.
 Now the excess above the target is shed at the first clean window. A
 cross-rate route (#85) is not guarded at all: its resampler servo owns the
 level, and the two used to fight, refill and cut, for the life of the route.
+The same full ring is what a scene switch left behind (#969): a structural
+switch brings up brand-new streams, the input again ran ahead, and live
+rebuilds reuse routes (#670) — measured live as `fill_frames: 1024`,
+`latency_trims: 0`, the chain late and garbled until switched off and on.
 
 #### How a route's cushion is sized (#965)
 
