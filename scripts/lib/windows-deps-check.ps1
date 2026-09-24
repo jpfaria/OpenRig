@@ -9,8 +9,9 @@
 #
 #   scripts\lib\windows-deps-check.ps1 -StageDir dist\stage
 #
-# Checks the top-level exes/DLLs and every plugin DLL: the loader resolves a
-# plugin's imports through the application directory, not the plugin's own.
+# Checks the top-level exes/DLLs and every plugin DLL (LV2 .dll, VST3 .vst3):
+# the loader resolves a plugin's imports through the application directory,
+# not the plugin's own.
 param([Parameter(Mandatory = $true)][string]$StageDir)
 
 $ErrorActionPreference = "Stop"
@@ -22,7 +23,8 @@ if (-not (Test-Path $dumpbin)) { throw "dumpbin.exe not found at $dumpbin" }
 
 $stage = (Resolve-Path $StageDir).Path
 $system32 = Join-Path $env:SystemRoot "System32"
-$vcRuntime = '^(vcruntime|msvcp|concrt|vccorlib|vcomp)\d'
+# msvcr1x0 too (older plugins), but not msvcrt.dll, which is part of Windows.
+$vcRuntime = '^(vcruntime|msvcp|msvcr|concrt|vccorlib|vcomp)\d'
 
 function Get-Imports([string]$Binary) {
     $out = & $dumpbin /nologo /dependents $Binary
@@ -40,6 +42,9 @@ function Test-Provided([string]$Dll) {
 $binaries = @(Get-ChildItem -Path "$stage\*" -File -Include *.exe, *.dll)
 if (Test-Path "$stage\plugins") {
     $binaries += Get-ChildItem "$stage\plugins" -Recurse -File -Filter *.dll
+    # VST3 modules are DLLs named *.vst3 (inside Contents\x86_64-win, or the
+    # whole module in the pre-3.6.10 layout).
+    $binaries += Get-ChildItem "$stage\plugins" -Recurse -File -Filter *.vst3
 }
 
 $missing = @()
