@@ -16,7 +16,7 @@ This guide covers how to install and run OpenRig on your system, either from pre
 
 ## Download Binaries
 
-Prebuilt binaries for every supported platform are published on the [latest release page](https://github.com/jpfaria/OpenRig/releases/latest). Pick the artifact for your OS and architecture (`x86_64` for most desktops/laptops, `aarch64` for ARM boards such as the Orange Pi).
+Prebuilt binaries are published on the [latest release page](https://github.com/jpfaria/OpenRig/releases/latest). Today that is the macOS build; the Linux and Windows packages are built in CI but not published yet (#816, #978), so build from source on those systems for now.
 
 ### Linux
 
@@ -117,7 +117,13 @@ xattr -dr com.apple.quarantine /Applications/OpenRig.app
 
 ### Windows
 
-Run the `OpenRig-<ver>-windows-x64.msi` installer, or download `OpenRig-<ver>-windows-x64.zip` for a portable copy and run the `adapter-gui` executable.
+Not published yet (#978). Once it is: run the `OpenRig-<ver>-windows-x64.msi` installer, or unzip `OpenRig-<ver>-windows-x64.zip` for a portable copy and run `openrig.exe`. The package carries the VC++ runtime it needs.
+
+The installer is not code-signed yet, so Windows SmartScreen shows "Windows protected your PC": choose **More info → Run anyway**.
+
+Audio: OpenRig uses your interface's ASIO driver when one is installed, and WASAPI otherwise (onboard audio, class-compliant interfaces).
+
+If something goes wrong, the log of the last session is in `%APPDATA%\OpenRig\logs\openrig.log`.
 
 ## Build from Source
 

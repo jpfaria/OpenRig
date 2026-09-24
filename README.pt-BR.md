@@ -132,11 +132,11 @@ Todo `model:` ID está registrado no [Blocks Reference Quick Reference](https://
 
 ### Download
 
-Binários para todas as plataformas suportadas (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) ficam na [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest). Cada SO tem seus passos no Installation Guide:
+A [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest) traz hoje o build de macOS (Apple Silicon + Intel). Os builds de Linux e Windows estão a caminho ([#816](https://github.com/jpfaria/OpenRig/issues/816), [#978](https://github.com/jpfaria/OpenRig/issues/978)); até serem publicados, compile do código. Cada SO tem seus passos no Installation Guide:
 
 - **macOS** — [download, fix de quarentena & instalador de uma linha](docs/user-guide/installation.md#macos)
 - **Linux** — [AppImage / `.deb` / `.rpm` + setup de áudio](docs/user-guide/installation.md#linux)
-- **Windows** — [instalador `.msi` / zip portátil](docs/user-guide/installation.md#windows)
+- **Windows** — [instalador `.msi` / zip portátil, quando publicado](docs/user-guide/installation.md#windows)
 
 ### Compilar do código
 

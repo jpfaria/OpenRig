@@ -132,11 +132,11 @@ Every `model:` ID is registered in the [Blocks Reference Quick Reference](https:
 
 ### Download
 
-Prebuilt binaries for every supported platform (macOS aarch64/x86_64, Linux x86_64/aarch64, Windows x86_64) are on the [Releases page](https://github.com/jpfaria/OpenRig/releases/latest). Each OS has its own setup steps in the Installation Guide:
+The [Releases page](https://github.com/jpfaria/OpenRig/releases/latest) ships the macOS build today (Apple Silicon + Intel). Linux and Windows builds are in the works ([#816](https://github.com/jpfaria/OpenRig/issues/816), [#978](https://github.com/jpfaria/OpenRig/issues/978)); until they are published, build from source. Each OS has its own setup steps in the Installation Guide:
 
 - **macOS** — [download, quarantine fix & one-line installer](docs/user-guide/installation.md#macos)
 - **Linux** — [AppImage / `.deb` / `.rpm` + audio setup](docs/user-guide/installation.md#linux)
-- **Windows** — [`.msi` installer / portable zip](docs/user-guide/installation.md#windows)
+- **Windows** — [`.msi` installer / portable zip, once published](docs/user-guide/installation.md#windows)
 
 ### Build from Source
 
