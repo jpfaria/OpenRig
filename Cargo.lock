@@ -3259,6 +3259,7 @@ dependencies = [
  "plugin-loader",
  "project",
  "vst3-host",
+ "windows",
 ]
 
 [[package]]

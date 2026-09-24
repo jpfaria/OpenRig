@@ -27,6 +27,8 @@ mod device_config_cache;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod device_lookup;
 
+#[cfg(target_os = "windows")]
+mod com_keepalive;
 mod host;
 #[cfg(any(target_os = "windows", test))]
 mod windows_host_choice;

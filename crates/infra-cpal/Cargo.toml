@@ -42,3 +42,7 @@ vst3-host = { path = "../vst3-host" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+# #978: CoIncrementMTAUsage keeps COM alive for cpal's cached WASAPI enumerator.
+windows = { version = "0.62", features = ["Win32_System_Com"] }

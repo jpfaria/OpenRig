@@ -30,6 +30,8 @@ pub(crate) fn create_host() -> cpal::Host {
         use crate::windows_host_choice::{choose_windows_host, WindowsHost};
         use cpal::traits::HostTrait;
 
+        crate::com_keepalive::keep_com_alive();
+
         // cpal reports ASIO as available whether or not a driver is installed
         // (#978), so count what it can actually open.
         let asio = cpal::host_from_id(cpal::HostId::Asio).ok();
