@@ -63,7 +63,10 @@ fn available(model_id: &str) -> bool {
 
 #[test]
 fn packages_without_a_host_binary_are_registered_but_not_available() {
-    let root = std::env::temp_dir().join("openrig_issue978_foreign_platform");
+    // Per clone (CARGO_TARGET_TMPDIR), so parallel runs in other .solvers
+    // checkouts cannot delete these fixtures mid-scan.
+    let root =
+        std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("issue978_foreign_platform");
     let _ = fs::remove_dir_all(&root);
     let (host_slot, host_vst3) = host();
     let (foreign_slot, foreign_vst3) = foreign();
