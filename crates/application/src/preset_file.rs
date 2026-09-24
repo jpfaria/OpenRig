@@ -27,12 +27,32 @@ pub fn sanitize_for_filename(s: &str) -> String {
         .collect()
 }
 
+/// `stem`, suffixed with `_` when `windows` and it is one of the device
+/// names Windows reserves whatever the extension (#978).
+pub fn windows_safe_stem(stem: &str, windows: bool) -> String {
+    let upper = stem.to_ascii_uppercase();
+    let numbered = |prefix: &str| {
+        upper
+            .strip_prefix(prefix)
+            .is_some_and(|n| n.len() == 1 && matches!(n.as_bytes()[0], b'1'..=b'9'))
+    };
+    let reserved = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || numbered("COM")
+        || numbered("LPT");
+    if windows && reserved {
+        format!("{stem}_")
+    } else {
+        stem.to_string()
+    }
+}
+
 /// Build the on-disk filename from a user-facing preset name. Issue
 /// #510: keep the exact characters the user typed; only sanitize
 /// filesystem-illegal ones.
 pub fn preset_filename(name: &str) -> String {
     let cleaned = sanitize_for_filename(name.trim());
-    format!("{cleaned}.{PRESET_EXTENSION}")
+    let stem = windows_safe_stem(&cleaned, cfg!(windows));
+    format!("{stem}.{PRESET_EXTENSION}")
 }
 
 /// Resolve the absolute path of a preset file under the given presets
