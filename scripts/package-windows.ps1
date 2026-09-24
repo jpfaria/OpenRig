@@ -7,8 +7,9 @@
     Assumes the release binaries have already been built, i.e.
     cargo build --release -p adapter-gui -p adapter-console -p adapter-console-rig -p adapter-render
     (the GUI plus the headless console + offline-render binaries, issue #741).
-    Stages all required files (binaries, NAM DLL, LV2 libs, data, assets, captures),
-    then uses WiX Toolset v3 (heat + candle + light) to build the MSI.
+    Stages the binaries, the NAM DLL, assets, presets, the plugin tree and
+    translations, checks that every DLL they import ships or is part of
+    Windows, then uses WiX Toolset v3 (heat + candle + light) to build the MSI.
 
 .PARAMETER Version
     Release version string, e.g. "1.2.3" or "dev" (default: dev)
@@ -95,7 +96,7 @@ try {
     # the offline renderer next to openrig.exe. The list is the single source
     # of truth scripts\lib\console-binaries.tsv, shared with the macOS/Linux
     # packagers. They link the same nam_wrapper DLL (staged below into this same
-    # dir) and the MinGW runtime DLLs, so no extra per-binary handling is needed.
+    # dir), so no extra per-binary handling is needed.
     $consoleTsv = Join-Path $RepoRoot "scripts\lib\console-binaries.tsv"
     Get-Content $consoleTsv | ForEach-Object {
         $line = $_.Trim()
@@ -135,18 +136,16 @@ try {
     if (Test-Path "presets") {
         Copy-Item -Recurse "presets"          "$stageDir\presets"
     }
-    # libs/lv2, data, captures were removed in 2011110d — LV2 plugins now
-    # ship via openrig-plugins.zip (extracted on first launch).
-
-    # Bundle plugins as a pre-extracted directory next to openrig.exe.
-    # plugin_loader::registry::init_many scans <exe_dir>/plugins plus
-    # the user-writable root.
+    # Bundle plugins as a pre-extracted directory next to openrig.exe. The app
+    # scans <data root>\plugins plus the user-writable root, and on Windows the
+    # data root is the exe's directory because assets\ ships next to it
+    # (infra_filesystem install_root, #978).
     if (Test-Path "plugins\source") {
         Copy-Item -Recurse "plugins\source" "$stageDir\plugins"
         # Each LV2 plugin carries platform/{linux-x86_64,linux-aarch64,
-        # macos-universal,windows-x86_64} binaries — Windows installer só
-        # carrega .dll, então .so/.dylib são MB inúteis. Drop tudo que
-        # não é Windows (issue #425).
+        # macos-universal,windows-x86_64} binaries. The Windows package only
+        # loads the .dll, so the .so/.dylib are dead weight: drop every
+        # non-Windows platform dir (issue #425).
         $droppedDirs = 0
         $droppedBytes = 0
         foreach ($pattern in @("linux-*", "macos-*")) {
@@ -158,8 +157,25 @@ try {
                     Remove-Item -Recurse -Force $_.FullName
                 }
         }
+        # VST3 bundles keep one binary dir per platform under Contents\
+        # (MacOS, x86_64-linux, ...). Only x86_64-win loads in this package;
+        # the rest was ~490 MB of dead weight (#978). Contents\Resources
+        # (moduleinfo.json) and Info.plist stay: discovery reads them.
+        $vst3Foreign = @("MacOS", "x86_64-linux", "aarch64-linux", "i386-linux", "arm64-win", "arm64ec-win", "arm64x-win")
+        Get-ChildItem -Path "$stageDir\plugins" -Recurse -Directory -Filter "*.vst3" -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName "Contents") } |
+            ForEach-Object {
+                foreach ($dir in $vst3Foreign) {
+                    $foreign = Join-Path $_.FullName "Contents\$dir"
+                    if (Test-Path $foreign) {
+                        $droppedBytes += (Get-ChildItem $foreign -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+                        $droppedDirs++
+                        Remove-Item -Recurse -Force $foreign
+                    }
+                }
+            }
         $count = (Get-ChildItem -Recurse -Filter "manifest.yaml" "$stageDir\plugins").Count
-        Write-Host ("    bundled plugins ({0} package(s)); dropped {1} non-Windows platform dirs ({2:N1} MB)" -f $count, $droppedDirs, ($droppedBytes / 1MB))
+        Write-Host ("    bundled plugins ({0} package(s)); dropped {1} non-Windows binary dirs ({2:N1} MB)" -f $count, $droppedDirs, ($droppedBytes / 1MB))
     } else {
         Write-Host "    NOTE: plugins\source\ not found — bundle ships without plugins"
     }
@@ -180,7 +196,9 @@ try {
         }
     }
 
-    # ── Copy MinGW runtime DLLs (required by the MinGW-built nam_wrapper DLL) ───
+    # ── Copy MinGW runtime DLLs ──────────────────────────────────────────────────
+    # The bundled LV2 DLLs are MinGW builds (OpenRig-plugins) and import these.
+    # nam_wrapper itself is an MSVC build since #643/#647.
     Write-Host "==> Copying MinGW runtime DLLs..."
     $mingwDlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
     $mingwSearchPaths = @(

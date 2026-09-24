@@ -407,7 +407,7 @@ jobs:
       - name: Install WiX Toolset v3
         run: choco install wixtoolset -y --no-progress
 
-      - name: Install MinGW runtime DLLs (needed by the MinGW-built nam_wrapper DLL)
+      - name: Install MinGW runtime DLLs (imported by the MinGW-built LV2 plugin DLLs)
         shell: cmd
         run: C:\msys64\usr\bin\pacman.exe -S --noconfirm --needed mingw-w64-x86_64-gcc-libs mingw-w64-x86_64-winpthreads-git
 
