@@ -31,6 +31,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate file sizes and inline test modules
         run: VALIDATE_STATIC_ONLY=1 ./scripts/validate.sh crates
+      # #974: nam-refresh uses this script to write develop.
+      - name: Test the NeuralAmpModelerCore vendor script
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest -q scripts/test_nam_vendor.py
 
   test:
     name: Test Suite
@@ -60,6 +65,58 @@ jobs:
       # (see issue #693 FIFO tests, fixed to never block the test thread).
       - name: Run tests
         run: timeout --signal=SIGKILL 1500 cargo test --workspace
+
+  # #974: after develop's own tests pass, move the vendored NeuralAmpModelerCore
+  # to the newest upstream release. The new version is tested here, in its own
+  # job, and pushed to develop only when the whole suite passes — a release
+  # that breaks the build or the tests never lands, and this job goes red
+  # naming it. Only develop: release branches take the new NAM when they are
+  # cut from it, and a bot push there would leave the release→main PR head
+  # with no checks (GITHUB_TOKEN pushes trigger no workflow). An unreachable
+  # upstream or a refused push is a warning.
+  nam-refresh:
+    name: Refresh vendored NeuralAmpModelerCore
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Vendor the newest upstream release
+        id: vendor
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python3 scripts/nam_vendor.py update
+          if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust stable
+        if: steps.vendor.outputs.bumped == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        if: steps.vendor.outputs.bumped == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev pkg-config \
+            libfontconfig1-dev libseat-dev \
+            libxkbcommon-dev libinput-dev libgbm-dev \
+            libjack-jackd2-dev gettext
+
+      - name: Test the new release
+        if: steps.vendor.outputs.bumped == 'true'
+        run: timeout --signal=SIGKILL 1500 cargo test --workspace
+
+      - name: Push it to develop
+        if: steps.vendor.outputs.bumped == 'true'
+        run: python3 scripts/nam_vendor.py push
 
   # Coverage is REPORTING, not a gate. It lives in its own job with
   # continue-on-error so it can NEVER block a PR whose tests passed: the

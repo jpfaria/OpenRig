@@ -36,3 +36,4 @@ crates/adapter-gui/translations/*/LC_MESSAGES/*.mo
 # (Git LFS) at the version deps/NeuralAmpModelerCore.lock pins. Never versioned.
 /deps/NeuralAmpModelerCore/
 /deps/.NeuralAmpModelerCore.extract-*/
+/deps/.NeuralAmpModelerCore.extract-lock

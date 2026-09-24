@@ -28,6 +28,14 @@ pub enum Outcome {
     Extracted,
 }
 
+/// The file two builds lock to take turns on `dest`.
+pub fn extraction_lock(dest: &Path) -> PathBuf {
+    dest.with_file_name(format!(
+        ".{}.extract-lock",
+        dest.file_name().unwrap_or_default().to_string_lossy()
+    ))
+}
+
 /// Is `archive` an unmaterialized Git LFS pointer instead of the real file?
 pub fn is_lfs_pointer(archive: &Path) -> bool {
     let mut head = [0u8; 40];
@@ -47,7 +55,24 @@ pub fn is_lfs_pointer(archive: &Path) -> bool {
 pub fn ensure_vendor(archive: &Path, lock: &Path, dest: &Path) -> Result<Outcome, String> {
     let wanted =
         fs::read_to_string(lock).map_err(|e| format!("cannot read {}: {e}", lock.display()))?;
-    if fs::read_to_string(dest.join(STAMP)).is_ok_and(|have| have == wanted) {
+    let current = || fs::read_to_string(dest.join(STAMP)).is_ok_and(|have| have == wanted);
+    if current() {
+        return Ok(Outcome::Present);
+    }
+    // Another build on this checkout may be extracting right now: take turns,
+    // then look again — its tree may be the one this build wants.
+    // Never truncate it: on Windows truncating a file another build holds
+    // locked fails instead of waiting.
+    let turn = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(extraction_lock(dest))
+        .map_err(|e| format!("cannot create {}: {e}", extraction_lock(dest).display()))?;
+    turn.lock()
+        .map_err(|e| format!("cannot lock {}: {e}", extraction_lock(dest).display()))?;
+    if current() {
         return Ok(Outcome::Present);
     }
     if is_lfs_pointer(archive) {
@@ -72,8 +97,7 @@ pub fn ensure_vendor(archive: &Path, lock: &Path, dest: &Path) -> Result<Outcome
     ));
     let _ = fs::remove_dir_all(&staging);
     let unpacked = unpack(archive, &staging, name).and_then(|tree| {
-        fs::write(tree.join(STAMP), &wanted)
-            .map_err(|e| format!("cannot write {}: {e}", tree.join(STAMP).display()))?;
+        write_stamp(&tree.join(STAMP), &wanted)?;
         if dest.exists() {
             fs::remove_dir_all(dest)
                 .map_err(|e| format!("cannot clear {}: {e}", dest.display()))?;
@@ -83,6 +107,21 @@ pub fn ensure_vendor(archive: &Path, lock: &Path, dest: &Path) -> Result<Outcome
     let _ = fs::remove_dir_all(&staging);
     unpacked?;
     Ok(Outcome::Extracted)
+}
+
+/// Write the stamp dated long before this build began: cargo watches it, and
+/// a watched file newer than the run that watched it reruns the build script
+/// (and recompiles every crate above `nam`) on the next build.
+fn write_stamp(stamp: &Path, lock_text: &str) -> Result<(), String> {
+    let failed = |e: std::io::Error| format!("cannot write {}: {e}", stamp.display());
+    fs::write(stamp, lock_text).map_err(failed)?;
+    fs::File::options()
+        .write(true)
+        .open(stamp)
+        .and_then(|file| {
+            file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1))
+        })
+        .map_err(failed)
 }
 
 /// Unpack `archive` into `staging` and return its top folder `name`.

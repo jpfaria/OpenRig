@@ -1,11 +1,18 @@
 // Responsibility: builds the native amp modeler library this crate links against.
 #[path = "build_vendor.rs"]
 mod build_vendor;
+#[path = "build_vendor_check.rs"]
+mod build_vendor_check;
 
 fn main() {
-    // #974: the NeuralAmpModelerCore sources come from the vendored archive,
-    // never from the network.
-    let deps = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../deps");
+    // #974: the NeuralAmpModelerCore sources come from the vendored archive.
+    // The first build after a `git fetch` reports a newer upstream release
+    // (CI vendors it on develop); every other build stays offline.
+    let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    if let Some(out_dir) = std::env::var_os("OUT_DIR") {
+        build_vendor_check::check_after_fetch(&repo, std::path::Path::new(&out_dir));
+    }
+    let deps = repo.join("deps");
     let archive = deps.join("NeuralAmpModelerCore.tar.gz");
     let lock = deps.join("NeuralAmpModelerCore.lock");
     let tree = deps.join("NeuralAmpModelerCore");

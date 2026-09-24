@@ -51,16 +51,26 @@ tree — NAM, AudioDSPTools, both Eigen copies, nlohmann — ships as one archiv
   The build re-extracts it when it is missing or came from another lock, and
   never needs the network.
 
-To move to the newest upstream release:
+Only CI moves it to a newer upstream release, and only on `develop`:
 
-```bash
-python3 scripts/nam_vendor.py update
-```
+- **CI:** after develop's Test Suite passes, the `nam-refresh` job runs
+  `scripts/nam_vendor.py update`. When upstream's newest `vX.Y.Z` tag is newer
+  than the lock, it clones the tag with every submodule, repacks the archive,
+  rewrites the lock and commits both. The job then runs the whole suite on it
+  and pushes (`nam_vendor.py push`) only if it passes — a release that breaks
+  the build or the tests never lands, and the job goes red naming it. Release
+  branches take the new version when they are cut from develop.
+- **Local build:** the first `cargo build` after a `git fetch` / `git pull`
+  runs `nam_vendor.py check` (once per fetch) and, if upstream has a newer
+  release, shows it as a cargo warning. It never writes or commits anything.
+  Other builds never touch the network: rerunning the `nam` build script
+  recompiles every crate above it (~3.5 min), so it is tied to the fetch. It
+  is skipped in CI, with `CARGO_NET_OFFLINE`, and in cargo dependency
+  checkouts.
 
-It asks upstream for its newest `vX.Y.Z` tag; when that is newer than the lock,
-it clones the tag with every submodule, repacks the archive, rewrites the lock
-and commits both on the current branch. When upstream (or GitLab) cannot be
-reached it warns and exits 0 — the vendored copy keeps building.
+An unreachable upstream, a timeout (`NAM_VENDOR_TIMEOUT`, 20 s per network step
+in a local build, 300 s otherwise), a failed commit (both files are put back) or
+a refused push is a warning and exit 0 — the vendored copy keeps building.
 
 ## Updating a dependency
 

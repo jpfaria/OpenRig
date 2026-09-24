@@ -88,7 +88,10 @@ pub fn build_processor_with_assets_for_layout(
 #[path = "lib_tests.rs"]
 mod tests;
 
-// #974: the build script's vendor extraction, tested with the crate.
+// #974: the build script's helpers, tested with the crate.
 #[cfg(test)]
 #[path = "../build_vendor.rs"]
 mod build_vendor;
+#[cfg(test)]
+#[path = "../build_vendor_check.rs"]
+mod build_vendor_check;

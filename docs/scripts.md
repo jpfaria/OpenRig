@@ -3,7 +3,7 @@
 | Script | Função |
 |--------|--------|
 | `scripts/solver-setup.sh <N> <branch> [release-base]` | Builds the agent workspace `.solvers/issue-N` (clone, `plugins` link) and prints the absolute run command with `OPENRIG_PLUGINS_ROOT` |
-| `scripts/nam_vendor.py update` | Moves the vendored NeuralAmpModelerCore archive (`deps/NeuralAmpModelerCore.tar.gz` + `.lock`) to the newest upstream release and commits it on the current branch; offline = warning, exit 0 (#974) |
+| `scripts/nam_vendor.py check\|update\|push` | The vendored NeuralAmpModelerCore archive (`deps/NeuralAmpModelerCore.tar.gz` + `.lock`): `check` names a newer upstream release (the first local build after a `git fetch` runs it), `update` vendors it and commits on the current branch, `push` publishes that commit — CI's `nam-refresh` job does both on `develop` after the tests pass. Offline / timeout / failed commit / refused push = warning, exit 0 (#974) |
 | `scripts/build-deb-local.sh` | Cross-compila `.deb` arm64 + amd64 via Docker |
 | `scripts/build-linux-local.sh` | Build Linux (interno, chamado pelo build-deb-local.sh) |
 | `scripts/build-orange-pi-image.sh` | Imagem SD para Orange Pi |

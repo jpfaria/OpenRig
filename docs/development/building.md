@@ -104,8 +104,10 @@ NeuralAmpModelerCore (with AudioDSPTools, Eigen and nlohmann inside it), is
 vendored as `deps/NeuralAmpModelerCore.tar.gz` (Git LFS) and pinned by
 `deps/NeuralAmpModelerCore.lock`. `crates/nam/build.rs` unpacks it into
 `deps/NeuralAmpModelerCore/` (not versioned) whenever that folder is missing or
-came from another lock, so a build never touches the network (#974). Updating
-it is `python3 scripts/nam_vendor.py update` — see [deps/DEPS.md](../../deps/DEPS.md).
+came from another lock (#974). The first build after a `git fetch`/`git pull`
+shows a cargo warning when upstream has a newer release; CI vendors it on
+`develop` after the tests pass. Every other build stays offline — see
+[deps/DEPS.md](../../deps/DEPS.md).
 
 Key workspace dependencies (Cargo.toml):
 
