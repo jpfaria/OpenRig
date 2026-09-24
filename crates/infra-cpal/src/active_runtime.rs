@@ -47,12 +47,10 @@ pub(crate) struct ActiveChainRuntime {
     /// Bumped once per stream build. Nothing reads it in production — it is how
     /// a test proves a chain change really opened NEW streams instead of
     /// reusing the live ones (#881).
-    /// The test that reads it is cpal-only, so on linux+JACK it is unread even
-    /// under `cfg(test)`.
-    #[cfg_attr(
-        any(not(test), all(target_os = "linux", feature = "jack")),
-        allow(dead_code)
-    )]
+    /// The test that reads it opens real CoreAudio streams and is macOS-only
+    /// (`issue_881_stream_lifecycle_tests.rs`), so everywhere else it is unread
+    /// even under `cfg(test)` (#978: the Windows test build flagged it).
+    #[cfg_attr(any(not(test), not(target_os = "macos")), allow(dead_code))]
     pub(crate) generation: u64,
     /// #957: the device config these streams were resolved against. A
     /// structural edit that leaves the I/O and the device settings alone
