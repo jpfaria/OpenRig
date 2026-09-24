@@ -27,24 +27,30 @@ pub(crate) fn get_host() -> &'static cpal::Host {
 pub(crate) fn create_host() -> cpal::Host {
     #[cfg(target_os = "windows")]
     {
-        use crate::windows_host_choice::{choose_windows_host, WindowsHost};
+        use crate::windows_host_choice::{HostDecision, WindowsHost};
         use cpal::traits::HostTrait;
 
         crate::com_keepalive::keep_com_alive();
 
         // cpal reports ASIO as available whether or not a driver is installed
-        // (#978), so count what it can actually open.
-        let asio = cpal::host_from_id(cpal::HostId::Asio).ok();
-        let asio_devices = asio
-            .as_ref()
-            .and_then(|host| host.devices().ok())
-            .map_or(0, |devices| devices.count());
-        match (choose_windows_host(asio_devices), asio) {
-            (WindowsHost::Asio, Some(host)) => {
-                log::info!("Audio host: ASIO ({asio_devices} device(s))");
+        // (#978), so count what it can actually open. Once per process: the
+        // streaming host and the enumeration host must be the same one.
+        static DECISION: HostDecision = HostDecision::new();
+        let host_id = match DECISION.decide(|| {
+            cpal::host_from_id(cpal::HostId::Asio)
+                .ok()
+                .and_then(|host| host.devices().ok())
+                .map_or(0, |devices| devices.count())
+        }) {
+            WindowsHost::Asio => cpal::HostId::Asio,
+            WindowsHost::Wasapi => cpal::HostId::Wasapi,
+        };
+        match cpal::host_from_id(host_id) {
+            Ok(host) => {
+                log::info!("Audio host: {host_id:?}");
                 return host;
             }
-            _ => log::info!("Audio host: WASAPI (no ASIO device found)"),
+            Err(e) => log::warn!("Audio host {host_id:?} unavailable ({e}), using the default"),
         }
     }
 

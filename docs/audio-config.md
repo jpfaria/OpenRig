@@ -824,7 +824,8 @@ cpal reports ASIO as available on every Windows machine, driver or not, so
 `host::create_host` counts the ASIO devices it can actually open: at least one
 opens the ASIO host, and none falls back to WASAPI (`windows_host_choice.rs`).
 Before this, a PC with onboard audio or a class-compliant interface had no
-devices at all. The picker and the streams share this choice (#422).
+devices at all. The choice is made once per process (`HostDecision`), so the
+picker and the streams always enumerate the same host (#422).
 
 ASIO opens only the driver's native sample format, commonly Int32. The chain
 streams dispatch on it (`stream_builder_input.rs` / `stream_builder_output.rs`),
