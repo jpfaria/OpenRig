@@ -95,5 +95,11 @@ fn main() -> anyhow::Result<()> {
     // #693: saves are queued to the persist worker — wait for
     // durability before the process exits.
     application::persist_worker::flush();
+    // #978: the error the app stops with, and the last queued log lines,
+    // reach the log (the only trace a windowed Windows build leaves).
+    if let Err(e) = &result {
+        log::error!("openrig stopped with an error: {e:#}");
+    }
+    adapter_gui::logging::flush_logging(std::time::Duration::from_secs(2));
     result
 }

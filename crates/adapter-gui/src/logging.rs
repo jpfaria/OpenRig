@@ -14,14 +14,25 @@
 use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 /// Bounded queue depth: ~4k formatted records of in-flight logging.
 /// Full queue = sink slower than producers; dropping beats blocking.
 const QUEUE_DEPTH: usize = 4096;
 
+/// What the writer thread receives: a formatted line, or a request to confirm
+/// that everything queued before it has reached the sink.
+enum Message {
+    Line(Vec<u8>),
+    Flush(SyncSender<()>),
+}
+
+/// The writer thread's queue, kept for [`flush_logging`].
+static WRITER: OnceLock<SyncSender<Message>> = OnceLock::new();
+
 struct NonBlockingWriter {
-    tx: SyncSender<Vec<u8>>,
+    tx: SyncSender<Message>,
     dropped: Arc<AtomicU64>,
     buf: Vec<u8>,
 }
@@ -33,7 +44,7 @@ impl Write for NonBlockingWriter {
         // records even when env_logger writes a record in several chunks.
         while let Some(pos) = self.buf.iter().position(|&b| b == b'\n') {
             let line: Vec<u8> = self.buf.drain(..=pos).collect();
-            match self.tx.try_send(line) {
+            match self.tx.try_send(Message::Line(line)) {
                 Ok(()) | Err(TrySendError::Disconnected(_)) => {}
                 Err(TrySendError::Full(_)) => {
                     self.dropped.fetch_add(1, Ordering::Relaxed);
@@ -53,7 +64,8 @@ impl Write for NonBlockingWriter {
 /// calls never block: records go through a bounded queue to a writer
 /// thread; under backpressure records are dropped and accounted.
 pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
-    let (tx, rx) = sync_channel::<Vec<u8>>(QUEUE_DEPTH);
+    let (tx, rx) = sync_channel::<Message>(QUEUE_DEPTH);
+    let _ = WRITER.set(tx.clone());
     let dropped = Arc::new(AtomicU64::new(0));
     let dropped_writer = Arc::clone(&dropped);
 
@@ -61,7 +73,15 @@ pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
         .name("log-writer".into())
         .spawn(move || {
             let mut reported: u64 = 0;
-            while let Ok(line) = rx.recv() {
+            while let Ok(message) = rx.recv() {
+                let line = match message {
+                    Message::Line(line) => line,
+                    Message::Flush(done) => {
+                        let _ = sink.flush();
+                        let _ = done.try_send(());
+                        continue;
+                    }
+                };
                 let _ = sink.write_all(&line);
                 let total = dropped_writer.load(Ordering::Relaxed);
                 if total > reported {
@@ -90,9 +110,52 @@ pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
     }
 }
 
+/// Waits up to `timeout` for every record queued so far to reach the sink.
+/// `true` when it did.
+pub fn flush_logging(timeout: Duration) -> bool {
+    let Some(writer) = WRITER.get() else {
+        return true;
+    };
+    let deadline = Instant::now() + timeout;
+    let (done_tx, done_rx) = sync_channel(1);
+    let mut request = Message::Flush(done_tx);
+    // The marker queues behind every line already sent; a full queue gets
+    // retried until the deadline instead of blocking.
+    loop {
+        match writer.try_send(request) {
+            Ok(()) => break,
+            Err(TrySendError::Disconnected(_)) => return false,
+            Err(TrySendError::Full(back)) => {
+                if Instant::now() >= deadline {
+                    return false;
+                }
+                request = back;
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
+    }
+    done_rx
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        .is_ok()
+}
+
 /// Default initialization used by the GUI binary: log to stderr.
 pub fn init_logging() {
     init_logging_with_target(default_sink());
+    #[cfg(target_os = "windows")]
+    log_panics();
+}
+
+/// The default panic message goes to stderr, which a windowed Windows process
+/// does not have, so a crash left nothing in the log file (#978).
+#[cfg(target_os = "windows")]
+fn log_panics() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        log::error!("panic: {info}");
+        flush_logging(Duration::from_secs(2));
+        previous(info);
+    }));
 }
 
 #[cfg(not(target_os = "windows"))]
