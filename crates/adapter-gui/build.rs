@@ -8,7 +8,31 @@ use std::process::Command;
 #[path = "src/mo_freshness.rs"]
 mod mo_freshness;
 
+/// Stack for the Slint compile: well above the 8 MiB main thread that has
+/// always sufficed on macOS/Linux. Only reserved address space, not memory.
+const SLINT_COMPILE_STACK_BYTES: usize = 64 * 1024 * 1024;
+
 fn main() {
+    // The Slint compiler recurses through the whole UI tree. A build script's
+    // main thread gets the OS default stack: 8 MiB on macOS/Linux, 1 MiB on
+    // Windows, where compiling this UI overflowed it (#978). A thread with an
+    // explicit stack gives every platform the same headroom.
+    std::thread::Builder::new()
+        .name("slint-build".into())
+        .stack_size(SLINT_COMPILE_STACK_BYTES)
+        .spawn(compile_ui)
+        .expect("failed to spawn the Slint compile thread")
+        .join()
+        .expect("Slint compile thread panicked");
+
+    // Keep msgfmt-driven .mo generation as a build artifact for packaging
+    // scripts (macOS .app bundle, .deb, Windows installer) — even though
+    // the runtime no longer needs them, the packaging pipeline does for
+    // the staged distribution layout.
+    compile_translations();
+}
+
+fn compile_ui() {
     // with_bundled_translations embeds the .po files directly into the
     // compiled binary at compile time. This sidesteps every runtime path
     // resolution issue: no bindtextdomain, no env-var dependency, no
@@ -42,12 +66,6 @@ fn main() {
     };
     slint_build::compile_with_config("ui/app-window.slint", config)
         .expect("failed to compile Slint UI");
-
-    // Keep msgfmt-driven .mo generation as a build artifact for packaging
-    // scripts (macOS .app bundle, .deb, Windows installer) — even though
-    // the runtime no longer needs them, the packaging pipeline does for
-    // the staged distribution layout.
-    compile_translations();
 }
 
 /// Compile every `translations/<lang>/adapter-gui.po` into runtime-loadable
