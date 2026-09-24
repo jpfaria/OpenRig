@@ -100,8 +100,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             // the bundled presets are visible. Desktop previously used a
             // native FileDialog with no list — selection now flows
             // through on_preset_picker_confirm for both modes (#479).
-            *preset_full_list.borrow_mut() =
-                crate::preset_picker_files::scan_preset_files(&session.presets_path);
+            // #978: the user's presets plus the ones that ship with the app.
+            *preset_full_list.borrow_mut() = crate::preset_picker_files::scan_preset_libraries(
+                &session.presets_path,
+                &crate::app_config_load::bundled_presets_path(),
+            );
             // Issue #510: reset the search field every time the picker
             // opens so a stale query from a previous open doesn't hide
             // half the presets.

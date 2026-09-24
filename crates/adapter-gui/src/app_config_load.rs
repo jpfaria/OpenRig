@@ -18,18 +18,21 @@ pub(crate) fn load_and_sync_app_config() -> Result<AppConfig> {
     Ok(config)
 }
 
-/// Default location for the bundled preset library.
-///
-/// Resolves to `<data_root>/presets` where `data_root` is:
-/// - `<bundle>/Contents/Resources/` on macOS (.dmg / .app)
-/// - `/usr/share/openrig/` on Linux (.deb / .rpm)
-/// - `<install_dir>/` on Windows (.msi)
-/// - the current working directory in dev (so `./presets` in the repo still works).
-///
-/// Used as the fallback when `config.yaml` has no `presets_path` entry; user
-/// projects can still override this by setting `presets_path` in their own
-/// `config.yaml`.
+/// Where chain presets are saved when the project names no `presets_path`:
+/// the user's data folder (`~/Library/Application Support/OpenRig/presets`,
+/// `%APPDATA%\OpenRig\presets`, `~/.local/share/openrig/presets`), the same
+/// default `openrig://paths` reports. The install folder is read-only on an
+/// installed app (#978); a project can still point `presets_path` elsewhere in
+/// its own `config.yaml`.
 pub(crate) fn default_presets_path() -> PathBuf {
+    infra_filesystem::user_data_root().join("presets")
+}
+
+/// The preset library that ships with the app, read-only, under the data
+/// root (`<bundle>/Contents/Resources/presets` on macOS, `/usr/share/openrig`
+/// on Linux, the install folder on Windows, the working directory in dev).
+/// The picker lists it next to the user's presets.
+pub(crate) fn bundled_presets_path() -> PathBuf {
     infra_filesystem::detect_data_root().join("presets")
 }
 
@@ -89,3 +92,7 @@ pub(crate) fn ensure_default_io_binding(config_path: &Path) {
         let _ = fs::write(config_path, serialized);
     }
 }
+
+#[cfg(test)]
+#[path = "app_config_load_tests.rs"]
+mod tests;

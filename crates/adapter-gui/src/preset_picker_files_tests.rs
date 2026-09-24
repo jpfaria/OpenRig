@@ -89,3 +89,36 @@ fn a_subdirectory_named_like_a_preset_is_not_offered() {
     let listed = names(&dir);
     assert!(listed.contains(&"clean".to_string()));
 }
+
+// #978: presets are saved to the user's folder, and the ones that ship with
+// the app stay in the (read-only) install folder. The picker offers both.
+
+#[test]
+fn the_picker_lists_the_users_presets_and_the_bundled_ones() {
+    use super::scan_preset_libraries;
+    let user = dir_with(&["my lead.yaml"]);
+    let bundled = dir_with(&["factory clean.yaml"]);
+    let names: Vec<String> = scan_preset_libraries(user.path(), bundled.path())
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(names, vec!["factory clean", "my lead"]);
+}
+
+#[test]
+fn a_users_preset_hides_the_bundled_one_with_the_same_file_name() {
+    use super::scan_preset_libraries;
+    let user = dir_with(&["clean.yaml"]);
+    let bundled = dir_with(&["clean.yaml"]);
+    let listed = scan_preset_libraries(user.path(), bundled.path());
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].1, user.path().join("clean.yaml"));
+}
+
+#[test]
+fn one_folder_named_twice_is_listed_once() {
+    // A dev run: the working directory is both the data root and the project.
+    use super::scan_preset_libraries;
+    let dir = dir_with(&["clean.yaml"]);
+    assert_eq!(scan_preset_libraries(dir.path(), dir.path()).len(), 1);
+}

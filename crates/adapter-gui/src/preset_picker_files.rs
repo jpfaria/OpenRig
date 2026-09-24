@@ -42,6 +42,22 @@ pub(crate) fn scan_preset_files(presets_path: &Path) -> Vec<(String, PathBuf)> {
         .collect()
 }
 
+/// The picker's list: the user's presets and the bundled ones, sorted by
+/// filename, a user's file hiding a bundled one of the same name.
+pub(crate) fn scan_preset_libraries(user: &Path, bundled: &Path) -> Vec<(String, PathBuf)> {
+    let mut listed = scan_preset_files(user);
+    if bundled != user {
+        for (name, path) in scan_preset_files(bundled) {
+            let file_name = path.file_name();
+            if !listed.iter().any(|(_, mine)| mine.file_name() == file_name) {
+                listed.push((name, path));
+            }
+        }
+    }
+    listed.sort_by(|(_, a), (_, b)| a.file_name().cmp(&b.file_name()));
+    listed
+}
+
 #[cfg(test)]
 #[path = "preset_picker_files_tests.rs"]
 mod tests;

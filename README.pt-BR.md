@@ -95,7 +95,7 @@ Esquerda: biblioteca de blocos, organizada por marca com arte de painel fiel ao 
 2. **Configure I/O** — escolha sua interface de áudio como input e seus monitores/fones como output.
 3. **Monte uma chain** — arraste blocos entre Input e Output (Tuner → EQ → Drive → Amp → Cab → Reverb é um bom começo).
 4. **Ajuste em tempo real** — clique em qualquer bloco para abrir o editor; gire knobs enquanto toca.
-5. **Salve um preset** — presets são YAML puro em `~/.openrig/presets/` (macOS/Linux) ou `%APPDATA%\OpenRig\presets\` (Windows). Compartilhe copiando e colando.
+5. **Salve um preset** — presets são YAML puro em `~/Library/Application Support/OpenRig/presets/` (macOS), `~/.local/share/openrig/presets/` (Linux) ou `%APPDATA%\OpenRig\presets\` (Windows); os presets que vêm com o app aparecem junto. Compartilhe copiando e colando.
 
 Walkthrough completo: [Quick Start Guide](docs/user-guide/quick-start.md).
 
