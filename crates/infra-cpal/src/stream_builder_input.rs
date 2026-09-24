@@ -21,6 +21,8 @@ use domain::ids::ChainId;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::callback_load_timing::record_callback_deadline;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::input_sample_convert::{i16_to_f32, i32_to_f32, u16_to_f32, InputSampleBuffer};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::process_input_buffer;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::ResolvedInputDevice;
@@ -143,19 +145,17 @@ pub(crate) fn build_input_stream_for_input(
             let slots_for_data: Vec<LiveRuntimeSlot> = slots.iter().map(|s| s.handle()).collect();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
-            let mut converted = Vec::new();
+            let mut buffer =
+                InputSampleBuffer::with_capacity(buffer_size_frames as usize * channels);
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i16], _| {
                     crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
-                    converted.resize(data.len(), 0.0);
-                    for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
-                        *dst = src as f32 / i16::MAX as f32;
-                    }
+                    let converted = buffer.convert(data, i16_to_f32);
                     let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         for slot in &slots_for_data {
-                            process_input_buffer(slot, input_index, &converted, channels);
+                            process_input_buffer(slot, input_index, converted, channels);
                         }
                     }));
                     let elapsed = callback_start.elapsed();
@@ -176,19 +176,17 @@ pub(crate) fn build_input_stream_for_input(
             let slots_for_data: Vec<LiveRuntimeSlot> = slots.iter().map(|s| s.handle()).collect();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
-            let mut converted = Vec::new();
+            let mut buffer =
+                InputSampleBuffer::with_capacity(buffer_size_frames as usize * channels);
             device.build_input_stream(
                 &stream_config,
                 move |data: &[u16], _| {
                     crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
-                    converted.resize(data.len(), 0.0);
-                    for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
-                        *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
-                    }
+                    let converted = buffer.convert(data, u16_to_f32);
                     let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         for slot in &slots_for_data {
-                            process_input_buffer(slot, input_index, &converted, channels);
+                            process_input_buffer(slot, input_index, converted, channels);
                         }
                     }));
                     let elapsed = callback_start.elapsed();
@@ -209,19 +207,17 @@ pub(crate) fn build_input_stream_for_input(
             let slots_for_data: Vec<LiveRuntimeSlot> = slots.iter().map(|s| s.handle()).collect();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
-            let mut converted = Vec::new();
+            let mut buffer =
+                InputSampleBuffer::with_capacity(buffer_size_frames as usize * channels);
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i32], _| {
                     crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
-                    converted.resize(data.len(), 0.0);
-                    for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
-                        *dst = src as f32 / i32::MAX as f32;
-                    }
+                    let converted = buffer.convert(data, i32_to_f32);
                     let callback_start = std::time::Instant::now();
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         for slot in &slots_for_data {
-                            process_input_buffer(slot, input_index, &converted, channels);
+                            process_input_buffer(slot, input_index, converted, channels);
                         }
                     }));
                     let elapsed = callback_start.elapsed();
