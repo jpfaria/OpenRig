@@ -34,6 +34,8 @@ pub struct Vst3PluginInfo {
 /// 2. Fall back to `Contents/Info.plist` for name/vendor only (UID unknown).
 ///    The plugin will be shown in the catalog but cannot be instantiated until
 ///    the user explicitly loads it.
+/// 3. Fall back to the bundle's own name (UID unknown), for bundles with
+///    neither file, as native Windows bundles often are (#978).
 ///
 /// Never calls `dlopen()` / `libloading::Library::new()`, so it is safe for
 /// all plugins including those that deadlock or crash on load (e.g. Guitar Rig 7).
@@ -51,10 +53,18 @@ pub fn scan_vst3_bundle_light(bundle_path: &Path) -> Result<Vec<Vst3PluginInfo>>
     // Strategy 2: Info.plist — no UID, plugin name only.
     // We still add it to the catalog so the user can see it, but mark it as
     // "needs dylib load" by leaving uid = [0; 16].
-    let name = read_info_plist_vendor(bundle_path);
+    // Strategy 3 (#978): the bundle's own name. Native Windows bundles usually
+    // carry neither moduleinfo.json (pre-SDK 3.7) nor a macOS Info.plist.
+    let mut name = read_info_plist_vendor(bundle_path);
+    if name.is_empty() {
+        name = bundle_path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_default();
+    }
     if name.is_empty() {
         anyhow::bail!(
-            "no moduleinfo.json and no CFBundleName in {}",
+            "no moduleinfo.json, no CFBundleName and no name in {}",
             bundle_path.display()
         );
     }
@@ -230,6 +240,22 @@ fn scan_directory_light(dir: &Path, results: &mut Vec<Vst3PluginInfo>) {
             } else {
                 scan_directory_light(&path, results);
             }
+        } else if is_single_file_module(&path) {
+            match scan_vst3_bundle_light(&path) {
+                Ok(infos) => results.extend(infos),
+                Err(e) => log::debug!("VST3 scan: skipping {}: {}", path.display(), e),
+            }
         }
     }
+}
+
+/// Windows also has the pre-3.6.10 layout, where the `.vst3` is the DLL (#978).
+#[cfg(target_os = "windows")]
+fn is_single_file_module(path: &Path) -> bool {
+    crate::windows_module::is_single_file_module(path)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_single_file_module(_path: &Path) -> bool {
+    false
 }
