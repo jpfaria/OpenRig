@@ -39,6 +39,8 @@ mod plugin_uid_cache;
 mod processor;
 mod stereo;
 mod vst3_search_paths;
+#[cfg(any(target_os = "windows", test))]
+mod windows_module;
 
 pub use catalog::{
     catalog_params, find_vst3_plugin, init_vst3_catalog, make_model_id, resolve_uid_for_model,

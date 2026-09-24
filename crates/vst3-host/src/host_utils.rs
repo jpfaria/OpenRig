@@ -4,7 +4,9 @@
 //!
 //! All items are `pub(crate)` — only host code uses them.
 
-use anyhow::{bail, Context, Result};
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+use anyhow::Context;
+use anyhow::{bail, Result};
 use std::ffi::c_char;
 use std::path::Path;
 
@@ -40,7 +42,8 @@ pub(crate) fn tuid_to_bytes(tuid: &TUID) -> [u8; 16] {
 ///
 /// Convention:
 /// - macOS:   `Plugin.vst3/Contents/MacOS/Plugin`
-/// - Windows: `Plugin.vst3/Contents/x86_64-win/Plugin.vst3`
+/// - Windows: `Plugin.vst3/Contents/x86_64-win/Plugin.vst3`, or the pre-3.6.10
+///   single `Plugin.vst3` DLL
 /// - Linux:   `Plugin.vst3/Contents/x86_64-linux/Plugin.so`
 pub fn bundle_binary_path(bundle_path: &Path) -> Result<std::path::PathBuf> {
     #[cfg(target_os = "macos")]
@@ -66,16 +69,18 @@ pub fn bundle_binary_path(bundle_path: &Path) -> Result<std::path::PathBuf> {
     }
     #[cfg(target_os = "windows")]
     {
-        let contents = bundle_path.join("Contents").join("x86_64-win");
-        let stem = bundle_path
-            .file_stem()
-            .context("bundle has no filename")?
-            .to_string_lossy();
-        let candidate = contents.join(format!("{}.vst3", stem));
-        if candidate.exists() {
-            return Ok(candidate);
+        let arch = if cfg!(target_arch = "aarch64") {
+            "arm64-win"
+        } else {
+            "x86_64-win"
+        };
+        match crate::windows_module::windows_module_binary(bundle_path, arch) {
+            Some(binary) => return Ok(binary),
+            None => bail!(
+                "no binary found in {}",
+                bundle_path.join("Contents").join(arch).display()
+            ),
         }
-        bail!("no binary found in {}", contents.display());
     }
     #[cfg(target_os = "linux")]
     {

@@ -41,9 +41,12 @@ pub fn system_vst3_paths() -> Vec<PathBuf> {
         if let Some(pf) = std::env::var_os("PROGRAMFILES") {
             paths.push(PathBuf::from(pf).join("Common Files").join("VST3"));
         }
-        // %PROGRAMFILES(X86)%\Common Files\VST3
-        if let Some(pf86) = std::env::var_os("PROGRAMFILES(X86)") {
-            paths.push(PathBuf::from(pf86).join("Common Files").join("VST3"));
+        // %PROGRAMFILES(X86)%\Common Files\VST3 holds 32-bit plugins, which a
+        // 64-bit process cannot load (#978): scanned by 32-bit builds only.
+        if cfg!(target_pointer_width = "32") {
+            if let Some(pf86) = std::env::var_os("PROGRAMFILES(X86)") {
+                paths.push(PathBuf::from(pf86).join("Common Files").join("VST3"));
+            }
         }
         paths
     }
