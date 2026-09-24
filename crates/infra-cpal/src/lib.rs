@@ -159,6 +159,8 @@ mod audio_workgroup;
 mod budget_tracker;
 mod callback_load_timing;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod driver_buffer;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod dsp_worker;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "dsp_worker_recovery_tests.rs"]

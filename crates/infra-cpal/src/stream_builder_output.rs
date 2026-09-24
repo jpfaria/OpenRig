@@ -64,10 +64,20 @@ pub(crate) fn build_output_stream_for_output(
         "output stream config: chain='{}', output_index={}, sample_rate={}, buffer_size={}, format={:?}, channels={}",
         chain_id.0, output_index, sample_rate, buffer_size_frames, sample_format, resolved_output_device.supported.channels()
     );
-    let stream_config = build_stream_config(
+    let mut stream_config = build_stream_config(
         resolved_output_device.supported.channels(),
         sample_rate,
         buffer_size_frames,
+    );
+    // #978: an ASIO stream takes the driver's own buffer size, so every buffer
+    // the callback uses is preallocated up to the driver's maximum.
+    let host_is_asio = crate::host::is_asio_host(crate::host::get_host());
+    stream_config.buffer_size =
+        crate::driver_buffer::requested_buffer(host_is_asio, buffer_size_frames);
+    let buffer_size_frames = crate::driver_buffer::callback_capacity_frames(
+        host_is_asio,
+        buffer_size_frames,
+        resolved_output_device.supported.buffer_size(),
     );
     let device = resolved_output_device.device;
     // #760: join THIS output device's workgroup, not the system default.

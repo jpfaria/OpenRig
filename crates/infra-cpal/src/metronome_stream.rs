@@ -225,10 +225,19 @@ impl ProjectRuntimeController {
         let sample_rate = supported.sample_rate();
         let channels = supported.channels() as usize;
         let buffer_frames = 512u32;
-        let config = crate::stream_config::build_stream_config(
+        let mut config = crate::stream_config::build_stream_config(
             supported.channels(),
             sample_rate,
             buffer_frames,
+        );
+        // #978: on ASIO the click takes the driver's buffer, preallocated up to
+        // the driver's maximum.
+        let host_is_asio = crate::host::is_asio_host(host);
+        config.buffer_size = crate::driver_buffer::requested_buffer(host_is_asio, buffer_frames);
+        let buffer_frames = crate::driver_buffer::callback_capacity_frames(
+            host_is_asio,
+            buffer_frames,
+            supported.buffer_size(),
         );
 
         let targets = target_channels.to_vec();
