@@ -34,8 +34,8 @@ pub struct Vst3PluginInfo {
 /// 2. Fall back to `Contents/Info.plist` for name/vendor only (UID unknown).
 ///    The plugin will be shown in the catalog but cannot be instantiated until
 ///    the user explicitly loads it.
-/// 3. Fall back to the bundle's own name (UID unknown), for bundles with
-///    neither file, as native Windows bundles often are (#978).
+/// 3. On Windows only, fall back to the bundle's own name (UID unknown), for
+///    bundles with neither file, as native Windows bundles often are (#978).
 ///
 /// Never calls `dlopen()` / `libloading::Library::new()`, so it is safe for
 /// all plugins including those that deadlock or crash on load (e.g. Guitar Rig 7).
@@ -53,14 +53,9 @@ pub fn scan_vst3_bundle_light(bundle_path: &Path) -> Result<Vec<Vst3PluginInfo>>
     // Strategy 2: Info.plist — no UID, plugin name only.
     // We still add it to the catalog so the user can see it, but mark it as
     // "needs dylib load" by leaving uid = [0; 16].
-    // Strategy 3 (#978): the bundle's own name. Native Windows bundles usually
-    // carry neither moduleinfo.json (pre-SDK 3.7) nor a macOS Info.plist.
     let mut name = read_info_plist_vendor(bundle_path);
     if name.is_empty() {
-        name = bundle_path
-            .file_stem()
-            .map(|stem| stem.to_string_lossy().into_owned())
-            .unwrap_or_default();
+        name = name_from_bundle(bundle_path);
     }
     if name.is_empty() {
         anyhow::bail!(
@@ -247,6 +242,22 @@ fn scan_directory_light(dir: &Path, results: &mut Vec<Vst3PluginInfo>) {
             }
         }
     }
+}
+
+/// Strategy 3 (#978, Windows only): the bundle's own name. Native Windows
+/// bundles usually carry neither moduleinfo.json (pre-SDK 3.7) nor a macOS
+/// Info.plist. macOS and Linux keep skipping such a bundle.
+#[cfg(target_os = "windows")]
+fn name_from_bundle(bundle_path: &Path) -> String {
+    bundle_path
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn name_from_bundle(_bundle_path: &Path) -> String {
+    String::new()
 }
 
 /// Windows also has the pre-3.6.10 layout, where the `.vst3` is the DLL (#978).
