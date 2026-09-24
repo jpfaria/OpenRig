@@ -221,6 +221,23 @@ try {
         if (-not $found) { Write-Host "    WARNING: $dll not found (may not be needed)" }
     }
 
+    # ── VC++ runtime, deployed app-local ─────────────────────────────────────
+    # openrig.exe and the console binaries (Rust, MSVC) and nam_wrapper.dll
+    # (C++, /MD) import VCRUNTIME140(_1) and MSVCP140*, which a clean Windows
+    # does not have (#978). Microsoft supports shipping the CRT folder of the
+    # Visual Studio redist next to the exe.
+    Write-Host "==> Copying the VC++ runtime DLLs..."
+    . (Join-Path $RepoRoot "scripts\lib\windows-msvc.ps1")
+    $redist = Get-NewestVersionDir (Join-Path (Get-MsvcInstallPath) "VC\Redist\MSVC")
+    if (-not $redist) { throw "no VC\Redist\MSVC\<version> in the Visual Studio install" }
+    $crt = Get-ChildItem (Join-Path $redist.FullName "x64") -Directory -Filter "Microsoft.VC14*.CRT" |
+        Sort-Object Name -Descending | Select-Object -First 1
+    if (-not $crt) { throw "no x64 Microsoft.VC14*.CRT folder under $($redist.FullName)" }
+    Get-ChildItem $crt.FullName -Filter "*.dll" | ForEach-Object {
+        Copy-Item $_.FullName "$stageDir\"
+        Write-Host "    $($_.Name)  <-  $($crt.FullName)"
+    }
+
     $stageDirAbs = (Resolve-Path $stageDir).Path
     Write-Host "    Stage ready"
 
