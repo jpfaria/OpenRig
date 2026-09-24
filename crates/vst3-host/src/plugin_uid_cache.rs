@@ -100,6 +100,17 @@ pub fn resolve_uid_for_model(model_id: &str) -> anyhow::Result<[u8; 16]> {
         }
     }
 
+    // #978 (Windows): a bundle with no metadata is cataloged under its folder
+    // name, which need not be the factory's class name. When the module has a
+    // single audio processor, that is the one the user picked.
+    #[cfg(target_os = "windows")]
+    if pick_uid(class_name).is_none() {
+        if let Some(uid) = crate::sole_audio_module::sole_audio_module_uid(&classes) {
+            by_class.insert(class_name.to_string(), uid);
+            return Ok(uid);
+        }
+    }
+
     pick_uid(class_name).ok_or_else(|| {
         anyhow::anyhow!(
             "class '{}' not found in bundle {} (found: {})",
