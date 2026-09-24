@@ -12,7 +12,7 @@ pub(crate) fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
     // for paths that exist on local storage; for paths that don't exist it errors
     // and we fall back to the raw path.
     if let Ok(c) = fs::canonicalize(path) {
-        return Ok(c);
+        return Ok(without_verbatim_prefix(c));
     }
     if path.is_absolute() {
         return Ok(path.clone());
@@ -29,3 +29,21 @@ pub(crate) fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     }
     None
 }
+
+/// `path` without the `\\?\` verbatim prefix `fs::canonicalize` adds on
+/// Windows, when it names a drive path.
+pub(crate) fn without_verbatim_prefix(path: PathBuf) -> PathBuf {
+    let drive_path = path
+        .to_str()
+        .and_then(|text| text.strip_prefix(r"\\?\"))
+        .filter(|rest| {
+            let bytes = rest.as_bytes();
+            bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+        })
+        .map(PathBuf::from);
+    drive_path.unwrap_or(path)
+}
+
+#[cfg(test)]
+#[path = "project_path_tests.rs"]
+mod tests;
