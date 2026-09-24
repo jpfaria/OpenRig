@@ -125,11 +125,9 @@ jobs:
 
       # --no-fail-fast: one Windows run reports every failing crate, not just
       # the first, while the port is being brought up (#978).
-      # TEMPORARY (#978): one test thread, so the test that takes a process
-      # down with STATUS_ACCESS_VIOLATION is the last one the log started.
       - name: Run tests
-        timeout-minutes: 90
-        run: cargo test --workspace --no-fail-fast -- --test-threads=1
+        timeout-minutes: 45
+        run: cargo test --workspace --no-fail-fast
 
   # Coverage is REPORTING, not a gate. It lives in its own job with
   # continue-on-error so it can NEVER block a PR whose tests passed: the
