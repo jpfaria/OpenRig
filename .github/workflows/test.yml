@@ -123,9 +123,11 @@ jobs:
       - name: Build
         run: cargo build --workspace
 
+      # --no-fail-fast: one Windows run reports every failing crate, not just
+      # the first, while the port is being brought up (#978).
       - name: Run tests
         timeout-minutes: 45
-        run: cargo test --workspace
+        run: cargo test --workspace --no-fail-fast
 
   # Coverage is REPORTING, not a gate. It lives in its own job with
   # continue-on-error so it can NEVER block a PR whose tests passed: the

@@ -1,3 +1,8 @@
+# Every text file is LF in every checkout, Windows included (#978): tests
+# parse catalogs on "\n\n" and compare fixtures byte for byte, and the Windows
+# runner checked them out as CRLF. Binaries stay untouched (text=auto, and the
+# LFS rules below mark theirs -text).
+* text=auto eol=lf
 *.so filter=lfs diff=lfs merge=lfs -text
 *.dylib filter=lfs diff=lfs merge=lfs -text
 *.dll filter=lfs diff=lfs merge=lfs -text
