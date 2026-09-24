@@ -96,6 +96,8 @@ fn build() -> Arc<ChainRuntimeState> {
         enabled: true,
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks: vec![nam_amp()],
     };
     Arc::new(

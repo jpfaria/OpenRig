@@ -134,6 +134,8 @@ fn beat_it_chain_opt(with_ir: bool) -> Chain {
         enabled: true,
         volume: 139.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks,
     }
 }
@@ -146,6 +148,8 @@ fn isolated(label: &str, block: AudioBlock) -> Chain {
         enabled: true,
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks: vec![block],
     }
 }
@@ -567,6 +571,8 @@ fn nam_plus_ir_cold_cache_cost() {
             enabled: true,
             volume: 100.0,
             io_binding_ids: vec!["io".into()],
+            di_output: None,
+            loopers: Vec::new(),
             blocks: bs,
         }
     };
@@ -1329,6 +1335,8 @@ fn beat_it_plus_v30_cab_per_buffer_cost() {
         enabled: true,
         volume: 139.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks,
     };
     assert_no_faulted_blocks(&chain);
@@ -1388,6 +1396,8 @@ fn first_buffer_after_build_carries_no_lazy_init() {
         enabled: true,
         volume: 139.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks,
     };
 

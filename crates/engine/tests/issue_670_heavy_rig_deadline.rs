@@ -166,6 +166,8 @@ fn heavy_chain(suffix: &str) -> Chain {
         enabled: true,
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks: vec![
             comp_block(),
             eq_block(),
@@ -264,6 +266,8 @@ fn natives_only_chain() -> Chain {
         enabled: true,
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks: vec![comp_block(), eq_block(), gate_block(), limiter_block()],
     }
 }
@@ -373,6 +377,8 @@ fn isolated_chain(label: &str, block: AudioBlock) -> Chain {
         enabled: true,
         volume: 100.0,
         io_binding_ids: vec!["io".into()],
+        di_output: None,
+        loopers: Vec::new(),
         blocks: vec![block],
     }
 }
