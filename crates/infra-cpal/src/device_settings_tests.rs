@@ -20,3 +20,13 @@ fn a_device_that_is_simply_gone_is_not_a_rate_change_timeout() {
     let other = cpal::Error::with_message(cpal::ErrorKind::BackendError, "timed out");
     assert!(!is_rate_change_timeout(&other));
 }
+
+#[test]
+fn asio_devices_are_not_probed_with_a_throwaway_stream() {
+    use super::probes_rate_with_a_stream;
+    assert!(!probes_rate_with_a_stream(true));
+    assert!(
+        probes_rate_with_a_stream(false),
+        "CoreAudio/WASAPI keep the probe"
+    );
+}

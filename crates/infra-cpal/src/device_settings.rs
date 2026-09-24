@@ -116,6 +116,12 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
         let host = get_host();
+        if !probes_rate_with_a_stream(crate::host::is_asio_host(host)) {
+            log::info!(
+                "apply_device_settings: ASIO — the driver's control panel sets rate and buffer; not probing"
+            );
+            return Ok(());
+        }
         let mut needs_settle = false;
         for ds in settings {
             log::info!(
@@ -207,6 +213,16 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
 /// A USB interface that has not finished switching its sample rate when the
 /// build gives up waiting. cpal 0.18 reports this as `DeviceNotAvailable`
 /// "Sample rate update timed out" (0.17 said "timeout waiting ...").
+/// Whether the device's rate is forced by opening a throwaway stream at it.
+/// Not on ASIO: there the vendor's control panel owns rate and buffer, and
+/// cpal 0.18 keeps the channel count of the first stream a driver ever opened,
+/// so this 1-channel probe would make the next full-width stream index past
+/// the driver's buffers and abort the process (#978).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn probes_rate_with_a_stream(host_is_asio: bool) -> bool {
+    !host_is_asio
+}
+
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn is_rate_change_timeout(err: &cpal::Error) -> bool {
     err.kind() == cpal::ErrorKind::DeviceNotAvailable
