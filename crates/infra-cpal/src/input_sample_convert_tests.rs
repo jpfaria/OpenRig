@@ -4,15 +4,21 @@
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::{i16_to_f32, i32_to_f32, u16_to_f32, InputSampleBuffer};
 
+// Guard and count are both per thread: parallel tests can neither hide nor
+// inherit each other's allocations.
 thread_local! {
     static ALLOC_GUARD: Cell<bool> = const { Cell::new(false) };
+    static ALLOC_COUNT: Cell<usize> = const { Cell::new(0) };
 }
 
-static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
+fn count_if_guarded() {
+    if ALLOC_GUARD.with(|g| g.get()) {
+        ALLOC_COUNT.with(|c| c.set(c.get() + 1));
+    }
+}
 
 /// Counts `alloc`/`realloc` on the thread that set the guard; a plain
 /// pass-through everywhere else, so the rest of the suite is unaffected.
@@ -20,9 +26,7 @@ struct CountingAllocator;
 
 unsafe impl GlobalAlloc for CountingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if ALLOC_GUARD.with(|g| g.get()) {
-            ALLOC_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
+        count_if_guarded();
         System.alloc(layout)
     }
 
@@ -31,16 +35,12 @@ unsafe impl GlobalAlloc for CountingAllocator {
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        if ALLOC_GUARD.with(|g| g.get()) {
-            ALLOC_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
+        count_if_guarded();
         System.alloc_zeroed(layout)
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        if ALLOC_GUARD.with(|g| g.get()) {
-            ALLOC_COUNT.fetch_add(1, Ordering::Relaxed);
-        }
+        count_if_guarded();
         System.realloc(ptr, layout, new_size)
     }
 }
@@ -49,11 +49,11 @@ unsafe impl GlobalAlloc for CountingAllocator {
 static GLOBAL: CountingAllocator = CountingAllocator;
 
 fn allocs_during(f: impl FnOnce()) -> usize {
-    ALLOC_COUNT.store(0, Ordering::Relaxed);
+    ALLOC_COUNT.with(|c| c.set(0));
     ALLOC_GUARD.with(|g| g.set(true));
     f();
     ALLOC_GUARD.with(|g| g.set(false));
-    ALLOC_COUNT.load(Ordering::Relaxed)
+    ALLOC_COUNT.with(|c| c.get())
 }
 
 const FRAMES: usize = 256;
@@ -105,4 +105,13 @@ fn converted_length_follows_the_callback() {
     let mut buffer = InputSampleBuffer::with_capacity(8);
     assert_eq!(buffer.convert(&[0i32; 6], i32_to_f32).len(), 6);
     assert_eq!(buffer.convert(&[0i32; 2], i32_to_f32).len(), 2);
+}
+
+#[test]
+fn the_counter_sees_an_allocation_on_its_own_thread() {
+    // Self-check: a counter that never counts would make every test above pass.
+    let allocs = allocs_during(|| {
+        std::hint::black_box(Vec::<u8>::with_capacity(64));
+    });
+    assert_eq!(allocs, 1);
 }
