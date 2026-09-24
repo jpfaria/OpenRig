@@ -111,11 +111,16 @@ fn assert_spreads(effect_type: &str, model: &str) {
     );
 }
 
+// The LV2 fixtures ship macOS and Linux binaries only (neither plugin has a
+// Windows build), so on Windows the package is unavailable and there is no
+// LV2 to exercise (#978).
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn lv2_two_in_two_out_reverb_spreads_a_mono_source() {
     assert_spreads("reverb", "lv2_dragonfly_hall");
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn lv2_one_in_two_out_reverb_spreads_a_mono_source() {
     assert_spreads("reverb", "lv2_caps_plate");

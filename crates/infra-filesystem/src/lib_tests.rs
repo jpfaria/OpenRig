@@ -82,20 +82,30 @@ fn asset_paths_deserialize_empty_yaml_uses_defaults() {
     assert_eq!(paths, default);
 }
 
+/// An absolute path on the platform the tests run on (#978): `/absolute/...`
+/// has no drive on Windows, so it is relative there and gets rebased.
+fn absolute(path: &str) -> String {
+    if cfg!(windows) {
+        format!(r"C:{}", path.replace('/', "\\"))
+    } else {
+        path.to_string()
+    }
+}
+
 #[test]
 fn resolve_asset_paths_absolute_left_unchanged() {
     let paths = AssetPaths {
-        thumbnails: "/absolute/thumbs".into(),
-        screenshots: "/absolute/screens".into(),
-        metadata: "/absolute/meta".into(),
+        thumbnails: absolute("/absolute/thumbs"),
+        screenshots: absolute("/absolute/screens"),
+        metadata: absolute("/absolute/meta"),
         presets_path: None,
         plugins_path: None,
         evaluations_path: None,
     };
     let resolved = resolve_asset_paths(paths.clone());
-    assert_eq!(resolved.thumbnails, "/absolute/thumbs");
-    assert_eq!(resolved.screenshots, "/absolute/screens");
-    assert_eq!(resolved.metadata, "/absolute/meta");
+    assert_eq!(resolved.thumbnails, absolute("/absolute/thumbs"));
+    assert_eq!(resolved.screenshots, absolute("/absolute/screens"));
+    assert_eq!(resolved.metadata, absolute("/absolute/meta"));
 }
 
 #[test]
