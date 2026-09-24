@@ -169,7 +169,9 @@ fn an_entry_already_flagged_invalid_is_refused_with_its_recorded_reason() {
 
 #[test]
 fn a_project_that_no_longer_loads_is_flagged_so_the_user_can_clean_it_up() {
-    let missing = PathBuf::from("/nonexistent/openrig-913/gone.yaml");
+    // Absolute on every OS (#978: `/nonexistent/...` has no drive on Windows).
+    let dir = tempfile::tempdir().expect("tempdir");
+    let missing = dir.path().join("gone.yaml");
     let harness = Harness::new(vec![entry(&missing, true, None)]);
 
     assert_eq!(harness.open(0), Err(OpenRecentError::LoadFailed));
@@ -186,7 +188,7 @@ fn a_project_that_no_longer_loads_is_flagged_so_the_user_can_clean_it_up() {
 fn a_failed_open_leaves_the_previously_open_project_alone() {
     let dir = tempfile::tempdir().expect("tempdir");
     let good = project_file(&dir, "studio.yaml");
-    let missing = PathBuf::from("/nonexistent/openrig-913/gone.yaml");
+    let missing = dir.path().join("gone.yaml");
     let harness = Harness::new(vec![entry(&good, true, None), entry(&missing, true, None)]);
 
     harness

@@ -16,18 +16,29 @@ use project::project::Project;
 use super::project_ops::sync_recent_projects;
 use infra_filesystem::{AppConfig, RecentProjectEntry};
 
+/// An absolute path on the platform the tests run on (#978). `/p.yaml` is not
+/// absolute on Windows (no drive), so the resolver rebased it on the working
+/// directory and these fixtures stopped meaning what the tests say.
+fn abs(relative: &str) -> String {
+    if cfg!(windows) {
+        format!(r"C:\{}", relative.replace('/', "\\"))
+    } else {
+        format!("/{relative}")
+    }
+}
+
 #[test]
 fn sync_recent_projects_deduplicates_by_canonical_path() {
     let mut config = AppConfig {
         recent_projects: vec![
             RecentProjectEntry {
-                project_path: "/tmp/project_a.yaml".to_string(),
+                project_path: abs("tmp/project_a.yaml"),
                 project_name: "A".to_string(),
                 is_valid: true,
                 invalid_reason: None,
             },
             RecentProjectEntry {
-                project_path: "/tmp/project_a.yaml".to_string(),
+                project_path: abs("tmp/project_a.yaml"),
                 project_name: "A duplicate".to_string(),
                 is_valid: true,
                 invalid_reason: None,
@@ -45,7 +56,7 @@ fn sync_recent_projects_deduplicates_by_canonical_path() {
 fn sync_recent_projects_empty_name_becomes_untitled() {
     let mut config = AppConfig {
         recent_projects: vec![RecentProjectEntry {
-            project_path: "/tmp/x.yaml".to_string(),
+            project_path: abs("tmp/x.yaml"),
             project_name: "  ".to_string(),
             is_valid: true,
             invalid_reason: None,
@@ -63,7 +74,7 @@ fn sync_recent_projects_empty_name_becomes_untitled() {
 fn sync_recent_projects_returns_false_when_unchanged() {
     let mut config = AppConfig {
         recent_projects: vec![RecentProjectEntry {
-            project_path: "/tmp/project.yaml".to_string(),
+            project_path: abs("tmp/project.yaml"),
             project_name: "My Project".to_string(),
             is_valid: true,
             invalid_reason: None,
@@ -82,31 +93,35 @@ use super::register_recent_project;
 fn register_recent_project_adds_to_front() {
     let mut config = AppConfig {
         recent_projects: vec![RecentProjectEntry {
-            project_path: "/old.yaml".to_string(),
+            project_path: abs("old.yaml"),
             project_name: "Old".to_string(),
             is_valid: true,
             invalid_reason: None,
         }],
         ..Default::default()
     };
-    register_recent_project(&mut config, &std::path::PathBuf::from("/new.yaml"), "New");
+    register_recent_project(
+        &mut config,
+        &std::path::PathBuf::from(abs("new.yaml")),
+        "New",
+    );
     assert_eq!(config.recent_projects.len(), 2);
     assert_eq!(config.recent_projects[0].project_name, "New");
 }
 
 #[test]
 fn register_recent_project_removes_duplicate_and_reinserts_at_front() {
-    let path = std::path::PathBuf::from("/project.yaml");
+    let path = std::path::PathBuf::from(abs("project.yaml"));
     let mut config = AppConfig {
         recent_projects: vec![
             RecentProjectEntry {
-                project_path: "/other.yaml".to_string(),
+                project_path: abs("other.yaml"),
                 project_name: "Other".to_string(),
                 is_valid: true,
                 invalid_reason: None,
             },
             RecentProjectEntry {
-                project_path: "/project.yaml".to_string(),
+                project_path: abs("project.yaml"),
                 project_name: "Project".to_string(),
                 is_valid: true,
                 invalid_reason: None,
@@ -123,7 +138,7 @@ fn register_recent_project_removes_duplicate_and_reinserts_at_front() {
 #[test]
 fn register_recent_project_empty_name_becomes_untitled() {
     let mut config = AppConfig::default();
-    register_recent_project(&mut config, &std::path::PathBuf::from("/x.yaml"), "  ");
+    register_recent_project(&mut config, &std::path::PathBuf::from(abs("x.yaml")), "  ");
     assert_eq!(
         config.recent_projects[0].project_name,
         UNTITLED_PROJECT_NAME
@@ -138,7 +153,7 @@ use crate::project_ops::mark_recent_project_invalid;
 fn mark_recent_project_invalid_sets_flag_and_reason() {
     let mut config = AppConfig {
         recent_projects: vec![RecentProjectEntry {
-            project_path: "/p.yaml".to_string(),
+            project_path: abs("p.yaml"),
             project_name: "P".to_string(),
             is_valid: true,
             invalid_reason: None,
@@ -147,7 +162,7 @@ fn mark_recent_project_invalid_sets_flag_and_reason() {
     };
     mark_recent_project_invalid(
         &mut config,
-        &std::path::PathBuf::from("/p.yaml"),
+        &std::path::PathBuf::from(abs("p.yaml")),
         "File corrupted",
     );
     assert!(!config.recent_projects[0].is_valid);
@@ -161,14 +176,14 @@ fn mark_recent_project_invalid_sets_flag_and_reason() {
 fn mark_recent_project_invalid_empty_reason_gets_default() {
     let mut config = AppConfig {
         recent_projects: vec![RecentProjectEntry {
-            project_path: "/p.yaml".to_string(),
+            project_path: abs("p.yaml"),
             project_name: "P".to_string(),
             is_valid: true,
             invalid_reason: None,
         }],
         ..Default::default()
     };
-    mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/p.yaml"), "  ");
+    mark_recent_project_invalid(&mut config, &std::path::PathBuf::from(abs("p.yaml")), "  ");
     assert!(!config.recent_projects[0].is_valid);
     assert_eq!(
         config.recent_projects[0].invalid_reason.as_deref(),
@@ -180,14 +195,18 @@ fn mark_recent_project_invalid_empty_reason_gets_default() {
 fn mark_recent_project_invalid_nonexistent_path_does_nothing() {
     let mut config = AppConfig {
         recent_projects: vec![RecentProjectEntry {
-            project_path: "/p.yaml".to_string(),
+            project_path: abs("p.yaml"),
             project_name: "P".to_string(),
             is_valid: true,
             invalid_reason: None,
         }],
         ..Default::default()
     };
-    mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/other.yaml"), "err");
+    mark_recent_project_invalid(
+        &mut config,
+        &std::path::PathBuf::from(abs("other.yaml")),
+        "err",
+    );
     assert!(config.recent_projects[0].is_valid);
     assert!(config.recent_projects[0].invalid_reason.is_none());
 }
