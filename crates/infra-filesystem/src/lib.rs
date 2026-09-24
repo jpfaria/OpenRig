@@ -20,6 +20,8 @@ mod midi_migrate_tests;
 
 pub mod app_config;
 pub mod asset_paths;
+#[cfg(any(target_os = "windows", test))]
+mod config_base;
 pub mod config_paths;
 pub mod gui_settings;
 #[cfg(any(target_os = "windows", test))]

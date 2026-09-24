@@ -46,8 +46,11 @@ pub(super) fn with_tmp_home<F: FnOnce()>(label: &str, f: F) {
     // (CI runners set it), so a HOME-only swap leaks to the runner's real
     // config dir. Track XDG alongside HOME so config paths follow the tempdir.
     let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
+    // Windows resolves the config under %APPDATA%, not HOME (#978).
+    let prev_appdata = std::env::var_os("APPDATA");
     std::env::set_var("HOME", &tmp);
     std::env::set_var("XDG_CONFIG_HOME", tmp.join(".config"));
+    std::env::set_var("APPDATA", tmp.join("AppData"));
     let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
     // #731: drain the async persist worker BEFORE restoring `$HOME`, so a
     // queued config write can't land on the real config after the swap
@@ -62,6 +65,11 @@ pub(super) fn with_tmp_home<F: FnOnce()>(label: &str, f: F) {
         std::env::set_var("XDG_CONFIG_HOME", prev_xdg);
     } else {
         std::env::remove_var("XDG_CONFIG_HOME");
+    }
+    if let Some(prev_appdata) = prev_appdata {
+        std::env::set_var("APPDATA", prev_appdata);
+    } else {
+        std::env::remove_var("APPDATA");
     }
     let _ = std::fs::remove_dir_all(&tmp);
     if let Err(p) = res {
