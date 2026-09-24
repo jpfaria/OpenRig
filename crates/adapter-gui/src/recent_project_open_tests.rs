@@ -34,7 +34,8 @@ chains:
 fn project_file(dir: &tempfile::TempDir, name: &str) -> PathBuf {
     let path = dir.path().join(name);
     std::fs::write(&path, PROJECT_YAML).expect("write project");
-    std::fs::canonicalize(&path).expect("canonicalize")
+    // The canonical form the app stores (#978: no `\\?\` prefix on Windows).
+    crate::project_path::canonical_project_path(&path).expect("canonical path")
 }
 
 fn entry(path: &PathBuf, valid: bool, reason: Option<&str>) -> RecentProjectEntry {
