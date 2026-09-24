@@ -832,9 +832,27 @@ streams dispatch on it (`stream_builder_input.rs` / `stream_builder_output.rs`),
 and so does the metronome. The integer input arms convert into a buffer sized
 when the stream is built, so the callback never allocates (invariant #8).
 
-Open for ASIO: one driver per process and one `bufferSwitch` for every stream
-on it (the per-stream isolation law), and cpal 0.17.3's duplex/thread bugs.
-Status and the cpal 0.18.2 analysis live in #978.
+On cpal 0.18 (#978) an ASIO host follows four more rules:
+
+- **One handle per driver.** An ASIO `Device` is only the driver's name, and
+  every output stream of a driver must come from clones of one handle (the
+  "clear the buffer first" flag lives per handle, so separately enumerated
+  handles erase each other's output). `device_lookup` keeps ASIO handles for
+  the whole process and a walk only adds to them: while a driver runs,
+  enumeration stops at the first other driver's name.
+- **The driver's buffer.** ASIO streams ask for `BufferSize::Default`; the
+  vendor panel owns the size, and a `Fixed` size outside its range or step is
+  refused. Callback buffers are preallocated up to the driver's maximum
+  (`driver_buffer.rs`).
+- **No rate probe.** `apply_device_settings` does not open its 1-channel probe
+  stream on ASIO: cpal keeps the channel count of a driver's first stream, and
+  a full-width stream after it would abort.
+- **Xruns are not logged.** cpal 0.18 reports overloads through the error
+  callback, on CoreAudio from the real-time thread; `stream_error` drops them
+  and logs every other kind (all hosts).
+
+Still open for ASIO: one driver per process and one `bufferSwitch` for every
+stream on it (the per-stream isolation law). Status lives in #978.
 
 ## JACK lifecycle (Linux only)
 
