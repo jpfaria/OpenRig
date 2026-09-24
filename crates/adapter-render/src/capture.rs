@@ -52,13 +52,13 @@ pub fn capture_to_wav(
 
     let stream = match config.sample_format() {
         cpal::SampleFormat::F32 => {
-            build_stream::<f32>(&device, &config.into(), captured.clone(), err_fn)?
+            build_stream::<f32>(&device, config.into(), captured.clone(), err_fn)?
         }
         cpal::SampleFormat::I16 => {
-            build_stream::<i16>(&device, &config.into(), captured.clone(), err_fn)?
+            build_stream::<i16>(&device, config.into(), captured.clone(), err_fn)?
         }
         cpal::SampleFormat::U16 => {
-            build_stream::<u16>(&device, &config.into(), captured.clone(), err_fn)?
+            build_stream::<u16>(&device, config.into(), captured.clone(), err_fn)?
         }
         other => return Err(anyhow!("unsupported cpal sample format: {other:?}")),
     };
@@ -87,9 +87,9 @@ pub fn capture_to_wav(
 
 fn build_stream<S>(
     device: &cpal::Device,
-    config: &cpal::StreamConfig,
+    config: cpal::StreamConfig,
     captured: Arc<Mutex<Vec<f32>>>,
-    err_fn: impl FnMut(cpal::StreamError) + Send + 'static,
+    err_fn: impl FnMut(cpal::Error) + Send + 'static,
 ) -> Result<cpal::Stream>
 where
     S: cpal::Sample + cpal::SizedSample,
@@ -109,17 +109,16 @@ where
         .map_err(|e| anyhow!("failed to build input stream: {e}"))
 }
 
-// cpal 0.17 deprecated `name()` in favour of `description()` and `id()`.
-// We use `name()` for a single human-readable log line; the cpal team
-// will not remove the trait method without bumping the major, and the
-// alternatives return richer structs we don't need here. Scoped allow.
-#[allow(deprecated)]
 fn pick_input_device(host: &cpal::Host, name_filter: Option<&str>) -> Result<cpal::Device> {
     match name_filter {
         Some(name) => host
             .input_devices()
             .context("failed to enumerate input devices")?
-            .find(|d| d.name().map(|n| n.contains(name)).unwrap_or(false))
+            .find(|d| {
+                d.description()
+                    .map(|desc| desc.name().contains(name))
+                    .unwrap_or(false)
+            })
             .ok_or_else(|| anyhow!("input device not found: {name}")),
         None => host
             .default_input_device()
@@ -127,9 +126,11 @@ fn pick_input_device(host: &cpal::Host, name_filter: Option<&str>) -> Result<cpa
     }
 }
 
-#[allow(deprecated)]
 fn device_label(device: &cpal::Device) -> String {
-    device.name().unwrap_or_else(|_| "<unknown>".into())
+    device
+        .description()
+        .map(|desc| desc.name().to_string())
+        .unwrap_or_else(|_| "<unknown>".into())
 }
 
 fn interleaved_to_stereo(samples: &[f32], channels: usize) -> Vec<[f32; 2]> {

@@ -181,6 +181,8 @@ mod stream_builder_output;
 mod stream_builder_project;
 mod stream_channels;
 mod stream_config;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+mod stream_error;
 mod stream_rates;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod stream_signature;

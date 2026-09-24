@@ -58,7 +58,7 @@ serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 dirs = "6"
 thiserror = "1"
-cpal = { version = "0.17.3", features = ["asio"] }
+cpal = { version = "0.18.2", features = ["asio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 futures = "0.3"
 serde_json = "1"

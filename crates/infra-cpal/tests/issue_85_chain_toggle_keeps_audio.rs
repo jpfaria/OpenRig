@@ -90,7 +90,7 @@ impl Listener {
         let observed = Arc::clone(&peak_milli);
         let stream = device
             .build_input_stream(
-                &config.config(),
+                config.config(),
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     let mut peak = 0.0_f32;
                     for s in data {

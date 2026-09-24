@@ -111,7 +111,7 @@ fn play_source(device_name: &str) -> cpal::Stream {
     let mut phase = 0.0_f32;
     let stream = device
         .build_output_stream(
-            &config.config(),
+            config.config(),
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                 for frame in data.chunks_mut(channels) {
                     let s = 0.5 * phase.sin();
@@ -153,7 +153,7 @@ impl Listener {
         let observed = Arc::clone(&peak_milli);
         let stream = device
             .build_input_stream(
-                &config.config(),
+                config.config(),
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     let mut peak = 0.0_f32;
                     for frame in data.chunks(channels) {

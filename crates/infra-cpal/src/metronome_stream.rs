@@ -246,8 +246,9 @@ impl ProjectRuntimeController {
             targets: targets.clone(),
         };
         let error_label = device_id.to_string();
-        let on_error =
-            move |err| log::error!("[metronome:{error_label}] output stream error: {err}");
+        let on_error = crate::stream_error::stream_error_handler(format!(
+            "[metronome:{error_label}] output stream error"
+        ));
 
         // #978: ASIO opens only the driver's native format (commonly Int32), so
         // the click cannot assume f32 the way CoreAudio lets it.
@@ -256,7 +257,7 @@ impl ProjectRuntimeController {
             cpal::SampleFormat::F32 => {
                 let mut cb = callback;
                 device.build_output_stream(
-                    &config,
+                    config,
                     move |out: &mut [f32], _| cb.fill_f32(out),
                     on_error,
                     None,
@@ -265,7 +266,7 @@ impl ProjectRuntimeController {
             cpal::SampleFormat::I16 => {
                 let mut cb = callback;
                 device.build_output_stream(
-                    &config,
+                    config,
                     move |out: &mut [i16], _| cb.fill_native(out, f32_to_i16),
                     on_error,
                     None,
@@ -274,7 +275,7 @@ impl ProjectRuntimeController {
             cpal::SampleFormat::U16 => {
                 let mut cb = callback;
                 device.build_output_stream(
-                    &config,
+                    config,
                     move |out: &mut [u16], _| cb.fill_native(out, f32_to_u16),
                     on_error,
                     None,
@@ -283,7 +284,7 @@ impl ProjectRuntimeController {
             cpal::SampleFormat::I32 => {
                 let mut cb = callback;
                 device.build_output_stream(
-                    &config,
+                    config,
                     move |out: &mut [i32], _| cb.fill_native(out, f32_to_i32),
                     on_error,
                     None,

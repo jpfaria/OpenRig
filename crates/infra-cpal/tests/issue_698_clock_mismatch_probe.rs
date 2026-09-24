@@ -35,7 +35,7 @@ fn open_and_histogram(
     let seen_cb = std::sync::Arc::clone(&seen);
     let stream = device
         .build_input_stream(
-            &config,
+            config,
             move |data: &[f32], _: &_| {
                 let now = std::time::Instant::now();
                 let mut s = seen_cb.lock().unwrap();

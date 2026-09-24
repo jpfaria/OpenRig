@@ -155,9 +155,15 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
                             ds.buffer_size_frames,
                         );
                         match device.build_input_stream(
-                            &stream_config,
+                            stream_config,
                             |_data: &[f32], _| {},
-                            |err| log::warn!("apply_device_settings input error: {err}"),
+                            |err: cpal::Error| {
+                                if crate::stream_error::action_for(err.kind())
+                                    == crate::stream_error::StreamErrorAction::Log
+                                {
+                                    log::warn!("apply_device_settings input error: {err}");
+                                }
+                            },
                             None,
                         ) {
                             Ok(stream) => {
@@ -170,8 +176,7 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
                             Err(e) => {
                                 // USB audio devices may timeout during sample rate
                                 // change but still reconfigure successfully. Treat as warning.
-                                let msg = e.to_string();
-                                if msg.contains("timeout") {
+                                if is_rate_change_timeout(&e) {
                                     log::info!(
                                         "apply_device_settings: device '{}' sample rate change in progress (timeout is normal for USB devices)",
                                         ds.device_id.0
@@ -198,3 +203,16 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
         Ok(())
     }
 }
+
+/// A USB interface that has not finished switching its sample rate when the
+/// build gives up waiting. cpal 0.18 reports this as `DeviceNotAvailable`
+/// "Sample rate update timed out" (0.17 said "timeout waiting ...").
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn is_rate_change_timeout(err: &cpal::Error) -> bool {
+    err.kind() == cpal::ErrorKind::DeviceNotAvailable
+        && err.message().is_some_and(|m| m.contains("timed out"))
+}
+
+#[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
+#[path = "device_settings_tests.rs"]
+mod tests;

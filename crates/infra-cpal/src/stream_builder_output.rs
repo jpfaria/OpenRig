@@ -85,7 +85,7 @@ pub(crate) fn build_output_stream_for_output(
             // single-runtime byte-identical fast path when len()==1.
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
-                &stream_config,
+                stream_config,
                 move |out: &mut [f32], _| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     if mix_scratch.len() < out.len() {
@@ -103,7 +103,9 @@ pub(crate) fn build_output_stream_for_output(
                         crate::di_playback::mix_di_playback(&di_cell, out, channels);
                     }));
                 },
-                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] output stream error"
+                )),
                 None,
             )?
         }
@@ -116,7 +118,7 @@ pub(crate) fn build_output_stream_for_output(
             let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
-                &stream_config,
+                stream_config,
                 move |out: &mut [i16], _| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     temp.resize(out.len(), 0.0);
@@ -138,7 +140,9 @@ pub(crate) fn build_output_stream_for_output(
                         *dst = f32_to_i16(*src);
                     }
                 },
-                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] output stream error"
+                )),
                 None,
             )?
         }
@@ -151,7 +155,7 @@ pub(crate) fn build_output_stream_for_output(
             let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
-                &stream_config,
+                stream_config,
                 move |out: &mut [u16], _| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     temp.resize(out.len(), 0.0);
@@ -173,7 +177,9 @@ pub(crate) fn build_output_stream_for_output(
                         *dst = f32_to_u16(*src);
                     }
                 },
-                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] output stream error"
+                )),
                 None,
             )?
         }
@@ -186,7 +192,7 @@ pub(crate) fn build_output_stream_for_output(
             let mut temp: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             let mut mix_scratch: Vec<f32> = vec![0.0; buffer_size_frames as usize * channels];
             device.build_output_stream(
-                &stream_config,
+                stream_config,
                 move |out: &mut [i32], _| {
                     crate::audio_workgroup::ensure_joined_output(workgroup_uid.as_deref());
                     temp.resize(out.len(), 0.0);
@@ -208,7 +214,9 @@ pub(crate) fn build_output_stream_for_output(
                         *dst = f32_to_i32(*src);
                     }
                 },
-                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] output stream error"
+                )),
                 None,
             )?
         }

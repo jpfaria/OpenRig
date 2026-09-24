@@ -100,7 +100,7 @@ pub(crate) fn build_input_stream_for_input(
                 })
                 .collect();
             device.build_input_stream(
-                &stream_config,
+                stream_config,
                 move |data: &[f32], _| {
                     // #670: co-schedule this callback thread with the audio I/O
                     // workgroup so its cache (NAM weights) stays warm.
@@ -109,7 +109,9 @@ pub(crate) fn build_input_stream_for_input(
                         worker.push(data);
                     }
                 },
-                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] input stream error"
+                )),
                 None,
             )?
         }
@@ -118,7 +120,7 @@ pub(crate) fn build_input_stream_for_input(
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
             device.build_input_stream(
-                &stream_config,
+                stream_config,
                 move |data: &[f32], _| {
                     // Inline DSP (non-macOS cpal path; see the macOS arm above).
                     let callback_start = std::time::Instant::now();
@@ -137,7 +139,9 @@ pub(crate) fn build_input_stream_for_input(
                         );
                     }
                 },
-                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] input stream error"
+                )),
                 None,
             )?
         }
@@ -148,7 +152,7 @@ pub(crate) fn build_input_stream_for_input(
             let mut buffer =
                 InputSampleBuffer::with_capacity(buffer_size_frames as usize * channels);
             device.build_input_stream(
-                &stream_config,
+                stream_config,
                 move |data: &[i16], _| {
                     crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
                     let converted = buffer.convert(data, i16_to_f32);
@@ -168,7 +172,9 @@ pub(crate) fn build_input_stream_for_input(
                         );
                     }
                 },
-                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] input stream error"
+                )),
                 None,
             )?
         }
@@ -179,7 +185,7 @@ pub(crate) fn build_input_stream_for_input(
             let mut buffer =
                 InputSampleBuffer::with_capacity(buffer_size_frames as usize * channels);
             device.build_input_stream(
-                &stream_config,
+                stream_config,
                 move |data: &[u16], _| {
                     crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
                     let converted = buffer.convert(data, u16_to_f32);
@@ -199,7 +205,9 @@ pub(crate) fn build_input_stream_for_input(
                         );
                     }
                 },
-                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] input stream error"
+                )),
                 None,
             )?
         }
@@ -210,7 +218,7 @@ pub(crate) fn build_input_stream_for_input(
             let mut buffer =
                 InputSampleBuffer::with_capacity(buffer_size_frames as usize * channels);
             device.build_input_stream(
-                &stream_config,
+                stream_config,
                 move |data: &[i32], _| {
                     crate::audio_workgroup::ensure_joined_input(workgroup_uid.as_deref());
                     let converted = buffer.convert(data, i32_to_f32);
@@ -230,7 +238,9 @@ pub(crate) fn build_input_stream_for_input(
                         );
                     }
                 },
-                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                crate::stream_error::stream_error_handler(format!(
+                    "[{error_chain_id}] input stream error"
+                )),
                 None,
             )?
         }

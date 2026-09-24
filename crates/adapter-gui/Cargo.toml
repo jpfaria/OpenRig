@@ -10,7 +10,7 @@ adapter-mcp = { path = "../adapter-mcp" }
 adapter-midi = { path = "../adapter-midi" }
 block-core = { path = "../block-core" }
 image = { version = "0.25", default-features = false, features = ["png"] }
-cpal = "0.17"
+cpal.workspace = true
 domain = { path = "../domain" }
 engine = { path = "../engine" }
 feature-dsp = { path = "../feature-dsp" }

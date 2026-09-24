@@ -35,7 +35,7 @@ fn granted_input_buffer_matches_requested() {
     let seen_cb = std::sync::Arc::clone(&seen);
     let stream = device
         .build_input_stream(
-            &config,
+            config,
             move |data: &[f32], _: &_| {
                 let mut s = seen_cb.lock().unwrap();
                 if s.len() < 50 {

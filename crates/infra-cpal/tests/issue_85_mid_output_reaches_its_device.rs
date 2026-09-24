@@ -235,7 +235,7 @@ fn peak_on_loopback(mid: bool) -> f32 {
     let counted = Arc::clone(&callbacks);
     let stream = device
         .build_input_stream(
-            &config.config(),
+            config.config(),
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
                 counted.fetch_add(1, Ordering::Relaxed);
                 let mut peak = 0.0_f32;
