@@ -90,7 +90,25 @@ pub fn init_logging_with_target(mut sink: Box<dyn Write + Send + 'static>) {
     }
 }
 
-/// Default initialization used by the binaries: log to stderr.
+/// Default initialization used by the GUI binary: log to stderr.
 pub fn init_logging() {
-    init_logging_with_target(Box::new(std::io::stderr()));
+    init_logging_with_target(default_sink());
+}
+
+#[cfg(not(target_os = "windows"))]
+fn default_sink() -> Box<dyn Write + Send + 'static> {
+    Box::new(std::io::stderr())
+}
+
+/// The GUI is a windowed process on Windows (`windows_subsystem`), so stderr
+/// usually goes nowhere and every log line and startup error was lost (#978).
+/// Log to `%APPDATA%\OpenRig\logs\openrig.log` as well; stderr still gets
+/// every line when the user redirects it.
+#[cfg(target_os = "windows")]
+fn default_sink() -> Box<dyn Write + Send + 'static> {
+    let path = crate::log_file::log_file_path(&infra_filesystem::user_data_root());
+    match crate::log_file::open_log_file(&path) {
+        Ok(file) => Box::new(crate::log_file::TeeWriter::new(std::io::stderr(), file)),
+        Err(_) => Box::new(std::io::stderr()),
+    }
 }

@@ -5,7 +5,7 @@
 | `openrig --project /path/project.openrig` | Abre o projeto direto, pula launcher (forma documentada do #436) |
 | `openrig /path/project.yaml` (posicional) | Idem (forma legada, ainda aceita) |
 | `OPENRIG_PROJECT_PATH=...` | Igual (env tem menor prioridade que CLI) |
-| `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking (#693): records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. |
+| `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking (#693): records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. On Windows the GUI is a windowed process with no console, so it also writes `%APPDATA%\OpenRig\logs\openrig.log` (replaced on each launch) (#978). |
 | `OPENRIG_UPDATE_CURRENT_VERSION=0.0.1` | macOS only (#959): the launcher's update check compares the latest GitHub release against this version instead of the compiled one, so the update button can be exercised without publishing a new release. Display is unchanged. |
 | `--auto-save` ou `OPENRIG_AUTO_SAVE=1` | Salva a cada alteração, esconde botão |
 | `--mcp` | **Override**: forces the MCP server up at `http://127.0.0.1:4123` for this run (GUI continua) — ver `docs/mcp.md`. Persistent enablement is `mcp_enabled` in `config.yaml` (#712). |

@@ -220,6 +220,8 @@ mod live_source_gui;
 mod live_source_health;
 mod live_source_looper;
 mod live_source_metronome;
+#[cfg(any(target_os = "windows", test))]
+mod log_file;
 /// #693: non-blocking logger init shared by binaries and tests.
 pub mod logging;
 mod looper_callbacks;
