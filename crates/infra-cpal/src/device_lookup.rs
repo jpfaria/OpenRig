@@ -12,8 +12,14 @@
 //! them is one property query that confirms the handle still names that id. A
 //! device that was unplugged, replugged or renumbered fails that check and is
 //! looked up again; a device-list invalidation (`invalidate_device_cache`)
-//! forgets everything. ASIO keeps the old walk: holding a driver's handle keeps
-//! it loaded, and a host loads one ASIO driver at a time.
+//! forgets everything.
+//!
+//! ASIO (cpal 0.18, #978) keeps its own tables for the whole process. A
+//! Device there is only the driver's name and cached metadata, and every
+//! output stream of a driver must be built from clones of ONE handle, or each
+//! stream clears the shared buffer and the last one built erases the others.
+//! While a driver runs, enumeration stops at the first other driver's name, so
+//! a walk only ever adds to what is remembered.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -64,10 +70,31 @@ impl<D: Clone> Remembered<D> {
         *self.devices.lock().unwrap() = Some(seen);
         Ok(found)
     }
+
+    /// The device `id` names, walking only for an id never seen, and adding
+    /// what the walk found to what is already remembered.
+    pub(crate) fn find_merging(
+        &self,
+        id: &str,
+        walk: impl FnOnce() -> Result<Vec<(String, D)>>,
+    ) -> Result<Option<D>> {
+        let mut devices = self.devices.lock().unwrap();
+        if let Some(device) = devices.as_ref().and_then(|known| known.get(id)) {
+            return Ok(Some(device.clone()));
+        }
+        let known = devices.get_or_insert_with(HashMap::new);
+        for (seen_id, device) in walk()? {
+            known.entry(seen_id).or_insert(device);
+        }
+        Ok(known.get(id).cloned())
+    }
 }
 
 static INPUTS: Remembered<cpal::Device> = Remembered::new();
 static OUTPUTS: Remembered<cpal::Device> = Remembered::new();
+/// Never forgotten: see the module docs.
+static ASIO_INPUTS: Remembered<cpal::Device> = Remembered::new();
+static ASIO_OUTPUTS: Remembered<cpal::Device> = Remembered::new();
 
 /// Forget every remembered device (the device list changed).
 pub(crate) fn invalidate() {
@@ -95,18 +122,12 @@ pub(crate) fn find(
     is_input: bool,
 ) -> Result<Option<cpal::Device>> {
     if crate::host::is_asio_host(host) {
-        // One ASIO driver loaded at a time: stop at the match, keep nothing.
-        let devices = if is_input {
-            host.input_devices()?
+        let table = if is_input {
+            &ASIO_INPUTS
         } else {
-            host.output_devices()?
+            &ASIO_OUTPUTS
         };
-        for device in devices {
-            if device.id()?.to_string() == device_id {
-                return Ok(Some(device));
-            }
-        }
-        return Ok(None);
+        return table.find_merging(device_id, || walk(host, is_input));
     }
     let table = if is_input { &INPUTS } else { &OUTPUTS };
     table.find(
