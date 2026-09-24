@@ -162,6 +162,9 @@ mod dsp_worker_recovery_tests;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod input_sample_convert;
 mod metronome_stream;
+#[cfg(any(test, not(all(target_os = "linux", feature = "jack"))))]
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+mod output_sample_convert;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod rt_thread_policy;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]

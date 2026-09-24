@@ -100,6 +100,86 @@ pub(crate) fn fill_metronome_buffer(
     shared.publish_position(generator.position());
 }
 
+/// [`fill_metronome_buffer`] for a device whose native format is not f32:
+/// the click is rendered into `rendered` (pre-allocated at stream build) and
+/// converted with `from_f32`, the same conversion the chain outputs use.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn fill_metronome_native<T: Copy>(
+    generator: &mut MetronomeGenerator,
+    shared: &MetronomeShared,
+    scratch: &mut Vec<f32>,
+    rendered: &mut Vec<f32>,
+    out: &mut [T],
+    channels: usize,
+    targets: &[usize],
+    last_generation: &mut u64,
+    from_f32: fn(f32) -> T,
+) {
+    if rendered.len() < out.len() {
+        // Only grows; the stream pre-allocates the configured buffer size.
+        rendered.resize(out.len(), 0.0);
+    }
+    let rendered = &mut rendered[..out.len()];
+    fill_metronome_buffer(
+        generator,
+        shared,
+        scratch,
+        rendered,
+        channels,
+        targets,
+        last_generation,
+    );
+    for (dst, src) in out.iter_mut().zip(rendered.iter()) {
+        *dst = from_f32(*src);
+    }
+}
+
+/// Everything one metronome stream callback owns, whatever the device format.
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+struct MetronomeCallback {
+    shared: engine::metronome_state::MetronomeCell,
+    generator: MetronomeGenerator,
+    scratch: Vec<f32>,
+    rendered: Vec<f32>,
+    last_generation: u64,
+    channels: usize,
+    targets: Vec<usize>,
+}
+
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(dead_code))]
+impl MetronomeCallback {
+    fn fill_f32(&mut self, out: &mut [f32]) {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            fill_metronome_buffer(
+                &mut self.generator,
+                &self.shared,
+                &mut self.scratch,
+                out,
+                self.channels,
+                &self.targets,
+                &mut self.last_generation,
+            );
+        }));
+    }
+
+    fn fill_native<T: Copy>(&mut self, out: &mut [T], from_f32: fn(f32) -> T) {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            fill_metronome_native(
+                &mut self.generator,
+                &self.shared,
+                &mut self.scratch,
+                &mut self.rendered,
+                out,
+                self.channels,
+                &self.targets,
+                &mut self.last_generation,
+                from_f32,
+            );
+        }));
+    }
+}
+
 impl ProjectRuntimeController {
     /// The metronome's shared state, for the dispatcher and the UI.
     pub fn metronome_shared(&self) -> engine::metronome_state::MetronomeCell {
@@ -151,34 +231,68 @@ impl ProjectRuntimeController {
             buffer_frames,
         );
 
-        let shared = std::sync::Arc::clone(&self.metronome_shared);
-        let mut generator =
-            MetronomeGenerator::new(sample_rate as f32, self.metronome_shared.settings());
-        // Pre-allocated here, at build time — the callback only ever grows it.
-        let mut scratch: Vec<f32> = vec![0.0; buffer_frames as usize];
-        let mut last_generation = shared.generation();
-        let error_label = device_id.to_string();
         let targets = target_channels.to_vec();
-        let callback_targets = targets.clone();
+        let callback = MetronomeCallback {
+            shared: std::sync::Arc::clone(&self.metronome_shared),
+            generator: MetronomeGenerator::new(
+                sample_rate as f32,
+                self.metronome_shared.settings(),
+            ),
+            // Pre-allocated here, at build time — the callback only ever grows them.
+            scratch: vec![0.0; buffer_frames as usize],
+            rendered: vec![0.0; buffer_frames as usize * channels],
+            last_generation: self.metronome_shared.generation(),
+            channels,
+            targets: targets.clone(),
+        };
+        let error_label = device_id.to_string();
+        let on_error =
+            move |err| log::error!("[metronome:{error_label}] output stream error: {err}");
 
-        let stream = device.build_output_stream(
-            &config,
-            move |out: &mut [f32], _| {
-                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    fill_metronome_buffer(
-                        &mut generator,
-                        &shared,
-                        &mut scratch,
-                        out,
-                        channels,
-                        &callback_targets,
-                        &mut last_generation,
-                    );
-                }));
-            },
-            move |err| log::error!("[metronome:{error_label}] output stream error: {err}"),
-            None,
-        )?;
+        // #978: ASIO opens only the driver's native format (commonly Int32), so
+        // the click cannot assume f32 the way CoreAudio lets it.
+        use crate::output_sample_convert::{f32_to_i16, f32_to_i32, f32_to_u16};
+        let stream = match supported.sample_format() {
+            cpal::SampleFormat::F32 => {
+                let mut cb = callback;
+                device.build_output_stream(
+                    &config,
+                    move |out: &mut [f32], _| cb.fill_f32(out),
+                    on_error,
+                    None,
+                )?
+            }
+            cpal::SampleFormat::I16 => {
+                let mut cb = callback;
+                device.build_output_stream(
+                    &config,
+                    move |out: &mut [i16], _| cb.fill_native(out, f32_to_i16),
+                    on_error,
+                    None,
+                )?
+            }
+            cpal::SampleFormat::U16 => {
+                let mut cb = callback;
+                device.build_output_stream(
+                    &config,
+                    move |out: &mut [u16], _| cb.fill_native(out, f32_to_u16),
+                    on_error,
+                    None,
+                )?
+            }
+            cpal::SampleFormat::I32 => {
+                let mut cb = callback;
+                device.build_output_stream(
+                    &config,
+                    move |out: &mut [i32], _| cb.fill_native(out, f32_to_i32),
+                    on_error,
+                    None,
+                )?
+            }
+            other => anyhow::bail!(
+                "metronome output device '{device_id}' uses unsupported sample format {other:?}"
+            ),
+        };
         stream.play()?;
 
         // Only now does the click that was playing go: the previous handle is

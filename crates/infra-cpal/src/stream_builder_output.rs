@@ -23,6 +23,8 @@ use domain::ids::ChainId;
 use engine::runtime::ChainRuntimeState;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
+use crate::output_sample_convert::{f32_to_i16, f32_to_i32, f32_to_u16};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::process_output_buffer;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use crate::resolved::ResolvedOutputDevice;
@@ -133,8 +135,7 @@ pub(crate) fn build_output_stream_for_output(
                         crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
-                        *dst =
-                            (*src * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+                        *dst = f32_to_i16(*src);
                     }
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
@@ -169,9 +170,7 @@ pub(crate) fn build_output_stream_for_output(
                         crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
-                        let normalized =
-                            ((*src + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32);
-                        *dst = normalized as u16;
+                        *dst = f32_to_u16(*src);
                     }
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
@@ -206,8 +205,7 @@ pub(crate) fn build_output_stream_for_output(
                         crate::di_playback::mix_di_playback(&di_cell, &mut temp, channels);
                     }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
-                        *dst =
-                            (*src * i32::MAX as f32).clamp(i32::MIN as f32, i32::MAX as f32) as i32;
+                        *dst = f32_to_i32(*src);
                     }
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),

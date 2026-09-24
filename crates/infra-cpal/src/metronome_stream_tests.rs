@@ -208,3 +208,55 @@ fn the_position_reaches_the_ui() {
         "after two beats the published position should be beat 2 of the bar"
     );
 }
+
+// #978: ASIO opens only the driver's native format, commonly Int32, so the
+// click has to reach an integer buffer too, with the same scaling the chain
+// outputs use.
+#[test]
+fn the_click_reaches_an_int32_device() {
+    let settings = MetronomeSettings::default();
+    let shared = MetronomeShared::new(settings.clone());
+    shared.set_enabled(true);
+    let channels = 2;
+    let frames = 256;
+
+    // Reference: the same generator state rendered into f32.
+    let mut f32_out = vec![0.0f32; frames * channels];
+    let (mut generator, mut scratch, mut generation) = callback_state();
+    fill_metronome_buffer(
+        &mut generator,
+        &shared,
+        &mut scratch,
+        &mut f32_out,
+        channels,
+        &[0, 1],
+        &mut generation,
+    );
+    assert!(
+        f32_out.iter().any(|s| *s != 0.0),
+        "the reference must click"
+    );
+
+    let shared = MetronomeShared::new(settings);
+    shared.set_enabled(true);
+    let (mut generator, mut scratch, mut generation) = callback_state();
+    let mut rendered = vec![0.0f32; frames * channels];
+    let mut out = vec![0i32; frames * channels];
+    fill_metronome_native(
+        &mut generator,
+        &shared,
+        &mut scratch,
+        &mut rendered,
+        &mut out,
+        channels,
+        &[0, 1],
+        &mut generation,
+        crate::output_sample_convert::f32_to_i32,
+    );
+
+    let expected: Vec<i32> = f32_out
+        .iter()
+        .map(|s| crate::output_sample_convert::f32_to_i32(*s))
+        .collect();
+    assert_eq!(out, expected);
+}
