@@ -27,23 +27,32 @@ pub fn sanitize_for_filename(s: &str) -> String {
         .collect()
 }
 
-/// `stem`, suffixed with `_` when `windows` and it is one of the device
-/// names Windows reserves whatever the extension (#978).
+/// `stem`, with a `_` after its device part when `windows` and that part is
+/// one of the device names Windows reserves whatever follows (#978). Windows
+/// reads the device up to the first `.`, trailing spaces dropped, so
+/// "AUX.clean" is the AUX device too: it becomes "AUX_.clean".
 pub fn windows_safe_stem(stem: &str, windows: bool) -> String {
-    let upper = stem.to_ascii_uppercase();
-    let numbered = |prefix: &str| {
-        upper
-            .strip_prefix(prefix)
-            .is_some_and(|n| n.len() == 1 && matches!(n.as_bytes()[0], b'1'..=b'9'))
-    };
-    let reserved = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-        || numbered("COM")
-        || numbered("LPT");
-    if windows && reserved {
-        format!("{stem}_")
+    let base = stem.split('.').next().unwrap_or("").trim_end();
+    if windows && is_windows_device_name(base) {
+        format!("{base}_{}", &stem[base.len()..])
     } else {
         stem.to_string()
     }
+}
+
+/// CON, PRN, AUX, NUL, and COM/LPT followed by 0-9 or a superscript 1-3.
+fn is_windows_device_name(base: &str) -> bool {
+    let upper = base.to_uppercase();
+    let port = |prefix: &str| {
+        upper.strip_prefix(prefix).is_some_and(|n| {
+            let mut chars = n.chars();
+            matches!(
+                (chars.next(), chars.next()),
+                (Some('0'..='9' | '¹' | '²' | '³'), None)
+            )
+        })
+    };
+    matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL") || port("COM") || port("LPT")
 }
 
 /// Build the on-disk filename from a user-facing preset name. Issue
