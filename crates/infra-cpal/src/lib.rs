@@ -28,6 +28,8 @@ mod device_config_cache;
 mod device_lookup;
 
 mod host;
+#[cfg(any(target_os = "windows", test))]
+mod windows_host_choice;
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 mod jack_device_enum;

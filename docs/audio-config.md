@@ -818,6 +818,23 @@ Caveats:
   -p infra-cpal --release --test issue_736_multi_rate_streams`, which runs 30 s
   and requires zero xruns and zero underruns.
 
+## Windows audio host (#978)
+
+cpal reports ASIO as available on every Windows machine, driver or not, so
+`host::create_host` counts the ASIO devices it can actually open: at least one
+opens the ASIO host, and none falls back to WASAPI (`windows_host_choice.rs`).
+Before this, a PC with onboard audio or a class-compliant interface had no
+devices at all. The picker and the streams share this choice (#422).
+
+ASIO opens only the driver's native sample format, commonly Int32. The chain
+streams dispatch on it (`stream_builder_input.rs` / `stream_builder_output.rs`),
+and so does the metronome. The integer input arms convert into a buffer sized
+when the stream is built, so the callback never allocates (invariant #8).
+
+Open for ASIO: one driver per process and one `bufferSwitch` for every stream
+on it (the per-stream isolation law), and cpal 0.17.3's duplex/thread bugs.
+Status and the cpal 0.18.2 analysis live in #978.
+
 ## JACK lifecycle (Linux only)
 
 Com feature `jack`, OpenRig controla o ciclo de vida do JACK. `ensure_jack_running()` em infra-cpal detecta a placa USB, lê SR/buffer do `device_settings`, **põe o mixer de playback da placa em unity** (`LiveJackBackend::set_playback_mixer_unity` → `amixer -c $CARD sset <ctrl> 100% unmute` nos controles comuns; best-effort, requer `alsa-utils`) — sem PipeWire/Pulse nada inicializa o mixer e muitas interfaces USB sobem atenuadas (~−23 dB → som fraco/abafado). Depois lança `jackd -d alsa -d hw:$CARD -r $SR -p $BUF -n 3`, espera o socket aparecer em `/dev/shm/`. Timer de 2s no adapter-gui (`health_timer`) verifica `is_healthy()` e tenta reconectar quando JACK volta. Tudo atrás de `#[cfg(all(target_os = "linux", feature = "jack"))]`.
