@@ -19,12 +19,13 @@
 //! full by the time the first window closes. Taking that first floor as the
 //! level ratified the whole capacity as the route's latency for good.
 //!
-//! #979: the level is where a callback finds the ring when the producer's
-//! buffer has NOT landed yet. A producer off the output callback (the #670
-//! DSP worker) lands before some callbacks and after others, so a floor one
-//! buffer above the level is that phase, not stuck latency; trimming it cut
-//! the jitter cushion, the next late push underran, and the cushion the
-//! underrun regrew was trimmed again — trims and underruns for good.
+//! #979: the level never follows a floor DOWN. A producer off the output
+//! callback (the #670 DSP worker) lands late now and then, and the window
+//! that caught it reads a low floor the cushion absorbed; taking that as the
+//! level made the next calm window look stuck, the cushion was cut, the next
+//! late push underran, and the cushion the underrun regrew was cut again —
+//! trims and underruns for good. The frames an underrun regrew RAISE the
+//! level instead, and a floor one buffer above it is the producer's phase.
 //!
 //! Consumer-only state (the output callback): `Relaxed` atomics, no lock, no
 //! allocation (invariant #8).
@@ -45,8 +46,9 @@ pub(crate) struct DriftGuard {
     floor: AtomicUsize,
     /// Underrun count when the current window started.
     window_underruns: AtomicU64,
-    /// Lowest floor of any window without underruns, capped at the target
-    /// plus one callback buffer.
+    /// The route's resting fill: its first clean floor, raised by later
+    /// clean floors up to the target plus one callback buffer, and by the
+    /// frames its underruns regrew up to twice the target (#979).
     level: AtomicUsize,
     /// The route's cushion target: the most it rests at (#965).
     target: usize,
@@ -80,27 +82,40 @@ impl DriftGuard {
         }
         self.floor.store(UNKNOWN, Ordering::Relaxed);
         self.counted.store(0, Ordering::Relaxed);
-        let clean = self.window_underruns.swap(underruns, Ordering::Relaxed) == underruns;
-        if !clean {
+        let learned = self.level.load(Ordering::Relaxed);
+        let window_start = self.window_underruns.swap(underruns, Ordering::Relaxed);
+        if window_start != underruns {
+            // #979: every frame an underrun played as silence stays in the
+            // ring once the late producer lands it: that is cushion the route
+            // proved it needs, never latency to shed.
+            if learned != UNKNOWN {
+                let owed = (underruns - window_start) as usize;
+                let raised = learned
+                    .saturating_add(owed)
+                    .min(self.target.saturating_mul(2));
+                self.level.store(raised.max(learned), Ordering::Relaxed);
+            }
             return 0;
         }
-        let level = self
-            .level
-            .load(Ordering::Relaxed)
-            .min(self.target.saturating_add(frames));
-        if floor < level {
-            self.level.store(floor, Ordering::Relaxed);
-            return 0;
-        }
+        let cap = self.target.saturating_add(frames);
+        let level = if learned == UNKNOWN { cap } else { learned };
         // #979: one buffer above the level is the producer's phase; the cap
         // already counts that buffer.
-        let phase = level
-            .saturating_add(frames)
-            .min(self.target.saturating_add(frames));
+        let phase = level.saturating_add(frames).min(cap).max(level);
         if floor > phase + SLACK_FRAMES {
+            self.level.store(level, Ordering::Relaxed);
             self.trims.fetch_add(1, Ordering::Relaxed);
             return floor - level;
         }
+        // #979: a floor below the level is a late producer the cushion
+        // absorbed, never latency lost — learning it cut that cushion.
+        let rest = floor.min(cap);
+        let level = if learned == UNKNOWN {
+            rest
+        } else {
+            learned.max(rest)
+        };
+        self.level.store(level, Ordering::Relaxed);
         0
     }
 

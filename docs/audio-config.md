@@ -447,17 +447,27 @@ window is the level the route proved it can hold, and a floor more than
 crossfade. Steady state never trims (bit-identical output).
 `openrig://routes` reports `fill_frames` and `latency_trims` per route.
 
-A floor up to one callback buffer above the level is never trimmed (#979).
-The DSP worker (#670) pushes each buffer a few hundred microseconds after the
-input callback, so it lands before some output callbacks and after others:
-the fill an output callback sees at its start swings by one whole buffer
-with no latency gained. With only the 32-frame slack, a window in which every
-push happened to land first read as stuck latency and the jitter cushion was
-cut; the next late push underran, the underrun regrew the cushion, the next
-such window cut it again — trims and underruns growing together until the
-chain was switched off and on (live: 0 → 2048 underruns, 1 → 9 trims in three
-minutes). The cost: a stall that leaves at most one buffer behind is no
-longer shed.
+The level never follows a floor down, and underruns raise it (#979). The DSP
+worker (#670) pushes each buffer a few hundred microseconds after the input
+callback, and under CPU contention it falls a few periods behind and then
+catches up. The window that caught it reads a low floor the cushion absorbed.
+Learning that floor as the level made the next calm window look like stuck
+latency, so the jitter cushion was cut. The next late buffer underran, and
+the frames the underrun had played as silence landed later and regrew the
+cushion. The next calm window cut it again, so trims and underruns grew
+together until the chain was switched off and on (live: 0 → 2048 underruns
+and 1 → 9 trims in three minutes). Now:
+
+- a clean floor below the level is ignored;
+- a clean floor above it raises it, up to the target plus one buffer;
+- a window that underran raises the level by its underrun frames, up to
+  twice the target, because that is the cushion the route proved it needs;
+- a floor up to one buffer above the level is the producer's phase, not
+  stuck latency.
+
+The trade-offs: a route whose producer is really late can rest up to 2× its
+target (5.8 ms at 64 frames on a 128-frame target) instead of dropping out,
+and a stall that leaves one buffer or less behind is no longer shed.
 
 The level is never learned ABOVE the route's cushion target plus one
 callback buffer (#965). A chain starts its input stream before its output
