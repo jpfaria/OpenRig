@@ -30,6 +30,10 @@ pub struct OutputRouteReading {
     pub fill_frames: usize,
     /// #953: times the route shed latency a stalled stream left behind.
     pub latency_trims: u64,
+    /// #980: frames the route's ring discarded because it was full.
+    pub dropped_frames: u64,
+    /// #980: input buffers the owning runtime lost to a held processing lock.
+    pub input_busy_skips: u64,
 }
 
 #[derive(Serialize)]
@@ -57,6 +61,8 @@ pub fn rows_for_chain(
                 peak_dbfs: r.peak_dbfs,
                 fill_frames: r.fill_frames,
                 latency_trims: r.latency_trims,
+                dropped_frames: r.dropped_frames,
+                input_busy_skips: r.input_busy_skips,
             })
         })
         .collect()

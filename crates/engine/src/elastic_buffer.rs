@@ -63,6 +63,10 @@ pub(crate) struct ElasticBuffer {
     /// apart from a CPU deadline overrun (xrun): a single light chain at
     /// buffer 64 crackling with near-zero xruns points here, not at CPU.
     underrun_count: AtomicU64,
+    /// #980: frames `push` discarded because the ring was full — a producer
+    /// that ran late and caught up loses exactly these. Without this count a
+    /// late producer and a producer that never pushed look the same.
+    dropped_count: AtomicU64,
     /// #953: sheds latency a stalled output stream left in the ring.
     drift: DriftGuard,
     /// #965: off on a route whose level the #85 resampler servo holds.
@@ -92,6 +96,7 @@ impl ElasticBuffer {
             layout,
             last_frame_bits: AtomicU64::new(frame_to_bits(init)),
             underrun_count: AtomicU64::new(0),
+            dropped_count: AtomicU64::new(0),
             drift: DriftGuard::new(target_level),
             drift_guarded: true,
         }
@@ -110,14 +115,23 @@ impl ElasticBuffer {
         self.underrun_count.load(Ordering::Relaxed)
     }
 
+    /// #980: frames discarded on a full ring since this buffer was built.
+    /// Read off the audio thread.
+    pub(crate) fn dropped_count(&self) -> u64 {
+        self.dropped_count.load(Ordering::Relaxed)
+    }
+
     #[inline(always)]
     pub(crate) fn push(&self, frame: AudioFrame) {
         self.last_frame_bits
             .store(frame_to_bits(frame), Ordering::Relaxed);
         // Drop-newest when full — the consumer is behind and a single dropped
         // sample is less disruptive than advancing the tail from the
-        // producer side (which would violate the SPSC invariant).
-        let _ = self.ring.push(frame);
+        // producer side (which would violate the SPSC invariant). #980:
+        // counted (one relaxed add, only on the full branch).
+        if !self.ring.push(frame) {
+            self.dropped_count.fetch_add(1, Ordering::Relaxed);
+        }
     }
 
     #[inline(always)]

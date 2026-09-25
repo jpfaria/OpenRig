@@ -21,6 +21,8 @@ fn a_hosted_row_carries_every_field_the_engine_counted() {
         peak_dbfs: -23.5,
         fill_frames: 384,
         latency_trims: 1,
+        dropped_frames: 640,
+        input_busy_skips: 3,
     }];
     let json = output_routes_json(true, &rows);
     assert!(json.starts_with(r#"{"hosted":true,"rows":[{"#), "{json}");
@@ -34,6 +36,8 @@ fn a_hosted_row_carries_every_field_the_engine_counted() {
         r#""peak_dbfs":-23.5"#,
         r#""fill_frames":384"#,
         r#""latency_trims":1"#,
+        r#""dropped_frames":640"#,
+        r#""input_busy_skips":3"#,
     ] {
         assert!(json.contains(field), "missing {field} in {json}");
     }
@@ -49,6 +53,8 @@ fn rows_for_chain_flattens_every_group_and_route_in_order() {
         peak_dbfs: -6.0 * route as f32,
         fill_frames: 100 + route,
         latency_trims: 2 * route as u64,
+        dropped_frames: 0,
+        input_busy_skips: 0,
     };
     let rows = rows_for_chain(
         "rig:input-2",
@@ -94,6 +100,8 @@ fn rows_for_chain_carries_each_route_cushion_and_its_trims() {
         peak_dbfs: 0.0,
         fill_frames: 300 + route,
         latency_trims: route as u64,
+        dropped_frames: 0,
+        input_busy_skips: 0,
     };
     let rows = rows_for_chain("rig:input-4", vec![(0, vec![row(0), row(1)])]);
     let got: Vec<(usize, u64)> = rows

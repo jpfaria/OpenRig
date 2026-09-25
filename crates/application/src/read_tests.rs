@@ -337,6 +337,8 @@ fn hosted_output_routes_report_the_frontend_rows() {
                 peak_dbfs: -20.5,
                 fill_frames: 0,
                 latency_trims: 0,
+                dropped_frames: 0,
+                input_busy_skips: 0,
             }])
         }
     }

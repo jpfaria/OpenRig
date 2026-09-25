@@ -466,10 +466,19 @@ Nor is the level ever taken BELOW the cushion a route was primed with
 dsp-worker happened to land just in time used to become the level, and
 every later trim cut the primed route down to a single buffer — zero
 margin, so each late worker buffer was an underrun on the output callbacks
-whose phase sat near the worker's finish time. Measured live: enabling two
-VST3 reverbs on a NAM + IR chain made one route underrun on ~27% of its
-callbacks (`fill_frames: 64`, `latency_trims` climbing with the underruns)
-while a sibling route on the same runtime stayed clean.
+whose phase sat near the worker's finish time. This does not fire at all on
+a same-device route at 64 frames (target 64, prime 64, capacity 128: a trim
+would need a floor above the capacity), so it was not the cause of the
+#980 underruns on the owner's rig.
+
+Where a route's missing audio went is counted (#980), because "underruns
+rising, `fill_frames` steady, `latency_trims: 0`" fits two different
+causes: `dropped_frames` counts what the full ring discarded (a producer
+that ran late and caught up loses exactly those frames — every frame is
+accounted for as primed + pushed = popped + queued + dropped), and
+`input_busy_skips` counts input buffers `process_input_f32` dropped because
+another thread held the runtime's `processing` lock. Both are one relaxed
+atomic add on the loss branch only.
 
 #### How a route's cushion is sized (#965)
 

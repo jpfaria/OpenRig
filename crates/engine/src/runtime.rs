@@ -133,7 +133,14 @@ pub fn process_input_f32(
     // leave the probe state Armed and retry on the next callback.
     let mut processing_guard = match runtime.processing.try_lock() {
         Ok(guard) => guard,
-        Err(_) => return,
+        Err(_) => {
+            // #980: the whole buffer is lost on every route — count it (one
+            // relaxed add; no lock, no allocation).
+            runtime
+                .input_busy_skips
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            return;
+        }
     };
 
     // Issue #580 follow-up: drain queued block-toggle requests inside
@@ -519,6 +526,10 @@ mod runtime_output_route_stats_tests;
 #[cfg(test)]
 #[path = "issue_953_route_latency_drift_tests.rs"]
 mod issue_953_route_latency_drift;
+
+#[cfg(test)]
+#[path = "issue_980_route_loss_counters_tests.rs"]
+mod issue_980_route_loss_counters;
 
 #[cfg(test)]
 #[path = "issue_965_insert_latency_tests.rs"]

@@ -182,6 +182,10 @@ pub struct ChainRuntimeState {
     /// audio-thread writer and one off-thread reader. See
     /// [`crate::runtime_load`].
     pub(crate) xrun_count: AtomicU64,
+    /// #980: input buffers `process_input_f32` dropped because another thread
+    /// held `processing` (a lost `try_lock` is a silent period on every route
+    /// of this runtime). Read off the audio thread.
+    pub(crate) input_busy_skips: AtomicU64,
     pub(crate) peak_load_ppm: AtomicU64,
     /// The sample rate (Hz) this runtime was built at — the rate its streams
     /// actually run at. Set once at construction, never mutated, so a plain
@@ -246,6 +250,11 @@ impl ChainRuntimeState {
     /// Must be called before deactivating JACK or dropping block processors.
     pub fn set_draining(&self) {
         self.draining.store(true, Ordering::Release);
+    }
+
+    /// #980: input buffers lost to a held `processing` lock since build.
+    pub fn input_busy_skips(&self) -> u64 {
+        self.input_busy_skips.load(Ordering::Relaxed)
     }
 
     pub fn is_draining(&self) -> bool {
