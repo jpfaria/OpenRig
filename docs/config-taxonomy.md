@@ -23,7 +23,11 @@ page for the working rule.
 ### System (`config.yaml`)
 
 - `language` — UI locale.
-- `recent_projects` — recently opened projects list.
+- `recent_projects` — recently opened projects list. Opening, saving or
+  removing a project writes ONLY this list (read-modify-write, #980). The
+  GUI's in-memory config is loaded at boot and is stale for every other
+  section — writing it whole used to put back an I/O binding edited over
+  MCP (`syn2-main` `[3]` → `[7]`) on every project open.
 - `paths` — asset roots (thumbnails, screenshots, metadata) plus three
   user-overridable directories: `presets_path` (project presets,
   #513), `plugins_path` (NAM/IR/LV2 packs, #513),

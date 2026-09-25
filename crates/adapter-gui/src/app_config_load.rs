@@ -12,8 +12,9 @@ pub(crate) fn load_and_sync_app_config() -> Result<AppConfig> {
     let changed = sync_recent_projects(&mut config);
     if changed {
         // #693: boot-time migration write goes to the persist worker.
-        // #731: bind the config path at dispatch time.
-        application::app_config_persist::persist_app_config_snapshot(config.clone());
+        // #731: bind the config path at dispatch time. #980: only the list
+        // that changed is written.
+        application::app_config_persist::persist_recent_projects(None, &config);
     }
     Ok(config)
 }
