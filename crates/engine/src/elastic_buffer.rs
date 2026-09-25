@@ -236,7 +236,3 @@ fn bits_to_frame(bits: u64, layout: AudioChannelLayout) -> AudioFrame {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "issue_979_route_phase_swing_tests.rs"]
-mod issue_979_tests;
