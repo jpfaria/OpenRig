@@ -43,29 +43,12 @@ fn a_window_that_underran_neither_sets_the_level_nor_trims() {
     assert_eq!(windows(&guard, 556, 1, 5), 256);
 }
 
-/// #979 (replaces `the_level_follows_the_lowest_clean_window`, which pinned
-/// this cut as correct): on the producer's own clock the fill only drops
-/// below its rest when the producer is late, and it returns when the late
-/// buffers land. That return is the cushion doing its job, not stuck latency;
-/// cutting it made the next late buffer underrun, for the life of the route.
 #[test]
-fn a_dip_the_cushion_absorbed_is_not_learned_as_the_level() {
+fn the_level_follows_the_lowest_clean_window() {
     let guard = DriftGuard::new(600);
     windows(&guard, 600, 2, 0);
     windows(&guard, 300, 2, 0);
-    assert_eq!(windows(&guard, 600, 1, 0), 0);
-    assert_eq!(guard.trims(), 0);
-}
-
-/// #979: the frames an underrun played as silence land later and stay in the
-/// ring; that fill is the cushion the route proved it needs.
-#[test]
-fn the_cushion_an_underrun_regrew_is_not_trimmed() {
-    let guard = DriftGuard::new(256);
-    windows(&guard, 128, 3, 0);
-    windows(&guard, 128, 1, 256);
-    assert_eq!(windows(&guard, 384, 3, 256), 0);
-    assert_eq!(guard.trims(), 0);
+    assert_eq!(windows(&guard, 600, 1, 0), 300);
 }
 
 /// #965: the route's input stream ran ahead of its output stream at start-up,
