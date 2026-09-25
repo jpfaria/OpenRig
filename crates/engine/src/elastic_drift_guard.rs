@@ -19,6 +19,13 @@
 //! full by the time the first window closes. Taking that first floor as the
 //! level ratified the whole capacity as the route's latency for good.
 //!
+//! #979: the level is where a callback finds the ring when the producer's
+//! buffer has NOT landed yet. A producer off the output callback (the #670
+//! DSP worker) lands before some callbacks and after others, so a floor one
+//! buffer above the level is that phase, not stuck latency; trimming it cut
+//! the jitter cushion, the next late push underran, and the cushion the
+//! underrun regrew was trimmed again — trims and underruns for good.
+//!
 //! Consumer-only state (the output callback): `Relaxed` atomics, no lock, no
 //! allocation (invariant #8).
 
@@ -85,7 +92,12 @@ impl DriftGuard {
             self.level.store(floor, Ordering::Relaxed);
             return 0;
         }
-        if floor > level + SLACK_FRAMES {
+        // #979: one buffer above the level is the producer's phase; the cap
+        // already counts that buffer.
+        let phase = level
+            .saturating_add(frames)
+            .min(self.target.saturating_add(frames));
+        if floor > phase + SLACK_FRAMES {
             self.trims.fetch_add(1, Ordering::Relaxed);
             return floor - level;
         }

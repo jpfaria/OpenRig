@@ -447,6 +447,18 @@ window is the level the route proved it can hold, and a floor more than
 crossfade. Steady state never trims (bit-identical output).
 `openrig://routes` reports `fill_frames` and `latency_trims` per route.
 
+A floor up to one callback buffer above the level is never trimmed (#979).
+The DSP worker (#670) pushes each buffer a few hundred microseconds after the
+input callback, so it lands before some output callbacks and after others:
+the fill an output callback sees at its start swings by one whole buffer
+with no latency gained. With only the 32-frame slack, a window in which every
+push happened to land first read as stuck latency and the jitter cushion was
+cut; the next late push underran, the underrun regrew the cushion, the next
+such window cut it again — trims and underruns growing together until the
+chain was switched off and on (live: 0 → 2048 underruns, 1 → 9 trims in three
+minutes). The cost: a stall that leaves at most one buffer behind is no
+longer shed.
+
 The level is never learned ABOVE the route's cushion target plus one
 callback buffer (#965). A chain starts its input stream before its output
 stream, and every input period before the output's first callback pushes a
