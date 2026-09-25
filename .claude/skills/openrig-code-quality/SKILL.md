@@ -54,7 +54,7 @@ Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o 
 
 1. **DOIS comandos literais, cada um no seu bloco de código, sempre os dois** — o usuário escolhe de onde rodar, e escolhe na hora:
    - **Pasta principal** (puxar a branch e rodar pelo RustRover): `git fetch && git checkout <branch> && git pull`. Sempre os três, mesmo que já tenha sido dito em push anterior — o usuário trabalha com vários agents em paralelo e não consegue lembrar qual branch é qual.
-   - **Pasta solver** (rodar direto no clone do agente, reaproveitando o build que o agente já fez): `cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp`. Sem `--release` (é o build que já existe no workspace do agente). Faltou este bloco = handoff incompleto, mesmo com o de cima perfeito.
+   - **Pasta solver** (rodar direto no clone do agente, reaproveitando o build que o agente já fez): a linha `run:` que `scripts/solver-setup.sh <N> <branch>` imprime, colada LITERAL — caminho absoluto + `OPENRIG_PLUGINS_ROOT=<pasta de plugins>`: `cd /Users/…/OpenRig/.solvers/issue-N && OPENRIG_PLUGINS_ROOT=/Users/…/OpenRig-plugins/plugins/source cargo run -p adapter-gui -- --mcp`. Nunca escrever o comando à mão: rode o script e copie o `run:`. Sem `OPENRIG_PLUGINS_ROOT` o app do clone abre com zero plugins (NAM/IR/LV2/VST3 "not found"). Sem `--release` (é o build que já existe no workspace do agente). Faltou este bloco, ou faltou o `OPENRIG_PLUGINS_ROOT` = handoff incompleto.
 2. **Checklist do que validar**, numerado, em pt-BR, ação por ação (UI flow, comando CLI, cenário de áudio). Inclui:
    - Golden path (o caminho feliz que a feature implementa).
    - Edge case que motivou a issue (o bug reproduzível ou o comportamento antigo a ser comparado).
@@ -70,6 +70,9 @@ Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o 
 
 ❌ "Push 68ea1bcf. Mudei chain_preset_wiring.rs."
    // WRONG: descreve arquivo, não validação. Usuário não tem app aberto na cabeça dele.
+
+❌ cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp
+   // WRONG: sem OPENRIG_PLUGINS_ROOT o app abre sem plugins; caminho relativo. Use o `run:` do solver-setup.sh.
 ```
 
 **Padrão correto:**
@@ -79,8 +82,8 @@ Antes de tocar código, arquitetura ou teste: se o escopo, o modelo de dados, o 
    Pasta principal:
    git fetch && git checkout feature/issue-N && git pull
 
-   Pasta solver:
-   cd .solvers/issue-N && cargo run -p adapter-gui -- --mcp
+   Pasta solver (linha `run:` do scripts/solver-setup.sh, literal):
+   cd /Users/…/OpenRig/.solvers/issue-N && OPENRIG_PLUGINS_ROOT=/Users/…/OpenRig-plugins/plugins/source cargo run -p adapter-gui -- --mcp
 
    Validar:
    1. Abrir tela Chains, clicar [load preset] → picker mostra a lista
