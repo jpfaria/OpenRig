@@ -175,6 +175,7 @@ impl ElasticBuffer {
     /// the producer warms up — issue #592. The cushion costs `frames` of
     /// output latency; callers only prime when the chain warrants it.
     pub(crate) fn prime(&self, frames: usize) {
+        self.drift.hold_rest(frames);
         let silence = silent_frame(self.layout);
         for _ in 0..frames {
             self.push(silence);

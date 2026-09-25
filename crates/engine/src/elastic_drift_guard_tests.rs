@@ -76,3 +76,21 @@ fn a_route_resting_below_its_target_is_left_where_it_rests() {
     assert_eq!(windows(&guard, 128, 3, 0), 0);
     assert_eq!(guard.trims(), 0);
 }
+
+/// #980: a convolver-fed route is born primed at its cushion (#592) — the
+/// margin that absorbs a dsp-worker buffer landing late. One lucky clean
+/// window can see the ring down at a single buffer; that window must not
+/// become the level the route is trimmed back to, or the route loses its
+/// whole margin and every late worker buffer (a VST3 enabled live) is an
+/// underrun on the callbacks whose phase sits near the worker's finish time.
+#[test]
+fn issue_980_a_primed_route_is_never_trimmed_below_its_prime() {
+    const PRIME: usize = 256;
+    let guard = DriftGuard::new(PRIME);
+    guard.hold_rest(PRIME);
+    // A clean window where the worker happened to land just in time.
+    windows(&guard, PERIOD, 1, 0);
+    // Back at the primed lockstep rest: the prime + the buffer being popped.
+    assert_eq!(windows(&guard, PRIME + PERIOD, 3, 0), 0);
+    assert_eq!(guard.trims(), 0);
+}

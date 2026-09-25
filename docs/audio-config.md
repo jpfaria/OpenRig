@@ -461,6 +461,16 @@ switch brings up brand-new streams, the input again ran ahead, and live
 rebuilds reuse routes (#670) — measured live as `fill_frames: 1024`,
 `latency_trims: 0`, the chain late and garbled until switched off and on.
 
+Nor is the level ever taken BELOW the cushion a route was primed with
+(#592) plus one callback buffer (#980). One clean window where the
+dsp-worker happened to land just in time used to become the level, and
+every later trim cut the primed route down to a single buffer — zero
+margin, so each late worker buffer was an underrun on the output callbacks
+whose phase sat near the worker's finish time. Measured live: enabling two
+VST3 reverbs on a NAM + IR chain made one route underrun on ~27% of its
+callbacks (`fill_frames: 64`, `latency_trims` climbing with the underruns)
+while a sibling route on the same runtime stayed clean.
+
 #### How a route's cushion is sized (#965)
 
 Measured on the owner's Quantum HD 8 with a Swift probe (one input-only and
