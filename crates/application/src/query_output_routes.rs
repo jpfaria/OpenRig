@@ -32,7 +32,8 @@ pub struct OutputRouteReading {
     pub latency_trims: u64,
     /// #980: frames the route's ring discarded because it was full.
     pub dropped_frames: u64,
-    /// #980: input buffers the owning runtime lost to a held processing lock.
+    /// #980: input buffers the owning runtime lost on a failed processing
+    /// `try_lock` (per runtime, repeated on each of its rows).
     pub input_busy_skips: u64,
 }
 

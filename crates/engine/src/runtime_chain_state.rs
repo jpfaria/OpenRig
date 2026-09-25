@@ -182,9 +182,10 @@ pub struct ChainRuntimeState {
     /// audio-thread writer and one off-thread reader. See
     /// [`crate::runtime_load`].
     pub(crate) xrun_count: AtomicU64,
-    /// #980: input buffers `process_input_f32` dropped because another thread
-    /// held `processing` (a lost `try_lock` is a silent period on every route
-    /// of this runtime). Read off the audio thread.
+    /// #980: input buffers `process_input_f32` dropped on a failed
+    /// `processing.try_lock()` — another thread held it, or it is poisoned. A
+    /// lost `try_lock` is a silent period on the routes that input feeds.
+    /// Read off the audio thread.
     pub(crate) input_busy_skips: AtomicU64,
     pub(crate) peak_load_ppm: AtomicU64,
     /// The sample rate (Hz) this runtime was built at — the rate its streams

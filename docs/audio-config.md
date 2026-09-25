@@ -473,12 +473,15 @@ would need a floor above the capacity), so it was not the cause of the
 
 Where a route's missing audio went is counted (#980), because "underruns
 rising, `fill_frames` steady, `latency_trims: 0`" fits two different
-causes: `dropped_frames` counts what the full ring discarded (a producer
-that ran late and caught up loses exactly those frames — every frame is
-accounted for as primed + pushed = popped + queued + dropped), and
-`input_busy_skips` counts input buffers `process_input_f32` dropped because
-another thread held the runtime's `processing` lock. Both are one relaxed
-atomic add on the loss branch only.
+causes: `dropped_frames` counts what the full ring discarded (the output was
+not popping yet or stalled, or a producer that ran late caught up — between
+drift-guard trims every frame is accounted for as primed + pushed = popped +
+queued + dropped; trimmed frames leave the ring without being counted here),
+and `input_busy_skips` counts input buffers `process_input_f32` dropped on a
+failed `processing.try_lock()` (another thread holding it, or a poisoned
+lock). Both are one relaxed atomic add on the loss branch only. Not yet
+counted: the backlog a dsp-worker discards when it recovers from a
+saturation spiral (it logs `saturation spiral`).
 
 #### How a route's cushion is sized (#965)
 

@@ -15,12 +15,10 @@
 //! survives even before a project is opened.
 //!
 //! #607: each Choose…/Reset also mirrors the override into the shared
-//! in-memory `AppConfig`, not only `config.yaml`. Lifecycle events
-//! (project-open / register-recent) re-persist the whole in-memory
-//! snapshot via `save_app_config(&app_config.borrow())`; without the
-//! mirror, that whole-config save would clobber a just-picked override
-//! back to its startup value (the user-visible bug: evaluations folder
-//! reverting to default after reopening the project).
+//! in-memory `AppConfig`, not only `config.yaml`. Project-open and
+//! register-recent used to write that whole snapshot back (evaluations
+//! folder reverting to default after reopening the project); since #980 they
+//! write only `recent_projects`, and the mirror keeps the GUI's view in step.
 
 use std::cell::RefCell;
 use std::rc::Rc;

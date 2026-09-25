@@ -63,9 +63,10 @@ pub(crate) struct ElasticBuffer {
     /// apart from a CPU deadline overrun (xrun): a single light chain at
     /// buffer 64 crackling with near-zero xruns points here, not at CPU.
     underrun_count: AtomicU64,
-    /// #980: frames `push` discarded because the ring was full — a producer
-    /// that ran late and caught up loses exactly these. Without this count a
-    /// late producer and a producer that never pushed look the same.
+    /// #980: frames `push` discarded because the ring was full — the consumer
+    /// was not popping (output not started yet, or stalled) or the producer
+    /// caught up after running late. Without this count a late producer and a
+    /// producer that never pushed look the same.
     dropped_count: AtomicU64,
     /// #953: sheds latency a stalled output stream left in the ring.
     drift: DriftGuard,
