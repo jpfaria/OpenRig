@@ -20,12 +20,11 @@
 //! # Issue #627 — buffer size must survive a whole-config re-save
 //!
 //! After `Aplicar` writes device settings to disk, the in-memory `AppConfig`
-//! snapshot (held by the GUI since startup) must be mirrored immediately.
-//! Lifecycle events (project-open, register-recent) re-persist the WHOLE
-//! in-memory snapshot via `save_app_config(&app_config.borrow())`; without the
-//! mirror those events clobber the buffer the user just applied.
-//! `apply_audio_override` (see below) is the seam that keeps them in sync —
-//! the same pattern as `settings::paths::{apply_presets_override, …}` for #607.
+//! snapshot (held by the GUI since startup) is mirrored immediately. Project-open
+//! and register-recent used to write that WHOLE snapshot back and clobber the
+//! buffer just applied; since #980 they write only `recent_projects`.
+//! `apply_audio_override` (see below) keeps the GUI's snapshot in step with
+//! disk — the same pattern as `settings::paths::{apply_presets_override, …}`.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -48,10 +47,9 @@ use crate::project_view::replace_project_chains;
 use crate::state::{AudioSettingsMode, ProjectSession};
 use crate::{AppWindow, DeviceSelectionItem, ProjectChainItem, ProjectSettingsWindow};
 
-/// Mirror the applied device lists into the shared in-memory `AppConfig` so
-/// that a subsequent whole-config re-save (e.g. on project-open /
-/// register-recent) does not clobber the user's choice with the stale
-/// startup values.
+/// Mirror the applied device lists into the shared in-memory `AppConfig` the
+/// GUI reads, so it never shows the stale startup values (#627; the
+/// whole-config re-save that used to clobber them is gone since #980).
 ///
 /// Pure function (no disk I/O): the `SaveAudioSettings` dispatch already
 /// persists to `config.yaml`. This call only keeps the in-memory snapshot in
@@ -88,8 +86,8 @@ pub(crate) struct AudioSettingsSaveCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
     pub auto_save: bool,
-    /// Shared in-memory `AppConfig` snapshot — kept in sync with disk so that
-    /// lifecycle whole-config re-saves do not clobber applied device settings (#627).
+    /// Shared in-memory `AppConfig` snapshot — kept in sync with disk after an
+    /// applied device change (#627).
     pub app_config: Rc<RefCell<AppConfig>>,
 }
 

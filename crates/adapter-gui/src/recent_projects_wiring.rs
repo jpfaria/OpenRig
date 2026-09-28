@@ -107,11 +107,9 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             );
             // #693/#731: the config write runs on the persist worker (the GUI
             // thread never waits on disk) and the path is bound at dispatch
-            // time. Either outcome above changed the in-memory snapshot.
-            {
-                let snapshot = app_config.borrow().clone();
-                application::app_config_persist::persist_app_config_snapshot(snapshot);
-            }
+            // time. Either outcome above changed the in-memory recent list;
+            // #980: only that list is written.
+            application::app_config_persist::persist_recent_projects(None, &app_config.borrow());
             let opened = match result {
                 Ok(opened) => opened,
                 Err(crate::recent_project_open::OpenRecentError::AlreadyInvalid(reason)) => {
@@ -224,9 +222,12 @@ pub(crate) fn wire(window: &AppWindow, ctx: RecentProjectsCtx) {
             );
             if removed {
                 // #693/#731: the config write runs on the persist worker and
-                // the path is bound at dispatch time.
-                let snapshot = app_config.borrow().clone();
-                application::app_config_persist::persist_app_config_snapshot(snapshot);
+                // the path is bound at dispatch time. #980: only the recent
+                // list is written.
+                application::app_config_persist::persist_recent_projects(
+                    None,
+                    &app_config.borrow(),
+                );
             }
         });
     }

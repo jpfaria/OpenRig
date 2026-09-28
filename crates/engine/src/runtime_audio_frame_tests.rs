@@ -345,6 +345,53 @@ fn r33_consumer_ahead_of_producer_underruns_exactly_the_deficit() {
         "exactly the popped-minus-pushed deficit"
     );
 }
+/// #980 regression pin: `prime()` is what tells the drift guard a route's
+/// resting cushion. A primed route that sees one "lucky" clean window (the
+/// producer landing just before the consumer, ring down at one buffer) and
+/// then returns to its normal rest must NOT be trimmed back to that single
+/// buffer. Dropping the `hold_rest` call from `prime()` brings back the
+/// zero-margin route this test fails on.
+#[test]
+fn issue_980_a_primed_route_keeps_its_cushion_after_a_lucky_window() {
+    const PERIOD: usize = 64;
+    let windows = crate::elastic_drift_guard::WINDOW_FRAMES / PERIOD;
+    let b = ElasticBuffer::with_capacity(PERIOD, PERIOD * 2, AudioChannelLayout::Mono);
+    b.prime(PERIOD);
+    let push_period = |b: &ElasticBuffer| {
+        for _ in 0..PERIOD {
+            b.push(mono(0.1));
+        }
+    };
+    let pop_period = |b: &ElasticBuffer| {
+        b.begin_callback(PERIOD);
+        for _ in 0..PERIOD {
+            b.pop();
+        }
+    };
+    // Normal rest: the producer pushes, then the consumer pops.
+    for _ in 0..windows * 2 {
+        push_period(&b);
+        pop_period(&b);
+    }
+    // One lucky window: the consumer pops first, the ring is down to one
+    // buffer at every callback start, no underrun.
+    for _ in 0..windows {
+        pop_period(&b);
+        push_period(&b);
+    }
+    // Back to the normal rest.
+    for _ in 0..windows * 2 {
+        push_period(&b);
+        pop_period(&b);
+    }
+    assert_eq!(b.underrun_count(), 0, "precondition: no window underran");
+    assert_eq!(
+        b.latency_trims(),
+        0,
+        "the primed route was trimmed below its prime after one lucky window"
+    );
+}
+
 #[test]
 fn r34_primed_cushion_drains_as_silence_without_underrun() {
     // Priming pre-fills with silence so early pops are NOT underruns — the
