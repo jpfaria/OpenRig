@@ -445,3 +445,7 @@ fn take_reusable_nodes(
     }
     taken
 }
+
+#[cfg(test)]
+#[path = "runtime_graph_update_tests.rs"]
+mod tests;
