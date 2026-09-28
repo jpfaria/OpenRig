@@ -1,6 +1,7 @@
 # #980 — xrun LED blinking: the dsp-worker delivers buffers late
 
-Status: **OPEN** — reproduced on the real interface; cause partly located.
+Status: **OPEN** — reproduced on the real interface; cause located (H14,
+memory pressure); fix not shipped yet.
 Issue: https://github.com/jpfaria/OpenRig/issues/980 · Branch: `bug/issue-980`
 
 ## Symptom (reported)
@@ -85,7 +86,10 @@ cargo test -p infra-cpal --release \
 | H8 | The BudgetTracker's RT re-declares (`thread_policy_set` every 3-15 s) perturb the worker | PARTLY — not sufficient | Late clusters often follow a re-declare by 2-3 s. A/B with re-declares off (local experiment, reverted): still lost audio in 2/4 rounds; fewer CPU-over-period late buffers in some rounds. |
 | H9 | The worker is preempted mid-buffer | OPEN, evidence for | Trace: late buffers with wall ≫ CPU (e.g. 10.3 ms wall / 3.1 ms CPU, 3.1 ms / 0.9 ms). |
 | H10 | The kernel demotes the worker out of the real-time band | REFUTED | Mach watch of both `dsp-worker` threads every 1 ms for ~70 s (`tests/worker_thread_watch`): `curpri` 97, base 97, policy 2 (time constraint) in all 69 036 samples, including across the late bursts (2026-09-28 16:03-16:05). |
-| H11 | The BudgetTracker shrinks the declared computation below what bursts need | OPEN, evidence for | Same watch: declared computation starts at 1233 µs (85% of 1451), shrinks to 870-967 µs after ~12 s and to 725-737 µs after ~24 s; the late burst at 16:04:21 (CPU 2.3-2.7 ms, wall up to 13 ms) came 14 s after the drop to 725 µs; the fast-up then re-declared 1233 µs and the tracker shrank it back to 725 µs 12 s later. |
+| H11 | The BudgetTracker shrinks the declared computation below what bursts need | NOT THE CAUSE (see H14) | Same watch: declared computation starts at 1233 µs (85% of 1451), shrinks to 870-967 µs after ~12 s and to 725-737 µs after ~24 s; the late burst at 16:04:21 (CPU 2.3-2.7 ms, wall up to 13 ms) came 14 s after the drop to 725 µs. With the process memory wired (H14) the same tracker ran and nothing was late. |
+| H7-live | Inside the app the dsp-worker runs on efficiency cores or down-clocked | REFUTED | Per-buffer `thread_selfcounts` in the live worker (throwaway probe, 2026-09-28 19:12): 100% of every buffer's cycles on performance cores at 3.3-3.6 GHz, 0 µs on efficiency cores. Normal buffer: 7.04 M instructions, 1.2-1.4 M cycles, IPC 5.2-5.9, ~330 µs. Late buffers: the SAME cores and clock, but 7.6-10 M instructions (+8..43%: kernel work) at IPC 0.6-2.3 — e.g. 4066 µs CPU = 8.86 M instructions in 14.5 M cycles, IPC 0.61. |
+| H13 | Joining the DEVICE's audio workgroup is wrong for an asynchronous worker (Apple, `AudioWorkInterval.h`, case 3: own `AudioWorkIntervalCreate` interval) and makes the scheduler run it slow | REFUTED as the cause | Throwaway A/B, worker on its own work interval (start/finish per buffer, deadline = one period) vs the device join, same binary, alternating: underrun frames 0 / 512 / 768 / 14784 vs 128 / 384 / 512 / 46208; late buffers 20 vs 28 in a traced round, most of them wall ≫ CPU in both. Apple's guidance still applies to the design; it is not what makes the worker late. |
+| H14 | Memory pressure: the kernel compresses pages of the process that the DSP touches (reverb delay lines are touched once per loop, seconds apart), and the worker stalls decompressing them | CONFIRMED | Owner's machine: 18 GB RAM, swap 11.6-14.3 GB used of 12-14 GB during the runs, other agent sessions compiling. (1) Every late buffer (8/8) sat within 30 ms of a burst of 40-160 process page faults in 10 ms (`task_info TASK_EVENTS_INFO`, `pageins` 0 = compressor, not disk). (2) A/B on the hardware test (throwaway, both with the #979 slack), `mlock` of every private writable region after the chain starts (~1.17 GB, 269 regions, 0 refused) vs not, alternating: mlock 0 / 0 / 0 frames lost, 4 / 0 / 12 late buffers, 75 / 16 / 37 extra faults; plain 10176 / 50816 / 0 frames lost, 142 / 347 / 0 late, 68312 / 150374 / 98 extra faults — the plain round that lost nothing was the one where the kernel reclaimed nothing. What gets wired: ~850 MB of `MALLOC_SMALL` regions (~800 MB resident) — the plugins' and models' memory; the rest is small. |
 
 ## Shipped
 
@@ -99,28 +103,47 @@ cargo test -p infra-cpal --release \
 Parked, not shipped: per-buffer worker timing counters in the MCP
 (`git stash` on the solver, "980 worker timing WIP") — wiring untested.
 
+## Fixes tried on the hardware test (2026-09-28, throwaway clones)
+
+Frames lost per 90 s run (4 routes), alternating runs, load 7-22:
+
+| Variant | Runs | Frames lost |
+|---|---|---|
+| `bug/issue-980` as is | 3 | 7040, 7296, 9344 |
+| + #979 one-buffer slack (owner-approved latency) | 7 | 8256, 896, 0, 6016, 384, 20096, 1856 |
+| + #979 slack, Main output only (one pipeline per worker, as an approximation of H6) | 4 | 0, 0, 704, 832 |
+| + #979 slack, worker on its own work interval (H13) | 4 | 0, 512, 768, 14784 |
+| + #979 slack, process memory wired (H14) | 3 | 0, 0, 0 |
+| `bug/issue-980` as is, process memory wired (no slack, no extra latency) | 3 | 0, 0, 0 |
+| `bug/issue-980` as is, same batch, not wired | 3 | 1280, 19200, 1152 |
+
+The slack and the split only make the worker's stalls cheaper; wiring the
+memory removes the stalls, with no latency added.
+
 ## Why it happens (as of 2026-09-28)
 
 The dsp-worker of each guitar runs BOTH pipelines of that guitar (Main and
-Out 2) one after the other: ~0.3 ms of CPU on a performance core at full
-speed (7 M instructions), 0.5-0.8 ms as measured inside the app. macOS
-sometimes runs that same work 3-8x slower — on an efficiency core or with the
-caches cold (H7) — and the BudgetTracker declares only 725-1233 µs of
-computation (H11). 0.5-0.8 ms × 3-4 crosses the 1.451 ms period: the worker
-delivers late, the output plays silence, the catch-up is dropped
-(`underruns == dropped_frames`). With one pipeline per worker the same
-slowdown costs 0.15-0.4 ms × 3-8 ≈ 0.5-1.2 ms, inside the period — which is
-why the Main-only probe lost audio far less often (H6).
+Out 2) one after the other: ~0.33 ms per buffer on a performance core at
+3.6-3.9 GHz (7 M instructions, IPC ~5.5). The owner's machine runs out of
+memory (18 GB, the swap full while other agent sessions compile), and the
+kernel compresses pages of OpenRig that are not touched every buffer — the
+reverbs' delay lines are walked once per loop, seconds apart. When the worker
+reaches such a page it stops until the kernel decompresses it: the buffer
+takes 1-4 ms of CPU (IPC down to 0.6, +8..43% kernel instructions) or waits
+off-CPU, crosses the 1.451 ms period, the output plays silence and the
+catch-up is dropped (`underruns == dropped_frames`) (H14). With the process
+memory wired nothing is late. Two pipelines per worker (H6) and the lean
+64-frame cushion (#979) only make each stall more likely to cost audio.
 
 ## Open
 
-- Measure the live dsp-worker's own per-buffer instructions / cycles /
-  P-core share (needs a production diagnostic, owner's call) to confirm the
-  E-core / memory-stall split inside the app, not only on a test thread.
-- Whether one dsp-worker per pipeline (plan
-  `docs/superpowers/plans/2026-09-27-issue-980-pipeline-per-worker.md`,
-  owner decisions: fixed slots across the insert switch, JACK included)
-  brings the hardware test to zero — H6 says it helps, not that it is enough.
+- The fix: keep OpenRig's memory resident (macOS `mlock` of the process's
+  private writable regions, ~1.2 GB on this rig) — wires RAM the rest of the
+  machine can no longer use; owner's call before it ships.
+- One dsp-worker per pipeline (plan
+  `docs/superpowers/plans/2026-09-27-issue-980-pipeline-per-worker.md`) is not
+  needed for this symptom: with the memory wired, two pipelines per worker
+  lost nothing.
 - Enabling a VST3 from the GUI recreates every stream (~1.7 s of silence).
 - Once in 8 hardware runs the chain never started streaming within 30 s.
 - A passing hardware run ended with the test process crashing (SIGSEGV)
