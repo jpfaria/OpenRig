@@ -2,7 +2,8 @@
 # Responsibility: builds a ready-to-run agent workspace at .solvers/issue-N.
 #
 # One command instead of four steps agents kept forgetting: a real clone (never
-# a worktree), the NAM submodule the build needs, the `plugins` link to the
+# a worktree), the NAM sources the build needs (the LFS archive a clone already
+# carries since #974; the submodule on older branches), the `plugins` link to the
 # owner's plugins checkout (without it the app opens with zero plugins, #938),
 # and the exact absolute command to run the app from the workspace.
 #
@@ -37,6 +38,8 @@ if [ ! -d "$ws/.git" ]; then
 fi
 [ -d "$ws/.git" ] || { echo "$ws/.git is not a directory: not a real clone" >&2; exit 1; }
 
+# No-op once the branch has the vendored archive (#974); older branches still
+# carry the NAM submodule.
 git -C "$ws" submodule update --init --recursive -q
 
 case "$(uname -s)" in

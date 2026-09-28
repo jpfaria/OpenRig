@@ -718,3 +718,113 @@ fn a_route_rebuilt_in_place_starts_with_a_fresh_resampler() {
         "#967: the rebuilt route 1 inherited the old route's resampler history"
     );
 }
+
+/// #967 / #947: the output streams a runtime belongs to
+/// (`ChainRuntimeState::owns_output`). It owns every route it writes. A chain
+/// that is ONE runtime whether its loop cuts it or not also owns the loop's
+/// send while the loop is off: nothing writes it, but switching the loop on is
+/// a DSP rebuild into the slot that send stream already holds. A runtime split
+/// off a multi-E/S chain owns only what it writes: never the other E/S's
+/// output, never the send. Pinned here in the engine because its only caller
+/// (infra-cpal's `slots_for_output_stream`) is compiled out under linux+JACK.
+#[test]
+fn a_runtime_owns_what_it_writes_and_a_single_runtime_owns_its_loops_send() {
+    fn mono(name: &str, dev: &str, ch: usize) -> IoEndpoint {
+        IoEndpoint {
+            name: name.into(),
+            device_id: DeviceId(dev.into()),
+            mode: ChannelMode::Mono,
+            channels: vec![ch],
+        }
+    }
+    fn binding(id: &str, dev: &str, ch: usize) -> IoBinding {
+        IoBinding {
+            id: id.into(),
+            name: id.into(),
+            inputs: vec![mono("in", dev, ch)],
+            outputs: vec![mono("out", dev, ch)],
+        }
+    }
+    fn loop_off(heads: &[&str]) -> Chain {
+        Chain {
+            id: ChainId("owns-output".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: heads.iter().map(|h| (*h).to_string()).collect(),
+            blocks: vec![AudioBlock {
+                id: BlockId(INSERT.into()),
+                enabled: false,
+                kind: AudioBlockKind::Insert(InsertBlock {
+                    model: "standard".into(),
+                    io: "fx".into(),
+                }),
+            }],
+            di_output: None,
+            loopers: vec![],
+        }
+    }
+    fn runtimes(chain: &Chain, registry: &[IoBinding]) -> Vec<(usize, Arc<ChainRuntimeState>)> {
+        crate::runtime_graph::build_per_input_runtime_states(
+            chain,
+            48_000.0,
+            &std::collections::HashMap::new(),
+            &[DEFAULT_ELASTIC_TARGET],
+            registry,
+        )
+        .expect("the chain builds")
+    }
+
+    // One E/S plus its loop on one interface (the owner's layout): one runtime
+    // with the loop on or off. Routes: the E/S output (0), then the send (1).
+    let single = vec![binding("main", "hd8", 0), binding("fx", "hd8", 10)];
+    let single_runtimes = runtimes(&loop_off(&["main"]), &single);
+    assert_eq!(single_runtimes.len(), 1, "one E/S: one runtime");
+    let one = &single_runtimes[0].1;
+    let send = 1;
+    assert!(
+        one.writes_output(0) && one.owns_output(0),
+        "the runtime owns the tail it writes"
+    );
+    assert!(
+        !one.writes_output(send),
+        "loop off: nothing writes the send"
+    );
+    assert!(
+        one.owns_output(send),
+        "#967: a single runtime owns its switched-off loop's send"
+    );
+
+    // Two E/S on two interfaces, loop off: two isolated runtimes on every
+    // platform (distinct devices, so per-entry and per-device grouping agree).
+    // Routes: Scarlett out (0), TEYUN out (1), the send (2).
+    let two = vec![
+        binding("scarlett", "scarlett", 0),
+        binding("teyun", "teyun", 0),
+        binding("fx", "scarlett", 3),
+    ];
+    let split = runtimes(&loop_off(&["scarlett", "teyun"]), &two);
+    assert_eq!(split.len(), 2, "loop off: one runtime per E/S");
+    let scarlett = &split
+        .iter()
+        .find(|(_, runtime)| runtime.writes_output(0))
+        .expect("a runtime writes the Scarlett tail")
+        .1;
+    assert!(
+        scarlett.owns_output(0),
+        "the runtime owns the tail it writes"
+    );
+    assert!(
+        !scarlett.owns_output(1),
+        "#947: a runtime does not own the other E/S's output"
+    );
+    assert!(
+        !scarlett.owns_output(2),
+        "#967: a split runtime does not own the loop's send"
+    );
+    assert!(
+        !scarlett.owns_output(99),
+        "nor a route the chain does not have"
+    );
+}

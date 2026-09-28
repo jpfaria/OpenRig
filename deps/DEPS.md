@@ -7,7 +7,7 @@ Use `./scripts/add-dep.sh` to add new ones.
 
 | Name | Repository | Pinned Hash | Build System | Plugins |
 |------|-----------|-------------|--------------|---------|
-| NeuralAmpModelerCore | https://github.com/sdatkinson/NeuralAmpModelerCore | `1f42f88` (v0.5.4) | CMake (via `cpp/`) | nam_wrapper (NAM inference + tone stack) |
+| NeuralAmpModelerCore | https://github.com/sdatkinson/NeuralAmpModelerCore | vendored archive — see `NeuralAmpModelerCore.lock` | CMake (via `cpp/`) | nam_wrapper (NAM inference + tone stack) |
 | dragonfly-reverb | https://github.com/michaelwillis/dragonfly-reverb | `b3c15af` | DPF/Make | Hall, Plate, Room, EarlyReflections reverbs |
 | zam-plugins | https://github.com/zamaudio/zam-plugins | `6a7fd03` | DPF/Make | ZamComp, ZamDelay, ZamEQ2, ZamTube, ZamGate |
 | mod-utilities | https://github.com/mod-audio/mod-utilities | `b8a9d45` | Make | MOD gain, mixers, CV, switchboxes |
@@ -37,6 +37,40 @@ Use `./scripts/add-dep.sh` to add new ones.
 | svg-pedals-ehx | https://github.com/SVG-Effects-Pedals/EHX-SVG-Tribute-Pack | `5883f6b` | CC BY-NC-SA | EHX pedal SVGs (Memory Man, POG2, etc.) |
 | svg-pedals-ibanez | https://github.com/SVG-Effects-Pedals/Maxon-Ibanez-SVG-Tribute-Pack | `1c293b6` | CC BY-NC-SA | Ibanez/Maxon SVGs (TS-9, CS-9, FL-9, AD-9) |
 | svg-pedals-moogerfooger | https://github.com/SVG-Effects-Pedals/Moogerfooger-SVG-Tribute-Pack | `061310b` | CC BY-NC-SA | Moogerfooger SVGs (MF-101 to MF-108) |
+
+## NeuralAmpModelerCore (vendored, #974)
+
+NeuralAmpModelerCore is not a submodule. Its own submodules (Eigen on GitLab,
+AudioDSPTools) made every CI checkout depend on GitLab being up, so the whole
+tree — NAM, AudioDSPTools, both Eigen copies, nlohmann — ships as one archive:
+
+- `NeuralAmpModelerCore.tar.gz` — the tree, reproducibly packed, in Git LFS.
+- `NeuralAmpModelerCore.lock` — the upstream tag, its commit, every submodule
+  commit and the archive's sha256.
+- `NeuralAmpModelerCore/` — extracted by `crates/nam/build.rs`; never versioned.
+  The build re-extracts it when it is missing or came from another lock, and
+  never needs the network.
+
+Only CI moves it to a newer upstream release, and only on `develop`:
+
+- **CI:** after develop's Test Suite passes, the `nam-refresh` job runs
+  `scripts/nam_vendor.py update`. When upstream's newest `vX.Y.Z` tag is newer
+  than the lock, it clones the tag with every submodule, repacks the archive,
+  rewrites the lock and commits both. The job then runs the whole suite on it
+  and pushes (`nam_vendor.py push`) only if it passes — a release that breaks
+  the build or the tests never lands, and the job goes red naming it. Release
+  branches take the new version when they are cut from develop.
+- **Local build:** the first `cargo build` after a `git fetch` / `git pull`
+  runs `nam_vendor.py check` (once per fetch) and, if upstream has a newer
+  release, shows it as a cargo warning. It never writes or commits anything.
+  Other builds never touch the network: rerunning the `nam` build script
+  recompiles every crate above it (~3.5 min), so it is tied to the fetch. It
+  is skipped in CI, with `CARGO_NET_OFFLINE`, and in cargo dependency
+  checkouts.
+
+An unreachable upstream, a timeout (`NAM_VENDOR_TIMEOUT`, 20 s per network step
+in a local build, 300 s otherwise), a failed commit (both files are put back) or
+a refused push is a warning and exit 0 — the vendored copy keeps building.
 
 ## Updating a dependency
 
