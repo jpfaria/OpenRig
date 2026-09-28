@@ -3985,8 +3985,11 @@ dependencies = [
  "block-core",
  "cmake",
  "domain",
+ "flate2",
  "log",
  "plugin-loader",
+ "tar",
+ "tempfile",
 ]
 
 [[package]]
