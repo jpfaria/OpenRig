@@ -151,6 +151,19 @@ memory wired nothing is late. Two pipelines per worker (H6) and the lean
 ## Open
 
 - The owner's ear on his rig with the fix (the hardware test is silent).
+  First live reading, 2026-09-28 18:06-18:08, app built from `405ede3d8`'s
+  tree, owner playing guitar 1 (peak -1..-8 dBFS) with the swap 14.1 GB used:
+  over ~86 700 callbacks (~125 s) every route +0 underruns, +0 dropped
+  frames. The owner: "parece que está muito melhor".
+- Same reading: every route RESTS at `fill_frames` 128 — its whole ring
+  (target 64, capacity 128), constant over 100 reads — one buffer (1.45 ms)
+  later than the route's design, with no room for a worker that hands two
+  buffers at once. The routes had dropped 5056 / 7424 / 10240 / 12672 frames
+  before the reading (none during it, no underruns: overflow, not silence) —
+  most likely while the app started or the chain was rebuilt. Not caused by
+  the memory fix (it does not touch the rings); matches #979's "route born
+  after its producer ran ahead rests one buffer later for good". To measure
+  from a cold start.
 - Linux (JACK / Orange Pi) and Windows keep no memory resident — not measured
   there.
 - One dsp-worker per pipeline (plan
