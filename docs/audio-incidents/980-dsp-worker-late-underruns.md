@@ -155,10 +155,15 @@ memory wired nothing is late. Two pipelines per worker (H6) and the lean
   tree, owner playing guitar 1 (peak -1..-8 dBFS) with the swap 14.1 GB used:
   over ~86 700 callbacks (~125 s) every route +0 underruns, +0 dropped
   frames. The owner: "parece que está muito melhor".
-- Same reading: every route RESTS at `fill_frames` 128 — its whole ring
-  (target 64, capacity 128), constant over 100 reads — one buffer (1.45 ms)
-  later than the route's design, with no room for a worker that hands two
-  buffers at once. The routes had dropped 5056 / 7424 / 10240 / 12672 frames
+- 18:06-18:07 the owner switched both VST3 off and on again live: no new
+  underrun or dropped frame, and the streams were not recreated (callback
+  counters kept counting). 18:10: still +0 / +0 since 18:05. The app (with
+  its UI) wired 1491 MB at start-up, 1526 MB after the edits.
+- Same readings: the routes' `fill_frames` alternates 128 / 64 (18 of 30
+  fast reads 128, 11 read 64) — a route holds 128 frames (its whole ring:
+  target 64, capacity 128) at the callback start and 64 after the pop, one
+  buffer (1.45 ms) later than the route's design, with no room for an extra
+  buffer. The routes had dropped 5056 / 7424 / 10240 / 12672 frames
   before the reading (none during it, no underruns: overflow, not silence) —
   most likely while the app started or the chain was rebuilt. Not caused by
   the memory fix (it does not touch the rings); matches #979's "route born

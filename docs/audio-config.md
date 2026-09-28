@@ -545,7 +545,8 @@ moment a runtime goes live (`LiveRuntimeSlot::new` / `publish`: start-up,
 live rebuild) and every 5 s in between — waiting for the periodic pass alone
 let the kernel compress a new chain's pages in the first seconds. Wired pages are never compressed or swapped, so OpenRig
 keeps its working set — ~1.2 GB for two guitars with NAM, a cab IR and two
-VST3 reverbs on two outputs — in RAM for as long as it runs; the rest of the
+VST3 reverbs on two outputs, ~1.5 GB with the app's UI — in RAM for as long
+as it runs; the rest of the
 machine has that much less. No latency changes. Linux and Windows: not done
 (not measured there).
 
