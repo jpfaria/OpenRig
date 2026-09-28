@@ -10,10 +10,16 @@
 
 use std::sync::OnceLock;
 use std::thread::Thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Longest wait before memory nobody announced gets wired.
 const PASS_EVERY: Duration = Duration::from_secs(5);
+
+/// After a wake-up, the pass that catches what the new runtime's DSP wrote
+/// once it played: a buffer allocated zeroed (a delay line) has no pages yet
+/// when it goes live, and the wake-up pass skips it as untouched (#980
+/// review).
+const FOLLOW_UP_AFTER: Duration = Duration::from_secs(1);
 
 /// The keeper thread, once started (`None`: the spawn failed).
 static KEEPER: OnceLock<Option<Thread>> = OnceLock::new();
@@ -26,9 +32,22 @@ pub(crate) fn keep_resident() {
     KEEPER.get_or_init(|| {
         let spawned = std::thread::Builder::new()
             .name("memory-residency".into())
-            .spawn(|| loop {
-                crate::memory_wiring::wire_private_memory();
-                std::thread::park_timeout(PASS_EVERY);
+            .spawn(|| {
+                // Pending after a wake-up: when to run its follow-up pass.
+                let mut follow_up: Option<Instant> = None;
+                loop {
+                    crate::memory_wiring::wire_private_memory();
+                    let wait = follow_up.map_or(PASS_EVERY, |due| {
+                        due.saturating_duration_since(Instant::now())
+                    });
+                    let parked = Instant::now();
+                    std::thread::park_timeout(wait);
+                    // Woken (a runtime went live, even during a follow-up
+                    // wait): pass now, follow up once it played. Otherwise
+                    // the wait ran out: that was the follow-up or the
+                    // periodic pass.
+                    follow_up = (parked.elapsed() < wait).then(|| Instant::now() + FOLLOW_UP_AFTER);
+                }
             });
         match spawned {
             Ok(handle) => Some(handle.thread().clone()),
