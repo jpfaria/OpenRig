@@ -168,6 +168,9 @@ impl ProjectRuntimeController {
                 &self.io_bindings,
             )?;
         }
+        // #980: with the streams kept, the chain was updated in place — no
+        // new slot, no publish — so its new memory must be wired now.
+        crate::memory_residency_keeper::wire_soon();
 
         if needs_stream_rebuild {
             let runtimes = self.runtime_graph.runtimes_with_groups_for(&chain.id);

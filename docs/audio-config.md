@@ -646,19 +646,34 @@ while. A reverb walks its delay line once per loop, seconds apart, so its
 pages were compressed between passes and the dsp-worker stalled decompressing
 them: 1-4 ms buffers, the output underran (`underruns == dropped_frames`).
 
-When the engine starts (`ProjectRuntimeController::start*`) one ordinary
+When the engine starts (`ProjectRuntimeController::start*`, or
+`build_streams_for_project` for the console / headless rig) one ordinary
 thread, `memory-residency` (`infra-cpal/src/memory_residency_keeper.rs`),
-wires the process's private writable memory (`infra-cpal/src/memory_wiring.rs`,
-`mlock`): only regions something already touched, at most 256 MB each and a
-quarter of the machine's RAM in total, each region once. It runs a pass the
-moment a runtime goes live (`LiveRuntimeSlot::new` / `publish`: start-up,
-live rebuild) and every 5 s in between — waiting for the periodic pass alone
-let the kernel compress a new chain's pages in the first seconds. Wired pages are never compressed or swapped, so OpenRig
-keeps its working set — ~1.2 GB for two guitars with NAM, a cab IR and two
-VST3 reverbs on two outputs, ~1.5 GB with the app's UI — in RAM for as long
-as it runs; the rest of the
-machine has that much less. No latency changes. Linux and Windows: not done
-(not measured there).
+wires the process's private writable memory with `mlock`
+(`infra-cpal/src/memory_wiring.rs` talks to the kernel;
+`memory_wiring_pass.rs` decides): only regions something already touched, at
+most 256 MB each, each region once, and at most a quarter of the machine's RAM
+in total — counting every region already wired, wherever it sits. Passes run
+one at a time (`mlock` stacks a wire per call). What a pass leaves unwired —
+over the budget, too large, refused by the kernel — is a warning in the log,
+said when it changes (`memory_wiring_report.rs`).
+
+A pass runs the moment a runtime's memory changes — a runtime goes live
+(`LiveRuntimeSlot::new` / `publish`: start-up, off-thread rebuild) or a
+running chain is updated in place (the VST3 live edit, a resync that keeps
+the streams) — again 1 s later, once the new DSP has written the buffers it
+allocated zeroed (a delay line has no pages until then), and every 5 s in
+between. Waiting for the periodic pass alone let the kernel compress a new
+chain's pages in the first seconds.
+
+Wired pages are never compressed or swapped, so OpenRig keeps its working
+set — ~1.2 GB for two guitars with NAM, a cab IR and two VST3 reverbs on two
+outputs, ~1.5 GB with the app's UI — in RAM for as long as it runs; the rest
+of the machine has that much less. Deliberate costs of wiring whole regions:
+a region with one touched page is wired whole (thread stacks, a looper's
+unused tail), and heap freed inside a wired region stays resident, so the
+wired amount follows the session's peak, not its current use. No latency
+changes. Linux and Windows: not done (not measured there).
 
 Proof: `infra-cpal/tests/issue_980_owners_two_guitars_two_outputs.rs` on the
 owner's interface, see `docs/audio-incidents/980-dsp-worker-late-underruns.md`.

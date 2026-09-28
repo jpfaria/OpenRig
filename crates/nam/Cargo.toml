@@ -10,3 +10,12 @@ domain = { path = "../domain" }
 log.workspace = true
 [build-dependencies]
 cmake = "0.1"
+# #974: the vendored NeuralAmpModelerCore archive (Git LFS) is extracted by the
+# build — see build_vendor.rs.
+flate2 = "1"
+tar = "0.4"
+
+[dev-dependencies]
+flate2 = "1"
+tar = "0.4"
+tempfile = "3"

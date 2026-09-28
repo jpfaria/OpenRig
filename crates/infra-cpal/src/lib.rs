@@ -161,6 +161,10 @@ mod dsp_worker;
 mod dsp_worker_recovery_tests;
 mod memory_residency_keeper;
 mod memory_wiring;
+#[cfg(any(target_os = "macos", test))]
+mod memory_wiring_pass;
+#[cfg(any(target_os = "macos", test))]
+mod memory_wiring_report;
 mod metronome_stream;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod rt_thread_policy;
@@ -203,6 +207,8 @@ pub(crate) use validation::{
 
 #[cfg(test)]
 mod controller_live_edit_replicates_user_report_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod issue_980_in_place_edit_wires_memory_tests;
 
 #[cfg(test)]
 #[path = "render_scheduling_903_tests.rs"]
