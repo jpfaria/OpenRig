@@ -212,7 +212,7 @@ fn the_owners_two_guitars_into_two_outputs_play_without_underruns() {
     // time and the ring backlog: `OPENRIG_980_TRACE=1` shows WHY a run failed.
     if std::env::var_os("OPENRIG_980_TRACE").is_some() {
         let _ = env_logger::builder()
-            .parse_filters("infra_cpal::dsp_worker=trace")
+            .parse_filters("infra_cpal::dsp_worker=trace,infra_cpal::rt_thread_policy=info")
             .is_test(true)
             .try_init();
     }
