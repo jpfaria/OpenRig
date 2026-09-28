@@ -38,6 +38,8 @@ pub fn build_streams_for_project(
 
     #[cfg(not(all(target_os = "linux", feature = "jack")))]
     {
+        // #980: no controller here to start the memory keeper.
+        crate::memory_residency_keeper::keep_resident();
         let host = crate::host::get_host();
         crate::validation::validate_channels_against_devices(project, host, registry)?;
         let mut resolved_chains =
