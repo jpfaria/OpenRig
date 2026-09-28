@@ -159,6 +159,8 @@ mod dsp_worker;
 #[cfg(all(test, not(all(target_os = "linux", feature = "jack"))))]
 #[path = "dsp_worker_recovery_tests.rs"]
 mod dsp_worker_recovery_tests;
+mod memory_residency_keeper;
+mod memory_wiring;
 mod metronome_stream;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 mod rt_thread_policy;
