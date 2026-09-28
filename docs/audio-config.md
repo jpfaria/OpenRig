@@ -244,6 +244,19 @@ param change becomes `setParameter`, never a reload), mutated under the runtime'
 processing lock. Non-VST3 chains keep the off-thread fresh rebuild — re-creating
 a NAM/native block touches no shared JUCE state.
 
+**An in-place edit does not restart a pipeline it keeps (#979).** The in-place
+update rebuilds every pipeline's state. A pipeline the edit keeps — same input,
+same routes, and no block built fresh (its old nodes reused, or no blocks at
+all) — continues the old pipeline's click-safe fade from where it stood at the
+swap, instead of fading in again from silence. Before this, a pipeline with no
+blocks looked new on every edit: with an insert as the chain's first block, each
+head feeds the send with no block of its own, so every scene edit sent a
+128-frame fade-in (from 0) to the pedals, and it came back as a zero frame and
+a 2.9 ms dip on every tail route. A pipeline that is new, or builds a block
+fresh, still fades in; the spillover path (#454) still builds fresh and fades
+in against the old pipeline's tail. Pinned by
+`insert_bridge_isolation::insert_on_an_in_place_scene_edit_is_inaudible`.
+
 ### I/O resolution from the binding registry (issue #716, model A)
 
 Device I/O is **never** stored in the chain/preset/scene/rig — it lives only
@@ -471,6 +484,33 @@ a same-device route at 64 frames (target 64, prime 64, capacity 128: a trim
 would need a floor above the capacity), so it was not the cause of the
 #980 underruns on the owner's rig.
 
+The level is never learned BELOW what the route needs at a callback start
+either (#979): the fill it rests on — the cushion it was born with (a
+convolver-fed route is primed with its whole resting cushion), then wherever
+its hand-off last landed it (see **Slack** below) — and never less than the
+buffer the callback pops plus the one buffer of slack a convolver-fed route
+keeps (see "How a route's cushion is sized" below). A window whose floor dips
+below that saw a push that came late or never came — on the callback that
+closes a window the ring can be empty while that callback's own underrun is
+not counted yet — and it teaches the guard nothing. Before, one such window
+made that floor (down to 0) the level, and every clean window after it cut
+the route's cushion back to it: on a lean route one buffer of silence and one
+trim each time, 2–3 times a second, until the chain was rebuilt — the owner's
+"loop" (`latency_trims` and `underruns` climbing in 64-frame steps with both
+DSP workers ~28% busy); on a deep route (JACK's 8 buffers, the #592 cushion
+on another clock) one crossfaded cut of live audio per late push, ratcheting
+the cushion down to a single buffer. Now a late worker costs a route born
+with a cushion at most the buffers it did not deliver, and nothing once it
+is back on time. A route born empty (no convolver feeds it) rests where the
+producer's hand-off leaves it and keeps the #953 rule above that.
+
+The #980 floor (prime plus one callback buffer) still holds on a route that
+keeps no slack. A route that keeps slack is held by its own rest instead —
+where its hand-off lands it: with a prime deeper than one buffer (32 or 128
+frames) the #980 floor sits one buffer above that rest, and a stalled cycle's
+buffer stayed there as latency for good. At the owner's 64 frames both floors
+are the same 128.
+
 Where a route's missing audio went is counted (#980), because "underruns
 rising, `fill_frames` steady, `latency_trims: 0`" fits two different
 causes: `dropped_frames` counts what the full ring discarded (the output was
@@ -491,7 +531,9 @@ frames in both start orders): **every CoreAudio unit of one device runs on
 ONE HAL IO thread, input first and output 0–5 µs later, every cycle.** The
 chain DSP runs on the #670 worker, so the output callback of a cycle can
 never see that cycle's input: one device buffer is the hand-off, and one
-more is slack. A duplex unit or inline DSP would remove the hand-off, but
+more is slack (#979: until then a convolver-fed route born with exactly its
+one-buffer target rested with nothing queued behind the buffer it popped —
+see **Slack** below). A duplex unit or inline DSP would remove the hand-off, but
 every chain on the device would then share that one thread's deadline — a
 CPU-time isolation violation — and it reverses #670; both were rejected.
 
@@ -514,6 +556,72 @@ CPU-time isolation violation — and it reverses #670; both were rejected.
   never cuts it (a 512-frame prime above the target cost a skip ~186 ms
   after every live edit and every DI render). A cross-rate route starts with
   its extra depth filled (#85); other routes start empty.
+- **Slack** (#979, `engine/src/elastic_hand_off.rs`): a convolver-fed route
+  on the chain's own clock keeps one device buffer queued behind the buffer
+  each callback pops. On macOS the #670 worker hands a cycle's buffer over
+  AFTER that cycle's output callbacks, so a route primed with exactly its
+  one-buffer target popped the whole prime at its first callback and from
+  then on started every callback with only the buffer it popped: a worker
+  one period late was a gap (v0.5.0 hid this under its 512-frame IR prime;
+  #965 made the cushion lean and exposed it). The route now rests on its
+  slack — the buffer it pops plus one buffer, or its own cushion when that is
+  deeper — and its hand-off lands it there every time it resumes:
+  - *At the start* it plays its prime until the producer's first buffer
+    lands; the callback that finds it lands the route inside its band (from
+    that rest up to its target plus the buffer it pops, #965). Short, it
+    plays silence and pops nothing once, so the next hand-off lands on top;
+    long (its stream came up after the input ran ahead), it drops what queued
+    above the band before anything was heard. Landing at the route's first
+    callback instead, before anything was handed over, left a route whose
+    output stream came up before the input — even by one cycle — on the bare
+    hand-off, with no slack, for good (64 frames at the owner's 64). A
+    producer that pushes before the output callback (inline DSP, a DI render)
+    lands inside the band as it always rested.
+  - *After a gap* (a worker late by 2+ periods ran the ring dry, then handed
+    everything over at once) the ring holds the rest plus the silence the gap
+    played; the callback those buffers land on sheds exactly that silence,
+    crossfaded and counted as one latency trim, never below the rest. It used
+    to be kept as latency until a guard window passed clean — never, while
+    lateness kept coming — so each late worker left the route another buffer
+    later (192–256 frames at the owner's 64). Short after a gap, it waits one
+    callback more, counted with the gap.
+  - Where it lands is its rest, and the drift guard takes it as its level
+    without waiting for a clean window: under disturbances from the start no
+    window closed clean and the guard fell back to its cap. On such a route
+    a clean window a whole buffer above the level is stuck latency at any
+    buffer size: at 32 frames the guard's 32-frame tolerance was a whole
+    buffer, and a stalled cycle or a late worker left the route 32–64 frames
+    late for good.
+
+  Exactly one device buffer (+64 frames, ~1.45 ms at the owner's 64 at
+  44.1 kHz), whatever order the streams came up in; a producer that pushes
+  before the output callback (inline DSP, JACK, a DI render) or a deeper
+  cushion already rests there and gains nothing. The ring has room for twice
+  that rest (4× the target), so an output that misses a callback leaves the
+  buffer the worker handed over in the ring, where the guard sheds it with a
+  counted crossfade: a ring as deep as the rest refused it — a jump in the
+  audio with no counter. The room is not latency: whatever the route holds
+  more than one device buffer past the ring it had without slack (twice its
+  target) is shed at once, so however many output cycles stall, it is never
+  more than the one buffer later than v0.5.1 could be (192 frames at the
+  owner's 64, where v0.5.1's ring stopped at 128 — by dropping the audio).
+  The ring's room is not part of the route's rebuild posture (target and #965
+  capacity), so a live edit that adds or removes a cab keeps the route it
+  had, slack or not, instead of a fresh one with a gap; the next full build
+  sizes it anew. **One buffer per signal path:** a guitar through an insert
+  loop crosses two rings (the send, then the tail after the return), so an
+  insert send never keeps slack — an IR before the insert would otherwise
+  give the loop two buffers. With the insert on, one late worker pass still
+  costs the send the buffer it did not deliver, and that gap goes out to the
+  pedals and comes back through the return into Main — the tail's counters
+  do not show it. A gap-free loop needs a second buffer on the send, which
+  the owner has not authorized: the pin
+  `infra-cpal` `with_the_insert_on_a_worker_one_period_late_costs_no_route_any_audio`
+  stays red until he decides. A route no convolver feeds (the insert send, a
+  chain without a cab) still starts empty and rests at the hand-off, as in
+  every version before; after a staggered start the send rests at its full
+  ring, as before, where a missed output callback still drops a buffer
+  silently.
 - **Another clock** (`route_clock.rs`): a route whose output device is not
   its producer's input device runs on another clock; at the same nominal
   rate the two drift and the ring slowly drains. There a convolver-fed route
@@ -522,7 +630,9 @@ CPU-time isolation violation — and it reverses #670; both were rejected.
   producer's own clock nothing drifts and the route stays lean.
 
 Result on the owner's insert chain (HD 8, 44.1 kHz / 64 frames): the send
-and the tail rest at 64–128 frames (they were 1024 each before #965);
+and the tail rest at 64–128 frames (they were 1024 each before #965; since
+#979 the cab-fed tail rests at 128 whatever order its streams came up in, and
+the send keeps no slack, so the loop gains one buffer, not two);
 guitar in → insert loop → Main measured 60.5 ms before, 23.0 ms with the
 first fixes, see the issue for the final number. Real-hardware proof:
 `infra-cpal/tests/issue_965_insert_on_the_owners_interface.rs` (0 xruns /
@@ -656,6 +766,33 @@ re-instantiated, a delay keeps its tail). Before this, the enable flag was part
 of the chain's stream topology: disabling the insert read as a re-bind and
 every stream the chain owned was closed and reopened — 2.1 s (off) and 3.0 s
 (on) of silence measured on the owner's rig.
+
+**With the loop on, each physical output plays the return once, and the chain
+volume acts once (#979).** While an insert cuts the chain, ONE pipeline — the
+return — feeds the tail. Two E/S of a chain often end on the same physical
+output: the owner's two guitars both play Main `[0,1]`, so the chain has one
+route there per guitar. With the loop off that is right: each guitar is its
+own pipeline on its own route, and the device sums them. The return is one
+signal, so it writes only the first tail route on each physical output (same
+device, same channels — `engine::insert_return_routes`); nothing writes the
+other E/S's route on that output in this state, so the runtime never builds it
+(#947); its stream stays open and holds no runtime, because only a chain that
+is one runtime in EVERY insert state (one input entry) owns routes it does not
+write (`switch_owned_routes`) — two E/S regroup onto new streams when the loop
+switches, so the loop's runtime owns only what it writes. Before, the return wrote every tail
+route, and on a shared output it played once per E/S: +6.02 dB with the two
+routes in step, a comb one buffer (1.45 ms) wide when they rested a buffer
+apart — the "stacked" sound, only where two E/S share an output (on the issue
+body's rig `[24,25]` and `[10,11]`, reached by one guitar each, were right,
+Main was doubled). The chain volume (#440) is the chain's OUTPUT level: it
+scales the chain's outputs and never an insert send
+(`OutputRoutingState::applies_chain_volume`), so 50 % moves Main −6.02 dB with
+the loop on or off. It used to scale the send and then the tail after the
+return: −12.04 dB through a unity loop. Pinned by the two-head rig suite
+(`issue_979_two_head_rig_tests.rs` and its `insert_return_stacking`,
+`volume_and_gain` and `issue_body_topology` children). Two E/S outputs that
+overlap only partly (`[0,1]` and `[1,2]`) or list the same channels in another
+order are not the same output by this rule; the return writes both.
 
 **Switching a chain on, and hearing a rebuilt chain (#967).** A chain's
 devices are looked up by id through `infra_cpal::device_lookup`: a walk of the
@@ -814,7 +951,9 @@ runtimes that write that output. Before #947 every runtime carried a route for
 every chain output; with two guitars on one interface, each output stream
 popped the other guitar's never-written route empty on every frame, which
 counted millions of underruns and lit the chain's overload LED as soon as it
-started.
+started. The same rule keeps an insert's return from being built twice
+(#979): with the loop on, the return writes one route per physical output, so
+a second E/S's route on that output is written by nothing and not built.
 
 ## Multi-rate streams (#736)
 

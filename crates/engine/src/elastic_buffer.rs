@@ -8,6 +8,7 @@ use block_core::AudioChannelLayout;
 
 use crate::audio_frame::{silent_frame, AudioFrame};
 use crate::elastic_drift_guard::DriftGuard;
+use crate::elastic_hand_off::{HandOffLanding, Landing};
 use crate::elastic_skip_fade::{SkipFade, FADE_FRAMES};
 use crate::spsc::SpscRing;
 
@@ -49,7 +50,9 @@ pub(crate) struct ElasticBuffer {
     ring: SpscRing<AudioFrame>,
     target_level: usize,
     /// Frames the ring was asked to hold (#965): at least twice the target,
-    /// more when a cold-start prime bigger than the target has to fit.
+    /// more when a cold-start prime bigger than the target has to fit. The
+    /// route's cushion posture, compared on a rebuild; a route that keeps
+    /// slack gets a larger ring on top of it (see `keeping_slack`).
     capacity: usize,
     layout: AudioChannelLayout,
     /// Bit-packed last-pushed frame, used as the underrun fallback.
@@ -72,6 +75,9 @@ pub(crate) struct ElasticBuffer {
     drift: DriftGuard,
     /// #965: off on a route whose level the #85 resampler servo holds.
     drift_guarded: bool,
+    /// #979: lands the route on its rest when its producer's hand-off starts
+    /// (and, on a route that keeps slack, after every gap).
+    hand_off: HandOffLanding,
 }
 
 impl ElasticBuffer {
@@ -100,6 +106,7 @@ impl ElasticBuffer {
             dropped_count: AtomicU64::new(0),
             drift: DriftGuard::new(target_level),
             drift_guarded: true,
+            hand_off: HandOffLanding::off(),
         }
     }
 
@@ -107,6 +114,34 @@ impl ElasticBuffer {
     /// guard no longer trims it (the two fought, refill and cut, forever).
     pub(crate) fn owned_by_servo(mut self) -> Self {
         self.drift_guarded = false;
+        self
+    }
+
+    /// #979: the route keeps one buffer of slack on top of the buffer each
+    /// callback pops — its hand-off lands it on that rest at the producer's
+    /// first hand-off and after every gap (`elastic_hand_off`), and the drift
+    /// guard never learns a level below it. It then rests up to its target
+    /// plus one buffer (at most twice the target), so its ring holds twice
+    /// THAT: a ring as deep as the rest refused the buffer a stalled output
+    /// left behind — a jump in the audio with no crossfade and no counter —
+    /// instead of letting the guard shed it. The room is not latency: the
+    /// guard sheds whatever the route holds past its old ring plus one device
+    /// buffer. Setup time: the ring is replaced before the route is primed.
+    pub(crate) fn keeping_slack(mut self) -> Self {
+        self.hand_off = HandOffLanding::armed();
+        self.drift.keep_one_buffer_of_slack(self.capacity);
+        let room = self.capacity.max(self.target_level.saturating_mul(4));
+        self.ring = SpscRing::new(room, silent_frame(self.layout));
+        self
+    }
+
+    /// #979: a route that keeps no slack, on its producer's own clock, lands
+    /// on the buffer it pops at its producer's first hand-off — dropping what
+    /// queued before its output stream came up, before anything was heard —
+    /// so it rests where a lockstep start rests it, whatever order the
+    /// chain's streams came up in (`elastic_hand_off`).
+    pub(crate) fn landing_on_first_hand_off(mut self) -> Self {
+        self.hand_off = HandOffLanding::at_first_hand_off();
         self
     }
 
@@ -157,17 +192,49 @@ impl ElasticBuffer {
 
     /// #953: consumer side, once per output callback before its `frames`
     /// pops. Discards latency a stall left stuck in the ring and returns the
-    /// crossfade the callback applies to its first pops.
+    /// crossfade the callback applies to its first pops — or `None` (#979)
+    /// when this callback plays silence and pops nothing, waiting for the
+    /// producer's hand-off to land on the route's cushion.
     #[inline]
-    pub(crate) fn begin_callback(&self, frames: usize) -> SkipFade {
+    pub(crate) fn begin_callback(&self, frames: usize) -> Option<SkipFade> {
         let mut fade = SkipFade::none();
+        match self.hand_off.step(
+            self.ring.len(),
+            frames,
+            self.drift.resting_band(frames),
+            self.underrun_count(),
+        ) {
+            Landing::Play => {}
+            Landing::Wait { in_a_gap } => {
+                if in_a_gap {
+                    self.underrun_count
+                        .fetch_add(frames as u64, Ordering::Relaxed);
+                }
+                return None;
+            }
+            Landing::Land { excess, heard } => {
+                self.discard(excess, &mut fade);
+                if heard && excess > 0 {
+                    self.drift.count_trim();
+                }
+                self.drift.lands_at(self.ring.len());
+            }
+        }
         if !self.drift_guarded {
-            return fade;
+            return Some(fade);
         }
         let skip = self
             .drift
             .observe(self.ring.len(), frames, self.underrun_count());
-        for n in 0..skip {
+        self.discard(skip, &mut fade);
+        Some(fade)
+    }
+
+    /// Pops `frames` queued frames without playing them, keeping the first
+    /// ones for `fade` to crossfade out of.
+    #[inline]
+    fn discard(&self, frames: usize, fade: &mut SkipFade) {
+        for n in 0..frames {
             let Some(frame) = self.ring.pop() else {
                 break;
             };
@@ -175,7 +242,6 @@ impl ElasticBuffer {
                 fade.hold(frame);
             }
         }
-        fade
     }
 
     /// #953: times this route shed stuck latency since it was built.
@@ -189,8 +255,12 @@ impl ElasticBuffer {
     /// per-partition FFT spike) can momentarily starve the consumer before
     /// the producer warms up — issue #592. The cushion costs `frames` of
     /// output latency; callers only prime when the chain warrants it.
+    ///
+    /// #979: the primed cushion is what the route needs — the drift guard
+    /// never learns a level below it.
     pub(crate) fn prime(&self, frames: usize) {
         self.drift.hold_rest(frames);
+        self.hand_off.primed_with(frames);
         let silence = silent_frame(self.layout);
         for _ in 0..frames {
             self.push(silence);

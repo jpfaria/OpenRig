@@ -47,4 +47,5 @@ green while the owner's rig kept underrunning.
 
 | Incident | Signature | Status |
 |---|---|---|
+| [979](979-loop-and-stacked-sound.md) | "loops" / "several streams stacked" until the chain is restarted; insert on: `[0,1]` twice in `openrig://routes` (routes 0 and 2, fill 64 vs 128); `latency_trims` and `underruns` climbing in 64-frame steps with the workers ~21-28% busy; 2 guitars sharing Main, HD 8 44.1 kHz / 64 | FIX IN PROGRESS (branch) — return once per physical output, chain volume once, drift-guard spiral + one buffer of slack, no fade restart on an in-place edit |
 | [980](980-dsp-worker-late-underruns.md) | xrun LED blinking; `underruns == dropped_frames` on every route, `input_busy_skips 0`; bursts of 128..1536 frames; NAM + IR + 2 VST3, 2 guitars x 2 outputs, 44.1 kHz / 64; the machine's swap full; late buffers on bursts of page faults | FIX SHIPPED (memory kept resident, macOS) — awaiting the owner's ear |

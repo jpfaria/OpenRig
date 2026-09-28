@@ -49,11 +49,19 @@ pub fn process_output_f32(
     // write_output_frame is the gate (this file's pinned contract:
     // "clipping is the output limiter's job"). Sub-knee signals are
     // unaffected (tanh transparent below 0.95), so k01–k04 stay green.
-    let volume_ratio = runtime.volume_pct() / 100.0;
+    // #979: only a chain OUTPUT takes it — an insert send's signal takes it
+    // on the tail after the return, once.
+    let volume_ratio = if route.applies_chain_volume {
+        runtime.volume_pct() / 100.0
+    } else {
+        1.0
+    };
     let num_frames = out.len() / output_total_channels;
     // #923: the loudest frame this callback pulled, so the route can say
     // whether its stream ran and what it carried.
     let mut peak = 0.0_f32;
+    // #979: `None` = the route waits this callback out for the producer's
+    // hand-off; it plays silence and pops nothing.
     let fade = route.buffer.begin_callback(num_frames);
     for (i, frame) in out
         .chunks_mut(output_total_channels)
@@ -61,6 +69,9 @@ pub fn process_output_f32(
         .enumerate()
     {
         frame.fill(0.0);
+        let Some(fade) = &fade else {
+            continue;
+        };
         let mut processed = fade.blend(i, route.buffer.pop());
         if volume_ratio != 1.0 {
             processed = processed.scaled(volume_ratio);

@@ -58,13 +58,15 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 ///
 /// `existing_blocks` (when `Some`) carries per-segment processor nodes to
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
-/// is indexed by segment position within `segments`.
+/// is indexed by segment position within `segments`. `insert_sends` are the
+/// route indices of the chain's Insert sends (#979: they keep no slack).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
     switch_owned_routes: &[usize],
     eff_outputs: &[OutputEntry],
+    insert_sends: &std::ops::Range<usize>,
     sample_rate: f32,
     device_rates: &HashMap<DeviceId, f32>,
     elastic_targets: &[usize],
@@ -130,16 +132,20 @@ pub(crate) fn assemble_chain_runtime_state(
             .get(&output.device_id)
             .copied()
             .unwrap_or(sample_rate);
-        let cushion = crate::route_cushion::route_cushion(
+        let mut cushion = crate::route_cushion::route_cushion(
             target_for_route(elastic_targets, route_idx),
             route_rate,
             sample_rate,
             crate::route_convolution::route_has_convolution(chain, segments, route_idx),
             crate::route_clock::route_on_producer_clock(segments, route_idx, &output.device_id),
         );
-        output_routes.push(Some(Arc::new(build_output_routing_state(
-            output, cushion, route_rate,
-        ))));
+        let insert_send = insert_sends.contains(&route_idx);
+        if insert_send {
+            cushion = cushion.for_an_insert_send();
+        }
+        let mut route = build_output_routing_state(output, cushion, route_rate);
+        route.applies_chain_volume = !insert_send;
+        output_routes.push(Some(Arc::new(route)));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -376,6 +382,11 @@ pub(crate) fn build_output_routing_state(
     if cushion.servo_owned {
         buffer = buffer.owned_by_servo();
     }
+    if cushion.keeps_slack {
+        buffer = buffer.keeping_slack();
+    } else if cushion.lands_on_first_hand_off {
+        buffer = buffer.landing_on_first_hand_off();
+    }
     // #965: a fresh route is born at its resting cushion (see `route_cushion`).
     buffer.prime(cushion.prime);
     OutputRoutingState {
@@ -385,5 +396,7 @@ pub(crate) fn build_output_routing_state(
         sample_rate,
         callbacks: AtomicU64::new(0),
         peak_bits: std::sync::atomic::AtomicU32::new(0),
+        // A chain output unless the caller builds an insert send (#979).
+        applies_chain_volume: true,
     }
 }
