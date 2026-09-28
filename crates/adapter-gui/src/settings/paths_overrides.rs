@@ -4,12 +4,10 @@ use infra_filesystem::{AppConfig, FilesystemStorage};
 use std::path::PathBuf;
 
 /// #607: Apply a **presets** path override — persist it into `config.yaml`
-/// AND mirror it into the shared in-memory `AppConfig`. The mirror is the
-/// fix: lifecycle events (project-open / register-recent) re-persist the
-/// whole in-memory snapshot via `save_app_config(&app_config.borrow())`; if
-/// the picker only wrote to disk, that whole-config save would clobber the
-/// user's pick back to its startup value. Keeping the snapshot in lockstep
-/// makes the override the single source of truth.
+/// AND mirror it into the shared in-memory `AppConfig`, which the GUI reads.
+/// The mirror was the #607 fix when project-open / register-recent wrote that
+/// whole snapshot back to disk; since #980 they write only `recent_projects`,
+/// and the mirror keeps what the GUI shows in step with the file.
 pub fn apply_presets_override(config: &mut AppConfig, path: Option<PathBuf>) -> anyhow::Result<()> {
     apply_presets_override_at(&FilesystemStorage::app_config_path()?, config, path)
 }

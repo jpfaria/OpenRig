@@ -1,11 +1,14 @@
 //! Responsibility: runs the background timers of the desktop app.
-//! Two background timers wired by `run_desktop_app` against the main window.
+//! Three background timers wired by `run_desktop_app` against the main window.
 //!
 //! * **Error poll** (200 ms) — installs any chain rebuild the control worker
 //!   finished (#672) and drains the audio engine's bounded `BlockError` queue,
 //!   surfacing the first message as a toast. The queue is lock-free and
 //!   dropped from the audio thread when full, so the UI only sees a fraction
 //!   during error storms — that's intentional.
+//! * **Build install** (5 ms, #967) — `rebuild_install_timer`: swaps in a
+//!   runtime the control worker finished, so a scene switch is heard as soon
+//!   as it is built rather than on the next 200 ms tick.
 //! * **Audio health check** (2 s) — when a runtime is running but the backend
 //!   reports itself unhealthy (JACK server down, CoreAudio device removed),
 //!   shows a "reconnecting" toast and asks for a reconnect until the backend
@@ -73,6 +76,10 @@ pub(crate) fn start(
         );
         std::mem::forget(error_poll_timer);
     }
+
+    // #967: a finished off-thread build (scene/preset switch, live edit) goes
+    // live within a few milliseconds instead of waiting for the tick above.
+    std::mem::forget(crate::rebuild_install_timer::start(control.clone()));
 
     // Audio health check timer — detects device disconnects (JACK server
     // down on Linux, CoreAudio device removed on macOS) and auto-reconnects

@@ -75,8 +75,11 @@ pub(crate) fn slots_for_output_stream(
         .iter()
         .filter(|(group, slot)| {
             let runtime = slot.load();
-            // #947: a runtime that writes nothing to this output is not its stream.
-            if !runtime.writes_output(output_index) {
+            // #947: a runtime that writes nothing to this output is not its
+            // stream. #967: an insert's send is still its stream while the
+            // insert is off — the route is unwritten (silence), and switching
+            // the insert on publishes the rebuilt runtime into this same slot.
+            if !runtime.owns_output(output_index) {
                 return false;
             }
             let cpal = runtime.input_cpal_index().unwrap_or(*group);

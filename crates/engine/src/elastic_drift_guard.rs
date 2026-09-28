@@ -19,6 +19,12 @@
 //! full by the time the first window closes. Taking that first floor as the
 //! level ratified the whole capacity as the route's latency for good.
 //!
+//! #980: nor is it ever taken BELOW the cushion a route was primed with
+//! (#592) plus the popped buffer. One lucky window where the dsp-worker
+//! landed just in time used to become the level, and every later trim cut
+//! the primed route down to a single buffer — no margin, so each late
+//! worker buffer (a VST3 enabled live) was an underrun.
+//!
 //! Consumer-only state (the output callback): `Relaxed` atomics, no lock, no
 //! allocation (invariant #8).
 
@@ -45,6 +51,8 @@ pub(crate) struct DriftGuard {
     target: usize,
     /// Times the guard asked to discard.
     trims: AtomicU64,
+    /// #980: the cushion the route was primed with (0 = born lean).
+    rest: AtomicUsize,
 }
 
 impl DriftGuard {
@@ -56,6 +64,7 @@ impl DriftGuard {
             level: AtomicUsize::new(UNKNOWN),
             target,
             trims: AtomicU64::new(0),
+            rest: AtomicUsize::new(0),
         }
     }
 
@@ -81,6 +90,13 @@ impl DriftGuard {
             .level
             .load(Ordering::Relaxed)
             .min(self.target.saturating_add(frames));
+        // #980: a lucky clean window must not strip a primed route's margin.
+        let rest = self.rest.load(Ordering::Relaxed);
+        let level = if rest > 0 {
+            level.max(rest.saturating_add(frames))
+        } else {
+            level
+        };
         if floor < level {
             self.level.store(floor, Ordering::Relaxed);
             return 0;
@@ -90,6 +106,12 @@ impl DriftGuard {
             return floor - level;
         }
         0
+    }
+
+    /// #980: the route was primed with `frames` of cushion; it is never
+    /// trimmed below that prime plus the buffer being popped.
+    pub(crate) fn hold_rest(&self, frames: usize) {
+        self.rest.store(frames, Ordering::Relaxed);
     }
 
     /// Times stuck latency was discarded since the route was built.

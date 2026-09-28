@@ -377,10 +377,15 @@ fn a_structural_edit_opens_new_streams_and_a_param_edit_does_not() {
 }
 
 /// The owner's rule, second half (#881): "só que você pode matar depois que a
-/// outra levantar". Toggling a routing block changes the topology, so the
+/// outra levantar". Removing a routing block changes the topology, so the
 /// streams are rebuilt — but the ones that are playing must keep playing until
 /// the new set is up. Dropping them at the REQUEST is a hole of silence: "quando
 /// eu ativo e desativo o bloco o som morre e depois volta".
+///
+/// #967: switching the insert OFF used to be the trigger here. It no longer
+/// changes the topology — a bound insert keeps its streams and is bypassed in
+/// the DSP (`issue_967_insert_toggle_keeps_streams`) — so the trigger is now
+/// what still does: taking the insert out of the chain.
 #[test]
 fn the_live_streams_keep_playing_while_the_new_ones_are_built() {
     if !hw_enabled("the_live_streams_keep_playing_while_the_new_ones_are_built") {
@@ -401,13 +406,13 @@ fn the_live_streams_keep_playing_while_the_new_ones_are_built() {
     let mut controller = start(&project, &device, &chain_id);
     assert_eq!(open_streams(&controller, &chain_id), (1, 2));
 
-    // The user bypasses the insert: a topology change.
-    let mut bypassed = with_insert.clone();
-    bypassed.blocks[0].enabled = false;
-    project.chains[0] = bypassed.clone();
+    // The user removes the insert: a topology change.
+    let mut removed = with_insert.clone();
+    removed.blocks.clear();
+    project.chains[0] = removed.clone();
 
     let scheduled = controller
-        .schedule_chain_activation(&project, &bypassed)
+        .schedule_chain_activation(&project, &removed)
         .expect("schedule");
     assert!(scheduled, "a topology change must schedule a fresh build");
 
@@ -426,6 +431,6 @@ fn the_live_streams_keep_playing_while_the_new_ones_are_built() {
     assert_eq!(
         open_streams(&controller, &chain_id),
         (1, 1),
-        "and once the new set lands, the bypassed insert's send is gone"
+        "and once the new set lands, the removed insert's send is gone"
     );
 }

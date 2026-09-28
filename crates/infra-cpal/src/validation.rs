@@ -26,9 +26,6 @@ use anyhow::{anyhow, bail, Context};
 use cpal::SupportedBufferSize;
 
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
-use cpal::traits::{DeviceTrait, HostTrait};
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
 use domain::io_binding::IoBinding;
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 use engine::runtime_endpoints::resolve_chain_io;
@@ -245,22 +242,14 @@ pub(crate) fn find_input_device_by_id(
     host: &cpal::Host,
     device_id: &str,
 ) -> Result<Option<cpal::Device>> {
-    for device in host.input_devices()? {
-        if device.id()?.to_string() == device_id {
-            return Ok(Some(device));
-        }
-    }
-    Ok(None)
+    // #967: remembered across lookups — a full device walk per endpoint cost
+    // the owner ~1.8 s on every chain switch-on.
+    crate::device_lookup::find(host, device_id, true)
 }
 #[cfg(not(all(target_os = "linux", feature = "jack")))]
 pub(crate) fn find_output_device_by_id(
     host: &cpal::Host,
     device_id: &str,
 ) -> Result<Option<cpal::Device>> {
-    for device in host.output_devices()? {
-        if device.id()?.to_string() == device_id {
-            return Ok(Some(device));
-        }
-    }
-    Ok(None)
+    crate::device_lookup::find(host, device_id, false)
 }

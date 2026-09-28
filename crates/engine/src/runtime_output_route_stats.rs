@@ -37,6 +37,15 @@ pub struct OutputRouteStats {
     pub fill_frames: usize,
     /// #953: times the route shed latency a stalled stream left behind.
     pub latency_trims: u64,
+    /// #980: frames the route's ring discarded because it was full (consumer
+    /// not popping, or a late producer catching up). Frames the drift guard
+    /// trims are not included — see `latency_trims`.
+    pub dropped_frames: u64,
+    /// #980: input buffers the owning runtime lost on a failed
+    /// `processing.try_lock()` (held by another thread, or poisoned). Same
+    /// value on every route row of the runtime; only the routes that input
+    /// feeds missed the period.
+    pub input_busy_skips: u64,
 }
 
 impl OutputRoutingState {
@@ -73,6 +82,8 @@ impl ChainRuntimeState {
                     },
                     fill_frames: state.buffer.len(),
                     latency_trims: state.buffer.latency_trims(),
+                    dropped_frames: state.buffer.dropped_count(),
+                    input_busy_skips: self.input_busy_skips(),
                 }
             })
             .collect()

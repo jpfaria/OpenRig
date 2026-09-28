@@ -64,7 +64,8 @@ pub(crate) use crate::runtime_endpoints::{
 };
 pub use crate::runtime_graph::{
     build_chain_runtime_state, build_per_input_runtime_states, build_runtime_graph,
-    update_chain_runtime_state, update_chain_runtime_state_spillover, RuntimeGraph,
+    update_chain_runtime_state, update_chain_runtime_state_at_device_rates,
+    update_chain_runtime_state_spillover, RuntimeGraph,
 };
 #[cfg(test)]
 pub(crate) use crate::runtime_graph::{build_output_routing_state, ERROR_QUEUE_CAPACITY};
@@ -110,6 +111,19 @@ pub fn process_input_f32(
     if runtime.is_draining() {
         return;
     }
+    // #967: a stream this chain keeps open with nothing to process here (a
+    // disabled insert's return on its own interface) must not take the
+    // processing lock — the guitar's callback would lose `try_lock` and play a
+    // silent period. Input taps (tuner, spectrum) still read it.
+    if !runtime.input_is_fed(input_index)
+        && !runtime
+            .input_taps
+            .load()
+            .iter()
+            .any(|tap| tap.input_index == input_index)
+    {
+        return;
+    }
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
@@ -119,7 +133,14 @@ pub fn process_input_f32(
     // leave the probe state Armed and retry on the next callback.
     let mut processing_guard = match runtime.processing.try_lock() {
         Ok(guard) => guard,
-        Err(_) => return,
+        Err(_) => {
+            // #980: the whole buffer is lost on every route — count it (one
+            // relaxed add; no lock, no allocation).
+            runtime
+                .input_busy_skips
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            return;
+        }
     };
 
     // Issue #580 follow-up: drain queued block-toggle requests inside
@@ -226,7 +247,11 @@ pub fn process_input_f32(
 
     if let Some(segments) = input_to_segments.get(input_index) {
         scratch.segment_indices.extend(segments.iter().copied());
-    } else if input_index < input_states.len() {
+    } else if input_to_segments.is_empty() && input_index < input_states.len() {
+        // Legacy shape with no map at all: one state per input. A map that
+        // simply has no entry for this input means NOTHING here reads it
+        // (#967: a disabled insert's return) — never "the state with that
+        // number", which is some guitar's split-mono sibling.
         scratch.segment_indices.push(input_index);
     }
 
@@ -379,6 +404,10 @@ mod rt_graph;
 mod issue_881_insert_audio;
 
 #[cfg(test)]
+#[path = "issue_967_insert_streams_tests.rs"]
+mod issue_967_insert_streams;
+
+#[cfg(test)]
 #[path = "runtime_integration_tests.rs"]
 mod rt_integration;
 
@@ -497,6 +526,10 @@ mod runtime_output_route_stats_tests;
 #[cfg(test)]
 #[path = "issue_953_route_latency_drift_tests.rs"]
 mod issue_953_route_latency_drift;
+
+#[cfg(test)]
+#[path = "issue_980_route_loss_counters_tests.rs"]
+mod issue_980_route_loss_counters;
 
 #[cfg(test)]
 #[path = "issue_965_insert_latency_tests.rs"]

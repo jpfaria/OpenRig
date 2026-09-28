@@ -7,8 +7,8 @@ use project::chain::Chain;
 
 use crate::insert_endpoints::{insert_return_as_input_entry, insert_send_as_output_entry};
 use crate::runtime_endpoints::{
-    effective_inputs, effective_outputs, insert_is_bound, resolve_chain_io,
-    resolve_chain_io_by_binding, InputEntry, OutputEntry,
+    effective_inputs, effective_outputs, resolve_chain_io, resolve_chain_io_by_binding, InputEntry,
+    OutputEntry,
 };
 use crate::runtime_segments::split_chain_into_segments;
 use crate::segment_binding::{binding_of_raw_input, binding_of_route};
@@ -107,7 +107,9 @@ fn insert_bindings(
     chain
         .blocks
         .iter()
-        .filter(|b| b.enabled && insert_is_bound(&b.kind, registry))
+        // The insert names the rows its CUT makes (#967: only an enabled
+        // insert cuts; a disabled one's streams carry nothing to name).
+        .filter(|b| crate::insert_cut::insert_cuts_chain(b, registry))
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Insert(ib) => Some((
                 ib.io.clone(),
