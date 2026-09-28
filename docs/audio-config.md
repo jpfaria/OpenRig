@@ -529,6 +529,29 @@ first fixes, see the issue for the final number. Real-hardware proof:
 0 underruns on a cold start, over a minute, after live edits and after
 adding a cab live under full CPU load) and the #670 battery (unchanged, 0/0).
 
+### Memory stays resident (issue #980, macOS)
+
+On a machine out of memory the kernel compresses pages nobody touched for a
+while. A reverb walks its delay line once per loop, seconds apart, so its
+pages were compressed between passes and the dsp-worker stalled decompressing
+them: 1-4 ms buffers, the output underran (`underruns == dropped_frames`).
+
+When the engine starts (`ProjectRuntimeController::start*`) one ordinary
+thread, `memory-residency` (`infra-cpal/src/memory_residency_keeper.rs`),
+wires the process's private writable memory (`infra-cpal/src/memory_wiring.rs`,
+`mlock`): only regions something already touched, at most 256 MB each and a
+quarter of the machine's RAM in total, each region once. It runs a pass the
+moment a runtime goes live (`LiveRuntimeSlot::new` / `publish`: start-up,
+live rebuild) and every 5 s in between — waiting for the periodic pass alone
+let the kernel compress a new chain's pages in the first seconds. Wired pages are never compressed or swapped, so OpenRig
+keeps its working set — ~1.2 GB for two guitars with NAM, a cab IR and two
+VST3 reverbs on two outputs — in RAM for as long as it runs; the rest of the
+machine has that much less. No latency changes. Linux and Windows: not done
+(not measured there).
+
+Proof: `infra-cpal/tests/issue_980_owners_two_guitars_two_outputs.rs` on the
+owner's interface, see `docs/audio-incidents/980-dsp-worker-late-underruns.md`.
+
 ### Chain enabled é runtime, não persistência
 
 `Chain.enabled` é estado de memória — o usuário liga / desliga uma

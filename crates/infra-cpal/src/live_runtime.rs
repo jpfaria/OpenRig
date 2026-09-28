@@ -24,6 +24,8 @@ impl LiveRuntimeSlot {
     /// Create a slot already holding `initial`.
     #[must_use]
     pub fn new(initial: Arc<ChainRuntimeState>) -> Self {
+        // #980: the memory a live runtime touches must be wired right away.
+        crate::memory_residency_keeper::wire_soon();
         Self(Arc::new(ArcSwap::from(initial)))
     }
 
@@ -37,6 +39,7 @@ impl LiveRuntimeSlot {
     /// the caller drops it off the audio thread.
     #[must_use]
     pub fn publish(&self, next: Arc<ChainRuntimeState>) -> Arc<ChainRuntimeState> {
+        crate::memory_residency_keeper::wire_soon();
         self.0.swap(next)
     }
 

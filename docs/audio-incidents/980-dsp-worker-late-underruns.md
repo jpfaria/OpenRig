@@ -1,7 +1,7 @@
 # #980 — xrun LED blinking: the dsp-worker delivers buffers late
 
-Status: **OPEN** — reproduced on the real interface; cause located (H14,
-memory pressure); fix not shipped yet.
+Status: **FIX SHIPPED, awaiting the owner's ear** — cause located (H14,
+memory pressure); the hardware test is green 4/4 with the fix.
 Issue: https://github.com/jpfaria/OpenRig/issues/980 · Branch: `bug/issue-980`
 
 ## Symptom (reported)
@@ -63,8 +63,12 @@ cargo test -p infra-cpal --release \
   (fixture `crates/engine/tests/fixtures/presets/issue_980_owner_anal_dig.yaml`).
   Macos + release + the Quantum connected; silent (chain volume 0).
 - `OPENRIG_980_TRACE=1` prints every late dsp-worker buffer
-  (`<wall>us wall / <cpu>us cpu (period, backlog)`) and every RT policy
-  re-declare (`dsp-worker realtime promotion`).
+  (`<wall>us wall / <cpu>us cpu (period, backlog)`), every RT policy
+  re-declare (`dsp-worker realtime promotion`), every burst of process page
+  faults (`task events 10ms: faults +N`) and every memory wiring pass
+  (`memory residency: wired …`).
+- Memory pressure matters: check `sysctl vm.swapusage` before a run. With the
+  swap nearly empty the kernel reclaims nothing and the bug does not show.
 - RED on 2026-09-28, idle machine (load ~4): idle 60 s — group0 (576, 576, 0)
   per route, group1 (960, 960, 0); 30 s with 12 spinning threads — (64, 64, 0)
   per route. Same signature as the live rig. It is intermittent: later runs
@@ -99,6 +103,7 @@ cargo test -p infra-cpal --release \
 | `780b9f44e` | Opening/saving a project writes only `recent_projects`, no longer the whole stale config (the `syn2-main` `[3]`→`[7]` reversion) | `crates/application/tests/issue_980_recents_save_keeps_io_bindings.rs` |
 | `1c14b1fad` | `openrig://routes` gains `dropped_frames` and `input_busy_skips` — what made the late-worker signature visible | `crates/engine/src/issue_980_route_loss_counters_tests.rs` |
 | `def1a9fde` | Hardware RED test reproducing the measured symptom | itself |
+| this commit | macOS: a `memory-residency` thread wires the process's private writable memory (`mlock`, touched regions only, ≤ 256 MB each, ≤ ¼ of RAM, each once) when the engine starts, the moment a runtime goes live (`LiveRuntimeSlot::new` / `publish`) and every 5 s (H14; owner approved wiring ~1.2 GB on 2026-09-28). No latency change. | `memory_wiring_tests.rs` (touched buffer wired, wired once, concurrent scans wire once, untouched reservation never wired), `memory_residency_keeper_tests.rs` (later allocations wired, mutation-checked), `tests/issue_980_engine_keeps_audio_memory_resident.rs`, `tests/issue_980_live_runtime_memory_wired_at_once.rs`, and the hardware test green 4/4 |
 
 Parked, not shipped: per-buffer worker timing counters in the MCP
 (`git stash` on the solver, "980 worker timing WIP") — wiring untested.
@@ -116,9 +121,17 @@ Frames lost per 90 s run (4 routes), alternating runs, load 7-22:
 | + #979 slack, process memory wired (H14) | 3 | 0, 0, 0 |
 | `bug/issue-980` as is, process memory wired (no slack, no extra latency) | 3 | 0, 0, 0 |
 | `bug/issue-980` as is, same batch, not wired | 3 | 1280, 19200, 1152 |
+| Production keeper, periodic 5 s passes only | 3 | 512, 0, 0 |
+| `bug/issue-980` as is, same batch | 3 | 2432, 24832, 1792 |
+| Production keeper + wake when a runtime goes live (shipped) | 4 | 0, 0, 0, 0 |
 
 The slack and the split only make the worker's stalls cheaper; wiring the
-memory removes the stalls, with no latency added.
+memory removes the stalls, with no latency added. With periodic passes only,
+every late buffer of the failing run fell between the chain coming up and the
+pass that wired its 655 MB 5 s later: the kernel compressed the new chain's
+pages within those seconds. Waking the keeper when a runtime goes live wires
+it ~0.5 s after start-up; the only late buffers left are the two of the cold
+start, before the idle measurement (swap 13.4 GB used, load ~11).
 
 ## Why it happens (as of 2026-09-28)
 
@@ -137,9 +150,9 @@ memory wired nothing is late. Two pipelines per worker (H6) and the lean
 
 ## Open
 
-- The fix: keep OpenRig's memory resident (macOS `mlock` of the process's
-  private writable regions, ~1.2 GB on this rig) — wires RAM the rest of the
-  machine can no longer use; owner's call before it ships.
+- The owner's ear on his rig with the fix (the hardware test is silent).
+- Linux (JACK / Orange Pi) and Windows keep no memory resident — not measured
+  there.
 - One dsp-worker per pipeline (plan
   `docs/superpowers/plans/2026-09-27-issue-980-pipeline-per-worker.md`) is not
   needed for this symptom: with the memory wired, two pipelines per worker

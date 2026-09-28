@@ -218,7 +218,8 @@ fn the_owners_two_guitars_into_two_outputs_play_without_underruns() {
     if trace {
         let _ = env_logger::builder()
             .parse_filters(
-                "infra_cpal::dsp_worker=trace,infra_cpal::rt_thread_policy=info,probe980=info",
+                "infra_cpal::dsp_worker=trace,infra_cpal::rt_thread_policy=info,\
+                 infra_cpal::memory_wiring=info,probe980=info",
             )
             .format_timestamp_millis()
             .is_test(true)

@@ -101,6 +101,25 @@ pub fn start(period: Duration) -> Watch {
 extern "C" {
     fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut u64) -> i32;
     fn getpid() -> i32;
+    fn task_info(task: u32, flavor: i32, info: *mut i32, count: *mut u32) -> i32;
+}
+
+/// `struct task_events_info`: faults, pageins, cow_faults, messages_sent,
+/// messages_received, syscalls_mach, syscalls_unix, csw.
+const TASK_EVENTS_INFO: i32 = 2;
+
+fn task_events() -> [i32; 8] {
+    let mut info = [0i32; 8];
+    let mut count = 8u32;
+    unsafe {
+        task_info(
+            mach_task_self_,
+            TASK_EVENTS_INFO,
+            info.as_mut_ptr(),
+            &mut count,
+        )
+    };
+    info
 }
 const RUSAGE_INFO_V6: i32 = 6;
 // u64 word offsets in `struct rusage_info_v6` (the 16-byte uuid is words 0-1).
@@ -142,9 +161,27 @@ fn run(stop: Arc<AtomicBool>, period: Duration) -> HashMap<String, HashMap<i32, 
     let mut last: HashMap<String, State> = HashMap::new();
     let mut histogram: HashMap<String, HashMap<i32, u64>> = HashMap::new();
     let mut last_usage = usage();
+    let mut last_events = task_events();
     let mut ticks = 0u64;
     while !stop.load(Ordering::Relaxed) {
         ticks += 1;
+        // Every ~10 ms: page faults and page-ins of the whole process — a
+        // real-time thread that touches a page the kernel compressed or
+        // swapped out stops until it is back (#980, H14). The watcher's own
+        // `task_threads` array costs ~10 faults per 10 ms; only more is shown.
+        if ticks % 10 == 0 {
+            let now = task_events();
+            let (faults, pageins) = (now[0] - last_events[0], now[1] - last_events[1]);
+            if faults > 12 || pageins > 0 {
+                log::info!(
+                    target: "probe980",
+                    "task events 10ms: faults +{faults} pageins +{pageins} cow +{} csw +{}",
+                    now[2] - last_events[2],
+                    now[7] - last_events[7]
+                );
+            }
+            last_events = now;
+        }
         // Every ~100 ms: how much of the process's CPU ran on performance
         // cores, and at what effective clock on each core type.
         if ticks % 100 == 0 {

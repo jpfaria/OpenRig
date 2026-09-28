@@ -47,4 +47,4 @@ green while the owner's rig kept underrunning.
 
 | Incident | Signature | Status |
 |---|---|---|
-| [980](980-dsp-worker-late-underruns.md) | xrun LED blinking; `underruns == dropped_frames` on every route, `input_busy_skips 0`; bursts of 128..1536 frames; NAM + IR + 2 VST3, 2 guitars x 2 outputs, 44.1 kHz / 64 | OPEN — reproduced on hardware, cause partly located |
+| [980](980-dsp-worker-late-underruns.md) | xrun LED blinking; `underruns == dropped_frames` on every route, `input_busy_skips 0`; bursts of 128..1536 frames; NAM + IR + 2 VST3, 2 guitars x 2 outputs, 44.1 kHz / 64; the machine's swap full; late buffers on bursts of page faults | FIX SHIPPED (memory kept resident, macOS) — awaiting the owner's ear |
