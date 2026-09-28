@@ -105,6 +105,8 @@ cargo test -p infra-cpal --release \
 | `def1a9fde` | Hardware RED test reproducing the measured symptom | itself |
 | this commit | macOS: a `memory-residency` thread wires the process's private writable memory (`mlock`, touched regions only, ≤ 256 MB each, ≤ ¼ of RAM, each once) when the engine starts, the moment a runtime goes live (`LiveRuntimeSlot::new` / `publish`) and every 5 s (H14; owner approved wiring ~1.2 GB on 2026-09-28). No latency change. | `memory_wiring_tests.rs` (touched buffer wired, wired once, concurrent scans wire once, untouched reservation never wired), `memory_residency_keeper_tests.rs` (later allocations wired, mutation-checked), `tests/issue_980_engine_keeps_audio_memory_resident.rs`, `tests/issue_980_live_runtime_memory_wired_at_once.rs`, and the hardware test green 4/4 |
 
+| follow-up to #981 (this branch, second PR) | After an adversarial review of #981 (below): passes count every wired region against the budget and run one at a time with a re-check before each `mlock`; memory left unwired is logged; the keeper is woken by in-place live edits too (VST3 branch, resync keeping the streams); a follow-up pass 1 s after each wake catches buffers allocated zeroed; the console / headless path starts the keeper. | `memory_wiring_pass_tests.rs`, `memory_wiring_report_tests.rs`, `issue_980_in_place_edit_wires_memory_tests.rs`, `tests/issue_980_zeroed_buffer_wired_once_written.rs`, `tests/issue_980_console_streams_keep_memory_resident.rs`; the existing wire-once tests went red (11 wires on one region) when the pass snapshot widened the race, green with the lock |
+
 Parked, not shipped: per-buffer worker timing counters in the MCP
 (`git stash` on the solver, "980 worker timing WIP") — wiring untested.
 
@@ -132,6 +134,24 @@ pass that wired its 655 MB 5 s later: the kernel compressed the new chain's
 pages within those seconds. Waking the keeper when a runtime goes live wires
 it ~0.5 s after start-up; the only late buffers left are the two of the cold
 start, before the idle measurement (swap 13.4 GB used, load ~11).
+
+## Review of the fix (#981, 2026-09-28)
+
+Read-only review, 4 reviewers (Mach calls, memory lifecycle, real-time
+safety, platform/CI), each finding checked by a skeptic told to refute it.
+
+| Finding | Verdict | Outcome |
+|---|---|---|
+| Budget checked against a running total in address order: a region below already-wired ones could be wired past ¼ of RAM | CONFIRMED | Fixed: every wired region counts first |
+| Memory left unwired (budget, > 256 MB, `mlock` error) was silent | CONFIRMED | Fixed: warning in the log when it changes |
+| Wire-count tests race the keeper; nothing serialises passes (`mlock` stacks a wire per call) | CONFIRMED | Fixed: one pass at a time + re-check before `mlock` |
+| In-place live edits (VST3 branch, resync keeping the streams) never wake the keeper — up to 5 s unwired | CONFIRMED | Fixed: both wake it |
+| A new runtime's zeroed buffers (no VM object yet) are skipped by the wake-up pass | CONFIRMED | Fixed: follow-up pass 1 s after each wake |
+| Console / headless rig never start the keeper | CONFIRMED | Fixed: `build_streams_for_project` starts it |
+| Freed heap in a wired region stays resident (footprint follows the peak); a region with one touched page is wired whole | CONFIRMED | Kept, documented as the cost of wiring whole regions |
+| CI never compiles the macOS wiring code | REFUTED | — |
+| Priority inversion between the keeper and the dsp-worker | REFUTED | — |
+| Every pass walks every page of every region | REFUTED | — |
 
 ## Why it happens (as of 2026-09-28)
 

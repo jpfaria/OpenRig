@@ -6,14 +6,19 @@
 //! buffers at a third of their normal speed — and the output underruns.
 //! Wired pages are never compressed or swapped.
 //!
-//! What gets wired: every private writable region something already touched
-//! (resident or compressed pages), up to [`MAX_REGION`] each and a quarter of
-//! the machine's RAM in total. Address space nobody touched stays as it is —
-//! wiring a reservation would fault all of it into RAM. A region is wired
-//! once: a later pass skips it. Runs off the audio threads; macOS only.
+//! This file is the macOS side: it reads the process's regions from the
+//! kernel and wires with `mlock`. What a pass wires — private writable
+//! regions something already touched, up to 256 MB each and a quarter of the
+//! machine's RAM in total, each region once — is decided in
+//! `memory_wiring_pass`; what it left unwired is logged
+//! (`memory_wiring_report`). Passes run one at a time. Runs off the audio
+//! threads; macOS only.
 
 #[cfg(target_os = "macos")]
 mod imp {
+    use crate::memory_wiring_pass::{run_pass, Region, Report};
+    use crate::memory_wiring_report::report_lines;
+
     extern "C" {
         static mach_task_self_: u32;
         fn mach_vm_region(
@@ -41,18 +46,6 @@ mod imp {
     /// `share_mode` values of `vm_region_extended_info` that are this
     /// process's own memory: copy-on-write, private, private aliased.
     const PRIVATE_SHARE_MODES: [u8; 3] = [1, 2, 6];
-    /// A region larger than this is a reservation, not a working set.
-    const MAX_REGION: u64 = 256 << 20;
-
-    /// One region as the kernel reports it.
-    struct Region {
-        start: u64,
-        size: u64,
-        writable: bool,
-        private: bool,
-        touched: bool,
-        wired: bool,
-    }
 
     /// The region at or after `address`, or `None` past the last one.
     fn region_at(address: u64) -> Option<Region> {
@@ -76,11 +69,24 @@ mod imp {
         if kr != 0 {
             return None;
         }
+        let share_mode = (extended[7] as u32 >> 24) as u8;
+        Some(Region {
+            start,
+            size,
+            writable: extended[0] & VM_PROT_WRITE != 0,
+            private: PRIVATE_SHARE_MODES.contains(&share_mode),
+            touched: extended[2] > 0 || extended[4] > 0,
+            wired: is_wired(start),
+        })
+    }
+
+    /// Whether the region starting at `start` carries a user wire now.
+    fn is_wired(start: u64) -> bool {
         // `vm_region_basic_info_64`: word 8 low half is `user_wired_count`.
-        let (mut basic_start, mut basic_size) = (start, 0u64);
+        let (mut basic_start, mut basic_size, mut object) = (start, 0u64, 0u32);
         let mut basic = [0i32; 9];
         let mut basic_count = 9u32;
-        let wired = unsafe {
+        let kr = unsafe {
             mach_vm_region(
                 mach_task_self_,
                 &mut basic_start,
@@ -90,18 +96,19 @@ mod imp {
                 &mut basic_count,
                 &mut object,
             )
-        } == 0
-            && basic_start == start
-            && basic[8] as u32 & 0xFFFF > 0;
-        let share_mode = (extended[7] as u32 >> 24) as u8;
-        Some(Region {
-            start,
-            size,
-            writable: extended[0] & VM_PROT_WRITE != 0,
-            private: PRIVATE_SHARE_MODES.contains(&share_mode),
-            touched: extended[2] > 0 || extended[4] > 0,
-            wired,
-        })
+        };
+        kr == 0 && basic_start == start && basic[8] as u32 & 0xFFFF > 0
+    }
+
+    /// Every region of the process, in address order.
+    fn regions() -> Vec<Region> {
+        let mut regions = Vec::new();
+        let mut address = 0u64;
+        while let Some(region) = region_at(address) {
+            address = region.start + region.size;
+            regions.push(region);
+        }
+        regions
     }
 
     /// A quarter of the machine's RAM: the most this ever wires.
@@ -124,44 +131,35 @@ mod imp {
         }
     }
 
-    /// Wires every eligible region not wired yet; returns (regions, bytes)
-    /// wired by this pass and the bytes wired in total.
-    pub(crate) fn wire_private_memory() -> (usize, u64, u64) {
-        let budget = wiring_budget();
-        let (mut regions, mut bytes, mut total) = (0usize, 0u64, 0u64);
-        let mut address = 0u64;
-        while let Some(region) = region_at(address) {
-            address = region.start + region.size;
-            if !(region.writable && region.private && region.touched) {
-                continue;
-            }
-            if region.wired {
-                total += region.size;
-                continue;
-            }
-            if region.size > MAX_REGION || total + region.size > budget {
-                continue;
-            }
-            if unsafe { mlock(region.start as *const _, region.size as usize) } == 0 {
-                regions += 1;
-                bytes += region.size;
-                total += region.size;
-            }
-        }
-        (regions, bytes, total)
+    /// The previous pass's report. Its lock also runs passes one at a time:
+    /// between a region's last check and its `mlock` no other pass may wire
+    /// it (#980 review: concurrent passes stacked eleven wires on one
+    /// region). Ordinary threads only, never audio.
+    static LAST_PASS: std::sync::Mutex<Option<Report>> = std::sync::Mutex::new(None);
+
+    /// One pass over the process's regions against the machine's budget;
+    /// returns what to log about it.
+    pub(crate) fn wire_private_memory() -> Vec<(log::Level, String)> {
+        let mut last = LAST_PASS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let report = run_pass(
+            &regions(),
+            wiring_budget(),
+            |region| !is_wired(region.start),
+            |region| unsafe { mlock(region.start as *const _, region.size as usize) } == 0,
+        );
+        let lines = report_lines(&report, last.as_ref());
+        *last = Some(report);
+        lines
     }
 }
 
 /// One pass over the process's regions (see the module docs).
 #[cfg(target_os = "macos")]
 pub(crate) fn wire_private_memory() {
-    let (regions, bytes, total) = imp::wire_private_memory();
-    if regions > 0 {
-        log::info!(
-            "memory residency: wired {regions} regions ({} MB), {} MB resident for good",
-            bytes >> 20,
-            total >> 20
-        );
+    for (level, line) in imp::wire_private_memory() {
+        log::log!(level, "{line}");
     }
 }
 
