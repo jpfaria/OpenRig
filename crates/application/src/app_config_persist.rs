@@ -64,21 +64,30 @@ pub fn persist_metronome(
     });
 }
 
-/// Write a fully-formed `AppConfig` snapshot to `config.yaml` on the
-/// persist worker, against the path bound NOW. Use when the caller already
-/// holds the complete desired config (e.g. recents sync).
-pub fn persist_app_config_snapshot(snapshot: AppConfig) {
-    let config_path = FilesystemStorage::app_config_path();
+/// #980: persist ONLY the recent-projects list of the GUI's in-memory
+/// `AppConfig` (read-modify-write). That snapshot is loaded at boot and is
+/// stale for every other section — an I/O binding edited over MCP, a path
+/// override, the buffer — so writing it whole reverted those edits on every
+/// project open (`syn2-main` back to `[7]`). `config_path` is the per-machine
+/// SYSTEM config; `None` resolves the OS path once, HERE, never inside the
+/// worker.
+pub fn persist_recent_projects(config_path: Option<PathBuf>, from: &AppConfig) {
+    let config_path = config_path
+        .map(Ok)
+        .unwrap_or_else(FilesystemStorage::app_config_path);
+    let recent_projects = from.recent_projects.clone();
     crate::persist_worker::run(move || {
         let config_path = match config_path {
             Ok(path) => path,
             Err(e) => {
-                log::error!("persist app config snapshot: resolve config path failed: {e}");
+                log::error!("persist recent projects: resolve config path failed: {e}");
                 return;
             }
         };
-        if let Err(e) = FilesystemStorage::save_app_config_at(&config_path, &snapshot) {
-            log::error!("persist app config snapshot failed: {e}");
+        if let Err(e) = FilesystemStorage::update_app_config_at(&config_path, |config| {
+            config.recent_projects = recent_projects
+        }) {
+            log::error!("persist recent projects failed: {e}");
         }
     });
 }

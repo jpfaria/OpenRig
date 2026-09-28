@@ -54,8 +54,8 @@ pub(crate) fn try_auto_open(
     {
         // #693: the config write runs on the persist worker — the GUI thread
         // never waits on disk. #731: the config path is bound at dispatch time.
-        let snapshot = app_config.borrow().clone();
-        application::app_config_persist::persist_app_config_snapshot(snapshot);
+        // #980: only the recent-projects list is written.
+        application::app_config_persist::persist_recent_projects(None, &app_config.borrow());
     }
     crate::chain_rig_nav_wiring::refresh_from_session(window, project_session);
     set_project_dirty(window, project_dirty, false);

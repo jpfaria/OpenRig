@@ -1,0 +1,103 @@
+version: 1
+id: issue-980 owner ANAL+DIG
+name: issue-980 owner ANAL+DIG
+volume: 100.0
+instrument: electric_guitar
+blocks:
+- type: preamp
+  enabled: true
+  model: nam_synergy_dumble_os_a2
+  params:
+    channel: ch1
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: 0.0
+    noise_gate:
+      enabled: false
+      threshold_db: -50.0
+    output_db: 10.169323921203613
+    slim: 100.0
+    tubes: 6l6ab
+- type: cab
+  enabled: true
+  model: ir_cel_cream_4x12
+  params:
+    output_db: -1.3999996
+    voicing: dark
+- type: vst3
+  enabled: true
+  model: vst3:ValhallaSupermassive:ValhallaSupermassive
+  params:
+    p1567: 100.0
+    p1568: 27.383411407470703
+    p1569: 50.0
+    p1570: 4.1666669845581055
+    p1571: 0.0
+    p1572: 0.0
+    p1573: 0.0
+    p1574: 0.0
+    p18: false
+    p48: 50.0
+    p49: 25.0
+    p50: 28.571430206298828
+    p51: 50.0
+    p52: 0.0
+    p53: 100.0
+    p54: 50.0
+    p55: 0.0
+    p56: 100.0
+    p57: 0.0
+- type: vst3
+  enabled: true
+  model: vst3:CloudReverb:CloudReverb
+  params:
+    p1101978846: 0.0
+    p1133808718: 51.87133026123047
+    p1179464885: 85.16456604003906
+    p1206714102: 0.0
+    p123571618: 85.16456604003906
+    p123932820: 0.0
+    p1253825201: 0.0
+    p1264390368: 51.87133026123047
+    p1267708683: false
+    p1275139160: 0.0
+    p1312330356: false
+    p1358293380: false
+    p1403004171: 0.0
+    p1427260380: false
+    p1459917092: 0.0
+    p1534829172: 0.0
+    p1609188938: 0.0
+    p1641378969: false
+    p1652125811: false
+    p1679971148: 0.0
+    p1680579063: 0.0
+    p1806986780: false
+    p1808531106: false
+    p181905755: 0.0
+    p182513670: 40.87006378173828
+    p182522319: 0.0
+    p2021017957: 100.0
+    p2055748035: 100.0
+    p2122271847: 85.16456604003906
+    p2144432718: 0.0
+    p243815350: 0.0
+    p244573498: 0.0
+    p340225094: 0.0
+    p348177077: 0.0
+    p349538915: 51.87133026123047
+    p423704859: 0.0
+    p472877583: false
+    p478539238: 100.0
+    p526743795: 0.0
+    p535342674: 0.0
+    p543679556: 50.0
+    p583587188: 100.0
+    p603240884: 0.0
+    p787710025: 0.0
+    p892053696: 0.0
+    p895549611: 50.0
+    p918447887: 100.0
