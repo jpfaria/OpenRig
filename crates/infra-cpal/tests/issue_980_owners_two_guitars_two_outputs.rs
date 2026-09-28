@@ -24,6 +24,7 @@
 #![cfg(all(target_os = "macos", not(debug_assertions)))]
 
 mod hw_harness;
+mod worker_thread_watch;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -208,11 +209,18 @@ fn the_owners_two_guitars_into_two_outputs_play_without_underruns() {
         return;
     };
     let _device = device_guard();
-    // Each late dsp-worker buffer is traced with its wall time, its thread CPU
-    // time and the ring backlog: `OPENRIG_980_TRACE=1` shows WHY a run failed.
-    if std::env::var_os("OPENRIG_980_TRACE").is_some() {
+    // `OPENRIG_980_TRACE=1` shows WHY a run failed: every late dsp-worker
+    // buffer (wall time, thread CPU time, ring backlog), every RT policy
+    // re-declare, and — from the outside, through the Mach API — every change
+    // of a worker's priority, policy or declared computation, all with
+    // millisecond timestamps.
+    let trace = std::env::var_os("OPENRIG_980_TRACE").is_some();
+    if trace {
         let _ = env_logger::builder()
-            .parse_filters("infra_cpal::dsp_worker=trace,infra_cpal::rt_thread_policy=info")
+            .parse_filters(
+                "infra_cpal::dsp_worker=trace,infra_cpal::rt_thread_policy=info,probe980=info",
+            )
+            .format_timestamp_millis()
             .is_test(true)
             .try_init();
     }
@@ -227,6 +235,7 @@ fn the_owners_two_guitars_into_two_outputs_play_without_underruns() {
         .sync_project(&project)
         .expect("resync with bindings");
     wait_until_streaming(&mut controller, &chain_id);
+    let watch = trace.then(|| worker_thread_watch::start(Duration::from_millis(1)));
 
     let _cold = play(&mut controller, &chain_id, 3);
     let idle = play(&mut controller, &chain_id, 60);
@@ -253,6 +262,12 @@ fn the_owners_two_guitars_into_two_outputs_play_without_underruns() {
         let _ = l.join();
     }
     eprintln!("[#980 HW] loaded 30 s, per route (group, channels) -> (underruns, dropped, busy): {loaded:?}");
+    if let Some(watch) = watch {
+        eprintln!(
+            "[#980 HW] worker current-priority samples (every 1 ms): {:?}",
+            watch.finish()
+        );
+    }
 
     controller.stop();
 

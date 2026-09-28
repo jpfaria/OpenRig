@@ -79,9 +79,13 @@ cargo test -p infra-cpal --release \
 | H4 | The CPU cost of the chain exceeds the period on average | REFUTED | `sample`: each dsp-worker ~35-45% busy, ~55-65% asleep; normal DSP 0.5-0.8 ms CPU per buffer for both pipelines. |
 | H5 | The config reversion (`syn2-main` `[3]` → `[7]`) causes the underruns | REFUTED | Underruns continued with `[3]` persisted; the reversion was a separate bug (fixed, see Shipped). |
 | H6 | Two pipelines of one guitar on ONE dsp-worker make it late | PARTLY CONFIRMED | Hardware probe, idle 60 s, 3 rounds each: both outputs lost audio in 3/3 rounds (up to 1344 frames/route); Main only (one pipeline per worker) in 1/3. Contract test `crates/engine/tests/issue_980_one_worker_per_pipeline.rs` (1 input × 2 outputs must build 2 runtimes) is RED today — kept uncommitted until the fix lands. |
-| H7 | The same DSP runs 2-10x slower at times (slower core / lower clock) | OPEN, evidence for | Trace: late buffers with CPU time 1.4-6.5 ms against the 0.5-0.8 ms norm, CPU ≈ wall. Loss is often LOWER with 12 spinning threads than idle (keeps cores awake). Core type not measured yet. |
+| H7 | The same DSP runs 2-10x slower at times (slower core / memory stalls) | CONFIRMED (mechanism) | `tests/issue_980_chain_cost_profile.rs`, the owner's chain alone on one thread, no device, per-buffer instructions / cycles / P-core share from `proc_pid_rusage` (2026-09-28, 7 runs): median buffer (2 outputs) = 7.05 M instructions, 1.14 M cycles, 300 µs, 100% on a performance core, IPC 6.2, 3.8 GHz. Slowest buffers (0.6-2.6 ms, clustered, at DIFFERENT positions every run) = the SAME ~7.1 M instructions in 2-3x the cycles — on an efficiency core (0-46% of cycles on P, 2.6-2.8 GHz, IPC 2.1-2.7) or on a performance core with IPC 2.5-4 (memory stalls). One output alone: p50 148 µs. Per block: NAM 117 µs, IR 4, Supermassive 6, CloudReverb 14-18 (no block has bursty work). The chain never does extra work; macOS sometimes runs the same work 3-8x slower. |
+| H7b | During the live late bursts the whole process ran on E-cores / down-clocked | REFUTED (process level) | Hardware run with `rusage` every 100 ms: at the idle-phase bursts 80-99% of the process's CPU was on P-cores at 3.5-3.7 GHz, IPC 3.5-5. The slowdown is per-thread (the worker's own buffers), not the whole process. |
+| H12 | A block (VST3 internal re-blocking, denormals) does periodic heavy work | REFUTED | Cost profile: slow buffers execute ≤ 1.6x the median instructions (usually ≤ 1.05x); clusters move between runs; each block alone has no bursts. Pinned by `issue_980_chain_cost_profile.rs` (slow buffers ≤ 2x median instructions). |
 | H8 | The BudgetTracker's RT re-declares (`thread_policy_set` every 3-15 s) perturb the worker | PARTLY — not sufficient | Late clusters often follow a re-declare by 2-3 s. A/B with re-declares off (local experiment, reverted): still lost audio in 2/4 rounds; fewer CPU-over-period late buffers in some rounds. |
 | H9 | The worker is preempted mid-buffer | OPEN, evidence for | Trace: late buffers with wall ≫ CPU (e.g. 10.3 ms wall / 3.1 ms CPU, 3.1 ms / 0.9 ms). |
+| H10 | The kernel demotes the worker out of the real-time band | REFUTED | Mach watch of both `dsp-worker` threads every 1 ms for ~70 s (`tests/worker_thread_watch`): `curpri` 97, base 97, policy 2 (time constraint) in all 69 036 samples, including across the late bursts (2026-09-28 16:03-16:05). |
+| H11 | The BudgetTracker shrinks the declared computation below what bursts need | OPEN, evidence for | Same watch: declared computation starts at 1233 µs (85% of 1451), shrinks to 870-967 µs after ~12 s and to 725-737 µs after ~24 s; the late burst at 16:04:21 (CPU 2.3-2.7 ms, wall up to 13 ms) came 14 s after the drop to 725 µs; the fast-up then re-declared 1233 µs and the tracker shrank it back to 725 µs 12 s later. |
 
 ## Shipped
 
@@ -95,16 +99,33 @@ cargo test -p infra-cpal --release \
 Parked, not shipped: per-buffer worker timing counters in the MCP
 (`git stash` on the solver, "980 worker timing WIP") — wiring untested.
 
+## Why it happens (as of 2026-09-28)
+
+The dsp-worker of each guitar runs BOTH pipelines of that guitar (Main and
+Out 2) one after the other: ~0.3 ms of CPU on a performance core at full
+speed (7 M instructions), 0.5-0.8 ms as measured inside the app. macOS
+sometimes runs that same work 3-8x slower — on an efficiency core or with the
+caches cold (H7) — and the BudgetTracker declares only 725-1233 µs of
+computation (H11). 0.5-0.8 ms × 3-4 crosses the 1.451 ms period: the worker
+delivers late, the output plays silence, the catch-up is dropped
+(`underruns == dropped_frames`). With one pipeline per worker the same
+slowdown costs 0.15-0.4 ms × 3-8 ≈ 0.5-1.2 ms, inside the period — which is
+why the Main-only probe lost audio far less often (H6).
+
 ## Open
 
-- Why the same DSP work takes 2-10x longer at times (H7): measure the core
-  type / clock of the late buffers.
+- Measure the live dsp-worker's own per-buffer instructions / cycles /
+  P-core share (needs a production diagnostic, owner's call) to confirm the
+  E-core / memory-stall split inside the app, not only on a test thread.
 - Whether one dsp-worker per pipeline (plan
   `docs/superpowers/plans/2026-09-27-issue-980-pipeline-per-worker.md`,
   owner decisions: fixed slots across the insert switch, JACK included)
   brings the hardware test to zero — H6 says it helps, not that it is enough.
 - Enabling a VST3 from the GUI recreates every stream (~1.7 s of silence).
 - Once in 8 hardware runs the chain never started streaming within 30 s.
+- A passing hardware run ended with the test process crashing (SIGSEGV)
+  after `test result: ok` — at process exit, after the chain with two VST3s
+  was torn down (2026-09-28 16:1x). Not investigated.
 
 ## Not this incident
 
