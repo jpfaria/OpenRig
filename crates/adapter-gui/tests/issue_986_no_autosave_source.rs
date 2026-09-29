@@ -7,7 +7,7 @@
 //! test cannot see, so this follows the crate's source-presence convention
 //! (see `no_native_dialogs.rs`): any production source that still carries an
 //! autosave switch fails here. The behavioral side (edits leave the file
-//! untouched, `SaveProject` writes it) is `src/issue_986_no_autosave_tests.rs`.
+//! untouched, `SaveProject` writes it) is `src/issue_986_explicit_save_tests.rs`.
 
 use std::path::{Path, PathBuf};
 

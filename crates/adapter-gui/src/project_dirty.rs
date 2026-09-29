@@ -94,5 +94,5 @@ pub(crate) fn save_project_session(
 // and the dispatcher does the file write.
 
 #[cfg(test)]
-#[path = "issue_986_no_autosave_tests.rs"]
-mod issue_986_no_autosave_tests;
+#[path = "issue_986_explicit_save_tests.rs"]
+mod issue_986_explicit_save_tests;
