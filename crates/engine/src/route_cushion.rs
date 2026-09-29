@@ -17,6 +17,28 @@
 //!   the same nominal rate and the ring slowly drains; there the route keeps
 //!   the #592 cushion ([`IR_COLD_START_CUSHION_FRAMES`]), which is what held
 //!   the #670 real-streams battery clean.
+//! - **One buffer of slack (#979).** A convolver-fed route on the chain's own
+//!   clock keeps one device buffer queued behind the buffer each callback
+//!   pops. On macOS the #670 worker hands a cycle's buffer over after that
+//!   cycle's output callbacks, so a route born with exactly its target (one
+//!   buffer on the same device) popped it whole and rested with nothing
+//!   queued: a worker one period late was a gap. Its hand-off now lands it on
+//!   that slack at the start and after every gap (`elastic_hand_off`) — the
+//!   route rests one device buffer deeper, never more, and never above the
+//!   target plus one buffer the drift guard already allows; it never holds
+//!   more than one buffer past the ring it had without slack.
+//! - **One buffer of slack per signal path.** The owner allowed ONE buffer.
+//!   A guitar through an insert loop crosses two rings — the send, then the
+//!   tail after the return — so an insert send never keeps slack: an IR
+//!   before the insert would otherwise give the loop two. The slack sits on
+//!   the tail; one late worker pass still costs the send the buffer it did
+//!   not deliver.
+//! - **Never deeper for a late stream (#979).** A route on its producer's
+//!   clock lands on its rest at the producer's first hand-off, dropping what
+//!   queued before its output stream came up — before anything was heard. A
+//!   route born empty (no convolver) used to keep one buffer per input
+//!   period that ran before its stream did, up to its whole ring, for the
+//!   life of the chain: two outputs of one guitar a buffer apart.
 //! - **Another clock, another owner.** A route on another device clock (#85)
 //!   rests [`CROSS_RATE_CUSHION`] times deeper and its level is held by the
 //!   resampler's servo, so the #953 drift guard must not also trim it: the
@@ -43,6 +65,13 @@ pub(crate) struct RouteCushion {
     pub(crate) prime: usize,
     /// The #85 resampler servo owns the level; the drift guard stays off.
     pub(crate) servo_owned: bool,
+    /// #979: the route keeps one device buffer of slack on top of the buffer
+    /// each callback pops (see `elastic_hand_off`).
+    pub(crate) keeps_slack: bool,
+    /// #979: on its producer's own clock, the route lands on its rest at the
+    /// producer's first hand-off, whatever queued before its output stream
+    /// came up (a slack-keeping route also after every gap).
+    pub(crate) lands_on_first_hand_off: bool,
 }
 
 /// The cushion of a route whose lockstep (same-clock) target is
@@ -81,6 +110,30 @@ pub(crate) fn route_cushion(
         capacity: target.saturating_mul(2),
         prime,
         servo_owned: cross_rate,
+        // #979: a route born with a cushion on the chain's own clock keeps
+        // one buffer of slack behind the one it pops, so a worker one period
+        // late costs no gap. A route no convolver feeds is born empty and
+        // rests at the hand-off, as before.
+        keeps_slack: fed_by_convolver && !cross_rate,
+        // #979: a route's latency never depends on when its output stream
+        // came up. On its producer's clock the hand-off is lockstep (#965),
+        // so the fill at its first callback past the prime says how many
+        // input periods ran before the stream did; on another clock (or with
+        // the #85 servo holding its level) it says nothing.
+        // Only a route born EMPTY lands there: one a convolver primed is born
+        // at its rest (#965) and is never cut below it (#980).
+        lands_on_first_hand_off: !fed_by_convolver && on_producer_clock && !cross_rate,
+    }
+}
+
+impl RouteCushion {
+    /// #979: this route is an insert SEND — its signal comes back through the
+    /// return into a tail route that keeps the path's one buffer of slack.
+    pub(crate) fn for_an_insert_send(self) -> Self {
+        Self {
+            keeps_slack: false,
+            ..self
+        }
     }
 }
 

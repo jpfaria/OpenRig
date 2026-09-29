@@ -19,12 +19,14 @@ pub mod di_render;
 mod effective_endpoints;
 mod elastic_buffer;
 mod elastic_drift_guard;
+mod elastic_hand_off;
 mod elastic_skip_fade;
 mod endpoint_entry;
 mod input_conflicts;
 pub mod input_tap;
 pub mod insert_cut;
 mod insert_endpoints;
+mod insert_return_routes;
 #[cfg(test)]
 #[path = "issue_85_stream_per_pair_tests.rs"]
 mod issue_85_stream_per_pair_tests;
