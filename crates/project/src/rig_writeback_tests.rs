@@ -1,7 +1,7 @@
 //! Rig preset write-back / structural-swap tests (issue #792 split from
 //! rig_tests.rs). Shares input/project_with/core_block via super::tests.
 
-use crate::block::AudioBlock;
+use crate::block::{AudioBlock, AudioBlockKind};
 
 use super::rig_tests::{core_block, input, project_with};
 use super::*;

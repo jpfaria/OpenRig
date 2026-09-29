@@ -8,7 +8,7 @@
 //! Scope of #449: model + parser + validation only. No engine wiring, no
 //! migration, no UI, no scenes (those are #450/#451/#452/#453/#454).
 
-use crate::block::{AudioBlock, AudioBlockKind};
+use crate::block::{block_params_mut, for_each_block_mut, AudioBlock};
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -234,21 +234,18 @@ impl RigPreset {
     /// Resolve scene `idx` into concrete blocks: clone the base blocks, apply
     /// the scene's bypass (`enabled = !bypassed`) and override **only** the
     /// marked `scene_params` with the scene's values. Anything not marked is
-    /// fixed by the preset (Helix Snapshot rule). Pure & deterministic.
+    /// fixed by the preset (Helix Snapshot rule). #328: the blocks inside a
+    /// split's paths and the split's own knobs are resolved exactly like a
+    /// top-level block. Pure & deterministic.
     pub fn apply_scene(&self, idx: usize) -> Vec<AudioBlock> {
         let scene = self.scene_or_default(idx);
         let mut blocks = self.blocks.clone();
-        for block in &mut blocks {
+        for_each_block_mut(&mut blocks, &mut |block| {
             let bid = block.id.0.clone();
             if let Some(&bypassed) = scene.bypass.get(&bid) {
                 block.enabled = !bypassed;
             }
-            let params = match &mut block.kind {
-                AudioBlockKind::Core(c) => Some(&mut c.params),
-                AudioBlockKind::Nam(n) => Some(&mut n.params),
-                _ => None,
-            };
-            if let Some(params) = params {
+            if let Some(params) = block_params_mut(&mut block.kind) {
                 let prefix = format!("{bid}.");
                 for key in &self.scene_params {
                     if let Some(param_id) = key.strip_prefix(&prefix) {
@@ -258,7 +255,7 @@ impl RigPreset {
                     }
                 }
             }
-        }
+        });
         blocks
     }
 }

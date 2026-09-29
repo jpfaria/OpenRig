@@ -12,6 +12,7 @@
 
 pub mod audio_block_methods;
 pub mod block_params;
+pub mod block_walk;
 pub mod core_block_methods;
 mod disk_audio_mode;
 pub mod dispatch;
@@ -34,6 +35,7 @@ pub mod vst3_model_id;
 pub mod vst3_schema;
 
 pub use block_params::{block_params, block_params_mut};
+pub use block_walk::{find_block_mut, for_each_block_mut, walk_blocks};
 pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_block_model};
 pub use path_ref::{PathRef, PathSide};
 pub use port_duplication::duplicates_chain_binding;

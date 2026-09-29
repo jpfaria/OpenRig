@@ -15,26 +15,27 @@
 //! reloads, [`crate::catalog::is_model_available`] reports it available
 //! again and the user can re-enable the block.
 //!
-//! Routing-only kinds (Input/Output/Insert) and the composite Select kind
-//! have no single resolvable model and are never touched here.
+//! Routing-only kinds (Input/Output/Insert) and the composite Select and Split
+//! kinds have no single resolvable model and are never touched here; #328: the
+//! blocks inside a split's paths are checked like top-level blocks.
 
-use crate::block::AudioBlockKind;
+use crate::block::{for_each_block_mut, AudioBlockKind};
 use crate::project::Project;
 use domain::ids::BlockId;
 
-/// Disable every currently-enabled block whose model is unavailable.
-/// Returns the ids of the blocks that were flipped off (already-disabled
-/// blocks are left as-is and not reported).
+/// Disable every currently-enabled block whose model is unavailable, paths
+/// included. Returns the ids of the blocks that were flipped off
+/// (already-disabled blocks are left as-is and not reported).
 pub fn disable_unavailable_blocks(project: &mut Project) -> Vec<BlockId> {
     let mut disabled = Vec::new();
     for chain in &mut project.chains {
-        for block in &mut chain.blocks {
+        for_each_block_mut(&mut chain.blocks, &mut |block| {
             if !block.enabled || block_model_is_available(&block.kind) {
-                continue;
+                return;
             }
             block.enabled = false;
             disabled.push(block.id.clone());
-        }
+        });
     }
     disabled
 }

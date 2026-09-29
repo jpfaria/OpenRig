@@ -2,7 +2,7 @@
 use domain::ids::{BlockId, ParameterId};
 use serde::{Deserialize, Serialize};
 
-use crate::block::{AudioBlock, BlockAudioDescriptor};
+use crate::block::{walk_blocks, AudioBlock, BlockAudioDescriptor};
 use crate::chain::Chain;
 use crate::device::DeviceSettings;
 use crate::param::BlockParameterDescriptor;
@@ -26,7 +26,9 @@ impl Project {
     pub fn parameter_descriptors(&self) -> Result<Vec<BlockParameterDescriptor>, String> {
         let mut descriptors = Vec::new();
         for chain in &self.chains {
-            for block in &chain.blocks {
+            // #328: a split's path blocks are addressable like top-level ones
+            // (a split's own descriptors are only its knobs).
+            for block in walk_blocks(&chain.blocks) {
                 descriptors.extend(collect_block_parameter_descriptors(block)?);
             }
         }
@@ -93,14 +95,19 @@ fn find_block_recursive<'a>(block: &'a AudioBlock, block_id: &BlockId) -> Option
     if block.id == *block_id {
         return Some(block);
     }
-    if let crate::block::AudioBlockKind::Select(select) = &block.kind {
-        for option in &select.options {
-            if let Some(found) = find_block_recursive(option, block_id) {
-                return Some(found);
-            }
-        }
+    match &block.kind {
+        crate::block::AudioBlockKind::Select(select) => select
+            .options
+            .iter()
+            .find_map(|option| find_block_recursive(option, block_id)),
+        // #328: the blocks inside a split's paths.
+        crate::block::AudioBlockKind::Split(split) => split
+            .a
+            .iter()
+            .chain(&split.b)
+            .find_map(|nested| find_block_recursive(nested, block_id)),
+        _ => None,
     }
-    None
 }
 
 #[cfg(test)]
