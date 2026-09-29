@@ -7,6 +7,9 @@ use project::device::DeviceSettings;
 use project::project::Project;
 use std::collections::HashMap;
 
+#[path = "validate_split.rs"]
+mod split_layout;
+
 pub fn validate_project(project: &Project) -> Result<()> {
     if project.chains.is_empty() {
         bail!("invalid project: no chains configured");
@@ -134,9 +137,14 @@ fn resolve_block_output_layout(
     block: &AudioBlock,
     input_layout: AudioChannelLayout,
 ) -> Result<AudioChannelLayout> {
-    block
-        .validate_params()
-        .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+    // #328: a split validates its own knobs after walking its paths
+    // (`split_layout`), so an invalid block inside a path is named with the
+    // path it sits in instead of surfacing here as a bare split error.
+    if !matches!(block.kind, AudioBlockKind::Split(_)) {
+        block
+            .validate_params()
+            .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+    }
 
     match &block.kind {
         AudioBlockKind::Select(select) => {
@@ -188,11 +196,10 @@ fn resolve_block_output_layout(
         AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
             Ok(input_layout)
         }
-        // #328: minimal arm — the commands part (spec §3) walks both paths and
-        // the layout each one hands the mixer. The split's knobs and its path
-        // blocks are already checked by `validate_params` above, and the mixer
-        // always hands the rest of the chain a stereo bus.
-        AudioBlockKind::Split(_) => Ok(AudioChannelLayout::Stereo),
+        // #328: walk both paths; the split hands the stereo bus onward.
+        AudioBlockKind::Split(split_block) => {
+            split_layout::resolve_split_output_layout(chain, block, split_block, input_layout)
+        }
     }
 }
 
