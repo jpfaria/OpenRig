@@ -108,6 +108,19 @@ pub fn process_input_f32(
     data: &[f32],
     input_total_channels: usize,
 ) {
+    process_input_f32_patient(runtime, input_index, data, input_total_channels, 0);
+}
+
+/// [`process_input_f32`] for the per-input DSP worker (#670): when an edit
+/// holds the processing lock, keep trying for up to `patience_ns` instead of
+/// dropping the buffer (#987). The device callback keeps `patience_ns == 0`.
+pub fn process_input_f32_patient(
+    runtime: &Arc<ChainRuntimeState>,
+    input_index: usize,
+    data: &[f32],
+    input_total_channels: usize,
+    patience_ns: u64,
+) {
     if runtime.is_draining() {
         return;
     }
@@ -131,17 +144,18 @@ pub fn process_input_f32(
     // transition when we are certain the beep will flow through the rest
     // of the pipeline. If try_lock fails (config rebuild in flight) we
     // leave the probe state Armed and retry on the next callback.
-    let mut processing_guard = match runtime.processing.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => {
-            // #980: the whole buffer is lost on every route — count it (one
-            // relaxed add; no lock, no allocation).
-            runtime
-                .input_busy_skips
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            return;
-        }
-    };
+    let mut processing_guard =
+        match crate::runtime_processing_lock::try_lock_processing(runtime, patience_ns) {
+            Some(guard) => guard,
+            None => {
+                // #980: the whole buffer is lost on every route — count it (one
+                // relaxed add; no lock, no allocation).
+                runtime
+                    .input_busy_skips
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                return;
+            }
+        };
 
     // Issue #580 follow-up: drain queued block-toggle requests inside
     // the same lock we already hold. The GUI thread's
