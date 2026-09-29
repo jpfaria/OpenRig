@@ -23,6 +23,7 @@ use crate::runtime_graph_assemble::{
     build_input_processing_state, build_output_routing_state, collect_bypass_block_ids,
     output_entry_layout, target_for_route,
 };
+use crate::runtime_graph_prebuild::{prebuild_fresh_nodes, Prebuild, PrebuiltNodes};
 use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
     lock_recover, BlockRuntimeNode, InputCallbackScratch, InputProcessingState, OutgoingTail,
@@ -148,103 +149,31 @@ fn update_chain_runtime_state_impl(
         None => all_segments,
     };
 
-    // Step 1: Extract existing blocks from all input states (brief lock)
-    let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
-        let mut processing = lock_recover(&runtime.processing, "chain runtime");
-        processing
-            .input_states
-            .iter_mut()
-            .map(|is| std::mem::take(&mut is.blocks))
-            .collect()
-    };
-
-    // Step 2: Build new input states OUTSIDE the lock (no audio interruption)
-    let mut new_input_states = Vec::with_capacity(segments.len());
-    // #979: which new pipelines build no block fresh (see `continue_kept_fades`).
-    let mut builds_nothing_fresh = Vec::with_capacity(segments.len());
-    for (i, segment) in segments.iter().enumerate() {
-        let old_blocks = if spillover {
-            if i < existing_per_input.len() {
-                std::mem::take(&mut existing_per_input[i])
-            } else {
-                Vec::new()
-            }
-        } else {
-            // #967: switching an insert moves blocks between segments (its cut
-            // comes and goes), so a block's old node is looked for in EVERY old
-            // segment — its own index first, which keeps split-mono siblings on
-            // their own nodes. Per-index only, the blocks past the cut were
-            // rebuilt: a VST3 re-instantiated, a delay's tail cut.
-            let ids: Vec<&domain::ids::BlockId> = segment
-                .block_indices
+    let segment_output_channels: Vec<Vec<usize>> = segments
+        .iter()
+        .map(|segment| {
+            segment
+                .output_route_indices
                 .iter()
-                .filter_map(|&b| chain.blocks.get(b).map(|block| &block.id))
-                .collect();
-            take_reusable_nodes(&mut existing_per_input, i, &ids)
-        };
-        // Spillover: build the new pipeline FRESH (no processor reuse) so it
-        // fades in cleanly; keep the old blocks to ring out in parallel.
-        // Non-spillover: reuse old processors in place (param-edit path).
-        let (existing, tail_blocks) = if spillover && !old_blocks.is_empty() {
-            (None, Some(old_blocks))
-        } else if old_blocks.is_empty() {
-            (None, None)
-        } else {
-            (Some(old_blocks), None)
-        };
-        builds_nothing_fresh
-            .push(!spillover && (existing.is_some() || segment.block_indices.is_empty()));
-        let segment_output_channels: Vec<usize> = segment
-            .output_route_indices
-            .iter()
-            .filter_map(|&idx| effective_outs.get(idx))
-            .flat_map(|e| e.channels.iter().copied())
-            .collect();
-        // #736: rebuild at the runtime's OWN built rate, not the chain scalar
-        let input_state = match build_input_processing_state(
-            chain,
-            &segment.input,
-            &segment_output_channels,
-            runtime.sample_rate(),
-            existing,
-            Some(&segment.block_indices),
-            segment.output_route_indices.clone(),
-            segment.mid_output_taps.clone(),
-            segment.split_mono_sibling_count,
-        ) {
-            Ok(state) => state,
-            Err(e) => {
-                // Restore previously-extracted blocks so the chain keeps playing
-                log::error!(
-                    "[engine] rebuild failed for chain '{}': {e} — restoring previous state",
-                    chain.id.0
-                );
-                let mut processing = lock_recover(&runtime.processing, "chain runtime");
-                for (is, old_blocks) in processing
-                    .input_states
-                    .iter_mut()
-                    .zip(existing_per_input.into_iter())
-                {
-                    if is.blocks.is_empty() {
-                        is.blocks = old_blocks;
-                    }
-                }
-                return Err(e);
-            }
-        };
-        let mut input_state = input_state;
-        if let Some(blocks) = tail_blocks {
-            input_state.outgoing = Some(Box::new(OutgoingTail {
-                blocks,
-                frames_remaining: SPILLOVER_FRAMES,
-                scratch: Vec::with_capacity(2048),
-            }));
+                .filter_map(|&idx| effective_outs.get(idx))
+                .flat_map(|e| e.channels.iter().copied())
+                .collect()
+        })
+        .collect();
+    // #987: build every node the edit needs fresh BEFORE touching the live
+    // pipelines. When that worked, the swap below only moves nodes, so the lock
+    // is held from taking the old nodes to installing the new ones and the
+    // audio never plays a pipeline emptied for the edit (the raw input for a
+    // whole NAM/IR build, the click on every scene switch). An edit that needs
+    // a fresh VST3 keeps the quiesced path (#779).
+    let (mut prebuilt, single_swap) = if spillover {
+        (None, false)
+    } else {
+        match prebuild_fresh_nodes(runtime, chain, &segments, &segment_output_channels) {
+            Prebuild::Ready(nodes) => (Some(nodes), true),
+            Prebuild::Quiesce => (Some(PrebuiltNodes::default()), false),
         }
-        new_input_states.push(input_state);
-    }
-    // #85: keep the DI-loop marking across a live rebuild, or the mid pipeline
-    // goes silent the first time the user turns a knob with the loop playing.
-    crate::runtime_graph_assemble::mark_di_loop_pipelines(&segments, &mut new_input_states);
+    };
 
     // Output routes (#670): REUSE the existing route when its endpoint shape
     // is unchanged (the param-edit / block-toggle case). A fresh empty buffer
@@ -315,6 +244,114 @@ fn update_chain_runtime_state_impl(
         })
         .collect();
 
+    // Step 1: Extract existing blocks from all input states. Brief lock on the
+    // quiesced path; held through Step 3 when every fresh node is prebuilt.
+    let mut processing = lock_recover(&runtime.processing, "chain runtime");
+    let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = processing
+        .input_states
+        .iter_mut()
+        .map(|is| std::mem::take(&mut is.blocks))
+        .collect();
+    // #987: nodes a previous edit replaced, parked until now; dropped with the
+    // other leftovers once the lock is released.
+    let _finished_handovers: Vec<_> = existing_per_input
+        .iter_mut()
+        .flat_map(|nodes| crate::runtime_node_handover::take_finished_handovers(nodes))
+        .collect();
+    let mut held = if single_swap {
+        Some(processing)
+    } else {
+        drop(processing);
+        None
+    };
+
+    // Step 2: Build new input states: outside the lock on the quiesced path,
+    // inside it (moves only, the fresh nodes are prebuilt) otherwise.
+    let mut new_input_states = Vec::with_capacity(segments.len());
+    // #979: which new pipelines build no block fresh (see `continue_kept_fades`).
+    let mut builds_nothing_fresh = Vec::with_capacity(segments.len());
+    for (i, segment) in segments.iter().enumerate() {
+        let old_blocks = if spillover {
+            if i < existing_per_input.len() {
+                std::mem::take(&mut existing_per_input[i])
+            } else {
+                Vec::new()
+            }
+        } else {
+            // #967: switching an insert moves blocks between segments (its cut
+            // comes and goes), so a block's old node is looked for in EVERY old
+            // segment — its own index first, which keeps split-mono siblings on
+            // their own nodes. Per-index only, the blocks past the cut were
+            // rebuilt: a VST3 re-instantiated, a delay's tail cut.
+            let ids: Vec<&domain::ids::BlockId> = segment
+                .block_indices
+                .iter()
+                .filter_map(|&b| chain.blocks.get(b).map(|block| &block.id))
+                .collect();
+            take_reusable_nodes(&mut existing_per_input, i, &ids)
+        };
+        // Spillover: build the new pipeline FRESH (no processor reuse) so it
+        // fades in cleanly; keep the old blocks to ring out in parallel.
+        // Non-spillover: reuse old processors in place (param-edit path).
+        let (existing, tail_blocks) = if spillover && !old_blocks.is_empty() {
+            (None, Some(old_blocks))
+        } else if old_blocks.is_empty() {
+            (None, None)
+        } else {
+            (Some(old_blocks), None)
+        };
+        builds_nothing_fresh
+            .push(!spillover && (existing.is_some() || segment.block_indices.is_empty()));
+        // #736: rebuild at the runtime's OWN built rate, not the chain scalar
+        let input_state = match build_input_processing_state(
+            chain,
+            &segment.input,
+            &segment_output_channels[i],
+            runtime.sample_rate(),
+            existing,
+            Some(&segment.block_indices),
+            segment.output_route_indices.clone(),
+            segment.mid_output_taps.clone(),
+            segment.split_mono_sibling_count,
+            prebuilt.as_mut(),
+        ) {
+            Ok(state) => state,
+            Err(e) => {
+                // Restore previously-extracted blocks so the chain keeps playing
+                log::error!(
+                    "[engine] rebuild failed for chain '{}': {e} — restoring previous state",
+                    chain.id.0
+                );
+                let mut processing = match held.take() {
+                    Some(guard) => guard,
+                    None => lock_recover(&runtime.processing, "chain runtime"),
+                };
+                for (is, old_blocks) in processing
+                    .input_states
+                    .iter_mut()
+                    .zip(existing_per_input.into_iter())
+                {
+                    if is.blocks.is_empty() {
+                        is.blocks = old_blocks;
+                    }
+                }
+                return Err(e);
+            }
+        };
+        let mut input_state = input_state;
+        if let Some(blocks) = tail_blocks {
+            input_state.outgoing = Some(Box::new(OutgoingTail {
+                blocks,
+                frames_remaining: SPILLOVER_FRAMES,
+                scratch: Vec::with_capacity(2048),
+            }));
+        }
+        new_input_states.push(input_state);
+    }
+    // #85: keep the DI-loop marking across a live rebuild, or the mid pipeline
+    // goes silent the first time the user turns a knob with the loop playing.
+    crate::runtime_graph_assemble::mark_di_loop_pipelines(&segments, &mut new_input_states);
+
     // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
     // (e.g. block param changed → new processor → new Arc; old Arc in map would be stale)
     {
@@ -339,7 +376,10 @@ fn update_chain_runtime_state_impl(
     // out and dropped AFTER the lock is released.
     let old_input_states;
     {
-        let mut processing = lock_recover(&runtime.processing, "chain runtime");
+        let mut processing = match held.take() {
+            Some(guard) => guard,
+            None => lock_recover(&runtime.processing, "chain runtime"),
+        };
         old_input_states = std::mem::replace(&mut processing.input_states, new_input_states);
         // Read at the swap, not at Step 1: the worker kept advancing the old
         // pipelines' fades while the new ones were built.
