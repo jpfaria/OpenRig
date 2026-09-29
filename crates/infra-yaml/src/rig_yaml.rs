@@ -7,8 +7,9 @@
 
 use crate::YamlProjectRepository;
 use anyhow::{anyhow, Context, Result};
+use project::format_version::{project_format_version, MAX_READABLE_FORMAT_VERSION};
 use project::migrate::migrate_legacy_project;
-use project::rig::{RigProject, PROJECT_FORMAT_VERSION};
+use project::rig::RigProject;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,10 +34,10 @@ struct RigProjectFile {
 pub fn parse_rig_project(yaml: &str) -> Result<RigProject> {
     let file: RigProjectFile =
         serde_yaml::from_str(yaml).context("failed to parse project.openrig")?;
-    if file.version > PROJECT_FORMAT_VERSION {
+    if file.version > MAX_READABLE_FORMAT_VERSION {
         return Err(anyhow!(
             "project.openrig version {} is newer than this build supports \
-             (max {PROJECT_FORMAT_VERSION}); please upgrade OpenRig",
+             (max {MAX_READABLE_FORMAT_VERSION}); please upgrade OpenRig",
             file.version
         ));
     }
@@ -48,10 +49,12 @@ pub fn parse_rig_project(yaml: &str) -> Result<RigProject> {
 }
 
 /// Serialize a [`RigProject`] back to a `project.openrig` YAML string,
-/// stamping the current format version.
+/// stamping the format version its content needs (#328: `2` only when a
+/// preset holds a split, so a split-free project stays readable by builds
+/// that predate the split).
 pub fn serialize_rig_project(project: &RigProject) -> Result<String> {
     let file = RigProjectFile {
-        version: PROJECT_FORMAT_VERSION,
+        version: project_format_version(project),
         project: project.clone(),
     };
     serde_yaml::to_string(&file).context("failed to serialize project.openrig")

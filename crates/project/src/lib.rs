@@ -26,6 +26,7 @@ pub mod chain_modes;
 pub mod channel_mode_conv;
 pub mod device;
 pub mod endpoint_ref;
+pub mod format_version;
 pub mod io_binding;
 pub mod looper;
 pub mod midi;

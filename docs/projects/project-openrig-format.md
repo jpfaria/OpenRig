@@ -64,6 +64,7 @@ project:
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
+| `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | #328 chain split: `{ end: mix \| y, params, a: [blocks], b: [blocks] }`. Path blocks are full `AudioBlock`s with their own ids. |
 | `midi.bindings[]` | `RigProjectMidi.bindings` | optional, ADR 0003 / #499. `Source`/`Scale`/`Binding` data types live in `crates/project/src/midi.rs`. When present, replaces the system fallback (`midi-bindings.yaml`) at resolve time; the controller (`input:`) always comes from the system `midi-profile.yaml`. Absent → resolver falls back to system file → shipped default. |
 
 ### Edit capture: scene diff vs preset base (#690)
@@ -91,6 +92,12 @@ block editor's `OverwriteBlock` path gets the same treatment on the next
 capture (scene switch or save). Before #986 the swap took the structural
 path (#627): the whole preset base was replaced by the live, scene-applied
 chain and every scene was cleared.
+
+### Chain split (#328)
+
+A preset may hold a `Split` block (`kind: !Split`). Blocks before it are shared by both paths; for `end: mix` the blocks after it are shared again after the mixer. `a` and `b` are the two paths. The split and mixer knobs live in `params` (see `docs/blocks-catalog.md` → Chain split).
+
+Chain preset files and legacy project files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
 
 ### Structural edits keep the scenes; an insert belongs to its preset (#986)
 
@@ -230,9 +237,12 @@ File orchestrator `infra-yaml::migrate_legacy_project_file(legacy, out)`:
 ## Format versioning + backward-compat (#450)
 
 Both `project.openrig` and standalone preset files carry an explicit
-top-level `version:` (single source of truth:
-`project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` — currently
-`1`):
+top-level `version:`. A document is written with the lowest version that can
+hold it: `project::rig::{PROJECT_FORMAT_VERSION, PRESET_FORMAT_VERSION}` (`1`),
+or `project::format_version::SPLIT_FORMAT_VERSION` (`2`) when a preset holds a
+`Split` (#328). This build reads up to `MAX_READABLE_FORMAT_VERSION` (`2`); an
+older build refuses a version 2 file with its "newer than this build" error
+instead of failing inside serde:
 
 ```yaml
 version: 1

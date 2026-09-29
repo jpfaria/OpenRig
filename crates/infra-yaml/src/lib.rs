@@ -13,6 +13,7 @@
 mod block_yaml;
 mod block_yaml_load;
 mod block_yaml_save;
+mod block_yaml_split;
 mod chain_yaml;
 mod default_models;
 mod device_yaml;

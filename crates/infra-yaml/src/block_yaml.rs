@@ -8,7 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{
     AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InsertBlock, NamBlock, OutputBlock,
-    SelectBlock,
+    SelectBlock, SplitEnd,
 };
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -213,6 +213,20 @@ pub(crate) enum AudioBlockYaml {
         #[serde(default)]
         io: String,
     },
+    /// #328: a chain split. Its path blocks carry no id on disk — they are
+    /// positional and load as `<split>::a:<i>` / `<split>::b:<i>` (see
+    /// `block_yaml_split`).
+    Split {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        end: SplitEnd,
+        #[serde(default)]
+        params: Value,
+        #[serde(default)]
+        a: Vec<Value>,
+        #[serde(default)]
+        b: Vec<Value>,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -227,7 +241,7 @@ impl AudioBlockYaml {
         self.into_audio_block_with_id(generated_block_id(chain_id, index))
     }
 
-    fn into_audio_block_with_id(self, generated_id: BlockId) -> Result<AudioBlock> {
+    pub(crate) fn into_audio_block_with_id(self, generated_id: BlockId) -> Result<AudioBlock> {
         match self {
             AudioBlockYaml::Nam {
                 enabled,
@@ -298,6 +312,15 @@ impl AudioBlockYaml {
                 enabled,
                 kind: AudioBlockKind::Insert(InsertBlock { model, io }),
             }),
+            AudioBlockYaml::Split {
+                enabled,
+                end,
+                params,
+                a,
+                b,
+            } => {
+                crate::block_yaml_split::split_from_yaml(generated_id, enabled, end, params, [a, b])
+            }
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
                 let model = migrate_legacy_model_id(effect_type, model, &params);
@@ -496,10 +519,7 @@ impl AudioBlockYaml {
                 model: insert.model.clone(),
                 io: insert.io.clone(),
             }),
-            AudioBlockKind::Split(_) => Err(anyhow!(
-                "block '{}': writing a split to a chain preset is not supported by this build",
-                block.id.0
-            )),
+            AudioBlockKind::Split(split) => crate::block_yaml_split::split_to_yaml(block, split),
         }
     }
 }

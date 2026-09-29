@@ -149,9 +149,11 @@ pub fn humanize_preset_label(id: &str) -> String {
         .join(" ")
 }
 
-/// Single source of truth for the on-disk format versions. Bumped only
-/// when the YAML schema changes in a way that needs a staged upgrade;
-/// the loader uses these to migrate older docs and to refuse newer ones.
+/// The version a document WITHOUT a split is written with (#328: a document
+/// that holds a split is written with `format_version::SPLIT_FORMAT_VERSION`;
+/// the loader refuses anything above `format_version::MAX_READABLE_FORMAT_VERSION`).
+/// Bumped only when the YAML schema changes in a way that needs a staged
+/// upgrade.
 pub const PROJECT_FORMAT_VERSION: u32 = 1;
 /// See [`PROJECT_FORMAT_VERSION`]; the standalone preset file schema.
 pub const PRESET_FORMAT_VERSION: u32 = 1;

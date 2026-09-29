@@ -13,6 +13,15 @@ pub enum PathSide {
     B,
 }
 
+impl PathSide {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::A => "a",
+            Self::B => "b",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PathRef {
     pub split: BlockId,
