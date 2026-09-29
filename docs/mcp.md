@@ -76,7 +76,8 @@ follow-up.
   select, input, output or insert block inside a path; a processing
   block after a Y split — is refused and leaves the chain exactly as it
   was. `remove_block` refuses the split itself, because removing it that
-  way would drop both paths.
+  way would drop both paths. `add_chain`, `configure_chain`, `save_chain`
+  and `load_chain_preset` refuse a block list that breaks the same rules.
 
   `add_block` and `insert_prebuilt_block` take an optional
   `path: { "split": "<split block id>", "side": "a" | "b" }` (not to be

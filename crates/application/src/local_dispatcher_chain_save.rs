@@ -7,6 +7,7 @@ use anyhow::Result;
 use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::split_rules::ensure_split_rules;
 
 impl LocalDispatcher {
     /// Chain save/upsert + input/output endpoint replacement commands.
@@ -14,6 +15,8 @@ impl LocalDispatcher {
         match cmd {
             // ── Chain save (upsert) ───────────────────────────────────────────
             Command::Chain(ChainCommand::SaveChain { mut chain }) => {
+                // #328: the saved chain's split must obey the rules.
+                ensure_split_rules(&chain.blocks)?;
                 // Detect upsert vs. create *before* mutating the project.
                 let is_create = !self
                     .project

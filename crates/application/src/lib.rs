@@ -179,3 +179,7 @@ mod local_dispatcher_split_tests;
 #[cfg(test)]
 #[path = "local_dispatcher_chain_endpoints_tests.rs"]
 mod local_dispatcher_chain_endpoints_tests;
+
+#[cfg(test)]
+#[path = "ld_split_chain_doors_tests.rs"]
+mod ld_split_chain_doors;

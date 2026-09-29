@@ -7,6 +7,7 @@ use anyhow::Result;
 use crate::command::{ChainCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
+use crate::split_rules::ensure_split_rules;
 
 impl LocalDispatcher {
     /// Chain CRUD commands: add/configure/remove/volume.
@@ -14,6 +15,9 @@ impl LocalDispatcher {
         match cmd {
             // ── Chain CRUD ────────────────────────────────────────────────────
             Command::Chain(ChainCommand::AddChain { mut chain }) => {
+                // #328: a chain arrives whole — its split must obey the rules
+                // before the project or the rig takes it.
+                ensure_split_rules(&chain.blocks)?;
                 // #833: a chain that arrives already enabled must not land on a
                 // capture point another enabled chain holds. Checked before any
                 // mutation so a rejected add leaves project and rig untouched.
@@ -38,6 +42,7 @@ impl LocalDispatcher {
                 ])
             }
             Command::Chain(ChainCommand::ConfigureChain { chain }) => {
+                ensure_split_rules(&chain.blocks)?;
                 let chain_id = chain.id.clone();
                 // #833: `enabled` is preserved from the existing entry, so a
                 // reconfiguration of an ENABLED chain can move it onto a taken
