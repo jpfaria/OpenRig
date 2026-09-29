@@ -214,6 +214,8 @@ mod controller_live_edit_replicates_user_report_tests;
 mod issue_980_in_place_edit_wires_memory_tests;
 #[cfg(test)]
 mod issue_987_live_edit_click_tests;
+#[cfg(test)]
+mod issue_992_lv2_on_live_input_tests;
 
 #[cfg(test)]
 #[path = "render_scheduling_903_tests.rs"]

@@ -107,6 +107,20 @@ HW Mono(ch0) → to_stereo → [s,s] → to_mono → block_mono→m → to_stere
             → [m,m] → mixdown=m → HW(ch0=m)
 ```
 
+**6. Mono in + TrueStereo block (fil4, a stereo LV2) + mono out (#992)**
+
+When every output of a mono input is mono, the engine runs the segment on a
+mono bus (`project::chain::processing_layout`: mono blocks skip the
+mono→stereo→mono round-trip). A true-stereo block on that bus gets the bus
+broadcast to both of its inputs (`AudioProcessor::StereoFromMono`) and the bus
+is stereo from there on; the mono output takes the mixdown at the end. The rule
+lives in `project::chain::bus_layout_after`, shared by the engine and
+`validate_project`. Before #992 the block was swapped for a faulted bypass
+("does not accept mono input") and did nothing.
+```
+HW Mono(ch0) → m → [m,m] → block_ts→[L',R'] → mixdown → HW(ch0)
+```
+
 ### Streams paralelos
 
 - Cada InputBlock = um stream paralelo TOTALMENTE isolado (próprio
