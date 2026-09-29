@@ -35,8 +35,8 @@ const TEST: &str = "test";
 const INSERT: &str = "rig:input-7:insert:5";
 
 fn fixture_rig() -> RigProject {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/issue_986_insert_bank.yaml");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/issue_986_insert_bank.yaml");
     infra_yaml::load_rig_project_file(&path).expect("load the #986 insert-bank fixture")
 }
 
@@ -125,6 +125,35 @@ fn switching_scene_after_a_capture_on_another_scene_keeps_every_scene() {
     assert_eq!(yaml(&after.scenes), yaml(&before.scenes));
     assert_eq!(yaml(&after.scene_params), yaml(&before.scene_params));
     assert_eq!(yaml(&after.blocks), yaml(&before.blocks));
+}
+
+/// The owner's "I changed scene and everything was gone": arriving at DUMBLE
+/// BLUE from a preset of the same bank, then only switching scenes — no block
+/// edit at all — must leave the preset exactly as it was.
+#[test]
+fn switching_scene_after_arriving_from_another_preset_keeps_every_scene() {
+    let before = preset(&fixture_rig(), DUMBLE);
+    let mut start = fixture_rig();
+    start.inputs.get_mut(INPUT).unwrap().active_preset = 2;
+    let (d, rig) = session_over(start);
+
+    nav(&d, RigNavKind::Preset(0));
+    nav(&d, RigNavKind::Scene(2));
+    nav(&d, RigNavKind::Scene(3));
+    capture(&d);
+
+    let after = preset(&rig.borrow(), DUMBLE);
+    assert_eq!(
+        yaml(&after.scenes),
+        yaml(&before.scenes),
+        "only switching scenes must not touch the preset's scenes"
+    );
+    assert_eq!(yaml(&after.scene_params), yaml(&before.scene_params));
+    assert_eq!(
+        yaml(&after.blocks),
+        yaml(&before.blocks),
+        "blocks untouched"
+    );
 }
 
 #[test]
