@@ -77,6 +77,22 @@ cannot live in the f32 scene diff: they are written into the preset base
 `blocks`, shared by every scene. Before #690 these edits were silently
 dropped and reverted on save+reload.
 
+### Model swap keeps the scenes (#986)
+
+Changing a block's model keeps its id and position, so it is **not** a
+structural edit. `write_back_model_swaps` (`crates/project/src/rig_model_swap.rs`)
+runs first in the capture: the swapped base block takes the new model and
+keeps its own `enabled`, and only the scene overrides / `scene-params`
+entries of that block whose parameter the new model does not have are
+dropped. Every other scene, bypass, override, the other blocks' base values
+and `active-scene` survive. `ReplaceBlockModel` mirrors the swap into the rig
+right away and re-resolves the live block through the active scene; the
+block editor's `OverwriteBlock` path gets the same treatment on the next
+capture (scene switch or save). Before #986 the swap took the structural
+path (#627): the whole preset base was replaced by the live, scene-applied
+chain and every scene was cleared. Adding, removing or reordering blocks is
+still structural and still resets the scenes.
+
 ## Validation
 
 `RigProject::validate() -> Result<(), String>` is run by `parse_rig_project`

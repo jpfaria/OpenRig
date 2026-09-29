@@ -108,7 +108,6 @@ impl Harness {
                 open_compact_window: open_compact_window.clone(),
                 block_editor_draft: block_editor_draft.clone(),
                 fullscreen: false,
-                auto_save: false,
             },
         );
 
@@ -135,7 +134,6 @@ impl Harness {
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),
                 block_editor_persist_timer: Rc::new(Timer::default()),
-                auto_save: false,
             },
         );
 
@@ -168,7 +166,6 @@ impl Harness {
                 plugin_info_window: Rc::new(RefCell::new(None)),
                 port_draft: Rc::new(RefCell::new(None)),
                 open_compact_window: open_compact_window.clone(),
-                auto_save: false,
             },
         );
 

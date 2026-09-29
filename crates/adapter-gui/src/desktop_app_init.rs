@@ -43,7 +43,6 @@ pub(crate) fn populate_initial_window_state(
     project_settings_window: &ProjectSettingsWindow,
     context: &UiRuntimeContext,
     settings: &GuiSystemSettings,
-    auto_save: bool,
     fullscreen: bool,
     needs_audio_settings: bool,
     input_chain_devices: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
@@ -71,7 +70,6 @@ pub(crate) fn populate_initial_window_state(
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
-    window.set_auto_save(auto_save);
     window.set_fullscreen(fullscreen);
     if fullscreen {
         window.window().set_fullscreen(true);

@@ -71,7 +71,7 @@ All changes are applied in real time. Play your instrument while adjusting param
 
 ## Step 6: Save Your Work
 
-Your project auto-saves as you work. You can also export presets to share specific chain configurations with others.
+Your project is saved only when you press **Save** (the save icon turns yellow while there are unsaved changes). You can also export presets to share specific chain configurations with others.
 
 **Tip:** Pitch blocks (autotune) are also available for real-time vocal and instrument pitch correction. Add a Chromatic Autotune or Scale Autotune block to any chain that uses a monophonic source.
 

@@ -48,7 +48,6 @@ pub(crate) struct ChainBlockCrudCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
     pub open_block_windows: Rc<RefCell<Vec<BlockWindow>>>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
@@ -71,7 +70,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
         output_chain_devices,
         toast_timer,
         open_block_windows,
-        auto_save,
     } = ctx;
 
     {
@@ -181,13 +179,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
                 let chain_ref = proj.chains.get(chain_index as usize);
                 set_selected_block(&window, selected_block.borrow().as_ref(), chain_ref);
             }
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
     }
@@ -260,13 +252,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainBlockCrudCtx) {
             crate::BlockEditorBridge::get(&window).set_show_block_drawer(false);
             crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
             set_selected_block(&window, None, None);
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
     }

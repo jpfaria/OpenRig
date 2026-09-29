@@ -33,7 +33,6 @@ pub(crate) fn setup_chain_editor_callbacks(
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     toast_timer: Rc<Timer>,
-    auto_save: bool,
 ) {
     crate::chain_editor_meta_io_callbacks::wire(
         editor_window,
@@ -52,6 +51,5 @@ pub(crate) fn setup_chain_editor_callbacks(
         input_chain_devices,
         output_chain_devices,
         toast_timer,
-        auto_save,
     );
 }

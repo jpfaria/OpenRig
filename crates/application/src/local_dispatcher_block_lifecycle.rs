@@ -90,6 +90,8 @@ impl LocalDispatcher {
                     b.kind = new_block.kind;
                     Ok(())
                 })?;
+                // #986: the rig preset takes the swap now, scenes intact.
+                self.mirror_model_swap_into_rig(&chain, &block);
                 Ok(vec![Event::BlockReplaced { chain, block }])
             }
             Command::Block(BlockCommand::AddBlock {
