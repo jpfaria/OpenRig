@@ -363,6 +363,43 @@ fn a_live_edit_whose_select_cannot_build_reports_the_failure() {
     );
 }
 
+fn serials(runtime: &ChainRuntimeState) -> Vec<u64> {
+    let processing = runtime.processing.lock().expect("the lock is free");
+    processing.input_states[0]
+        .blocks
+        .iter()
+        .map(|node| node.instance_serial)
+        .collect()
+}
+
+/// #998: a live edit that fails to build leaves the pipeline playing exactly
+/// the nodes it had, not an empty chain that plays the dry input.
+#[test]
+fn a_live_edit_that_fails_to_build_keeps_the_nodes_it_had() {
+    let runtime = build(
+        &chain(vec![level(true, 30.0), select(OPTION)]),
+        ChannelMode::Stereo,
+    );
+    let before = serials(&runtime);
+    let next = chain(vec![level(true, 30.0), select("issue987-edit:gone")]);
+
+    let result = update_chain_runtime_state(
+        &runtime,
+        &next,
+        SR,
+        false,
+        &[TARGET],
+        &registry(ChannelMode::Stereo),
+    );
+
+    assert!(result.is_err(), "the edit cannot build");
+    assert_eq!(
+        serials(&runtime),
+        before,
+        "a failed edit must leave the nodes it found in place"
+    );
+}
+
 /// A live edit swaps its nodes under the processing lock (#987) whenever every
 /// fresh node could be built ahead; the swap must never log there — a log
 /// takes a lock and does I/O while the audio thread cannot run (invariant #8).
