@@ -172,7 +172,7 @@ fn resolve_block_output_layout(
             let schema = schema_for_block_model(stage.effect_type, stage.model)
                 .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
 
-            schema.audio_mode.output_layout(input_layout).ok_or_else(|| {
+            project::chain::bus_layout_after(schema.audio_mode, input_layout).ok_or_else(|| {
                 anyhow!(
                     "chain '{}' block '{}' uses {} model '{}' with audio mode '{}' that does not accept a {} input bus",
                     chain.id.0,

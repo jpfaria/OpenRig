@@ -21,6 +21,7 @@ use project::chain::Chain;
 use crate::runtime::FADE_IN_FRAMES;
 use crate::runtime_audio_frame::{AudioProcessor, ProcessorScratch};
 use crate::runtime_block_core::build_core_block_runtime_node;
+use crate::runtime_graph_prebuild::PrebuiltNodes;
 use crate::runtime_state::{
     BlockRuntimeNode, FadeState, ProcessorBuildOutcome, RuntimeProcessor, SelectRuntimeState,
 };
@@ -50,6 +51,32 @@ pub(crate) fn build_runtime_block_nodes(
     existing: Option<Vec<BlockRuntimeNode>>,
     block_indices: Option<&[usize]>,
 ) -> Result<(Vec<BlockRuntimeNode>, AudioChannelLayout)> {
+    build_runtime_block_nodes_with(
+        chain,
+        input_layout,
+        source_is_mono,
+        sample_rate,
+        existing,
+        block_indices,
+        None,
+    )
+}
+
+/// [`build_runtime_block_nodes`], taking a node that has to be built fresh
+/// from `prebuilt` when the in-place edit already built it (#987).
+pub(crate) fn build_runtime_block_nodes_with(
+    chain: &Chain,
+    input_layout: AudioChannelLayout,
+    source_is_mono: bool,
+    sample_rate: f32,
+    existing: Option<Vec<BlockRuntimeNode>>,
+    block_indices: Option<&[usize]>,
+    mut prebuilt: Option<&mut PrebuiltNodes>,
+) -> Result<(Vec<BlockRuntimeNode>, AudioChannelLayout)> {
+    // A live in-place edit hands its prebuilt nodes in; an initial build never.
+    let hand_over = prebuilt.is_some();
+    // #987: the live edit's swap runs under the processing lock — no logging.
+    let quiet = prebuilt.as_deref().is_some_and(PrebuiltNodes::under_lock);
     let mut blocks = Vec::new();
     let mut current_layout = input_layout;
     // Issue #588: track whether the signal reaching the current position is
@@ -117,36 +144,58 @@ pub(crate) fn build_runtime_block_nodes(
             blocks.push(node);
             continue;
         }
-        if let Some(node) = try_reuse_block_node(
+        let replaced = match try_reuse_block_node(
             &mut reusable_nodes,
             block,
             current_layout,
             content_mono,
             sample_rate,
+            quiet,
         ) {
+            Ok(node) => {
+                if !quiet {
+                    log::info!(
+                        "[engine] reuse block {:?} (id={})",
+                        block.model_ref().map(|m| m.model),
+                        block.id.0
+                    );
+                }
+                current_layout = node.output_layout;
+                content_mono = node_emits_mono_content(&node, content_mono);
+                blocks.push(node);
+                continue;
+            }
+            Err(replaced) => replaced,
+        };
+
+        if !quiet {
             log::info!(
-                "[engine] reuse block {:?} (id={})",
+                "[engine] rebuild block {:?} (id={}) with params:",
                 block.model_ref().map(|m| m.model),
                 block.id.0
             );
-            current_layout = node.output_layout;
-            content_mono = node_emits_mono_content(&node, content_mono);
-            blocks.push(node);
-            continue;
-        }
-
-        log::info!(
-            "[engine] rebuild block {:?} (id={}) with params:",
-            block.model_ref().map(|m| m.model),
-            block.id.0
-        );
-        if let Some(model) = block.model_ref() {
-            for (path, value) in model.params.values.iter() {
-                log::info!("[engine]   {} = {:?}", path, value);
+            if let Some(model) = block.model_ref() {
+                for (path, value) in model.params.values.iter() {
+                    log::info!("[engine]   {} = {:?}", path, value);
+                }
             }
         }
-        match build_block_runtime_node(chain, block, current_layout, content_mono, sample_rate) {
-            Ok(node) => {
+        let ready = prebuilt
+            .as_deref_mut()
+            .and_then(|nodes| nodes.take(block, current_layout, content_mono));
+        let built = match ready {
+            Some(node) => Ok(node),
+            None => {
+                build_block_runtime_node(chain, block, current_layout, content_mono, sample_rate)
+            }
+        };
+        match built {
+            Ok(mut node) => {
+                // #987: on a live edit the fresh node takes over from the one
+                // it replaces instead of cutting to its own cold start.
+                if hand_over {
+                    crate::runtime_node_handover::begin_handover(&mut node, replaced);
+                }
                 current_layout = node.output_layout;
                 content_mono = node_emits_mono_content(&node, content_mono);
                 blocks.push(node);
@@ -175,32 +224,39 @@ pub(crate) fn build_runtime_block_nodes(
     Ok((blocks, current_layout))
 }
 
+/// The live node reused for `block`, or — when it cannot be — the node it
+/// replaces (`None` if there is none), which a live edit hands over from.
 fn try_reuse_block_node(
     reusable_nodes: &mut HashMap<BlockId, BlockRuntimeNode>,
     block: &project::block::AudioBlock,
     current_layout: AudioChannelLayout,
     content_mono: bool,
     sample_rate: f32,
-) -> Option<BlockRuntimeNode> {
-    let mut node = reusable_nodes.remove(&block.id)?;
+    quiet: bool,
+) -> Result<BlockRuntimeNode, Option<BlockRuntimeNode>> {
+    let Some(mut node) = reusable_nodes.remove(&block.id) else {
+        return Err(None);
+    };
     if node.input_layout != current_layout {
-        log::debug!(
-            "[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
-            block.id.0,
-            node.input_layout,
-            current_layout
-        );
-        return None;
+        if !quiet {
+            log::debug!(
+                "[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
+                block.id.0,
+                node.input_layout,
+                current_layout
+            );
+        }
+        return Err(Some(node));
     }
     // Issue #588: the mono ↔ dual-mono decision depends on whether the
     // incoming signal is effectively mono. If that flipped (e.g. an upstream
     // block now produces stereo), the processor shape is wrong — rebuild.
     if node.content_mono != content_mono {
-        return None;
+        return Err(Some(node));
     }
     // Exact match — reuse as-is
     if node.block_snapshot == *block {
-        return Some(node);
+        return Ok(node);
     }
     // Only enabled changed — reuse processor, update snapshot.
     // Exception: if the node is a Bypass (block was built while disabled and has no real
@@ -209,17 +265,18 @@ fn try_reuse_block_node(
     snapshot_without_enabled.enabled = block.enabled;
     if snapshot_without_enabled == *block {
         if matches!(node.processor, RuntimeProcessor::Bypass) && block.enabled {
-            return None; // force rebuild so we get a real processor + stream_handle
+            return Err(Some(node)); // force rebuild so we get a real processor + stream_handle
         }
         let was_disabled = !node.block_snapshot.enabled;
         node.block_snapshot = block.clone();
-        // If block was just enabled, start a fade-in
+        // If block was just enabled, start a fade-in — warmed up first, its
+        // processor sat frozen while the block was off (#987).
         if was_disabled && block.enabled {
             node.fade_state = FadeState::FadingIn {
-                frames_remaining: FADE_IN_FRAMES,
+                frames_remaining: crate::runtime_node_handover::WARMED_FADE_IN_FRAMES,
             };
         }
-        return Some(node);
+        return Ok(node);
     }
     // Issue #358 — params changed but kind/effect_type/model unchanged. Try to
     // retune the existing processor in place (preserves IIR state, smooths
@@ -227,18 +284,22 @@ fn try_reuse_block_node(
     // mono / dual-mono variants are supported today; other variants fall
     // through to the rebuild path.
     if try_in_place_param_update(&mut node, block, sample_rate) {
+        if !quiet {
+            log::info!(
+                "[engine] in-place param update for block id={} (no rebuild)",
+                block.id.0
+            );
+        }
+        node.block_snapshot = block.clone();
+        return Ok(node);
+    }
+    if !quiet {
         log::info!(
-            "[engine] in-place param update for block id={} (no rebuild)",
+            "[engine] cannot reuse block id={}: snapshot differs (params or kind changed)",
             block.id.0
         );
-        node.block_snapshot = block.clone();
-        return Some(node);
     }
-    log::info!(
-        "[engine] cannot reuse block id={}: snapshot differs (params or kind changed)",
-        block.id.0
-    );
-    None
+    Err(Some(node))
 }
 
 /// Attempt to apply the new `block`'s params to `node`'s existing processor
@@ -286,7 +347,7 @@ fn try_in_place_param_update(
     }
 }
 
-fn build_block_runtime_node(
+pub(crate) fn build_block_runtime_node(
     chain: &Chain,
     block: &project::block::AudioBlock,
     input_layout: AudioChannelLayout,
@@ -354,12 +415,13 @@ fn build_select_runtime_node(
     let mut option_nodes = Vec::with_capacity(select.options.len());
     let mut resolved_output_layout = None;
     for option in &select.options {
-        let option_node = if let Some(node) = try_reuse_block_node(
+        let option_node = if let Ok(node) = try_reuse_block_node(
             &mut reusable_option_nodes,
             option,
             input_layout,
             content_mono,
             sample_rate,
+            false,
         ) {
             node
         } else {
@@ -413,6 +475,7 @@ fn build_select_runtime_node(
         fade_dry_buffer: Vec::new(),
         faulted: false,
         fault_reason: None,
+        handover: None,
     })
 }
 
@@ -435,6 +498,7 @@ pub(crate) fn bypass_runtime_node(
         fade_dry_buffer: Vec::new(),
         faulted: false,
         fault_reason: None,
+        handover: None,
     }
 }
 
@@ -461,6 +525,7 @@ pub(crate) fn audio_block_runtime_node(
         fade_dry_buffer: Vec::new(),
         faulted: false,
         fault_reason: None,
+        handover: None,
     }
 }
 

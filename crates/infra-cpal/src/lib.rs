@@ -83,8 +83,11 @@ pub use live_runtime::LiveRuntimeSlot;
 mod build_request;
 pub use build_request::{build_chain_runtime, BuildRequest};
 
+mod slot_handover;
 mod slot_processing;
-pub use slot_processing::{build_chain_slots, process_input_buffer, process_output_buffer};
+pub use slot_processing::{
+    build_chain_slots, process_input_buffer, process_input_buffer_patient, process_output_buffer,
+};
 
 mod chain_stream_registry;
 mod controller;
@@ -209,6 +212,10 @@ pub(crate) use validation::{
 mod controller_live_edit_replicates_user_report_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod issue_980_in_place_edit_wires_memory_tests;
+#[cfg(test)]
+mod issue_987_live_edit_click_tests;
+#[cfg(test)]
+mod issue_992_lv2_on_live_input_tests;
 
 #[cfg(test)]
 #[path = "render_scheduling_903_tests.rs"]

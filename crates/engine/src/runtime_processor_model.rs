@@ -42,9 +42,7 @@ where
         )
     })?;
 
-    let output_layout = schema
-        .audio_mode
-        .output_layout(input_layout)
+    let output_layout = project::chain::bus_layout_after(schema.audio_mode, input_layout)
         .ok_or_else(|| {
             anyhow!(
                 "chain '{}' {} model '{}' with audio mode '{}' does not accept {} input",
@@ -99,6 +97,15 @@ where
                 model,
             )?,
         },
+        // #992: a mono bus (mono in, mono out) is broadcast to both inputs.
+        (ModelAudioMode::TrueStereo, AudioChannelLayout::Mono) => {
+            AudioProcessor::StereoFromMono(expect_stereo_processor(
+                builder(AudioChannelLayout::Stereo)?,
+                chain,
+                effect_type,
+                model,
+            )?)
+        }
         (ModelAudioMode::TrueStereo, AudioChannelLayout::Stereo) => {
             AudioProcessor::Stereo(expect_stereo_processor(
                 builder(AudioChannelLayout::Stereo)?,
@@ -122,16 +129,6 @@ where
                 effect_type,
                 model,
             )?)
-        }
-        _ => {
-            return Err(anyhow!(
-                "chain '{}' {} model '{}' with audio mode '{}' cannot run on {} input",
-                chain.id.0,
-                effect_type,
-                model,
-                schema.audio_mode.as_str(),
-                layout_label(input_layout)
-            ));
         }
     };
 

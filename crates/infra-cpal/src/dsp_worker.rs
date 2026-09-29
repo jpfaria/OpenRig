@@ -37,7 +37,7 @@ use std::sync::Arc;
 
 pub(crate) use crate::budget_tracker::BudgetTracker;
 use crate::live_runtime::LiveRuntimeSlot;
-use crate::process_input_buffer;
+use crate::process_input_buffer_patient;
 /// Slots in the ring. 16 buffers ≈ 21 ms at 64 frames — far beyond any
 /// transient worker stall that wouldn't already be audible.
 const RING_SLOTS: usize = 16;
@@ -194,10 +194,20 @@ pub(crate) fn spawn(
                 // Measure BOTH: thread CPU time (real compute, immune to
                 // preemption — drives the RT budget + load meter) and wall-clock
                 // (delivery latency — drives the late-buffer diagnostic).
+                let frames = (n / channels.max(1)) as u64;
+                let buf_period_ns = frames * 1_000_000_000 / sample_rate.max(1) as u64;
                 let cpu0 = thread_cpu_time_ns();
                 let start = std::time::Instant::now();
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    process_input_buffer(&slot_handle, input_index, &local[..n], channels);
+                    // #987: a live edit's node swap holds the processing lock
+                    // briefly; wait up to one period rather than drop the buffer.
+                    process_input_buffer_patient(
+                        &slot_handle,
+                        input_index,
+                        &local[..n],
+                        channels,
+                        buf_period_ns,
+                    );
                 }));
                 let elapsed = start.elapsed();
                 let wall_ns = elapsed.as_nanos() as u64;
@@ -208,8 +218,6 @@ pub(crate) fn spawn(
                     (Some(a), Some(b)) => b.saturating_sub(a),
                     _ => wall_ns,
                 };
-                let frames = (n / channels.max(1)) as u64;
-                let buf_period_ns = frames * 1_000_000_000 / sample_rate.max(1) as u64;
                 // Load meter = real CPU load (compute), not wall-clock. A
                 // wall-clock spike is preemption, not load; reporting it as
                 // "load" misreads as overload on a machine with headroom.

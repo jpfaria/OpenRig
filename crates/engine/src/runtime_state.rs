@@ -233,6 +233,8 @@ pub(crate) struct BlockRuntimeNode {
     /// callers can refuse to claim success when a block was silently
     /// bypassed. Issue #574.
     pub(crate) fault_reason: Option<String>,
+    /// #987: set while this node takes over from the one a live edit replaced.
+    pub(crate) handover: Option<Box<crate::runtime_node_handover::NodeHandover>>,
 }
 
 pub(crate) struct SelectRuntimeState {

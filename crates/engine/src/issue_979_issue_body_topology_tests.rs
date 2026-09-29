@@ -79,8 +79,10 @@ const WINDOW: usize = 8_192 / FRAMES;
 /// HAL cycles in one simulated minute: 44 100 Hz × 60 s / 64 frames.
 const MINUTE: usize = 44_100 * 60 / FRAMES;
 const TEN_SECONDS: usize = MINUTE / 6;
-/// Ten simulated minutes of disturbances.
-const HISTORY: usize = 10 * MINUTE;
+/// Two simulated minutes of disturbances. #991: pre-#979 damage never decays,
+/// so every run of the decay test is already red by then; the eight minutes
+/// after it only made Coverage time out.
+const HISTORY: usize = 2 * MINUTE;
 /// On-time cycles past the cold start (the routes are born empty). ~1.5 s.
 const WARM_UP: usize = 1_000;
 /// What the guard gets to shed what a disturbance left behind (~560 ms).
@@ -93,7 +95,9 @@ const LISTEN: usize = 64;
 /// One late worker push every ~1.4 s (a busy machine), coprime with the
 /// window, so the pushes land on every window position.
 const LATE_EVERY: usize = 997;
-const LATE_EVENTS: usize = 256;
+/// #991: one lap, each window position once. A second lap over the same
+/// positions doubled the run.
+const LATE_EVENTS: usize = WINDOW;
 /// Output streams starting one HAL cycle apart, in route order (by route).
 const CAPTURE_ORDER: [usize; ROUTES] = [0, 1, 2, 3, 4];
 /// Cycles for a level change to cross every route.
@@ -237,8 +241,13 @@ struct Rig {
     /// One unit's output callback buffer.
     out: Vec<f32>,
     /// What the HD 8 played this cycle: every unit's callback summed per
-    /// channel (the backend's mix, not ours).
+    /// channel (the backend's mix, not ours). Only summed while something
+    /// reads it (`listening` or `gear_in_the_loop`).
     played: Vec<f32>,
+    /// A `listen` is running. #991: the long simulations never read `played`,
+    /// and summing 30 channels per callback for nothing dominated their cost
+    /// under llvm-cov.
+    listening: bool,
     /// A unit whose output stream misses its callbacks while set.
     stalled: Option<usize>,
     /// The SYN-2 at unity: what left on the send comes back on both return
@@ -280,6 +289,7 @@ impl Rig {
             input,
             out: silence(),
             played: silence(),
+            listening: false,
             stalled: None,
             gear_in_the_loop: false,
             now: 0,
@@ -407,8 +417,10 @@ impl Rig {
         let (rt, route) = (self.units[i].runtime, self.units[i].route);
         self.out.fill(0.0);
         process_output_f32(&self.runtimes[rt], route, &mut self.out, HD8_CHANNELS);
-        for (sum, sample) in self.played.iter_mut().zip(&self.out) {
-            *sum += *sample;
+        if self.listening || self.gear_in_the_loop {
+            for (sum, sample) in self.played.iter_mut().zip(&self.out) {
+                *sum += *sample;
+            }
         }
         let out = &self.out;
         let unit = &mut self.units[i];
@@ -488,6 +500,7 @@ impl Rig {
     fn listen(&mut self, cycles: usize, channels: &[usize]) -> (Vec<f32>, Vec<f32>) {
         let mut sum = vec![0.0_f64; channels.len()];
         let mut peak = vec![0.0_f32; channels.len()];
+        self.listening = true;
         for _ in 0..cycles {
             self.run(1);
             for frame in self.played.chunks_exact(HD8_CHANNELS) {
@@ -498,6 +511,7 @@ impl Rig {
                 }
             }
         }
+        self.listening = false;
         let n = (cycles * FRAMES) as f64;
         (sum.into_iter().map(|s| (s / n) as f32).collect(), peak)
     }
@@ -898,7 +912,7 @@ fn disturb(rig: &mut Rig, rng: &mut Rng) -> &'static str {
     }
 }
 
-/// Ten simulated minutes: on-time stretches of 1 to 384 cycles (up to three
+/// `HISTORY` (two simulated minutes): on-time stretches of 1 to 384 cycles (up to three
 /// guard windows) between disturbances. Returns how many of each kind ran.
 fn history(rig: &mut Rig, rng: &mut Rng) -> BTreeMap<&'static str, usize> {
     let end = rig.now + HISTORY;
@@ -1004,7 +1018,7 @@ fn lateness_at_the_same_window_phase_every_window_stops_costing_when_it_stops() 
     }
 }
 
-/// Decay spiral on the issue body's rig. Ten simulated minutes of every
+/// Decay spiral on the issue body's rig. Two simulated minutes of every
 /// disturbance the rig can meet, then one minute with the worker and the
 /// HD 8 on time: whatever the history taught the guards must be gone by then
 /// without a rebuild — not one underrun and not one trim in the last 30 s on
@@ -1013,7 +1027,7 @@ fn lateness_at_the_same_window_phase_every_window_stops_costing_when_it_stops() 
 /// trim and one buffer of underrun every ~2 windows (5120 underrun frames and
 /// 80 trims in the last 30 s on route 0), the owner's "loop" until off/on.
 #[test]
-fn damage_after_ten_minutes_of_any_disturbance_decays_to_zero_without_a_rebuild() {
+fn damage_after_two_minutes_of_any_disturbance_decays_to_zero_without_a_rebuild() {
     for insert_enabled in [false, true] {
         let fresh_rest = Rig::warm(insert_enabled).fills();
         for seed in [0x0979_u64, 0x0979_5eed] {
@@ -1049,7 +1063,7 @@ fn damage_after_ten_minutes_of_any_disturbance_decays_to_zero_without_a_rebuild(
                 .collect();
             assert!(
                 failures.is_empty(),
-                "issue-body rig, insert {insert_enabled}, seed {seed:#x}: after ten minutes of \
+                "issue-body rig, insert {insert_enabled}, seed {seed:#x}: after two minutes of \
                  disturbances ({tally:?}) and one minute with the worker and the HD 8 back on \
                  time, these routes still lose audio or kept latency — the rig's underruns and \
                  trims climbing until a rebuild:\n{}",
@@ -1141,7 +1155,7 @@ fn one_late_push_costs_every_sibling_the_same_whatever_its_window_phase() {
 }
 
 /// Sibling divergence on the issue body's rig. Minutes of play on a busy
-/// machine (one late push on every worker every ~1.4 s, 256 times), with the
+/// machine (one late push on every worker every ~1.4 s, 128 times), with the
 /// insert off and on: the routes of one stream see the same load, so they end
 /// within one buffer and one trim of each other. Measured on the rig: 12032
 /// vs 2496 underrun frames on two routes of one stream; the symmetric harness
