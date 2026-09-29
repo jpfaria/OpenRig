@@ -1,6 +1,7 @@
 //! Responsibility: says when two rig inputs would fight over the same tap.
 
 use domain::io_binding::IoBinding;
+use project::endpoint_disables::{EndpointNode, EndpointRef};
 use project::rig::{RigInput, RigProject};
 use std::collections::BTreeSet;
 
@@ -10,25 +11,41 @@ use std::collections::BTreeSet;
 /// (invariant #4).
 pub(crate) fn input_taps(input: &RigInput, registry: &[IoBinding]) -> Vec<(String, usize)> {
     let mut taps = Vec::new();
-    let push_binding = |io: &str, ep_name: &str, taps: &mut Vec<(String, usize)>| {
-        let Some(binding) = registry.iter().find(|b| b.id == io) else {
-            return;
+    // Checklist selection: every input endpoint of every selected binding —
+    // #328: except the ones the chain graph's input node leaves unchecked.
+    // They open no stream, so they claim no tap; the chain-side detectors
+    // skip them through `resolve_chain_ports` and all three must agree (#924).
+    for binding_id in &input.io_binding_ids {
+        let Some(binding) = registry.iter().find(|b| &b.id == binding_id) else {
+            continue;
         };
         for ep in &binding.inputs {
-            if ep_name.is_empty() || ep.name == ep_name {
-                for &ch in &ep.channels {
-                    taps.push((ep.device_id.0.clone(), ch));
-                }
+            let endpoint = EndpointRef {
+                io: binding.id.clone(),
+                endpoint: ep.name.clone(),
+            };
+            if !input
+                .disabled_endpoints
+                .is_enabled(EndpointNode::Input, &endpoint)
+            {
+                continue;
+            }
+            for &ch in &ep.channels {
+                taps.push((ep.device_id.0.clone(), ch));
             }
         }
-    };
-    // Checklist selection: every input endpoint of every selected binding.
-    for binding_id in &input.io_binding_ids {
-        push_binding(binding_id, "", &mut taps);
     }
     // Single per-input binding reference (legacy-ish io/endpoint).
     if !input.io.is_empty() {
-        push_binding(&input.io, &input.endpoint, &mut taps);
+        if let Some(binding) = registry.iter().find(|b| b.id == input.io) {
+            for ep in &binding.inputs {
+                if input.endpoint.is_empty() || ep.name == input.endpoint {
+                    for &ch in &ep.channels {
+                        taps.push((ep.device_id.0.clone(), ch));
+                    }
+                }
+            }
+        }
     }
     taps
 }

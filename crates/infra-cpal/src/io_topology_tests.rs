@@ -330,3 +330,58 @@ fn a_mid_ports_enable_flag_is_part_of_the_chain_structure() {
         );
     }
 }
+
+// ── #328: an endpoint unchecked on the chain graph is a re-bind ─────────────
+
+/// Unchecking an input on a RUNNING chain must read as an I/O change, or the
+/// live-edit path keeps the stream it no longer wants open.
+#[test]
+fn unchecking_an_input_endpoint_changes_the_bound_io_signature() {
+    use domain::ids::ChainId;
+    use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+    use project::chain::Chain;
+    use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+
+    let ep = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("scarlett".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    let registry = vec![IoBinding {
+        id: "io".into(),
+        name: "IO".into(),
+        inputs: vec![ep("in 1", 0), ep("in 2", 1)],
+        outputs: vec![ep("out", 0)],
+    }];
+    let chain = |disabled_endpoints: EndpointDisables| Chain {
+        id: ChainId("rig:g".into()),
+        description: None,
+        instrument: "electric_guitar".into(),
+        enabled: true,
+        volume: 100.0,
+        io_binding_ids: vec!["io".into()],
+        blocks: vec![],
+        di_output: None,
+        loopers: vec![],
+        disabled_endpoints,
+    };
+    let mut unchecked = EndpointDisables::default();
+    unchecked.set_enabled(
+        EndpointNode::Input,
+        EndpointRef {
+            io: "io".into(),
+            endpoint: "in 2".into(),
+        },
+        false,
+    );
+
+    let (all_inputs, _) = super::bound_io_signature(&chain(EndpointDisables::default()), &registry);
+    let (kept_inputs, _) = super::bound_io_signature(&chain(unchecked), &registry);
+    assert_eq!(all_inputs.len(), 2);
+    assert_eq!(
+        kept_inputs,
+        vec![(DeviceId("scarlett".into()), vec![0])],
+        "#328: the unchecked input opens no stream, so a running chain must re-bind"
+    );
+}

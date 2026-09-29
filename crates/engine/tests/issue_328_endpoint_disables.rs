@@ -64,3 +64,51 @@ fn the_projected_chain_carries_its_inputs_unchecked_endpoints() {
         "the synthetic chain carries the rig input's checklist"
     );
 }
+
+use domain::ids::DeviceId;
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
+
+fn ep(name: &str, channels: Vec<usize>, mode: ChannelMode) -> IoEndpoint {
+    IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("scarlett".into()),
+        mode,
+        channels,
+    }
+}
+
+/// One E/S with two guitar inputs and one stereo output.
+fn shared_binding() -> IoBinding {
+    IoBinding {
+        id: "shared".into(),
+        name: "SHARED".into(),
+        inputs: vec![
+            ep("in 1", vec![0], ChannelMode::Mono),
+            ep("in 2", vec![1], ChannelMode::Mono),
+        ],
+        outputs: vec![ep("out", vec![0, 1], ChannelMode::Stereo)],
+    }
+}
+
+#[test]
+fn complementary_unchecked_inputs_share_one_binding_without_a_tap_conflict() {
+    use engine::rig_runtime::RigRuntime;
+    use engine::runtime_endpoints::input_conflicting_chains;
+
+    // g1 plays in 1 only, g2 plays in 2 only — one E/S, two guitars.
+    let r = rig(unchecked_input("in 2"), unchecked_input("in 1"));
+    let registry = vec![shared_binding()];
+
+    let chains = rig_to_chains(&r);
+    assert_eq!(
+        input_conflicting_chains(chains.iter(), &registry),
+        Vec::<domain::ids::ChainId>::new(),
+        "chain side: an unchecked input claims no tap"
+    );
+
+    let rt = RigRuntime::build(r, 48_000.0, registry).expect("the rig builds");
+    assert!(
+        rt.is_enabled("g1") && rt.is_enabled("g2"),
+        "rig side: g2 must not be refused a tap g1 does not hold (#924: the detectors agree)"
+    );
+}

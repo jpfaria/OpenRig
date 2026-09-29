@@ -12,8 +12,9 @@
 
 use domain::io_binding::{IoBinding, IoEndpoint};
 
-use crate::block::AudioBlockKind;
+use crate::block::{find_split, AudioBlockKind, SplitEnd};
 use crate::chain::Chain;
+use crate::endpoint_disables::EndpointNode;
 
 /// Direction of a resolved chain I/O port.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,12 +47,20 @@ pub struct ChainPort {
 ///
 /// - Head inputs / tail outputs come from the bindings the chain selects
 ///   (`io_binding_ids`) — these are never persisted in the chain.
-/// - Mid `Input` / `Output` blocks resolve their `io`/`endpoint` reference.
+/// - #328: the graph's checklists (`chain.disabled_endpoints`) leave out a
+///   head input unchecked on the input node, and a tail output unchecked on
+///   the chain output node — or, on a Y chain (no chain output node), on BOTH
+///   path output nodes. A left-out endpoint opens no stream, builds no segment
+///   and claims no tap.
+/// - Mid `Input` / `Output` blocks resolve their `io`/`endpoint` reference;
+///   they are not on the checklist.
 ///
 /// Ports whose binding (or endpoint) is absent from the registry are skipped.
 pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPort> {
     let find = |id: &str| registry.iter().find(|b| b.id == id);
     let tail = chain.blocks.len();
+    let disabled = &chain.disabled_endpoints;
+    let y_split = find_split(&chain.blocks).is_some_and(|(_, split)| split.end == SplitEnd::Y);
     let mut ports = Vec::new();
 
     // Head inputs + tail outputs come from the bindings the chain selects.
@@ -60,6 +69,9 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             continue; // selection references a binding not in the registry → skip
         };
         for ep in &binding.inputs {
+            if !disabled.is_enabled(EndpointNode::Input, &ref_of(binding, ep)) {
+                continue;
+            }
             ports.push(ChainPort {
                 direction: PortDirection::Input,
                 offset: 0,
@@ -69,6 +81,9 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
             });
         }
         for ep in &binding.outputs {
+            if !disabled.tail_output_enabled(y_split, &ref_of(binding, ep)) {
+                continue;
+            }
             ports.push(ChainPort {
                 direction: PortDirection::Output,
                 offset: tail,
@@ -112,6 +127,14 @@ pub fn resolve_chain_ports(chain: &Chain, registry: &[IoBinding]) -> Vec<ChainPo
     }
 
     ports
+}
+
+/// The checklist address of one endpoint of `binding`.
+fn ref_of(binding: &IoBinding, ep: &IoEndpoint) -> crate::endpoint_disables::EndpointRef {
+    crate::endpoint_disables::EndpointRef {
+        io: binding.id.clone(),
+        endpoint: ep.name.clone(),
+    }
 }
 
 /// #323: flat index of a looper's chosen INPUT endpoint among the chain's

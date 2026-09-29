@@ -371,6 +371,20 @@ openrig://ids` reads back);
 `volume_invariants` + `stream_isolation` prove the resolved path is bit-exact
 to the legacy entries path.
 
+### Endpoint checklist (issue #328)
+
+The input and output nodes of a chain's graph list every endpoint of the chain's own E/S bindings (`io_binding_ids`), checked by default. Unchecking one leaves that endpoint out of THAT node only: it stays listed, and nothing is removed from the E/S. It is chain configuration, not preset data — `RigInput.disabled_endpoints` in `project.openrig`, projected onto `Chain.disabled_endpoints` by `rig_to_chains` and captured back by `sync_synthetic_into_rig` (`project::endpoint_disables::EndpointDisables`: `inputs`, `outputs`, `path_a_outputs`, `path_b_outputs`, each a list of `{ io, endpoint }` — binding id plus endpoint name).
+
+`resolve_chain_ports` applies it before anything else sees the chain's I/O, so an unchecked endpoint opens no stream, builds no segment and claims no capture tap:
+
+- a head input is kept while the input node has it checked;
+- a tail output is kept while the chain output node has it checked — or, on a Y → A/B chain (which has no chain output node), while either path's output node does;
+- mid `Input`/`Output` ports (#85) are not on the checklist.
+
+The input-conflict detectors agree on it (#924): the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; `EndpointDisables::retain_known` (fed by `endpoint_candidates`) prunes it. Unchecking every input or every output of a node leaves that node with no port.
+
+Contract tests: `crates/project/tests/issue_328_endpoint_discovery.rs`, `crates/engine/tests/issue_328_endpoint_disables.rs`, `crates/infra-cpal/src/io_topology_tests.rs` (`unchecking_an_input_endpoint_changes_the_bound_io_signature`).
+
 ### Mid-chain ports (issue #85)
 
 A port the user drops **between** effect blocks is not the chain's own I/O — it
