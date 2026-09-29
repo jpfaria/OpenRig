@@ -207,6 +207,8 @@ pub(crate) use validation::{
 
 #[cfg(test)]
 mod controller_live_edit_replicates_user_report_tests;
+#[cfg(test)]
+mod issue_987_live_edit_click_tests;
 #[cfg(all(test, target_os = "macos"))]
 mod issue_980_in_place_edit_wires_memory_tests;
 
