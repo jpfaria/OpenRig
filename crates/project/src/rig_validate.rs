@@ -70,7 +70,8 @@ impl RigProject {
                     AudioBlockKind::Nam(_)
                     | AudioBlockKind::Core(_)
                     | AudioBlockKind::Select(_)
-                    | AudioBlockKind::Insert(_) => continue,
+                    | AudioBlockKind::Insert(_)
+                    | AudioBlockKind::Split(_) => continue,
                 };
                 if carriers
                     .iter()

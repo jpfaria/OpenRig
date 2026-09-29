@@ -188,6 +188,11 @@ fn resolve_block_output_layout(
         AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
             Ok(input_layout)
         }
+        // #328: minimal arm — the commands part (spec §3) walks both paths and
+        // the layout each one hands the mixer. The split's knobs and its path
+        // blocks are already checked by `validate_params` above, and the mixer
+        // always hands the rest of the chain a stereo bus.
+        AudioBlockKind::Split(_) => Ok(AudioChannelLayout::Stereo),
     }
 }
 

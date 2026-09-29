@@ -496,6 +496,10 @@ impl AudioBlockYaml {
                 model: insert.model.clone(),
                 io: insert.io.clone(),
             }),
+            AudioBlockKind::Split(_) => Err(anyhow!(
+                "block '{}': writing a split to a chain preset is not supported by this build",
+                block.id.0
+            )),
         }
     }
 }

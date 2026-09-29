@@ -181,7 +181,8 @@ pub(crate) fn wire(
             AudioBlockKind::Nam(_)
             | AudioBlockKind::Core(_)
             | AudioBlockKind::Select(_)
-            | AudioBlockKind::Insert(_) => None,
+            | AudioBlockKind::Insert(_)
+            | AudioBlockKind::Split(_) => None,
         };
         if let Some((is_input, io, endpoint)) = port {
             let registry = session.io_bindings.borrow().clone();

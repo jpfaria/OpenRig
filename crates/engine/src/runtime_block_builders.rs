@@ -383,6 +383,10 @@ pub(crate) fn build_block_runtime_node(
         AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
             bypass_runtime_node(block, input_layout, content_mono)
         }
+        // #328: minimal arm — the engine part (spec §4.1) builds
+        // `RuntimeProcessor::Split` here. Until then a split passes the bus
+        // through untouched.
+        AudioBlockKind::Split(_) => bypass_runtime_node(block, input_layout, content_mono),
     })
 }
 

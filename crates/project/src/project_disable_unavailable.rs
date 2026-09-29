@@ -56,6 +56,7 @@ pub fn block_model_is_available(kind: &AudioBlockKind) -> bool {
         AudioBlockKind::Select(_)
         | AudioBlockKind::Input(_)
         | AudioBlockKind::Output(_)
-        | AudioBlockKind::Insert(_) => true,
+        | AudioBlockKind::Insert(_)
+        | AudioBlockKind::Split(_) => true,
     }
 }

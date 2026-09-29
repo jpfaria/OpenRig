@@ -6,6 +6,7 @@
 use crate::param::BlockParameterDescriptor;
 
 use super::dispatch::{describe_block_audio, describe_block_params, normalize_block_params};
+use super::split_params::{normalize_split_params, split_param_descriptors};
 use super::types::{AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef};
 
 impl AudioBlock {
@@ -30,6 +31,13 @@ impl AudioBlock {
                 }
                 Ok(())
             }
+            AudioBlockKind::Split(split) => {
+                normalize_split_params(split.params.clone())?;
+                for block in split.a.iter().chain(&split.b) {
+                    block.validate_params()?;
+                }
+                Ok(())
+            }
             AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
                 Ok(())
             }
@@ -49,6 +57,9 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .parameter_descriptors(),
+            // #328: a split's own parameters are its split and mixer knobs;
+            // its path blocks describe themselves.
+            AudioBlockKind::Split(split) => split_param_descriptors(&self.id, &split.params),
             AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
                 Ok(Vec::new())
             }
@@ -70,6 +81,13 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .audio_descriptors(),
+            AudioBlockKind::Split(split) => {
+                let mut descriptors = Vec::new();
+                for block in split.a.iter().chain(&split.b) {
+                    descriptors.extend(block.audio_descriptors()?);
+                }
+                Ok(descriptors)
+            }
             AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => {
                 Ok(Vec::new())
             }
@@ -87,7 +105,8 @@ impl AudioBlock {
             AudioBlockKind::Select(_)
             | AudioBlockKind::Input(_)
             | AudioBlockKind::Output(_)
-            | AudioBlockKind::Insert(_) => None,
+            | AudioBlockKind::Insert(_)
+            | AudioBlockKind::Split(_) => None,
         }
     }
 }
