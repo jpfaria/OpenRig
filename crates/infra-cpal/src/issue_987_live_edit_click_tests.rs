@@ -155,9 +155,22 @@ impl Player {
     }
 }
 
+/// The chain as the app has it after activation. The seeded runtime is built
+/// with the default elastic target, while the app activates and edits with
+/// the targets of its live streams (`elastic::elastic_targets` on both paths),
+/// so one settling edit before the audio starts gives it the app's routes.
+/// Without it the first edit rebuilt the route (fill 256 -> 64) and played a
+/// primed silent buffer the app never plays.
 fn start_controller(first: &Chain) -> (ProjectRuntimeController, LiveRuntimeSlot) {
     init_registry();
-    let controller = controller_with_active_chain(first);
+    let mut controller = controller_with_active_chain(first);
+    switch(&mut controller, first);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !controller.pending_rebuilds.is_empty() {
+        controller.poll_pending_rebuilds();
+        assert!(Instant::now() < deadline, "the settling edit never landed");
+        std::thread::sleep(Duration::from_millis(1));
+    }
     let slot = controller
         .chain_slots
         .get(&(ChainId(CHAIN.into()), 0))
