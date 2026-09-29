@@ -148,6 +148,8 @@ fn update_chain_runtime_state_impl(
             })?,
         None => all_segments,
     };
+    // #998: refuse before any live node is taken out of the pipeline.
+    crate::runtime_select_precheck::check_selects_build(chain, &segments)?;
 
     let segment_output_channels: Vec<Vec<usize>> = segments
         .iter()
