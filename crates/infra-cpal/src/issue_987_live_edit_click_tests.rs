@@ -107,6 +107,10 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
 /// kept. It holds the slot handle the way a cpal stream does.
 struct Player {
     slot: LiveRuntimeSlot,
+    /// How long the input side may wait for an edit holding the processing
+    /// lock: 0 for the device callback, one period for the DSP worker (#670),
+    /// which is the path the app's F32 streams take.
+    patience_ns: u64,
     phase: f32,
     input: Vec<f32>,
     output: Vec<f32>,
@@ -116,9 +120,10 @@ struct Player {
 }
 
 impl Player {
-    fn warmed_up(slot: LiveRuntimeSlot) -> Self {
+    fn warmed_up(slot: LiveRuntimeSlot, patience_ns: u64) -> Self {
         let mut player = Self {
             slot,
+            patience_ns,
             phase: 0.0,
             input: vec![0.0; BUF],
             output: vec![0.0; BUF * 2],
@@ -140,7 +145,13 @@ impl Player {
             *s = TONE_PEAK * self.phase.sin();
             self.phase = (self.phase + step) % (2.0 * std::f32::consts::PI);
         }
-        crate::slot_processing::process_input_buffer(&self.slot, 0, &self.input, 1);
+        crate::slot_processing::process_input_buffer_patient(
+            &self.slot,
+            0,
+            &self.input,
+            1,
+            self.patience_ns,
+        );
         let out_slots = [self.slot.handle()];
         crate::slot_processing::process_output_buffer(
             &out_slots,
@@ -236,7 +247,7 @@ impl Rig {
         let (controller, slot) = start_controller(first);
         Self {
             controller,
-            player: Player::warmed_up(slot),
+            player: Player::warmed_up(slot, 0),
         }
     }
 
@@ -282,7 +293,7 @@ impl LiveRig {
         let stop = Arc::new(AtomicBool::new(false));
         let running = Arc::clone(&stop);
         let audio = std::thread::spawn(move || {
-            let mut player = Player::warmed_up(slot);
+            let mut player = Player::warmed_up(slot, BUF as u64 * 1_000_000_000 / SR as u64);
             while !running.load(Ordering::Relaxed) {
                 player.callback();
                 std::thread::sleep(LIVE_CALLBACK_PERIOD);

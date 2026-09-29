@@ -325,6 +325,10 @@ pub(crate) fn process_audio_block(
     frames: &mut [AudioFrame],
     error_queue: &ArrayQueue<BlockError>,
 ) {
+    // #987: a node a live edit just built plays through its handover first.
+    if crate::runtime_node_handover::process_handover(block, frames, error_queue) {
+        return;
+    }
     // Copy the fade state (it's Copy) so we can call apply_block_processor without
     // holding a borrow into block.fade_state at the same time.
     match block.fade_state {
@@ -352,9 +356,15 @@ pub(crate) fn process_audio_block(
                     break;
                 }
                 let remaining = frames_remaining - i;
-                // progress: 0.0 at start of fade, 1.0 at end
-                let progress = 1.0 - (remaining as f32 / fade_total);
-                let wet_gain = 0.5 * (1.0 - (std::f32::consts::PI * progress).cos());
+                // #987: a fade longer than FADE_IN_FRAMES warms the block up
+                // unheard first (wet gain 0), then fades it in.
+                let wet_gain = if remaining > FADE_IN_FRAMES {
+                    0.0
+                } else {
+                    // progress: 0.0 at start of fade, 1.0 at end
+                    let progress = 1.0 - (remaining as f32 / fade_total);
+                    0.5 * (1.0 - (std::f32::consts::PI * progress).cos())
+                };
                 let dry_gain = 1.0 - wet_gain;
                 blend_frame(frame, dry[i], dry_gain, wet_gain);
             }
