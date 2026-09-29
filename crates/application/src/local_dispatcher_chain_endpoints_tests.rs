@@ -1,6 +1,7 @@
 //! #328 — the endpoint checklist of the chain graph's I/O nodes: recorded per
 //! node, carried into the rig, and kept by the commands that rewrite a chain.
 
+use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::endpoint_disables::{EndpointNode, EndpointRef};
 use project::rig::RigScene;
 use serde_json::json;
@@ -188,5 +189,62 @@ fn configure_chain_keeps_the_checklist() {
         chain.disabled_endpoints.outputs,
         vec![endpoint("io-main", "Out 1")],
         "ConfigureChain carries no checklist and must not reset it"
+    );
+}
+
+/// The E/S registry of the fixtures' `io-main` binding: In 1, In 2 → Out 1.
+fn io_main_registry() -> Rc<RefCell<Vec<IoBinding>>> {
+    let ep = |name: &str, ch: usize| IoEndpoint {
+        name: name.into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Mono,
+        channels: vec![ch],
+    };
+    Rc::new(RefCell::new(vec![IoBinding {
+        id: "io-main".into(),
+        name: "MAIN".into(),
+        inputs: vec![ep("In 1", 0), ep("In 2", 1)],
+        outputs: vec![ep("Out 1", 0)],
+    }]))
+}
+
+#[test]
+fn the_save_drops_a_ref_to_an_endpoint_the_io_no_longer_offers() {
+    let (rig, _project, dispatcher) = rig_session_from(rig_with_presets(vec![(
+        "p1",
+        vec![make_core_block("A", true)],
+    )]));
+    dispatcher.attach_io_bindings(io_main_registry());
+
+    set_enabled(&dispatcher, RIG_CHAIN, "input", "In 1", false);
+    // "Gone" was removed from the E/S after the user unchecked it.
+    set_enabled(&dispatcher, RIG_CHAIN, "input", "Gone", false);
+    dispatcher
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
+        .expect("capture (the save path)");
+
+    assert_eq!(
+        rig.borrow().inputs["in"].disabled_endpoints.inputs,
+        vec![endpoint("io-main", "In 1")],
+        "spec §1.3: an unknown ref is dropped on the next save; a known one is kept"
+    );
+}
+
+#[test]
+fn without_a_registry_the_save_prunes_nothing() {
+    let (rig, _project, dispatcher) = rig_session_from(rig_with_presets(vec![(
+        "p1",
+        vec![make_core_block("A", true)],
+    )]));
+
+    set_enabled(&dispatcher, RIG_CHAIN, "input", "Gone", false);
+    dispatcher
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
+        .expect("capture");
+
+    assert_eq!(
+        rig.borrow().inputs["in"].disabled_endpoints.inputs,
+        vec![endpoint("io-main", "Gone")],
+        "no registry attached: nothing is known, so nothing may be dropped"
     );
 }

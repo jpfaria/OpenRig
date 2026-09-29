@@ -9,6 +9,7 @@
 use anyhow::{anyhow, Result};
 
 use project::block::{AudioBlock, AudioBlockKind};
+use project::endpoint_prune::prune_stale_endpoint_disables;
 use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
 use project::rig_sync::sync_synthetic_into_rig;
 
@@ -108,6 +109,12 @@ impl LocalDispatcher {
             return Ok(vec![]);
         };
         sync_synthetic_into_rig(&mut rig.borrow_mut(), &self.project.borrow());
+        // #328 (spec §1.3): the save drops checklist refs to endpoints the
+        // E/S no longer offers. With no registry attached nothing is known,
+        // so nothing is dropped.
+        if let Some(registry) = self.io_bindings.borrow().clone() {
+            prune_stale_endpoint_disables(&mut rig.borrow_mut(), &registry.borrow());
+        }
         Ok(vec![Event::ProjectMutated])
     }
 

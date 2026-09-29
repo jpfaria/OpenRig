@@ -381,7 +381,7 @@ The input and output nodes of a chain's graph list every endpoint of the chain's
 - a tail output is kept while the chain output node has it checked — or, on a Y → A/B chain (which has no chain output node), while either path's output node does;
 - mid `Input`/`Output` ports (#85) are not on the checklist.
 
-The input-conflict detectors agree on it (#924): the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; `EndpointDisables::retain_known` (fed by `endpoint_candidates`) prunes it. Unchecking every input or every output of a node leaves that node with no port.
+The input-conflict detectors agree on it (#924): the chain-side ones resolve through `resolve_chain_ports`, and the rig-side `tap_conflict` skips a `RigInput`'s unchecked inputs itself. Two chains can therefore share one E/S, each playing the inputs the other leaves out. A ref to an endpoint the E/S no longer offers matches nothing and is ignored; the next save (`CaptureRigEdits`) drops it from `project.openrig` (`EndpointDisables::retain_known`, fed by `endpoint_candidates` of the chain's own bindings). Unchecking every input or every output of a node leaves that node with no port.
 
 Contract tests: `crates/project/tests/issue_328_endpoint_discovery.rs`, `crates/engine/tests/issue_328_endpoint_disables.rs`, `crates/infra-cpal/src/io_topology_tests.rs` (`unchecking_an_input_endpoint_changes_the_bound_io_signature`).
 
