@@ -1,12 +1,10 @@
 //! Responsibility: parses the desktop binary's arguments.
 //! Minimal command-line argument parser for the desktop binary.
 //!
-//! Three forms are accepted (any order):
+//! Two forms are accepted (any order):
 //!
 //! * positional path → opens that project file directly, skipping the
 //!   launcher.
-//! * `--auto-save` → enables auto-save on every change (the save button is
-//!   hidden in this mode).
 //! * `--fullscreen` → forces the inline (no-child-windows) UI; required on
 //!   embedded targets where popping up extra OS windows isn't possible.
 //!
@@ -87,16 +85,15 @@ pub fn resolve_midi_map(cli: Option<MidiMapArg>, config_enabled: bool) -> Option
     cli.or_else(|| config_enabled.then_some(MidiMapArg::Default))
 }
 
-pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
+/// `(project path, fullscreen)`. There is no save-on-edit flag (#986): the
+/// project is written only on an explicit save.
+pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool) {
     let mut project_path: Option<PathBuf> = None;
-    let mut auto_save = false;
     let mut fullscreen = false;
     let mut i = 1;
     while i < args.len() {
         let arg = args[i];
-        if arg == "--auto-save" {
-            auto_save = true;
-        } else if arg == "--fullscreen" {
+        if arg == "--fullscreen" {
             fullscreen = true;
         } else if arg == "--project" {
             // Explicit form: `--project <PATH>` (the documented #436 form).
@@ -110,7 +107,7 @@ pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
         }
         i += 1;
     }
-    (project_path, auto_save, fullscreen)
+    (project_path, fullscreen)
 }
 
 /// Validate a project path resolved from `--project` / positional / env,

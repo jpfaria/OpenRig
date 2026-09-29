@@ -32,8 +32,6 @@ pub(crate) fn wire_block_delete(
     let output_chain_devices = &ctx.output_chain_devices;
     let selected_block = &ctx.selected_block;
     let open_block_windows = &ctx.open_block_windows;
-    let auto_save = ctx.auto_save;
-
     // on_delete_block_drawer (trash icon) — opens the in-window overlay.
     // Issue #360: the actual delete moved to on_confirm_delete_block below;
     // the previous native-dialog path is gone (native popup did not suit
@@ -142,13 +140,7 @@ pub(crate) fn wire_block_delete(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &main,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
             drop(session_borrow);
             *selected_block_delete.borrow_mut() = None;
             set_selected_block(&main, None, None);

@@ -47,7 +47,6 @@ pub(crate) struct BlockParameterCtx {
     pub block_editor_persist_timer: Rc<Timer>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: BlockParameterCtx) {
@@ -68,8 +67,6 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
     let block_editor_persist_timer = &ctx.block_editor_persist_timer;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
-    let auto_save = ctx.auto_save;
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -117,13 +114,7 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                 let Some(session) = session_borrow.as_mut() else {
                     return;
                 };
-                sync_project_dirty(
-                    &window,
-                    session,
-                    &saved_project_snapshot,
-                    &project_dirty,
-                    auto_save,
-                );
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             },
         );
     }
@@ -175,7 +166,6 @@ fn wire_numeric_params(window: &AppWindow, ctx: &BlockParameterCtx) {
                             input_chain_devices.clone(),
                             output_chain_devices.clone(),
                             "block-drawer.number",
-                            auto_save,
                         );
                     }
                 }
@@ -193,8 +183,6 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
-    let auto_save = ctx.auto_save;
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -236,13 +224,7 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
     }
 
@@ -287,13 +269,7 @@ fn wire_text_bool_params(window: &AppWindow, ctx: &BlockParameterCtx) {
             let Some(session) = session_borrow.as_mut() else {
                 return;
             };
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
     }
 }

@@ -37,7 +37,6 @@ pub(crate) struct CompactChainBlockHandlersCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -64,8 +63,6 @@ fn wire_block_toggle_and_model(
     let project_dirty = &ctx.project_dirty;
     let block_editor_draft = &ctx.block_editor_draft;
     let toast_timer = &ctx.toast_timer;
-    let auto_save = ctx.auto_save;
-
     // Wire toggle-enabled callback
     {
         let project_session = project_session.clone();
@@ -143,13 +140,7 @@ fn wire_block_toggle_and_model(
                 &session.io_bindings.borrow(),
             );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(
-                &main_win,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
         });
     }
 
@@ -264,13 +255,7 @@ fn wire_block_toggle_and_model(
                 &session.io_bindings.borrow(),
             );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(
-                &main_win,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
         });
     }
 }

@@ -27,7 +27,6 @@ pub(crate) struct SettingsWiringDeps {
     pub project_dirty: Rc<RefCell<bool>>,
     pub toast_timer: Rc<Timer>,
     pub app_config: Rc<RefCell<infra_filesystem::AppConfig>>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -50,7 +49,6 @@ pub(crate) fn wire(
         project_dirty,
         toast_timer,
         app_config,
-        auto_save,
     } = deps;
     // --- Device settings callbacks (extracted to device_settings_wiring) ---
     crate::device_settings_wiring::wire(
@@ -107,7 +105,6 @@ pub(crate) fn wire(
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
-            auto_save,
             app_config: app_config.clone(),
         },
     );
