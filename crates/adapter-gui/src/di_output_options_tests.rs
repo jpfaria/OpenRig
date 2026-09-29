@@ -13,6 +13,7 @@ fn chain(di_output: Option<DiOutputRef>) -> Chain {
         blocks: vec![],
         di_output,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

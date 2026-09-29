@@ -90,6 +90,7 @@ fn chain_with(block_id: &str) -> Chain {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

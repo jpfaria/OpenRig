@@ -6,6 +6,7 @@
 use anyhow::Result;
 use project::block::AudioBlock;
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, LooperConfig};
+use project::endpoint_disables::EndpointDisables;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
@@ -44,6 +45,10 @@ pub(crate) struct ChainYaml {
     /// YAML of a chain that has none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     loopers: Vec<LooperConfig>,
+    /// #328: the endpoints the chain's graph leaves out. Absent when every
+    /// endpoint is kept, so a chain without an edit keeps its lean YAML.
+    #[serde(default, skip_serializing_if = "EndpointDisables::is_empty")]
+    disabled_endpoints: EndpointDisables,
     #[serde(default, skip_serializing)]
     output_mixdown: ChainOutputMixdown,
     #[serde(default, skip_serializing)]
@@ -84,6 +89,7 @@ impl ChainYaml {
             blocks: parsed_blocks,
             di_output: None,
             loopers: self.loopers,
+            disabled_endpoints: self.disabled_endpoints,
         })
     }
 
@@ -107,6 +113,7 @@ impl ChainYaml {
             io_binding_ids: chain.io_binding_ids.clone(),
             blocks: audio_blocks,
             loopers: chain.loopers.clone(),
+            disabled_endpoints: chain.disabled_endpoints.clone(),
             output_mixdown: ChainOutputMixdown::Average,
             input_mode: ChainInputMode::default(),
         })

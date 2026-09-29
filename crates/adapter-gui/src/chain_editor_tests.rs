@@ -23,6 +23,7 @@ fn recorded_chain() -> Chain {
             binding_id: "io-1".into(),
             endpoint: "out".into(),
         }),
+        disabled_endpoints: Default::default(),
         loopers: vec![LooperConfig {
             audio_file: Some("rig-in-looper-1.wav".into()),
             ..LooperConfig::new(1)
@@ -50,5 +51,39 @@ fn editing_a_chain_keeps_what_the_editor_does_not_edit() {
     assert_eq!(
         edited.di_output, existing.di_output,
         "renaming a chain must not drop its chosen DI output"
+    );
+}
+
+// ── #328: the endpoint checklists are something the editor does NOT edit ────
+
+/// The chain editor edits name, instrument and bindings. The graph's endpoint
+/// checklists are chain configuration it never shows, so a rename must hand
+/// them back untouched — the #826 rule, or renaming a chain re-checks every
+/// endpoint the user left out (a second guitar's input suddenly plays).
+#[test]
+fn editing_a_chain_keeps_its_endpoint_checklists() {
+    use project::endpoint_disables::{EndpointDisables, EndpointNode, EndpointRef};
+
+    let mut disabled_endpoints = EndpointDisables::default();
+    disabled_endpoints.set_enabled(
+        EndpointNode::Input,
+        EndpointRef {
+            io: "io-1".into(),
+            endpoint: "in 2".into(),
+        },
+        false,
+    );
+    let existing = Chain {
+        disabled_endpoints,
+        ..recorded_chain()
+    };
+    let mut draft = chain_draft_from_chain(0, &existing);
+    draft.name = "GUITARRA - TONES".into();
+
+    let edited = chain_from_draft(&draft, Some(&existing));
+
+    assert_eq!(
+        edited.disabled_endpoints, existing.disabled_endpoints,
+        "renaming a chain must not re-check the endpoints its graph left out"
     );
 }

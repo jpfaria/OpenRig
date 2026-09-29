@@ -107,6 +107,7 @@ fn one_chain_project() -> Project {
                 output: None,
                 preset: None,
             }],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     }

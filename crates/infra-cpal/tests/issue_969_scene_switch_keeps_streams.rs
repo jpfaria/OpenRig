@@ -148,6 +148,7 @@ fn chain(id: &str, binding: &str, enabled: bool) -> Chain {
         blocks: vec![first_preset_block()],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

@@ -110,6 +110,7 @@ fn capture(rig: &mut RigProject, edit: impl FnOnce(&mut Vec<AudioBlock>)) {
             blocks,
             di_output: None,
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     };

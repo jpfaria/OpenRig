@@ -139,6 +139,7 @@ pub fn rig_project_with(
             blocks,
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     };

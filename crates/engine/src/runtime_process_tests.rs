@@ -258,6 +258,7 @@ fn process_input_stereo_output_preserves_channels() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let runtime = Arc::new(
         build_chain_runtime_state(
@@ -425,6 +426,7 @@ fn build_chain_runtime_state_empty_chain_succeeds() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &[]);
     assert!(runtime.is_ok(), "empty chain should build successfully");

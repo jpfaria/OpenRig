@@ -63,6 +63,7 @@ fn vst3_block_named_by_its_package_id_renders_in_stereo() {
         io_binding_ids: Vec::new(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
         blocks: vec![AudioBlock {
             id: BlockId("issue-938-vst3-block".into()),
             enabled: true,

@@ -71,6 +71,9 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             // #323: capture the chain's loopers so a recorded loop's
             // parameters + saved-audio reference persist on the rig path.
             rig_input.loopers = chain.loopers.clone();
+            // #328: capture the graph's endpoint checklists so an unchecked
+            // endpoint stays unchecked after save + reopen.
+            rig_input.disabled_endpoints = chain.disabled_endpoints.clone();
         }
     }
     sync_chain_order(rig, project);

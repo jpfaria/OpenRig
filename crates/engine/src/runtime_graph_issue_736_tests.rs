@@ -59,6 +59,7 @@ fn two_binding_chain() -> Chain {
         blocks: Vec::new(),
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

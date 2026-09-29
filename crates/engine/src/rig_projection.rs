@@ -108,6 +108,8 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             blocks,
             di_output: None,
             loopers: input.loopers.clone(),
+            // #328: the input's checklists ride on the chain its graph edits.
+            disabled_endpoints: input.disabled_endpoints.clone(),
         });
     }
     chains

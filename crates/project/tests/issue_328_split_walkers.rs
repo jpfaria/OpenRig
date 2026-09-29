@@ -78,6 +78,7 @@ fn project_of(blocks: Vec<AudioBlock>) -> Project {
             blocks,
             di_output: None,
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     }

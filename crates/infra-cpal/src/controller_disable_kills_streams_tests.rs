@@ -27,6 +27,7 @@ fn chain(id: &str, enabled: bool) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

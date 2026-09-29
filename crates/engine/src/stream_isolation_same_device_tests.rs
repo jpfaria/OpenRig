@@ -102,6 +102,7 @@ fn same_device_dual_entry_chain() -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 
@@ -116,6 +117,7 @@ fn split_mono_chain() -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

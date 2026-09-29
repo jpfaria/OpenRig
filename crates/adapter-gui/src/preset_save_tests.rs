@@ -41,6 +41,7 @@ fn chain(id: &str, description: Option<&str>) -> Chain {
         blocks: vec![block("gain")],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

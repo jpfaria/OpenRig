@@ -47,6 +47,7 @@ fn pipe_runtime() -> Arc<ChainRuntimeState> {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     Arc::new(
         build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET], &registry)

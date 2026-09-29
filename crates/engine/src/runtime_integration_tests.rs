@@ -30,6 +30,7 @@ fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
             }],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     };
@@ -65,6 +66,7 @@ fn dual_mono_chain_does_not_leak_left_into_right() {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let runtime = Arc::new(
         build_chain_runtime_state(
@@ -113,6 +115,7 @@ fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let runtime = Arc::new(
         build_chain_runtime_state(
@@ -159,6 +162,7 @@ fn build_runtime_graph_errors_on_missing_sample_rate() {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     };

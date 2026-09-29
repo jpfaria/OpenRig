@@ -195,6 +195,7 @@ fn make_project_with_volume(chain_id: &str, volume: f32) -> Rc<RefCell<Project>>
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     }))

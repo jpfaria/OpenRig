@@ -69,6 +69,7 @@ fn chain_with_only_io_blocks_roundtrips() {
             ],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     };
@@ -308,6 +309,7 @@ fn serialize_project_produces_valid_yaml_string() {
             ],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     };
@@ -549,6 +551,7 @@ fn chain_loopers_survive_a_project_roundtrip() {
             io_binding_ids: vec![],
             blocks: vec![],
             di_output: None,
+            disabled_endpoints: Default::default(),
             loopers: vec![LooperConfig {
                 audio_file: Some("loop-5.wav".into()),
                 mix: 0.5,

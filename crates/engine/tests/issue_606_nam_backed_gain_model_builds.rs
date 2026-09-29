@@ -75,6 +75,7 @@ fn chain_with(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         blocks,
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

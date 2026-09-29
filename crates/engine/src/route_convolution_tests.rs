@@ -148,6 +148,7 @@ fn a_mid_tap_before_the_cab_is_not_fed_by_the_convolver() {
         ],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let rt: Arc<ChainRuntimeState> = Arc::new(
         build_chain_runtime_state(&owner, 48_000.0, &[128, 128, 64], &registry())

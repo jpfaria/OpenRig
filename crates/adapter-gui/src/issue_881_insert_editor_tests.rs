@@ -73,6 +73,7 @@ fn session_with_insert() -> Rc<RefCell<Option<ProjectSession>>> {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }];
     *session.io_bindings.borrow_mut() = registry();
     Rc::new(RefCell::new(Some(session)))

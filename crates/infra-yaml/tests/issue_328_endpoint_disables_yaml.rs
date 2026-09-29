@@ -62,3 +62,47 @@ fn an_inputs_unchecked_endpoints_survive_save_and_reload() {
         "the checklist survives save and reload"
     );
 }
+
+#[test]
+fn a_checklist_edit_changes_the_legacy_serialization_the_dirty_check_compares() {
+    use domain::ids::ChainId;
+    use infra_yaml::{serialize_project, YamlProjectRepository};
+    use project::chain::Chain;
+    use project::endpoint_disables::EndpointDisables;
+    use project::project::Project;
+
+    let project_with = |disabled_endpoints: EndpointDisables| Project {
+        name: None,
+        device_settings: Vec::new(),
+        chains: vec![Chain {
+            id: ChainId("rig:g".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            volume: 100.0,
+            io_binding_ids: vec!["io".into()],
+            blocks: Vec::new(),
+            di_output: None,
+            loopers: Vec::new(),
+            disabled_endpoints,
+        }],
+        midi: None,
+    };
+    let mut unchecked = EndpointDisables::default();
+    unchecked.set_enabled(EndpointNode::Input, r("in 2"), false);
+
+    let before = serialize_project(&project_with(EndpointDisables::default())).expect("serialize");
+    let after = serialize_project(&project_with(unchecked.clone())).expect("serialize");
+    assert_ne!(
+        before, after,
+        "the dirty fingerprint must see a checklist edit, or Save answers 'no changes'"
+    );
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    let path = dir.path().join("p.yaml");
+    std::fs::write(&path, &after).expect("write");
+    let loaded = YamlProjectRepository { path }
+        .load_current_project()
+        .expect("load");
+    assert_eq!(loaded.chains[0].disabled_endpoints, unchecked);
+}

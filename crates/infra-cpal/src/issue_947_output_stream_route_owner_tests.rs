@@ -48,6 +48,7 @@ fn each_guitar_output_stream_holds_only_its_own_guitar_runtime() {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let runtimes =
         build_per_input_runtime_states(&chain, 48_000.0, &HashMap::new(), &[], &registry)
@@ -116,6 +117,7 @@ fn a_disabled_inserts_send_stream_holds_the_chain_runtime() {
         }],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let runtimes =
         build_per_input_runtime_states(&chain, 48_000.0, &HashMap::new(), &[], &registry)
@@ -188,6 +190,7 @@ fn a_multi_runtime_chains_loop_send_holds_no_runtime_while_the_loop_is_off() {
         blocks: vec![insert_block(false)],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     };
     let runtimes =
         build_per_input_runtime_states(&chain, 48_000.0, &HashMap::new(), &[], &registry)
@@ -251,6 +254,7 @@ fn a_tail_only_the_cut_writes_is_bound_on_any_interface() {
             io_binding_ids: vec!["a".into(), "b".into()],
             blocks: vec![insert_block(loop_on)],
             di_output: None,
+            disabled_endpoints: Default::default(),
             loopers: vec![],
         };
         let runtimes =

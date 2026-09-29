@@ -173,6 +173,7 @@ pub(super) fn chain() -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        disabled_endpoints: Default::default(),
     }
 }
 

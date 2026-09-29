@@ -80,6 +80,7 @@ fn dispatcher_with_fizzy_chain() -> LocalDispatcher {
             ],
             di_output: None,
             loopers: vec![],
+            disabled_endpoints: Default::default(),
         }],
         midi: None,
     }));

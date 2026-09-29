@@ -126,6 +126,7 @@ fn chain() -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![LooperConfig::new(1)],
+        disabled_endpoints: Default::default(),
     }
 }
 
