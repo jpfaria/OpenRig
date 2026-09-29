@@ -42,3 +42,7 @@ pub(crate) fn try_lock_processing(
         std::thread::sleep(RETRY_PAUSE);
     }
 }
+
+#[cfg(test)]
+#[path = "runtime_processing_lock_tests.rs"]
+mod runtime_processing_lock_tests;

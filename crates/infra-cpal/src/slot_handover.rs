@@ -179,3 +179,7 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
+
+#[cfg(test)]
+#[path = "issue_987_slot_handover_tests.rs"]
+mod issue_987_slot_handover_tests;
