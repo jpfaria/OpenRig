@@ -3,6 +3,7 @@
 use crate::state::ProjectSession;
 use crate::AppWindow;
 use anyhow::Result;
+#[cfg(test)]
 use application::command::{Command, ProjectCommand};
 
 /// The dirty-detection fingerprint. For a rig session the saved artifact
@@ -39,34 +40,15 @@ pub(crate) fn set_project_dirty(
     window.set_project_dirty(dirty);
 }
 
+/// Recompute the unsaved-changes flag after an edit. It never writes the
+/// project: #986 — the file is written only on an explicit save.
 #[track_caller]
 pub(crate) fn sync_project_dirty(
     window: &AppWindow,
     session: &ProjectSession,
     saved_project_snapshot: &std::rc::Rc<std::cell::RefCell<Option<String>>>,
     project_dirty: &std::rc::Rc<std::cell::RefCell<bool>>,
-    auto_save: bool,
 ) {
-    if auto_save {
-        if let Some(ref path) = session.project_path {
-            // #555: auto-save goes through the dispatcher too — the
-            // file writes live inside `ProjectCommand::SaveProject`. Keep the
-            // local snapshot fingerprint up to date so the next
-            // dirty-check is accurate.
-            match session
-                .dispatcher
-                .dispatch(Command::Project(ProjectCommand::SaveProject))
-            {
-                Ok(_) => {
-                    *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
-                    set_project_dirty(window, project_dirty, false);
-                    log::debug!("auto-save: saved to {:?}", path);
-                    return;
-                }
-                Err(e) => log::error!("auto-save failed: {e}"),
-            }
-        }
-    }
     let dirty = match saved_project_snapshot.borrow().as_ref() {
         Some(saved_snapshot) => project_session_snapshot(session)
             .map(|current| current != *saved_snapshot)
@@ -110,3 +92,7 @@ pub(crate) fn save_project_session(
 // `application::local_dispatcher_preset::handle_chain_preset` in #555.
 // The GUI now dispatches `ChainCommand::SaveChainPreset { chain, name }`
 // and the dispatcher does the file write.
+
+#[cfg(test)]
+#[path = "issue_986_no_autosave_tests.rs"]
+mod issue_986_no_autosave_tests;

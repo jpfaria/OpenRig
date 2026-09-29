@@ -48,7 +48,6 @@ pub(crate) fn schedule_block_editor_persist(
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     context: &'static str,
-    auto_save: bool,
 ) {
     timer.stop();
     timer.start(
@@ -77,7 +76,6 @@ pub(crate) fn schedule_block_editor_persist(
                 &devs_in,
                 &devs_out,
                 false,
-                auto_save,
             ) {
                 log::error!("[adapter-gui] {context}: {error}");
                 crate::BlockEditorBridge::get(&window)
@@ -101,7 +99,6 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     context: &'static str,
-    auto_save: bool,
 ) {
     timer.stop();
     timer.start(
@@ -134,7 +131,6 @@ pub(crate) fn schedule_block_editor_persist_for_block_win(
                 &devs_in,
                 &devs_out,
                 false,
-                auto_save,
             ) {
                 log::error!("[adapter-gui] {context}: {error}");
                 crate::BlockEditorBridge::get(&main_window)
@@ -156,7 +152,6 @@ pub(crate) fn persist_block_editor_draft(
     input_chain_devices: &[AudioDeviceDescriptor],
     output_chain_devices: &[AudioDeviceDescriptor],
     close_after_save: bool,
-    auto_save: bool,
 ) -> Result<()> {
     let params =
         block_parameter_values(block_parameter_items, &draft.effect_type, &draft.model_id)?;
@@ -335,13 +330,7 @@ pub(crate) fn persist_block_editor_draft(
         output_chain_devices,
         &[],
     );
-    sync_project_dirty(
-        window,
-        session,
-        saved_project_snapshot,
-        project_dirty,
-        auto_save,
-    );
+    sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
     if close_after_save {
         crate::BlockEditorBridge::get(window).set_show_block_drawer(false);
         crate::BlockEditorBridge::get(window).set_show_block_type_picker(false);

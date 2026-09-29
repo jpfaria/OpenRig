@@ -28,7 +28,6 @@ pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
     interaction_mode: InteractionMode,
     cli_project_path: Option<PathBuf>,
-    auto_save: bool,
     fullscreen: bool,
     mcp_addr: Option<SocketAddr>,
     midi_map: Option<crate::cli::MidiMapArg>,
@@ -182,7 +181,6 @@ pub fn run_desktop_app(
         &project_settings_window,
         &context,
         &settings,
-        auto_save,
         fullscreen,
         needs_audio_settings,
         &input_chain_devices,
@@ -271,7 +269,6 @@ pub fn run_desktop_app(
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
-            auto_save,
         },
     );
     crate::insert_wiring::wire(
@@ -285,7 +282,6 @@ pub fn run_desktop_app(
             project_chains: project_chains.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
-            auto_save,
         },
     );
     crate::desktop_app_settings_wiring::wire(
@@ -306,7 +302,6 @@ pub fn run_desktop_app(
             project_dirty: project_dirty.clone(),
             toast_timer: toast_timer.clone(),
             app_config: app_config.clone(),
-            auto_save,
         },
     );
 
@@ -351,7 +346,6 @@ pub fn run_desktop_app(
             project_dirty: project_dirty.clone(),
             preset_file_list: preset_file_list.clone(),
             toast_timer: toast_timer.clone(),
-            auto_save,
             fullscreen,
         },
     );
@@ -406,7 +400,6 @@ pub fn run_desktop_app(
         toast_timer: toast_timer.clone(),
         app_config: app_config.clone(),
         fullscreen,
-        auto_save,
     });
     // --- Block-related callback wirings (extracted to desktop_app_block_wiring) ---
     crate::desktop_app_block_wiring::wire_all(&crate::desktop_app_block_wiring::BlockWiringDeps {
@@ -440,7 +433,6 @@ pub fn run_desktop_app(
         toast_timer: toast_timer.clone(),
         plugin_info_window: plugin_info_window.clone(),
         block_editor_persist_timer: block_editor_persist_timer.clone(),
-        auto_save,
     });
     // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
     // --- Chain editor delegation forwarders (extracted to chain_editor_forwarders_wiring) ---
@@ -457,7 +449,6 @@ pub fn run_desktop_app(
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
-            auto_save,
         },
     );
     // --- Chain row callbacks (extracted to chain_row_wiring) ---
@@ -472,7 +463,6 @@ pub fn run_desktop_app(
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
-            auto_save,
             pending_delete_chain_id: std::rc::Rc::new(std::cell::RefCell::new(None)),
         },
     );
@@ -499,7 +489,6 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
-            auto_save,
         },
     );
     crate::plugin_info_inline_wiring::wire(&window);
@@ -543,7 +532,6 @@ pub fn run_desktop_app(
                 toast_timer: toast_timer.clone(),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
-                auto_save,
             },
             crate::desktop_app_mcp::McpDeps {
                 project_runtime: project_runtime.clone(),
@@ -569,7 +557,6 @@ pub fn run_desktop_app(
                 toast_timer: toast_timer.clone(),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
-                auto_save,
             },
             arg,
         )?),

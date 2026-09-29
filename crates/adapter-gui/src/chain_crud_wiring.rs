@@ -39,7 +39,6 @@ pub(crate) struct ChainCrudCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub toast_timer: Rc<Timer>,
     pub app_config: Rc<RefCell<AppConfig>>,
-    pub auto_save: bool,
     pub fullscreen: bool,
 }
 
@@ -55,7 +54,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
         project_dirty,
         toast_timer,
         app_config,
-        auto_save,
         fullscreen,
     } = ctx;
 
@@ -99,7 +97,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
                 input_chain_devices.clone(),
                 output_chain_devices.clone(),
                 toast_timer.clone(),
-                auto_save,
             );
             *chain_editor_window.borrow_mut() = Some(editor_window);
             let ce_borrow = chain_editor_window.borrow();
@@ -190,7 +187,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainCrudCtx) {
                 input_chain_devices.clone(),
                 output_chain_devices.clone(),
                 toast_timer.clone(),
-                auto_save,
             );
             *chain_editor_window.borrow_mut() = Some(editor_window);
             let ce_borrow = chain_editor_window.borrow();

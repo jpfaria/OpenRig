@@ -14,7 +14,6 @@ export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
     in property <string> project-path-label;
     in property <bool> project-dirty;
-    in property <bool> auto-save: false;
     in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <[ProjectChainItem]> project-chains;
@@ -142,14 +141,14 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: root.auto-save ? parent.width - 80px : parent.width - 120px;
+            x: parent.width - 120px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
             tooltip: @tr("tooltip-project-settings");
             clicked => { root.configure-project(); }
         }
 
-        if !root.auto-save : HeaderIconAction {
+        HeaderIconAction {
             x: parent.width - 80px;
             y: 14px;
             icon: @image-url("../assets/save.svg");

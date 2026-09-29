@@ -33,7 +33,6 @@ pub(crate) struct InsertWiringCtx {
     pub project_chains: Rc<VecModel<ProjectChainItem>>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
-    pub auto_save: bool,
 }
 
 /// Fill the window's E/S select for `draft` and show it.
@@ -73,7 +72,6 @@ pub(crate) fn wire(
         project_chains,
         saved_project_snapshot,
         project_dirty,
-        auto_save,
     } = ctx;
 
     // --- pick the E/S the loop runs through ---
@@ -169,13 +167,7 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
     }
 
@@ -240,13 +232,7 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             let _ = iw.hide();
         });
     }
@@ -326,13 +312,7 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             let _ = iw.hide();
         });
     }

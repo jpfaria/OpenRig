@@ -57,7 +57,6 @@ pub(crate) struct BlockInsertCallbacksCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub block_editor_persist_timer: Rc<Timer>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
@@ -80,7 +79,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
         input_chain_devices,
         output_chain_devices,
         block_editor_persist_timer,
-        auto_save,
     } = ctx;
 
     // on_start_block_insert
@@ -251,7 +249,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-drawer.choose-model",
-                    auto_save,
                 );
             }
         });

@@ -48,7 +48,6 @@ pub(crate) struct ChainWiringDeps<'a> {
 
     pub app_config: Rc<RefCell<AppConfig>>,
     pub fullscreen: bool,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
@@ -66,7 +65,6 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             project_dirty: deps.project_dirty.clone(),
             toast_timer: deps.toast_timer.clone(),
             app_config: deps.app_config.clone(),
-            auto_save: deps.auto_save,
             fullscreen: deps.fullscreen,
         },
     );
@@ -86,7 +84,6 @@ pub(crate) fn wire_all(deps: &ChainWiringDeps<'_>) {
             open_compact_window: deps.open_compact_window.clone(),
             block_editor_draft: deps.block_editor_draft.clone(),
             fullscreen: deps.fullscreen,
-            auto_save: deps.auto_save,
         },
     );
     // --- Chain name edit callback (extracted to chain_name_wiring) ---

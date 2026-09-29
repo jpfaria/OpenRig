@@ -73,7 +73,6 @@ pub(crate) struct BlockChooseTypeCallbackCtx {
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
     /// #898: the compact view a block may have been inserted from.
     pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -105,7 +104,6 @@ pub(crate) fn wire(
         plugin_info_window,
         port_draft,
         open_compact_window,
-        auto_save,
     } = ctx;
 
     let weak_window = window.as_weak();
@@ -119,7 +117,6 @@ pub(crate) fn wire(
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),
         output_chain_devices: output_chain_devices.clone(),
-        auto_save,
     };
 
     crate::BlockEditorBridge::get(window).on_choose_block_type(move |index| {
@@ -194,13 +191,7 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
             let registry = session.io_bindings.borrow().clone();
             drop(session_borrow);
@@ -265,13 +256,7 @@ pub(crate) fn wire(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             crate::BlockEditorBridge::get(&window).set_show_block_type_picker(false);
             // Open the insert window to configure the newly created block
             drop(session_borrow);
@@ -417,7 +402,6 @@ pub(crate) fn wire(
                 open_block_windows: open_block_windows.clone(),
                 plugin_info_window: plugin_info_window.clone(),
                 open_compact_window: open_compact_window.clone(),
-                auto_save,
             };
             match block_editor_window_setup::create_and_wire(window.as_weak(), setup_ctx) {
                 Ok((win, stream_timer)) => {

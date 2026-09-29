@@ -65,8 +65,6 @@ pub(crate) struct BlockWiringDeps<'a> {
     pub toast_timer: Rc<Timer>,
     pub plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>>,
     pub block_editor_persist_timer: Rc<Timer>,
-
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
@@ -119,7 +117,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             toast_timer: deps.toast_timer.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
             port_draft: deps.port_draft.clone(),
-            auto_save: deps.auto_save,
         },
     );
     // --- on_select_chain (#591: chain-level selection drives the footswitch's active chain) ---
@@ -150,7 +147,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             output_chain_devices: deps.output_chain_devices.clone(),
             toast_timer: deps.toast_timer.clone(),
             open_block_windows: deps.open_block_windows.clone(),
-            auto_save: deps.auto_save,
         },
     );
     // --- on_start_block_insert + on_choose_block_model (extracted to block_insert_callbacks) ---
@@ -175,7 +171,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
-            auto_save: deps.auto_save,
         },
     );
     // --- on_choose_block_type (extracted to block_choose_type_callback) ---
@@ -206,7 +201,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             selected_block: deps.selected_block.clone(),
             open_block_windows: deps.open_block_windows.clone(),
             plugin_info_window: deps.plugin_info_window.clone(),
-            auto_save: deps.auto_save,
         },
     );
     // --- Block model search callbacks (extracted to block_model_search_wiring) ---
@@ -263,7 +257,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             block_editor_persist_timer: deps.block_editor_persist_timer.clone(),
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
-            auto_save: deps.auto_save,
         },
     );
     // --- Block drawer save+delete callbacks (extracted to block_drawer_save_delete_wiring) ---
@@ -287,7 +280,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
             open_compact_window: deps.open_compact_window.clone(),
-            auto_save: deps.auto_save,
         },
     );
     // --- Block delete confirm/cancel callbacks (extracted to block_delete_wiring) ---
@@ -310,7 +302,6 @@ pub(crate) fn wire_all(deps: &BlockWiringDeps<'_>) {
             input_chain_devices: deps.input_chain_devices.clone(),
             output_chain_devices: deps.output_chain_devices.clone(),
             toast_timer: deps.toast_timer.clone(),
-            auto_save: deps.auto_save,
         },
     );
 }

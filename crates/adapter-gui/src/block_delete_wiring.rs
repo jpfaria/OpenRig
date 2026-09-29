@@ -39,7 +39,6 @@ pub(crate) struct BlockDeleteCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
@@ -60,7 +59,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
         input_chain_devices,
         output_chain_devices,
         toast_timer,
-        auto_save,
     } = ctx;
     {
         let weak_window = window.as_weak();
@@ -88,13 +86,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDeleteCtx) {
                 Err(_) => return,
             }
             if let Some(session) = project_session.borrow_mut().as_mut() {
-                sync_project_dirty(
-                    &window,
-                    session,
-                    &saved_project_snapshot,
-                    &project_dirty,
-                    auto_save,
-                );
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;

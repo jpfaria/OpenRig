@@ -54,7 +54,6 @@ fn native_ctx(effect_type: &str, model_id: &str) -> BlockEditorWindowSetupCtx {
         open_block_windows: Rc::new(RefCell::new(Vec::new())),
         plugin_info_window: Rc::new(RefCell::new(None)),
         open_compact_window: Rc::new(RefCell::new(None)),
-        auto_save: false,
     }
 }
 

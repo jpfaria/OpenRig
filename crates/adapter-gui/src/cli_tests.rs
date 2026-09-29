@@ -5,26 +5,26 @@ use std::path::PathBuf;
 
 #[test]
 fn project_flag_takes_next_arg_as_path() {
-    let (p, _, _) = parse_cli_args_from(&["openrig", "--project", "/tmp/x.openrig"]);
+    let (p, _) = parse_cli_args_from(&["openrig", "--project", "/tmp/x.openrig"]);
     assert_eq!(p, Some(PathBuf::from("/tmp/x.openrig")));
 }
 
 #[test]
 fn project_flag_overrides_earlier_positional() {
-    let (p, _, _) = parse_cli_args_from(&["openrig", "old.yaml", "--project", "new.openrig"]);
+    let (p, _) = parse_cli_args_from(&["openrig", "old.yaml", "--project", "new.openrig"]);
     assert_eq!(p, Some(PathBuf::from("new.openrig")));
 }
 
 #[test]
 fn project_flag_without_value_is_ignored_no_panic() {
-    let (p, a, _) = parse_cli_args_from(&["openrig", "--project"]);
+    let (p, f) = parse_cli_args_from(&["openrig", "--project"]);
     assert_eq!(p, None);
-    assert!(!a);
+    assert!(!f);
 }
 
 #[test]
-fn project_flag_coexists_with_auto_save() {
-    let (p, a, f) = parse_cli_args_from(&[
+fn project_flag_ignores_removed_auto_save_flag() {
+    let (p, f) = parse_cli_args_from(&[
         "openrig",
         "--auto-save",
         "--project",
@@ -32,8 +32,11 @@ fn project_flag_coexists_with_auto_save() {
         "--fullscreen",
     ]);
     assert_eq!(p, Some(PathBuf::from("r.openrig")));
-    assert!(a);
     assert!(f);
+
+    let (p, f) = parse_cli_args_from(&["openrig", "--auto-save", "--project", "r.openrig"]);
+    assert_eq!(p, Some(PathBuf::from("r.openrig")));
+    assert!(!f, "the removed flag must not turn anything on");
 }
 
 #[test]

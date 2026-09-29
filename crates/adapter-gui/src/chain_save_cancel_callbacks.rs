@@ -34,7 +34,6 @@ pub(crate) struct ChainSaveCancelCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
@@ -47,7 +46,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
         input_chain_devices,
         output_chain_devices,
         toast_timer,
-        auto_save,
     } = ctx;
 
     // on_save_chain
@@ -117,13 +115,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainSaveCancelCtx) {
             // preset selector until something else triggers a refresh.
             crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
         });
