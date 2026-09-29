@@ -435,6 +435,7 @@ pub(super) fn panicking_block_node() -> BlockRuntimeNode {
         fade_dry_buffer: Vec::new(),
         faulted: false,
         fault_reason: None,
+        handover: None,
     }
 }
 
@@ -465,6 +466,7 @@ pub(super) fn counting_block_node(
         fade_dry_buffer: Vec::new(),
         faulted: false,
         fault_reason: None,
+        handover: None,
     }
 }
 
