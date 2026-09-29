@@ -49,6 +49,16 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # #991: with no cache every run compiled ~550 third-party crates from
+      # scratch — ~12 of the job's ~20 minutes. Only branch pushes save, so a
+      # PR run restores its base branch's cache instead of adding its own to
+      # the repo's 10 GB quota. Workspace crates are never cached.
+      - name: Cache cargo registry and dependency builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test-debug
+          save-if: ${{ github.event_name == 'push' }}
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -100,6 +110,14 @@ jobs:
         if: steps.vendor.outputs.bumped == 'true'
         uses: dtolnay/rust-toolchain@stable
 
+      # #991: same debug build as the Test Suite, so it reads that job's cache.
+      - name: Restore the Test Suite's dependency cache
+        if: steps.vendor.outputs.bumped == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test-debug
+          save-if: false
+
       - name: Install system dependencies
         if: steps.vendor.outputs.bumped == 'true'
         run: |
@@ -137,6 +155,14 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # #991: the instrumented build has its own cache (different RUSTFLAGS,
+      # separate target/llvm-cov-target); same save rule as the Test Suite.
+      - name: Cache cargo registry and dependency builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: coverage-instrumented
+          save-if: ${{ github.event_name == 'push' }}
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -146,8 +172,11 @@ jobs:
             libxkbcommon-dev libinput-dev libgbm-dev \
             libjack-jackd2-dev gettext
 
+      # #991: prebuilt binary; `cargo install` compiled it from source (~1 min).
       - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
 
       - name: Generate coverage report
         timeout-minutes: 30
