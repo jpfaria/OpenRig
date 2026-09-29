@@ -23,7 +23,9 @@
 
 #![cfg(not(all(target_os = "linux", feature = "jack")))]
 
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Once};
 use std::time::{Duration, Instant};
 
 use domain::ids::{BlockId, ChainId};
@@ -59,6 +61,16 @@ const STEP_MARGIN: f32 = 10.0;
 const SILENT: f32 = 1e-4;
 /// Longest silent run the tone makes on its own.
 const MAX_SILENT_RUN: usize = 2;
+/// Pause between two callbacks of the live audio thread: faster than the
+/// device, so an edit that keeps the pipeline half built for a moment is
+/// always caught inside it.
+const LIVE_CALLBACK_PERIOD: Duration = Duration::from_micros(250);
+/// Time between two edits on the live rig.
+const LIVE_BETWEEN: Duration = Duration::from_millis(100);
+const CAB: &str = "issue987:cab";
+/// A repo IR fixture (git-lfs) with two captures, `b` and `d`.
+const CAB_MODEL: &str = "ir_marshall_4x12_v30";
+const CAB_CAPTURE: &str = "ir/marshall_4x12_v30/ir/ev_mix_b.wav";
 
 fn level(id: &str, enabled: bool, volume_pct: f32) -> AudioBlock {
     let schema = schema_for_block_model("gain", "volume").expect("volume schema must exist");
@@ -91,9 +103,9 @@ fn chain(blocks: Vec<AudioBlock>) -> Chain {
     }
 }
 
-/// A running chain with a tone playing into it and every output sample kept.
-struct Rig {
-    controller: ProjectRuntimeController,
+/// The two callbacks of one HAL cycle, fed a tone, with every output sample
+/// kept. It holds the slot handle the way a cpal stream does.
+struct Player {
     slot: LiveRuntimeSlot,
     phase: f32,
     input: Vec<f32>,
@@ -103,17 +115,9 @@ struct Rig {
     heard: Vec<f32>,
 }
 
-impl Rig {
-    fn start(first: &Chain) -> Self {
-        init_registry();
-        let controller = controller_with_active_chain(first);
-        let slot = controller
-            .chain_slots
-            .get(&(ChainId(CHAIN.into()), 0))
-            .expect("an active chain owns a live slot")
-            .handle();
-        let mut rig = Self {
-            controller,
+impl Player {
+    fn warmed_up(slot: LiveRuntimeSlot) -> Self {
+        let mut player = Self {
             slot,
             phase: 0.0,
             input: vec![0.0; BUF],
@@ -123,10 +127,10 @@ impl Rig {
             heard: Vec::new(),
         };
         for _ in 0..WARMUP {
-            rig.callback();
+            player.callback();
         }
-        rig.heard.clear();
-        rig
+        player.heard.clear();
+        player
     }
 
     /// One HAL cycle: the input callback, then the output callback.
@@ -149,6 +153,79 @@ impl Rig {
         self.heard
             .extend(self.output.chunks_exact(2).map(|frame| frame[0]));
     }
+}
+
+fn start_controller(first: &Chain) -> (ProjectRuntimeController, LiveRuntimeSlot) {
+    init_registry();
+    let controller = controller_with_active_chain(first);
+    let slot = controller
+        .chain_slots
+        .get(&(ChainId(CHAIN.into()), 0))
+        .expect("an active chain owns a live slot")
+        .handle();
+    (controller, slot)
+}
+
+/// The block toggle the GUI, MIDI and MCP send: the dispatcher has flipped
+/// the block in the project, and the chain it hands over carries it. A block
+/// with no live processor answers "needs full rebuild", and the app then takes
+/// the live edit door.
+fn toggle(controller: &mut ProjectRuntimeController, next: &Chain, block: &str, enabled: bool) {
+    if controller
+        .toggle_block_enabled_live(next, &BlockId(block.into()), enabled)
+        .is_err()
+    {
+        switch(controller, next);
+    }
+}
+
+/// A scene switch: the app's live edit door (`sync_live_chain_runtime`) for a
+/// chain whose streams stay the same.
+fn switch(controller: &mut ProjectRuntimeController, next: &Chain) {
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![next.clone()],
+        midi: None,
+    };
+    assert!(
+        controller
+            .request_offthread_rebuild_if_live(&project, next)
+            .expect("the live edit door must answer"),
+        "a scene switch on a running chain must go through the live rebuild"
+    );
+}
+
+fn assert_no_click(heard: &[f32], what: &str) {
+    let report = scan(heard);
+    assert!(
+        report.steps == 0 && report.longest_gap <= MAX_SILENT_RUN,
+        "#987 {what}: the output clicked. {} frames step above the tone's own \
+         curvature (worst {:.1}x that curvature, first at {:.1} ms); longest silent \
+         run {} frames (the tone makes at most {MAX_SILENT_RUN}). A live edit \
+         must fade, never jump or drop out.",
+        report.steps,
+        report.worst_ratio,
+        report.first_step_ms,
+        report.longest_gap,
+    );
+}
+
+/// A running chain whose callbacks run in lockstep with the control thread:
+/// every sample is deterministic, and an edit lands between two callbacks.
+struct Rig {
+    controller: ProjectRuntimeController,
+    player: Player,
+}
+
+impl Rig {
+    fn start(first: &Chain) -> Self {
+        let (controller, slot) = start_controller(first);
+        Self {
+            controller,
+            player: Player::warmed_up(slot),
+        }
+    }
 
     /// `callbacks` cycles with the frontend's rebuild tick between them, then
     /// on until no rebuild is left in flight.
@@ -157,57 +234,79 @@ impl Rig {
         let mut played = 0;
         while played < callbacks || !self.controller.pending_rebuilds.is_empty() {
             self.controller.poll_pending_rebuilds();
-            self.callback();
+            self.player.callback();
             played += 1;
             assert!(Instant::now() < deadline, "a rebuild never landed");
             std::thread::sleep(Duration::from_micros(300));
         }
     }
 
-    /// The block toggle the GUI, MIDI and MCP send: the dispatcher has flipped
-    /// the block in the project, and the chain it hands over carries it. A
-    /// block with no live processor answers "needs full rebuild", and the app
-    /// then takes the live edit door.
     fn toggle(&mut self, next: &Chain, block: &str, enabled: bool) {
-        if self
-            .controller
-            .toggle_block_enabled_live(next, &BlockId(block.into()), enabled)
-            .is_err()
-        {
-            self.switch(next);
-        }
+        toggle(&mut self.controller, next, block, enabled);
     }
 
-    /// A scene switch: the app's live edit door (`sync_live_chain_runtime`)
-    /// for a chain whose streams stay the same.
     fn switch(&mut self, next: &Chain) {
-        let project = Project {
-            name: None,
-            device_settings: vec![],
-            chains: vec![next.clone()],
-            midi: None,
-        };
-        assert!(
-            self.controller
-                .request_offthread_rebuild_if_live(&project, next)
-                .expect("the live edit door must answer"),
-            "a scene switch on a running chain must go through the live rebuild"
-        );
+        switch(&mut self.controller, next);
     }
 
     fn assert_no_click(&self, what: &str) {
-        let report = scan(&self.heard);
-        assert!(
-            report.steps == 0 && report.longest_gap <= MAX_SILENT_RUN,
-            "#987 {what}: the output clicked. {} frames step above the tone's own \
-             curvature (worst {:.1}x that curvature, first at {:.1} ms); longest silent \
-             run {} frames (the tone makes at most {MAX_SILENT_RUN}). A live edit \
-             must fade, never jump or drop out.",
-            report.steps,
-            report.worst_ratio,
-            report.first_step_ms,
-            report.longest_gap,
-        );
+        assert_no_click(&self.player.heard, what);
+    }
+}
+
+/// A running chain whose callbacks come from their own thread, the way
+/// CoreAudio keeps calling in while the control thread edits: whatever an edit
+/// leaves half done while it works is heard.
+struct LiveRig {
+    controller: ProjectRuntimeController,
+    stop: Arc<AtomicBool>,
+    audio: std::thread::JoinHandle<Vec<f32>>,
+}
+
+impl LiveRig {
+    fn start(first: &Chain) -> Self {
+        let (controller, slot) = start_controller(first);
+        let stop = Arc::new(AtomicBool::new(false));
+        let running = Arc::clone(&stop);
+        let audio = std::thread::spawn(move || {
+            let mut player = Player::warmed_up(slot);
+            while !running.load(Ordering::Relaxed) {
+                player.callback();
+                std::thread::sleep(LIVE_CALLBACK_PERIOD);
+            }
+            player.heard
+        });
+        Self {
+            controller,
+            stop,
+            audio,
+        }
+    }
+
+    /// Let the audio run for `span` with the frontend's rebuild tick turning,
+    /// then on until no rebuild is left in flight.
+    fn play(&mut self, span: Duration) {
+        let until = Instant::now() + span;
+        let deadline = until + Duration::from_secs(10);
+        while Instant::now() < until || !self.controller.pending_rebuilds.is_empty() {
+            self.controller.poll_pending_rebuilds();
+            assert!(Instant::now() < deadline, "a rebuild never landed");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
+    fn toggle(&mut self, next: &Chain, block: &str, enabled: bool) {
+        toggle(&mut self.controller, next, block, enabled);
+    }
+
+    fn switch(&mut self, next: &Chain) {
+        switch(&mut self.controller, next);
+    }
+
+    fn assert_no_click(self, what: &str) {
+        self.stop.store(true, Ordering::Relaxed);
+        let heard = self.audio.join().expect("the audio thread joins");
+        assert_no_click(&heard, what);
     }
 }
 
@@ -328,4 +427,145 @@ fn switching_scene_while_the_tone_plays_does_not_click() {
         rig.play(BETWEEN);
     }
     rig.assert_no_click("scene switch");
+}
+
+/// The owner's chains hold VST3 reverbs, so every live edit on them takes the
+/// in-place path (#779) instead of the fresh rebuild. A VST3 switched off
+/// builds as a bypass node, so no plugin binary is needed to get there.
+fn with_a_vst3(mut chain: Chain) -> Chain {
+    chain.blocks.push(AudioBlock {
+        id: BlockId("issue987:vst3-off".into()),
+        enabled: false,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: block_core::EFFECT_TYPE_VST3.into(),
+            model: "vst3:Missing:Missing".into(),
+            params: ParameterSet::default(),
+        }),
+    });
+    chain
+}
+
+#[test]
+fn switching_scene_on_a_chain_holding_a_vst3_does_not_click() {
+    let scene_1 = with_a_vst3(chain(vec![
+        level(LEVEL_A, true, 30.0),
+        level(LEVEL_B, false, 70.0),
+    ]));
+    let scene_2 = with_a_vst3(chain(vec![
+        level(LEVEL_A, false, 30.0),
+        level(LEVEL_B, true, 70.0),
+    ]));
+    let mut rig = Rig::start(&scene_1);
+    rig.play(BETWEEN);
+    for _ in 0..ROUNDS {
+        rig.switch(&scene_2);
+        rig.play(BETWEEN);
+        rig.switch(&scene_1);
+        rig.play(BETWEEN);
+    }
+    rig.assert_no_click("scene switch on a chain holding a VST3");
+}
+
+#[test]
+fn turning_on_a_block_that_was_off_on_a_chain_holding_a_vst3_does_not_click() {
+    let on = with_a_vst3(chain(vec![level(LEVEL_A, true, 30.0)]));
+    let off = with_a_vst3(chain(vec![level(LEVEL_A, false, 30.0)]));
+    let mut rig = Rig::start(&off);
+    rig.play(BETWEEN);
+    for _ in 0..ROUNDS {
+        rig.toggle(&on, LEVEL_A, true);
+        rig.play(BETWEEN);
+        rig.toggle(&off, LEVEL_A, false);
+        rig.play(BETWEEN);
+    }
+    rig.assert_no_click("block that started off, turned on, on a chain holding a VST3");
+}
+
+fn fixtures_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../engine/tests/fixtures/plugins")
+}
+
+/// True when the IR fixture is a real file, not a git-lfs pointer. Prints
+/// BLOCKED otherwise, like the engine's real-block probes.
+fn real_cab_ready(test: &str) -> bool {
+    let path = fixtures_root().join(CAB_CAPTURE);
+    let head: Vec<u8> = std::fs::read(&path)
+        .map(|bytes| bytes.into_iter().take(64).collect())
+        .unwrap_or_default();
+    if head.is_empty() || head.starts_with(b"version https://git-lfs") {
+        eprintln!(
+            "BLOCKED {test}: the repo fixture {} is missing or still a git-lfs pointer \
+             (run `git lfs pull`), so the real IR cannot be built",
+            path.display()
+        );
+        return false;
+    }
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        init_registry();
+        ir::register_builder();
+        plugin_loader::registry::init(&fixtures_root());
+    });
+    true
+}
+
+/// The repo's IR cab. A convolution is linear, so a tone through it stays a
+/// tone: anything the scan finds is the edit, not the block.
+fn cab(enabled: bool, capture: &str) -> AudioBlock {
+    let schema = schema_for_block_model(block_core::EFFECT_TYPE_CAB, CAB_MODEL)
+        .expect("the IR fixture's schema must exist");
+    let mut params = ParameterSet::default();
+    params.insert("preset", ParameterValue::String(capture.into()));
+    AudioBlock {
+        id: BlockId(CAB.into()),
+        enabled,
+        kind: AudioBlockKind::Core(CoreBlock {
+            effect_type: block_core::EFFECT_TYPE_CAB.into(),
+            model: CAB_MODEL.into(),
+            params: params
+                .normalized_against(&schema)
+                .expect("the cab params must normalize"),
+        }),
+    }
+}
+
+/// The owner's path: a chain holding a VST3 is edited in place (#779), with
+/// the audio thread running while the edit builds the IR it switches to.
+#[test]
+fn switching_the_cab_by_scene_on_a_chain_holding_a_vst3_does_not_click() {
+    if !real_cab_ready("switching_the_cab_by_scene_on_a_chain_holding_a_vst3_does_not_click") {
+        return;
+    }
+    let scene_1 = with_a_vst3(chain(vec![level(LEVEL_A, true, 30.0), cab(true, "b")]));
+    let scene_2 = with_a_vst3(chain(vec![level(LEVEL_A, true, 30.0), cab(true, "d")]));
+    let mut rig = LiveRig::start(&scene_1);
+    rig.play(LIVE_BETWEEN);
+    for _ in 0..ROUNDS {
+        rig.switch(&scene_2);
+        rig.play(LIVE_BETWEEN);
+        rig.switch(&scene_1);
+        rig.play(LIVE_BETWEEN);
+    }
+    rig.assert_no_click("cab switched by scene, chain holding a VST3, audio running");
+}
+
+/// The owner's path for a pedal-style ON: a cab that was off when the chain
+/// started has no live processor, so the toggle becomes an in-place edit that
+/// builds it while the audio runs.
+#[test]
+fn turning_on_a_cab_that_was_off_on_a_chain_holding_a_vst3_does_not_click() {
+    if !real_cab_ready("turning_on_a_cab_that_was_off_on_a_chain_holding_a_vst3_does_not_click") {
+        return;
+    }
+    let on = with_a_vst3(chain(vec![level(LEVEL_A, true, 30.0), cab(true, "b")]));
+    let off = with_a_vst3(chain(vec![level(LEVEL_A, true, 30.0), cab(false, "b")]));
+    let mut rig = LiveRig::start(&off);
+    rig.play(LIVE_BETWEEN);
+    for _ in 0..ROUNDS {
+        rig.toggle(&on, CAB, true);
+        rig.play(LIVE_BETWEEN);
+        rig.toggle(&off, CAB, false);
+        rig.play(LIVE_BETWEEN);
+    }
+    rig.assert_no_click("cab that started off, turned on, chain holding a VST3, audio running");
 }
