@@ -9,6 +9,7 @@
 //! migration, no UI, no scenes (those are #450/#451/#452/#453/#454).
 
 use crate::block::{block_params_mut, for_each_block_mut, AudioBlock};
+use crate::endpoint_disables::EndpointDisables;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -93,6 +94,12 @@ pub struct RigInput {
     /// written before the looper existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub loopers: Vec<crate::chain::LooperConfig>,
+    /// #328: the endpoints of this input's own bindings that a node of its
+    /// chain graph leaves out (the input/output checklists). Chain
+    /// configuration, not preset data. Empty — the default — keeps every
+    /// endpoint, so pre-#328 files load unchanged and it needs no version bump.
+    #[serde(default, skip_serializing_if = "EndpointDisables::is_empty")]
+    pub disabled_endpoints: EndpointDisables,
 }
 
 /// One project output: a pure reference to a binding endpoint. The device /

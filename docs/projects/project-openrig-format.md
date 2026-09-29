@@ -62,6 +62,7 @@ project:
 | `inputs.<name>.bank` | `BTreeMap<usize, String>` | index → preset name; gaps allowed |
 | `inputs.<name>.active-preset` | `usize` | index into `bank`, **not** a name (same preset reused across inputs) |
 | `inputs.<name>.active-scene` | `usize` | `1..=8` |
+| `inputs.<name>.disabled_endpoints` | `EndpointDisables` | #328 graph checklists: `{ inputs, outputs, path_a_outputs, path_b_outputs }`, each a list of `{ io, endpoint }` (binding id + endpoint name) left out of that node. Absent = every endpoint checked; no version bump. |
 | `outputs.<name>` | `RigOutput` | `label` + flattened `OutputEntry` |
 | `presets.<name>` | `RigPreset` | `blocks: Vec<AudioBlock>` — processing only |
 | `presets.<name>.blocks[].kind: !Split` | `SplitBlock` | #328 chain split: `{ end: mix \| y, params, a: [blocks], b: [blocks] }`. Path blocks are full `AudioBlock`s with their own ids. |

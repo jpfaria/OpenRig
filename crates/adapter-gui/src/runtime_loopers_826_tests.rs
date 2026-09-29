@@ -78,6 +78,7 @@ fn rig() -> RigProject {
             endpoint: String::new(),
             io_binding_ids: vec!["io".into()],
             loopers: Vec::new(),
+            disabled_endpoints: Default::default(),
         },
     );
     RigProject {

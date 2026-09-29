@@ -23,6 +23,7 @@ fn rig_with_inputs(names: &[&str]) -> RigProject {
                 endpoint: String::new(),
                 io_binding_ids: Vec::new(),
                 loopers: Vec::new(),
+                disabled_endpoints: Default::default(),
             },
         );
         presets.insert(
