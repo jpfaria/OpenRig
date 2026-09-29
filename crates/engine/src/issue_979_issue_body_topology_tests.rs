@@ -241,8 +241,13 @@ struct Rig {
     /// One unit's output callback buffer.
     out: Vec<f32>,
     /// What the HD 8 played this cycle: every unit's callback summed per
-    /// channel (the backend's mix, not ours).
+    /// channel (the backend's mix, not ours). Only summed while something
+    /// reads it (`listening` or `gear_in_the_loop`).
     played: Vec<f32>,
+    /// A `listen` is running. #991: the long simulations never read `played`,
+    /// and summing 30 channels per callback for nothing dominated their cost
+    /// under llvm-cov.
+    listening: bool,
     /// A unit whose output stream misses its callbacks while set.
     stalled: Option<usize>,
     /// The SYN-2 at unity: what left on the send comes back on both return
@@ -284,6 +289,7 @@ impl Rig {
             input,
             out: silence(),
             played: silence(),
+            listening: false,
             stalled: None,
             gear_in_the_loop: false,
             now: 0,
@@ -411,19 +417,13 @@ impl Rig {
         let (rt, route) = (self.units[i].runtime, self.units[i].route);
         self.out.fill(0.0);
         process_output_f32(&self.runtimes[rt], route, &mut self.out, HD8_CHANNELS);
-        // #991: a route writes only its own channels and zeroes the rest of
-        // each frame, so adding just those is the same sum at 1/15 the cost.
-        let out = &self.out;
-        let unit = &mut self.units[i];
-        for (sum, frame) in self
-            .played
-            .chunks_exact_mut(HD8_CHANNELS)
-            .zip(out.chunks_exact(HD8_CHANNELS))
-        {
-            for &ch in &unit.channels {
-                sum[ch] += frame[ch];
+        if self.listening || self.gear_in_the_loop {
+            for (sum, sample) in self.played.iter_mut().zip(&self.out) {
+                *sum += *sample;
             }
         }
+        let out = &self.out;
+        let unit = &mut self.units[i];
         unit.fill = fill;
         unit.callbacks += 1;
         if unit.heard.is_none() {
@@ -500,6 +500,7 @@ impl Rig {
     fn listen(&mut self, cycles: usize, channels: &[usize]) -> (Vec<f32>, Vec<f32>) {
         let mut sum = vec![0.0_f64; channels.len()];
         let mut peak = vec![0.0_f32; channels.len()];
+        self.listening = true;
         for _ in 0..cycles {
             self.run(1);
             for frame in self.played.chunks_exact(HD8_CHANNELS) {
@@ -510,6 +511,7 @@ impl Rig {
                 }
             }
         }
+        self.listening = false;
         let n = (cycles * FRAMES) as f64;
         (sum.into_iter().map(|s| (s / n) as f32).collect(), peak)
     }
@@ -910,7 +912,7 @@ fn disturb(rig: &mut Rig, rng: &mut Rng) -> &'static str {
     }
 }
 
-/// Ten simulated minutes: on-time stretches of 1 to 384 cycles (up to three
+/// `HISTORY` (two simulated minutes): on-time stretches of 1 to 384 cycles (up to three
 /// guard windows) between disturbances. Returns how many of each kind ran.
 fn history(rig: &mut Rig, rng: &mut Rng) -> BTreeMap<&'static str, usize> {
     let end = rig.now + HISTORY;
