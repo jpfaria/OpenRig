@@ -330,6 +330,9 @@ fn once_the_worker_is_back_on_time_every_route_is_clean_again() {
 /// runtime with its own worker; `guitarra-1`'s worker late at every position
 /// of the guard's window must not cost `guitarra-2`'s Main and Out 2 a single
 /// underrun, a trim or a frame of rest.
+// linux+JACK keeps the pre-#967 grouping (one runtime per chain), as in
+// issue_967_insert_streams_tests.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn one_guitars_late_worker_never_reaches_the_other_guitars_routes() {
     let mut rig = Rig::new(false, LOCKSTEP);
