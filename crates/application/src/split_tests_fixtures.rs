@@ -62,3 +62,8 @@ pub(crate) fn split_of(project: &Project) -> SplitBlock {
         })
         .expect("the first chain holds a split")
 }
+
+/// The ids of `blocks`, in order.
+pub(crate) fn ids(blocks: &[AudioBlock]) -> Vec<String> {
+    blocks.iter().map(|b| b.id.0.clone()).collect()
+}

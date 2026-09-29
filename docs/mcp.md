@@ -71,6 +71,12 @@ follow-up.
   `replace_block_model`, …) also reaches the blocks inside a path. The
   split's own knobs (`split_mode`, `level_to_a`, `mix_pan_b`,
   `mix_master_sum`, …) are ordinary parameters of the split's block id.
+
+  An edit that would break a split rule — a second split; a split,
+  select, input, output or insert block inside a path; a processing
+  block after a Y split — is refused and leaves the chain exactly as it
+  was. `remove_block` refuses the split itself, because removing it that
+  way would drop both paths.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
