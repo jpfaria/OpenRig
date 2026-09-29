@@ -79,6 +79,7 @@ mod runtime_processing_lock;
 mod runtime_processor_model;
 mod runtime_route_resample;
 pub mod runtime_segments;
+mod runtime_select_precheck;
 pub mod runtime_state;
 mod runtime_state_taps;
 mod runtime_stream_query;
