@@ -58,6 +58,10 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "UndoChainLooperEdit",
     "RedoChainLooperEdit",
     "SetChainLooperTransport",
+    // ── Added by #328 (the chain split) ───────────────────────────────────
+    "AddSplit",
+    "RemoveSplit",
+    "SetSplitEnd",
     // ── The surface that existed before the split ─────────────────────────
     "AddBlock",
     "AddChain",

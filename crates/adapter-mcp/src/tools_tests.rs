@@ -61,7 +61,10 @@ use application::command_schema::command_variant_names;
 /// (`EditChainLooperAudio`/`UndoChainLooperEdit`/`RedoChainLooperEdit`) —
 /// trimming, cropping and cutting a recorded loop, so a headless client
 /// reshapes a take exactly as the waveform editor does.
-const COMMAND_VARIANT_COUNT: usize = 99;
+/// #328 bumped to 102 with `AddSplit`, `SetSplitEnd` and `RemoveSplit` —
+/// the chain split (Split → Mix, Y → A/B) created, switched and removed
+/// from any transport.
+const COMMAND_VARIANT_COUNT: usize = 102;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {
@@ -188,4 +191,28 @@ fn add_block_tool_keeps_the_split_path_and_defaults_to_the_top_level() {
             .is_none(),
         "a path-less add_block stays a top-level add"
     );
+}
+
+#[test]
+fn split_tools_build_their_commands() {
+    for (tool, args, wire) in [
+        (
+            "add_split",
+            serde_json::json!({ "chain": "rig:in", "position": 1, "end": "mix" }),
+            serde_json::json!({ "AddSplit": { "chain": "rig:in", "position": 1, "end": "mix" } }),
+        ),
+        (
+            "set_split_end",
+            serde_json::json!({ "chain": "rig:in", "split_id": "s1", "end": "y" }),
+            serde_json::json!({ "SetSplitEnd": { "chain": "rig:in", "split_id": "s1", "end": "y" } }),
+        ),
+        (
+            "remove_split",
+            serde_json::json!({ "chain": "rig:in", "split_id": "s1" }),
+            serde_json::json!({ "RemoveSplit": { "chain": "rig:in", "split_id": "s1" } }),
+        ),
+    ] {
+        let cmd = build_command(tool, args).unwrap_or_else(|e| panic!("{tool}: {e}"));
+        assert_eq!(serde_json::to_value(&cmd).unwrap(), wire, "{tool}");
+    }
 }

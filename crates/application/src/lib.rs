@@ -61,6 +61,7 @@ mod local_dispatcher_recent_register;
 mod local_dispatcher_rig;
 mod local_dispatcher_runtime_sync;
 mod local_dispatcher_selection;
+mod local_dispatcher_split;
 mod local_dispatcher_subsystems;
 mod local_dispatcher_tone_doctor;
 mod local_dispatcher_trait;
@@ -169,3 +170,7 @@ mod split_tests_fixtures;
 #[cfg(test)]
 #[path = "ld_split_path_tests.rs"]
 mod ld_split_path;
+
+#[cfg(test)]
+#[path = "local_dispatcher_split_tests.rs"]
+mod local_dispatcher_split_tests;

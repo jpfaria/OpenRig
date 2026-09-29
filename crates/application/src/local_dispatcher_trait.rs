@@ -298,6 +298,9 @@ impl CommandDispatcher for LocalDispatcher {
             // transport is runtime state and travels as an event).
             Command::Looper(_) => self.handle_looper(cmd),
 
+            // #328: the chain's split — create, switch Mix/Y, remove.
+            Command::Split(_) => self.handle_split(cmd),
+
             // #716: per-machine I/O binding registry (persisted to config.yaml).
             Command::IoBinding(
                 IoBindingCommand::CreateIoBinding { binding }

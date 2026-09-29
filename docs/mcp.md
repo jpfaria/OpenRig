@@ -87,6 +87,12 @@ follow-up.
   `move_block` takes the same optional `path` as its destination, so a
   block moves within a path, between path `a` and path `b`, or between a
   path and the top level (no `path`).
+
+  `add_split` (`{ chain, position, end: "mix" | "y" }`) inserts an empty
+  split with the default knobs and answers `BlockAdded` with its id;
+  `set_split_end` (`{ chain, split_id, end }`) switches it between
+  Split → Mix and Y → A/B; `remove_split` (`{ chain, split_id }`) puts
+  path `a`'s blocks in its place and drops path `b`'s.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
