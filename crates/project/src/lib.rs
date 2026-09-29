@@ -25,6 +25,8 @@ pub mod chain_bus_layout;
 pub mod chain_modes;
 pub mod channel_mode_conv;
 pub mod device;
+pub mod endpoint_candidates;
+pub mod endpoint_disables;
 pub mod endpoint_ref;
 pub mod format_version;
 pub mod io_binding;
