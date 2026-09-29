@@ -158,3 +158,11 @@ mod local_dispatcher_parity_829_tests;
 #[cfg(test)]
 #[path = "local_dispatcher_rig_tests.rs"]
 mod local_dispatcher_rig_tests;
+
+#[cfg(test)]
+#[path = "split_tests_fixtures.rs"]
+mod split_tests_fixtures;
+
+#[cfg(test)]
+#[path = "ld_split_path_tests.rs"]
+mod ld_split_path;

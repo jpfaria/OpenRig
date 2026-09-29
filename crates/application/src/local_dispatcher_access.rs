@@ -8,6 +8,7 @@
 use anyhow::Result;
 
 use domain::ids::{BlockId, ChainId};
+use project::block::find_block_mut;
 
 use crate::local_dispatcher::LocalDispatcher;
 
@@ -19,9 +20,9 @@ impl LocalDispatcher {
     /// `pub(crate)` so the per-feature `handle_*` modules
     /// (`local_dispatcher_block_*`, `local_dispatcher_chain_*`) can share it.
     ///
-    /// Behaviour is byte-identical to the previous inline form: same
-    /// `borrow_mut` scope, same `find` order, same error strings, same `?`
-    /// propagation point.
+    /// #328: the block is found at the top level or inside a split path
+    /// (`project::block::find_block_mut`), so every block-scoped command
+    /// reaches a path block by its id. The error strings are unchanged.
     pub(crate) fn with_block<R>(
         &self,
         chain: &ChainId,
@@ -32,7 +33,7 @@ impl LocalDispatcher {
         let Some(target_chain) = proj.chains.iter_mut().find(|c| c.id == *chain) else {
             return Err(anyhow::anyhow!("chain not found: {:?}", chain));
         };
-        let Some(target_block) = target_chain.blocks.iter_mut().find(|b| b.id == *block) else {
+        let Some(target_block) = find_block_mut(&mut target_chain.blocks, &block.0) else {
             return Err(anyhow::anyhow!("block not found: {:?}", block));
         };
         f(target_block)

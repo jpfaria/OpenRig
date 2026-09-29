@@ -64,6 +64,13 @@ follow-up.
   mutated nothing), and `save_project` writes the recorded loops' wav
   sidecars, which only the GUI's own Save did before. See
   `docs/architecture.md` → "Write bus: `RuntimeControl`".
+
+  Split chains (#328): a chain may hold one split, with a path `a` and a
+  path `b` running side by side. Every tool that finds a block by id
+  (`set_block_parameter_*`, `toggle_block_enabled`,
+  `replace_block_model`, …) also reaches the blocks inside a path. The
+  split's own knobs (`split_mode`, `level_to_a`, `mix_pan_b`,
+  `mix_master_sum`, …) are ordinary parameters of the split's block id.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
