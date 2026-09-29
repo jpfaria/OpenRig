@@ -41,3 +41,22 @@ fn insert_prebuilt_block_keeps_the_split_path_it_was_sent() {
         json!({ "split": "s1", "side": "a" })
     );
 }
+
+/// Characterization pin (green before and after).
+#[test]
+fn move_block_without_path_serializes_exactly_as_before() {
+    let wire = r#"{"MoveBlock":{"chain":"c1","block":"b1","new_position":2}}"#;
+    let parsed: Command = serde_json::from_str(wire).expect("a pre-#328 MoveBlock parses");
+    assert_eq!(serde_json::to_string(&parsed).expect("serializes"), wire);
+}
+
+#[test]
+fn move_block_keeps_the_destination_path_it_was_sent() {
+    let out = round_trip(
+        r#"{"MoveBlock":{"chain":"c1","block":"b1","new_position":2,"path":{"split":"s1","side":"b"}}}"#,
+    );
+    assert_eq!(
+        out["MoveBlock"]["path"],
+        json!({ "split": "s1", "side": "b" })
+    );
+}

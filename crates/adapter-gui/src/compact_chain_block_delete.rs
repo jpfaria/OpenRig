@@ -217,6 +217,7 @@ pub(crate) fn wire_block_reorder(
                     chain: chain_id.clone(),
                     block: block_id,
                     new_position: insert_at,
+                    path: None,
                 })) {
                 log::error!("[compact] reorder-block dispatch: {}", e);
                 return;

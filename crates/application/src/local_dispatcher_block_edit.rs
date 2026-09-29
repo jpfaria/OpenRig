@@ -7,7 +7,7 @@ use anyhow::Result;
 
 use project::block::{find_block_mut, AudioBlockKind};
 
-use crate::block_path::remove_block;
+use crate::block_path::{insert_block, remove_block};
 use crate::command::{BlockCommand, Command};
 use crate::event::Event;
 use crate::local_dispatcher::LocalDispatcher;
@@ -52,15 +52,13 @@ impl LocalDispatcher {
                 chain,
                 block,
                 new_position,
+                path,
             }) => {
-                self.with_chain(&chain, |c| {
-                    let Some(from_idx) = c.blocks.iter().position(|b| b.id == block) else {
+                self.edit_chain_blocks(&chain, |blocks| {
+                    let Some(moved) = remove_block(blocks, &block) else {
                         return Err(anyhow::anyhow!("block not found: {:?}", block));
                     };
-                    let moved = c.blocks.remove(from_idx);
-                    let insert_at = new_position.min(c.blocks.len());
-                    c.blocks.insert(insert_at, moved);
-                    Ok(())
+                    insert_block(blocks, path.as_ref(), new_position, moved)
                 })?;
                 Ok(vec![Event::ChainReloaded { chain }])
             }

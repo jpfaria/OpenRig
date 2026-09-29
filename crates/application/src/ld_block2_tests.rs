@@ -230,6 +230,7 @@ fn move_block_reorders_blocks_and_emits_event() {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_2".to_string()),
         new_position: 0,
+        path: None,
     }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -263,6 +264,7 @@ fn move_block_past_end_clamps_to_end() {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_0".to_string()),
         new_position: 999,
+        path: None,
     }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -288,6 +290,7 @@ fn move_block_non_existent_block_returns_err() {
         chain: ChainId("chain_0".to_string()),
         block: BlockId("blk_MISSING".to_string()),
         new_position: 0,
+        path: None,
     }));
 
     assert!(result.is_err(), "expected Err for missing block, got Ok");

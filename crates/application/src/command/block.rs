@@ -118,10 +118,16 @@ pub enum BlockCommand {
     RemoveBlock { chain: ChainId, block: BlockId },
 
     /// Move a block to `new_position` within its chain.
+    ///
+    /// #328: `path` is the DESTINATION — a split path, or the chain's top
+    /// level when `None` (the default). The block is found wherever it is, so
+    /// a move can cross from one path to the other, or in and out of a path.
     MoveBlock {
         chain: ChainId,
         block: BlockId,
         new_position: usize,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<PathRef>,
     },
 
     // ── Insert block ──────────────────────────────────────────────────────────

@@ -46,7 +46,7 @@ structured object the GUI/MCP produces (can't be a single control).
 | 12 | `MoveChainDown` | Move a chain down | `{ chain: id }` | **Note 73** |
 | 13 | `RemoveChain` | Remove a chain | `{ chain: id }` | **Note 74** |
 | 14 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` | **Note 75** |
-| 15 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` | **Note 76** |
+| 15 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint, path?: object }` | **Note 76** |
 | 16 | `ReplaceBlockModel` | Swap a block's model | `{ chain: id, block: id, model_id: text }` | **Note 77** |
 | 17 | `SetBlockParameterBool` | Set an on/off param | `{ chain: id, block: id, path: text, value: bool }` | **Note 78** |
 | 18 | `SetBlockParameterText` | Set a text param | `{ chain: id, block: id, path: text, value: text }` | **Note 79** |
@@ -268,7 +268,7 @@ below is bindable.
 | 9 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint, path?: object }` |
 | 10 | `OverwriteBlock` | Replace a block | `{ chain: id, block: id, replacement: object }` |
 | 11 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` |
-| 12 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` |
+| 12 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint, path?: object }` |
 | 13 | `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` |
 | 14 | `AddChain` | Add a chain | `{ chain: object }` |
 | 15 | `ConfigureChain` | Reconfigure a chain | `{ chain: object }` |

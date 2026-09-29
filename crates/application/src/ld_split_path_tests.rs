@@ -404,3 +404,107 @@ fn add_block_into_a_path_reaches_the_rig_preset_on_capture() {
         "the block added into path A must reach project.openrig"
     );
 }
+
+#[test]
+fn move_block_drops_a_top_level_block_into_path_b() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatch_json(
+        &dispatcher,
+        "MoveBlock",
+        json!({
+            "chain": CHAIN, "block": "pre", "new_position": 0,
+            "path": { "split": "split_0", "side": "b" }
+        }),
+    )
+    .expect("move pre into path B");
+
+    assert_eq!(
+        ids(&project.borrow().chains[0].blocks),
+        vec!["split_0", "post"]
+    );
+    assert_eq!(ids(&split_of(&project.borrow()).b), vec!["pre", "b_0"]);
+}
+
+#[test]
+fn move_block_drags_a_block_from_path_a_to_path_b() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatch_json(
+        &dispatcher,
+        "MoveBlock",
+        json!({
+            "chain": CHAIN, "block": "a_0", "new_position": 1,
+            "path": { "split": "split_0", "side": "b" }
+        }),
+    )
+    .expect("drag a_0 across the split");
+
+    let split = split_of(&project.borrow());
+    assert!(split.a.is_empty(), "path A is empty");
+    assert_eq!(ids(&split.b), vec!["b_0", "a_0"]);
+    assert_eq!(
+        events,
+        vec![Event::ChainReloaded {
+            chain: ChainId(CHAIN.into())
+        }]
+    );
+}
+
+#[test]
+fn move_block_without_a_path_lifts_a_path_block_to_the_top_level() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatch_json(
+        &dispatcher,
+        "MoveBlock",
+        json!({ "chain": CHAIN, "block": "b_0", "new_position": 0 }),
+    )
+    .expect("lift b_0 out of path B");
+
+    assert_eq!(
+        ids(&project.borrow().chains[0].blocks),
+        vec!["b_0", "pre", "split_0", "post"]
+    );
+    assert!(split_of(&project.borrow()).b.is_empty(), "path B is empty");
+}
+
+#[test]
+fn move_block_refuses_to_put_the_split_inside_its_own_path() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let before = project.borrow().chains[0].blocks.clone();
+
+    let err = dispatch_json(
+        &dispatcher,
+        "MoveBlock",
+        json!({
+            "chain": CHAIN, "block": "split_0", "new_position": 0,
+            "path": { "split": "split_0", "side": "a" }
+        }),
+    )
+    .expect_err("a split cannot go inside its own path");
+
+    assert!(err.to_string().contains("split not found"), "{err}");
+    assert_eq!(project.borrow().chains[0].blocks, before);
+}
+
+#[test]
+fn move_block_refuses_a_processing_block_after_a_y_split() {
+    let project = project_with(y_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let before = project.borrow().chains[0].blocks.clone();
+
+    let err = dispatch_json(
+        &dispatcher,
+        "MoveBlock",
+        json!({ "chain": CHAIN, "block": "pre", "new_position": 9 }),
+    )
+    .expect_err("nothing may follow a Y split");
+
+    assert!(err.to_string().contains("Y split"), "{err}");
+    assert_eq!(project.borrow().chains[0].blocks, before);
+}

@@ -83,6 +83,10 @@ follow-up.
   confused with the parameter `path` of `set_block_parameter_*`).
   Without it the block goes to the chain's top level, exactly as
   before. `add_block` names new blocks `<chain>:block:<uuid>`.
+
+  `move_block` takes the same optional `path` as its destination, so a
+  block moves within a path, between path `a` and path `b`, or between a
+  path and the top level (no `path`).
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.

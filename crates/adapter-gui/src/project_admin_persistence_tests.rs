@@ -518,6 +518,7 @@ fn move_block_persists_order() {
             chain: chain_id.clone(),
             block: BlockId("g2".into()),
             new_position: target_position,
+            path: None,
         }))
         .expect("MoveBlock");
     s.save(&session);
