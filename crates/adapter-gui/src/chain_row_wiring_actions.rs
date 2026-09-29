@@ -20,8 +20,6 @@ pub(crate) fn wire_reorder(window: &AppWindow, ctx: &ChainRowCtx) {
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
     let toast_timer = &ctx.toast_timer;
-    let auto_save = ctx.auto_save;
-
     // ── on_move_chain_up ────────────────────────────────────────────────────
     {
         let weak_window = window.as_weak();
@@ -70,13 +68,7 @@ pub(crate) fn wire_reorder(window: &AppWindow, ctx: &ChainRowCtx) {
             if updated != selected {
                 window.set_selected_chain_block_chain_index(updated);
             }
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
     }
@@ -127,13 +119,7 @@ pub(crate) fn wire_reorder(window: &AppWindow, ctx: &ChainRowCtx) {
             if updated != selected {
                 window.set_selected_chain_block_chain_index(updated);
             }
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
     }

@@ -77,7 +77,6 @@ pub(crate) struct BlockEditorWindowSetupCtx {
     /// #898: the compact view this editor was opened from, so saving
     /// re-projects its block list.
     pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
-    pub auto_save: bool,
 }
 
 pub(crate) fn create_and_wire(
@@ -105,7 +104,6 @@ pub(crate) fn create_and_wire(
         open_block_windows,
         plugin_info_window,
         open_compact_window,
-        auto_save,
     } = ctx;
 
     let win = BlockEditorWindow::new()?;
@@ -344,7 +342,6 @@ pub(crate) fn create_and_wire(
             project_dirty: project_dirty.clone(),
             input_chain_devices: input_chain_devices.clone(),
             output_chain_devices: output_chain_devices.clone(),
-            auto_save,
         },
     );
 
@@ -372,7 +369,6 @@ pub(crate) fn create_and_wire(
             open_compact_window,
             chain_index,
             block_index: block_index.unwrap_or(before_index),
-            auto_save,
         },
     );
 

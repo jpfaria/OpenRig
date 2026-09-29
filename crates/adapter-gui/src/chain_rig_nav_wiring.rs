@@ -41,7 +41,6 @@ pub(crate) struct ChainRigNavCtx {
     // switch or add was in-memory only ("salvei e não aconteceu nada").
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
-    pub auto_save: bool,
 }
 
 /// Refresh the `chain-rig-nav` model from the current session (no-op if
@@ -278,7 +277,6 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         session,
         &ctx.saved_project_snapshot,
         &ctx.project_dirty,
-        ctx.auto_save,
     );
 
     // #591: open the active chain's compact view AFTER dropping the session

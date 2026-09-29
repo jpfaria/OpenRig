@@ -142,7 +142,6 @@ pub(crate) struct ChainRowCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
     /// Issue #511: the chain whose delete confirmation is currently
     /// showing in the in-app overlay. Captured at on_remove_chain time
     /// (when the user clicks the trash icon) and consumed by
@@ -170,7 +169,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
         &ctx.project_chains,
         &ctx.saved_project_snapshot,
         &ctx.project_dirty,
-        ctx.auto_save,
     );
     // #826: the waveform editor — its own overlay, its own read (the loop's
     // envelope rather than its transport state).
@@ -182,7 +180,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             window: window.as_weak(),
             saved_project_snapshot: ctx.saved_project_snapshot.clone(),
             project_dirty: ctx.project_dirty.clone(),
-            auto_save: ctx.auto_save,
         },
     );
     // #827: the editor's Save take row.
@@ -198,8 +195,6 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
     let output_chain_devices = &ctx.output_chain_devices;
     let toast_timer = &ctx.toast_timer;
     let pending_delete_chain_id = &ctx.pending_delete_chain_id;
-    let auto_save = ctx.auto_save;
-
     // #511 on_remove_chain (trash): opens the delete overlay; dispatch below.
     {
         let weak_window = window.as_weak();
@@ -286,13 +281,7 @@ fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
     }
@@ -318,8 +307,6 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
     let toast_timer = &ctx.toast_timer;
-    let auto_save = ctx.auto_save;
-
     // ── on_toggle_chain_enabled ──────────────────────────────────────────────
     // Channel-conflict validation is now inside the dispatcher
     // (chain_validation::validate_no_channel_conflict).
@@ -445,13 +432,7 @@ fn wire_chain_mutations(window: &AppWindow, ctx: &ChainRowCtx) {
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
     }
 }

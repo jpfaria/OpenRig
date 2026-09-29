@@ -38,11 +38,10 @@ pub(crate) struct EditorDirtyCtx {
     pub window: slint::Weak<AppWindow>,
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
-    pub auto_save: bool,
 }
 
 /// Mark the project dirty after an edit, so the loop's new audio reaches disk
-/// on the next save (or right away when auto-save is on).
+/// on the next save.
 fn mark_dirty(session: &ProjectSession, dirty: &EditorDirtyCtx) {
     if let Some(window) = dirty.window.upgrade() {
         sync_project_dirty(
@@ -50,7 +49,6 @@ fn mark_dirty(session: &ProjectSession, dirty: &EditorDirtyCtx) {
             session,
             &dirty.saved_project_snapshot,
             &dirty.project_dirty,
-            dirty.auto_save,
         );
     }
 }

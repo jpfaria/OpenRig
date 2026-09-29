@@ -100,7 +100,6 @@ impl Harness {
             project_chains: Rc::new(VecModel::default()),
             saved_project_snapshot: Rc::new(RefCell::new(None)),
             project_dirty: Rc::new(RefCell::new(false)),
-            auto_save: false,
         };
         wire(&app, &window, ctx);
         // The app opens the editor for the block the user clicked.

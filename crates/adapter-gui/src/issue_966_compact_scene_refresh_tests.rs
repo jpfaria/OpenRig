@@ -147,7 +147,6 @@ impl Harness {
                 toast_timer: Rc::new(Timer::default()),
                 saved_project_snapshot: Rc::new(RefCell::new(None)),
                 project_dirty: Rc::new(RefCell::new(false)),
-                auto_save: false,
             },
         );
 

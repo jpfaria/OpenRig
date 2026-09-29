@@ -35,6 +35,7 @@ pub mod project_disable_unavailable;
 pub mod rig;
 pub mod rig_command;
 pub mod rig_methods;
+pub mod rig_model_swap;
 pub mod rig_nav;
 pub mod rig_sync;
 pub mod rig_validate;

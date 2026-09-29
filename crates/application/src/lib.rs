@@ -47,6 +47,7 @@ mod local_dispatcher_looper;
 mod local_dispatcher_looper_take;
 mod local_dispatcher_metronome;
 mod local_dispatcher_midi_system;
+mod local_dispatcher_model_swap_rig;
 mod local_dispatcher_output;
 mod local_dispatcher_parity_829;
 mod local_dispatcher_paths;

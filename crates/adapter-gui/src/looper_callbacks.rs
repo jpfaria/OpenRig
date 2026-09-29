@@ -45,7 +45,6 @@ struct LooperDirtyCtx {
     window: slint::Weak<AppWindow>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
-    auto_save: bool,
 }
 
 fn chain_id_at(session: &ProjectSession, index: i32) -> Option<ChainId> {
@@ -111,7 +110,6 @@ fn dispatch_and_apply(
                     session,
                     &dirty.saved_project_snapshot,
                     &dirty.project_dirty,
-                    dirty.auto_save,
                 );
             }
         }
@@ -175,13 +173,11 @@ pub(crate) fn wire_looper_callbacks(
     chains: &Chains,
     saved_project_snapshot: &Rc<RefCell<Option<String>>>,
     project_dirty: &Rc<RefCell<bool>>,
-    auto_save: bool,
 ) {
     let dirty_ctx = LooperDirtyCtx {
         window: window.as_weak(),
         saved_project_snapshot: saved_project_snapshot.clone(),
         project_dirty: project_dirty.clone(),
-        auto_save,
     };
     macro_rules! with_chain {
         ($session:expr, $index:expr, $body:expr) => {{

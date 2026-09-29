@@ -18,7 +18,6 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-chain-editor;
     in property <bool> show-settings;
     in property <bool> project-dirty;
-    in property <bool> auto-save: false;
     in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <string> project-path-label;
@@ -145,7 +144,6 @@ export component DesktopMain inherits Rectangle {
             project-title: root.project-title;
             project-path-label: root.project-path-label;
             project-dirty: root.project-dirty;
-            auto-save: root.auto-save;
             fullscreen: root.fullscreen;
             skip-launcher: root.skip-launcher;
             project-chains: root.project-chains;

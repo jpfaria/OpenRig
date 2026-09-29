@@ -141,7 +141,6 @@ pub(crate) struct BlockEditorWindowLifecycleCtx {
     pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
     pub chain_index: usize,
     pub block_index: usize,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -174,8 +173,6 @@ fn wire_model_selection(
     let project_dirty = &ctx.project_dirty;
     let input_chain_devices = &ctx.input_chain_devices;
     let output_chain_devices = &ctx.output_chain_devices;
-    let auto_save = ctx.auto_save;
-
     // on_choose_block_model
     {
         let win_draft = win_draft.clone();
@@ -276,7 +273,6 @@ fn wire_model_selection(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-window.choose-model",
-                    auto_save,
                 );
             }
         });
@@ -299,8 +295,6 @@ fn wire_drawer_toggle_save(
     let output_chain_devices = &ctx.output_chain_devices;
     let selected_block = &ctx.selected_block;
     let open_block_windows = &ctx.open_block_windows;
-    let auto_save = ctx.auto_save;
-
     // on_toggle_block_drawer_enabled
     {
         let win_draft = win_draft.clone();
@@ -395,13 +389,7 @@ fn wire_drawer_toggle_save(
                 &output_chain_devices.borrow(),
                 &[],
             );
-            sync_project_dirty(
-                &main,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
             drop(session_borrow);
             crate::BlockEditorBridge::get(&win).set_block_drawer_enabled(new_enabled);
         });
@@ -445,7 +433,6 @@ fn wire_drawer_toggle_save(
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 true,
-                auto_save,
             ) {
                 log::error!("[adapter-gui] block-window.save: {e}");
                 crate::BlockEditorBridge::get(&main)

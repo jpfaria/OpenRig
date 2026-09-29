@@ -107,7 +107,6 @@ impl Harness {
             project_dirty: Rc::new(RefCell::new(false)),
             input_chain_devices: Rc::new(RefCell::new(Vec::new())),
             output_chain_devices: Rc::new(RefCell::new(Vec::new())),
-            auto_save: false,
         };
         wire_port_window(&app, &window, ctx);
         Self {
