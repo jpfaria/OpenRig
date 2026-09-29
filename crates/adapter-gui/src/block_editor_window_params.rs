@@ -52,7 +52,6 @@ pub(crate) struct BlockEditorWindowParamsCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -73,7 +72,6 @@ pub(crate) fn wire(
         project_dirty,
         input_chain_devices,
         output_chain_devices,
-        auto_save,
     } = ctx;
 
     // on_update_block_parameter_number
@@ -174,7 +172,6 @@ pub(crate) fn wire(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-window.number",
-                    auto_save,
                 );
             }
         });
@@ -222,7 +219,6 @@ pub(crate) fn wire(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-window.number-text",
-                        auto_save,
                     );
                 }
             },
@@ -266,7 +262,6 @@ pub(crate) fn wire(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-window.bool",
-                    auto_save,
                 );
             }
         });
@@ -309,7 +304,6 @@ pub(crate) fn wire(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-window.text",
-                    auto_save,
                 );
             }
         });
@@ -352,7 +346,6 @@ pub(crate) fn wire(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-window.option",
-                    auto_save,
                 );
             }
         });
@@ -408,7 +401,6 @@ pub(crate) fn wire(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-window.file",
-                    auto_save,
                 );
             }
         });

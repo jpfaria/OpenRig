@@ -135,8 +135,7 @@ mod settings;
 pub mod tone_doctor_compact_wiring;
 pub mod tone_doctor_wiring;
 /// #627: audio-device override mirror — keeps the shared in-memory `AppConfig`
-/// in sync with a `SaveAudioSettings` disk write so that a subsequent
-/// whole-config re-save does not clobber the user's buffer-size pick.
+/// in sync with a `SaveAudioSettings` disk write.
 pub use settings::audio::apply_audio_override;
 /// #607: pure path-override helpers (persist + mirror into the in-memory
 /// `AppConfig`) exposed at the crate root for integration tests, without
@@ -264,6 +263,9 @@ mod issue_966_compact_scene_refresh_tests;
 #[cfg(test)]
 #[path = "issue_968_config_source_tests.rs"]
 mod issue_968_config_source_tests;
+#[cfg(test)]
+#[path = "issue_999_compact_external_param_refresh_tests.rs"]
+mod issue_999_compact_external_param_refresh_tests;
 pub mod mo_freshness;
 mod model_search;
 mod model_search_wiring;

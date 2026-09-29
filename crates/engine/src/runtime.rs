@@ -108,6 +108,19 @@ pub fn process_input_f32(
     data: &[f32],
     input_total_channels: usize,
 ) {
+    process_input_f32_patient(runtime, input_index, data, input_total_channels, 0);
+}
+
+/// [`process_input_f32`] for the per-input DSP worker (#670): when an edit
+/// holds the processing lock, keep trying for up to `patience_ns` instead of
+/// dropping the buffer (#987). The device callback keeps `patience_ns == 0`.
+pub fn process_input_f32_patient(
+    runtime: &Arc<ChainRuntimeState>,
+    input_index: usize,
+    data: &[f32],
+    input_total_channels: usize,
+    patience_ns: u64,
+) {
     if runtime.is_draining() {
         return;
     }
@@ -131,10 +144,18 @@ pub fn process_input_f32(
     // transition when we are certain the beep will flow through the rest
     // of the pipeline. If try_lock fails (config rebuild in flight) we
     // leave the probe state Armed and retry on the next callback.
-    let mut processing_guard = match runtime.processing.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => return,
-    };
+    let mut processing_guard =
+        match crate::runtime_processing_lock::try_lock_processing(runtime, patience_ns) {
+            Some(guard) => guard,
+            None => {
+                // #980: the whole buffer is lost on every route — count it (one
+                // relaxed add; no lock, no allocation).
+                runtime
+                    .input_busy_skips
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                return;
+            }
+        };
 
     // Issue #580 follow-up: drain queued block-toggle requests inside
     // the same lock we already hold. The GUI thread's
@@ -238,14 +259,11 @@ pub fn process_input_f32(
     };
     scratch.reset_for_callback();
 
+    // An input with no entry feeds nothing here (#967: a disabled insert's
+    // return) — never "the state with that number", which is some guitar's
+    // split-mono sibling. The map always has a slot per cpal index (#975).
     if let Some(segments) = input_to_segments.get(input_index) {
         scratch.segment_indices.extend(segments.iter().copied());
-    } else if input_to_segments.is_empty() && input_index < input_states.len() {
-        // Legacy shape with no map at all: one state per input. A map that
-        // simply has no entry for this input means NOTHING here reads it
-        // (#967: a disabled insert's return) — never "the state with that
-        // number", which is some guitar's split-mono sibling.
-        scratch.segment_indices.push(input_index);
     }
 
     // Process each segment, mixing into scratch.mixed_per_route.
@@ -517,9 +535,21 @@ mod issue_923_insert_tail_routes;
 mod runtime_output_route_stats_tests;
 
 #[cfg(test)]
+#[path = "issue_979_two_head_rig_tests.rs"]
+mod issue_979_two_head_rig;
+
+#[cfg(test)]
 #[path = "issue_953_route_latency_drift_tests.rs"]
 mod issue_953_route_latency_drift;
 
 #[cfg(test)]
+#[path = "issue_980_route_loss_counters_tests.rs"]
+mod issue_980_route_loss_counters;
+
+#[cfg(test)]
 #[path = "issue_965_insert_latency_tests.rs"]
 mod issue_965_insert_latency;
+
+#[cfg(test)]
+#[path = "issue_987_in_place_edit_paths_tests.rs"]
+mod issue_987_in_place_edit_paths;

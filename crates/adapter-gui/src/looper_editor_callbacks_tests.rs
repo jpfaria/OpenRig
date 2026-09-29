@@ -174,7 +174,6 @@ fn wire_with_store(live: FakeLive, store_applies: bool) -> Wired {
         window: window.as_weak(),
         saved_project_snapshot: Rc::new(RefCell::new(None)),
         project_dirty: Rc::new(RefCell::new(false)),
-        auto_save: false,
     };
     wire_looper_editor_callbacks(
         &window,

@@ -156,6 +156,12 @@ pub(crate) struct OutputRoutingState {
     /// #923: the loudest |sample| popped since the last read, as `f32` bits
     /// (non-negative floats order like their bits, so `fetch_max` works).
     pub(crate) peak_bits: std::sync::atomic::AtomicU32,
+    /// #979: the chain volume (#440, the chain's OUTPUT level) scales this
+    /// route. Every chain output takes it; an insert SEND does not — what it
+    /// sends comes back through the return into tail routes that take it, so
+    /// scaling the send too made the knob act twice through the loop (-12 dB
+    /// for a -6 dB turn).
+    pub(crate) applies_chain_volume: bool,
 }
 
 pub(crate) enum RuntimeProcessor {
@@ -227,6 +233,8 @@ pub(crate) struct BlockRuntimeNode {
     /// callers can refuse to claim success when a block was silently
     /// bypassed. Issue #574.
     pub(crate) fault_reason: Option<String>,
+    /// #987: set while this node takes over from the one a live edit replaced.
+    pub(crate) handover: Option<Box<crate::runtime_node_handover::NodeHandover>>,
 }
 
 pub(crate) struct SelectRuntimeState {

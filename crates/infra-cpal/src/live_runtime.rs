@@ -9,35 +9,69 @@
 //! dropped on the worker thread — never on the audio thread.
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use arc_swap::ArcSwap;
 use engine::runtime::ChainRuntimeState;
+
+use crate::slot_handover::SlotHandover;
+
+struct SlotCell {
+    live: ArcSwap<ChainRuntimeState>,
+    handover: SlotHandover,
+}
 
 /// A wait-free, swappable handle to a single chain's live runtime.
 ///
 /// Clone the handle with [`LiveRuntimeSlot::handle`]: the audio callback and the
 /// control worker share one underlying slot, so a `publish` from the worker is
 /// observed by the callback's next `load`.
-pub struct LiveRuntimeSlot(Arc<ArcSwap<ChainRuntimeState>>);
+pub struct LiveRuntimeSlot(Arc<SlotCell>);
 
 impl LiveRuntimeSlot {
     /// Create a slot already holding `initial`.
     #[must_use]
     pub fn new(initial: Arc<ChainRuntimeState>) -> Self {
-        Self(Arc::new(ArcSwap::from(initial)))
+        // #980: the memory a live runtime touches must be wired right away.
+        crate::memory_residency_keeper::wire_soon();
+        Self(Arc::new(SlotCell {
+            live: ArcSwap::from(initial),
+            handover: SlotHandover::new(),
+        }))
     }
 
     /// Audio-thread read: wait-free load of the current runtime.
     #[must_use]
     pub fn load(&self) -> Arc<ChainRuntimeState> {
-        self.0.load_full()
+        self.0.live.load_full()
     }
 
     /// Worker-thread publish: install `next`, returning the previous runtime so
     /// the caller drops it off the audio thread.
     #[must_use]
     pub fn publish(&self, next: Arc<ChainRuntimeState>) -> Arc<ChainRuntimeState> {
-        self.0.swap(next)
+        crate::memory_residency_keeper::wire_soon();
+        self.0.live.swap(next)
+    }
+
+    /// Worker-thread publish of a live edit (#987): install `next` while the
+    /// runtime it replaces keeps playing, until `next` has warmed up and every
+    /// output has crossfaded to it. [`LiveRuntimeSlot::reap`] releases it.
+    pub fn hand_over(&self, next: Arc<ChainRuntimeState>) {
+        crate::memory_residency_keeper::wire_soon();
+        let previous = self.0.live.swap(next);
+        self.0.handover.begin(previous);
+    }
+
+    /// Control side: the replaced runtimes that are done and no longer held
+    /// by any audio thread, for the caller to drop off the audio thread.
+    #[must_use]
+    pub fn reap(&self, now: Instant) -> Vec<Arc<ChainRuntimeState>> {
+        self.0.handover.reap(now)
+    }
+
+    pub(crate) fn handover(&self) -> &SlotHandover {
+        &self.0.handover
     }
 
     /// Cheap clone of the handle — the new handle shares the same slot.

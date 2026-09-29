@@ -25,7 +25,7 @@ pub(crate) fn strip_io_blocks(blocks: Vec<AudioBlock>) -> Vec<AudioBlock> {
 }
 
 /// Slug the active preset's name into a filesystem-safe stem for the
-/// save dialog / kiosk auto-save. The chain title moved to
+/// save dialog / kiosk direct save. The chain title moved to
 /// `input.label` after #436, so reusing `chain.description` for the
 /// filename now reflects the chain, not the preset. Issue #518.
 ///

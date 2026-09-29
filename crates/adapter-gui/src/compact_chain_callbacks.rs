@@ -78,7 +78,6 @@ pub(crate) struct CompactChainCallbacksCtx {
     pub open_compact_window: Rc<RefCell<Option<(usize, Weak<CompactChainViewWindow>)>>>,
     pub block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     pub fullscreen: bool,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
@@ -95,7 +94,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         open_compact_window,
         block_editor_draft,
         fullscreen,
-        auto_save,
     } = ctx;
 
     let weak_window = window.as_weak();
@@ -264,7 +262,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 project_dirty: project_dirty.clone(),
                 block_editor_draft: block_editor_draft.clone(),
                 toast_timer: toast_timer.clone(),
-                auto_save,
             },
         );
 
@@ -280,7 +277,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
                 toast_timer: toast_timer.clone(),
-                auto_save,
             },
         );
 
@@ -314,7 +310,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
                 input_chain_devices: input_chain_devices.clone(),
                 output_chain_devices: output_chain_devices.clone(),
                 toast_timer: toast_timer.clone(),
-                auto_save,
             },
         );
 

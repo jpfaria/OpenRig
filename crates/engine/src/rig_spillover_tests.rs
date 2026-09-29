@@ -9,7 +9,7 @@ use super::{
     build_chain_runtime_state, process_input_f32, process_output_f32, update_chain_runtime_state,
     update_chain_runtime_state_spillover, ChainRuntimeState, DEFAULT_ELASTIC_TARGET,
 };
-use crate::runtime_state::SPILLOVER_FRAMES;
+use crate::runtime_state::{FADE_IN_FRAMES, SPILLOVER_FRAMES};
 use domain::ids::{BlockId, ChainId, DeviceId};
 use domain::io_binding::{ChannelMode, IoBinding, IoEndpoint};
 use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock};
@@ -170,5 +170,141 @@ fn non_spillover_switch_has_no_outgoing_byte_identical() {
         outgoing_frames_remaining(&rt),
         None,
         "non-spillover path must NOT retain a tail (byte-identical)"
+    );
+}
+
+/// `registry()` with the same E/S gaining a second stereo output on channels
+/// 2/3: one input × two outputs = two pipelines (#85) where `registry()`
+/// gives one.
+fn registry_two_outputs() -> Vec<IoBinding> {
+    let mut registry = registry();
+    registry[0].outputs.push(IoEndpoint {
+        name: "out1".into(),
+        device_id: DeviceId("dev".into()),
+        mode: ChannelMode::Stereo,
+        channels: vec![2, 3],
+    });
+    registry
+}
+
+/// Per pipeline: the instance serials of its live nodes, and of the previous
+/// pipeline it is ringing out (`None` when it has none).
+fn pipeline_serials(rt: &Arc<ChainRuntimeState>) -> Vec<(Vec<u64>, Option<Vec<u64>>)> {
+    let p = rt.processing.lock().expect("processing lock");
+    p.input_states
+        .iter()
+        .map(|is| {
+            (
+                is.blocks
+                    .iter()
+                    .map(|b| b.instance_serial)
+                    .collect::<Vec<u64>>(),
+                is.outgoing.as_ref().map(|tail| {
+                    tail.blocks
+                        .iter()
+                        .map(|b| b.instance_serial)
+                        .collect::<Vec<u64>>()
+                }),
+            )
+        })
+        .collect()
+}
+
+/// #454-T5: a spillover switch that GROWS the chain's pipelines (the E/S
+/// gained a second output) gives the new pipeline a freshly built chain of
+/// its own, with no previous pipeline to ring out, and it plays on its own
+/// output. The old pipeline rings out exactly once, on the pipeline it came
+/// from.
+#[test]
+fn spillover_that_adds_a_pipeline_builds_it_fresh_and_it_plays() {
+    const FRAMES: usize = 128;
+    const OUT_CHANNELS: usize = 4;
+    const SECOND_OUT_LEFT: usize = 2;
+
+    let c = chain(vec![core("d", "delay", delay_model())]);
+    let rt = build(&c);
+    let before = pipeline_serials(&rt);
+    assert_eq!(before.len(), 1, "one input × one output = one pipeline");
+    let old_delay = before[0].0.clone();
+    assert_eq!(old_delay.len(), 1, "the pipeline runs the chain's delay");
+    assert!(
+        matches!(rt.output_routes.load().get(1), None | Some(None)),
+        "before the switch there is no second output route"
+    );
+
+    update_chain_runtime_state_spillover(
+        &rt,
+        &c,
+        SR,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        &registry_two_outputs(),
+    )
+    .expect("spillover switch that grows the pipelines");
+
+    let after = pipeline_serials(&rt);
+    assert_eq!(after.len(), 2, "one input × two outputs = two pipelines");
+
+    // The pipeline that existed: fresh nodes, its old delay ringing out.
+    assert_eq!(
+        after[0].1.as_deref(),
+        Some(old_delay.as_slice()),
+        "the old pipeline rings out on the pipeline it came from"
+    );
+    assert_eq!(outgoing_frames_remaining(&rt), Some(SPILLOVER_FRAMES));
+    assert_ne!(
+        after[0].0, old_delay,
+        "spillover builds the surviving pipeline fresh"
+    );
+
+    // The pipeline that did not exist: its own fresh delay, nothing to ring out.
+    assert_eq!(
+        after[1].0.len(),
+        1,
+        "the new pipeline runs the chain's delay"
+    );
+    assert!(
+        !after[1].0.contains(&old_delay[0]) && after[1].0 != after[0].0,
+        "the new pipeline owns a freshly built node, not a reused one"
+    );
+    assert_eq!(
+        after[1].1, None,
+        "a pipeline that did not exist before has no previous pipeline to ring out"
+    );
+    {
+        let p = rt.processing.lock().expect("processing lock");
+        let grown = &p.input_states[1];
+        assert_eq!(
+            grown.output_route_indices,
+            vec![1],
+            "the new pipeline writes the new output"
+        );
+        assert_eq!(
+            grown.fade_in_remaining, FADE_IN_FRAMES,
+            "the new pipeline fades in, never starts hot"
+        );
+    }
+
+    // And it plays: the guitar reaches the new output through it.
+    let input = vec![0.5_f32; FRAMES]; // 1 input channel
+    let mut out = vec![0.0_f32; FRAMES * OUT_CHANNELS];
+    let mut peak = 0.0_f32;
+    for callback in 0..32 {
+        process_input_f32(&rt, 0, &input, 1);
+        out.fill(0.0);
+        process_output_f32(&rt, 1, &mut out, OUT_CHANNELS);
+        assert!(
+            out.iter().all(|s| s.is_finite()),
+            "no NaN/inf on the new output"
+        );
+        if callback >= 4 {
+            for frame in out.chunks_exact(OUT_CHANNELS) {
+                peak = peak.max(frame[SECOND_OUT_LEFT].abs());
+            }
+        }
+    }
+    assert!(
+        peak > 0.01,
+        "the new pipeline must play on its own output — peak was {peak}"
     );
 }

@@ -133,19 +133,7 @@ pub(crate) fn effective_outputs(
     let mut entries: Vec<OutputEntry> = resolved.to_vec();
 
     // Append Insert send entries (as outputs for segments before each Insert).
-    let insert_sends: Vec<OutputEntry> = chain
-        .blocks
-        .iter()
-        // #967: a BOUND insert owns its shim — its stream and its index —
-        // whether or not it is enabled, so switching it never renumbers the
-        // streams the chain opened. Only the cut follows the enable flag.
-        .filter(|b| crate::insert_cut::insert_owns_streams(b, registry))
-        .filter_map(|b| match &b.kind {
-            AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
-            _ => None,
-        })
-        .collect();
-    entries.extend(insert_sends);
+    entries.extend(insert_send_entries(chain, registry));
 
     if !entries.is_empty() {
         return entries;
@@ -156,4 +144,31 @@ pub(crate) fn effective_outputs(
         mode: ChainOutputMode::Mono,
         channels: vec![0],
     }]
+}
+
+/// The indices [`effective_outputs`] gives the chain's Insert sends: right
+/// after its `resolved_output_count` resolved outputs (#979: a send never
+/// keeps the path's slack, see `route_cushion`).
+pub(crate) fn insert_send_routes(
+    chain: &Chain,
+    resolved_output_count: usize,
+    registry: &[IoBinding],
+) -> std::ops::Range<usize> {
+    resolved_output_count..resolved_output_count + insert_send_entries(chain, registry).len()
+}
+
+/// One send entry per Insert that owns its streams, in chain order.
+fn insert_send_entries(chain: &Chain, registry: &[IoBinding]) -> Vec<OutputEntry> {
+    chain
+        .blocks
+        .iter()
+        // #967: a BOUND insert owns its shim — its stream and its index —
+        // whether or not it is enabled, so switching it never renumbers the
+        // streams the chain opened. Only the cut follows the enable flag.
+        .filter(|b| crate::insert_cut::insert_owns_streams(b, registry))
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => insert_send_as_output_entry(ib, registry),
+            _ => None,
+        })
+        .collect()
 }

@@ -10,7 +10,9 @@
 
 use std::sync::Arc;
 
-use engine::runtime::{process_input_f32, process_output_f32_mixed, ChainRuntimeState};
+use engine::runtime::{
+    process_input_f32, process_input_f32_patient, process_output_f32_mixed, ChainRuntimeState,
+};
 
 use crate::LiveRuntimeSlot;
 
@@ -102,6 +104,36 @@ pub fn process_input_buffer(
     input_total_channels: usize,
 ) {
     process_input_f32(&slot.load(), input_index, data, input_total_channels);
+    let frames = data.len() / input_total_channels.max(1);
+    // #987: the runtime a live edit replaced keeps playing its handover.
+    if let Some(old) = slot.handover().outgoing_for_input(frames) {
+        process_input_f32(&old, input_index, data, input_total_channels);
+    }
+}
+
+/// [`process_input_buffer`] for the per-input DSP worker (#670), which may
+/// wait up to `patience_ns` for a live edit's node swap instead of dropping the
+/// buffer (#987): the ring and the output cushion absorb a late buffer, a
+/// dropped one is a gap.
+pub fn process_input_buffer_patient(
+    slot: &LiveRuntimeSlot,
+    input_index: usize,
+    data: &[f32],
+    input_total_channels: usize,
+    patience_ns: u64,
+) {
+    process_input_f32_patient(
+        &slot.load(),
+        input_index,
+        data,
+        input_total_channels,
+        patience_ns,
+    );
+    let frames = data.len() / input_total_channels.max(1);
+    // #987: the runtime a live edit replaced keeps playing its handover.
+    if let Some(old) = slot.handover().outgoing_for_input(frames) {
+        process_input_f32_patient(&old, input_index, data, input_total_channels, patience_ns);
+    }
 }
 
 /// Mix the chain's live per-group output runtimes into `out`.
@@ -121,6 +153,21 @@ pub fn process_output_buffer(
     loaded.clear();
     for slot in slots {
         loaded.push(slot.load());
+    }
+    // #987: a slot whose runtime a live edit replaced crossfades old to new.
+    if slots
+        .iter()
+        .any(|slot| slot.handover().plays_on(output_index))
+    {
+        crate::slot_handover::mix_with_handover(
+            slots,
+            loaded,
+            output_index,
+            out,
+            output_total_channels,
+            scratch,
+        );
+        return;
     }
     process_output_f32_mixed(loaded, output_index, out, output_total_channels, scratch);
 }

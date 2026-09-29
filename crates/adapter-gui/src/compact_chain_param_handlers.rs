@@ -34,7 +34,6 @@ pub(crate) struct CompactChainParamHandlersCtx {
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -50,7 +49,6 @@ pub(crate) fn wire(
         saved_project_snapshot,
         project_dirty,
         toast_timer,
-        auto_save,
     } = ctx;
 
     // Wire update-block-parameter-number (knobs)
@@ -118,13 +116,7 @@ pub(crate) fn wire(
                 &session.io_bindings.borrow(),
             );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(
-                &main_win,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
         });
     }
 
@@ -215,13 +207,7 @@ pub(crate) fn wire(
                 &session.io_bindings.borrow(),
             );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(
-                &main_win,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
         });
     }
 
@@ -290,13 +276,7 @@ pub(crate) fn wire(
                 &session.io_bindings.borrow(),
             );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(
-                &main_win,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
         });
     }
 }

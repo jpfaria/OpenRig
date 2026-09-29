@@ -39,7 +39,6 @@ pub(crate) struct BlockDrawerSaveDeleteCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub open_compact_window: Rc<RefCell<Option<(usize, Weak<CompactChainViewWindow>)>>>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
@@ -61,7 +60,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
         input_chain_devices,
         output_chain_devices,
         open_compact_window,
-        auto_save,
     } = ctx;
 
     {
@@ -90,7 +88,6 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockDrawerSaveDeleteCtx) {
                 &input_chain_devices.borrow(),
                 &output_chain_devices.borrow(),
                 true,
-                auto_save,
             ) {
                 log::error!("[adapter-gui] block-drawer.save: {error}");
                 crate::BlockEditorBridge::get(&window)

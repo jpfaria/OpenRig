@@ -201,6 +201,8 @@ impl ProjectRuntimeController {
         io_bindings: Vec<domain::io_binding::IoBinding>,
     ) -> Result<Self> {
         log::info!("starting project runtime controller");
+        // #980: the kernel must never compress what the chains touch.
+        crate::memory_residency_keeper::keep_resident();
         let mut controller = Self {
             runtime_graph: RuntimeGraph {
                 chains: HashMap::new(),

@@ -1,0 +1,132 @@
+version: 1
+project:
+  name: project
+  inputs:
+    input-7:
+      label: ANAL+DIG
+      bank:
+        1: anal-dig
+        2: marshall
+        3: test
+      active-preset: 1
+      active-scene: 1
+      routing: []
+      instrument: electric_guitar
+      io_binding_ids: []
+  outputs: {}
+  presets:
+    anal-dig:
+      id: anal-dig
+      name: DUMBLE BLUE - AMBIENCE
+      blocks:
+      - id: rig:input-7:insert:5
+        enabled: true
+        kind: !Insert
+          model: standard
+          io: syn2-main
+      - id: rig:input-7:block:preamp
+        enabled: false
+        kind: !Core
+          effect_type: preamp
+          model: american_clean
+          params:
+            values:
+              bass: 50.0
+              bright: true
+              depth: 42.0
+              gain: 34.0
+              input: 50.0
+              master: 62.0
+              middle: 50.0
+              output: 74.0
+              presence: 54.0
+              sag: 16.0
+              treble: 50.0
+      - id: rig:input-7:block:cab
+        enabled: true
+        kind: !Core
+          effect_type: cab
+          model: american_2x12
+          params:
+            values:
+              air: 26.0
+              high_cut_hz: 8400.0
+              low_cut_hz: 64.0
+              mic_distance: 24.0
+              mic_position: 50.0
+              output: 36.0
+              resonance: 55.0
+              room_mix: 12.0
+      - id: rig:input-7:block:verb
+        enabled: false
+        kind: !Core
+          effect_type: gain
+          model: volume
+          params:
+            values:
+              mute: false
+              volume: 80.0
+      scene-params:
+      - rig:input-7:block:preamp.output
+      - rig:input-7:block:preamp.input
+      - rig:input-7:block:cab.output
+      scenes:
+        1:
+          bypass: {}
+          params: {}
+        2:
+          bypass:
+            rig:input-7:block:preamp: false
+            rig:input-7:insert:5: true
+          params:
+            rig:input-7:block:cab.output: 44.0
+            rig:input-7:block:preamp.input: 63.0
+            rig:input-7:block:preamp.output: 81.0
+        3:
+          bypass:
+            rig:input-7:block:cab: true
+            rig:input-7:block:verb: false
+            rig:input-7:insert:5: true
+          params: {}
+      volume: 100.0
+    marshall:
+      id: marshall
+      name: MARSHALL - CRUNCH
+      blocks:
+      - id: rig:input-7:block:m-gain
+        enabled: true
+        kind: !Core
+          effect_type: gain
+          model: volume
+          params:
+            values:
+              mute: false
+              volume: 70.0
+      scene-params: []
+      scenes:
+        1:
+          bypass: {}
+          params: {}
+      volume: 100.0
+    test:
+      id: test
+      name: TEST
+      blocks:
+      - id: rig:input-7:block:t-gain
+        enabled: true
+        kind: !Core
+          effect_type: gain
+          model: volume
+          params:
+            values:
+              mute: false
+              volume: 60.0
+      scene-params: []
+      scenes:
+        1:
+          bypass:
+            rig:input-7:block:t-gain: true
+          params: {}
+      volume: 100.0
+  chain-order:
+  - input-7
