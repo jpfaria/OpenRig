@@ -25,8 +25,8 @@ use crate::runtime_graph_assemble::{
 };
 use crate::runtime_segments::{split_chain_into_segments, ChainSegment};
 use crate::runtime_state::{
-    lock_recover, BlockRuntimeNode, InputCallbackScratch, OutgoingTail, OutputRoutingState,
-    SPILLOVER_FRAMES,
+    lock_recover, BlockRuntimeNode, InputCallbackScratch, InputProcessingState, OutgoingTail,
+    OutputRoutingState, SPILLOVER_FRAMES,
 };
 
 /// In-place lock-free rebuild (param/preset edit): old processors are reused
@@ -160,6 +160,8 @@ fn update_chain_runtime_state_impl(
 
     // Step 2: Build new input states OUTSIDE the lock (no audio interruption)
     let mut new_input_states = Vec::with_capacity(segments.len());
+    // #979: which new pipelines build no block fresh (see `continue_kept_fades`).
+    let mut builds_nothing_fresh = Vec::with_capacity(segments.len());
     for (i, segment) in segments.iter().enumerate() {
         let old_blocks = if spillover {
             if i < existing_per_input.len() {
@@ -190,6 +192,8 @@ fn update_chain_runtime_state_impl(
         } else {
             (Some(old_blocks), None)
         };
+        builds_nothing_fresh
+            .push(!spillover && (existing.is_some() || segment.block_indices.is_empty()));
         let segment_output_channels: Vec<usize> = segment
             .output_route_indices
             .iter()
@@ -252,6 +256,8 @@ fn update_chain_runtime_state_impl(
     // Arc keeps both the buffered audio and the cushion. A genuinely changed
     // endpoint (or an explicit queue reset) still gets a fresh route.
     let old_output_routes = runtime.output_routes.load();
+    let insert_sends =
+        crate::effective_endpoints::insert_send_routes(chain, resolved_outputs.len(), registry);
     let new_output_routes: Vec<Option<Arc<OutputRoutingState>>> = effective_outs
         .iter()
         .enumerate()
@@ -272,19 +278,24 @@ fn update_chain_runtime_state_impl(
                 .map(|old| old.sample_rate)
                 .or_else(|| device_rates.get(&o.device_id).copied())
                 .unwrap_or_else(|| runtime.sample_rate());
-            let cushion = crate::route_cushion::route_cushion(
+            let mut cushion = crate::route_cushion::route_cushion(
                 target_for_route(elastic_targets, route_idx),
                 route_rate,
                 runtime.sample_rate(),
                 crate::route_convolution::route_has_convolution(chain, &segments, route_idx),
                 crate::route_clock::route_on_producer_clock(&segments, route_idx, &o.device_id),
             );
+            let insert_send = insert_sends.contains(&route_idx);
+            if insert_send {
+                cushion = cushion.for_an_insert_send();
+            }
             if !reset_output_queue {
                 if let Some(old) = old_route {
                     if old.output_channels == o.channels
                         && old.buffer.layout() == output_entry_layout(o)
                         && old.buffer.target_level() == cushion.target
                         && old.buffer.capacity() == cushion.capacity
+                        && old.applies_chain_volume != insert_send
                     {
                         return Some(Arc::clone(old));
                     }
@@ -295,7 +306,8 @@ fn update_chain_runtime_state_impl(
             // fragile (#670: fill ~0, every scheduling wobble on a real USB
             // interface popped the output empty — the owner's random clicks
             // after adding/swapping a cab).
-            let fresh = build_output_routing_state(o, cushion, route_rate);
+            let mut fresh = build_output_routing_state(o, cushion, route_rate);
+            fresh.applies_chain_volume = !insert_send;
             if let Some(old) = old_route {
                 fresh.buffer.seed_last_frame_from(&old.buffer);
             }
@@ -329,6 +341,13 @@ fn update_chain_runtime_state_impl(
     {
         let mut processing = lock_recover(&runtime.processing, "chain runtime");
         old_input_states = std::mem::replace(&mut processing.input_states, new_input_states);
+        // Read at the swap, not at Step 1: the worker kept advancing the old
+        // pipelines' fades while the new ones were built.
+        continue_kept_fades(
+            &old_input_states,
+            &mut processing.input_states,
+            &builds_nothing_fresh,
+        );
         // Issue #580: keep the lock-free `stream_count` mirror in sync
         // with the new Vec length. Updated INSIDE the same critical
         // section that swaps the Vec so any concurrent reader sees a
@@ -421,6 +440,33 @@ fn update_chain_runtime_state_impl(
     runtime.set_volume_pct(chain.volume);
 
     Ok(())
+}
+
+/// #979: a pipeline the edit keeps — same input, same routes, no block built
+/// fresh (its nodes reused, or none at all, like a head feeding an insert
+/// send) — plays exactly what it played before, so it continues the old
+/// pipeline's fade instead of fading in again from silence. A blockless
+/// pipeline used to look new on every edit: its 128-frame fade-in went out to
+/// the pedals and came back as a gap on every tail route (the edit was heard).
+/// A pipeline that is new, or builds a block fresh, keeps the fade it was
+/// built with.
+fn continue_kept_fades(
+    old: &[InputProcessingState],
+    new: &mut [InputProcessingState],
+    builds_nothing_fresh: &[bool],
+) {
+    for (state, _) in new
+        .iter_mut()
+        .zip(builds_nothing_fresh)
+        .filter(|(_, kept)| **kept)
+    {
+        if let Some(previous) = old.iter().find(|o| {
+            o.input_channels == state.input_channels
+                && o.output_route_indices == state.output_route_indices
+        }) {
+            state.fade_in_remaining = previous.fade_in_remaining;
+        }
+    }
 }
 
 /// #967: move out of `pool` one old node per id in `ids`, looking in segment
