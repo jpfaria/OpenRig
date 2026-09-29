@@ -166,3 +166,27 @@ fn the_chain_editor_save_keeps_the_checklist() {
         "the editor's Save carries no checklist and must not reset it"
     );
 }
+
+#[test]
+fn configure_chain_keeps_the_checklist() {
+    let project = project_with(vec![make_core_block("amp", true)]);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    set_enabled(&dispatcher, CHAIN, "output", "Out 1", false);
+
+    let mut edited = project.borrow().chains[0].clone();
+    edited.description = Some("Reconfigured".into());
+    edited.disabled_endpoints = Default::default();
+    dispatcher
+        .dispatch(Command::Chain(ChainCommand::ConfigureChain {
+            chain: edited,
+        }))
+        .expect("ConfigureChain");
+
+    let chain = project.borrow().chains[0].clone();
+    assert_eq!(chain.description.as_deref(), Some("Reconfigured"));
+    assert_eq!(
+        chain.disabled_endpoints.outputs,
+        vec![endpoint("io-main", "Out 1")],
+        "ConfigureChain carries no checklist and must not reset it"
+    );
+}

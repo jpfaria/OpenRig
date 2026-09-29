@@ -55,8 +55,11 @@ impl LocalDispatcher {
                     // Preserve runtime-only state (enabled) — callers must use
                     // ToggleChainEnabled to change the running state.
                     let keep_enabled = existing.enabled;
+                    // #328: the endpoint checklist has its own command.
+                    let keep_disabled = std::mem::take(&mut existing.disabled_endpoints);
                     *existing = chain;
                     existing.enabled = keep_enabled;
+                    existing.disabled_endpoints = keep_disabled;
                     Ok(())
                 })?;
                 Ok(vec![

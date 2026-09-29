@@ -99,7 +99,8 @@ follow-up.
   or unchecks one endpoint of the chain's E/S on one node of the chain
   graph. The E/S itself is not edited: the unchecked endpoint stays
   listed, is saved with the chain's input in `project.openrig`, and
-  survives preset/scene switches and the chain editor's Save.
+  survives preset/scene switches, `configure_chain` and the chain
+  editor's Save.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
