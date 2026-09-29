@@ -85,7 +85,6 @@ pub(crate) struct AudioSettingsSaveCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
     /// Shared in-memory `AppConfig` snapshot — kept in sync with disk after an
     /// applied device change (#627).
     pub app_config: Rc<RefCell<AppConfig>>,
@@ -157,7 +156,6 @@ pub(crate) fn wire(
         input_chain_devices,
         output_chain_devices,
         toast_timer,
-        auto_save,
         app_config,
     } = ctx;
 
@@ -357,13 +355,7 @@ pub(crate) fn wire(
                         )
                         .into(),
                     );
-                    sync_project_dirty(
-                        &window,
-                        session,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        auto_save,
-                    );
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     clear_status(&window, &toast_timer);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
@@ -505,13 +497,7 @@ pub(crate) fn wire(
                         )
                         .into(),
                     );
-                    sync_project_dirty(
-                        &window,
-                        session,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        auto_save,
-                    );
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     // #513: keep window open on Apply.
                     settings_window.set_status_message("".into());
                     clear_status(&window, &toast_timer);

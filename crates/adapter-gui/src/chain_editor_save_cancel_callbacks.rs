@@ -38,7 +38,6 @@ pub(crate) fn wire(
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     toast_timer: Rc<Timer>,
-    auto_save: bool,
 ) {
     // on_save_chain
     {
@@ -105,13 +104,7 @@ pub(crate) fn wire(
             // `chain_save_cancel_callbacks` makes after AppWindow saves.
             crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             chain_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);

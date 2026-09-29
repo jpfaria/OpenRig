@@ -25,7 +25,6 @@ pub(crate) struct CompactChainDeleteCtx {
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -123,7 +122,6 @@ pub(crate) fn wire(
                 session,
                 &ctx.saved_project_snapshot,
                 &ctx.project_dirty,
-                ctx.auto_save,
             );
             let _ = cw.hide();
         });

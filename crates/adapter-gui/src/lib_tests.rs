@@ -349,23 +349,22 @@ fn project_display_name_empty_name_returns_untitled() {
 // --- parse_cli_args_from additional edge cases ---
 
 #[test]
-fn parse_cli_args_auto_save_before_path() {
-    let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--auto-save", "/tmp/p.yaml"]);
+fn parse_cli_args_ignores_auto_save_before_path() {
+    let (path, fullscreen) = parse_cli_args_from(&["openrig", "--auto-save", "/tmp/p.yaml"]);
     assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
-    assert!(auto_save);
+    assert!(!fullscreen);
 }
 
 #[test]
 fn parse_cli_args_multiple_paths_last_wins() {
-    let (path, _, _) = parse_cli_args_from(&["openrig", "/first.yaml", "/second.yaml"]);
+    let (path, _) = parse_cli_args_from(&["openrig", "/first.yaml", "/second.yaml"]);
     assert_eq!(path, Some(std::path::PathBuf::from("/second.yaml")));
 }
 
 #[test]
 fn parse_cli_args_dashed_flags_ignored_as_paths() {
-    let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "--verbose", "--debug"]);
+    let (path, fullscreen) = parse_cli_args_from(&["openrig", "--verbose", "--debug"]);
     assert_eq!(path, None);
-    assert!(!auto_save);
     assert!(!fullscreen);
 }
 
@@ -388,41 +387,38 @@ fn open_cli_project_errors_on_nonexistent_path() {
 }
 
 #[test]
-fn parse_cli_args_extracts_path_and_auto_save_flag() {
-    let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
+fn parse_cli_args_extracts_path_and_ignores_auto_save() {
+    let (path, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
     assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
-    assert!(!auto_save);
     assert!(!fullscreen);
 
-    let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--auto-save"]);
+    let (path, fullscreen) = parse_cli_args_from(&["openrig", "--auto-save"]);
     assert_eq!(path, None);
-    assert!(auto_save);
+    assert!(!fullscreen);
 
-    let (path, auto_save, _) =
-        parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
+    let (path, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
     assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
-    assert!(auto_save);
+    assert!(!fullscreen);
 
-    let (path, auto_save, _) = parse_cli_args_from(&["openrig"]);
+    let (path, fullscreen) = parse_cli_args_from(&["openrig"]);
     assert_eq!(path, None);
-    assert!(!auto_save);
+    assert!(!fullscreen);
 
-    let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
+    let (path, fullscreen) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
     assert_eq!(path, None);
-    assert!(!auto_save);
+    assert!(!fullscreen);
 }
 
 #[test]
 fn parse_cli_args_fullscreen_flag() {
-    let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen"]);
+    let (_, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen"]);
     assert!(fullscreen);
 
-    let (path, auto_save, fullscreen) =
+    let (path, fullscreen) =
         parse_cli_args_from(&["openrig", "--fullscreen", "--auto-save", "/tmp/p.yaml"]);
     assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
-    assert!(auto_save);
     assert!(fullscreen);
 
-    let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/p.yaml"]);
+    let (_, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/p.yaml"]);
     assert!(!fullscreen);
 }
