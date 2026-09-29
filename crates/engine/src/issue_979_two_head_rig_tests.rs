@@ -345,12 +345,14 @@ impl Hal {
 /// silence on each route, then the #953 guard sheds the buffer it left behind.
 /// It must never turn into damage that keeps coming while the worker is on
 /// time. The worker is late once every 997 cycles (~1.4 s: a busy machine), so
-/// over ~6 minutes one late push lands on every position of the guard's
-/// 128-callback window.
+/// over ~3 minutes one late push lands on every position of the guard's
+/// 128-callback window (997 is coprime with 128). #991: one lap, not two —
+/// pre-#979 code already fails inside it (20928 underrun frames and 274 trims
+/// for 128 late buffers on route 0), and the second lap only doubled the run.
 #[test]
 fn a_late_worker_costs_one_buffer_and_never_starts_a_stutter() {
     const LATE_EVERY: usize = 997;
-    const CYCLES: usize = LATE_EVERY * 256;
+    const CYCLES: usize = LATE_EVERY * 128;
     for insert_enabled in [false, true] {
         let mut hal = Hal::new(insert_enabled);
         // Warm-up: the routes start empty, so the first callback underruns.

@@ -46,6 +46,14 @@ Detalhamento e casos reais: `.claude/skills/openrig-code-quality/SKILL.md`.
 - **Ferramenta**: `cargo-llvm-cov` (instalar com `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`)
 - **Script local**: `scripts/coverage.sh` — gera relatório HTML em `coverage/`
 - **CI**: `.github/workflows/test.yml` — informativo, sem gate
+- **CI time budget (#991)**: the Test Suite runs under `timeout 1500` (25 min) and
+  Coverage under a 30-min step limit. Almost all of it is compilation, not tests:
+  both jobs restore a dependency cache (`Swatinem/rust-cache`, saved only on branch
+  pushes, so PRs read their base branch's), and `cargo-llvm-cov` comes prebuilt.
+  Instrumentation is what makes long simulations expensive: in CI the engine lib
+  tests took 372 s under llvm-cov against 22 s in the Test Suite, and locally the
+  long #979 simulations ran ~6x slower instrumented. A test that simulates minutes
+  of audio or sweeps many seeds costs minutes of Coverage.
 - **Patch coverage antes do push**: `./scripts/patch-coverage.sh [base]` — reproduz
   localmente o número que `codecov/patch` reporta no PR (`cargo llvm-cov --lcov`
   cruzado com `git diff --unified=0 <base>...HEAD`), respeitando o `ignore:` do
