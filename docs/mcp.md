@@ -74,7 +74,8 @@ follow-up.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.
-  - `openrig://ids` — chain/block IDs (for `midi-map.yaml`).
+  - `openrig://ids` — chain/block IDs (for `midi-map.yaml`). The blocks
+    inside a split (#328) are listed under it as `path a` / `path b` rows.
   - `openrig://meters` — per-chain peak meters (dBFS).
   - `openrig://tuner` (#829) — live tuner readings: `running`,
     `reference_hz`, and one row per (chain, input, channel) tap with
@@ -133,8 +134,9 @@ follow-up.
     Unknown id → `{"params": null}`.
   - `openrig://chains/{chain}/blocks/{block}/params` — placed-block
     parameter snapshot: schema **plus** `current_value` per parameter
-    (JSON, wrapped under a `params` envelope). Unknown chain / block
-    → error from the bridge.
+    (JSON, wrapped under a `params` envelope). A block inside a split
+    path (#328) is addressed by its id like any other. Unknown chain /
+    block → error from the bridge.
   - `openrig://chains/{chain}/quality` (#791) — objective quality
     report for one chain (THD+N, noise floor, peak/RMS level, dynamic
     range, clipping) under a `quality` envelope (JSON).
