@@ -185,6 +185,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainRowCtx) {
             auto_save: ctx.auto_save,
         },
     );
+    // #827: the editor's Save take row.
+    crate::looper_take_callbacks::wire_looper_take_callbacks(window, &ctx.project_session);
 }
 
 fn wire_delete_flow(window: &AppWindow, ctx: &ChainRowCtx) {

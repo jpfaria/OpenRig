@@ -144,7 +144,6 @@ fn refresh(
         &NoWrites,
         model,
         &[],
-        &[],
         &counters.xruns,
         &counters.underruns,
     );

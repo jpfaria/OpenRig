@@ -57,6 +57,8 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "EditChainLooperAudio",
     "UndoChainLooperEdit",
     "RedoChainLooperEdit",
+    // #827 — keep a recorded loop as a named take the DI can play.
+    "SaveChainLooperTake",
     "SetChainLooperTransport",
     // ── The surface that existed before the split ─────────────────────────
     "AddBlock",

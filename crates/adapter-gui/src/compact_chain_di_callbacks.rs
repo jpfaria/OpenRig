@@ -31,33 +31,19 @@ pub(crate) fn wire(
         let project_session = project_session.clone();
         let weak_window = main_weak.clone();
         let toast_timer = toast_timer.clone();
+        // #827: the list carries saved looper takes as well as bundled loops,
+        // so the label resolves through the same parser the chain tile uses.
         compact_win.on_di_loop_source_selected(move |source_str| {
-            let chain_id = {
-                let session_borrow = project_session.borrow();
-                let Some(session) = session_borrow.as_ref() else {
-                    return;
-                };
-                let proj = session.project.borrow();
-                let Some(chain) = proj.chains.get(chain_index as usize) else {
-                    return;
-                };
-                chain.id.clone()
-            };
-            let source = DiLoopSource::Bundled(source_str.to_string());
-            let cmds = crate::di_loop_wiring::di_loop_commands(
-                chain_id,
-                crate::di_loop_wiring::DiLoopIntent::SelectSource { source },
-            );
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
+            if chain_index < 0 {
                 return;
-            };
-            for cmd in cmds {
-                if let Err(err) = session.dispatcher.dispatch(cmd) {
-                    if let Some(main_win) = weak_window.upgrade() {
-                        set_status_error(&main_win, &toast_timer, &err.to_string());
-                    }
-                    return;
+            }
+            if let Err(err) = crate::di_loop_actions::select_di_loop_source(
+                &project_session,
+                chain_index as usize,
+                &source_str,
+            ) {
+                if let Some(main_win) = weak_window.upgrade() {
+                    set_status_error(&main_win, &toast_timer, &err);
                 }
             }
         });

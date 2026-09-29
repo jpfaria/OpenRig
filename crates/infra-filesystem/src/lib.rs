@@ -26,8 +26,8 @@ pub mod storage;
 
 pub use app_config::{AppConfig, RecentProjectEntry};
 pub use asset_paths::{
-    asset_paths, default_evaluations_path, detect_data_root, init_asset_paths, resolve_asset_paths,
-    user_data_root, AssetPaths,
+    asset_paths, default_evaluations_path, default_looper_takes_path, detect_data_root,
+    init_asset_paths, resolve_asset_paths, user_data_root, AssetPaths,
 };
 pub(crate) use gui_settings::LegacyGuiAudioSettings;
 pub use gui_settings::{GuiAudioDeviceSettings, GuiSystemSettings};

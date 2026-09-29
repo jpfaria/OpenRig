@@ -177,6 +177,8 @@ pub(crate) fn wire_looper_editor_callbacks(
             editor.set_sel_start(0.0);
             editor.set_sel_end(1.0);
             editor.set_status_code(0);
+            // #827: a new loop starts with no save outcome on screen.
+            editor.set_take_status(0);
             editor.set_open(true);
         });
     }
