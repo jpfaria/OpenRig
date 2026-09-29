@@ -42,7 +42,6 @@ pub(crate) struct ProjectSettingsCtx {
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
     pub fullscreen: bool,
 }
 
@@ -62,7 +61,6 @@ pub(crate) fn wire(
         saved_project_snapshot,
         project_dirty,
         toast_timer,
-        auto_save,
         fullscreen,
     } = ctx;
 
@@ -181,13 +179,7 @@ pub(crate) fn wire(
             window.set_project_name_draft(value.clone());
             crate::project_name_edit::record_project_name(&project_session, value.as_str());
             if let Some(session) = project_session.borrow_mut().as_mut() {
-                sync_project_dirty(
-                    &window,
-                    session,
-                    &saved_project_snapshot,
-                    &project_dirty,
-                    auto_save,
-                );
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
         });
     }
@@ -208,13 +200,7 @@ pub(crate) fn wire(
             settings_window.set_project_name_draft(value.clone());
             crate::project_name_edit::record_project_name(&project_session, value.as_str());
             if let Some(session) = project_session.borrow_mut().as_mut() {
-                sync_project_dirty(
-                    &window,
-                    session,
-                    &saved_project_snapshot,
-                    &project_dirty,
-                    auto_save,
-                );
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
         });
     }

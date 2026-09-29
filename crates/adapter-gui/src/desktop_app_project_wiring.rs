@@ -30,7 +30,6 @@ pub(crate) struct ProjectWiringDeps {
     pub project_dirty: Rc<RefCell<bool>>,
     pub preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>>,
     pub toast_timer: Rc<Timer>,
-    pub auto_save: bool,
     pub fullscreen: bool,
 }
 
@@ -56,7 +55,6 @@ pub(crate) fn wire(
         project_dirty,
         preset_file_list,
         toast_timer,
-        auto_save,
         fullscreen,
     } = deps;
     // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
@@ -107,7 +105,6 @@ pub(crate) fn wire(
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
             toast_timer: toast_timer.clone(),
-            auto_save,
             fullscreen,
         },
     );
@@ -123,7 +120,6 @@ pub(crate) fn wire(
             output_chain_devices: output_chain_devices.clone(),
             toast_timer: toast_timer.clone(),
             preset_file_list: preset_file_list.clone(),
-            auto_save,
         },
     );
 }

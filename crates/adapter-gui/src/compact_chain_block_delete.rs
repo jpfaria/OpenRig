@@ -25,8 +25,6 @@ pub(crate) fn wire_block_delete(
     let output_chain_devices = &ctx.output_chain_devices;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
-    let auto_save = ctx.auto_save;
-
     // Wire remove-block — issue #360: open the in-window overlay; the
     // real dispatch lives in confirm-delete-block below. Closures keep
     // the heap state on `pending_compact_delete_block` so the confirm
@@ -145,13 +143,7 @@ pub(crate) fn wire_block_delete(
                 &session.io_bindings.borrow(),
             );
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(
-                &main_win,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
         });
     }
 }
@@ -167,8 +159,6 @@ pub(crate) fn wire_block_reorder(
     let output_chain_devices = &ctx.output_chain_devices;
     let saved_project_snapshot = &ctx.saved_project_snapshot;
     let project_dirty = &ctx.project_dirty;
-    let auto_save = ctx.auto_save;
-
     // Wire reorder-block — resolve real indices from CompactBlockItem.block_index
     {
         let project_session = project_session.clone();
@@ -238,7 +228,7 @@ pub(crate) fn wire_block_reorder(
             &[]);
             let blocks = build_compact_blocks(&session.project.borrow(), chain_idx, &session.io_bindings.borrow());
             cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
+            sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
         });
     }
 }

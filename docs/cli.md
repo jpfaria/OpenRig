@@ -7,7 +7,6 @@
 | `OPENRIG_PROJECT_PATH=...` | Igual (env tem menor prioridade que CLI) |
 | `RUST_LOG=...` | Log filter (default `info`). Logging is non-blocking (#693): records go through a bounded queue drained by a dedicated writer thread; if the stderr consumer is slower than the producers, records are dropped and a `[log-writer] N record(s) dropped` line reports the gap. Log calls never stall the GUI thread. |
 | `OPENRIG_UPDATE_CURRENT_VERSION=0.0.1` | macOS only (#959): the launcher's update check compares the latest GitHub release against this version instead of the compiled one, so the update button can be exercised without publishing a new release. Display is unchanged. |
-| `--auto-save` ou `OPENRIG_AUTO_SAVE=1` | Salva a cada alteração, esconde botão |
 | `--mcp` | **Override**: forces the MCP server up at `http://127.0.0.1:4123` for this run (GUI continua) — ver `docs/mcp.md`. Persistent enablement is `mcp_enabled` in `config.yaml` (#712). |
 | `--mcp=ADDR:PORT` | Servidor MCP no endereço dado (ex.: `--mcp=0.0.0.0:9000`), overriding config for this run. |
 | `--midi` | **Override**: forces the MIDI/BLE-MIDI adapter up for this run, using the **resolved view** (ADR 0003 / #499): project bindings (from `project.openrig`'s `midi:` block) → system fallback (`midi-bindings.yaml`) → shipped default. Controller comes from `midi-profile.yaml`. Migrates a legacy `midi-map.yaml` on first launch. Persistent enablement is `midi_enabled` in `config.yaml` (#712). See `docs/midi.md`. |
@@ -27,4 +26,6 @@ loga o erro e cai no launcher (alinhado com `2026-04-09-cli-project-path-autosav
 autosave não foi reinventado). Carregar/parsear o `project.openrig` no engine
 é wiring fora do escopo do #452.
 
-Parsing em `adapter-gui/src/{cli,main,lib}.rs`. Auto-save em `sync_project_dirty()`.
+Parsing em `adapter-gui/src/{cli,main,lib}.rs`.
+
+**No autosave (#986).** The project file is written **only** on an explicit save: the Save button, the MCP `save_project` tool or a MIDI binding to `SaveProject` (all three dispatch `ProjectCommand::SaveProject`). Edits only flip the unsaved-changes flag (`sync_project_dirty()`). The old `--auto-save` flag and `OPENRIG_AUTO_SAVE` env var are gone; a leftover `--auto-save` on a command line is ignored like any unknown flag.

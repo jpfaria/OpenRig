@@ -1,0 +1,109 @@
+version: 1
+project:
+  name: project
+  inputs:
+    input-7:
+      label: ANAL+DIG
+      bank:
+        1: anal-dig
+      active-preset: 1
+      active-scene: 3
+      routing: []
+      instrument: electric_guitar
+      io_binding_ids: []
+  outputs: {}
+  presets:
+    anal-dig:
+      id: anal-dig
+      name: IGREJA - VST3
+      blocks:
+      - id: rig:input-7:block:preamp
+        enabled: true
+        kind: !Core
+          effect_type: preamp
+          model: american_clean
+          params:
+            values:
+              bass: 50.0
+              bright: true
+              depth: 42.0
+              gain: 34.0
+              input: 50.0
+              master: 62.0
+              middle: 50.0
+              output: 74.0
+              presence: 54.0
+              sag: 16.0
+              treble: 50.0
+      - id: rig:input-7:block:cab
+        enabled: true
+        kind: !Core
+          effect_type: cab
+          model: american_2x12
+          params:
+            values:
+              air: 26.0
+              high_cut_hz: 8400.0
+              low_cut_hz: 64.0
+              mic_distance: 24.0
+              mic_position: 50.0
+              output: 36.0
+              resonance: 55.0
+              room_mix: 12.0
+      - id: rig:input-7:block:amp
+        enabled: false
+        kind: !Core
+          effect_type: amp
+          model: blackface_clean
+          params:
+            values:
+              bass: 50.0
+              bright: true
+              gain: 32.0
+              input: 50.0
+              master: 62.0
+              middle: 50.0
+              output: 58.0
+              room_mix: 14.0
+              sag: 14.0
+              treble: 50.0
+      - id: rig:input-7:block:verb
+        enabled: true
+        kind: !Core
+          effect_type: gain
+          model: volume
+          params:
+            values:
+              mute: false
+              volume: 80.0
+      scene-params:
+      - rig:input-7:block:amp.input
+      - rig:input-7:block:amp.output
+      - rig:input-7:block:amp.character
+      - rig:input-7:block:preamp.output
+      - rig:input-7:block:cab.output
+      scenes:
+        1:
+          bypass:
+            rig:input-7:block:verb: true
+          params:
+            rig:input-7:block:cab.output: 57.0
+            rig:input-7:block:preamp.output: 33.0
+        2:
+          bypass:
+            rig:input-7:block:cab: true
+            rig:input-7:block:verb: true
+            rig:input-7:block:preamp: true
+            rig:input-7:block:amp: false
+          params:
+            rig:input-7:block:amp.input: 67.0
+            rig:input-7:block:amp.output: 41.0
+            rig:input-7:block:amp.character: 3.0
+        3:
+          bypass:
+            rig:input-7:block:verb: true
+            rig:input-7:block:preamp: true
+          params: {}
+      volume: 100.0
+  chain-order:
+  - input-7
