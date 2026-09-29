@@ -68,6 +68,13 @@ impl ProjectRuntimeController {
     ///
     /// Returns the number of rebuilds applied this tick.
     pub fn poll_pending_rebuilds(&mut self) -> usize {
+        // #987: release the runtimes a finished handover no longer plays.
+        let now = std::time::Instant::now();
+        for slot in self.chain_slots.values() {
+            for old in slot.reap(now) {
+                let _ = self.worker.submit(move || drop(old));
+            }
+        }
         let mut applied = 0;
         let mut still_pending = Vec::new();
         for (chain_id, rx) in std::mem::take(&mut self.pending_rebuilds) {
@@ -88,10 +95,11 @@ impl ProjectRuntimeController {
                             // UI's tap rings were subscribed on the old runtime).
                             runtime.adopt_taps_from(&slot.load());
                             let graph_runtime = Arc::clone(&runtime);
-                            let superseded = slot.publish(runtime);
+                            // #987: the old runtime keeps playing until the new
+                            // one has warmed up and crossfaded in; the reap
+                            // below drops it off the audio thread.
+                            slot.hand_over(runtime);
                             self.runtime_graph.chains.insert(key, graph_runtime);
-                            // Drop the old runtime off the audio/frontend thread.
-                            let _ = self.worker.submit(move || drop(superseded));
                             applied += 1;
                         } else {
                             log::error!(
