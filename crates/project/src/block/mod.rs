@@ -24,6 +24,7 @@ mod nam_schema;
 pub mod param_writer;
 pub mod port_duplication;
 pub mod select_block_methods;
+pub mod split_params;
 pub mod types;
 pub mod vst3_model_id;
 pub mod vst3_schema;

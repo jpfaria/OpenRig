@@ -18,6 +18,7 @@
 | **Pitch** | Pitch shift e harmonização | 22 | Pitch Shifter (native — time-domain granular, low-latency); Harmonizer, x42 Autotune (Microtonal/Scales), MDA Detune, MDA RePsycho, Pitchotto, ewham, Larynx pitch, MOD CAPS Mole/Sustainer (LV2 — 21 modelos pós-#379) |
 | **IR** / **NAM** | Loaders genéricos | 1+1 | generic_ir, neural_amp_modeler |
 | **Input** / **Output** / **Insert** | I/O | — | standard, standard, external_loop |
+| **Split** | Chain split: Split → Mix or Y → A/B (#328) | — | split |
 
 **Total: ~804 modelos em 16 tipos (5 backends: Native 34, NAM 215, IR 139, LV2 ~351, VST3 6).**
 
@@ -72,6 +73,26 @@ Ping-Pong 300/40/35, Pitch Delay 350/35/35, Granular 300/30/40.
 
 ⚠️ `pitch_delay` (Delay block, 2048-sample grain) is **not** `native_pitch_shifter`
 (Pitch block, 1024-sample grain) — different models, different blocks.
+
+## Chain split (#328)
+
+A `Split` block splits the chain into two paths, A and B, like the Ampero II split node. Blocks before it are shared by both paths.
+
+- **Split → Mix** (`end: mix`): path A ∥ path B → mixer → the rest of the chain. Main use: amp A hard left, amp B hard right.
+- **Y → A/B** (`end: y`): path A → its outputs, path B → its outputs. No mixer.
+
+Knobs live in `SplitBlock.params` (keys in `project::block::split_params`) and are edited with the ordinary `SetBlockParameter*` commands. Defaults are the Ampero defaults. The split editor shows the `split` group, the mixer editor the `mixer` group.
+
+| Key | Range | Default | Meaning |
+|---|---|---|---|
+| `split_mode` | `same` \| `dual_mono` | `same` | Ampero Mode I / Mode II |
+| `level_to_a`, `level_to_b` | 0–100 | 100 | Linear gain into each path (`x/100`) |
+| `balance_a`, `balance_b` | −50…+50 | 0 | Mode II only. −50 = L only, 0 = (L+R)/2, +50 = R only; the path gets dual mono `[s, s]` |
+| `mix_level_a`, `mix_level_b` | 0–100 | 100 | Mix only. Linear gain of each path into the mixer |
+| `mix_pan_a`, `mix_pan_b` | −50…+50 | 0 | Mix only. Balance law: centre = unity on both sides; the opposite side falls linearly to 0 at ±50 |
+| `mix_b_polarity` | `normal` \| `invert` | `normal` | Mix only. Multiplies path B by −1 |
+| `mix_master` | 0–100 | 50 | Mix only. Output gain `x/100`; at the default two identical paths sum to unity |
+| `mix_master_sum` | bool | false | Mix only. Output becomes dual mono `L = R = (L+R)/2` |
 
 ## Backends de áudio
 
