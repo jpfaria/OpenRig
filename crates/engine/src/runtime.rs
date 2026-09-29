@@ -549,3 +549,7 @@ mod issue_980_route_loss_counters;
 #[cfg(test)]
 #[path = "issue_965_insert_latency_tests.rs"]
 mod issue_965_insert_latency;
+
+#[cfg(test)]
+#[path = "issue_987_in_place_edit_paths_tests.rs"]
+mod issue_987_in_place_edit_paths;
