@@ -53,7 +53,7 @@ Rules, enforced in `split_block_methods.rs` (new) and `rig_validate`:
 - At most one `Split` per chain.
 - Path blocks may not be `Split`, `Select`, `Input`, `Output` or `Insert`. `Select` is excluded to keep nesting one level deep.
 - With `end: Y`, the `Split` must be the last processing block of the chain.
-- `is_routing()` is true for `Split`, because switching `end` or path topology changes segments and requires a rebuild.
+- `is_routing()` is true only for a `Split` with `end: Y`, because a Y's per-output path sets decide which streams exist. A `Split → Mix` is pure DSP inside one segment: bypassing it, editing its paths or dragging blocks between lanes rebuilds the DSP in place and never reopens streams (no #967-style silence). Only the Y per-output path sets enter `chain_structure_signature`; a Mix split's `enabled` flag and path contents stay out of it.
 - `model_identity()` encodes `end` plus the ids and model identities of both paths, so a structural edit inside a path is detected by `replace_preset_blocks_if_structural`.
 
 ### 1.2 Split and mixer parameters
