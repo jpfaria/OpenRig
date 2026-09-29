@@ -99,6 +99,8 @@ A preset may hold a `Split` block (`kind: !Split`). Blocks before it are shared 
 
 Chain preset files and legacy project files write the split as `type: split` with `end`, `params`, `a` and `b`. Path blocks carry no id on disk and load as `<split id>::a:<i>` / `<split id>::b:<i>`. A path block this machine cannot load is dropped with a warning and the rest of the split is kept.
 
+Scenes, edit capture and model swaps reach the blocks inside the paths exactly like top-level blocks: a path block's scene keys are `<its id>.<param>`, the split's own knobs are `<split id>.<param>` (float knobs per scene, `split_mode` / `mix_b_polarity` / `mix_master_sum` preset-wide, #690). Swapping a path block's model keeps every scene (#986 applies inside paths). Adding, removing or moving a block inside a path is a structural edit and follows the #986 rule below like a top-level one: the split keeps its own base knobs, every block the preset already had keeps its base, and every scene survives except the entries of blocks that are gone.
+
 ### Structural edits keep the scenes; an insert belongs to its preset (#986)
 
 Adding, removing or reordering blocks (the insert included) is structural:
