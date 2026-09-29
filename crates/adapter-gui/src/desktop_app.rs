@@ -489,6 +489,7 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
             saved_project_snapshot: saved_project_snapshot.clone(),
             project_dirty: project_dirty.clone(),
+            open_compact_window: open_compact_window.clone(),
         },
     );
     crate::plugin_info_inline_wiring::wire(&window);
@@ -532,6 +533,7 @@ pub fn run_desktop_app(
                 toast_timer: toast_timer.clone(),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
+                open_compact_window: open_compact_window.clone(),
             },
             crate::desktop_app_mcp::McpDeps {
                 project_runtime: project_runtime.clone(),
@@ -557,6 +559,7 @@ pub fn run_desktop_app(
                 toast_timer: toast_timer.clone(),
                 saved_project_snapshot: saved_project_snapshot.clone(),
                 project_dirty: project_dirty.clone(),
+                open_compact_window: open_compact_window.clone(),
             },
             arg,
         )?),
