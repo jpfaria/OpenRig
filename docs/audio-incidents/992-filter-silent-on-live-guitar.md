@@ -1,6 +1,6 @@
 # #992 — a filter "has no effect on the live guitar", works on the DI loop
 
-Status: **DIAGNOSED; one real defect found and being fixed on the branch.**
+Status: **FIX ON THE BRANCH (H6)** — the rest measured as expected behaviour.
 Issue: https://github.com/jpfaria/OpenRig/issues/992 · Branch: `bug/issue-992`
 
 ## Symptom (reported)
@@ -52,12 +52,28 @@ owner's interface is never touched). The fil4 is a repo fixture
 
 ## Shipped
 
-Nothing yet.
+Branch `bug/issue-992`:
+
+- H6: `project::chain::bus_layout_after` (new, `crates/project/src/chain_bus_layout.rs`)
+  — a true-stereo block on a mono bus leaves the bus stereo; every other case is
+  the model's own `output_layout`. `engine/src/runtime_processor_model.rs`
+  builds that block as `AudioProcessor::StereoFromMono` (the mono bus broadcast
+  to both inputs), and `application::validate` uses the same rule, so a
+  mono-in / mono-out chain with a true-stereo block validates and plays. The
+  mono output takes the mixdown at the end (Average: a unity block keeps unity).
+  Pinned by `a_fil4_on_a_guitar_into_a_mono_main_cuts_it_by_18_db` (lib) and
+  `turning_the_fil4_gain_down_cuts_the_live_input` (real streams, mono Main).
+  No latency change. CPU: only a true-stereo block on a mono bus now runs
+  (before it was skipped).
+- The model-level rule stays: `ModelAudioMode::TrueStereo` still rejects a mono
+  input (`block-core` `true_stereo_rejects_mono_input`); the broadcast is the
+  host's job, as #696 already did for a mono input into a stereo output.
 
 ## Open
 
-- H6 fix.
 - Which native filter and chain the owner tried; not measured.
+- The owner's `DIGITAL` fil4 curve (H5) nets out to ~0 dB; that is the stored
+  setting, not the engine.
 
 ## Related
 
