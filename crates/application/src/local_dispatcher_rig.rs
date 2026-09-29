@@ -6,10 +6,7 @@
 //! so MIDI/MCP/GUI all share one path and the UI carries no business
 //! logic. No audio code; pure model + the proven `engine` projection.
 
-use std::collections::HashMap;
-
 use anyhow::{anyhow, Result};
-use domain::ids::BlockId;
 
 use project::block::{AudioBlock, AudioBlockKind};
 use project::rig_command::{rig_command_from_scene, rig_command_from_select, RigCommand};
@@ -153,33 +150,23 @@ impl LocalDispatcher {
 /// effects on purpose — an aux send after the cab — and its position is the
 /// whole point, so the merge walks the CURRENT chain and keeps each port at its
 /// own index, feeding the rebuilt effects into the slots between them.
+///
+/// #986: an `Insert` is NOT one of those ports. The preset stores it in its own
+/// block list, so it comes in with the rebuilt blocks — at the position the
+/// preset gives it (#881) and with the scene-applied `enabled` (#921). Keeping
+/// the current chain's insert instead carried one preset's loop into every
+/// preset of the bank, and removing it from one preset removed it from all.
 pub(crate) fn merge_preserved_ports(
     current: &[AudioBlock],
     rebuilt: Vec<AudioBlock>,
 ) -> Vec<AudioBlock> {
-    // #881: an `Insert` is routing too — it splits the chain at its own
-    // position — so it keeps its slot exactly like a port. Consuming that slot
-    // for the next rebuilt effect dropped the loop and shifted every block
-    // after it up by one.
-    let is_port = |b: &AudioBlock| b.kind.is_routing();
-    // #921: the slot is the chain's, but the scene decides whether the loop
-    // is in it — the rebuilt insert with the same id carries the
-    // scene-applied `enabled`, and cloning the current one whole kept the
-    // state from before the switch.
-    let scene_enabled: HashMap<BlockId, bool> = rebuilt
-        .iter()
-        .filter(|b| matches!(b.kind, AudioBlockKind::Insert(_)))
-        .map(|b| (b.id.clone(), b.enabled))
-        .collect();
+    let is_port =
+        |b: &AudioBlock| matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_));
     let mut effects = rebuilt.into_iter().filter(|b| !is_port(b));
     let mut merged = Vec::with_capacity(current.len());
     for block in current {
         if is_port(block) {
-            let mut port = block.clone();
-            if let Some(&enabled) = scene_enabled.get(&block.id) {
-                port.enabled = enabled;
-            }
-            merged.push(port);
+            merged.push(block.clone());
         } else if let Some(effect) = effects.next() {
             merged.push(effect);
         }
