@@ -186,3 +186,7 @@ pub(crate) fn merge_preserved_ports(
 #[cfg(test)]
 #[path = "issue_328_split_preset_switch_tests.rs"]
 mod issue_328_split_preset_switch_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_rig_split_tests.rs"]
+mod split_tests;
