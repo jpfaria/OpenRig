@@ -146,16 +146,22 @@ impl RigProject {
         }
     }
 
-    /// Replace the active preset's base blocks when `blocks` is a
-    /// **structural** change (different block ids/order/count vs the
-    /// preset's base) — e.g. a preset was loaded over the slot, or
-    /// blocks were added/removed/reordered. `write_back_processing_blocks`
-    /// is diff-only (param/bypass keyed by block id) and silently drops
-    /// such edits, so they never persisted. Scenes/scene-params reference
-    /// the OLD structure, so they are reset. Returns `true` when it
-    /// replaced (the caller then skips the per-scene diff write-back for
-    /// this input). No-op / `false` if the input/preset is unknown or
-    /// the structure is identical (id-for-id) — that path stays diff-only.
+    /// Rewrite the active preset's block LIST when `blocks` is a
+    /// **structural** change (different block ids/order/count/model vs the
+    /// preset's base) — e.g. a preset was loaded over the slot, or blocks
+    /// were added/removed/reordered. `write_back_processing_blocks` is
+    /// diff-only (param/bypass keyed by block id) and silently drops such
+    /// edits, so they never persisted.
+    ///
+    /// #986: the list follows the chain, but the preset keeps what it owns.
+    /// A block it already had (same id, same model) keeps its base — not the
+    /// scene-applied live copy, which baked the active scene into every
+    /// scene — and every scene and `scene-params` entry survives except the
+    /// ones of blocks that are gone (and, for a block whose model changed,
+    /// the params the new model lacks). The caller runs the per-scene diff
+    /// afterwards, so the active scene's edits are still captured. Returns
+    /// `true` when the list changed; `false` if the input/preset is unknown
+    /// or the structure is identical.
     pub fn replace_preset_blocks_if_structural(
         &mut self,
         input: &str,
@@ -185,9 +191,48 @@ impl RigProject {
         if same_structure {
             return false;
         }
-        preset.blocks = blocks.to_vec();
-        preset.scenes.clear();
-        preset.scene_params.clear();
+        let owned = |live: &AudioBlock| {
+            preset
+                .blocks
+                .iter()
+                .find(|b| b.id == live.id && b.kind.model_identity() == live.kind.model_identity())
+                .cloned()
+        };
+        let next: Vec<AudioBlock> = blocks
+            .iter()
+            .map(|live| owned(live).unwrap_or_else(|| live.clone()))
+            .collect();
+        let swapped: BTreeMap<&str, &AudioBlock> = next
+            .iter()
+            .filter(|b| {
+                preset.blocks.iter().any(|old| {
+                    old.id == b.id && old.kind.model_identity() != b.kind.model_identity()
+                })
+            })
+            .map(|b| (b.id.0.as_str(), b))
+            .collect();
+        let has_block = |id: &str| next.iter().any(|b| b.id.0 == id);
+        let keeps_param = |key: &str| {
+            next.iter().any(|b| {
+                let Some(param) = key.strip_prefix(&format!("{}.", b.id.0)) else {
+                    return false;
+                };
+                match swapped.get(b.id.0.as_str()) {
+                    Some(new) => match &new.kind {
+                        AudioBlockKind::Core(c) => c.params.get(param).is_some(),
+                        AudioBlockKind::Nam(n) => n.params.get(param).is_some(),
+                        _ => false,
+                    },
+                    None => true,
+                }
+            })
+        };
+        for scene in preset.scenes.values_mut() {
+            scene.bypass.retain(|id, _| has_block(id));
+            scene.params.retain(|key, _| keeps_param(key));
+        }
+        preset.scene_params.retain(|key| keeps_param(key));
+        preset.blocks = next;
         true
     }
 

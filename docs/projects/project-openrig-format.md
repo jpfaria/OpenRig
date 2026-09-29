@@ -90,8 +90,25 @@ right away and re-resolves the live block through the active scene; the
 block editor's `OverwriteBlock` path gets the same treatment on the next
 capture (scene switch or save). Before #986 the swap took the structural
 path (#627): the whole preset base was replaced by the live, scene-applied
-chain and every scene was cleared. Adding, removing or reordering blocks is
-still structural and still resets the scenes.
+chain and every scene was cleared.
+
+### Structural edits keep the scenes; an insert belongs to its preset (#986)
+
+Adding, removing or reordering blocks (the insert included) is structural:
+`replace_preset_blocks_if_structural` (`crates/project/src/rig_write_back.rs`)
+rewrites the preset's block list to follow the chain, but a block the preset
+already had (same id, same model) keeps its base, not the scene-applied live
+copy. Every scene and `scene-params` entry survives except those of blocks
+that are gone; the per-scene diff then runs as usual for the active scene.
+Before this, any structural edit replaced the base with the live chain and
+cleared every scene.
+
+An `Insert` is stored in the preset's own `blocks`, so a preset switch takes
+it from the preset being loaded (position and scene-applied `enabled`), never
+from the chain that was live. Only the chain's `Input`/`Output` ports carry
+over a switch (`merge_preserved_ports`, `crates/application/src/local_dispatcher_rig.rs`).
+Before this, one preset's insert was carried into every preset of the bank,
+and removing it from one preset removed it from all of them.
 
 ## Validation
 
