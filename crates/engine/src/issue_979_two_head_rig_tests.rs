@@ -181,6 +181,8 @@ fn route_3_is_the_insert_send() {
 /// head is ONE runtime whose pipelines are one per output (#85: a stream is an
 /// input × output pair — 2 guitars × 2 outputs = the 4 NAM loads), and no
 /// route has two writers or two owning runtimes.
+// linux+JACK keeps the pre-#967 grouping (one runtime per chain).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn insert_off_every_route_has_exactly_one_writing_pipeline() {
     let rts = runtimes(false);
@@ -255,6 +257,8 @@ fn insert_on_the_return_reaches_each_physical_output_once() {
 /// With the insert off the chain is two isolated runtimes (one per guitar),
 /// each writing only its own E/S's Main and Out 2 — the live capture's two
 /// groups of `[0,1]` + `[10,11]`, and the two dsp-workers.
+// linux+JACK keeps the pre-#967 grouping (one runtime per chain).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn insert_off_is_one_runtime_per_guitar_on_its_own_outputs() {
     let rts = runtimes(false);

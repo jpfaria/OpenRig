@@ -737,6 +737,8 @@ fn a_push_jittering_by_one_buffer_costs_at_most_its_late_buffers_and_nothing_aft
 /// jitter — `guitarra-2`'s routes play, sample for sample, what they play
 /// when nobody is late, and lose, trim and move nothing: N streams are N
 /// pipelines that do not know the others exist.
+// linux+JACK keeps the pre-#967 grouping (one runtime per chain).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 #[test]
 fn a_late_worker_on_one_guitar_costs_the_other_guitar_nothing() {
     let mut reference = Rig::warm(false);
