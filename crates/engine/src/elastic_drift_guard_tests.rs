@@ -76,3 +76,56 @@ fn a_route_resting_below_its_target_is_left_where_it_rests() {
     assert_eq!(windows(&guard, 128, 3, 0), 0);
     assert_eq!(guard.trims(), 0);
 }
+
+/// #980: a convolver-fed route is born primed at its cushion (#592) — the
+/// margin that absorbs a dsp-worker buffer landing late. One lucky clean
+/// window can see the ring down at a single buffer; that window must not
+/// become the level the route is trimmed back to, or the route loses its
+/// whole margin and every late worker buffer (a VST3 enabled live) is an
+/// underrun on the callbacks whose phase sits near the worker's finish time.
+#[test]
+fn issue_980_a_primed_route_is_never_trimmed_below_its_prime() {
+    const PRIME: usize = 256;
+    let guard = DriftGuard::new(PRIME);
+    guard.hold_rest(PRIME);
+    // A clean window where the worker happened to land just in time.
+    windows(&guard, PERIOD, 1, 0);
+    // Back at the primed lockstep rest: the prime + the buffer being popped.
+    assert_eq!(windows(&guard, PRIME + PERIOD, 3, 0), 0);
+    assert_eq!(guard.trims(), 0);
+}
+
+/// #979: the callback that closes a window is judged by its fill, but its own
+/// pops happen after `observe`, so an underrun it is about to have is not yet
+/// in the running count. A worker late on exactly that callback (the ring is
+/// empty) made the window look clean at floor 0; 0 became the level, and from
+/// then on every clean window cut the whole cushion — one callback of silence
+/// each time, until the chain was rebuilt.
+#[test]
+fn an_empty_ring_at_the_closing_callback_is_not_a_level() {
+    const FRAMES: usize = 64;
+    let guard = DriftGuard::new(64);
+    let per_window = WINDOW_FRAMES / FRAMES;
+    // A healthy route: 64 frames queued at every callback start.
+    for _ in 0..3 * per_window {
+        guard.observe(64, FRAMES, 0);
+    }
+    // The worker is late on the callback that closes the next window: the
+    // ring is empty, and that callback then underruns a whole buffer.
+    for _ in 0..per_window - 1 {
+        guard.observe(64, FRAMES, 0);
+    }
+    guard.observe(0, FRAMES, 0);
+    // Back on time for good.
+    let mut cut = 0;
+    for _ in 0..20 * per_window {
+        cut += guard.observe(64, FRAMES, FRAMES as u64);
+    }
+    assert_eq!(
+        (guard.trims(), cut),
+        (0, 0),
+        "one late worker buffer taught the guard a level of 0: it then cut the \
+         route's whole cushion {} times",
+        guard.trims()
+    );
+}

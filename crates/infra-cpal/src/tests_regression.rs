@@ -654,3 +654,12 @@ fn two_device_entries_still_bind_one_runtime_per_stream() {
         );
     }
 }
+
+#[path = "issue_979_output_write_through_tests.rs"]
+mod issue_979_output_write_through;
+
+#[path = "issue_979_device_notifications_tests.rs"]
+mod issue_979_device_notifications;
+
+#[path = "issue_979_slack_rest_tests.rs"]
+mod issue_979_slack_rest;

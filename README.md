@@ -141,11 +141,13 @@ The [Releases page](https://github.com/jpfaria/OpenRig/releases/latest) ships th
 ### Build from Source
 
 ```bash
+git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
-git submodule update --init --recursive
 cargo build --release -p adapter-gui
 ```
+
+Git LFS is required: it also carries the vendored NeuralAmpModelerCore sources the build unpacks ([deps/DEPS.md](deps/DEPS.md)).
 
 See the [Installation Guide](docs/user-guide/installation.md) for platform-specific dependencies and troubleshooting.
 

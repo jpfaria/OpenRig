@@ -86,7 +86,14 @@ follow-up.
     `peak_dbfs` popped since the previous read, plus `fill_frames` (the
     frames queued in the route's cushion now — sibling routes that
     disagree play the same signal apart) and `latency_trims` (#953: times
-    the route shed latency a stalled output stream left behind) (JSON). The per-chain
+    the route shed latency a stalled output stream left behind), plus two
+    loss counters (#980): `dropped_frames` (frames the route's ring
+    discarded because it was full — the output was not popping, or a late
+    producer caught up; drift-guard trims are not included) and
+    `input_busy_skips` (input buffers the owning runtime dropped on a failed
+    processing `try_lock` — lock held by another thread or poisoned; a
+    silent period on the routes that input feeds; per runtime, repeated on
+    each of its rows) (JSON). The per-chain
     meters say what a segment produced; this says whether the device
     stream owning a route ever ran and what it carried — a route with
     callbacks and level that is inaudible was lost after the engine.
@@ -228,6 +235,10 @@ server runs on its own tokio thread and crosses the boundary through
 `application::bridge` (a `Send` channel + `futures` oneshot). It is drained
 each tick on the frontend thread — the same path GUI callbacks use. No
 audio-thread code is touched; invariants 1–10 hold by construction.
+The events a drained command produces redraw every open surface that shows
+the project — the chains list and the compact chain view alike — so a knob
+set over MCP (or a MIDI footswitch) moves on screen at once, not on reopen
+(#999).
 
 Reads follow the same contract from the other direction: every
 `openrig://*` resource resolves through the one `application::read::resolve`

@@ -29,9 +29,10 @@ use crate::runtime::{
     layout_label, ChainRuntimeState, DEFAULT_ELASTIC_TARGET, FADE_IN_FRAMES, PROBE_IDLE,
 };
 use crate::runtime_audio_frame::ElasticBuffer;
-use crate::runtime_block_builders::build_runtime_block_nodes;
+use crate::runtime_block_builders::build_runtime_block_nodes_with;
 use crate::runtime_endpoints::{InputEntry, OutputEntry};
 use crate::runtime_graph::ERROR_QUEUE_CAPACITY;
+use crate::runtime_graph_prebuild::PrebuiltNodes;
 use crate::runtime_segments::ChainSegment;
 use crate::runtime_state::{
     BlockRuntimeNode, ChainProcessingState, InputCallbackScratch, InputProcessingState,
@@ -58,13 +59,15 @@ pub(crate) fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> u
 ///
 /// `existing_blocks` (when `Some`) carries per-segment processor nodes to
 /// reuse on a rebuild so a param edit does not drop audio; the outer Vec
-/// is indexed by segment position within `segments`.
+/// is indexed by segment position within `segments`. `insert_sends` are the
+/// route indices of the chain's Insert sends (#979: they keep no slack).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn assemble_chain_runtime_state(
     chain: &Chain,
     segments: &[ChainSegment],
     switch_owned_routes: &[usize],
     eff_outputs: &[OutputEntry],
+    insert_sends: &std::ops::Range<usize>,
     sample_rate: f32,
     device_rates: &HashMap<DeviceId, f32>,
     elastic_targets: &[usize],
@@ -93,6 +96,7 @@ pub(crate) fn assemble_chain_runtime_state(
             segment.output_route_indices.clone(),
             segment.mid_output_taps.clone(),
             segment.split_mono_sibling_count,
+            None,
         )?;
         input_states.push(input_state);
     }
@@ -130,16 +134,20 @@ pub(crate) fn assemble_chain_runtime_state(
             .get(&output.device_id)
             .copied()
             .unwrap_or(sample_rate);
-        let cushion = crate::route_cushion::route_cushion(
+        let mut cushion = crate::route_cushion::route_cushion(
             target_for_route(elastic_targets, route_idx),
             route_rate,
             sample_rate,
             crate::route_convolution::route_has_convolution(chain, segments, route_idx),
             crate::route_clock::route_on_producer_clock(segments, route_idx, &output.device_id),
         );
-        output_routes.push(Some(Arc::new(build_output_routing_state(
-            output, cushion, route_rate,
-        ))));
+        let insert_send = insert_sends.contains(&route_idx);
+        if insert_send {
+            cushion = cushion.for_an_insert_send();
+        }
+        let mut route = build_output_routing_state(output, cushion, route_rate);
+        route.applies_chain_volume = !insert_send;
+        output_routes.push(Some(Arc::new(route)));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -212,6 +220,7 @@ pub(crate) fn assemble_chain_runtime_state(
         loopers: looper_shared,
         // Issue #670 — audio-thread deadline accounting, zeroed at build.
         xrun_count: AtomicU64::new(0),
+        input_busy_skips: AtomicU64::new(0),
         peak_load_ppm: AtomicU64::new(0),
         // Issue #723 — remember the real build rate so the live probe beep
         // is synthesized at the device rate, never a hardcoded 48000.
@@ -254,6 +263,7 @@ pub(crate) fn build_input_processing_state(
     output_route_indices: Vec<usize>,
     mid_output_taps: Vec<crate::runtime_segments::SegmentTap>,
     split_mono_sibling_count: Option<usize>,
+    prebuilt: Option<&mut PrebuiltNodes>,
 ) -> anyhow::Result<InputProcessingState> {
     // The processing bus layout is chosen by the combination of input and
     // output channel count, matching `project::chain::processing_layout`:
@@ -273,38 +283,37 @@ pub(crate) fn build_input_processing_state(
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
-    let processing_layout_channel = match proc_layout {
-        project::chain::ProcessingLayout::Mono => AudioChannelLayout::Mono,
-        project::chain::ProcessingLayout::Stereo | project::chain::ProcessingLayout::DualMono => {
-            AudioChannelLayout::Stereo
-        }
-    };
+    let (processing_layout_channel, _) = segment_bus(input, output_channels);
     // Issue #350: split-mono segments respect the historical processing
     // layout — mono input + stereo output still upmixes (broadcast to
     // both channels) so the user hears each guitar centered. Isolation
     // between siblings is enforced at fan-out via 1/N gain reduction
     // (see `process_single_segment`), NOT by auto-panning.
-    log::info!(
-        "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
-        chain.id.0,
-        layout_label(input_read_layout),
-        proc_layout,
-        input.channels,
-        input.mode,
-    );
+    // #987: a live edit's swap runs under the processing lock — no logging.
+    if !prebuilt.as_deref().is_some_and(PrebuiltNodes::under_lock) {
+        log::info!(
+            "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
+            chain.id.0,
+            layout_label(input_read_layout),
+            proc_layout,
+            input.channels,
+            input.mode,
+        );
+    }
     let had_existing = existing_blocks.is_some();
     // Issue #588: a mono source is broadcast to identical stereo channels
     // (`Stereo([s, s])`), so the content entering the first block is
     // effectively mono. A DualMono/Stereo source carries independent
     // channels and is not.
     let source_is_mono = matches!(input_read_layout, AudioChannelLayout::Mono);
-    let (blocks, _output_layout) = build_runtime_block_nodes(
+    let (blocks, _output_layout) = build_runtime_block_nodes_with(
         chain,
         processing_layout_channel,
         source_is_mono,
         sample_rate,
         existing_blocks,
         block_indices,
+        prebuilt,
     )?;
 
     Ok(InputProcessingState {
@@ -321,6 +330,21 @@ pub(crate) fn build_input_processing_state(
         plays_di_loop: false,
         outgoing: None,
     })
+}
+
+/// The bus a segment's blocks process on, and whether its source is mono
+/// content (#588). The in-place edit's prebuild walks the same buses (#987).
+pub(crate) fn segment_bus(
+    input: &InputEntry,
+    output_channels: &[usize],
+) -> (AudioChannelLayout, bool) {
+    let bus =
+        match project::chain::processing_layout(&input.channels, output_channels, input.mode) {
+            project::chain::ProcessingLayout::Mono => AudioChannelLayout::Mono,
+            project::chain::ProcessingLayout::Stereo
+            | project::chain::ProcessingLayout::DualMono => AudioChannelLayout::Stereo,
+        };
+    (bus, matches!(input.mode, ChainInputMode::Mono))
 }
 
 /// #85: an armed DI loop replaces the chain's INPUT, so every pipeline fed by
@@ -375,6 +399,11 @@ pub(crate) fn build_output_routing_state(
     if cushion.servo_owned {
         buffer = buffer.owned_by_servo();
     }
+    if cushion.keeps_slack {
+        buffer = buffer.keeping_slack();
+    } else if cushion.lands_on_first_hand_off {
+        buffer = buffer.landing_on_first_hand_off();
+    }
     // #965: a fresh route is born at its resting cushion (see `route_cushion`).
     buffer.prime(cushion.prime);
     OutputRoutingState {
@@ -384,5 +413,7 @@ pub(crate) fn build_output_routing_state(
         sample_rate,
         callbacks: AtomicU64::new(0),
         peak_bits: std::sync::atomic::AtomicU32::new(0),
+        // A chain output unless the caller builds an insert send (#979).
+        applies_chain_volume: true,
     }
 }

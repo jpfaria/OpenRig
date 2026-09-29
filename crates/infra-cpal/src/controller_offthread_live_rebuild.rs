@@ -122,6 +122,9 @@ impl ProjectRuntimeController {
                     )?;
                 }
             }
+            // #980: the edit's fresh nodes went live in place — no new slot,
+            // no publish — so their memory must be wired now.
+            crate::memory_residency_keeper::wire_soon();
             self.rearm_di_stream_after_rebuild(chain);
             return Ok(true);
         }

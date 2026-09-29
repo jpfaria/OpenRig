@@ -228,3 +228,7 @@ pub(crate) fn build_active_chain_runtime(
         })
     }
 }
+
+#[cfg(test)]
+#[path = "stream_builder_tests.rs"]
+mod stream_builder_tests;

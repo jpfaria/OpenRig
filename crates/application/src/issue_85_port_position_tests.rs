@@ -83,11 +83,14 @@ fn insert(id: &str) -> AudioBlock {
 /// a preset switch hand that slot to the next rebuilt effect and DROP the loop:
 /// the pedal in front of the insert stopped colouring the send because there
 /// was no send any more.
+///
+/// #986: the insert lives in the preset's own block list, so the rebuilt
+/// preset carries it at its position; the merge must keep it there.
 #[test]
 fn an_insert_keeps_its_position_across_a_preset_switch() {
-    // Live chain: [drive, synergy-loop, eq]. The preset carries its effects only.
+    // Live chain: [drive, synergy-loop, eq]; the preset holds the same loop.
     let current = vec![effect("drive"), insert("loop"), effect("eq")];
-    let rebuilt = vec![effect("drive"), effect("eq")];
+    let rebuilt = vec![effect("drive"), insert("loop"), effect("eq")];
 
     let merged = merge_preserved_ports(&current, rebuilt);
     let ids: Vec<&str> = merged.iter().map(|b| b.id.0.as_str()).collect();
@@ -98,6 +101,19 @@ fn an_insert_keeps_its_position_across_a_preset_switch() {
         "#881: the external loop must stay between the drive and the eq — a \
          preset switch must not consume its slot and drop it"
     );
+}
+
+/// #986 — the insert belongs to the preset, not to the chain: switching to a
+/// preset that has no loop must not carry the previous preset's loop along.
+#[test]
+fn a_preset_without_an_insert_does_not_inherit_the_previous_ones() {
+    let current = vec![effect("drive"), insert("loop"), effect("eq")];
+    let rebuilt = vec![effect("fuzz"), effect("amp")];
+
+    let merged = merge_preserved_ports(&current, rebuilt);
+    let ids: Vec<&str> = merged.iter().map(|b| b.id.0.as_str()).collect();
+
+    assert_eq!(ids, vec!["fuzz", "amp"]);
 }
 
 fn insert_enabled(id: &str, enabled: bool) -> AudioBlock {

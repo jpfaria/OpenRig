@@ -3,7 +3,7 @@
 //!
 //! Owns the 5 callbacks driving preset save/load and the touch-mode picker:
 //!
-//! - `on_save_chain_preset`     — touch-mode auto-saves to the presets dir,
+//! - `on_save_chain_preset`     — touch mode saves straight to the presets dir, no dialog;
 //!   desktop opens a save dialog.
 //! - `on_configure_chain_preset` — touch-mode shows the in-app picker (lists
 //!   the presets dir), desktop opens a load dialog.
@@ -49,7 +49,6 @@ pub(crate) struct ChainPresetCtx {
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub toast_timer: Rc<Timer>,
     pub preset_file_list: Rc<RefCell<Vec<PathBuf>>>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
@@ -62,12 +61,11 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
         output_chain_devices,
         toast_timer,
         preset_file_list,
-        auto_save,
     } = ctx;
 
     // Issue #510: the in-window save overlay (single name + overwrite
     // confirm) is wired in a sibling module so this file stays under
-    // the 600-line cap. Touch kiosk's direct auto-save still flows
+    // the 600-line cap. Touch kiosk's direct save still flows
     // through `on_save_chain_preset` registered there.
     crate::preset_save_wiring::wire(window, project_session.clone(), toast_timer.clone());
 
@@ -180,13 +178,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: ChainPresetCtx) {
             // `SelectionCommand::RenameRigPreset` updates the rig in memory but
             // the visible combo keeps the old label.
             crate::chain_rig_nav_wiring::refresh_chain_rig_nav(&window, session);
-            sync_project_dirty(
-                &window,
-                session,
-                &saved_project_snapshot,
-                &project_dirty,
-                auto_save,
-            );
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
     }

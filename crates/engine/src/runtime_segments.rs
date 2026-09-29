@@ -47,7 +47,7 @@ pub(crate) fn split_chain_into_segments(
     cpal_indices: &[usize],
     split_positions: &[Option<usize>],
     entry_groups: &[usize],
-    _effective_outs: &[OutputEntry],
+    effective_outs: &[OutputEntry],
     registry: &[IoBinding],
 ) -> Vec<ChainSegment> {
     // Find positions of enabled Insert blocks in chain.blocks. Only an insert
@@ -86,7 +86,7 @@ pub(crate) fn split_chain_into_segments(
             &heads(cpal_indices),
             &split_positions[..regular_input_count.min(split_positions.len())],
             &heads(entry_groups),
-            &_effective_outs[.._effective_outs.len().saturating_sub(stream_inserts.len())],
+            &effective_outs[..effective_outs.len().saturating_sub(stream_inserts.len())],
             &tail_routes,
             &mid_taps,
             resolved_output_count,
@@ -118,7 +118,7 @@ pub(crate) fn split_chain_into_segments(
         &stream_order,
         regular_input_count,
         resolved_output_count,
-        &tail_routes,
+        &crate::insert_return_routes::return_tail_routes(&tail_routes, effective_outs),
         &mid_taps,
     )
 }
@@ -394,8 +394,9 @@ fn segments_with_inserts(
         })
         .collect();
 
-    // The chain ENDS here, so this segment feeds the tail routes; `Output`
-    // blocks after the last Insert stay taps at their own position (#85).
+    // The chain ENDS here, so this segment feeds the tail routes — one per
+    // physical output (#979, `insert_return_routes`); `Output` blocks after
+    // the last Insert stay taps at their own position (#85).
     let last_insert_pos = *insert_positions.last().unwrap();
     let taps = taps_for_segment(
         mid_taps,

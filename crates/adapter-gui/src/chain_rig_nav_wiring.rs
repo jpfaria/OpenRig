@@ -41,7 +41,9 @@ pub(crate) struct ChainRigNavCtx {
     // switch or add was in-memory only ("salvei e não aconteceu nada").
     pub saved_project_snapshot: Rc<RefCell<Option<String>>>,
     pub project_dirty: Rc<RefCell<bool>>,
-    pub auto_save: bool,
+    /// #999: the compact view renders its own block model, so an MCP/MIDI edit
+    /// that only redraws the main window leaves it showing the old values.
+    pub open_compact_window: crate::compact_view_refresh::OpenCompactWindow,
 }
 
 /// Refresh the `chain-rig-nav` model from the current session (no-op if
@@ -278,13 +280,16 @@ pub(crate) fn apply_events_to_ui(window: &AppWindow, ctx: &ChainRigNavCtx, event
         session,
         &ctx.saved_project_snapshot,
         &ctx.project_dirty,
-        ctx.auto_save,
     );
 
     // #591: open the active chain's compact view AFTER dropping the session
     // borrow — the callback re-borrows `project_session`, so invoking it
     // while still borrowed would panic.
     drop(session_borrow);
+    crate::compact_view_refresh::refresh_open_compact_view(
+        &ctx.open_compact_window,
+        &ctx.project_session,
+    );
     if let Some(idx) = compact_open_idx {
         window.invoke_open_compact_chain_view(idx);
     }

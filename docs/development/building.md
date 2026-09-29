@@ -7,15 +7,15 @@ This guide covers how to build OpenRig from source for development and testing.
 - **Rust toolchain** (stable) -- install via [rustup.rs](https://rustup.rs)
 - **cmake** 3.16+
 - **pkg-config**
-- **Git** (with submodule support)
-- **Git LFS** (for large binary assets -- NAM captures, IRs)
+- **Git**
+- **Git LFS** (large binary assets -- NAM captures, IRs, and the vendored NeuralAmpModelerCore sources)
 
 ## Quick Build (GUI only)
 
 ```bash
+git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
-git submodule update --init --recursive
 cargo build --release -p adapter-gui
 ```
 
@@ -46,7 +46,6 @@ sudo dnf install cmake pkg-config alsa-lib-devel fontconfig-devel
 - Install Visual Studio Build Tools (C++ workload)
 - Install cmake (add to PATH)
 - Install LLVM (`choco install llvm`): the cpal `asio` feature runs bindgen, which needs libclang
-- `git submodule update --init --recursive` (the NAM core under `deps/`)
 - Optional: point `CPAL_ASIO_DIR` at an extracted ASIO SDK; without it the asio-sys build script downloads the SDK itself
 
 ## Build Targets
@@ -100,13 +99,17 @@ Two workflows:
 - **build-libs.yml** -- Builds native C++ libraries for all platforms
 - **claude.yml** -- AI-assisted code review on issue comments
 
-## Dependencies and Submodules
+## Dependencies
 
-OpenRig uses git submodules for external C/C++ dependencies (in `deps/`). Always initialize them:
-
-```bash
-git submodule update --init --recursive
-```
+OpenRig has no git submodules. The one C++ dependency the app build needs,
+NeuralAmpModelerCore (with AudioDSPTools, Eigen and nlohmann inside it), is
+vendored as `deps/NeuralAmpModelerCore.tar.gz` (Git LFS) and pinned by
+`deps/NeuralAmpModelerCore.lock`. `crates/nam/build.rs` unpacks it into
+`deps/NeuralAmpModelerCore/` (not versioned) whenever that folder is missing or
+came from another lock (#974). The first build after a `git fetch`/`git pull`
+shows a cargo warning when upstream has a newer release; CI vendors it on
+`develop` after the tests pass. Every other build stays offline — see
+[deps/DEPS.md](../../deps/DEPS.md).
 
 Key workspace dependencies (Cargo.toml):
 
@@ -119,7 +122,7 @@ Key workspace dependencies (Cargo.toml):
 
 ## Git LFS
 
-Large binary assets (NAM captures, IR files) are tracked with Git LFS. Ensure LFS is installed:
+Large binary assets (NAM captures, IR files, the vendored NeuralAmpModelerCore archive) are tracked with Git LFS. Ensure LFS is installed:
 
 ```bash
 git lfs install

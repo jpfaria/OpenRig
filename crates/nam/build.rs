@@ -1,5 +1,25 @@
 // Responsibility: builds the native amp modeler library this crate links against.
+#[path = "build_vendor.rs"]
+mod build_vendor;
+#[path = "build_vendor_check.rs"]
+mod build_vendor_check;
+
 fn main() {
+    // #974: the NeuralAmpModelerCore sources come from the vendored archive.
+    // The first build after a `git fetch` reports a newer upstream release
+    // (CI vendors it on develop); every other build stays offline.
+    let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    if let Some(out_dir) = std::env::var_os("OUT_DIR") {
+        build_vendor_check::check_after_fetch(&repo, std::path::Path::new(&out_dir));
+    }
+    let deps = repo.join("deps");
+    let archive = deps.join("NeuralAmpModelerCore.tar.gz");
+    let lock = deps.join("NeuralAmpModelerCore.lock");
+    let tree = deps.join("NeuralAmpModelerCore");
+    if let Err(err) = build_vendor::ensure_vendor(&archive, &lock, &tree) {
+        panic!("vendored NeuralAmpModelerCore: {err}");
+    }
+
     let mut cmake_cfg = cmake::Config::new("../../cpp");
     cmake_cfg.define("CMAKE_BUILD_TYPE", "Release");
     cmake_cfg.define("CMAKE_OSX_DEPLOYMENT_TARGET", "11.0");
@@ -33,5 +53,11 @@ fn main() {
     println!("cargo:rerun-if-changed=../../cpp/nam_wrapper.h");
     println!("cargo:rerun-if-changed=../../cpp/nam_tone_stack.cpp");
     println!("cargo:rerun-if-changed=../../cpp/nam_tone_stack.h");
-    println!("cargo:rerun-if-changed=../../deps/NeuralAmpModelerCore");
+    println!("cargo:rerun-if-changed=../../deps/NeuralAmpModelerCore.tar.gz");
+    println!("cargo:rerun-if-changed=../../deps/NeuralAmpModelerCore.lock");
+    // Deleting the extracted tree brings it back on the next build.
+    println!(
+        "cargo:rerun-if-changed=../../deps/NeuralAmpModelerCore/{}",
+        build_vendor::STAMP
+    );
 }

@@ -50,14 +50,17 @@ pub fn sync_synthetic_into_rig(rig: &mut RigProject, project: &Project) {
             .filter(|b| !is_chain_own_io(b, input, &chain.io_binding_ids))
             .cloned()
             .collect();
+        // #986: a model swap keeps the slot — write only that block (and
+        // drop only its overrides the new model lacks) before anything can
+        // mistake it for a structural edit and rebuild the whole preset.
+        let processing = rig.write_back_model_swaps(input, processing);
         // Structural change (preset loaded over the slot / blocks
-        // added-removed-reordered) replaces the preset base; otherwise
-        // it's a per-scene param/bypass diff. Without the structural
-        // branch a loaded preset never persisted — its new block ids
-        // matched nothing in the diff base.
-        if !rig.replace_preset_blocks_if_structural(input, &processing) {
-            rig.write_back_processing_blocks(input, processing);
-        }
+        // added-removed-reordered) rewrites the preset's block list first;
+        // without it a loaded preset never persisted — its new block ids
+        // matched nothing in the diff base. #986: the per-scene diff still
+        // runs after it, so the scenes and the active scene's edits survive.
+        rig.replace_preset_blocks_if_structural(input, &processing);
+        rig.write_back_processing_blocks(input, processing);
         rig.write_back_chain_volume(input, chain.volume);
         // Capture the instrument type so it survives save+reload (#627).
         // #716: capture the selected I/O bindings so the editor checklist

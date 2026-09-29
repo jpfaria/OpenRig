@@ -41,8 +41,7 @@ fn main() -> anyhow::Result<()> {
 
     let raw_args: Vec<String> = std::env::args().collect();
     let raw_refs: Vec<&str> = raw_args.iter().map(|s| s.as_str()).collect();
-    let (arg_project_path, arg_auto_save, arg_fullscreen) =
-        adapter_gui::parse_cli_args_from(&raw_refs);
+    let (arg_project_path, arg_fullscreen) = adapter_gui::parse_cli_args_from(&raw_refs);
     // #712: MIDI/MCP enablement is per-machine config (config.yaml), not a
     // launch flag — so packaged builds (which start the binary with no args)
     // can enable them. The CLI `--midi`/`--mcp` flags stay as a dev override
@@ -66,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         .and_then(|path| {
             // #452: validate the resolved path with a clear message and fall
             // back to the launcher (no crash) when it is bad — per the
-            // cli-project-path-autosave spec.
+            // #452 CLI project-path spec.
             match adapter_gui::validate_project_path(&path) {
                 Ok(()) => Some(path),
                 Err(e) => {
@@ -75,10 +74,6 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         });
-    let auto_save = arg_auto_save
-        || std::env::var("OPENRIG_AUTO_SAVE")
-            .ok()
-            .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
     let fullscreen = arg_fullscreen
         || std::env::var("OPENRIG_FULLSCREEN")
             .ok()
@@ -87,7 +82,6 @@ fn main() -> anyhow::Result<()> {
         runtime_mode,
         interaction_mode,
         cli_project_path,
-        auto_save,
         fullscreen,
         mcp_addr,
         midi_map,

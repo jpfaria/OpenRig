@@ -81,7 +81,6 @@ pub(crate) struct SelectChainBlockCallbackCtx {
     /// #85 — the mid-chain I/O port editor's state and option models, so a
     /// click on a port block reopens the same editor the add flow shows.
     pub port_draft: Rc<RefCell<Option<crate::state::PortDraft>>>,
-    pub auto_save: bool,
 }
 
 pub(crate) fn wire(
@@ -116,7 +115,6 @@ pub(crate) fn wire(
         plugin_info_window,
         open_compact_window,
         port_draft,
-        auto_save,
     } = ctx;
 
     let weak_main_window = window.as_weak();
@@ -130,7 +128,6 @@ pub(crate) fn wire(
         project_dirty: project_dirty.clone(),
         input_chain_devices: input_chain_devices.clone(),
         output_chain_devices: output_chain_devices.clone(),
-        auto_save,
     };
 
     window.on_select_chain_block(move |chain_index, ui_block_index| {
@@ -398,7 +395,6 @@ pub(crate) fn wire(
                 open_block_windows: open_block_windows.clone(),
                 plugin_info_window: plugin_info_window.clone(),
                 open_compact_window: open_compact_window.clone(),
-                auto_save,
             };
             let (win, block_stream_timer) = match block_editor_window_setup::create_and_wire(
                 weak_main_window.clone(),

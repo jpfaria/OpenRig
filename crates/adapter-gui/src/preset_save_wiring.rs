@@ -3,15 +3,14 @@
 //! native `FileDialog` with two overlays:
 //!
 //! - `PresetSaveOverlay` — single text field; user types the preset
-//!   name and confirms. Touch mode still auto-saves to `presets_path`
+//!   name and confirms. Touch mode saves straight to `presets_path`
 //!   without showing the overlay.
 //! - `PresetOverwriteOverlay` — second modal shown when the chosen
 //!   name collides with an existing file under `presets_path`.
 //!
 //! The desktop callbacks (`preset-save-request`, `…-cancel`, and the
 //! two `…-overwrite-*`) are owned here; the touch direct-save path
-//! still lives behind `on_save_chain_preset` for symmetry with the
-//! kiosk-only `auto_save` flow.
+//! still lives behind `on_save_chain_preset`.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -59,7 +58,7 @@ pub(crate) fn wire(
             };
             let default_name = pending.default_name.clone();
             if window.get_touch_optimized() {
-                // Kiosk: auto-save to presets dir, no dialog.
+                // Kiosk: save straight to the presets dir, no dialog.
                 // (Directory creation is handled inside the
                 // `ChainCommand::SaveChainPreset` dispatcher; the GUI no
                 // longer touches the filesystem here — #555.)

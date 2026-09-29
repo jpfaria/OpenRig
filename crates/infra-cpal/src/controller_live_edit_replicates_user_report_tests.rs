@@ -112,7 +112,7 @@ fn chain(block_enabled: bool, ratio: f32) -> Chain {
 /// Seed a controller with the chain already ACTIVE — runtime present in the
 /// graph AND in the live slot (what cold activation does), with an empty
 /// stream bundle so no audio device is opened.
-fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
+pub(super) fn controller_with_active_chain(chain: &Chain) -> ProjectRuntimeController {
     let chain_id = chain.id.clone();
     let runtime = Arc::new(
         build_chain_runtime_state(chain, SR, &[DEFAULT_ELASTIC_TARGET], &registry())

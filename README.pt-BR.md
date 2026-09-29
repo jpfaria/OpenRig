@@ -141,11 +141,13 @@ A [página de Releases](https://github.com/jpfaria/OpenRig/releases/latest) traz
 ### Compilar do código
 
 ```bash
+git lfs install
 git clone https://github.com/jpfaria/OpenRig.git
 cd OpenRig
-git submodule update --init --recursive
 cargo build --release -p adapter-gui
 ```
+
+O Git LFS é obrigatório: ele também traz o código do NeuralAmpModelerCore que o build descompacta ([deps/DEPS.md](deps/DEPS.md)).
 
 Veja o [Installation Guide](docs/user-guide/installation.md) para dependências por plataforma e troubleshooting.
 

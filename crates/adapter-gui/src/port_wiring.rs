@@ -69,7 +69,6 @@ pub(crate) struct PortWiringCtx {
     pub project_dirty: Rc<RefCell<bool>>,
     pub input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     pub output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
-    pub auto_save: bool,
 }
 
 /// Fill the window's selects for `draft` and show it.
@@ -221,7 +220,6 @@ pub(crate) fn wire_port_window(
                     session,
                     &ctx_save.saved_project_snapshot,
                     &ctx_save.project_dirty,
-                    ctx_save.auto_save,
                 );
             }
             *ctx_save.port_draft.borrow_mut() = None;
@@ -365,7 +363,6 @@ impl PortWiringCtx {
             project_dirty: self.project_dirty.clone(),
             input_chain_devices: self.input_chain_devices.clone(),
             output_chain_devices: self.output_chain_devices.clone(),
-            auto_save: self.auto_save,
         }
     }
 }

@@ -199,7 +199,6 @@ fn open_with(
             plugin_info_window: Rc::new(RefCell::new(None)),
             block_stream_reads: Rc::new(application::live_source::NoLiveSource),
             port_draft: port_draft.clone(),
-            auto_save: false,
         },
     );
 

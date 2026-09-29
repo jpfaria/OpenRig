@@ -131,10 +131,8 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
             );
             // #693/#731: the config write runs on the persist worker (the GUI
             // thread never waits on disk) and the path is bound at dispatch time.
-            {
-                let snapshot = app_config.borrow().clone();
-                application::app_config_persist::persist_app_config_snapshot(snapshot);
-            }
+            // #980: only the recent-projects list is written.
+            application::app_config_persist::persist_recent_projects(None, &app_config.borrow());
             match opened {
                 Ok(opened) => {
                     let title = opened.title;
@@ -313,13 +311,13 @@ pub(crate) fn wire(window: &AppWindow, ctx: ProjectFileDialogCtx) {
                             name: recent_name,
                         },
                     ));
-                    {
-                        // #693: config write runs on the persist worker — the
-                        // GUI thread never waits on disk.
-                        let snapshot = app_config.borrow().clone();
-                        // #731: bind the config path at dispatch time.
-                        application::app_config_persist::persist_app_config_snapshot(snapshot);
-                    }
+                    // #693: config write runs on the persist worker — the GUI
+                    // thread never waits on disk. #731: bind the config path at
+                    // dispatch time. #980: only the recent-projects list is written.
+                    application::app_config_persist::persist_recent_projects(
+                        None,
+                        &app_config.borrow(),
+                    );
                     recent_projects.set_vec(recent_project_items(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),

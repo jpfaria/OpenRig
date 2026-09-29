@@ -143,7 +143,7 @@ fn apply_block_toggle(
             if was_enabled != enabled {
                 node.fade_state = if enabled {
                     FadeState::FadingIn {
-                        frames_remaining: FADE_IN_FRAMES,
+                        frames_remaining: crate::runtime_node_handover::WARMED_FADE_IN_FRAMES,
                     }
                 } else {
                     FadeState::FadingOut {

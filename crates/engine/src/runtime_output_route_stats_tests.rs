@@ -150,6 +150,12 @@ fn each_route_reports_the_frames_queued_in_its_own_cushion() {
     process_output_f32(&rt, 1, &mut out, DEVICE_CHANNELS);
     let stats = rt.take_output_route_stats();
     assert_eq!(stats[0].fill_frames, 2 * FRAMES, "route 0 was never popped");
-    assert_eq!(stats[1].fill_frames, FRAMES, "route 1 popped one period");
+    // #979 (owner-approved): a route born empty lands on the buffer it pops at
+    // its first callback, dropping what queued before its stream came up, so
+    // it never rests a buffer behind a sibling that started with the input.
+    assert_eq!(
+        stats[1].fill_frames, 0,
+        "route 1 landed on the buffer it pops and popped it"
+    );
     assert_eq!(stats[0].latency_trims, 0);
 }
