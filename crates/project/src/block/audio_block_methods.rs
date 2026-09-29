@@ -32,6 +32,7 @@ impl AudioBlock {
                 Ok(())
             }
             AudioBlockKind::Split(split) => {
+                split.validate_structure()?;
                 normalize_split_params(split.params.clone())?;
                 for block in split.a.iter().chain(&split.b) {
                     block.validate_params()?;

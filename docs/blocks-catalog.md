@@ -94,6 +94,8 @@ Knobs live in `SplitBlock.params` (keys in `project::block::split_params`) and a
 | `mix_master` | 0–100 | 50 | Mix only. Output gain `x/100`; at the default two identical paths sum to unity |
 | `mix_master_sum` | bool | false | Mix only. Output becomes dual mono `L = R = (L+R)/2` |
 
+Rules (`project::block::split_block_methods`, enforced by `validate_params` and `RigProject::validate`): at most one split per chain; a path holds processing blocks only — no split, select, input, output or insert, so nesting stays one level deep; a Y split ends the chain, only the chain's own `Input`/`Output` ports may follow it. A select option cannot be a split.
+
 ## Backends de áudio
 
 - **Native** — DSP em Rust, mais rápido

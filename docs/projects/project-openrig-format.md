@@ -129,7 +129,8 @@ and rejects:
 5. per-input source channel conflicts — delegates to
    `InputBlock::validate_channel_conflicts` (same `(device, channel)` used by
    two sources of the same input);
-6. a `routing` target not naming an `outputs` entry.
+6. a `routing` target not naming an `outputs` entry;
+7. a preset breaking the split rules of #328: two splits, a split/select/input/output/insert inside a path, or anything but a port after a Y split.
 
 Cross-input capture exclusivity is **not** validated statically: a project
 may freely hold many inputs sharing a `(device, channel)` tap (a library of

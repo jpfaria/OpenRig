@@ -27,6 +27,7 @@ pub mod path_ref;
 pub mod port_duplication;
 pub mod select_block_methods;
 pub mod split_block;
+pub mod split_block_methods;
 pub mod split_params;
 pub mod types;
 pub mod vst3_model_id;
@@ -37,6 +38,7 @@ pub use dispatch::{build_audio_block_kind, normalize_block_params, schema_for_bl
 pub use path_ref::{PathRef, PathSide};
 pub use port_duplication::duplicates_chain_binding;
 pub use split_block::{SplitBlock, SplitEnd};
+pub use split_block_methods::{find_split, validate_split_layout};
 pub use types::{
     AudioBlock, AudioBlockKind, BlockAudioDescriptor, BlockModelRef, CoreBlock, InputBlock,
     InsertBlock, NamBlock, OutputBlock, SelectBlock,
