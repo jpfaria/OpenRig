@@ -190,6 +190,7 @@ fn adding_an_insert_to_one_preset_leaves_the_other_presets_alone() {
         chain: ChainId(CHAIN.into()),
         block: insert_block("rig:input-7:insert:9"),
         position: 0,
+        path: None,
     }))
     .expect("add insert");
     capture(&d);

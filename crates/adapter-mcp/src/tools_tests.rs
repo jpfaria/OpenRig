@@ -160,3 +160,32 @@ fn build_command_is_command_from_variant_single_source() {
         );
     }
 }
+
+#[test]
+fn add_block_tool_keeps_the_split_path_and_defaults_to_the_top_level() {
+    let with_path = build_command(
+        "add_block",
+        serde_json::json!({
+            "chain": "rig:in", "kind": "gain", "model_id": "fuzz_ge", "position": 0,
+            "path": { "split": "s1", "side": "b" }
+        }),
+    )
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&with_path).unwrap()["AddBlock"]["path"],
+        serde_json::json!({ "split": "s1", "side": "b" }),
+        "#328: the split path an MCP client sends must reach the command"
+    );
+
+    let without = build_command(
+        "add_block",
+        serde_json::json!({ "chain": "rig:in", "kind": "gain", "model_id": "fuzz_ge", "position": 0 }),
+    )
+    .unwrap();
+    assert!(
+        serde_json::to_value(&without).unwrap()["AddBlock"]
+            .get("path")
+            .is_none(),
+        "a path-less add_block stays a top-level add"
+    );
+}

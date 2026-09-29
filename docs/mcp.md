@@ -77,6 +77,12 @@ follow-up.
   block after a Y split — is refused and leaves the chain exactly as it
   was. `remove_block` refuses the split itself, because removing it that
   way would drop both paths.
+
+  `add_block` and `insert_prebuilt_block` take an optional
+  `path: { "split": "<split block id>", "side": "a" | "b" }` (not to be
+  confused with the parameter `path` of `set_block_parameter_*`).
+  Without it the block goes to the chain's top level, exactly as
+  before. `add_block` names new blocks `<chain>:block:<uuid>`.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.

@@ -4,6 +4,8 @@
 //! `split_tests_fixtures.rs`.
 
 use project::block::split_params::{MIX_MASTER_SUM, MIX_PAN_A, SPLIT_MODE};
+use project::block::SplitEnd;
+use serde_json::json;
 
 use crate::local_dispatcher_tests::*;
 use crate::split_tests_fixtures::*;
@@ -202,4 +204,203 @@ fn overwrite_block_replaces_a_block_inside_path_b() {
     let split = split_of(&project.borrow());
     assert_eq!(split.b[0].id.0, "b_0", "the original id is kept");
     assert!(!split.b[0].enabled, "the replacement's state landed");
+}
+
+fn added_id(events: &[Event]) -> BlockId {
+    events
+        .iter()
+        .find_map(|e| match e {
+            Event::BlockAdded { block, .. } => Some(block.clone()),
+            _ => None,
+        })
+        .expect("the command answers BlockAdded")
+}
+
+#[test]
+fn add_block_with_a_path_lands_inside_that_path() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    let events = dispatch_json(
+        &dispatcher,
+        "AddBlock",
+        json!({
+            "chain": CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 0,
+            "path": { "split": "split_0", "side": "a" }
+        }),
+    )
+    .expect("AddBlock into path A");
+
+    let split = split_of(&project.borrow());
+    assert_eq!(split.a.len(), 2, "path A = [new, a_0]");
+    assert_eq!(split.a[1].id.0, "a_0");
+    assert_eq!(added_id(&events), split.a[0].id);
+    assert_eq!(
+        ids(&project.borrow().chains[0].blocks),
+        vec!["pre", "split_0", "post"],
+        "the top level is untouched"
+    );
+}
+
+/// Characterization pin (green before and after): a path-less AddBlock is a
+/// top-level add, exactly as every pre-#328 payload expects.
+#[test]
+fn add_block_without_a_path_still_lands_at_the_top_level() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+
+    dispatch_json(
+        &dispatcher,
+        "AddBlock",
+        json!({ "chain": CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 0 }),
+    )
+    .expect("a top-level AddBlock");
+
+    let blocks = project.borrow().chains[0].blocks.clone();
+    assert_eq!(blocks.len(), 4);
+    assert_eq!(ids(&blocks[1..]), vec!["pre", "split_0", "post"]);
+    assert_eq!(
+        split_of(&project.borrow()).a.len(),
+        1,
+        "path A is untouched"
+    );
+}
+
+#[test]
+fn add_block_refuses_an_input_port_inside_a_path() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let before = project.borrow().chains[0].blocks.clone();
+
+    let err = dispatch_json(
+        &dispatcher,
+        "AddBlock",
+        json!({
+            "chain": CHAIN, "kind": "input", "model_id": "standard", "position": 0,
+            "path": { "split": "split_0", "side": "b" }
+        }),
+    )
+    .expect_err("an input port cannot sit inside a path");
+
+    assert!(
+        err.to_string()
+            .contains("a path holds processing blocks only"),
+        "{err}"
+    );
+    assert_eq!(project.borrow().chains[0].blocks, before);
+}
+
+#[test]
+fn add_block_refuses_a_processing_block_after_a_y_split() {
+    let project = project_with(y_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let before = project.borrow().chains[0].blocks.clone();
+
+    let err = dispatch_json(
+        &dispatcher,
+        "AddBlock",
+        json!({ "chain": CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 2 }),
+    )
+    .expect_err("nothing may follow a Y split");
+
+    assert!(err.to_string().contains("Y split"), "{err}");
+    assert_eq!(project.borrow().chains[0].blocks, before);
+}
+
+#[test]
+fn add_block_never_reuses_an_id_after_a_removal() {
+    let project = project_with(vec![make_core_block("blk_0", true)]);
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let add = || {
+        dispatch_json(
+            &dispatcher,
+            "AddBlock",
+            json!({ "chain": CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 99 }),
+        )
+        .expect("AddBlock")
+    };
+
+    let first = added_id(&add());
+    dispatcher
+        .dispatch(Command::Block(BlockCommand::RemoveBlock {
+            chain: ChainId(CHAIN.into()),
+            block: BlockId("blk_0".into()),
+        }))
+        .expect("remove blk_0");
+    let second = added_id(&add());
+
+    assert_ne!(
+        first, second,
+        "a new block must never reuse an id in the chain"
+    );
+    assert!(second.0.starts_with("chain_0:block:"), "{}", second.0);
+}
+
+#[test]
+fn insert_prebuilt_block_with_a_path_lands_inside_path_b() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let block = serde_json::to_value(make_core_block("pre_b", true)).expect("block serializes");
+
+    dispatch_json(
+        &dispatcher,
+        "InsertPrebuiltBlock",
+        json!({
+            "chain": CHAIN, "block": block, "position": 5,
+            "path": { "split": "split_0", "side": "b" }
+        }),
+    )
+    .expect("InsertPrebuiltBlock into path B");
+
+    assert_eq!(ids(&split_of(&project.borrow()).b), vec!["b_0", "pre_b"]);
+    assert_eq!(project.borrow().chains[0].blocks.len(), 3);
+}
+
+#[test]
+fn insert_prebuilt_block_refuses_a_second_split() {
+    let project = project_with(mix_chain());
+    let dispatcher = LocalDispatcher::new(Rc::clone(&project));
+    let before = project.borrow().chains[0].blocks.clone();
+    let second = serde_json::to_value(split("split_1", SplitEnd::Mix, vec![], vec![]))
+        .expect("split serializes");
+
+    let err = dispatch_json(
+        &dispatcher,
+        "InsertPrebuiltBlock",
+        json!({ "chain": CHAIN, "block": second, "position": 0 }),
+    )
+    .expect_err("a chain holds one split");
+
+    assert!(err.to_string().contains("at most one split"), "{err}");
+    assert_eq!(project.borrow().chains[0].blocks, before);
+}
+
+#[test]
+fn add_block_into_a_path_reaches_the_rig_preset_on_capture() {
+    let (rig, _project, dispatcher) = rig_session_from(rig_with_presets(vec![(
+        "p1",
+        vec![
+            make_core_block("A", true),
+            split("S", SplitEnd::Mix, vec![], vec![]),
+        ],
+    )]));
+
+    dispatch_json(
+        &dispatcher,
+        "AddBlock",
+        json!({
+            "chain": RIG_CHAIN, "kind": "gain", "model_id": "fuzz_ge", "position": 0,
+            "path": { "split": "S", "side": "a" }
+        }),
+    )
+    .expect("AddBlock into path A of the rig chain");
+    dispatcher
+        .dispatch(Command::Project(ProjectCommand::CaptureRigEdits))
+        .expect("capture");
+
+    assert_eq!(
+        preset_split(&rig.borrow(), "p1").a.len(),
+        1,
+        "the block added into path A must reach project.openrig"
+    );
 }

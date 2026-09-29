@@ -78,6 +78,7 @@ fn setup_one_chain_with_gate(s: &Sandbox) -> (ProjectSession, BlockId) {
             kind: "dynamics".into(),
             model_id: "gate_basic".into(),
             position: 1,
+            path: None,
         }))
         .expect("AddBlock");
     // Pull the new block id from the project.

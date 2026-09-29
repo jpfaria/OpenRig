@@ -315,6 +315,7 @@ pub(crate) fn persist_block_editor_draft(
                 chain: chain_id.clone(),
                 block: new_block,
                 position: insert_index,
+                path: None,
             }))
             .map_err(|e| anyhow!(e))?;
         log::info!("[persist] INSERT dispatched for chain_id='{}'", chain_id.0);

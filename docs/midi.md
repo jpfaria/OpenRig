@@ -53,12 +53,12 @@ structured object the GUI/MCP produces (can't be a single control).
 | 19 | `SelectBlockParameterOption` | Pick a list option | `{ chain: id, block: id, path: text, value: text, index: uint }` | **Note 80** |
 | 20 | `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` | **Note 81** |
 | 21 | `UpdateProjectName` | Rename the project | `{ name: text }` | **Note 82** |
-| 22 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` | **Note 83** |
+| 22 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint, path?: object }` | **Note 83** |
 | 23 | `SetChainVolume` | Chain volume (turn a knob) | `{ chain: id }` + `scale: { min: 0, max: 200 }` | **CC 7** |
 | 24 | `SetBlockParameterNumber` | A numeric param (turn a knob) | `{ chain: id, block: id, path: text }` + `scale` | **CC 8** |
 | 25 | `ApplyRigNav` | Jump to a fixed preset position | `{ chain: id, kind: { Preset: n } }` | one Note per `n`, or **Program Change** |
 | 26 | `ApplyRigNav` | Jump to a fixed scene | `{ chain: id, kind: { Scene: n } }` | one Note per `n`, or **Program Change** |
-| 27 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` | — GUI/MCP (structured object) |
+| 27 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint, path?: object }` | — GUI/MCP (structured object) |
 | 28 | `OverwriteBlock` | Replace a block wholesale | `{ chain: id, block: id, replacement: object }` | — GUI/MCP (structured object) |
 | 29 | `SaveInsertBlock` | Save a block's insert send/return | `{ chain: id, block: id, send: object, return_: object }` | — GUI/MCP (structured object) |
 | 30 | `AddChain` / `ConfigureChain` / `SaveChain` | Add / configure / save a chain | `{ chain: object }` | — GUI/MCP (structured object) |
@@ -264,8 +264,8 @@ below is bindable.
 | 5 | `PickBlockParameterFile` | Point a param at a file | `{ chain: id, block: id, path: text, file: path }` |
 | 6 | `ToggleBlockEnabled` | Toggle one fixed block on/off | `{ chain: id, block: id }` |
 | 7 | `ReplaceBlockModel` | Swap a block's model | `{ chain: id, block: id, model_id: text }` |
-| 8 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint }` |
-| 9 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint }` |
+| 8 | `AddBlock` | Add a block | `{ chain: id, kind: text, model_id: text, position: uint, path?: object }` |
+| 9 | `InsertPrebuiltBlock` | Insert a pre-built block | `{ chain: id, block: object, position: uint, path?: object }` |
 | 10 | `OverwriteBlock` | Replace a block | `{ chain: id, block: id, replacement: object }` |
 | 11 | `RemoveBlock` | Remove a block | `{ chain: id, block: id }` |
 | 12 | `MoveBlock` | Move a block to a position | `{ chain: id, block: id, new_position: uint }` |
@@ -297,6 +297,11 @@ below is bindable.
 `{ Scene: int }` (jump to scene) ·
 `{ StepPreset: int }` (relative, e.g. `-1`/`1`, wraps) ·
 `{ StepScene: int }` (relative, wraps).
+
+`path?` (#328) is optional: `{ split: id, side: a }` (or `side: b`)
+puts the block into that path of the chain's split. Leave it out for the
+chain's top level — every map written before #328 keeps working
+unchanged.
 
 That is **all 34 commands** (enum order). The 7 live actions in the
 standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,

@@ -238,6 +238,7 @@ fn add_block_preserves_io() {
         kind: "gain".into(),
         model_id: "volume".into(),
         position: 2,
+        path: None,
     }));
     assert_eq!(outputs_count(&p, CHAIN_ID), 1);
     assert_eq!(inputs_count(&p, CHAIN_ID), 1);

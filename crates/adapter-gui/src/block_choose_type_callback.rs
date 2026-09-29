@@ -174,6 +174,7 @@ pub(crate) fn wire(
                     kind: effect_type_str.to_string(),
                     model_id: block_core::constants::IO_PORT_MODEL.to_string(),
                     position: before_index,
+                    path: None,
                 }))
             {
                 log::error!("port block AddBlock dispatch error: {e}");
@@ -241,6 +242,7 @@ pub(crate) fn wire(
                     kind: "insert".to_string(),
                     model_id: "standard".to_string(),
                     position: before_index,
+                    path: None,
                 }))
             {
                 log::error!("insert block AddBlock dispatch error: {e}");

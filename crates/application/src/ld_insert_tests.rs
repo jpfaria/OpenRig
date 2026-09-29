@@ -17,6 +17,7 @@ fn insert_prebuilt_block_adds_block_at_position_and_emits_event() {
         chain: chain_id.clone(),
         block: new_block,
         position: 0,
+        path: None,
     }));
 
     assert!(result.is_ok(), "dispatch returned Err: {:?}", result);
@@ -42,6 +43,7 @@ fn insert_prebuilt_block_non_existent_chain_returns_err() {
         chain: ChainId("chain_MISSING".to_string()),
         block: make_core_block("blk_x", true),
         position: 0,
+        path: None,
     }));
 
     assert!(result.is_err(), "expected Err for missing chain, got Ok");
@@ -57,6 +59,7 @@ fn insert_prebuilt_block_position_clamps_to_len() {
         chain: chain_id.clone(),
         block: new_block,
         position: 9999,
+        path: None,
     }));
 
     assert!(result.is_ok());
