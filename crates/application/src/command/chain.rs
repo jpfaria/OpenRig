@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use domain::ids::ChainId;
 use project::chain::{Chain, DiOutputRef};
+use project::endpoint_disables::EndpointNode;
 
 use crate::di_loader::DiLoopSource;
 
@@ -154,6 +155,19 @@ pub enum ChainCommand {
     SetChainIoBindings {
         chain: ChainId,
         binding_ids: Vec<String>,
+    },
+
+    /// #328: check or uncheck one endpoint of the chain's E/S on one node of
+    /// the chain graph — the input node, the output node, or a Y split's path
+    /// A / path B output node. The E/S itself is never edited: an unchecked
+    /// endpoint stays listed and only stops feeding (or being fed by) that
+    /// node. Unknown endpoints are ignored at runtime.
+    SetChainEndpointEnabled {
+        chain: ChainId,
+        node: EndpointNode,
+        io: String,
+        endpoint: String,
+        enabled: bool,
     },
 
     // ── Per-chain virtual DI loop (#614) ──────────────────────────────────────

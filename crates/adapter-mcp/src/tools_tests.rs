@@ -64,7 +64,9 @@ use application::command_schema::command_variant_names;
 /// #328 bumped to 102 with `AddSplit`, `SetSplitEnd` and `RemoveSplit` —
 /// the chain split (Split → Mix, Y → A/B) created, switched and removed
 /// from any transport.
-const COMMAND_VARIANT_COUNT: usize = 102;
+/// #328 bumped to 103 with `SetChainEndpointEnabled` — the endpoint
+/// checklist of the chain graph's input/output nodes.
+const COMMAND_VARIANT_COUNT: usize = 103;
 
 #[test]
 fn parity_guard_every_command_variant_is_a_tool() {
@@ -215,4 +217,17 @@ fn split_tools_build_their_commands() {
         let cmd = build_command(tool, args).unwrap_or_else(|e| panic!("{tool}: {e}"));
         assert_eq!(serde_json::to_value(&cmd).unwrap(), wire, "{tool}");
     }
+}
+
+#[test]
+fn set_chain_endpoint_enabled_tool_builds_its_command() {
+    let args = serde_json::json!({
+        "chain": "rig:in", "node": "path_a_output", "io": "io-main",
+        "endpoint": "Out 1", "enabled": false
+    });
+    let cmd = build_command("set_chain_endpoint_enabled", args.clone()).unwrap();
+    assert_eq!(
+        serde_json::to_value(&cmd).unwrap(),
+        serde_json::json!({ "SetChainEndpointEnabled": args })
+    );
 }

@@ -62,6 +62,7 @@ const EXPECTED_VARIANTS: &[&str] = &[
     "AddSplit",
     "RemoveSplit",
     "SetSplitEnd",
+    "SetChainEndpointEnabled",
     // ── The surface that existed before the split ─────────────────────────
     "AddBlock",
     "AddChain",

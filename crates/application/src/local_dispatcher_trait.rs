@@ -78,6 +78,11 @@ impl CommandDispatcher for LocalDispatcher {
                 | ChainCommand::SetChainIoBindings { .. },
             ) => self.handle_chain_crud(cmd),
 
+            // #328: the endpoint checklist of the chain graph's I/O nodes.
+            Command::Chain(ChainCommand::SetChainEndpointEnabled { .. }) => {
+                self.handle_chain_endpoint_enabled(cmd)
+            }
+
             Command::Chain(
                 ChainCommand::MoveChainUp { .. }
                 | ChainCommand::MoveChainDown { .. }

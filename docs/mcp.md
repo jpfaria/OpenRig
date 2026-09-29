@@ -93,6 +93,13 @@ follow-up.
   `set_split_end` (`{ chain, split_id, end }`) switches it between
   Split → Mix and Y → A/B; `remove_split` (`{ chain, split_id }`) puts
   path `a`'s blocks in its place and drops path `b`'s.
+
+  `set_chain_endpoint_enabled` (`{ chain, node: "input" | "output" |
+  "path_a_output" | "path_b_output", io, endpoint, enabled }`) checks
+  or unchecks one endpoint of the chain's E/S on one node of the chain
+  graph. The E/S itself is not edited: the unchecked endpoint stays
+  listed, is saved with the chain's input in `project.openrig`, and
+  survives preset/scene switches and the chain editor's Save.
 - **Resources** (read-only):
   - `openrig://project` — current project as YAML.
   - `openrig://devices` — available audio devices.

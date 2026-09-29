@@ -36,6 +36,7 @@ mod local_dispatcher_block_edit;
 mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
 mod local_dispatcher_chain_crud;
+mod local_dispatcher_chain_endpoints;
 mod local_dispatcher_chain_io;
 mod local_dispatcher_chain_order;
 mod local_dispatcher_chain_save;
@@ -174,3 +175,7 @@ mod ld_split_path;
 #[cfg(test)]
 #[path = "local_dispatcher_split_tests.rs"]
 mod local_dispatcher_split_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_chain_endpoints_tests.rs"]
+mod local_dispatcher_chain_endpoints_tests;

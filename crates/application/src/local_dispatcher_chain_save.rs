@@ -91,9 +91,14 @@ impl LocalDispatcher {
                     // deleted every recorded loop from the project, leaving its
                     // wavs orphaned beside it.
                     let keep_loopers = std::mem::take(&mut existing.loopers);
+                    // #328: the endpoint checklist has its own command; the
+                    // editor's Save carries no checklist, so a rename or an
+                    // E/S change must not reset it.
+                    let keep_disabled = std::mem::take(&mut existing.disabled_endpoints);
                     *existing = chain;
                     existing.enabled = keep_enabled;
                     existing.loopers = keep_loopers;
+                    existing.disabled_endpoints = keep_disabled;
                 } else {
                     proj.chains.push(chain);
                 }
