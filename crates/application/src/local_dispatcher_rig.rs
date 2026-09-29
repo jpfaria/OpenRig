@@ -175,3 +175,7 @@ pub(crate) fn merge_preserved_ports(
     merged.extend(effects);
     merged
 }
+
+#[cfg(test)]
+#[path = "issue_328_split_preset_switch_tests.rs"]
+mod issue_328_split_preset_switch_tests;
