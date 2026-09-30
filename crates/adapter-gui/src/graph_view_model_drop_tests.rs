@@ -22,8 +22,7 @@ fn resolve(dragged: &str, x: f32, y: f32) -> Option<AnchorSlot> {
             end: ParallelEnd::Merge,
         },
         ChainStage::Single(
-            BlockBlueprint::new("out", "Out 1", NodeCategory::Output)
-                .with_kind(NodeKind::IoOutput),
+            BlockBlueprint::new("out", "Out 1", NodeCategory::Output).with_kind(NodeKind::IoOutput),
         ),
     ];
     let (nodes, _) = linear_chain_layout(&stages, GridMetrics::default());
@@ -41,7 +40,10 @@ fn lane(lane: usize, index: usize) -> AnchorSlot {
 
 #[test]
 fn a_drop_on_an_anchor_resolves_to_it() {
-    assert_eq!(resolve("a1", 160.0, 200.0), Some(AnchorSlot::Stage { index: 1 }));
+    assert_eq!(
+        resolve("a1", 160.0, 200.0),
+        Some(AnchorSlot::Stage { index: 1 })
+    );
 }
 
 #[test]
@@ -61,8 +63,16 @@ fn a_drop_on_the_blocks_own_wire_resolves_to_nothing() {
 
 #[test]
 fn only_a_block_can_be_dropped() {
-    assert_eq!(resolve("__split_1", 480.0, 230.0), None, "the split node does not move");
-    assert_eq!(resolve("in", 480.0, 230.0), None, "an I/O node does not move");
+    assert_eq!(
+        resolve("__split_1", 480.0, 230.0),
+        None,
+        "the split node does not move"
+    );
+    assert_eq!(
+        resolve("in", 480.0, 230.0),
+        None,
+        "an I/O node does not move"
+    );
 }
 
 #[test]
