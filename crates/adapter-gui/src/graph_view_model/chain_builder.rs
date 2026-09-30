@@ -12,6 +12,7 @@
 //!   no merge node: each lane's last blueprint is its terminal, and the
 //!   terminals line up on the longest lane's last column (#328).
 
+use super::routing_ids::{merge_node_id, split_node_id};
 use super::types::{
     BlockBlueprint, ChainStage, GraphEdge, GraphNode, GridMetrics, NodeCategory, NodeKind,
     ParallelEnd,
@@ -54,8 +55,8 @@ pub fn linear_chain_layout(
             }
             ChainStage::Parallel { lanes, end } => {
                 split_counter += 1;
-                let split_id = format!("__split_{split_counter}");
-                let merge_id = format!("__merge_{split_counter}");
+                let split_id = split_node_id(split_counter);
+                let merge_id = merge_node_id(split_counter);
 
                 let longest = lanes.iter().map(Vec::len).max().unwrap_or(0);
                 let split_col = col;

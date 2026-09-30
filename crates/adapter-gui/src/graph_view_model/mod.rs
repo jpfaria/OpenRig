@@ -6,17 +6,22 @@
 //! - [`types`] — what a graph IS
 //! - [`palette`] — what colour a category gets
 //! - [`chain_builder`] — building a positioned graph from chain stages
+//! - [`routing_ids`] — the names of the split and merge routing nodes
 //! - [`layout`] — placing existing nodes by edge topology
-//! - [`validation`] — what makes a graph ill-formed
+//! - [`validation`] — what makes a graph description ill-formed
 //! - [`reorder`] — moving a dragged node among its column siblings
+//! - [`anchors`] — the insert anchors on a laid-out chain's wires
 
+mod anchors;
 mod chain_builder;
 mod layout;
 mod palette;
 mod reorder;
+mod routing_ids;
 mod types;
 mod validation;
 
+pub use anchors::{insert_anchors, AnchorSlot, GraphAnchor};
 pub use chain_builder::linear_chain_layout;
 pub use layout::topological_layout;
 pub use palette::{default_palette, CategoryStyle};
@@ -30,3 +35,7 @@ pub use validation::{validate_graph, validate_stages};
 #[cfg(test)]
 #[path = "../graph_view_model_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../graph_view_model_anchor_tests.rs"]
+mod anchor_tests;
