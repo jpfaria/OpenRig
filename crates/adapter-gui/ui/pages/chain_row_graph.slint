@@ -1,0 +1,53 @@
+// Responsibility: renders one chain card's signal graph.
+//
+// #328 (spec §5.1, §5.4): the graph that replaces the pedal strip on desktop.
+// Nodes (each block node carries its strip tile), wires and "+" anchors come
+// from Rust (`chain_graph_models.rs`); every gesture goes to
+// `ChainGraphBridge` tagged with this row's chain index. The wheel is not
+// captured here, so the chains list keeps scrolling (GraphView zooms on
+// Cmd/Ctrl + wheel, Part 5).
+
+import { GraphView, GraphNode, GraphEdgeGeometry, GraphAnchor } from "../components/graph_view.slint";
+import { ChainLatencyBadge } from "../components/chain_latency_badge.slint";
+import { ChainGraphBridge } from "../chain_graph_globals.slint";
+
+export component ChainRowGraph inherits Rectangle {
+    in property <[GraphNode]> nodes;
+    in property <[GraphEdgeGeometry]> edges;
+    in property <[GraphAnchor]> anchors;
+    in property <int> columns: 1;
+    in property <int> chain-index;
+    in property <float> latency-ms: 0;
+
+    background: transparent;
+
+    graph := GraphView {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        nodes: root.nodes;
+        edges: root.edges;
+        anchors: root.anchors;
+        node_width: 100px;
+        node_height: 100px;
+        show_grid: false;
+        background_color: transparent;
+        // First paint fits the whole chain (never above 1:1, never below the
+        // GraphView floor); Cmd/Ctrl + wheel takes over from there.
+        zoom: Math.max(0.3, Math.min(1.0, root.width / (Math.max(1, root.columns) * 132px)));
+        node-clicked(id) => { ChainGraphBridge.node-clicked(root.chain-index, id); }
+        add-requested(anchor) => { ChainGraphBridge.add-requested(root.chain-index, anchor); }
+        remove-requested(id) => { ChainGraphBridge.remove-requested(root.chain-index, id); }
+        bypass-toggled(id) => { ChainGraphBridge.bypass-toggled(root.chain-index, id); }
+        node-dragged(id, x, y) => { ChainGraphBridge.node-dragged(root.chain-index, id, x, y); }
+        node-dropped(id, anchor) => { ChainGraphBridge.node-dropped(root.chain-index, id, anchor); }
+        resolve-drop-anchor(id, x, y) => { ChainGraphBridge.resolve-drop-anchor(root.chain-index, id, x, y) }
+    }
+
+    if root.latency-ms > 0 : ChainLatencyBadge {
+        x: parent.width - self.width;
+        y: 0px;
+        latency-ms: root.latency-ms;
+    }
+}

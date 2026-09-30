@@ -410,6 +410,9 @@ mod project_view_stream_meters_tests;
 #[cfg(test)]
 mod touch_window_io_parity_tests;
 
+#[cfg(test)]
+mod issue_328_graph_row_interaction_tests;
+
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs
 // (TouchArea placement, focus recursion, callback wiring) that pure WireCtx

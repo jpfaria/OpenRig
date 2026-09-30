@@ -1,6 +1,7 @@
 // Responsibility: hosts the desktop application window.
 import "fonts/CooperHewitt-Semibold.ttf";
 import { ChainEditorBridge } from "chain_editor_globals.slint";
+import { ChainGraphBridge } from "chain_graph_globals.slint";
 import { AnalyzerBridge } from "analyzer_globals.slint";
 import { OverlayBridge } from "overlay_globals.slint";
 import { BlockEditorBridge } from "block_editor_globals.slint";
@@ -26,7 +27,8 @@ import { LooperOverlayHarness } from "components/looper_overlay_test_harness.sli
 import { LooperEditorHarness } from "components/looper_editor_test_harness.slint";
 import { ParamTabBarHarness } from "components/param_tab_bar_test_harness.slint";
 import { GraphViewHarness, GraphViewScrollHarness } from "components/graph_view_test_harness.slint";
-export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness }
+import { ChainRowGraphSplitMixHarness } from "components/chain_row_graph_test_harness.slint";
+export { DiLoopHarness, ParamTabBarHarness, LooperHarness, LooperOverlayHarness, LooperEditorHarness, GraphViewHarness, GraphViewScrollHarness, ChainRowGraphSplitMixHarness }
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, ChainBindingChoice, IoBindingModel, MultiSliderPoint, CurveEditorPoint, PluginInfoData, MidiDeviceRow, MidiBindingRow } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
@@ -38,7 +40,7 @@ import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortW
 import { BlockEditorWindow, CompactChainViewWindow } from "secondary_windows_block.slint";
 export { AppUpdate } from "components/app_update_globals.slint";
 export { Locale, PresetPicker, DiSourcePicker, ToneDoctorState, MetronomeBridge, BlockParamTabs }
-export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge, ChainEditorBridge }
+export { SettingsBridge, BlockEditorBridge, OverlayBridge, AnalyzerBridge, ChainEditorBridge, ChainGraphBridge }
 export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow, MetronomeWindow }
 export { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow }
 export { BlockEditorWindow, CompactChainViewWindow }
