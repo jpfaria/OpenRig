@@ -31,11 +31,7 @@ import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProject
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { SettingsPage, ChainEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow, MetronomeWindow } from "pages/pages.slint";
-import { Toast } from "components/toast.slint";
-import { ConfirmDeleteBlockDialog } from "components/confirm_delete_dialog.slint";
-import { ConfirmDeleteChainDialog } from "components/confirm_delete_chain_dialog.slint";
-import { ConfirmDeleteRecentProjectDialog } from "components/confirm_delete_recent_project_dialog.slint";
-import { PresetPickerOverlay } from "components/preset_picker_overlay.slint";
+import { RootModalOverlays } from "components/root_modal_overlays.slint";
 import { PresetSaveOverlay, PresetOverwriteOverlay } from "components/preset_save_overlay.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 import { ProjectSettingsWindow, ChainEditorWindow, ChainInsertWindow, ChainPortWindow } from "secondary_windows_chain.slint";
@@ -376,51 +372,8 @@ export component AppWindow inherits Window {
         // Inline chain editor
     }
 
-    if OverlayBridge.show-confirm-delete-block : ConfirmDeleteBlockDialog {
-        x: 0; y: 0;
-        width: root.width; height: root.height;
-        block-name: OverlayBridge.confirm-delete-block-name;
-        cancel => { OverlayBridge.cancel-delete-block(); }
-        confirm => { OverlayBridge.confirm-delete-block(); }
-    }
-
-    if OverlayBridge.show-confirm-delete-chain : ConfirmDeleteChainDialog {
-        x: 0; y: 0;
-        width: root.width; height: root.height;
-        chain-name: OverlayBridge.confirm-delete-chain-name;
-        cancel => { OverlayBridge.cancel-delete-chain(); }
-        confirm => { OverlayBridge.confirm-delete-chain(); }
-    }
-
-    if OverlayBridge.show-confirm-delete-recent-project : ConfirmDeleteRecentProjectDialog {
-        x: 0; y: 0;
-        width: root.width; height: root.height;
-        project-name: OverlayBridge.confirm-delete-recent-project-name;
-        cancel => { OverlayBridge.cancel-delete-recent-project(); }
-        confirm => { OverlayBridge.confirm-delete-recent-project(); }
-    }
-
-    Toast {
-        message: OverlayBridge.toast-message;
-        level: OverlayBridge.toast-level;
-        container-width: root.width;
-        container-height: root.height;
-    }
-
-    // Root-level modal: works in BOTH desktop and touch modes so the
-    // bundled presets are always reachable in-app (issue #479 — desktop
-    // previously had only a native FileDialog and no visible list).
-    PresetPickerOverlay {
-        width: root.width;
-        height: root.height;
-        visible-overlay: OverlayBridge.show-preset-picker;
-        items: OverlayBridge.preset-picker-items;
-        search-query <=> OverlayBridge.preset-picker-search-query;
-        confirm(i) => { OverlayBridge.preset-picker-confirm(i); }
-        cancel() => { OverlayBridge.preset-picker-cancel(); }
-        delete(i) => { OverlayBridge.preset-picker-delete(i); }
-        query-changed(t) => { OverlayBridge.preset-picker-query-changed(t); }
-    }
+    // #328: confirm dialogs, toast and preset picker — moved so this file stays under its cap.
+    RootModalOverlays { x: 0; y: 0; width: root.width; height: root.height; }
 
     // #749/#791: DI loop + Tone Doctor root overlays (extracted to components).
     DiLoopOverlay {
