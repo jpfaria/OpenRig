@@ -20,6 +20,9 @@
 use block_core::param::ParameterUnit;
 use block_core::param::{bool_parameter, enum_parameter, float_parameter, ParameterSpec};
 
+use super::vst3_param_filter::is_user_facing;
+use super::vst3_param_label::humanize_param_label;
+
 /// Build the parameter specs for a VST3 `model`, or an empty vec if the plugin
 /// exposes none / cannot be read.
 pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
@@ -28,20 +31,22 @@ pub fn vst3_parameters(model: &str) -> Vec<ParameterSpec> {
     let group_map = vst3_host::find_vst3_plugin(model)
         .map(|entry| plugin_loader::vst3_group_map_for_bundle(&entry.info.bundle_path))
         .unwrap_or_default();
-    let params = vst3_host::catalog_params(model);
+    specs_from_params(&vst3_host::catalog_params(model), &group_map)
+}
+
+/// The parameter specs for a plugin's parameter list; `group_map` holds the
+/// manifest-declared tab per parameter id.
+fn specs_from_params(
+    params: &[vst3_host::Vst3ParamInfo],
+    group_map: &std::collections::BTreeMap<u32, String>,
+) -> Vec<ParameterSpec> {
     let visible: Vec<_> = params
         .iter()
-        .filter(|p| !is_unlabeled(&p.title, &p.short_title))
+        .filter(|p| !is_unlabeled(&p.title, &p.short_title) && is_user_facing(p))
         .collect();
     let labels: Vec<String> = visible
         .iter()
-        .map(|p| {
-            if p.title.is_empty() {
-                p.short_title.clone()
-            } else {
-                p.title.clone()
-            }
-        })
+        .map(|p| humanize_param_label(&p.title, &p.short_title))
         .collect();
     // Manifest groups win; the dynamic grouping fills the gaps for any plugin
     // (or param) that declares none.

@@ -1,4 +1,6 @@
-use super::{dynamic_group_for, is_unlabeled, looks_like_on_off};
+use super::{dynamic_group_for, is_unlabeled, looks_like_on_off, specs_from_params};
+use vst3_host::param_flags::{CAN_AUTOMATE, IS_BYPASS, IS_HIDDEN};
+use vst3_host::Vst3ParamInfo;
 
 #[test]
 fn dynamic_grouping_labels_by_longest_common_prefix() {
@@ -85,4 +87,41 @@ fn real_mode_switch_stays_a_selector() {
     // Distinct, meaningful labels → NOT on/off → a 2-way selector.
     assert!(!looks_like_on_off("Mode", &opts("Sunlion", "Germanium")));
     assert!(!looks_like_on_off("Voicing", &opts("Vintage", "Modern")));
+}
+
+fn info(id: u32, title: &str, flags: i32) -> Vst3ParamInfo {
+    Vst3ParamInfo {
+        id,
+        title: title.to_string(),
+        short_title: String::new(),
+        units: String::new(),
+        step_count: 0,
+        default_normalized: 0.5,
+        flags,
+        enum_options: Vec::new(),
+    }
+}
+
+#[test]
+fn schema_skips_params_the_plugin_marks_as_not_user_facing() {
+    let params = [
+        info(1, "Mix", CAN_AUTOMATE),
+        info(2, "Hidden Thing", CAN_AUTOMATE | IS_HIDDEN),
+        info(3, "BYPASS", CAN_AUTOMATE | IS_BYPASS),
+        info(4, "RESERVED1", 0),
+    ];
+    let specs = specs_from_params(&params, &Default::default());
+    let paths: Vec<&str> = specs.iter().map(|s| s.path.as_str()).collect();
+    assert_eq!(paths, ["p1"]);
+}
+
+#[test]
+fn schema_labels_use_the_humanized_plugin_title() {
+    let params = [
+        info(1, "DELAY_MS", CAN_AUTOMATE),
+        info(2, "preDelay", CAN_AUTOMATE),
+    ];
+    let specs = specs_from_params(&params, &Default::default());
+    let labels: Vec<&str> = specs.iter().map(|s| s.label.as_str()).collect();
+    assert_eq!(labels, ["Delay ms", "Pre Delay"]);
 }

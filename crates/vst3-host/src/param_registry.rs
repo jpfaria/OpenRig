@@ -100,7 +100,7 @@ pub fn lookup_vst3_channel(instance_key: &str) -> Option<Vst3ParamChannel> {
     lookup_vst3_gui_context(instance_key).map(|c| c.param_channel)
 }
 
-/// Read a controller's full parameter metadata (id, title, default, and — for
+/// Read a controller's full parameter metadata (id, title, default, flags, and — for
 /// discrete `step_count >= 2` selects — the per-step `(value_percent, label)`
 /// options read via `getParamStringByValue`).
 ///
@@ -127,6 +127,7 @@ pub(crate) fn read_controller_params(controller: &ComPtr<IEditController>) -> Ve
             units: char16_array_to_string(&info.units),
             step_count: info.stepCount,
             default_normalized: info.defaultNormalizedValue,
+            flags: info.flags,
             enum_options,
         });
     }
