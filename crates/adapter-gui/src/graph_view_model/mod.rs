@@ -11,9 +11,11 @@
 //! - [`validation`] — what makes a graph description ill-formed
 //! - [`reorder`] — moving a dragged node among its column siblings
 //! - [`anchors`] — the insert anchors on a laid-out chain's wires
+//! - [`drop_target`] — which anchor a dragged block lands on
 
 mod anchors;
 mod chain_builder;
+mod drop_target;
 mod layout;
 mod palette;
 mod reorder;
@@ -23,6 +25,7 @@ mod validation;
 
 pub use anchors::{insert_anchors, AnchorSlot, GraphAnchor};
 pub use chain_builder::linear_chain_layout;
+pub use drop_target::resolve_drop_anchor;
 pub use layout::topological_layout;
 pub use palette::{default_palette, CategoryStyle};
 pub use reorder::reorder_for_drop;
@@ -39,3 +42,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../graph_view_model_anchor_tests.rs"]
 mod anchor_tests;
+
+#[cfg(test)]
+#[path = "../graph_view_model_drop_tests.rs"]
+mod drop_tests;
