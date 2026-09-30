@@ -42,14 +42,15 @@ pub(crate) fn build_split_runtime_node(
         content_mono || split.params.get_string(SPLIT_MODE) == Some(SPLIT_MODE_DUAL_MONO);
     let a_blocks: Vec<&AudioBlock> = split.a.iter().collect();
     let b_blocks: Vec<&AudioBlock> = split.b.iter().collect();
-    let mut path_pool: HashMap<BlockId, BlockRuntimeNode> = HashMap::new();
+    // #328: paths draw from the caller's pool, so a knob move keeps every
+    // amp and a block dragged between lanes keeps its processor.
     let (a, _, _) = build_nodes_for(
         chain,
         &a_blocks,
         AudioChannelLayout::Stereo,
         path_content_mono,
         sample_rate,
-        &mut path_pool,
+        reusable_nodes,
         None,
     )?;
     let (b, _, _) = build_nodes_for(
@@ -58,7 +59,7 @@ pub(crate) fn build_split_runtime_node(
         AudioChannelLayout::Stereo,
         path_content_mono,
         sample_rate,
-        &mut path_pool,
+        reusable_nodes,
         None,
     )?;
     let state = SplitRuntimeState::new(

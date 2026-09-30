@@ -431,3 +431,134 @@ fn the_tone_doctor_hears_the_split() {
         diagnosis.full_descriptors.rms_dbfs
     );
 }
+
+pub(super) fn serial_of(runtime: &ChainRuntimeState, id: &str) -> u64 {
+    let guard = runtime.processing.lock().expect("processing lock");
+    for node in &guard.input_states[0].blocks {
+        if node.block_id.0 == id {
+            return node.instance_serial;
+        }
+        if let RuntimeProcessor::Split(split) = &node.processor {
+            for path_node in split.a.iter().chain(split.b.iter()) {
+                if path_node.block_id.0 == id {
+                    return path_node.instance_serial;
+                }
+            }
+        }
+    }
+    panic!("block {id} is not in the runtime")
+}
+
+pub(super) fn with_split_knob(chain: &Chain, key: &str, value: ParameterValue) -> Chain {
+    let mut edited = chain.clone();
+    for block in edited.blocks.iter_mut() {
+        if let AudioBlockKind::Split(split) = &mut block.kind {
+            split.params.insert(key, value.clone());
+        }
+    }
+    edited
+}
+
+fn update(runtime: &Arc<ChainRuntimeState>, chain: &Chain, registry: &[IoBinding]) {
+    update_chain_runtime_state(
+        runtime,
+        chain,
+        SR,
+        false,
+        &[DEFAULT_ELASTIC_TARGET],
+        registry,
+    )
+    .expect("in-place update");
+}
+
+#[test]
+fn a_mixer_knob_edit_keeps_the_path_processors() {
+    let (chain, registry) = mono_chain(
+        "knob_edit",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[],
+            vec![volume_block("amp_a", 100.0)],
+            vec![volume_block("amp_b", 100.0)],
+        )],
+    );
+    let runtime = build_runtime(&chain, &registry);
+    let before = (serial_of(&runtime, "amp_a"), serial_of(&runtime, "amp_b"));
+    update(
+        &runtime,
+        &with_split_knob(
+            &chain,
+            split_params::MIX_PAN_A,
+            ParameterValue::Float(-50.0),
+        ),
+        &registry,
+    );
+    assert_eq!(
+        (serial_of(&runtime, "amp_a"), serial_of(&runtime, "amp_b")),
+        before,
+        "a knob move must not rebuild the amps in the paths"
+    );
+    with_split(&runtime, |split| {
+        assert_eq!(
+            split.knobs.load(true).mix_pan_a,
+            -50.0,
+            "the new knob value applies"
+        )
+    });
+}
+
+#[test]
+fn moving_a_block_from_path_a_to_path_b_keeps_its_processor() {
+    let (chain, registry) = mono_chain(
+        "lane_drag",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[],
+            vec![volume_block("a1", 100.0), volume_block("a2", 80.0)],
+            vec![volume_block("b1", 100.0)],
+        )],
+    );
+    let runtime = build_runtime(&chain, &registry);
+    let before = serial_of(&runtime, "a2");
+    let mut moved = chain.clone();
+    if let AudioBlockKind::Split(split) = &mut moved.blocks[0].kind {
+        let dragged = split.a.remove(1);
+        split.b.push(dragged);
+    }
+    update(&runtime, &moved, &registry);
+    assert_eq!(
+        serial_of(&runtime, "a2"),
+        before,
+        "dragging across lanes keeps the processor"
+    );
+}
+
+#[test]
+fn moving_a_block_out_of_a_path_keeps_its_processor() {
+    let (chain, registry) = mono_chain(
+        "to_shared",
+        vec![split_block(
+            "split",
+            SplitEnd::Mix,
+            &[],
+            vec![volume_block("a1", 100.0)],
+            vec![volume_block("b1", 100.0)],
+        )],
+    );
+    let runtime = build_runtime(&chain, &registry);
+    let before = serial_of(&runtime, "a1");
+    let mut moved = chain.clone();
+    let dragged = match &mut moved.blocks[0].kind {
+        AudioBlockKind::Split(split) => split.a.remove(0),
+        _ => unreachable!("block 0 is the split"),
+    };
+    moved.blocks.insert(0, dragged);
+    update(&runtime, &moved, &registry);
+    assert_eq!(
+        serial_of(&runtime, "a1"),
+        before,
+        "dragging to the shared blocks keeps the processor"
+    );
+}
