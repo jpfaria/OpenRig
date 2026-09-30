@@ -39,6 +39,11 @@ impl MonoProcessor for BrickWallLimiterMono {
         let g = self.gain.tick(peak, &self.cfg);
         (delayed * g).clamp(-self.ceiling_lin, self.ceiling_lin)
     }
+
+    /// The look-ahead delays every sample by its length (#328).
+    fn latency_samples(&self) -> usize {
+        self.lookahead.delay_samples()
+    }
 }
 
 #[cfg(test)]

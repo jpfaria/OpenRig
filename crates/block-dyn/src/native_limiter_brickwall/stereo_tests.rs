@@ -85,3 +85,19 @@ fn left_only_transient_reduces_right_equally() {
         "stereo link did not reduce R during L transient"
     );
 }
+
+/// #328: the stereo limiter delays both channels by the same look-ahead and
+/// must report it.
+#[test]
+fn reports_the_lookahead_delay_it_adds() {
+    let mut lim = default_limiter();
+    let measured = (0..4096)
+        .map(|n| lim.process_frame(if n == 0 { [0.5, 0.5] } else { [0.0, 0.0] })[0])
+        .position(|out| out.abs() > 0.25)
+        .expect("the impulse comes out");
+    assert_eq!(
+        lim.latency_samples(),
+        measured,
+        "the stereo limiter must report the {measured}-sample look-ahead it adds"
+    );
+}
