@@ -198,6 +198,9 @@ pub mod graph_view_model;
 mod gui_live_source;
 mod helpers;
 #[cfg(test)]
+#[path = "issue_1006_meter_direction_tests.rs"]
+mod issue_1006_meter_direction_tests;
+#[cfg(test)]
 mod issue_692_project_open_time_tests;
 #[cfg(test)]
 mod issue_815_add_block_tabs_tests;

@@ -970,3 +970,9 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "v{}(으)로 업데이트"
+
+msgid "meter-direction-in"
+msgstr "입력"
+
+msgid "meter-direction-out"
+msgstr "출력"

@@ -968,3 +968,9 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "v{} पर अपडेट करें"
+
+msgid "meter-direction-in"
+msgstr "इनपुट"
+
+msgid "meter-direction-out"
+msgstr "आउटपुट"

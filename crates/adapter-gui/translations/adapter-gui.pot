@@ -965,3 +965,9 @@ msgstr ""
 
 msgid "btn-update-to {}"
 msgstr ""
+
+msgid "meter-direction-in"
+msgstr ""
+
+msgid "meter-direction-out"
+msgstr ""

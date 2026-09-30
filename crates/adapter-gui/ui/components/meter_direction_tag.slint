@@ -1,0 +1,31 @@
+// Responsibility: renders the pill that says whether a level meter reads the input or the output.
+
+import { Theme } from "../theme.slint";
+
+// #1006: a stream row names its E/S binding on BOTH meters (one binding, one
+// name), so the direction has to be said by a tag of its own. Input and
+// output get distinct hues that stay clear of the meter's green/yellow/red.
+export component MeterDirectionTag inherits Rectangle {
+    in property <bool> is-output: false;
+
+    width: 104px;
+    height: 22px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: root.is-output ? #a78bfa : #38bdf8;
+    background: root.is-output ? #a78bfa26 : #38bdf826;
+
+    accessible-role: text;
+    accessible-label: label.text;
+
+    label := Text {
+        width: parent.width - 8px;
+        text: root.is-output ? @tr("meter-direction-out") : @tr("meter-direction-in");
+        font-size: Theme.min-font;
+        font-weight: 800;
+        color: root.is-output ? #c4b5fd : #7dd3fc;
+        overflow: elide;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}

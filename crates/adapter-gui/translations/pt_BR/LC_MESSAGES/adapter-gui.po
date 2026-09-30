@@ -979,3 +979,9 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "Atualizar para v{}"
+
+msgid "meter-direction-in"
+msgstr "ENTRADA"
+
+msgid "meter-direction-out"
+msgstr "SAÍDA"
