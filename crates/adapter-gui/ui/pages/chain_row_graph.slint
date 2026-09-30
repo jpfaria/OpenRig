@@ -47,6 +47,7 @@ export component ChainRowGraph inherits Rectangle {
         remove-requested(id) => { ChainGraphBridge.remove-requested(root.chain-index, id); }
         bypass-toggled(id) => { ChainGraphBridge.bypass-toggled(root.chain-index, id); }
         node-dragged(id, x, y) => { ChainGraphBridge.node-dragged(root.chain-index, id, x, y); }
+        node-drag-ended(id, x, y) => { ChainGraphBridge.node-drag-ended(root.chain-index, id); }
         node-dropped(id, anchor) => { ChainGraphBridge.node-dropped(root.chain-index, id, anchor); }
         resolve-drop-anchor(id, x, y) => { ChainGraphBridge.resolve-drop-anchor(root.chain-index, id, x, y) }
     }

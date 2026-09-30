@@ -32,3 +32,57 @@ fn a_dragged_node_carries_the_ends_of_its_wires() {
         }
     }
 }
+
+#[test]
+fn a_released_drag_puts_every_card_back_on_the_layout() {
+    let rows = rows();
+    let chain = mix_chain();
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain.clone()],
+        midi: None,
+    };
+    replace_project_chains(&rows, &project, &[], &[], &registry());
+    let laid_out: Vec<(String, f32, f32)> = rows
+        .row_data(0)
+        .unwrap()
+        .graph_nodes
+        .iter()
+        .map(|n| (n.id.to_string(), n.layout_x, n.layout_y))
+        .collect();
+
+    move_node(&rows, 0, "a1", 999.0, 777.0);
+    move_node(&rows, 0, "sp", 3.0, 4.0);
+    settle_nodes(&rows, 0, &chain);
+
+    let row = rows.row_data(0).unwrap();
+    let settled: Vec<(String, f32, f32)> = row
+        .graph_nodes
+        .iter()
+        .map(|n| (n.id.to_string(), n.layout_x, n.layout_y))
+        .collect();
+    assert_eq!(
+        settled, laid_out,
+        "a drag that did not move a block leaves no card off the grid"
+    );
+    for edge in row.graph_edges.iter() {
+        let end = |id: &str| {
+            laid_out
+                .iter()
+                .find(|(n, _, _)| n == id)
+                .map(|(_, x, y)| (*x, *y))
+        };
+        if let Some(to) = end(edge.to_id.as_str()) {
+            assert_eq!((edge.to_x, edge.to_y), to, "wire into {}", edge.to_id);
+        }
+        if let Some(from) = end(edge.from_id.as_str()) {
+            assert_eq!(
+                (edge.from_x, edge.from_y),
+                from,
+                "wire out of {}",
+                edge.from_id
+            );
+        }
+    }
+}

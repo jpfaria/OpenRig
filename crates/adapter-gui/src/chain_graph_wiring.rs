@@ -189,6 +189,18 @@ fn wire_drags(window: &AppWindow, ctx: &Rc<ChainGraphWiringCtx>) {
         });
     }
     {
+        let ctx = ctx.clone();
+        bridge.on_node_drag_ended(move |chain_index, _node_id| {
+            if let Some(chain) = chain_at(&ctx.project_session, chain_index) {
+                crate::chain_graph_drag::settle_nodes(
+                    &ctx.project_chains,
+                    chain_index as usize,
+                    &chain,
+                );
+            }
+        });
+    }
+    {
         // Asked on every drag move so the target "+" lights up (Part 5).
         let ctx = ctx.clone();
         bridge.on_resolve_drop_anchor(move |chain_index, node_id, x, y| {

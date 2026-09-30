@@ -282,8 +282,10 @@ export component GraphView inherits Rectangle {
                         // #328: the host names the anchor under the drag
                         // so it lights up before release.
                         root.drop_anchor = root.resolve-drop-anchor(node.id, drag_x, drag_y);
+                        // A click's jitter stays under the threshold and
+                        // must not nudge the card off the grid.
+                        root.node_dragged(node.id, drag_x, drag_y);
                     }
-                    root.node_dragged(node.id, drag_x, drag_y);
                 }
             }
             changed has-hover => {

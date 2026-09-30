@@ -169,3 +169,51 @@ fn every_plus_of_a_laid_out_chain_names_a_place_in_it() {
         }
     }
 }
+
+/// The DIGITAL chain on the rig: `amp → split Y (A: cab, filter, dyn | B: —)`.
+/// The shared blocks sit on the input's lane, one column each, before the
+/// split — the amp was drawn under the split, off the lane.
+#[test]
+fn shared_blocks_before_a_y_split_sit_on_the_input_lane() {
+    // Block ids as the rig writes them: `rig:<input>:block:<uuid>`.
+    let amp_id = "rig:input-4:block:990da0ea";
+    let cab_id = "rig:input-4:block:62894916";
+    let graph = chain_graph(
+        &chain(vec![
+            core(amp_id),
+            split(
+                "rig:input-4:block:c723fb6e",
+                SplitEnd::Y,
+                vec![
+                    core(cab_id),
+                    core("rig:input-4:block:64a54f6d"),
+                    core("rig:input-4:block:f5928419"),
+                ],
+                vec![],
+            ),
+        ]),
+        &labels(),
+    );
+    let input = node(&graph, INPUT_NODE_ID);
+    let amp = node(&graph, amp_id);
+    let sp = node(&graph, SPLIT_NODE_ID);
+    assert_eq!(
+        (amp.y, sp.y),
+        (input.y, input.y),
+        "input, amp and split share one lane"
+    );
+    assert!(
+        input.x < amp.x && amp.x < sp.x && sp.x < node(&graph, cab_id).x,
+        "left to right: input {} → amp {} → split {} → cab {}",
+        input.x,
+        amp.x,
+        sp.x,
+        node(&graph, cab_id).x
+    );
+    let a_out = node(&graph, PATH_A_OUTPUT_NODE_ID);
+    let b_out = node(&graph, PATH_B_OUTPUT_NODE_ID);
+    assert!(
+        a_out.y < sp.y && sp.y < b_out.y,
+        "lane A above, lane B below"
+    );
+}

@@ -18,6 +18,8 @@ export global ChainGraphBridge {
     // follows the pointer only through the host's model).
     callback node-dragged(int, string, length, length);
     callback node-dropped(int, string, string);
+    // A released drag: the host puts every card back on the laid-out grid.
+    callback node-drag-ended(int, string);
     // Part 5's `resolve-drop-anchor`, answered in Rust by
     // `graph_view_model::resolve_drop_anchor` ("" = no anchor in reach).
     // Args: chain index, dragged node id, layout x, layout y.

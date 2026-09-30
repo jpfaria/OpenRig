@@ -58,6 +58,26 @@ pub(crate) fn move_node(
     }
 }
 
+/// When a drag is released, every card returns to `chain`'s laid-out grid.
+/// A drop that moved a block has already republished the row, so this only
+/// undoes a drag that did not.
+pub(crate) fn settle_nodes(
+    rows: &VecModel<ProjectChainItem>,
+    chain_index: usize,
+    chain: &project::chain::Chain,
+) {
+    // Labels move no node, so none are resolved here.
+    let labels = crate::endpoint_checklist_items::IoLabels {
+        input: String::new(),
+        output: String::new(),
+        path_a: String::new(),
+        path_b: String::new(),
+    };
+    for node in crate::chain_graph_adapter::chain_graph(chain, &labels).nodes {
+        move_node(rows, chain_index, &node.id, node.x, node.y);
+    }
+}
+
 #[cfg(test)]
 #[path = "chain_graph_drag_tests.rs"]
 mod tests;
