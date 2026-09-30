@@ -6,8 +6,8 @@
 //! The harness canvas sits at the window origin with zoom 1 and no pan, so a
 //! node's layout coordinates ARE its window coordinates.
 
-use adapter_gui::{GraphNode, GraphViewHarness};
-use slint::platform::{PointerEventButton, WindowEvent};
+use adapter_gui::{GraphNode, GraphViewHarness, GraphViewScrollHarness};
+use slint::platform::{Key, PointerEventButton, WindowEvent};
 use slint::{ComponentHandle, LogicalPosition, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -115,5 +115,71 @@ fn dragging_a_node_past_the_click_threshold_ends_a_drag_not_a_click() {
         [("od".to_string(), 240.0, 200.0)],
         "drag-ended fires once with the node's layout position — the host moves nodes, \
          the canvas does not"
+    );
+}
+
+/// The graph inside a 1200px-tall scroll area; the canvas spans window
+/// y 100..400, so (600, 250) is empty canvas.
+fn scroll_harness() -> GraphViewScrollHarness {
+    i_slint_backend_testing::init_no_event_loop();
+    let w = GraphViewScrollHarness::new().unwrap();
+    w.set_nodes(ModelRc::new(VecModel::from(vec![node(
+        "od", "Drive", 240.0, 150.0,
+    )])));
+    w.show().unwrap();
+    w
+}
+
+fn wheel(w: &impl ComponentHandle, p: LogicalPosition, delta_y: f32) {
+    let win = w.window();
+    win.dispatch_event(WindowEvent::PointerMoved { position: p });
+    win.dispatch_event(WindowEvent::PointerScrolled {
+        position: p,
+        delta_x: 0.0,
+        delta_y,
+    });
+}
+
+#[test]
+fn a_plain_wheel_over_the_graph_scrolls_the_list_instead_of_zooming() {
+    let w = scroll_harness();
+
+    wheel(&w, at(600.0, 250.0), -120.0);
+
+    assert_eq!(
+        w.get_zoom(),
+        1.0,
+        "a plain wheel must not zoom the graph — it belongs to the chains list \
+         around it (#328 owner decision 6)"
+    );
+    assert!(
+        w.get_list_scroll_y() < 0.0,
+        "the wheel over the graph must scroll the list around it; viewport-y stayed {}",
+        w.get_list_scroll_y()
+    );
+}
+
+#[test]
+fn cmd_or_ctrl_wheel_zooms_the_graph_and_leaves_the_list_still() {
+    let w = scroll_harness();
+
+    // Slint reports ⌘ on macOS and Ctrl on Windows/Linux as `control`.
+    w.window().dispatch_event(WindowEvent::KeyPressed {
+        text: Key::Control.into(),
+    });
+    wheel(&w, at(600.0, 250.0), 120.0);
+    w.window().dispatch_event(WindowEvent::KeyReleased {
+        text: Key::Control.into(),
+    });
+
+    assert!(
+        (w.get_zoom() - 1.1).abs() < 1e-4,
+        "Cmd/Ctrl + wheel must zoom one step, zoom is {}",
+        w.get_zoom()
+    );
+    assert_eq!(
+        w.get_list_scroll_y(),
+        0.0,
+        "a zoom gesture must not also scroll the list"
     );
 }

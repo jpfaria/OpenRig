@@ -28,3 +28,30 @@ export component GraphViewHarness inherits Window {
         node_drag_ended(id, x, y) => { root.node-drag-ended(id, x, y); }
     }
 }
+
+// The canvas inside a scroll area, the way the chains list hosts it
+// (#328 §5.4): proves a plain wheel scrolls the list, not the graph.
+export component GraphViewScrollHarness inherits Window {
+    width: 900px;
+    height: 400px;
+    in property <[GraphNode]> nodes;
+    in-out property <float> zoom: 1.0;
+    out property <length> list-scroll-y: list.viewport-y;
+
+    list := Flickable {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        viewport-height: 1200px;
+
+        GraphView {
+            x: 0px;
+            y: 100px;
+            width: 900px;
+            height: 300px;
+            nodes: root.nodes;
+            zoom <=> root.zoom;
+        }
+    }
+}

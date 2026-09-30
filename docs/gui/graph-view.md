@@ -129,7 +129,8 @@ No other file touches. This is the **only authorised** brand-of-conditional in t
 ## Interactivity contract
 
 - **Pan:** drag on empty canvas. Cursor turns `grab`. Released → fires `viewport_changed`.
-- **Zoom:** scroll wheel anywhere over the canvas. Zooms around the cursor (the point under the cursor stays fixed in layout space). Clamped to `[min_zoom, max_zoom]`. Fires `viewport_changed`.
+- **Zoom:** Cmd (macOS) or Ctrl (Windows, Linux) + scroll wheel over the canvas — Slint reports both as `modifiers.control`. Zooms around the cursor (the point under the cursor stays fixed in layout space). Clamped to `[min_zoom, max_zoom]`. Fires `viewport_changed`.
+- **Plain wheel:** not accepted. The canvas rejects it so the scroll area around the graph (the chains list, #328) scrolls instead.
 - **Drag a node:** press on a node card, move beyond 5 px. Fires `node_dragged` continuously, `node_drag_ended` on release.
 - **Click vs drag:** total displacement < 5 px in viewport space → `node_clicked`. Threshold is a `private property` so it can be retuned without changing the API.
 - **Double-click:** fires `node_double_clicked` — host opens the block editor.
@@ -142,7 +143,7 @@ No other file touches. This is the **only authorised** brand-of-conditional in t
 | Block editor | existing `BlockEditorPanel` — host wires `node_double_clicked` to it |
 | Real-time audio meters on nodes | future `GraphNodeMeter` overlay component |
 | Edge routing avoidance (no crossings) | future — current Bézier is naive |
-| Touch gestures (pinch-to-zoom) | future — scroll-wheel only for now |
+| Touch gestures (pinch-to-zoom) | future — Cmd/Ctrl + wheel only for now |
 
 ## Invariants
 

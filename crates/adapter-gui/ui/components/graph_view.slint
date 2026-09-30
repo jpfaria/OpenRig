@@ -118,6 +118,13 @@ export component GraphView inherits Rectangle {
             }
         }
         scroll-event(event) => {
+            // #328: the graph sits inside the chains list (spec §5.4), so a
+            // plain wheel must reach the list and scroll it. Zoom needs the
+            // platform shortcut modifier — Slint reports ⌘ on macOS and Ctrl
+            // on Windows and Linux as `modifiers.control`.
+            if (!event.modifiers.control) {
+                return reject;
+            }
             // Zoom around cursor.
             let old_zoom = root.zoom;
             let dz = event.delta-y > 0 ? 0.1 : -0.1;
