@@ -14,6 +14,7 @@
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use crate::mixer_ramp::GainGlide;
 use crate::runtime_dsp::{ensure_flush_to_zero, output_limiter};
 use crate::runtime_io::write_output_frame;
 use crate::runtime_probe::{PROBE_DETECT_THRESHOLD, PROBE_FIRED, PROBE_IDLE};
@@ -57,6 +58,17 @@ pub fn process_output_f32(
         1.0
     };
     let num_frames = out.len() / output_total_channels;
+    // #1007: this output's global-mixer fader, glided over the callback. Only
+    // this route's callback writes `mixer_current`.
+    let mixer_target = route.mixer_gain.target();
+    let mixer_glide = GainGlide::begin(
+        f32::from_bits(route.mixer_current.load(Ordering::Relaxed)),
+        mixer_target,
+        num_frames,
+    );
+    route
+        .mixer_current
+        .store(mixer_target.to_bits(), Ordering::Relaxed);
     // #923: the loudest frame this callback pulled, so the route can say
     // whether its stream ran and what it carried.
     let mut peak = 0.0_f32;
@@ -73,8 +85,12 @@ pub fn process_output_f32(
             continue;
         };
         let mut processed = fade.blend(i, route.buffer.pop());
-        if volume_ratio != 1.0 {
-            processed = processed.scaled(volume_ratio);
+        let gain = match &mixer_glide {
+            Some(glide) => volume_ratio * glide.gain_at(i),
+            None => volume_ratio,
+        };
+        if gain != 1.0 {
+            processed = processed.scaled(gain);
         }
         peak = peak.max(processed.peak_abs());
         write_output_frame(

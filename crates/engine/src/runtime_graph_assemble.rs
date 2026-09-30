@@ -23,6 +23,7 @@ use crossbeam_queue::ArrayQueue;
 
 use block_core::{AudioChannelLayout, StreamHandle};
 use domain::ids::{BlockId, DeviceId};
+use domain::mixer_strip::MixerDirection;
 use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 
 use crate::runtime::{
@@ -316,7 +317,15 @@ pub(crate) fn build_input_processing_state(
         prebuilt,
     )?;
 
+    let mixer_gain = crate::mixer_gains::endpoint_gain(
+        MixerDirection::Input,
+        &input.device_id.0,
+        &input.channels,
+    );
+    let mixer_current = mixer_gain.target();
     Ok(InputProcessingState {
+        mixer_gain,
+        mixer_current,
         input_read_layout,
         processing_layout: processing_layout_channel,
         input_channels: input.channels.clone(),
@@ -406,7 +415,15 @@ pub(crate) fn build_output_routing_state(
     }
     // #965: a fresh route is born at its resting cushion (see `route_cushion`).
     buffer.prime(cushion.prime);
+    let mixer_gain = crate::mixer_gains::endpoint_gain(
+        MixerDirection::Output,
+        &output.device_id.0,
+        &output.channels,
+    );
+    let mixer_current = std::sync::atomic::AtomicU32::new(mixer_gain.target().to_bits());
     OutputRoutingState {
+        mixer_gain,
+        mixer_current,
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
         buffer,

@@ -227,6 +227,14 @@ fn update_chain_runtime_state_impl(
                         && old.buffer.target_level() == cushion.target
                         && old.buffer.capacity() == cushion.capacity
                         && old.applies_chain_volume != insert_send
+                        && Arc::ptr_eq(
+                            &old.mixer_gain,
+                            &crate::mixer_gains::endpoint_gain(
+                                domain::mixer_strip::MixerDirection::Output,
+                                &o.device_id.0,
+                                &o.channels,
+                            ),
+                        )
                     {
                         return Some(Arc::clone(old));
                     }
