@@ -26,6 +26,7 @@ fn chain(id: &str, blocks: Vec<AudioBlock>) -> Chain {
         blocks,
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

@@ -57,6 +57,8 @@ export component ChainRow inherits Rectangle {
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
     callback open-compact-chain-view(int);
+    // #1007: the header's meters icon shows (true) or hides the IN/OUT rows.
+    callback meters-toggled(bool);
     // Drag state is SHARED across rows (a chip can be dragged from one chain
     // into another), so the page owns it and each row passes it into its strip.
     in-out property <int> dragging-chain-index: -1;
@@ -97,12 +99,15 @@ export component ChainRow inherits Rectangle {
     // downward from the base meter `y`: every extra stream beyond the
     // first adds one meter row pitch so the card grows and the rows don't bleed
     // into the next chain card (user feedback: "tem que dar espaço").
+    // #1007: the meter rows show only on a running chain whose header meters
+    // icon is on; hidden, the card keeps the single meter slot as its margin.
     height: 106px + (root.block-row-count * 108px)
-        + (root.chain.stream_meters.length > 1
+        + (root.meters-shown && root.chain.stream_meters.length > 1
             ? (root.chain.stream_meters.length - 1) * meters.row-pitch
             : 0px)
         // #717: one extra row for the DI stream's own IN/OUT meter while it plays.
-        + (root.chain.di_loop_playing ? meters.row-pitch : 0px);
+        + (root.meters-shown && root.chain.di_loop_playing ? meters.row-pitch : 0px);
+    property <bool> meters-shown: root.chain.enabled && root.chain.meters_expanded;
 
     ChainRowHeader {
         x: 0px;
@@ -128,6 +133,7 @@ export component ChainRow inherits Rectangle {
         move-chain-up(ci) => { root.move-chain-up(ci); }
         move-chain-down(ci) => { root.move-chain-down(ci); }
         remove-chain(ci) => { root.remove-chain(ci); }
+        meters-toggled(shown) => { root.meters-toggled(shown); }
     }
 
     blocks := ChainRowBlocks {
@@ -159,6 +165,7 @@ export component ChainRow inherits Rectangle {
         width: root.width;
         height: root.height;
         chain: root.chain;
+        visible: root.meters-shown;
     }
 }
 

@@ -50,6 +50,11 @@ mod chain_editor_callbacks;
 mod chain_editor_forwarders_wiring;
 mod chain_editor_meta_io_callbacks;
 mod chain_editor_save_cancel_callbacks;
+mod chain_fader_intent;
+mod chain_level_law;
+mod chain_mixer_intents;
+mod chain_mixer_rows;
+mod chain_mixer_rows_sync;
 mod chain_name_wiring;
 mod chain_preset_bank;
 mod chain_preset_wiring;
@@ -73,6 +78,7 @@ mod compact_chain_delete_wiring;
 pub mod compact_chain_di_callbacks;
 mod compact_chain_header_wiring;
 mod compact_chain_param_handlers;
+mod compact_mixer_wiring;
 mod compact_routing_pick;
 mod compact_view_refresh;
 mod device_refresh_apply;
@@ -152,6 +158,13 @@ mod metronome_read;
 mod metronome_view;
 mod metronome_vocabulary;
 mod metronome_wiring;
+mod mixer_fader_law;
+mod mixer_rows;
+mod mixer_rows_sync;
+pub use mixer_rows_sync::set_mixer_rows;
+mod mixer_strip_intents;
+mod mixer_window_size;
+mod mixer_wiring;
 mod sample_rate;
 pub mod spectrum_close;
 mod spectrum_session;
@@ -243,6 +256,7 @@ mod meter_wiring_poll;
 #[cfg(test)]
 mod meter_wiring_row_update_tests;
 mod midi_adapter_wiring;
+mod midi_mixer_feedback_wiring;
 pub mod midi_profile_wiring;
 mod midi_selection_mirror;
 pub use midi_profile_wiring::start_midi_profiles;
@@ -320,6 +334,7 @@ mod project_session;
 pub mod project_view;
 mod project_view_assets;
 mod project_view_tooltips;
+mod session_mixer;
 mod state;
 mod tone_doctor_events;
 mod tone_doctor_live_input;
@@ -377,6 +392,8 @@ mod compact_block_search_wiring_tests;
 #[cfg(test)]
 mod chain_io_chip_label_tests;
 
+#[cfg(test)]
+mod chain_meter_fold_tests;
 #[cfg(test)]
 mod project_view_loopers_tests;
 #[cfg(test)]

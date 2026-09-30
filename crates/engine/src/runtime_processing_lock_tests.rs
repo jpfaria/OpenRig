@@ -24,6 +24,7 @@ fn runtime() -> Arc<ChainRuntimeState> {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[256], &[]).expect("empty chain builds"))
 }

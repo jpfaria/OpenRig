@@ -66,6 +66,7 @@ fn chain() -> Chain {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

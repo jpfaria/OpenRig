@@ -120,6 +120,7 @@ fn owners_anal_dig(input_id: &str, output_id: &str) -> (Project, ChainId) {
             blocks,
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

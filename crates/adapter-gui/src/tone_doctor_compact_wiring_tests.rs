@@ -87,6 +87,7 @@ fn session_with_fizzy_chain() -> ProjectSession {
             ],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

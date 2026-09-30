@@ -23,6 +23,7 @@ mod di_loop_multirate_output_tests {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         };
         let registry = vec![IoBinding {
             id: "io".into(),
@@ -157,6 +158,7 @@ mod di_loop_doubling_tests {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }
     }
 

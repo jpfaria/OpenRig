@@ -20,6 +20,7 @@ fn empty_chain(id: &str) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

@@ -116,6 +116,7 @@ fn session_with_one_bound_chain() -> ProjectSession {
             blocks: vec![],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

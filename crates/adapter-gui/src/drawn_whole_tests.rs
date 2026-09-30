@@ -70,6 +70,7 @@ fn project_with(effect_type: &str, model: &str) -> project::project::Project {
             }],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     }

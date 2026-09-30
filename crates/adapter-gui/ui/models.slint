@@ -198,6 +198,8 @@ export struct ProjectChainItem {
     /// (0 = main output when none persisted; -1 when the chain has no bound
     /// outputs).
     di_output_selected_index: int,
+    /// #1007: the card's IN/OUT meter section is expanded. Starts collapsed.
+    meters_expanded: bool,
 }
 
 // #436 #1: per-chain rig preset/scene navigation, aligned 1:1 with the

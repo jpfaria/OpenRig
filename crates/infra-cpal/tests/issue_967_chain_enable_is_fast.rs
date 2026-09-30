@@ -144,6 +144,7 @@ fn switching_a_chain_on_again_does_not_walk_every_device() {
             }],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

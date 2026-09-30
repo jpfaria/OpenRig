@@ -90,6 +90,7 @@ fn project_with(blocks: Vec<AudioBlock>) -> Project {
             blocks,
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     }

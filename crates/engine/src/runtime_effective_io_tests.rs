@@ -139,6 +139,7 @@ fn build_output_routing_state_mono_single_channel() {
         channels: vec![0],
     };
     let state = build_output_routing_state(
+        &ChainId("t".into()),
         &output,
         crate::route_cushion::route_cushion(
             DEFAULT_ELASTIC_TARGET,
@@ -161,6 +162,7 @@ fn build_output_routing_state_stereo_two_channels() {
         channels: vec![0, 1],
     };
     let state = build_output_routing_state(
+        &ChainId("t".into()),
         &output,
         crate::route_cushion::route_cushion(
             DEFAULT_ELASTIC_TARGET,
@@ -183,6 +185,7 @@ fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
         channels: vec![0, 1],
     };
     let _state = build_output_routing_state(
+        &ChainId("t".into()),
         &output,
         crate::route_cushion::route_cushion(
             DEFAULT_ELASTIC_TARGET,

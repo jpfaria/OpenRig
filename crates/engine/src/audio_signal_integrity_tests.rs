@@ -122,6 +122,7 @@ pub(super) fn chain_with_blocks(
         blocks: fx,
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     (chain, registry)
 }

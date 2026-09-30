@@ -37,6 +37,7 @@ fn session_with(loopers: Vec<LooperConfig>) -> ProjectSession {
             blocks: vec![],
             di_output: None,
             loopers,
+            mix: Default::default(),
         }],
         midi: None,
     };

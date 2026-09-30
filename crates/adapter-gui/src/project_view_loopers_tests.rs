@@ -26,6 +26,7 @@ fn chain_with_loopers(enabled: bool, loopers: Vec<LooperConfig>) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers,
+        mix: Default::default(),
     }
 }
 

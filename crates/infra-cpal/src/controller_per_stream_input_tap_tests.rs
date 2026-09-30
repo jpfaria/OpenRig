@@ -63,6 +63,7 @@ fn two_stream_mono_chain(id: &str) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 
@@ -102,6 +103,7 @@ fn single_stream_on_channel_one(id: &str) -> Chain {
         blocks: vec![],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 

@@ -15,6 +15,8 @@ pub mod block_factory;
 pub mod bridge;
 mod bridge_off_frontend;
 pub mod chain_factory;
+pub mod chain_fader_view;
+pub mod chain_mixer_strips;
 pub mod command;
 pub mod command_schema;
 pub mod di_loader;
@@ -35,6 +37,7 @@ mod local_dispatcher_block_lifecycle;
 mod local_dispatcher_block_param;
 mod local_dispatcher_chain_crud;
 mod local_dispatcher_chain_io;
+mod local_dispatcher_chain_mixer;
 mod local_dispatcher_chain_order;
 mod local_dispatcher_chain_save;
 mod local_dispatcher_close;
@@ -47,6 +50,7 @@ mod local_dispatcher_looper;
 mod local_dispatcher_looper_take;
 mod local_dispatcher_metronome;
 mod local_dispatcher_midi_system;
+mod local_dispatcher_mixer;
 mod local_dispatcher_model_swap_rig;
 mod local_dispatcher_output;
 mod local_dispatcher_parity_829;
@@ -69,6 +73,11 @@ pub mod looper_take_library;
 /// #127: the metronome's control-plane state — settings, chosen output and
 /// tap history — owned by the dispatcher so every transport shares one truth.
 pub mod metronome_state;
+/// #1007: the global mixer's control-plane state.
+mod mixer_persist_coalesce;
+pub mod mixer_state;
+/// #1007: the global mixer strips as frontends read them.
+pub mod mixer_view;
 /// #693: command side-effect writes run on a dedicated worker thread —
 /// `flush()` is the durability barrier for shutdown and round-trips.
 pub mod persist_worker;
@@ -78,12 +87,14 @@ pub mod publishing_dispatcher;
 pub mod query;
 pub mod query_analyzers;
 pub mod query_block_params;
+pub mod query_chain_mixer;
 pub mod query_chain_quality;
 pub mod query_di;
 pub mod query_ids;
 pub mod query_kind;
 pub mod query_latency;
 pub mod query_loopers;
+pub mod query_mixer;
 pub mod query_output_routes;
 pub mod query_paths;
 pub mod query_plugins;
@@ -112,6 +123,18 @@ pub mod validate;
 #[cfg(test)]
 #[path = "local_dispatcher_tests.rs"]
 mod local_dispatcher_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_mixer_tests.rs"]
+mod local_dispatcher_mixer_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_mixer_solo_tests.rs"]
+mod local_dispatcher_mixer_solo_tests;
+
+#[cfg(test)]
+#[path = "local_dispatcher_chain_mixer_tests.rs"]
+mod local_dispatcher_chain_mixer_tests;
 
 #[cfg(test)]
 #[path = "ld_block2_tests.rs"]

@@ -50,6 +50,7 @@ fn a_route_the_runtime_never_feeds_is_not_counted_as_underrun() {
         blocks: Vec::new(),
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     let runtimes =
         build_per_input_runtime_states(&chain, RATE, &HashMap::new(), &[], &registry).unwrap();

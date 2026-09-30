@@ -245,6 +245,7 @@ it. A map line is always:
 ```
 
 `kind` is `note_on` (button), `cc` (knob — add `scale: { min, max }`),
+`pitch_bend` (a 14-bit fader, e.g. a Mackie Control strip — add `scale`),
 or `program_change`. Below is **the complete list** — `command` is the
 exact name, `args` is what goes in the line.
 
@@ -301,6 +302,86 @@ below is bindable.
 That is **all 34 commands** (enum order). The 7 live actions in the
 standard map are: ★31 `ApplyRigNav` StepPreset ±1 and StepScene ±1,
 ★32 `SelectChainBlock` (block 0/1), ★28 `SetChainVolume` on a knob.
+
+---
+
+## Global mixer strips and control surfaces (#1007)
+
+Every input and output endpoint of the machine's I/O bindings is a mixer
+strip (see `docs/screens.md` → Mixer). The strip id is the one
+`openrig://mixer` lists, e.g. `in:0@<device>` or `out:0,1@<device>`.
+
+| `command` | What it does | `args` |
+|---|---|---|
+| `SetMixerFader` | Move a strip's fader (dB, `-60..=+12`, 0 = unity) | `{ strip: text, gain_db: num }` — fader via `scale: { min: -60, max: 12, into: gain_db }` |
+| `SetMixerMute` | Mute / unmute a strip | `{ strip: text, muted: bool }` |
+| `ToggleMixerMute` | Flip a strip's mute (a MUTE button) | `{ strip: text }` |
+| `SetMixerSolo` | Solo / unsolo a strip | `{ strip: text, soloed: bool }` |
+| `ToggleMixerSolo` | Flip a strip's solo (a SOLO button) | `{ strip: text }` |
+
+SOLO silences every strip of the **same side** that is not soloed (an input
+solo never touches the outputs, and the other way round). Several solos on
+one side add up; clearing the last one restores the side. A solo never
+moves the stored fader and adds no latency.
+
+A Mackie Control surface (e.g. SMC-Mixer) sends each strip's fader as
+Pitch Bend on channels 1–8, each SOLO button as Note On `8..=15` and each
+MUTE button as Note On `16..=23`:
+
+```yaml
+input: SMC-Mixer
+bindings:
+  - source: { kind: pitch_bend, channel: 1 }
+    command: SetMixerFader
+    args: { strip: "in:0@<device>" }
+    scale: { min: -60.0, max: 12.0, into: gain_db }
+  - source: { kind: note_on, channel: 1, note: 8 }
+    command: ToggleMixerSolo
+    args: { strip: "in:0@<device>" }
+  - source: { kind: note_on, channel: 1, note: 16 }
+    command: ToggleMixerMute
+    args: { strip: "in:0@<device>" }
+```
+
+**Feedback (motor faders, LEDs).** With a map loaded through
+`--midi=PATH`, OpenRig sends each mixer change back to the controller,
+whoever made it (GUI, MCP, the surface): a `pitch_bend` fader gets its
+14-bit position, a `cc` fader its 0–127 position, a `note_on` mute or
+solo button gets velocity 127 (lit) or 0 (dark). Feedback goes only to the MIDI outputs
+whose name contains the map's `input:` — no `input:`, no feedback, so
+unrelated gear never receives fader bytes. The profile path (`--midi`
+without a path) has no per-strip bindings and sends no feedback; the
+external `mackie-control` bridge drives the mixer through the MCP tools
+and `openrig://mixer` instead.
+
+### A chain's own faders
+
+The compact chain view gives each chain its **own** fader and mute on every
+endpoint it plays through, on top of that endpoint's global strip, plus a
+fader for its DI loop. The chain fader multiplies with the global one and
+never moves it or any other chain. It is project data: it travels with
+`project.openrig`. `strip` is the global strip id of the endpoint.
+
+| `command` | What it does | `args` |
+|---|---|---|
+| `SetChainMixerFader` | Move the chain's fader on one endpoint (dB, `-60..=+12`) | `{ chain: id, strip: text, gain_db: num }` — via `scale: { min: -60, max: 12, into: gain_db }` |
+| `SetChainMixerMute` | Mute / unmute the chain on one endpoint | `{ chain: id, strip: text, muted: bool }` |
+| `ToggleChainMixerMute` | Flip the chain's mute on one endpoint | `{ chain: id, strip: text }` |
+| `SetChainDiFader` | Move the chain's DI-loop fader (dB, `-60..=+12`) | `{ chain: id, gain_db: num }` — via `scale` |
+
+```yaml
+bindings:
+  - source: { kind: cc, channel: 1, controller: 20 }
+    command: SetChainMixerFader
+    args: { chain: "rig:guitar", strip: "out:0,1@<device>" }
+    scale: { min: -60.0, max: 12.0, into: gain_db }
+```
+
+The chain faders send no controller feedback (only the global strips do).
+
+The compact view's other chain faders map to existing commands: MASTER is
+the chain volume (`SetChainVolume`) and each LOOPER fader is that looper's
+mix (`SetChainLooperParam` with `Mix`).
 
 ---
 

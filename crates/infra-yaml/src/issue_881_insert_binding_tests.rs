@@ -35,6 +35,7 @@ fn insert_binding_roundtrips_through_the_project_file() {
             }],
             di_output: None,
             loopers: Vec::new(),
+            mix: Default::default(),
         }],
         midi: None,
     };

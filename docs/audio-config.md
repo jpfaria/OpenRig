@@ -1006,6 +1006,32 @@ Settings live in **system** config (`config.yaml`), per ADR 0003; `enabled` is n
 
 On the Linux JACK build the dedicated cpal stream is `cfg`-guarded off, matching how `build_di_output_stream` handles the same case.
 
+## Global mixer gain (#1007)
+
+The global mixer has one fader + mute per **physical endpoint** configured in
+`config.yaml` (direction, device, channels — deduplicated across bindings, so
+an output declared in four bindings is one fader). On the audio path:
+
+- **Where.** An input fader scales the live device frames right after
+  `read_input_frame`, before the chain's blocks (loop and silence feeds are not
+  scaled). An output fader scales the route's frames together with the chain
+  volume, before the output limiter.
+- **Isolation.** Each endpoint has one lock-free `AtomicU32` target
+  (`engine/mixer_gains.rs`). A graph build hands each route / input pipeline an
+  `Arc` to its endpoint's scalar; the audio thread only loads it. Nothing is
+  summed or shared between streams — two chains on the same output each read
+  the same control value independently.
+- **No clicks, no latency.** A move glides linearly from the value the stream
+  last played to the target across one callback (`engine/mixer_ramp.rs`), then
+  holds. No buffering, so zero added latency.
+- **Unity is bit-identical.** A fader at 0 dB that stays there skips the
+  multiply entirely; `volume_invariants_tests.rs` is untouched.
+- **Split-mono inputs.** A mono endpoint with N channels runs as N single-channel
+  pipelines; the application writes the strip value to the whole group and to
+  each channel key, and the engine stays an exact-key lookup.
+- **Range.** -60 dB .. +12 dB, default 0 dB; the bottom of the fader and mute
+  are silence (linear 0).
+
 ## One output route per stream (#947)
 
 A chain on several bindings builds one runtime per binding. Each runtime owns

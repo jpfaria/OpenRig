@@ -97,3 +97,7 @@ tone-doctor-genre-none: "장르 없음"
 label-metronome-timbre-click: "클릭"
 label-metronome-timbre-wood: "우드"
 label-metronome-timbre-beep: "비프"
+# --- #1007: the compact view's chain mixer faders
+mixer-strip-di: "DI"
+mixer-strip-master: "마스터"
+mixer-strip-looper: "루퍼 %{n}"

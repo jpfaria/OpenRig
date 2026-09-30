@@ -136,6 +136,7 @@ fn rig_project(
             enabled,
             volume: 0.0, // identical DSP path, silent monitors
             blocks,
+            mix: Default::default(),
         }],
         midi: None,
     };

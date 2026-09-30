@@ -84,6 +84,7 @@ impl ChainYaml {
             blocks: parsed_blocks,
             di_output: None,
             loopers: self.loopers,
+            mix: Default::default(),
         })
     }
 

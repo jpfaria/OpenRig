@@ -24,6 +24,7 @@ fn chain() -> Chain {
             output: None,
             preset: None,
         }],
+        mix: Default::default(),
     }
 }
 

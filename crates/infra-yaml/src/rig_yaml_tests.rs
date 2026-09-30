@@ -264,6 +264,7 @@ fn legacy_chain(desc: &str, vol: f32) -> Chain {
         ],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     }
 }
 
@@ -422,6 +423,7 @@ fn round_trip_keeps_scenes_isolated_per_preset_in_the_same_bank() {
             endpoint: String::new(),
             io_binding_ids: Vec::new(),
             loopers: Vec::new(),
+            mix: Default::default(),
         },
     );
     let rig = RigProject {

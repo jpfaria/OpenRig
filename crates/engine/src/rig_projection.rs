@@ -108,6 +108,7 @@ pub fn rig_to_chains(rig: &RigProject) -> Vec<Chain> {
             blocks,
             di_output: None,
             loopers: input.loopers.clone(),
+            mix: input.mix.clone(),
         });
     }
     chains

@@ -161,6 +161,7 @@ fn a_mid_output_on_another_clock_arrives_clean() {
             ],
             di_output: None,
             loopers: vec![],
+            mix: Default::default(),
         }],
         midi: None,
     };

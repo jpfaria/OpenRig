@@ -111,6 +111,7 @@ pub fn run_desktop_app(
         tuner_window,
         spectrum_window,
         metronome_window,
+        mixer_window,
         chain_editor_window,
         plugin_info_window,
     } = crate::desktop_app_windows::create()?;
@@ -134,6 +135,7 @@ pub fn run_desktop_app(
             tuner_window: &tuner_window,
             spectrum_window: &spectrum_window,
             metronome_window: &metronome_window,
+            mixer_window: &mixer_window,
             chain_editor_window: chain_editor_window.clone(),
             plugin_info_window: plugin_info_window.clone(),
         },
@@ -357,6 +359,7 @@ pub fn run_desktop_app(
             tuner_window: &tuner_window,
             spectrum_window: &spectrum_window,
             metronome_window: &metronome_window,
+            mixer_window: &mixer_window,
         },
         &project_session,
         &project_chains,

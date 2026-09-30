@@ -36,6 +36,7 @@ fn timer_signature_flips_on_toggle_off_then_on_cycle() {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     // Initial: enabled, runtime up with 3 streams.
     let s_initial = crate::meter_wiring::timer_chain_signature(&c, 3);
@@ -93,6 +94,7 @@ fn controller_offline_then_back_invalidates_every_chain() {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     let mut last_sig: std::collections::HashMap<domain::ids::ChainId, u64> =
         std::collections::HashMap::new();
@@ -164,6 +166,7 @@ fn timer_signature_stays_constant_across_steady_state_ticks() {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     // Two consecutive steady-state ticks: same enabled, same blocks,
     // same stream_count → signature stable, no re-subscribe (flicker
@@ -377,6 +380,7 @@ fn replaced_runtime_with_same_stream_count_invalidates_the_chain() {
         }],
         di_output: None,
         loopers: vec![],
+        mix: Default::default(),
     };
     let mut last_sig = std::collections::HashMap::new();
     let old_runtime = RecordingTapApi {
