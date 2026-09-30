@@ -156,6 +156,17 @@ impl Oversampler2x {
     pub const fn latency_samples(&self) -> usize {
         (HBF_LEN - 1) / 2 / 2
     }
+
+    /// Measured round-trip delay of [`Self::up`] + [`Self::down`], in
+    /// original-rate samples — what a block that oversamples reports as its
+    /// processing latency. Each linear-phase FIR of length N delays (N−1)/2
+    /// up-rate samples, so up and down together delay (N−1)/2 base-rate
+    /// samples; keeping the odd phase on decimation moves the peak half a
+    /// sample earlier (14.5 for N = 31). The whole sample reported is 15
+    /// (#328).
+    pub const fn round_trip_latency_samples(&self) -> usize {
+        (HBF_LEN - 1) / 2
+    }
 }
 
 #[cfg(test)]
