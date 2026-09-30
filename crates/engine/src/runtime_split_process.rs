@@ -1,18 +1,31 @@
 //! Responsibility: runs one callback of a split over the segment's bus.
 //!
 //! Audio-thread hot path (#328, spec §4.1): path B runs in the split's own
-//! buffer, never in another segment or runtime. No allocation while the
-//! callback fits the buffer preallocated at build, no lock, no log.
+//! buffer, never in another segment or runtime. No allocation (a callback
+//! larger than the buffer preallocated at build runs in chunks), no lock,
+//! no log.
 
 use crate::runtime_audio_frame::AudioFrame;
 use crate::runtime_split::mix::{mix_frame, split_inputs};
 use crate::runtime_split::state::SplitRuntimeState;
 use crate::runtime_state::BlockRuntimeNode;
 
+/// Runs the split over the bus in chunks no larger than path B's
+/// preallocated buffer, so an oversized callback never grows it.
+pub(crate) fn process_split<F>(split: &mut SplitRuntimeState, frames: &mut [AudioFrame], mut run: F)
+where
+    F: FnMut(&mut BlockRuntimeNode, &mut [AudioFrame]),
+{
+    let chunk = split.b_buf.capacity().max(1);
+    for part in frames.chunks_mut(chunk) {
+        process_chunk(split, part, &mut run);
+    }
+}
+
 /// 1. fill path B's buffer from the bus and feed path A's input to the bus
 ///    in place; 2. run both paths through `run`; 3. delay the shorter path;
 /// 4. mix back into the bus.
-pub(crate) fn process_split<F>(split: &mut SplitRuntimeState, frames: &mut [AudioFrame], mut run: F)
+fn process_chunk<F>(split: &mut SplitRuntimeState, frames: &mut [AudioFrame], run: &mut F)
 where
     F: FnMut(&mut BlockRuntimeNode, &mut [AudioFrame]),
 {
@@ -27,7 +40,6 @@ where
     } = split;
     let values = knobs.load(*mixes);
     b_buf.clear();
-    b_buf.reserve(frames.len());
     for frame in frames.iter_mut() {
         let (to_a, to_b) = split_inputs(stereo(*frame), &values);
         *frame = AudioFrame::Stereo(to_a);

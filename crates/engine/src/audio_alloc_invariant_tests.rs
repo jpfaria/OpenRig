@@ -397,3 +397,48 @@ fn audio_callback_does_not_allocate_with_split_mix() {
          must be preallocated at build."
     );
 }
+
+/// #328 README decision 5: a callback larger than the split's preallocated
+/// buffer is processed in capacity-sized chunks, so an oversized callback
+/// must not grow path B's buffer (or any path scratch) on the audio thread.
+#[test]
+fn an_oversized_callback_through_a_split_does_not_allocate() {
+    use crate::runtime_audio_frame::AudioFrame;
+    use crate::runtime_process_segment::process_audio_block;
+    use crate::runtime_split::knobs::SplitKnobs;
+    use crate::runtime_split::process::process_split;
+    use crate::runtime_split::state::SplitRuntimeState;
+    use crate::runtime_split::test_support::gain_node;
+    use crate::runtime_state::{BlockError, SEGMENT_FRAME_CAPACITY};
+    use crossbeam_queue::ArrayQueue;
+    use domain::ids::BlockId;
+    use project::block::split_params::default_split_params;
+
+    let mut split = SplitRuntimeState::new(
+        true,
+        vec![gain_node("a", 0.5)],
+        vec![gain_node("b", 0.5)],
+        SplitKnobs::from_params(&default_split_params()),
+        &BlockId("split".into()),
+    );
+    let queue = ArrayQueue::<BlockError>::new(8);
+    // Warm-up at exactly the capacity: each path block's own processor
+    // scratch grows once on its first callback (engine-wide, not the split's).
+    let mut warm = vec![AudioFrame::Stereo([0.3, 0.3]); SEGMENT_FRAME_CAPACITY];
+    process_split(&mut split, &mut warm, |node, path| {
+        process_audio_block(node, path, &queue)
+    });
+    let mut frames = vec![AudioFrame::Stereo([0.3, 0.3]); 3 * SEGMENT_FRAME_CAPACITY + 7];
+    let allocs = measure_allocs(|| {
+        process_split(&mut split, &mut frames, |node, path| {
+            process_audio_block(node, path, &queue)
+        });
+    });
+    eprintln!("[#328 alloc] oversized split callback: {allocs} allocations");
+    assert_eq!(
+        allocs, 0,
+        "CLAUDE.md invariant #8 broken by the split: {allocs} heap allocations in \
+         one callback larger than path B's preallocated buffer — it must be \
+         processed in capacity-sized chunks."
+    );
+}

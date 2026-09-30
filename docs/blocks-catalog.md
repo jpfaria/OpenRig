@@ -101,7 +101,9 @@ Rules (`project::block::split_block_methods`, enforced by `validate_params` and 
 A Split → Mix runs inside the chain's own segment: shared blocks → split →
 path A and path B → mixer → shared blocks. Nothing is summed across segments
 or runtimes (stream isolation); path B runs in the split's own buffer,
-preallocated at build for a 1024-frame callback.
+preallocated at build for a 1024-frame callback. A larger callback runs
+through the split in 1024-frame chunks, so the buffer never grows on the
+audio thread.
 
 **Into the paths.** Mode I (`split_mode: same`): each path gets the bus ×
 `level_to_a` / `level_to_b` (`x/100`). Mode II (`dual_mono`): each path gets

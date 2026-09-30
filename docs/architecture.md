@@ -422,7 +422,8 @@ can satisfy them or trip them.
 
 `RuntimeProcessor::Split` is a node of the segment like any block. It holds
 both paths of a Split → Mix, path B's buffer (preallocated to
-`SEGMENT_FRAME_CAPACITY`), one alignment delay line per path and the knobs as
+`SEGMENT_FRAME_CAPACITY`; a larger callback is processed in chunks of that
+size, so it never grows), one alignment delay line per path and the knobs as
 atomics loaded once per callback. The mix is DSP inside that node — never a sum
 of two segments or two runtimes — so each segment of a chain runs its own split
 and stream isolation holds by construction.
