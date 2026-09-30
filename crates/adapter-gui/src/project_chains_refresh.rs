@@ -105,6 +105,8 @@ pub(crate) fn replace_project_chains(
                     out_dbfs: engine::output_meter::SILENT_DBFS,
                     in_label: Default::default(),
                     out_label: Default::default(),
+                    in_channels: Default::default(),
+                    out_channels: Default::default(),
                 },
                 // #771: the DI panel's output select — the chain's bound
                 // output endpoints + the persisted pick.
@@ -161,6 +163,14 @@ pub(crate) fn replace_project_chains(
                             out_dbfs: engine::output_meter::SILENT_DBFS,
                             in_label,
                             out_label,
+                            in_channels: labels
+                                .get(i)
+                                .map(|l| l.input_channels.as_str().into())
+                                .unwrap_or_default(),
+                            out_channels: labels
+                                .get(i)
+                                .map(|l| l.output_channels.as_str().into())
+                                .unwrap_or_default(),
                         });
                     }
                     ModelRc::from(model)

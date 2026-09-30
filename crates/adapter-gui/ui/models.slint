@@ -41,6 +41,10 @@ export struct StreamMeter {
     // #928: the E/S the stream reads from / writes to, named on its row.
     in_label: string,
     out_label: string,
+    // #1006: 1-based channels of each side ("1", "17,18"), so the input and
+    // output bars of one binding never read the same.
+    in_channels: string,
+    out_channels: string,
 }
 
 export struct ChainBlockItem {

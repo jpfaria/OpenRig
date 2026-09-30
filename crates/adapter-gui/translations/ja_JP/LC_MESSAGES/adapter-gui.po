@@ -972,9 +972,3 @@ msgstr "⌨"
 
 msgid "btn-update-to {}"
 msgstr "v{} にアップデート"
-
-msgid "meter-direction-in"
-msgstr "入力"
-
-msgid "meter-direction-out"
-msgstr "出力"

@@ -45,18 +45,32 @@ pub fn rebuild_stream_meters_row(
                 .get(i)
                 .map(|l| (l.input.as_str().into(), l.output.as_str().into()))
                 .unwrap_or_default();
+            // #1006: and the channels of each side.
+            let (in_channels, out_channels) = labels
+                .get(i)
+                .map(|l| {
+                    (
+                        l.input_channels.as_str().into(),
+                        l.output_channels.as_str().into(),
+                    )
+                })
+                .unwrap_or_default();
             match engine_readings.get(i) {
                 Some(r) => crate::StreamMeter {
                     in_dbfs: r.in_dbfs,
                     out_dbfs: apply_chain_volume_db(r.out_dbfs, chain_volume),
                     in_label,
                     out_label,
+                    in_channels,
+                    out_channels,
                 },
                 None => crate::StreamMeter {
                     in_dbfs: SILENT_DBFS,
                     out_dbfs: SILENT_DBFS,
                     in_label,
                     out_label,
+                    in_channels,
+                    out_channels,
                 },
             }
         })
