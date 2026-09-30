@@ -15,6 +15,10 @@ msgstr ""
 msgid "OpenRig"
 msgstr "OpenRig"
 
+#: crates/adapter-gui/ui/components/block_insert_slot.slint:80
+msgid "accessible-add-block-here"
+msgstr "在此添加模块"
+
 #: crates/adapter-gui/ui/components/block_panel_parameter_item.slint:276
 msgid "btn-load-file"
 msgstr "Load"
@@ -34,6 +38,10 @@ msgstr "+"
 #: crates/adapter-gui/ui/components/chain_di_loop_button.slint:57
 msgid "di-loop-button-label"
 msgstr "DI 循环"
+
+#: crates/adapter-gui/ui/components/chain_latency_badge.slint:26
+msgid "label-lat"
+msgstr "LAT"
 
 # I/O Bindings UI strings (added #716)
 # Looper UI strings (added #323)
@@ -89,13 +97,14 @@ msgstr "Tone Doctor"
 msgid "Volume"
 msgstr ""
 
-#: crates/adapter-gui/ui/components/channel_picker.slint:126
-msgid "label-channels-selected"
-msgstr "已选择："
-
-#: crates/adapter-gui/ui/components/channel_picker.slint:160
+#. channels. Default is the channel wording every existing picker shows.
+#: crates/adapter-gui/ui/components/channel_picker.slint:97
 msgid "label-channels-total"
 msgstr "{} 个通道"
+
+#: crates/adapter-gui/ui/components/channel_picker.slint:129
+msgid "label-channels-selected"
+msgstr "已选择："
 
 #: crates/adapter-gui/ui/components/compact_model_select_overlay.slint:73
 msgid "placeholder-search-models"
@@ -147,6 +156,43 @@ msgstr "移除"
 #: crates/adapter-gui/ui/components/di_loop_panel.slint:160
 msgid "di-output-select-label"
 msgstr "DI输出"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:61
+msgid "btn-close"
+msgstr "关闭"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:71
+msgid "hint-endpoint-checklist"
+msgstr "取消勾选的端点仍保留在列表中，但不再连接到此节点。"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:79
+msgid "hint-endpoints-empty"
+msgstr "此链的 E/S 没有此节点的端点。"
+
+#: crates/adapter-gui/ui/components/endpoint_checklist_overlay.slint:80
+msgid "label-endpoints-total"
+msgstr "{} 个端点"
+
+#. The split and the mixer carry no host label; their name is translated.
+#: crates/adapter-gui/ui/components/graph_node_card.slint:52
+msgid "graph-node-split"
+msgstr "分路"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:53
+msgid "graph-node-mixer"
+msgstr "混音器"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:151
+msgid "accessible-graph-node-bypass"
+msgstr "开启或关闭模块"
+
+#: crates/adapter-gui/ui/components/graph_node_card.slint:168
+msgid "accessible-graph-node-remove"
+msgstr "移除模块"
+
+#: crates/adapter-gui/ui/components/graph_view.slint:119
+msgid "accessible-graph-view"
+msgstr "信号链图"
 
 #: crates/adapter-gui/ui/components/language_selector.slint:57
 msgid "accessible-language-selector"
@@ -550,15 +596,11 @@ msgstr "端点"
 msgid "msg-pick-io-endpoint"
 msgstr "选择 I/O 和端点"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:324
-msgid "label-lat"
-msgstr "LAT"
-
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:373
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:334
 msgid "label-input"
 msgstr "输入"
 
-#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:419
+#: crates/adapter-gui/ui/pages/chain_row_blocks.slint:380
 msgid "label-output"
 msgstr "输出"
 
@@ -642,31 +684,31 @@ msgstr "↗"
 msgid "btn-open-homepage"
 msgstr "Open Homepage"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:113
+#: crates/adapter-gui/ui/pages/project_chains.slint:112
 msgid "tooltip-back"
 msgstr "返回"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:121
+#: crates/adapter-gui/ui/pages/project_chains.slint:120
 msgid "tooltip-spectrum"
 msgstr "Spectrum"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:129
+#: crates/adapter-gui/ui/pages/project_chains.slint:128
 msgid "tooltip-tuner"
 msgstr "Tuner"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:140
+#: crates/adapter-gui/ui/pages/project_chains.slint:139
 msgid "tooltip-metronome"
 msgstr "节拍器"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:148
+#: crates/adapter-gui/ui/pages/project_chains.slint:147
 msgid "tooltip-project-settings"
 msgstr "项目"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:157
+#: crates/adapter-gui/ui/pages/project_chains.slint:156
 msgid "tooltip-save"
 msgstr "保存"
 
-#: crates/adapter-gui/ui/pages/project_chains.slint:165
+#: crates/adapter-gui/ui/pages/project_chains.slint:164
 msgid "tooltip-new-chain"
 msgstr "新建 链"
 
@@ -737,10 +779,6 @@ msgstr "元数据"
 #: crates/adapter-gui/ui/pages/settings.slint:291
 msgid "btn-save-audio-settings"
 msgstr "应用"
-
-#: crates/adapter-gui/ui/pages/settings.slint:295
-msgid "btn-close"
-msgstr "关闭"
 
 #: crates/adapter-gui/ui/pages/settings/io_endpoint_add_row.slint:97
 msgid "label-endpoint-device"
@@ -997,24 +1035,6 @@ msgstr "OpenRig · 配置Insert"
 msgid "title-window-chain-port"
 msgstr "端口"
 
-#: crates/adapter-gui/ui/touch_main.slint:407
+#: crates/adapter-gui/ui/touch_main.slint:405
 msgid "⌨"
 msgstr "⌨"
-
-msgid "accessible-graph-view"
-msgstr "信号链图"
-
-msgid "graph-node-split"
-msgstr "分路"
-
-msgid "graph-node-mixer"
-msgstr "混音器"
-
-msgid "accessible-graph-node-bypass"
-msgstr "开启或关闭模块"
-
-msgid "accessible-graph-node-remove"
-msgstr "移除模块"
-
-msgid "accessible-add-block-here"
-msgstr "在此添加模块"

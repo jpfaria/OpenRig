@@ -197,10 +197,7 @@ mod chain_graph_adapter;
 mod chain_graph_drag;
 mod chain_graph_drop;
 mod chain_graph_models;
-// Several fixtures are first used by later tasks' tests (the last one,
-// `recording_session`, in Task 15): until then a test build would warn.
 #[cfg(test)]
-#[expect(dead_code, reason = "#328 part 6: fixtures of later tasks")]
 mod chain_graph_fixtures_tests;
 mod chain_graph_ids;
 mod chain_graph_wiring;
@@ -212,6 +209,8 @@ mod device_rows;
 mod device_selection_items;
 mod device_settings_resolve;
 mod endpoint_checklist_items;
+mod endpoint_checklist_wiring;
+mod endpoint_toggle;
 mod eq;
 mod graph_anchor;
 mod graph_click;
@@ -416,6 +415,8 @@ mod issue_328_split_picker_tests;
 mod issue_328_split_chip_tests;
 #[cfg(test)]
 mod issue_328_split_editor_interaction_tests;
+#[cfg(test)]
+mod issue_328_endpoint_checklist_interaction_tests;
 
 // #716: Slint interaction tests — instantiate the real ProjectSettingsWindow
 // headlessly and dispatch real pointer events, catching .slint structural bugs

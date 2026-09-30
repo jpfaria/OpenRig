@@ -397,6 +397,13 @@ it claims no input channel another chain wants, and it never fails the
 activation of the other chains. The rig runtime (`RigRuntime::build` /
 `enable_input`) reads the same rule, so its tap detector agrees (#924).
 
+In the chains screen (desktop), clicking a chain graph's input node — or its output node, or on a
+Y → A/B chain a lane's own output node — opens this checklist as a root-level panel: every input (or
+output) endpoint of the chain's E/S, checked unless that node leaves it out. Each click dispatches
+`SetChainEndpointEnabled` for that node and that endpoint and resyncs the chain; an unchecked
+endpoint stays listed so it can be checked again. The node's label names its checked endpoints
+(`None` when every one is off).
+
 Contract tests: `crates/project/tests/issue_328_endpoint_discovery.rs`, `crates/engine/tests/issue_328_endpoint_disables.rs`, `crates/infra-cpal/src/io_topology_tests.rs` (`unchecking_an_input_endpoint_changes_the_bound_io_signature`).
 
 ### Y → A/B outputs (issue #328)

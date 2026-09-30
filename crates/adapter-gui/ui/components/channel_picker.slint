@@ -92,6 +92,9 @@ export component ChannelPicker inherits Rectangle {
     // Single-select (mono) draws radios; multi-select draws checkboxes.
     in property <bool> single-select: false;
     in property <string> empty-hint;
+    // #328: the endpoint checklist reuses this list; it counts endpoints, not
+    // channels. Default is the channel wording every existing picker shows.
+    in property <string> total-caption: @tr("label-channels-total", root.channels.length);
     callback toggled(int /* index */, bool /* selected */);
 
     private property <length> row-height: 34px;
@@ -157,7 +160,7 @@ export component ChannelPicker inherits Rectangle {
             // How many channels the device actually has — with 30 of them the
             // scrollbar alone is too quiet an affordance.
             Text {
-                text: @tr("label-channels-total", root.channels.length);
+                text: root.total-caption;
                 color: #52525b;
                 font-size: 18px;
                 vertical-alignment: center;
