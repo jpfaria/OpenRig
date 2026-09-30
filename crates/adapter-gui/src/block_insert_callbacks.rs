@@ -138,7 +138,7 @@ pub(crate) fn wire(window: &AppWindow, ctx: BlockInsertCallbacksCtx) {
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
             crate::BlockEditorBridge::get(&window).set_eq_total_curve("".into());
-            set_selected_block(&window, None, None);
+            set_selected_block(&window, None);
             crate::BlockEditorBridge::get(&window).set_block_drawer_edit_mode(false);
             crate::BlockEditorBridge::get(&window).set_block_drawer_selected_type_index(-1);
             crate::BlockEditorBridge::get(&window).set_block_drawer_selected_model_index(-1);

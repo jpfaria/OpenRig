@@ -143,7 +143,7 @@ pub(crate) fn wire_block_delete(
             sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
             drop(session_borrow);
             *selected_block_delete.borrow_mut() = None;
-            set_selected_block(&main, None, None);
+            set_selected_block(&main, None);
             open_block_windows_delete
                 .borrow_mut()
                 .retain(|bw| bw.chain_index != draft.chain_index || bw.block_index != block_index);
@@ -251,7 +251,7 @@ pub(crate) fn wire_plugin_info_close(
             }
             drop(draft_borrow);
             *selected_block_close.borrow_mut() = None;
-            set_selected_block(&main, None, None);
+            set_selected_block(&main, None);
             let _ = win.hide();
         });
     }

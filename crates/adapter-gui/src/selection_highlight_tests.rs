@@ -47,7 +47,7 @@ fn chain(id: &str) -> Chain {
         enabled: false,
         volume: 100.0,
         io_binding_ids: vec![],
-        // Input, b0, b1, Output — UI strip is [b0, b1] (IO stripped).
+        // Input, b0, b1, Output — the strip draws all four (model A, #716).
         blocks: vec![
             io_block("in", true),
             core_block("b0"),
@@ -86,14 +86,15 @@ fn active_chain_without_block_marks_the_row_only() {
 }
 
 #[test]
-fn active_chain_and_block_marks_both_with_ui_block_index() {
+fn active_chain_and_block_marks_both_with_the_blocks_position() {
     let sel = SelectionState {
         active_chain: Some("rig:input-1".to_string()),
         active_block: Some("b1".to_string()),
         ..Default::default()
     };
-    // chain 0; "b1" is the 2nd core block → UI index 1 (IO stripped).
-    assert_eq!(active_highlight_indices(&project(), &sel), (0, 1));
+    // chain 0 is [in, b0, b1, out]; the strip draws all four (model A, #716),
+    // so "b1" is chip 2.
+    assert_eq!(active_highlight_indices(&project(), &sel), (0, 2));
 }
 
 #[test]
@@ -108,26 +109,26 @@ fn stale_active_chain_marks_nothing() {
 // ── neighbor block (the block `toggle_active_block_neighbor_enabled` acts on) ──
 
 #[test]
-fn neighbor_is_the_next_ui_block() {
+fn neighbor_is_the_next_chip() {
     let sel = SelectionState {
         active_chain: Some("rig:input-1".to_string()),
-        active_block: Some("b0".to_string()), // UI 0
+        active_block: Some("b0".to_string()), // chip 1
         ..Default::default()
     };
-    // neighbor = the block after the active one → b1 (UI 1)
-    assert_eq!(active_neighbor_block_ui_index(&project(), &sel), 1);
+    // The toggle-neighbor command targets the raw-next block → b1, chip 2.
+    assert_eq!(active_neighbor_block_ui_index(&project(), &sel), 2);
 }
 
 #[test]
-fn neighbor_is_minus_one_when_next_block_is_io() {
+fn neighbor_of_the_last_block_is_the_port_after_it() {
     let sel = SelectionState {
         active_chain: Some("rig:input-1".to_string()),
-        active_block: Some("b1".to_string()), // last audio block; raw-next is Output
+        active_block: Some("b1".to_string()),
         ..Default::default()
     };
-    // The toggle-neighbor command targets the raw-next block (here the
-    // Output endpoint), which has no chip on the strip → not markable.
-    assert_eq!(active_neighbor_block_ui_index(&project(), &sel), -1);
+    // The raw-next block is the mid `Output` port, which the strip draws as
+    // chip 3 — so it is markable.
+    assert_eq!(active_neighbor_block_ui_index(&project(), &sel), 3);
 }
 
 #[test]
@@ -137,4 +138,91 @@ fn neighbor_is_none_without_active_block() {
         ..Default::default()
     };
     assert_eq!(active_neighbor_block_ui_index(&project(), &sel), -1);
+}
+
+/// #328 (spec §5.2): the strip draws EVERY entry of `chain.blocks` (model A,
+/// #716 — `project_chains_refresh.rs`), so a mid `Input` port sits at chip 0
+/// and the block after it at chip 1. The old mapping skipped "the first
+/// Input", so selecting the block after a port lit the port's chip instead.
+#[test]
+fn the_highlight_lands_on_the_chip_the_strip_draws_for_the_block() {
+    let mut ported = chain("rig:input-1");
+    ported.blocks = vec![
+        io_block("port-in", true),
+        core_block("amp"),
+        io_block("port-out", false),
+    ];
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![ported],
+        midi: None,
+    };
+    let sel = SelectionState {
+        active_chain: Some("rig:input-1".to_string()),
+        active_block: Some("amp".to_string()),
+        ..Default::default()
+    };
+    assert_eq!(active_highlight_indices(&project, &sel), (0, 1));
+}
+
+fn chain_of(id: &str, blocks: Vec<AudioBlock>) -> Chain {
+    let mut c = chain(id);
+    c.blocks = blocks;
+    c
+}
+
+fn highlight(blocks: Vec<AudioBlock>, active: &str) -> (i32, i32) {
+    let project = Project {
+        name: None,
+        device_settings: vec![],
+        chains: vec![chain_of("rig:input-1", blocks)],
+        midi: None,
+    };
+    let sel = SelectionState {
+        active_chain: Some("rig:input-1".to_string()),
+        active_block: Some(active.to_string()),
+        ..Default::default()
+    };
+    active_highlight_indices(&project, &sel)
+}
+
+#[test]
+fn every_block_highlights_at_its_own_position() {
+    // Was `real_block_index_to_ui_maps_effect_blocks_correctly`.
+    let blocks = || {
+        vec![
+            io_block("in", true),
+            core_block("comp"),
+            core_block("pre"),
+            core_block("dly"),
+            io_block("out", false),
+        ]
+    };
+    assert_eq!(highlight(blocks(), "comp"), (0, 1));
+    assert_eq!(highlight(blocks(), "pre"), (0, 2));
+    assert_eq!(highlight(blocks(), "dly"), (0, 3));
+}
+
+#[test]
+fn a_port_block_is_highlightable() {
+    // Was `real_block_index_to_ui_hidden_blocks_return_none`: ports are chips now.
+    let blocks = || {
+        vec![
+            io_block("in", true),
+            core_block("dly"),
+            io_block("out", false),
+        ]
+    };
+    assert_eq!(highlight(blocks(), "in"), (0, 0));
+    assert_eq!(highlight(blocks(), "out"), (0, 2));
+}
+
+#[test]
+fn a_block_that_is_not_in_the_chain_marks_no_chip() {
+    // Was `real_block_index_to_ui_out_of_range_returns_none`.
+    assert_eq!(
+        highlight(vec![io_block("in", true), io_block("out", false)], "gone"),
+        (0, -1)
+    );
 }

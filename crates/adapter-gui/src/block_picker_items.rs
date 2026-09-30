@@ -1,11 +1,9 @@
 //! Responsibility: builds the picker lists a block type or model is chosen from.
 
-use crate::chain_endpoint_labels::real_block_index_to_ui;
 use crate::state::SelectedBlock;
 use crate::AppWindow;
 use crate::{BlockModelPickerItem, BlockTypePickerItem};
 use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
-use project::chain::Chain;
 use slint::{Model, SharedString, VecModel};
 
 pub fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
@@ -125,18 +123,12 @@ pub(crate) fn block_model_picker_labels(items: &[BlockModelPickerItem]) -> Vec<S
     items.iter().map(|item| item.label.clone()).collect()
 }
 
-pub(crate) fn set_selected_block(
-    window: &AppWindow,
-    selected_block: Option<&SelectedBlock>,
-    chain: Option<&Chain>,
-) {
+/// Mark the selected block on the strip. Its position in `chain.blocks` is the
+/// chip index (model A, #716 — #328 removed the Input/Output skipping).
+pub(crate) fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>) {
     if let Some(selected_block) = selected_block {
-        let ui_index = chain
-            .and_then(|c| real_block_index_to_ui(c, selected_block.block_index))
-            .map(|i| i as i32)
-            .unwrap_or(selected_block.block_index as i32);
         window.set_selected_chain_block_chain_index(selected_block.chain_index as i32);
-        window.set_selected_chain_block_index(ui_index);
+        window.set_selected_chain_block_index(selected_block.block_index as i32);
     } else {
         window.set_selected_chain_block_chain_index(-1);
         window.set_selected_chain_block_index(-1);

@@ -447,7 +447,7 @@ fn wire_drawer_toggle_save(
                 &project_session,
             );
             *selected_block_save.borrow_mut() = None;
-            set_selected_block(&main, None, None);
+            set_selected_block(&main, None);
             open_block_windows_save.borrow_mut().retain(|bw| {
                 bw.chain_index != draft.chain_index
                     || bw.block_index != draft.block_index.unwrap_or(usize::MAX)

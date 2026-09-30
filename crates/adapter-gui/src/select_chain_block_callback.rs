@@ -278,7 +278,7 @@ pub(crate) fn wire(
         let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params, eq_viz_sample_rate(&project_session));
         eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
         crate::BlockEditorBridge::get(&window).set_eq_total_curve(eq_total.into());
-        set_selected_block(&window, selected_block.borrow().as_ref(), Some(&chain));
+        set_selected_block(&window, selected_block.borrow().as_ref());
         let drawer_state =
             block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
         crate::BlockEditorBridge::get(&window).set_block_drawer_title(drawer_state.title.into());

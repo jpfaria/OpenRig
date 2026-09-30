@@ -29,7 +29,7 @@ use crate::compact_block_view::build_compact_blocks;
 use crate::compact_chain_block_handlers::{self, CompactChainBlockHandlersCtx};
 use crate::compact_chain_param_handlers::{self, CompactChainParamHandlersCtx};
 use crate::helpers::{set_status_error, show_child_window};
-use crate::project_view::{block_type_picker_items, real_block_index_to_ui};
+use crate::project_view::block_type_picker_items;
 use crate::state::{BlockEditorDraft, ProjectSession};
 use crate::{
     AppWindow, BlockStreamData, BlockStreamEntry, CompactChainViewWindow, ProjectChainItem,
@@ -338,27 +338,14 @@ pub(crate) fn wire(window: &AppWindow, ctx: CompactChainCallbacksCtx) {
         // Wire open-block-detail (click on model select opens full editor)
         {
             let weak_main = window.as_weak();
-            let project_session_detail = project_session.clone();
             compact_win.on_open_block_detail(move |ci, bi| {
                 let Some(main_win) = weak_main.upgrade() else {
                     return;
                 };
-                // bi is a real block index from CompactBlockItem — convert to UI index
-                // because on_select_chain_block now expects UI indices
-                let session_borrow = project_session_detail.borrow();
-                let ui_bi = if let Some(session) = session_borrow.as_ref() {
-                    let proj = session.project.borrow();
-                    if let Some(chain) = proj.chains.get(ci as usize) {
-                        real_block_index_to_ui(chain, bi as usize)
-                            .map(|i| i as i32)
-                            .unwrap_or(bi)
-                    } else {
-                        bi
-                    }
-                } else {
-                    bi
-                };
-                main_win.invoke_select_chain_block(ci, ui_bi);
+                // `bi` is the block's position in `chain.blocks`; the chains
+                // screen's rows are exactly `chain.blocks` (model A, #716), so
+                // it is the row index as is (#328: no Input/Output skipping).
+                main_win.invoke_select_chain_block(ci, bi);
                 let _ = main_win.window().show();
             });
         }
